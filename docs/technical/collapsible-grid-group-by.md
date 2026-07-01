@@ -123,15 +123,16 @@ rows returned by the ordinary grid rows endpoint.
 
 ### Query Parameters
 
-| Param                 | Meaning                                                                        |
-| --------------------- | ------------------------------------------------------------------------------ |
-| `offset`              | Sibling offset within the parent. This is group-space, not row-space.          |
-| `limit`               | Maximum sibling groups per page, capped by the server. With `include_descendants` it also sets the leaf-row budget for the whole subtree walk. |
-| `parents`             | Optional JSON array of `{parent\|path, offset, limit}` requests. Omitted means top-level groups. |
-| `depth`               | Zero-based depth. When present, switches to depth mode (used for collapse-all). |
-| `include_descendants` | Walk the returned parents' subtrees depth-first down to the leaves (see Dispatch Modes). |
-| `descendant_limit`    | Per-descendant-page group limit, capped by the server.                         |
-| filters / search      | Same ad-hoc filter and search parameters accepted by the rows endpoint.        |
+| Param                   | Meaning                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `offset`                | Sibling offset within the parent. This is group-space, not row-space.          |
+| `limit`                 | Maximum sibling groups per page, capped by the server.                         |
+| `parents`               | Optional JSON array of `{parent\|path, offset, limit}` requests. Omitted means top-level groups. |
+| `depth`                 | Zero-based depth. When present, switches to depth mode (used for collapse-all). |
+| `include_descendants`   | Walk the returned parents' subtrees depth-first down to the leaves (see Dispatch Modes). |
+| `descendant_limit`      | Per-descendant-page group limit, capped by the server.                         |
+| `descendant_row_budget` | Total leaf-row budget for descendant loading, defaulting to `limit` and capped by the server. |
+| filters / search        | Same ad-hoc filter and search parameters accepted by the rows endpoint.        |
 
 ### Response Shape
 
@@ -192,11 +193,14 @@ The same endpoint supports two loading modes:
 When `include_descendants` is used, the server walks each requested parent's
 subtree **depth-first** (pre-order) and returns the visited pages down to the
 leaves, so one request returns the whole visible subtree rather than a single
-level. The walk is budgeted by accumulated leaf `row_count` (the viewport size,
-taken from `limit`); the leaf that crosses the budget is returned whole, and the
-page and group caps still bound pathological trees (`truncated: true` when hit).
-The server threads known parent offsets into descendant calculations so child
-`row_offset` values stay aligned without extra work.
+level. The walk is bounded by an absolute row window: it anchors at the first
+returned group's row offset `start` and only expands groups whose `row_offset`
+falls within `[start, start + budget)`, where `budget` is the viewport size taken
+from `descendant_row_budget` (or from `limit` when omitted); groups starting past
+the window render a placeholder and lazy-load on scroll. The page and group caps
+still bound pathological trees (`truncated: true` when hit). The server threads
+known parent offsets into descendant calculations so child `row_offset` values
+stay aligned without extra work.
 
 ## Server-Side Responsibilities
 

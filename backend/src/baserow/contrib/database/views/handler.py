@@ -4364,8 +4364,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Fallback for orderings not projected into order-key aliases (a field type
         # whose get_order yields a non-OrderBy). The compiler emits SQL against the
-        # inner table alias, so rewrite it to the outer "grouped_data" alias to use
-        # it inside the window's ORDER BY.
+        # inner table alias, so rewrite it to the outer "grouped_data" alias for the
+        # window's ORDER BY.
         compiler = queryset.query.get_compiler(connection=connection)
         order_by_parts = []
         params = []

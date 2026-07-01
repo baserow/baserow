@@ -1,4 +1,7 @@
-import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
+import {
+  pathKey,
+  visibleGroupDepthPageInViewport,
+} from '@baserow/modules/database/utils/gridGroupByRender'
 import { computeRowInsertPosition } from '@baserow/modules/database/utils/row'
 import { getRowSortFunction } from '@baserow/modules/database/utils/view'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
@@ -250,7 +253,8 @@ export function getGroupByPathDepth(path, fields) {
 }
 
 /**
- * The path trimmed to `depth` levels (an ancestor path).
+ * The path trimmed to the ancestor at the 0-based level `depth`, i.e. its first
+ * `depth + 1` levels.
  */
 export function getGroupByPathPrefix(path, fields, depth) {
   const prefix = {}
@@ -560,7 +564,7 @@ export function updateGroupByDataPageForPath({
   const existingIndex = Object.keys(nodes).find((index) =>
     groupByPathsMatchAtDepth(nodes[index].path, targetPath, fields, depth)
   )
-  let totalSiblingCount = page.totalSiblingCount ?? indexedNodes.length
+  const totalSiblingCount = page.totalSiblingCount ?? indexedNodes.length
 
   if (existingIndex !== undefined) {
     const current = nodes[existingIndex]
@@ -872,7 +876,7 @@ function getAbsoluteRowForGroupBySection({
  * endPosition} ranges (carrying the section's other fields through). Shared scan used to
  * find both missing section rows and missing absolute-row offsets.
  */
-export function collectMissingSectionRanges(sections, isMissingAt) {
+function collectMissingSectionRanges(sections, isMissingAt) {
   const missing = []
 
   for (const section of sections) {
@@ -1052,4 +1056,199 @@ export function getGroupByAbsoluteRangesForVisibleRange(
       })
     })
   return ranges
+}
+
+/**
+ * Marks `sectionKeys` most-recently-used in the LRU order of `target` (the live
+ * `state.groupBy` or a refresh snapshot).
+ */
+export function touchGroupBySectionAccess(target, sectionKeys) {
+  if (sectionKeys.length === 0) {
+    return
+  }
+  const touched = new Set(sectionKeys)
+  target.sectionAccessOrder = [
+    ...(target.sectionAccessOrder || []).filter((key) => !touched.has(key)),
+    ...sectionKeys,
+  ]
+}
+
+/**
+ * Binary-searches the ascending, non-overlapping sections for the one containing
+ * `rowIndex`.
+ */
+export function findGroupBySectionForVisibleIndex(sections, rowIndex) {
+  let low = 0
+  let high = sections.length - 1
+  while (low <= high) {
+    const mid = (low + high) >> 1
+    const section = sections[mid]
+    if (rowIndex < section.firstGlobalRowOffset) {
+      high = mid - 1
+    } else if (rowIndex >= section.firstGlobalRowOffset + section.rowCount) {
+      low = mid + 1
+    } else {
+      return section
+    }
+  }
+  return null
+}
+
+/**
+ * Resolves the single group-depth page visible in the viewport, skipping requests
+ * already recorded in `seenRequests`.
+ */
+export function getVisibleGroupDepthPageToFetch({
+  layout,
+  viewport,
+  pageSize,
+  seenRequests = null,
+}) {
+  const page = visibleGroupDepthPageInViewport(layout, viewport, pageSize)
+  if (page === null) {
+    return null
+  }
+
+  const requestKey = `${page.depth}:${page.offset}:${page.limit}`
+  if (seenRequests?.has(requestKey)) {
+    return null
+  }
+
+  seenRequests?.add(requestKey)
+  return page
+}
+
+/** Ranges within `sections` whose absolute-offset rows aren't yet in `absoluteRows`. */
+export function getMissingAbsoluteRowRanges(absoluteRows, sections) {
+  return collectMissingSectionRanges(
+    sections,
+    (section, position) =>
+      absoluteRows?.[section.absoluteRowOffset + position] === undefined
+  )
+}
+
+/**
+ * Distributes a just-fetched window of rows (`rowsByOffset`, keyed by absolute offset)
+ * into the leaf sections it overlaps. Clamping each section to its intersection with
+ * [requestOffset, requestOffset + fetchedRowCount) keeps placement O(window), not
+ * O(total loaded rows).
+ */
+export function buildGroupBySectionPlacements({
+  layout,
+  rowsByOffset,
+  requestOffset,
+  fetchedRowCount,
+  groupByFields,
+  registry,
+}) {
+  const fetchedEnd = requestOffset + fetchedRowCount
+  const sections = []
+  for (const item of layout.items) {
+    if (item.type !== 'rowSection') {
+      continue
+    }
+    const sectionStart = item.absoluteRowOffset
+    const sectionEnd = sectionStart + item.rowCount
+    const overlapStart = Math.max(sectionStart, requestOffset)
+    const overlapEnd = Math.min(sectionEnd, fetchedEnd)
+    if (overlapStart >= overlapEnd) {
+      continue
+    }
+    sections.push({
+      ...item,
+      sectionKey: pathKey(item.path, groupByFields),
+      startPosition: overlapStart - sectionStart,
+      endPosition: overlapEnd - sectionStart,
+    })
+  }
+  return placeAbsoluteRowsIntoSections({
+    absoluteRows: rowsByOffset,
+    fields: groupByFields,
+    registry,
+    sections,
+  })
+}
+
+/** Stable cache key identifying a group-by rows request by its query parameters. */
+export function getGroupByRowsRequestKey({
+  gridId,
+  offset,
+  limit,
+  includeFieldOptions,
+  search,
+  searchMode,
+  publicUrl,
+  publicAuthToken,
+  groupBy,
+  orderBy,
+  filters,
+}) {
+  return JSON.stringify({
+    gridId,
+    offset,
+    limit,
+    includeFieldOptions,
+    search,
+    searchMode,
+    publicUrl,
+    publicAuthToken,
+    groupBy,
+    orderBy,
+    filters,
+  })
+}
+
+/**
+ * Merges a fetched group-by page into `target` (the live `state.groupBy` or an off-store
+ * snapshot for refreshActiveGroupBys). One implementation keeps both paths in sync.
+ */
+export function mergeGroupByDataPageInto(target, { data, parentPath, fields }) {
+  const pageKey = pathKey(parentPath || {}, fields)
+  const pages = target.pages || {}
+  const existing = pages[pageKey] || {
+    parentPath: parentPath || {},
+    nodes: {},
+    totalSiblingCount: 0,
+  }
+  const nodes = { ...existing.nodes }
+  const groups = data.groups || []
+  for (const [index, group] of groups.entries()) {
+    const siblingIndex = group.sibling_index ?? data.offset + index
+    nodes[siblingIndex] = group
+  }
+  target.pages = {
+    ...pages,
+    [pageKey]: {
+      parentPath: parentPath || {},
+      nodes,
+      totalSiblingCount: data.group_count ?? 0,
+    },
+  }
+  target.treeNodes = Object.values(
+    target.pages[pathKey({}, fields)]?.nodes || {}
+  ).sort((a, b) => (a.sibling_index ?? 0) - (b.sibling_index ?? 0))
+}
+
+/**
+ * Reindexes section row positions on `target` (the live `state.groupBy` or an off-store
+ * snapshot). Shared so both paths enforce the same authoritative-`rowLocations` invariant.
+ */
+export function reindexGroupBySectionPositionsInto(target, sectionKey) {
+  const rows = target.sectionRows[sectionKey] || []
+  rows.forEach((row, position) => {
+    if (!row) {
+      return
+    }
+    const location = target.rowLocations[row.id]
+    if (location) {
+      location.position = position
+    } else if (import.meta.env.MODE !== 'production') {
+      // rowLocations is authoritative: a materialized row missing its entry would
+      // silently break getRow, so surface the drift loudly outside production.
+      console.error(
+        `Grid group-by invariant violated: row ${row.id} in section ` +
+          `"${sectionKey}" has no rowLocations entry.`
+      )
+    }
+  })
 }

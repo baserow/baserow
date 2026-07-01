@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -302,6 +304,87 @@ def test_get_group_by_data_supports_many_to_many_parent_level(data_fixture):
     )
 
     assert [group["path"][status.db_column] for group in data["groups"]] == [option.id]
+
+
+@pytest.mark.django_db
+def test_get_group_by_data_truncates_datetime_groups_to_the_minute(data_fixture):
+    """
+    Datetimes must group by the minute (seconds and microseconds ignored), matching the
+    per-row group-by metadata path. Rows in the same minute but different seconds form a
+    single group, and the group path value is the minute-truncated datetime.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_date_field(
+        table=table, name="When", date_include_time=True
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=field)
+
+    model = table.get_model()
+    db_column = field.db_column
+    same_minute_a = datetime(2024, 1, 1, 10, 30, 12, tzinfo=timezone.utc)
+    same_minute_b = datetime(2024, 1, 1, 10, 30, 45, tzinfo=timezone.utc)
+    other_minute = datetime(2024, 1, 1, 10, 31, 5, tzinfo=timezone.utc)
+    for value in (same_minute_a, same_minute_b, other_minute):
+        model.objects.create(**{db_column: value})
+
+    view_handler = ViewHandler()
+    base_queryset = view_handler.get_queryset(
+        user, grid, model=model, apply_sorts=False
+    )
+    data = view_handler.get_group_by_data(
+        base_queryset, list(grid.viewgroupby_set.all()), limit=50
+    )
+
+    assert sorted(group["row_count"] for group in data["groups"]) == [1, 2]
+    assert all(
+        group["path"][db_column].second == 0
+        and group["path"][db_column].microsecond == 0
+        for group in data["groups"]
+    )
+
+
+@pytest.mark.django_db
+def test_get_group_by_data_resolves_datetime_parent_path_ignoring_seconds(data_fixture):
+    """
+    Descending into a datetime parent group must resolve its children even when the
+    requested parent path datetime carries seconds the stored value truncates away.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    when = data_fixture.create_date_field(
+        table=table, name="When", date_include_time=True
+    )
+    status = data_fixture.create_text_field(table=table, name="Status")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=when)
+    data_fixture.create_view_group_by(view=grid, field=status)
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            when.db_column: datetime(2024, 1, 1, 10, 30, 12, tzinfo=timezone.utc),
+            status.db_column: "Open",
+        }
+    )
+
+    view_handler = ViewHandler()
+    base_queryset = view_handler.get_queryset(
+        user, grid, model=model, apply_sorts=False
+    )
+    data = view_handler.get_group_by_data(
+        base_queryset,
+        list(grid.viewgroupby_set.all()),
+        # Different seconds on purpose; the path must still resolve the same group.
+        parent_path={
+            when.db_column: datetime(2024, 1, 1, 10, 30, 59, tzinfo=timezone.utc)
+        },
+    )
+
+    assert [group["path"][status.db_column] for group in data["groups"]] == ["Open"]
 
 
 @pytest.mark.django_db

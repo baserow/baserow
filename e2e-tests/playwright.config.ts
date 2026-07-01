@@ -6,8 +6,8 @@ import path from "path";
 // (VS Code Playwright extension runs from the workspace root, not e2e-tests/).
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
-const defaultBackendPort = process.env.E2E_BACKEND_PORT || "8030";
-const defaultFrontendPort = process.env.E2E_FRONTEND_PORT || "3030";
+const defaultBackendPort = process.env.E2E_BACKEND_PORT || "8070";
+const defaultFrontendPort = process.env.E2E_FRONTEND_PORT || "3070";
 
 export const baserowConfig = {
   PUBLIC_WEB_FRONTEND_URL: process.env.PUBLIC_WEB_FRONTEND_URL

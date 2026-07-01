@@ -5,10 +5,9 @@ export const GROUP_GAP = 8
 const GROUP_BANNER_DEPTH_INDENT_PX = 24
 const GROUP_BANNER_BASE_GUTTER = 12
 const GROUP_BANNER_CHEVRON_WIDTH = 24
-// The deepest group chevron never shifts further right than this budget, so adding more
-// group-by levels stops marching the chevron (and the field name + count after it) off
-// to the right. The per-level step shrinks to stay within the budget and the row-details
-// lane, keeping the field name + count column aligned at every depth.
+// Caps how far the deepest chevron indents. Beyond this the per-level step shrinks
+// instead of pushing the chevron (and the field name + count after it) off the right,
+// keeping that column aligned within the row-details lane at every depth.
 const GROUP_BANNER_MAX_INDENT_PX = 50
 
 /**
@@ -32,10 +31,9 @@ export function groupBannerIndentPx(depth, levelCount, rowDetailsWidth) {
   const step = Math.min(GROUP_BANNER_DEPTH_INDENT_PX, maxShift / maxDepth)
   return GROUP_BANNER_BASE_GUTTER + depth * step
 }
-// Default sibling-group page size, matching the server's GROUP_BY_DATA_DEFAULT_LIMIT.
-// In production the store passes its row `bufferRequestSize` (also 40) as `pageSize` so
-// a viewport fetches a comparable number of groups and rows; this default is the
-// fallback used by callers/tests that don't override it. Keep the two values aligned.
+// Fallback sibling-group page size for callers/tests that don't pass `pageSize`. In
+// production the store passes its row `bufferRequestSize`; keep both aligned with the
+// server's GROUP_BY_DATA_DEFAULT_LIMIT so a viewport fetches comparable groups and rows.
 const GROUP_PAGE_SIZE = 40
 
 const PATH_KEY_SEP = '\x1f'
@@ -47,9 +45,8 @@ export function pathKey(path, fields) {
     if (!(key in path)) {
       break
     }
-    // Canonicalize m2m id arrays by numeric sort so a group is keyed by its set of ids,
-    // not their order. This is applied to every path (server- or row-derived), so the key
-    // never depends on how the source ordered the ids — only that the ids are integers.
+    // Numeric-sort m2m id arrays so a group is keyed by its set of ids, not their order,
+    // regardless of how the source (server- or row-derived) ordered them.
     const value = path[key]
     const canonical = Array.isArray(value)
       ? [...value].sort((a, b) => a - b)
@@ -256,6 +253,7 @@ function pushUnloadedGroupPlaceholder({
   depth,
   startIndex,
   endIndex,
+  globalStartIndex,
   y,
 }) {
   const height = unloadedGroupRangeHeight(startIndex, endIndex, depth)
@@ -268,6 +266,9 @@ function pushUnloadedGroupPlaceholder({
     depth,
     siblingStartIndex: startIndex,
     siblingEndIndex: endIndex,
+    // Sibling index across all parents at this depth (the space the depth-page
+    // offset lives in), which includes hidden emptied groups that emit no header.
+    globalSiblingStartIndex: globalStartIndex,
     y,
     height,
   })
@@ -292,11 +293,18 @@ function buildPagedLayout({
   const maxDepth = fields.length - 1
   const exceptionKeys = collapseExceptionKeys(collapse, fields)
 
-  // Guards against a self-referential descent: if a stale page (e.g. built before a
-  // group-by field was removed) keys to an ancestor already on the stack, getPage
-  // would resolve it again and recurse forever. Each parent path is unique in a valid
-  // tree, so skipping an already-visited key only ever breaks such a cycle.
+  // Breaks a self-referential descent: a stale page (e.g. built before a group-by field
+  // was removed) can key to an ancestor already on the stack and recurse forever. Parent
+  // paths are unique in a valid tree, so skipping a visited key only ever cuts a cycle.
   const visitedPageKeys = new Set()
+
+  // Running count of siblings seen at each depth across all parents, in walk order (the
+  // same order the server enumerates a depth). Includes hidden emptied groups, which emit
+  // no header, so depth-page placeholders anchor to the offset the server actually uses.
+  const globalSiblingCountByDepth = new Map()
+  const globalSiblingCount = (d) => globalSiblingCountByDepth.get(d) || 0
+  const advanceGlobalSiblingCount = (d, count) =>
+    globalSiblingCountByDepth.set(d, globalSiblingCount(d) + count)
 
   const walkPage = (parentPath, depth, fallbackSiblingCount = 0) => {
     const pageCacheKey = pathKey(parentPath, fields)
@@ -329,8 +337,10 @@ function buildPagedLayout({
           depth,
           startIndex: index,
           endIndex: unloadedEnd,
+          globalStartIndex: globalSiblingCount(depth),
           y,
         })
+        advanceGlobalSiblingCount(depth, unloadedEnd - index)
         index = unloadedEnd
         placedSibling = true
         continue
@@ -343,10 +353,13 @@ function buildPagedLayout({
 
       const node = page.nodes[loadedIndex]
       // Hide optimistically-emptied leaf groups (the node is kept for reconciliation).
+      // The slot still counts toward the depth offset, since the server keeps enumerating
+      // the group until the move is persisted.
       if (
         (node.depth ?? depth) === maxDepth &&
         (node.rowCount ?? node.row_count ?? 0) === 0
       ) {
+        advanceGlobalSiblingCount(depth, 1)
         index += 1
         loadedPointer += 1
         continue
@@ -405,6 +418,7 @@ function buildPagedLayout({
         }
       }
 
+      advanceGlobalSiblingCount(node.depth ?? depth, 1)
       index += 1
       loadedPointer += 1
     }
@@ -520,42 +534,34 @@ export function visibleGroupDepthPageInViewport(
 ) {
   const top = viewport.scrollTop
   const bottom = viewport.scrollTop + viewport.clientHeight
-  const seenByDepth = new Map()
 
   for (const item of layout.items) {
-    if (item.type === 'header') {
-      seenByDepth.set(item.depth, (seenByDepth.get(item.depth) || 0) + 1)
-      continue
-    }
-
     if (item.type !== 'groupPlaceholder') {
       continue
     }
 
-    const groupCount = item.siblingEndIndex - item.siblingStartIndex
-    const depthSeen = seenByDepth.get(item.depth) || 0
     const itemBottom = item.y + item.height
-
-    if (itemBottom > top && item.y < bottom) {
-      const visibleStart = placeholderStartIndexAtOffset(
-        item,
-        Math.max(top, item.y) - item.y
-      )
-      const globalVisibleStart =
-        depthSeen + (visibleStart - item.siblingStartIndex)
-      const pageOffset = Math.floor(globalVisibleStart / pageSize) * pageSize
-
-      return {
-        depth: item.depth,
-        offset: pageOffset,
-        limit: pageSize,
-      }
+    if (itemBottom <= top) {
+      continue
     }
-
-    seenByDepth.set(item.depth, depthSeen + groupCount)
-
     if (item.y >= bottom) {
       break
+    }
+
+    const visibleStart = placeholderStartIndexAtOffset(
+      item,
+      Math.max(top, item.y) - item.y
+    )
+    // globalSiblingStartIndex maps the placeholder's per-parent start into the
+    // depth-wide sibling space the server offsets on, so batch-fetching the right page.
+    const globalVisibleStart =
+      item.globalSiblingStartIndex + (visibleStart - item.siblingStartIndex)
+    const pageOffset = Math.floor(globalVisibleStart / pageSize) * pageSize
+
+    return {
+      depth: item.depth,
+      offset: pageOffset,
+      limit: pageSize,
     }
   }
 
@@ -613,22 +619,23 @@ export function renderViewport({
     }
 
     if (item.type === 'groupPlaceholder') {
-      // Render the unloaded region as a staircase of skeleton headers spanning every
-      // level the group still nests through (we know the level count even before the
-      // data loads), clipped to the viewport, so the full structure shows while the
-      // descendant request resolves instead of leaving blank space below the parent.
+      // Fill the unloaded region with a staircase of skeleton headers, one per level the
+      // group still nests through (the level count is known before the data loads), so
+      // the structure shows instead of blank space while the descendant request resolves.
       const rangeBottom = item.y + item.height
       const maxDepth = Math.max((fields?.length ?? 1) - 1, item.depth)
       const levelsBelow = maxDepth - item.depth + 1
-      const firstSlotIndex = Math.max(
-        0,
-        Math.floor((top - item.y) / HEADER_HEIGHT)
-      )
+      // Top-level groups are laid out with a gap between siblings (see
+      // `unloadedGroupRangeHeight`), so step by the same stride or the staircase
+      // over-produces slots across the gapped range.
+      const slotStep =
+        item.depth === 0 ? HEADER_HEIGHT + GROUP_GAP : HEADER_HEIGHT
+      const firstSlotIndex = Math.max(0, Math.floor((top - item.y) / slotStep))
       let slotIndex = firstSlotIndex
       for (
-        let slotY = item.y + firstSlotIndex * HEADER_HEIGHT;
+        let slotY = item.y + firstSlotIndex * slotStep;
         slotY < rangeBottom && slotY < bottom;
-        slotY += HEADER_HEIGHT, slotIndex += 1
+        slotY += slotStep, slotIndex += 1
       ) {
         items.push({
           type: 'groupSkeleton',

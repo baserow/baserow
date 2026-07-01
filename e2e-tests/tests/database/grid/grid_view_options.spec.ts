@@ -4,9 +4,10 @@
  * Catalogue sections covered:
  *   section 5   Filters loaded from saved view configuration
  *   section 6   Sorts loaded from saved view configuration
- *   section 7   Search (highlight mode, hide-not-matching mode)
- *   section 8   Presentation options (row coloring, fields, row height, freeze, identifiers)
- *   section 14  Public shared grid view
+ *   section 7   Group-by
+ *   section 8   Search (highlight mode, hide-not-matching mode)
+ *   section 9   Presentation options (row coloring, fields, row height, freeze, identifiers)
+ *   section 15  Public shared grid view
  *
  */
 

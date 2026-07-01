@@ -139,8 +139,8 @@ GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM = OpenApiParameter(
     required=False,
     description=(
         "When true, each returned group page also preloads bounded descendant "
-        "pages starting at offset 0. The total number of returned groups is "
-        "bounded by the request limit."
+        "pages starting at offset 0. The walk is bounded by descendant page and "
+        "leaf-row budgets plus server-side caps."
     ),
 )
 GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM = OpenApiParameter(
@@ -151,6 +151,16 @@ GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM = OpenApiParameter(
     description=(
         "Optional per-descendant-page group limit. Defaults to the request limit "
         "and is capped by the row page size limit and the total group budget."
+    ),
+)
+GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM = OpenApiParameter(
+    name="descendant_row_budget",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.INT,
+    required=False,
+    description=(
+        "Optional total leaf-row budget for include_descendants. Defaults to the "
+        "request limit and is capped by the total group budget."
     ),
 )
 
@@ -447,6 +457,7 @@ class GridViewGroupByDataView(APIView):
             GROUP_BY_DATA_DEPTH_API_PARAM,
             GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM,
+            GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM,
             OpenApiParameter("offset", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
             *ADHOC_FILTERS_API_PARAMS,
@@ -867,6 +878,7 @@ class PublicGridViewGroupByDataView(APIView):
             GROUP_BY_DATA_DEPTH_API_PARAM,
             GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM,
+            GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM,
             OpenApiParameter("offset", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
             *ADHOC_FILTERS_API_PARAMS,

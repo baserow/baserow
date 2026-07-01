@@ -5,7 +5,7 @@ import { Table } from "../../fixtures/database/table";
 import { User } from "../../fixtures/user";
 
 /**
- * Page object for the flat (no group-by) Baserow grid view.
+ * Page object for the Baserow grid view.
  *
  * ## Left / right section model
  *

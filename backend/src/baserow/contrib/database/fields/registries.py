@@ -2247,10 +2247,9 @@ class ManyToManyGroupByMixin:
     ) -> Any:
         if value is None:
             return tuple()
-        # When the unique value is derived from a row, `value` is the many-to-many
-        # manager and we read the related ids from it. When it comes from a
-        # deserialized group-by path (a parent path of a nested group request), it is
-        # already the list of related ids.
+        # `value` is the M2M manager when derived from a row (read related ids from it),
+        # or already the list of related ids when it comes from a deserialized group-by
+        # path (a parent path of a nested group request).
         if hasattr(value, "all"):
             ids = [related.id for related in value.all()]
         else:
@@ -2272,12 +2271,11 @@ class ManyToManyGroupByMixin:
         if order.annotation is None or table_model is None:
             return order
 
-        # In a group-by data query the relation column is shadowed by an aggregated
-        # ArrayField annotation (see `get_group_by_field_filters_and_annotations`), so
-        # the relation joins that `get_order` depends on are no longer reachable on the
-        # grouped queryset. Recompute the exact same ordering expressions as per-row
-        # correlated subqueries against the table model, where the relation is still
-        # available, so the groups are ordered identically to the rows.
+        # In a group-by data query an aggregated ArrayField annotation shadows the
+        # relation column (see `get_group_by_field_filters_and_annotations`), so joins
+        # `get_order` relies on aren't reachable. Recompute the same ordering as per-row
+        # correlated subqueries against the table model, where the relation exists, so
+        # groups and rows order identically.
         wrapped_annotation = {
             alias: Subquery(
                 table_model.objects.filter(id=OuterRef("id"))

@@ -566,10 +566,9 @@ export default {
       this.fieldsUpdated()
     },
     activeGroupBys(newVal, oldVal) {
-      // Changing the group-by fields rebuilds the whole grouped layout and the store
-      // restarts the scroll offset at the top. The scroll containers keep their old
-      // offset though, which would point at an unloaded region and leave the viewport
-      // blank, so mirror the reset on the DOM once the new layout has rendered.
+      // The store restarts the scroll offset at the top when group-by fields change, but
+      // the DOM scroll containers keep their old offset, which now points at an unloaded
+      // region. Mirror the reset on the DOM once the new layout has rendered.
       const fieldKey = (groupBys) =>
         (groupBys || []).map((g) => g.field).join(',')
       if (fieldKey(newVal) === fieldKey(oldVal)) {

@@ -357,6 +357,7 @@ describe('gridGroupByRender', () => {
           depth: 1,
           siblingStartIndex: 0,
           siblingEndIndex: 10,
+          globalSiblingStartIndex: 0,
           y: HEADER_HEIGHT,
           height: 10 * HEADER_HEIGHT,
         },
@@ -372,6 +373,7 @@ describe('gridGroupByRender', () => {
           depth: 1,
           siblingStartIndex: 0,
           siblingEndIndex: 100,
+          globalSiblingStartIndex: 10,
           y: 12 * HEADER_HEIGHT,
           height: 100 * HEADER_HEIGHT,
         },
@@ -420,6 +422,7 @@ describe('gridGroupByRender', () => {
           depth: 0,
           siblingStartIndex: 0,
           siblingEndIndex: 40,
+          globalSiblingStartIndex: 0,
           y: 0,
           height: firstPageHeight,
         },
@@ -429,6 +432,7 @@ describe('gridGroupByRender', () => {
           depth: 0,
           siblingStartIndex: 40,
           siblingEndIndex: 80,
+          globalSiblingStartIndex: 40,
           y: firstPageHeight,
           height: secondPageHeight,
         },
@@ -450,6 +454,64 @@ describe('gridGroupByRender', () => {
       offset: 40,
       limit: 40,
     })
+  })
+
+  test('visibleGroupDepthPageInViewport counts hidden emptied leaf groups toward the depth offset', () => {
+    const fields = [textField(1), textField(2)]
+    const parentKey = pathKey({ field_1: 'A' }, fields)
+    const leaf = (index, rowCount) => ({
+      path: { field_1: 'A', field_2: `v${index}` },
+      depth: 1,
+      row_count: rowCount,
+      sibling_index: index,
+      row_offset: index,
+    })
+    const layout = buildLayout({
+      pages: {
+        '': {
+          totalSiblingCount: 1,
+          nodes: {
+            0: {
+              path: { field_1: 'A' },
+              depth: 0,
+              row_count: 3,
+              children_count: 8,
+              sibling_index: 0,
+              row_offset: 0,
+            },
+          },
+        },
+        [parentKey]: {
+          totalSiblingCount: 8,
+          // Index 1 is optimistically emptied (row_count 0) and hidden, but it still
+          // occupies a sibling slot the server counts, so the placeholder that follows
+          // starts at global sibling index 4, not 3.
+          nodes: {
+            0: leaf(0, 1),
+            1: leaf(1, 0),
+            2: leaf(2, 1),
+            3: leaf(3, 1),
+          },
+        },
+      },
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+      pageSize: 4,
+    })
+
+    const placeholder = layout.items.find(
+      (item) => item.type === 'groupPlaceholder'
+    )
+    expect(placeholder.siblingStartIndex).toBe(4)
+    expect(placeholder.globalSiblingStartIndex).toBe(4)
+
+    expect(
+      visibleGroupDepthPageInViewport(
+        layout,
+        { scrollTop: placeholder.y, clientHeight: HEADER_HEIGHT },
+        4
+      )
+    ).toEqual({ depth: 1, offset: 4, limit: 4 })
   })
 
   test('display values propagate from tree nodes into header items', () => {

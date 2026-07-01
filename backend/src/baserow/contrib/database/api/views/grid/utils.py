@@ -35,10 +35,9 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewGroupBy
 
 GROUP_BY_DATA_DESCENDANT_MAX_GROUPS = 2000
-# A deep tree legitimately produces many parent pages for a single viewport (one per
-# internal group node), so the page cap is only a coarse backstop: the per-level batched
-# descent issues one query per level regardless of page count, and the visible-row window
-# plus the group cap are what actually bound the work.
+# Only a coarse backstop: a deep tree legitimately produces one parent page per internal
+# node. The per-level batched descent runs one query per level regardless of page count,
+# so the visible-row window and the group cap are what actually bound the work.
 GROUP_BY_DATA_DESCENDANT_MAX_PAGES = GROUP_BY_DATA_DESCENDANT_MAX_GROUPS
 
 
@@ -377,11 +376,12 @@ def get_group_by_data_pages(
 
     When ``include_descendants`` is set, each parent's subtree is walked
     depth-first (pre-order) down to its leaves, so one request returns the whole
-    visible subtree. The walk stops once the accumulated leaf ``row_count``
-    reaches ``row_budget`` (the visible-viewport size); the leaf that crosses the
-    budget is included whole because its rows paginate separately. The page and
-    group caps remain as backstops for pathological wide/deep trees, after which
-    the rest lazy-loads on scroll.
+    visible subtree. Descent is bounded by an absolute row window: it anchors at
+    ``start``, the first returned group's absolute row offset, and expands only
+    groups whose ``row_offset`` falls within ``[start, start + row_budget)`` (the
+    visible-viewport size); groups starting past the window render a placeholder and
+    lazy-load on scroll. The page and group caps remain as backstops for
+    pathological wide/deep trees.
 
     :param view_handler: The view handler used to fetch each group page.
     :param base_queryset: The filtered/searched rows queryset to group.
@@ -391,15 +391,14 @@ def get_group_by_data_pages(
     :param include_descendants: Whether to recursively enqueue first child pages.
     :param descendant_limit: The maximum number of groups to return per descendant
         page.
-    :param row_budget: The maximum accumulated leaf ``row_count`` to fetch across
-        the returned subtree when expanding descendants.
+    :param row_budget: The size of the absolute row-offset window
+        ``[start, start + row_budget)`` within which descendant groups are expanded.
     :return: A tuple containing the collected pages and whether the response was
         truncated by a cap.
     """
 
-    # Direct page requests (no descendants) keep the per-parent path, which fetches each
-    # requested page individually and so reports empty pages, their total sibling count,
-    # and arbitrary offsets exactly.
+    # No descendants: fetch each requested page individually, which reports empty pages,
+    # their total sibling count, and arbitrary offsets exactly.
     if not include_descendants:
         pages = []
         seen = set()
@@ -437,10 +436,10 @@ def get_group_by_data_pages(
     group_count = 0
     truncated = False
 
-    # Resolve each requested parent's absolute row offset (computing it when the client
-    # did not thread it in, so threading stays a pure speedup). The descent only expands
-    # groups whose rows start inside ``[start, start + row_budget)`` rather than fanning
-    # across the whole breadth of a wide tree.
+    # Resolve each parent's absolute row offset, computing it when the client didn't
+    # thread it in (so threading stays a pure speedup). The descent then expands only
+    # groups whose rows start within ``[start, start + row_budget)``, not the whole
+    # breadth of a wide tree.
     initial_offset_by_key = {}
     for request in parent_requests:
         parent = request["parent"]
@@ -452,13 +451,13 @@ def get_group_by_data_pages(
         initial_offset_by_key[group_by_data_page_key(parent, group_by_fields)] = (
             parent_row_offset
         )
-    # Anchor the window where the fetched groups actually start, not at the parent's first
-    # row. A scrolled slice (offset > 0) begins deep into the parent, so anchoring on the
-    # parent offset would window the top of the tree and expand nothing the user can see.
+    # Anchor the window where the fetched groups start, not the parent's first row: a
+    # scrolled slice (offset > 0) begins deep in the parent, so anchoring on the parent
+    # offset would window the tree's top and expand nothing visible.
     window_end = None
 
-    # Group the requested parents by depth (and page slice) so each level is fetched in
-    # one batched query covering all of its parents instead of one query per parent.
+    # Group parents by depth (and page slice) so each level is one batched query over
+    # all its parents rather than a query per parent.
     waves: Dict[int, Dict[Tuple[int, int], List[Dict[str, Any]]]] = defaultdict(
         lambda: defaultdict(list)
     )
@@ -498,8 +497,8 @@ def get_group_by_data_pages(
                 per_parent_limit=limit,
             )
 
-            # Split the batched groups back into one page per parent, making each group's
-            # parent-relative ``row_offset`` absolute with its parent's offset.
+            # Split the batched groups into one page per parent, making each group's
+            # parent-relative ``row_offset`` absolute via its parent's offset.
             page_by_key: Dict[Any, Dict[str, Any]] = {}
             page_order = []
             for group in groups:
@@ -616,8 +615,8 @@ def build_group_by_data_response(
             truncated = False
         else:
             # The client sends the row window that fills its screen in one descent,
-            # defaulting to the page limit when unset. Clamp to the group cap: a wider
-            # window can't surface more than the cap allows.
+            # defaulting to the page limit. Clamp to the group cap: a wider window can't
+            # surface more than the cap allows.
             descendant_row_budget = max(
                 1,
                 min(

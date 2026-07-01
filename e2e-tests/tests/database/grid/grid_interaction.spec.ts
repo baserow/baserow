@@ -3,11 +3,11 @@
  *
  * Catalogue sections covered:
  *   section 4   Clipboard operations
- *   section 9   Multi-cell selection
- *   section 10  Keyboard navigation
- *   section 11  Row hover/context actions
- *   section 12  Checkbox row selection
- *   section 13  Row expand modal smoke coverage
+ *   section 10  Multi-cell selection
+ *   section 11  Keyboard navigation
+ *   section 12  Row hover/context actions
+ *   section 13  Checkbox row selection
+ *   section 14  Row expand modal smoke coverage
  *
  */
 

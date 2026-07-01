@@ -1,4 +1,3 @@
-from dataclasses import Field
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type
 
 from django.conf import settings
@@ -24,6 +23,7 @@ from baserow.contrib.database.api.rows.serializers import (
     get_row_serializer_class,
 )
 from baserow.contrib.database.api.views.serializers import serialize_group_by_metadata
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.models import GeneratedTableModel
@@ -438,6 +438,11 @@ def serialize_group_by_data(
     :param page: The group-by data page, with ``parent``, ``groups``, ``offset``,
         ``limit`` and ``group_count`` keys.
     :param group_by_fields: The ordered group-by fields configured on the view.
+    :param display_lists: Optional pre-resolved header display values keyed by
+        ``db_column``, parallel to the page's containers (its ``parent`` path
+        followed by each group ``path``). Lets the caller resolve reference display
+        values across all pages in one query per field; when ``None`` they are
+        resolved per page here.
     :return: The serialized page in the API response shape.
     """
 
@@ -463,9 +468,9 @@ def serialize_group_by_data(
                 serialized_path[db_column] = serializer_field.to_representation(value)
         return serialized_path
 
-    # Reference display values for group-by headers, keyed by field and parallel to
-    # `containers`. The caller resolves these across all pages in one query per field;
-    # fall back to a per-page resolution for standalone use.
+    # Display values for group-by headers, parallel to `containers`. The caller may
+    # resolve them across all pages in one query per field; otherwise fall back to a
+    # per-page resolution here.
     containers = [page.get("parent", {})] + [
         group["path"] for group in page.get("groups", [])
     ]

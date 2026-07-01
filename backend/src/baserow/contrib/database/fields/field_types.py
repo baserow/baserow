@@ -1552,9 +1552,13 @@ class DateFieldType(FieldType):
         filters = {field_name: value}
         annotations = {}
 
-        if value and isinstance(value, datetime):
-            # DateTrunc cuts of every after the minute, so we can do a comparison
-            # with the provided value that doesn't have the seconds and microseconds.
+        # Shadow the column with a minute-truncated annotation so seconds and
+        # microseconds are ignored when grouping. Gate on the field, not the value,
+        # so the grouped-data query (which builds the shadow without a concrete
+        # value) truncates group keys the same way the per-row metadata query does;
+        # otherwise datetime groups key on the raw timestamp and drilling into them
+        # matches no rows. Date-only fields have no time component to truncate.
+        if field.date_include_time:
             annotations[field_name] = DateTrunc(
                 "minute", field_name, output_field=models.DateTimeField(null=True)
             )

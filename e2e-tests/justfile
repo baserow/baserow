@@ -14,12 +14,13 @@ db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}"
 redis_image := "redis:6"
 
 # Host ports (override with env vars to avoid collisions with a running dev stack).
-# Keep these outside the documented dev ranges:
+# Keep these well above the documented dev ranges so 8030-8060/3030-3060 stay
+# free for additional dev instances:
 # - default dev: 8000/3000
 # - alternate dev A: 8010/3010
 # - alternate dev B: 8020/3020
-backend_port := env_var_or_default("E2E_BACKEND_PORT", "8030")
-frontend_port := env_var_or_default("E2E_FRONTEND_PORT", "3030")
+backend_port := env_var_or_default("E2E_BACKEND_PORT", "8070")
+frontend_port := env_var_or_default("E2E_FRONTEND_PORT", "3070")
 frontend_cookie_prefix := env_var_or_default("E2E_FRONTEND_COOKIE_PREFIX", "baserow_e2e_")
 
 # Database dump settings

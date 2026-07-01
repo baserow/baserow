@@ -41,7 +41,6 @@ import {
   buildLayout,
   pathKey,
   renderViewport,
-  visibleGroupDepthPageInViewport,
   visibleGroupPagesInViewport,
   visibleSectionsInViewport,
 } from '@baserow/modules/database/utils/gridGroupByRender'
@@ -59,7 +58,6 @@ import {
   getGroupByParentRowOffset,
   getGroupByRowInsertLocation,
   getMissingGroupBySectionRanges,
-  collectMissingSectionRanges,
   groupPathDefaults,
   groupPathFromRow,
   isGroupByDataPageLoaded,
@@ -67,6 +65,14 @@ import {
   shouldUseGroupByDepthPages,
   updateGroupByDataPagesForPath,
   updateGroupByTreeNodesForPath,
+  touchGroupBySectionAccess,
+  findGroupBySectionForVisibleIndex,
+  getVisibleGroupDepthPageToFetch,
+  getMissingAbsoluteRowRanges,
+  buildGroupBySectionPlacements,
+  getGroupByRowsRequestKey,
+  mergeGroupByDataPageInto,
+  reindexGroupBySectionPositionsInto,
 } from '@baserow/modules/database/utils/gridGroupBy'
 import {
   GRID_VIEW_MULTI_SELECT_AREA,
@@ -77,11 +83,9 @@ import {
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
 const REFRESH_ROW_DELAY_MS = 1000
-// Maximum number of group-by row sections whose loaded rows are kept in memory.
-// Sections are evicted least-recently-used (loaded or visible) on scroll so a long
-// session stays bounded; the group tree itself is always kept so scroll geometry is
-// unaffected. Generous enough that a normal viewport's working set is never evicted,
-// so collapsing then re-expanding a group never refetches its rows.
+// LRU cap on sections whose rows stay in memory; the tree is always kept, so scroll
+// geometry is unaffected. High enough that a viewport's working set never evicts, so
+// collapse then re-expand never refetches.
 const GROUP_BY_MAX_RETAINED_SECTIONS = 200
 const DEFAULT_FLAT_VIEW = {
   group_bys: [],
@@ -100,9 +104,11 @@ function getNextGroupByGeneration(state) {
   return (state.groupBy?.generation || 0) + 1
 }
 
-// A group-by fetch is stale once its request was aborted, the view left group-by
-// mode, or the collapse generation it was started under has been superseded. Every
-// async group-by fetch re-checks this after each await before committing results.
+/**
+ * Whether an in-flight group-by fetch started under `generation` has become stale and
+ * must not commit. Re-check after every await: an abort, leaving group-by mode, or a
+ * superseding collapse/group-by change each invalidate the result.
+ */
 function isGroupByRequestStale(getters, state, generation, signal = null) {
   return (
     signal?.aborted ||
@@ -123,25 +129,10 @@ function getEmptyGroupByState() {
     sectionRows: {},
     rowLocations: {},
     sectionAccessOrder: [],
-    // True while every loaded group node's row_offset is server-authoritative (no
-    // optimistic mutation has shifted offsets since the last server load). Only then
-    // is it safe to thread a parent's row_offset back to the server as a shortcut;
-    // an optimistically-recomputed offset must never be sent.
+    // Threading a parent row_offset to the server is only safe while offsets are
+    // server-authoritative; an optimistic mutation clears this until the next load.
     offsetsServerConfirmed: true,
   }
-}
-
-// Moves the given section keys to the most-recently-used end of the LRU order on a
-// group-by store shape (`target` is the live `state.groupBy` or a refresh snapshot).
-function touchGroupBySectionAccess(target, sectionKeys) {
-  if (sectionKeys.length === 0) {
-    return
-  }
-  const touched = new Set(sectionKeys)
-  target.sectionAccessOrder = [
-    ...(target.sectionAccessOrder || []).filter((key) => !touched.has(key)),
-    ...sectionKeys,
-  ]
 }
 
 function rowHasViewWarning(row) {
@@ -151,11 +142,9 @@ function rowHasViewWarning(row) {
 }
 
 function getGroupByFieldRefsFromState(state) {
-  // Mirror the filtering the fetch/keying path applies (getGroupByFieldsFromActiveGroupBys
-  // drops group-bys whose field no longer exists). A group-by whose field was deleted
-  // lingers in activeGroupBys until the next refresh; keeping it here would make pathKey
-  // truncate mid-path and the paged layout walk resolve a stale ancestor page. fieldOptions
-  // is keyed by existing field id and lives in state, so the valid set needs no threading.
+  // Skip group-bys whose field was deleted but still lingers in activeGroupBys until
+  // the next refresh; keeping them would make pathKey truncate mid-path and the layout
+  // walk resolve a stale ancestor page. fieldOptions is keyed by existing field id.
   const fieldOptions = state.fieldOptions || {}
   const hasFieldOptions = Object.keys(fieldOptions).length > 0
   return state.activeGroupBys
@@ -165,16 +154,17 @@ function getGroupByFieldRefsFromState(state) {
     .map((groupBy) => ({ id: groupBy.field }))
 }
 
-let groupByLayoutCacheKey = null
-let groupByLayoutCacheValue = null
+// Keyed by `state` so each grid store instance (the store is registered under several
+// prefixes) keeps its own entry instead of thrashing a shared single-entry cache when
+// two grouped grids are mounted at once. Entries are collected with their store.
+const groupByLayoutCacheByState = new WeakMap()
 
-// Builds the group-by layout, memoized against the identity of every input
-// buildLayout reads. The mutations replace `treeNodes`, `pages` and `collapse` by
-// reference whenever they change, so the cache stays correct while letting the many
-// hot-path callers (cell navigation, multi-select range walks, getAllRows,
-// getRowsLength) share a single O(loaded nodes) build per state change instead of
-// each rebuilding it. `sectionRows` is intentionally not a key: it does not affect
-// layout geometry.
+/**
+ * Builds and memoizes the group-by layout, keyed on the reference identity of every
+ * input `buildLayout` reads. Mutations swap `treeNodes`/`pages`/`collapse` by reference,
+ * so identity comparison keeps the cache valid while hot-path callers share one build
+ * per state change. `sectionRows` is excluded: it doesn't affect geometry.
+ */
 function getGroupByLayoutFromState(state) {
   const groupBy = state.groupBy
   const cacheKey = [
@@ -185,11 +175,12 @@ function getGroupByLayoutFromState(state) {
     state.bufferRequestSize,
     state.activeGroupBys,
   ]
+  const cached = groupByLayoutCacheByState.get(state)
   if (
-    groupByLayoutCacheKey !== null &&
-    cacheKey.every((part, index) => part === groupByLayoutCacheKey[index])
+    cached !== undefined &&
+    cacheKey.every((part, index) => part === cached.key[index])
   ) {
-    return groupByLayoutCacheValue
+    return cached.value
   }
 
   const pages =
@@ -203,20 +194,22 @@ function getGroupByLayoutFromState(state) {
     pageSize: state.bufferRequestSize,
   })
 
-  groupByLayoutCacheKey = cacheKey
-  groupByLayoutCacheValue = layout
+  groupByLayoutCacheByState.set(state, { key: cacheKey, value: layout })
   return layout
 }
 
-let groupBySectionIndexCache = null
+const groupBySectionIndexCacheByState = new WeakMap()
 
-// Derives O(1)/O(log) section lookups from the layout once per layout build, so the
-// per-row navigation and multi-select getters no longer scan every layout item on
-// each call. `sections` is in ascending firstGlobalRowOffset order (layout order).
+/**
+ * Memoizes O(1)/O(log) section lookups per layout build so per-row navigation and
+ * multi-select getters avoid scanning every layout item. `sections` is in ascending
+ * firstGlobalRowOffset order (layout order).
+ */
 function getGroupBySectionIndexFromState(state) {
   const layout = getGroupByLayoutFromState(state)
-  if (groupBySectionIndexCache?.layout === layout) {
-    return groupBySectionIndexCache
+  const cached = groupBySectionIndexCacheByState.get(state)
+  if (cached?.layout === layout) {
+    return cached
   }
 
   const fields = getGroupByFieldRefsFromState(state)
@@ -230,27 +223,9 @@ function getGroupBySectionIndexFromState(state) {
     sections.push(item)
   }
 
-  groupBySectionIndexCache = { layout, byKey, sections }
-  return groupBySectionIndexCache
-}
-
-// Binary-searches the y-sorted, non-overlapping row sections for the one whose
-// visible row range contains `rowIndex`.
-function findGroupBySectionForVisibleIndex(sections, rowIndex) {
-  let low = 0
-  let high = sections.length - 1
-  while (low <= high) {
-    const mid = (low + high) >> 1
-    const section = sections[mid]
-    if (rowIndex < section.firstGlobalRowOffset) {
-      high = mid - 1
-    } else if (rowIndex >= section.firstGlobalRowOffset + section.rowCount) {
-      low = mid + 1
-    } else {
-      return section
-    }
-  }
-  return null
+  const entry = { layout, byKey, sections }
+  groupBySectionIndexCacheByState.set(state, entry)
+  return entry
 }
 
 function getGroupByRowsInLayoutOrder(state) {
@@ -288,8 +263,8 @@ function getGroupByDescendantRowBudget(
   getters,
   scrollTop = getters.getScrollTop
 ) {
-  // Leaf rows never outnumber visible rows, so a budget of one viewport's rows fills the
-  // screen in a single descent instead of a per-depth waterfall.
+  // One viewport's worth of leaf rows fills the screen in a single descent, avoiding a
+  // per-depth fetch waterfall.
   const viewport = getGroupByViewport(getters, scrollTop)
   return Math.max(1, Math.ceil(viewport.clientHeight / getters.getRowHeight))
 }
@@ -306,9 +281,11 @@ function getClampedGroupByScrollTop(getters, scrollTop = getters.getScrollTop) {
   return Math.min(Math.max(0, scrollTop), maxScrollTop)
 }
 
-// Places a fetched rows page (keyed from `requestOffset`) into the live group-by
-// store: records the absolute rows and commits the per-section placements derived
-// from the current layout. Shared by the section fetch and the parallel initial fetch.
+/**
+ * Commits a fetched rows page into the live group-by store: records the absolute rows
+ * and the per-section placements derived from the layout. Shared by the section fetch
+ * and the parallel initial fetch.
+ */
 function commitLoadedGroupByRows({
   commit,
   layout,
@@ -368,9 +345,8 @@ function getVisibleGroupPagesToFetch({
     }
     seenRequests?.add(requestKey)
     const pageRequest = { parentPath, offset, limit }
-    // Thread the parent's known absolute row_offset so the server can skip the
-    // recursive offset lookup — but only while offsets are server-authoritative, so
-    // an optimistically-recomputed offset is never sent.
+    // Pass the parent's absolute row_offset so the server skips its recursive lookup,
+    // but only while offsets are server-authoritative (never send an optimistic one).
     if (state.groupBy.offsetsServerConfirmed) {
       const parentRowOffset = getGroupByParentRowOffset(
         state.groupBy.pages,
@@ -385,26 +361,6 @@ function getVisibleGroupPagesToFetch({
   }
 
   return pages
-}
-
-function getVisibleGroupDepthPageToFetch({
-  layout,
-  viewport,
-  pageSize,
-  seenRequests = null,
-}) {
-  const page = visibleGroupDepthPageInViewport(layout, viewport, pageSize)
-  if (page === null) {
-    return null
-  }
-
-  const requestKey = `${page.depth}:${page.offset}:${page.limit}`
-  if (seenRequests?.has(requestKey)) {
-    return null
-  }
-
-  seenRequests?.add(requestKey)
-  return page
 }
 
 function findGroupByPageNodeForPath(state, path, fields) {
@@ -432,54 +388,6 @@ function findGroupByPageNodeForPath(state, path, fields) {
   return Object.values(page?.nodes || {}).find(
     (node) => pathKey(node.path, fields) === nodeKey
   )
-}
-
-function getMissingAbsoluteRowRanges(absoluteRows, sections) {
-  return collectMissingSectionRanges(
-    sections,
-    (section, position) =>
-      absoluteRows?.[section.absoluteRowOffset + position] === undefined
-  )
-}
-
-// Scatters a window of just-fetched rows (`rowsByOffset`, keyed by absolute offset) into
-// the leaf sections it overlaps. Each section is clamped to its intersection with
-// [requestOffset, requestOffset + fetchedRowCount) so placement scans only the fetched
-// window, never every row of every loaded section (which would be O(total rows)).
-function buildGroupBySectionPlacements({
-  layout,
-  rowsByOffset,
-  requestOffset,
-  fetchedRowCount,
-  groupByFields,
-  registry,
-}) {
-  const fetchedEnd = requestOffset + fetchedRowCount
-  const sections = []
-  for (const item of layout.items) {
-    if (item.type !== 'rowSection') {
-      continue
-    }
-    const sectionStart = item.absoluteRowOffset
-    const sectionEnd = sectionStart + item.rowCount
-    const overlapStart = Math.max(sectionStart, requestOffset)
-    const overlapEnd = Math.min(sectionEnd, fetchedEnd)
-    if (overlapStart >= overlapEnd) {
-      continue
-    }
-    sections.push({
-      ...item,
-      sectionKey: pathKey(item.path, groupByFields),
-      startPosition: overlapStart - sectionStart,
-      endPosition: overlapEnd - sectionStart,
-    })
-  }
-  return placeAbsoluteRowsIntoSections({
-    absoluteRows: rowsByOffset,
-    fields: groupByFields,
-    registry,
-    sections,
-  })
 }
 
 function getGroupByRowPrefetchSections({
@@ -547,64 +455,6 @@ function getGroupByRowPrefetchSections({
   return getMissingAbsoluteRowRanges(state.groupBy.absoluteRows, sections)
 }
 
-function getGroupByRowsRequestKey({
-  gridId,
-  offset,
-  limit,
-  includeFieldOptions,
-  search,
-  searchMode,
-  publicUrl,
-  publicAuthToken,
-  groupBy,
-  orderBy,
-  filters,
-}) {
-  return JSON.stringify({
-    gridId,
-    offset,
-    limit,
-    includeFieldOptions,
-    search,
-    searchMode,
-    publicUrl,
-    publicAuthToken,
-    groupBy,
-    orderBy,
-    filters,
-  })
-}
-
-// Merges a fetched group-by page into a group-by store shape (`target` is either
-// `state.groupBy` for the live path or an off-store snapshot for refreshActiveGroupBys).
-// Keeping a single implementation prevents the live and snapshot paths from drifting.
-function mergeGroupByDataPageInto(target, { data, parentPath, fields }) {
-  const pageKey = pathKey(parentPath || {}, fields)
-  const pages = target.pages || {}
-  const existing = pages[pageKey] || {
-    parentPath: parentPath || {},
-    nodes: {},
-    totalSiblingCount: 0,
-  }
-  const nodes = { ...existing.nodes }
-  const groups = data.groups || []
-  for (const [index, group] of groups.entries()) {
-    const siblingIndex = group.sibling_index ?? data.offset + index
-    nodes[siblingIndex] = group
-  }
-  target.pages = {
-    ...pages,
-    [pageKey]: {
-      parentPath: parentPath || {},
-      nodes,
-      totalSiblingCount: data.group_count ?? 0,
-    },
-  }
-  target.treeNodes = Object.values(
-    target.pages[pathKey({}, fields)]?.nodes || {}
-  ).sort((a, b) => (a.sibling_index ?? 0) - (b.sibling_index ?? 0))
-}
-
 function getGroupBySnapshotLayout(snapshot, activeGroupBys, fields, state) {
   const groupByFields = getGroupByFieldsFromActiveGroupBys(
     activeGroupBys,
@@ -619,30 +469,6 @@ function getGroupBySnapshotLayout(snapshot, activeGroupBys, fields, state) {
     fields: groupByFields,
     rowHeight: state.rowHeight,
     pageSize: state.bufferRequestSize,
-  })
-}
-
-// Reindexes section row positions on a group-by store shape (`target` is the live
-// `state.groupBy` or an off-store snapshot). Shared so the snapshot path keeps the
-// same authoritative-rowLocations invariant guard as the live path.
-function reindexGroupBySectionPositionsInto(target, sectionKey) {
-  const rows = target.sectionRows[sectionKey] || []
-  rows.forEach((row, position) => {
-    if (!row) {
-      return
-    }
-    const location = target.rowLocations[row.id]
-    if (location) {
-      location.position = position
-    } else if (import.meta.env.MODE !== 'production') {
-      // Invariant: every row materialized in sectionRows must have a rowLocations
-      // entry (rowLocations is authoritative). Drift would silently break getRow, so
-      // surface it loudly in non-production builds instead of skipping the row.
-      console.error(
-        `Grid group-by invariant violated: row ${row.id} in section ` +
-          `"${sectionKey}" has no rowLocations entry.`
-      )
-    }
   })
 }
 
@@ -704,8 +530,8 @@ function placeLoadedGroupByRowsInViewport({
     fields: groupByFields,
     registry,
     sections,
-    // Only restore rows into positions that aren't already materialized. Overwriting a
-    // loaded position would clobber an optimistic move with stale cached data.
+    // Skip already-materialized positions: overwriting one would clobber an optimistic
+    // move with stale cached data.
     isPositionLoaded: (sectionKey, position) =>
       state.groupBy.sectionRows[sectionKey]?.[position] !== undefined,
   }).forEach((placement) => {
@@ -1089,9 +915,8 @@ export const mutations = {
       return
     }
     const evicted = new Set(order.slice(0, order.length - cap))
-    // Drop the evicted sections' rows and their location entries (rowLocations is
-    // authoritative); the group tree is kept so scroll geometry is unaffected and the
-    // rows are re-fetched if their section scrolls back into view.
+    // Drop evicted sections' rows and location entries; the tree is kept so geometry
+    // holds and the rows re-fetch when the section scrolls back in.
     for (const sectionKey of evicted) {
       const rows = state.groupBy.sectionRows[sectionKey]
       if (!rows) {
@@ -1119,8 +944,8 @@ export const mutations = {
   UPDATE_GROUP_BY_TREE_PATH_COUNT(state, { path, fields, delta, registry }) {
     state.groupBy.revision = (state.groupBy.revision || 0) + 1
     state.groupBy.absoluteRows = {}
-    // Offsets are now locally recomputed and may diverge from the server until the
-    // next full refresh, so stop threading parent_row_offset back to the server.
+    // Locally recomputed offsets may diverge from the server until the next full
+    // refresh, so stop threading parent_row_offset back.
     state.groupBy.offsetsServerConfirmed = false
     const hasSparsePages = Object.keys(state.groupBy.pages || {}).length > 0
     const groupBys = state.activeGroupBys || []
@@ -1874,10 +1699,9 @@ export const actions = {
       populateRow(row, metadata, false)
     })
 
-    // An optimistic row mutation that landed while this fetch was in flight bumps the
-    // revision. Bail before committing the server's now-stale count and field options so
-    // they don't clobber the optimistic state. (`generation` guards collapse/group-by
-    // changes above; `revision` guards optimistic count drift here.)
+    // A bumped revision means an optimistic mutation landed mid-flight; bail so the
+    // server's now-stale count and field options don't clobber it. (`generation` guards
+    // collapse/group-by changes above; `revision` guards optimistic count drift.)
     if ((state.groupBy.revision || 0) !== groupByRevision) {
       return data
     }
@@ -2017,8 +1841,8 @@ export const actions = {
         continue
       }
 
-      // Fetch every parent whose groups are visible in one request; the descent's row
-      // budget (and the server-side group cap) bound the work.
+      // One request per visible parent; the descent's row budget and the server-side
+      // group cap bound the work.
       const pagesToFetch = getVisibleGroupPagesToFetch({
         state,
         getters,
@@ -2062,8 +1886,8 @@ export const actions = {
             limit: page.limit,
             parentRowOffset: page.parentRowOffset,
           })),
-          // One descent fills the viewport, so a scroll loads its new groups in a single
-          // request instead of one per depth level.
+          // One descent fills the viewport, so a scroll loads its new groups in a
+          // single request rather than one per depth level.
           includeDescendants: true,
           descendantLimit: getters.getBufferRequestSize,
           descendantRowBudget: getGroupByDescendantRowBudget(
@@ -2101,8 +1925,8 @@ export const actions = {
       scrollTop,
     })
 
-    // Protect the currently-visible sections, then evict the least-recently-used
-    // sections beyond the cap so memory stays bounded over a long scroll session.
+    // Mark visible sections most-recently-used before evicting, so a long scroll
+    // session never drops the working set.
     commit('TOUCH_GROUP_BY_SECTIONS', {
       sectionKeys: sections.map((section) => section.sectionKey),
     })
@@ -2835,9 +2659,8 @@ export const actions = {
       return false
     }
 
-    // Changing the group-by fields rebuilds the whole layout, so the previous scroll
-    // offset points at an unloaded region of the new tree and would leave the viewport
-    // blank. Restart at the top, where this refresh fetches the first page.
+    // New group-by fields rebuild the layout, so the old scroll offset points at an
+    // unloaded region of the new tree. Restart at the top, which this refresh fetches.
     scrollTop = 0
     commit('SET_SCROLL_TOP', 0)
     fireScrollTop.distance = 0
@@ -2861,11 +2684,10 @@ export const actions = {
           )
         : getGroupByCollapseAllState(false)
 
-    // A per-group (mixed) collapse can't be expressed by the single `includeDescendants`
-    // flag of the fresh multi-level fetch below: the deeper group nodes of an expanded
-    // branch never get fetched, so the branch renders empty. Fall back to expand-all,
-    // which fetches the whole visible tree. Single-level views are unaffected because
-    // their rows are fetched separately regardless of the flag.
+    // The multi-level fetch below has a single `includeDescendants` flag that can't
+    // express a mixed collapse, so an expanded branch's deeper nodes go unfetched and
+    // render empty. Force expand-all to fetch the whole visible tree. Single-level views
+    // fetch their rows separately, so they're unaffected.
     if (groupByFields.length > 1 && groupByCollapse.paths.length > 0) {
       groupByCollapse = getGroupByCollapseAllState(false)
     }
@@ -2879,9 +2701,9 @@ export const actions = {
       collapseInitialized: true,
     }
 
-    // Expand-all (no collapsed exceptions) renders rows in sorted order from offset 0,
-    // so the first rows page is independent of the new group tree: fetch it in parallel
-    // with the skeleton. Mixed/collapsed states keep their offsets tied to the tree.
+    // With no collapsed exceptions, rows render in sorted order from offset 0, so the
+    // first page is independent of the new tree and can be fetched in parallel with the
+    // skeleton. Mixed/collapsed states tie their offsets to the tree, so they can't.
     const parallelExpandRows =
       groupByCollapse.mode === 'expand' && groupByCollapse.paths.length === 0
         ? GridService($client).fetchRows({
@@ -3424,9 +3246,8 @@ export const actions = {
       fieldIndex
     )
 
-    // In group-by mode the visible row index maps through the layout (collapsed and
-    // unloaded ranges create gaps), so resolve it via getRowIdByIndex rather than
-    // indexing the compacted loaded-rows buffer directly.
+    // In group-by mode collapsed and unloaded ranges make the visible index gappy, so
+    // it must map through the layout rather than index the compacted buffer directly.
     const resolveRowByIndex = (visibleIndex) =>
       getters.isGroupByMode
         ? getters.getRow(getters.getRowIdByIndex(visibleIndex))
@@ -4467,10 +4288,9 @@ export const actions = {
       getters.getActiveSearchTerm
     )
 
-    // Apply the changed field value immediately only when it cannot affect row
-    // visibility or position. Grouped/sorted/filtered views need the queued
-    // lifecycle path below, while the old row values are still intact.
-    // The PATCH and all other side-effects still run inside the task queue.
+    // Optimistically commit the value only when it can't move or hide the row.
+    // Grouped/sorted/filtered views defer to the queued lifecycle path below while the
+    // old values are still intact; the PATCH and side-effects run in the task queue.
     if (canUpdateOptimistically && !hasViewRulesThatCanMoveOrHideRows) {
       const storeRow = getters.getRow(row.id)
       if (storeRow !== undefined) {
@@ -4479,13 +4299,10 @@ export const actions = {
     }
 
     const taskId = taskQueue.add(async () => {
-      // This task may have been queued behind a still-pending create for the same
-      // row (the queue is keyed by persistentId). By the time it runs, that create
-      // has finalized the row's temporary id into its persisted id, mutating the
-      // buffer row in place. The value objects were prepared with the id captured
-      // at call time, so re-stamp them with the row's current id; otherwise the
-      // PATCH would target the now-stale temporary id (404 + rollback) and the
-      // optimistic commits would reset the row's id back to the temporary one.
+      // A create queued ahead of this task (queue keyed by persistentId) may have
+      // finalized the row's temporary id into its persisted one. The value objects
+      // captured the id at call time, so re-stamp them; otherwise the PATCH hits the
+      // stale temporary id (404 + rollback) and resets the row back to it.
       newRowValues.id = row.id
       oldRowValues.id = row.id
       updateRequestValues.id = row.id
@@ -4512,12 +4329,10 @@ export const actions = {
               values,
             })
           } else {
-            // Show the typed value immediately. While the edited row is still selected
-            // (the user is editing it) we keep it visible with a match warning instead
-            // of moving/removing it; the actual move/remove/regroup is deferred to
-            // deselect (refreshRow, which is selected-aware) or backend confirmation,
+            // While the edited row stays selected, keep it in place with a match
+            // warning rather than moving/removing it; the move/remove/regroup is
+            // deferred to deselect (selected-aware refreshRow) or backend confirmation,
             // per the grid-view-test-plan contract (2.2.1a / 2.2.7a / 2.3.1a).
-            // Unselected optimistic edits still reconcile immediately above.
             commit('UPDATE_ROW_VALUES', {
               row,
               values: { ...values },
@@ -6074,9 +5889,8 @@ export const getters = {
   getGroupByCollapse(state) {
     return state.groupBy.collapse
   },
-  // No-arg cached getter: derives the group-by fields from state so the (expensive)
-  // layout build runs once per relevant state change instead of on every call with a
-  // freshly-mapped fields array. Shared by getAllRows, the actions, and the component.
+  // Takes no field arg so the memoization in getGroupByLayoutFromState holds: a
+  // per-call fields array would be a new reference every time and defeat the cache.
   getGroupByLayout(state) {
     return getGroupByLayoutFromState(state)
   },
@@ -6087,9 +5901,13 @@ export const getters = {
     return renderViewport({
       layout: getters.getGroupByLayout,
       sectionRows: getters.getGroupBySectionRowsMap,
+      // Unpadded on purpose: this culls to what is actually on screen, unlike the
+      // padded fetch-side `getGroupByViewport`. The pre-mount fallback matches it.
       viewport: {
         scrollTop: state.scrollTop,
-        clientHeight: state.windowHeight || 1000,
+        clientHeight:
+          state.windowHeight ||
+          getters.getBufferRequestSize * getters.getRowHeight,
       },
       fields: groupByFields,
       rowHeight: state.rowHeight,
