@@ -485,6 +485,21 @@ WEBSOCKET_ID_HEADER = "WebsocketId"
 
 USER_SOURCE_AUTHENTICATION_HEADER = "UserSourceAuthorization"
 
+# Comma-separated list of percentages (e.g. "50,80,95") at which the members of a
+# workspace are notified that it is approaching its application user limit. The limit
+# itself (100%) always notifies and is enforced separately.
+BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS = sorted(
+    {
+        percent
+        for value in os.getenv(
+            "BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS", "80"
+        ).split(",")
+        if value.strip()
+        for percent in [int(value.strip())]
+        if 0 < percent < 100
+    }
+)
+
 CORS_ALLOW_HEADERS = list(default_headers) + [
     WEBSOCKET_ID_HEADER,
     PUBLIC_VIEW_AUTHORIZATION_HEADER,

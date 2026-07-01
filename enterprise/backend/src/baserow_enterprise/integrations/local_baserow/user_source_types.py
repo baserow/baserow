@@ -680,6 +680,29 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         raise UserNotFound()
 
+    def get_user_position(
+        self, user_source: LocalBaserowUserSource, user
+    ) -> Optional[int]:
+        """
+        Returns the 1-based position of the user in the backing table, ordered by
+        creation order (ascending row id): the number of rows with an id less than or
+        equal to the user's row id. Deletions are handled naturally, since only
+        existing rows are counted.
+
+        Returns `None` when the user source isn't configured or its table is trashed,
+        so that the login limit isn't enforced in those cases.
+        """
+
+        if not self.is_configured(
+            user_source
+        ) or TrashHandler.item_has_a_trashed_parent(
+            user_source.table, check_item_also=True
+        ):
+            return None
+
+        model = user_source.table.get_model(field_ids=[])
+        return model.objects.filter(id__lte=user.id).count()
+
     def create_user(self, user_source: LocalBaserowUserSource, email, name, role=None):
         """
         Creates the user in the configured table.

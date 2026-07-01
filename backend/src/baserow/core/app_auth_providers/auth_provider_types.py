@@ -82,10 +82,20 @@ class AppAuthProviderType(
         get_or_create_user.
         """
 
+        from baserow.core.user_sources.usage import (
+            raise_if_over_application_user_login_limit,
+        )
+
         user_source = auth_provider.user_source.specific
-        return user_source.get_type().get_or_create_user(
+        user, created = user_source.get_type().get_or_create_user(
             user_source, email=user_info.email, name=user_info.name
         )
+
+        # The row may be created above (SSO auto-provisioning), but a user past the
+        # application user limit isn't allowed to actually sign in.
+        raise_if_over_application_user_login_limit(user_source, user)
+
+        return user, created
 
     def get_pytest_params(self, pytest_data_fixture) -> dict[str, Any]:
         """

@@ -1,7 +1,18 @@
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Type, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+)
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
@@ -27,6 +38,9 @@ from baserow.core.user_sources.user_source_user import UserSourceUser
 
 from .models import UserSource
 from .types import UserSourceDictSubClass, UserSourceSubClass
+
+if TYPE_CHECKING:
+    from baserow.core.models import Workspace
 
 
 class UserSourceCount(NamedTuple):
@@ -310,6 +324,26 @@ class UserSourceType(
         except UserNotFound:
             return self.create_user(user_source, email, name), True
 
+    def get_user_position(
+        self, user_source: UserSource, user: UserSourceUser
+    ) -> Optional[int]:
+        """
+        Returns the 1-based position of the given user amongst the user source's
+        users, ordered by creation order (ascending id): the number of users created
+        before this one, plus one.
+
+        This is used to enforce the application user login limit, where only the first
+        N users of a user source are allowed to authenticate. Returns `None` when the
+        position can't be determined for this user source type, in which case the
+        limit isn't enforced.
+
+        :param user_source: The user source the user belongs to.
+        :param user: The user to get the position of.
+        :return: The 1-based position of the user, or `None`.
+        """
+
+        return None
+
     @abstractmethod
     def authenticate(self, user_source: UserSource, **kwargs) -> UserSourceUser:
         """
@@ -397,3 +431,66 @@ class UserSourceTypeRegistry(
 
 
 user_source_type_registry: UserSourceTypeRegistry = UserSourceTypeRegistry()
+
+
+class ApplicationUserUsageProviderType(Instance, ABC):
+    """
+    Resolves the current application user usage and the limit for a workspace.
+
+    The application user limit lives in different places depending on the deployment
+    (a per-workspace quota for SaaS, an instance-wide license value for self-hosted
+    enterprise). Plugins register a provider so that core can enforce the limit and
+    send notifications without knowing where the limit value comes from.
+    """
+
+    # The provider with the highest order that returns a non-None result wins. On the
+    # SaaS platform both the SaaS per-workspace provider and the premium instance-wide
+    # provider are registered (the saas plugin runs on top of enterprise), so the SaaS
+    # provider uses a higher order to take precedence. A genuine self-hosted install
+    # only registers the premium provider, since the saas plugin isn't part of it.
+    order = 0
+
+    @abstractmethod
+    def get_usage_and_limit(
+        self, workspace: "Workspace"
+    ) -> Optional[Tuple[int, Optional[int]]]:
+        """
+        Returns a `(usage, limit)` tuple for the given workspace, or `None` when this
+        provider does not apply to the current deployment. A `limit` of `None` means
+        there is no enforced application user limit.
+
+        :param workspace: The workspace a new application user would belong to.
+        :return: A `(usage, limit)` tuple or `None`.
+        """
+
+    def get_login_limit(self, workspace: "Workspace") -> Optional[int]:
+        """
+        Returns the application user limit to enforce at login time for the given
+        workspace, or `None` when this provider does not enforce a hard login limit
+        for the current deployment.
+
+        When a limit is returned, only the first `limit` users (ordered by creation)
+        of a user source are allowed to authenticate; the rest are refused. This is
+        separate from `get_usage_and_limit` (used for notifications) because a
+        deployment can notify about its limit without hard-blocking logins. Defaults
+        to `None` so a provider only opts into hard login enforcement when it returns
+        a value.
+
+        :param workspace: The workspace the authenticating user belongs to.
+        :return: The login limit, or `None`.
+        """
+
+        return None
+
+
+class ApplicationUserUsageProviderRegistry(Registry):
+    """
+    Contains the registered application user usage providers.
+    """
+
+    name = "application_user_usage_provider"
+
+
+application_user_usage_provider_registry: ApplicationUserUsageProviderRegistry = (
+    ApplicationUserUsageProviderRegistry()
+)

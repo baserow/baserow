@@ -20,7 +20,10 @@ from baserow.core.auth_provider.exceptions import (
     DifferentAuthProvider,
 )
 from baserow.core.user.exceptions import DeactivatedUserException
-from baserow.core.user_sources.exceptions import UserSourceDoesNotExist
+from baserow.core.user_sources.exceptions import (
+    ApplicationUserLimitReached,
+    UserSourceDoesNotExist,
+)
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.api.integrations.common.sso.oauth2.serializers import (
     OIDCLoginRequestSerializer,
@@ -228,6 +231,9 @@ class OAuth2CallbackView(APIView):
                 AuthFlowError: SsoErrorCode.AUTH_FLOW_ERROR,
                 DeactivatedUserException: SsoErrorCode.USER_DEACTIVATED,
                 DifferentAuthProvider: SsoErrorCode.DIFFERENT_PROVIDER,
+                ApplicationUserLimitReached: (
+                    SsoErrorCode.APPLICATION_USER_LIMIT_REACHED
+                ),
             },
             on_error=on_error,
         ):

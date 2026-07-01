@@ -21,6 +21,7 @@ from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.user.exceptions import DeactivatedUserException
 from baserow.core.user_sources.exceptions import (
+    ApplicationUserLimitReached,
     UserSourceDoesNotExist,
     UserSourceImproperlyConfigured,
 )
@@ -97,6 +98,9 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
                 RequestBodyValidationException: SsoErrorCode.INVALID_SAML_RESPONSE,
                 UserSourceDoesNotExist: SsoErrorCode.INVALID_SAML_REQUEST,
                 UserSourceImproperlyConfigured: SsoErrorCode.INVALID_SAML_REQUEST,
+                ApplicationUserLimitReached: (
+                    SsoErrorCode.APPLICATION_USER_LIMIT_REACHED
+                ),
             },
             on_error=on_error,
         ):

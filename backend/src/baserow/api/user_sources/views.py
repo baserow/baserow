@@ -33,6 +33,7 @@ from baserow.api.user.errors import (
 )
 from baserow.api.user.views import BlacklistJSONWebToken
 from baserow.api.user_sources.errors import (
+    ERROR_APPLICATION_USER_LIMIT_REACHED,
     ERROR_AUTH_PROVIDER_CANT_BE_CREATED,
     ERROR_AUTH_PROVIDER_TYPE_DOES_NOT_EXIST,
     ERROR_AUTH_PROVIDER_TYPE_NOT_COMPATIBLE,
@@ -70,6 +71,7 @@ from baserow.core.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.user.exceptions import RefreshTokenAlreadyBlacklisted
 from baserow.core.user_sources.exceptions import (
+    ApplicationUserLimitReached,
     UserSourceDoesNotExist,
     UserSourceImproperlyConfigured,
     UserSourceNotInSameApplication,
@@ -534,6 +536,7 @@ class UserSourceObtainJSONWebToken(TokenObtainPairView):
             AuthenticationFailed: ERROR_INVALID_CREDENTIALS,
             UserSourceDoesNotExist: ERROR_USER_SOURCE_DOES_NOT_EXIST,
             UserSourceImproperlyConfigured: ERROR_USER_SOURCE_IMPROPERLY_CONFIGURED,
+            ApplicationUserLimitReached: ERROR_APPLICATION_USER_LIMIT_REACHED,
         }
     )
     def post(self, request, user_source_id: int):

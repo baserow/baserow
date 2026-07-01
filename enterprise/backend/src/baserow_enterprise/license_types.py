@@ -92,12 +92,8 @@ class AdvancedLicenseType(LicenseType):
         # okay for now because we'll be monitoring the usage manually.
         pass
 
-    def handle_application_user_overflow(
-        self, application_users_taken: int, license_object: License
-    ):
-        # We don't have to do anything because the application user limit is a soft
-        # limit. This is okay for now because we'll be monitoring the usage manually.
-        pass
+    # `handle_application_user_overflow` is inherited from `LicenseType`, which notifies
+    # the affected workspaces that the application user limit has been reached.
 
 
 class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
@@ -112,13 +108,6 @@ class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
         # We don't have to do anything because the seat limit is a soft limit.
-        pass
-
-    def handle_application_user_overflow(
-        self, application_users_taken: int, license_object: License
-    ):
-        # We don't have to do anything because the application user limit is a soft
-        # limit.
         pass
 
 

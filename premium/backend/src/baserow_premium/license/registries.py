@@ -206,8 +206,13 @@ class LicenseType(abc.ABC, Instance):
     def handle_application_user_overflow(
         self, application_users_taken: int, license_object: License
     ):
-        # TODO: send a notification, we are over limit.
-        ...
+        # The instance is over its application user limit. Notify the members of the
+        # workspaces that have application users so they can upgrade.
+        from baserow.core.user_sources.usage import (
+            notify_workspaces_approaching_application_user_limit,
+        )
+
+        notify_workspaces_approaching_application_user_limit()
 
 
 class LicenseTypeRegistry(Registry[LicenseType]):

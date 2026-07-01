@@ -284,7 +284,8 @@
     "errorAuthFlowError": "an error occurred during the authentication flow with the selected provider.",
     "errorDifferentProvider": "please use the provider that you originally signed up with.",
     "errorWorkspaceInvitationEmailMismatch": "your email address does not match with the invitation.",
-    "errorSignupDisabled": "sign up has been disabled by the administrator."
+    "errorSignupDisabled": "sign up has been disabled by the administrator.",
+    "errorApplicationUserLimitReached": "the application user limit has been reached, please contact the application owner."
   },
   "roles": {
     "admin": {

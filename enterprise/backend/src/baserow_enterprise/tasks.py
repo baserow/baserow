@@ -7,6 +7,9 @@ from baserow.contrib.database.table.tasks import (
     unsubscribe_subject_from_tables_currently_subscribed_to,
 )
 from baserow.core.user_sources.handler import UserSourceHandler
+from baserow.core.user_sources.usage import (
+    notify_workspaces_approaching_application_user_limit,
+)
 from baserow_enterprise.audit_log.tasks import (
     clean_up_audit_log_entries,
     setup_periodic_audit_log_tasks,
@@ -26,6 +29,7 @@ def count_all_user_source_users(self):
     """
 
     UserSourceHandler().update_all_user_source_counts(update_in_chunks=True)
+    notify_workspaces_approaching_application_user_limit()
 
 
 @app.on_after_finalize.connect
