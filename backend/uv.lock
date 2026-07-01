@@ -366,7 +366,7 @@ requires-dist = [
     { name = "django", specifier = "==5.2.14" },
     { name = "django-cachalot", specifier = "==2.8.0" },
     { name = "django-celery-beat", specifier = "==2.9.0" },
-    { name = "django-celery-email-reboot", specifier = "==4.2.0" },
+    { name = "django-celery-email-reboot", specifier = "==4.2.1" },
     { name = "django-cors-headers", specifier = "==4.9.0" },
     { name = "django-cte", specifier = "==1.3.3" },
     { name = "django-health-check", specifier = "==3.20.8" },
@@ -1022,16 +1022,16 @@ wheels = [
 
 [[package]]
 name = "django-celery-email-reboot"
-version = "4.2.0"
+version = "4.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "django", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "django-appconf", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/32/a993f17c6c9fd8ba0889412772330f3682e987199c2f0723da548d691980/django_celery_email_reboot-4.2.0.tar.gz", hash = "sha256:52e009bf90592ef91059ff5debad88b6ab671fa5309a0c5d665df748fd362492", size = 11440, upload-time = "2025-12-12T23:36:44.925Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/c4/ef2f691393413570434e20b1289c894cd65f5e825a4c41a13df0befc6719/django_celery_email_reboot-4.2.1.tar.gz", hash = "sha256:d5f8cbea612fb9917a93b8c991a82f692356767e8af804b39966cb2999d4a4dc", size = 11657, upload-time = "2026-02-18T19:52:25.424Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b9/35/01c0506510d475dd9d0a01aa98f70d43c13b1cb23292f1ab95e151d7cfe1/django_celery_email_reboot-4.2.0-py3-none-any.whl", hash = "sha256:1a5ffcbfc92422794c4369305e6d19bdc00968cbf2299c02fb17dd3936d47e78", size = 8764, upload-time = "2025-12-12T23:36:35.448Z" },
+    { url = "https://files.pythonhosted.org/packages/61/2f/0621bdce690ce040945d0dac08870d5c69887686365df0314c45c3d48dbd/django_celery_email_reboot-4.2.1-py3-none-any.whl", hash = "sha256:5e4b9370d5599666973d14f96fd05f8072dd550e83156c38d4e748a759b65cdb", size = 8885, upload-time = "2026-02-18T19:52:24.46Z" },
 ]
 
 [[package]]

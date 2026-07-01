@@ -34,7 +34,7 @@ dependencies = [
     "channels-redis==4.3.0",
     "celery[redis]==5.6.2",
     "django-redis==6.0.0",
-    "django-celery-email-reboot==4.2.0",
+    "django-celery-email-reboot==4.2.1",
     "zipp==3.23.0",
     "unicodecsv==0.14.1",
     "django-celery-beat==2.9.0",
