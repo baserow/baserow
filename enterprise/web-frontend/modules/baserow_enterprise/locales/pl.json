@@ -6,7 +6,8 @@
         "sso": "SSO",
         "deactivated": "Dostępne w wersji Advanced/Enterprise",
         "licenseDescription": "W wersji Enterprise konta dla użytkowników z uprawnieniami tylko do odczytu są bezpłatne. Jeśli w jakimkolwiek obszarze roboczym użytkownikowi przypisano inną rolę, to automatycznie zajmie on płatne stanowisko.",
-        "overflowWarning": "Masz zbyt wielu użytkowników z uprawnieniami innymi niż tylko do odczytu, a nie masz już więcej płatnych stanowisk. Na stronach użytkowników możesz indywidualnie i w każdym obszarze roboczym zmienić uprawnienia użytkowników na tylko do odczytu."
+        "overflowWarning": "Masz zbyt wielu użytkowników z uprawnieniami innymi niż tylko do odczytu/komentowania, a nie masz już więcej płatnych stanowisk. Na stronach użytkowników możesz indywidualnie i w każdym obszarze roboczym zmienić uprawnienia użytkowników na tylko do odczytu.",
+        "enterpriseOnlyDeactivated": "Dostępne w wersji Enterprise"
     },
     "clientHandler": {
         "cannotDisableAllAuthProvidersTitle": "Ostatni aktywny dostawca",
@@ -223,7 +224,14 @@
             "warningTitle": "Inni użytkownicy mogą odziedziczyć dostęp!",
             "warningMessage": "Inni użytkownicy mogą odziedziczyć dostęp na podstawie przypisanych im ról w nadrzędnej tabeli, bazie danych lub obszarze roboczym.",
             "headerTooltip": "Role przypisane na poziomie widoku są nadrzędne w stosunku do ról w obszarach roboczych, bazach danych i tabelach."
-        }
+        },
+        "title": "{name} {type}",
+        "selectMembers": "Wybierz członków",
+        "everyoneHasAccess": "Wszyscy użytkownicy obszaru {name} mają dostęp do tego {type}.",
+        "onlyYouHaveAccess": "Tylko Ty masz dostęp do tego {type}.",
+        "warningTitle": "Inni użytkownicy mogą uzyskać dostęp!",
+        "warningMessage": "Inni użytkownicy mogą uzyskać dostęp na podstawie swoich uprawnień w elemencie nadrzędnym {parent}.",
+        "headerTooltip": "Role tego typu {type} będą nadrzędne w stosunku do ról {overrides}."
     },
     "memberRolesShareToggle": {
         "label": "Udostępnij każdemu użytkownikowi w {name}",
@@ -330,7 +338,11 @@
         "dateDependency": "Zależności między datami",
         "dateDependencyContent": "Możliwość określenia zależności między dwiema datami oraz czasem trwania (data początkowa/końcowa i czas trwania). Gdy jedna z wartości ulegnie zmianie, powiązane wartości zostaną automatycznie uaktualnione.",
         "dataScanner": "Skaner danych",
-        "dataScannerContent": "Skanuj dane w instancji Baserow pod kątem schematów np. do wyszukiwania danych chronionych, takich jak numery IBAN czy identyfikatory pacjentów. Alternatywnie porównuj te dane z listami zdefiniowanymi. Skonfiguruj automatyczne skanowanie i przeanalizuj szczegółowe wyniki."
+        "dataScannerContent": "Skanuj dane w instancji Baserow pod kątem schematów np. do wyszukiwania danych chronionych, takich jak numery IBAN czy identyfikatory pacjentów. Alternatywnie porównuj te dane z listami zdefiniowanymi. Skonfiguruj automatyczne skanowanie i przeanalizuj szczegółowe wyniki.",
+        "codeRunner": "Program do uruchamiania kodu",
+        "codeRunnerContent": "Uruchamiaj kod JavaScript w węzłach automatyzacji oraz w operacjach wykonywanych przez aplikacje.",
+        "xlsFileReader": "Czytnik plików XLS",
+        "xlsFileReaderContent": "Wczytuj wiersze z plików XLS i XLSX w węzłach automatyzacji oraz w operacjach wykonywanych przez aplikacje."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Bezpośrednie wsparcie"
@@ -460,11 +472,11 @@
         "emailPlaceholder": "Podaj swój e-mail..."
     },
     "configureDataSyncPeriodicInterval": {
-        "deactivatedTitle": "Ustawienia cykliczne synchronizacji danych zostały wyłączone",
-        "activate": "Aktywuj synchronizację cykliczną",
+        "deactivatedTitle": "Cykliczna synchronizacja danych została wyłączona",
+        "activate": "Włącz synchronizację cykliczną",
         "enterprise": "Synchronizacja cykliczna jest dostępna w wersjach Advanced i Enterprise.",
         "more": "Więcej informacji",
-        "deactivatedText": "Cykliczna synchronizacja danych została wyłączona z powodu zbyt wielu kolejnych niepowodzeń. Spróbuj zsynchronizować ręcznie, a jeśli zadziała poprawnie, kliknij przycisk aktywacji.",
+        "deactivatedText": "Cykliczna synchronizacja danych została wyłączona z powodu zbyt wielu kolejnych niepowodzeń. Spróbuj zsynchronizować ręcznie i jeśli zadziała poprawnie, kliknij przycisk aktywacji.",
         "title": "Ustawienia cykliczne",
         "saved": "Zapisano"
     },
@@ -498,7 +510,7 @@
         "sourceFieldLabel": "Źródło",
         "viewFieldLabel": "Widok",
         "addSeries": "Dodaj serię danych",
-        "notSelected": "Nie wybrano źródła danych"
+        "notSelected": "Nie wybrano"
     },
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Pole",
@@ -527,7 +539,7 @@
     },
     "webhookForm": {
         "triggerWhenRowsEnterView": "Uruchamia się, kiedy wiersze pojawiają się w widoku.",
-        "helpTriggerWhenRowsEnterView": "Uruchamia się, gdy wybrano opcję `Wiersze pojawiają się w widoku` i wiersze spełniające kryteria filtrów pojawią się w widoku."
+        "helpTriggerWhenRowsEnterView": "Uruchamia się, gdy wybrano opcję `Wiersze pojawiają się w widoku` oraz gdy w widoku będą wyświetlone wiersze spełniające kryteria filtrów."
     },
     "fileInputElementForm": {
         "defaultNamePlaceholder": "Podaj nazwę pliku...|Podaj nazwy plików...",
@@ -538,18 +550,18 @@
         "required": "Wymagane",
         "fileTypes": "Rodzaje plików",
         "defaultNameTitle": "Początkowa nazwa pliku|Początkowe nazwy plików",
-        "defaultNameHelp": "Liczba nazw musi pasować do liczby adresów URL.",
+        "defaultNameHelp": "Liczba nazw musi być zgodna z liczbą adresów URL.",
         "defaultUrlPlaceholder": "Podaj domyślny adres URL...|Podaj domyślne adresy URL..",
-        "fileTypesHelper": "Określ dozwolone rozszerzenia plików (każde w osobnym wierszu), np. jpg, png, svg, pdf. Możesz podać image/*, video/* lub audio/*, aby zezwolić na wszystkie pliki danego typu. Zostaw puste, aby zezwolić na wszystkie typy.",
-        "preview": "Podgląd obrazów?",
+        "fileTypesHelper": "Podaj dozwolone rozszerzenia plików (każde w osobnym wierszu), np. jpg, png, svg, pdf. Możesz podać image/*, video/* lub audio/*, aby zezwolić na wszystkie pliki danego typu. Jeśli zostawisz puste, to wszelkie rodzaje plików będą dozwolone.",
+        "preview": "Umożliwić podgląd plików graficznych?",
         "maxFileSize": "Maksymalny rozmiar pliku",
         "maxFileSizePlaceholder": "Wpisz liczbę...",
         "addFileType": "Dodaj rodzaj pliku"
     },
     "periodicDataSyncDeactivatedNotification": {
         "body": "Synchronizacja cykliczna {name} została wyłączona, ponieważ nie udała się zbyt wiele razy pod rząd.",
-        "failure": "Cykliczna synchronizacja danych {name} została wyłączona z powodu zbyt wielu kolejnych niepowodzeń.",
-        "licenseUnavailable": "Cykliczna synchronizacja danych {name} została wyłączona, ponieważ obszar roboczy nie ma już ważnej licencji. Zaktualizuj licencję, aby przywrócić automatyczną synchronizację."
+        "failure": "Cykliczna synchronizacja danych {name} została wyłączona z powodu zbyt wielu błędów.",
+        "licenseUnavailable": "Cykliczna synchronizacja danych {name} została wyłączona, ponieważ obszar roboczy nie ma już ważnej licencji. Zaktualizuj licencję, aby przywrócić tę funkcję."
     },
     "configureDataSyncModal": {
         "periodicInterval": "Ustawienia cykliczne"
@@ -558,7 +570,8 @@
         "sources": "{count} źródło | {count} źródła/źródeł"
     },
     "advanced": {
-        "license": "Wersja Advanced"
+        "license": "Wersja Advanced",
+        "openSubscriptions": "Otwórz subskrypcje aby dodać więcej stanowisk"
     },
     "dataScanner": {
         "title": "Skaner danych",
@@ -710,29 +723,29 @@
         "polarArea": "Wykres biegunowy"
     },
     "twoWaySyncUpdateFailed": {
-        "title": "Aktualizacja synchronizacji dwukierunkowej {name} nie powiodła się: {error}"
+        "title": "Aktualizacja synchronizacji dwukierunkowej {name} nie powiodła się, błąd: {error}"
     },
     "twoWaySyncDeactivated": {
-        "title": "Synchronizacja dwukierunkowa {name} została wyłączona z powodu zbyt wielu kolejnych niepowodzeń. Zsynchronizuj ręcznie i włącz ponownie po rozwiązaniu problemu."
+        "title": "Synchronizacja dwukierunkowa {name} została wyłączona z powodu zbyt wielu błędów. Zsynchronizuj ręcznie i włącz ponownie po rozwiązaniu problemu."
     },
     "fileInputElement": {
         "defaultHelpText": "Przeciągnij i upuść pliki tutaj lub kliknij, aby je wybrać",
-        "fileSizeExceeded": "Plik jest za duży. Maks. {max} MB."
+        "fileSizeExceeded": "Plik jest zbyt duży. Maks. {max} MB."
     },
     "fieldPermissionModal": {
         "title": "Edytuj uprawnienia do edycji pola",
         "description": "Wybierz, kto może edytować wartości w polu {fieldName}.",
         "question": "Kto może edytować to pole?",
-        "editorTitle": "Edytor i role wyższe (domyślnie)",
+        "editorTitle": "Edytor i role nadrzędne (domyślnie)",
         "editorDescription": "Użytkownicy zalogowani jako edytor, konfigurator i administrator",
-        "builderTitle": "Konfigurator i role wyższe",
+        "builderTitle": "Konfigurator i role nadrzędne",
         "builderDescription": "Użytkownicy zalogowani jako konfigurator i administrator",
         "adminTitle": "Tylko administrator",
         "adminDescription": "Użytkownicy zalogowani jako administrator",
         "nobodyTitle": "Nikt",
         "nobodyDescription": "Brak użytkowników",
         "allowInForms": "Zezwól aby to pole było wypełniane w wierszach tworzonych przy użyciu formularzy",
-        "linkRowWarning": "To jest pole 'Tabeli powiązanej'. Aby wartości w obecnej tabeli nie mogły być aktualizowane za pośrednictwem powiązanej tabeli, sprawdź, czy w powiązanej tabeli nadane są odpowiednie uprawnienia."
+        "linkRowWarning": "To jest pole 'Tabeli powiązanej'. Aby wartości w obecnej tabeli nie mogły być aktualizowane za pośrednictwem tabeli powiązanej, sprawdź, czy w tabeli powiązanej nadane są odpowiednie uprawnienia."
     },
     "builderSettingTypes": {
         "customCode": "Własny CSS/JS"
@@ -772,22 +785,22 @@
         "label": "Edytuj uprawnienia pola"
     },
     "enterpriseTwoWaySyncStrategyType": {
-        "realtimePushDescription": "Umożliwia bezpośrednią edycję wartości komórek w Baserow i bieżące (real-time) przesyłanie zmian do źródła synchronizacji. Należy pamiętać, że zmiany nie są pobierane na bieżąco, ponieważ ich zakończenie zależy od (cyklicznej) operacji synchronizacji. Aby uniknąć przypadkowych zmian, zalecane jest tworzenie kopii zapasowych bazy danych PostgreSQL."
+        "realtimePushDescription": "Umożliwia bezpośrednią edycję wartości komórek w Baserow i bieżące (real-time) przesyłanie zmian do źródła synchronizacji. Należy pamiętać, że zmiany nie są pobierane na bieżąco, ponieważ są uzależnione od (cyklicznej) operacji synchronizacji. Aby uniknąć przypadkowych zmian, zalecane jest robienie kopii zapasowych bazy danych PostgreSQL."
     },
     "dateDependencyModal": {
-        "errorTitle": "Powiązanie dat",
-        "dependencyFieldTooltip": "Skonfiguruj powiązania dat",
+        "errorTitle": "Zależności między datami",
+        "dependencyFieldTooltip": "Skonfiguruj zależności między datami",
         "dependencyFieldTooltipError": "Reguła pola zawiera błąd",
-        "contextMenuItemLabel": "Skonfiguruj powiązania dat",
-        "title": "Powiązania dat w tabeli {tableName}",
-        "description": "Określ, które wiersze zależą od innych. Gdy wiersz zostanie przesunięty w czasie, powiązane wiersze zostaną automatycznie zaktualizowane.",
-        "enableDateDependency": "Włącz powiązania dat w projektach",
+        "contextMenuItemLabel": "Skonfiguruj zależności między datami",
+        "title": "Zależności między datami w tabeli {tableName}",
+        "description": "Określ, które wiersze są powiązane z którymi. Gdy wartość w jednym wierszu zostanie przesunięta w czasie, wiersze powiązane zostaną automatycznie zaktualizowane.",
+        "enableDateDependency": "Włącz zależności między datami w projektach",
         "startDateFieldLabel": "Data początkowa",
         "endDateFieldLabel": "Data końcowa",
         "durationFieldLabel": "Czas trwania",
-        "durationFieldHint": "To pole musi używać formatu „d h”.",
+        "durationFieldHint": "To pole musi używać formatu „d h” (dzień godzina).",
         "dependencyLinkrowFieldLabel": "Elementy poprzedzające",
-        "dependencyLinkrowFieldHint": "Użyj pola tabeli powiązanej, aby połączyć ten wiersz z wierszem poprzedzającym.",
+        "dependencyLinkrowFieldHint": "Użyj pola tabeli powiązanej, aby połączyć ten wiersz z wierszami poprzedzającymi.",
         "dependencyBufferTypeLabel": "Zmiany w harmonogramach",
         "durationBufferLabel": "Bufor czasowy",
         "dependencyConnectionTypeLabel": "Rodzaj",
@@ -796,16 +809,16 @@
         "dependencyFieldForReaderTooltip": "To pole jest uwzględnione w regule zależności między datami",
         "fieldInvalidTitle": "Błąd w polu zależności między datami",
         "addNewField": "Dodaj nowe pole",
-        "linkRowFieldTitle": "Element nastepujacy"
+        "linkRowFieldTitle": "Elementy nadrzędne"
     },
     "dateDependency": {
-        "invalidChildRow": "Wiersz elementu następującego jest nieprawidłowy",
-        "invalidParentRow": "Wiersz elementu poprzedzającego jest nieprawidłowy",
-        "invalidParentEndDateAfterChildStartDate": "Data końcowa elmentu poprzedzającego jest późniejsza niż data początkowa elementu następującego",
+        "invalidChildRow": "Wiersz elementu podrzędnego jest nieprawidłowy",
+        "invalidParentRow": "Wiersz elementu nadrzędnego jest nieprawidłowy",
+        "invalidParentEndDateAfterChildStartDate": "Data końcowa elmentu podrzędnego jest późniejsza niż data początkowa elementu nadrzędnego",
         "invalidStartDateEmpty": "Data początkowa jest pusta",
         "invalidEndDateEmpty": "Data końcowa jest pusta",
         "invalidEndDateBeforeStartDate": "Data końcowa jest wcześniejsza niż data początkowa",
-        "invalidDurationEmpty": "Czas trwania jest pusty",
+        "invalidDurationEmpty": "Brak wartości czasu trwania",
         "invalidDurationValue": "Podana wartość czasu trwania jest nieprawidłowa",
         "invalidDurationMismatch": "Niezgodność wartości czasu trwania"
     },
@@ -836,5 +849,47 @@
     },
     "assistantOnboardingMessage": {
         "instructing": "Jak zlecić Kumie zbudowanie bazy danych."
+    },
+    "restrictedViewFilterContext": {
+        "matchTitle": "Wartości domyślne widoku są zgodne z filtrami",
+        "matchSubtitle": "Edytorzy będą widzieć wiersze, które utworzą.",
+        "mismatchTitle": "Wartości domyślne nie są zgodne z filtrami",
+        "mismatchSubtitle": "Edytorzy mogą tworzyć wiersze, ale nie mogą ich przeglądać.",
+        "removeDefaultValue": "Usuń wartość domyślną",
+        "removeDefaultValueHelper": "To pole ma wartość domyślną, ale nie ma filtra. Klikając trzy kropki obok widoku, a następnie opcję \"Domyślne wartości wierszy”, możesz je usunąć lub ustawić ich wartości domyślne."
+    },
+    "serviceType": {
+        "coreCode": "Uruchom kod",
+        "coreCodeDescription": "Uruchamia arbitralny kod JavaScript.",
+        "coreXLSFileReader": "Wczytaj plik XLS",
+        "coreXLSFileReaderDescription": "Wczytaj wiersze z pliku XLS lub XLSX.",
+        "errorCodeMissing": "W kodzie brakuje atrubutu",
+        "errorXLSFileMissing": "W pliku XLS brakuje atrybutu"
+    },
+    "coreCodeServiceForm": {
+        "codeLabel": "Kod",
+        "codeHelperText": "Podczas wykonywania operacji Baserow wywołuje funkcję main(context). Aby odczytać wstawione wartości i zwrócić obiekt, którego atrybuty można wykorzystać w kolejnych operacjach, należy użyć kontekstu.",
+        "codePlaceholder": "Wprowadź kod, który ma być uruchomiony",
+        "editCode": "Edytuj kod",
+        "injectionsLabel": "Wstawianie danych",
+        "injectionsHelperText": "Wstawienia (injections) to wyrażenia analizowane przed uruchomieniem kodu. Wszystkie nazwy wstawień są ustawiane jako atrybuty obiektu context. Na przykład wstawienie o nazwie customerName jest dostępne jako context.customerName.",
+        "nameLabel": "Nazwa",
+        "namePlaceholder": "Nazwa zmiennej",
+        "valueLabel": "Wartość",
+        "valuePlaceholder": "Formuła wartości",
+        "addInjection": "Dodaj wstawienie (injection)",
+        "nameFieldRequired": "Pole nazwy jest wymagane.",
+        "nameFieldInvalid": "Nazwa musi być poprawną nazwą zmiennej."
+    },
+    "coreXLSFileReaderServiceForm": {
+        "file": "Plik XLS",
+        "filePlaceholder": "Wybierz plik XLS lub XLSX...",
+        "sheetName": "Nazwa arkusza",
+        "sheetNamePlaceholder": "Pierwszy arkusz",
+        "firstLineIsHeader": "Pierwszy wiersz stanowi nagłówek"
+    },
+    "nodeType": {
+        "codeLabel": "Uruchom kod",
+        "xlsFileReaderLabel": "Wczytaj plik XLS"
     }
 }
