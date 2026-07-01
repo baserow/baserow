@@ -12,7 +12,7 @@
             "json": "Eksport w formacie JSON",
             "xml": "Eksport w formacie XML",
             "excel": "Eksport w formacie Excel",
-            "file": "Eksportuj pliki"
+            "file": "Wyeksportuj pliki"
         },
         "deactivated": "Dostępne w wersji Premium"
     },
@@ -35,7 +35,7 @@
         "created": "utworzono",
         "edited": "edytowano",
         "commentTrashed": "Ten komentarz został usunięty.",
-        "errorUserNotCommentAuthorTitle": "Nie można zaktualizować ani usunąć.",
+        "errorUserNotCommentAuthorTitle": "Nie można zaktualizować ani usunąć komentarza.",
         "creating": "tworzenie",
         "updating": "aktualizowanie",
         "deleting": "usuwanie",
@@ -47,11 +47,11 @@
         "titleRegisterLicense": "Zarejestruj licencję",
         "registerLicense": "Zarejestruj licencję",
         "viewPricing": "Zobacz cennik",
-        "licenseDescription": "Licencję można wykupić wyłącznie na baserow.io. Jeśli masz już licencję, to klucz powinien być na twoim e-mailu, ale możesz go również znaleźć na swoim koncie. Skopiuj i wklej swój klucz w polu poniżej i kliknij przycisk, aby powiązać go z tą instancją. Ten sam klucz nie może być powiązany z dwoma różnymi instancjami. {pricingLink}, jeśli nie masz jeszcze klucza.",
+        "licenseDescription": "Licencję można wykupić wyłącznie na baserow.io. Jeśli masz już licencję, to klucz został wysłany e-mailem, ale możesz go również znaleźć na swoim koncie. Skopiuj i wklej swój klucz w polu poniżej i kliknij przycisk, aby powiązać go z tą instancją. Ten sam klucz nie może być powiązany z dwoma różnymi instancjami. Jeśli nie masz jeszcze licencji odwiedź {pricingLink}.",
         "licenseError": {
             "invalidTitle": "Nieważny",
             "invalid": "Podana licencja jest nieważna.",
-            "unsupportedTitle": "Nierozpoznana licencja",
+            "unsupportedTitle": "Niekompatybilna licencja",
             "unsupported": "Podana licencja nie jest kompatybilna z Twoją wersją Baserow. Zaktualizuj Baserow i spróbuj ponownie.",
             "expiredTitle": "Wygasła",
             "expired": "Podana licencja wygasła.",
@@ -79,7 +79,7 @@
         "editStack": "Edytuj grupowanie kart",
         "deleteStack": "Usuń grupowanie kart",
         "delete": "Usuń {name}",
-        "deleteDescription": "Czy na pewno chcesz usunąć grupowanie kart {name}? Spowoduje to usunięcie opcji z pola wyboru pojedynczego i wyzerowanie wartości wierszy i, w konsekwencji, utratę danych."
+        "deleteDescription": "Czy na pewno chcesz usunąć grupowanie kart {name}? Spowoduje to usunięcie opcji z pola wyboru pojedynczego oraz wyzerowanie wartości wierszy i, w konsekwencji, utratę danych."
     },
     "kanbanViewHeader": {
         "stackBy": "Pogrupuj karty wg.",
@@ -104,7 +104,7 @@
         "exports": "Eksport tabeli",
         "admin": "Funkcjonalność administratora",
         "rowColoring": "Kolorowanie wierszy",
-        "surveyForm": "Formularz w trybie ankiety",
+        "surveyForm": "Formularz ankiety",
         "publicLogoRemoval": "Usunięcie logo Baserow",
         "personalViews": "Prywatne widoki",
         "calendarView": "Widok kalendarza",
@@ -114,21 +114,21 @@
         "rowNotificationsContent": "Otrzymuj na bieżąco powiadomienia o komentarzach do wierszy w tabelach. Możesz otrzymywać wszystkie komentarze albo tylko te, w których wspomniano o Tobie.",
         "exportsContent": "Eksportuj dane w dodatkowych formatach tj. Excel, JSON i XML albo pobierz wszystkie pliki z tabeli – opcja daje dodatkowe możliwości tworzenia kopii zapasowych, raportów i przesyłania danych innym.",
         "rowNotifications": "Powiadomienia o komentarzach",
-        "surveyFormContent": "W wersji formularza w trybie ankiety pytania są zadawane oddzielnie, jedno po drugim. Ta uproszczona wersja formularza ułatwia uzyskanie bardziej skonkretyzowanych odpowiedzi.",
+        "surveyFormContent": "W formularzu ankiety pytania są zadawane oddzielnie, jedno po drugim. Ta uproszczona wersja formularza ułatwia uzyskanie bardziej skonkretyzowanych odpowiedzi.",
         "aiFeaturesContent": "AI pomoże Ci zautomatyzować bazę i rozbudować procesy. Za pomocą pola promptu możesz generować tekst, podsumowania lub analizy bezpośrednio w komórkach i na podstawie dynamicznych powiązań z innymi polami. AI jest również przydatne do generowania formuł.",
         "publicLogoRemovalContent": "Ta opcja pozwala usunąć logo Baserow z widoków publicznych, dzięki czemu strony będą zawierać wyłącznie branding Twojej firmy.",
-        "kanbanViewContent": "Prezentuj dane przy pomocy tablicy i kart Kanban. Karty Kanban możesz grupować na podstawie wartości w wybranym polu wyboru pojedynczego. Możesz też je łatwo przeciągać między kolumnami.",
+        "kanbanViewContent": "Prezentuj dane przy pomocy tablicy i kart Kanban. Karty Kanban możesz pogrupować na podstawie wartości w wybranym polu wyboru pojedynczego oraz przeciągać między kolumnami.",
         "rowCommentsContent": "Wymieniaj uwagi z innymi użytkownikami bezpośrednio w tabeli. Dodawaj komentarze do poszczególnych wierszy i komunikuj się z współpracownikami, nie wychodząc z aplikacji.",
         "timelineViewContent": "Używając dat początkowych i końcowych, wizualizuj dane przy pomocy poziomej osi czasu – ta opcja służy do planowania projektów i przygotowywania harmonogramów.",
         "chartWidget": "Widżet tworzenia wykresów",
         "chartWidgetContent": "Wizualizuj dane na pulpitach przy pomocy wykresów. Użyj dowolnej tabeli jako źródła, dodaj zakresy danych oraz grupuj lub sortuj pola, używając różnorodnych opcji podsumowań.",
         "rowColoringContent": "Zaznacz wiersze kolorami na podstawie pola wyboru pojedynczego lub określonych warunków. Ta opcja jest przydatna do wyróżniania danych, powtarzających się schematów i priorytetów.",
-        "personalViewsContent": "Skonfiguruj widoki dostępne tylko dla Ciebie – to opcja przeznaczona do eksperymentów, filtrowania lub sortowania danych na własne potrzeby i bez “zakłócania” wspólnego obszaru roboczego."
+        "personalViewsContent": "Skonfiguruj swoje własne widoki – to opcja przeznaczona do eksperymentów, filtrowania lub sortowania danych na własne potrzeby i bez “zakłócania” wspólnego obszaru roboczego."
     },
     "licenses": {
-        "titleNoLicenses": "Nie znaleziono licencji",
+        "titleNoLicenses": "Nie znaleziono żadnej licencji",
         "titleLicenses": "Licencje",
-        "noLicensesDescription": "Ta instancja Baserow nie jest jeszcze powiązana z żadną licencją. Licencja typu premium umożliwi Ci natychmiastowy dostęp do wszystkich dodatkowych funkcji. Jeśli masz już licencję, możesz ją zarejestrować tutaj. Jeżeli jeszcze nie masz licencji, możesz ją wykupić, klikając na poniższy przycisk.",
+        "noLicensesDescription": "Ta instancja Baserow nie jest jeszcze powiązana z żadną licencją. Licencja premium umożliwi Ci natychmiastowy dostęp do wszystkich dodatkowych funkcji. Jeśli masz już licencję, możesz ją zarejestrować tutaj. Jeżeli jeszcze nie masz licencji, możesz ją wykupić, klikając na poniższy przycisk.",
         "getLicense": "Wykup licencję",
         "baserowInstanceId": "ID Twojej instancji Baserow:",
         "registerLicense": "Zarejestruj licencję",
@@ -143,7 +143,7 @@
     "license": {
         "title": "Plan {name}",
         "users": "Użytkownicy",
-        "description": "Wybierz użytkowników, którzy mogą korzystać z planu {product_code}. Maksymalna liczba użytkowników licencji {product_code}: {seats}.",
+        "description": "Wybierz użytkowników, którzy mogą korzystać z planu {product_code}. Maksymalna liczba stanowisk objętych tą licencją {product_code}: {seats}.",
         "seatLeft": "Nie masz wolnych stanowisk | Masz jedno wolne stanowisko | Wolne stanowiska: {count}",
         "fillSeats": "Przydziel stanowiska użytkownikom, których nie obejmuje plan",
         "removeAll": "Usuń wszystkich użytkowników",
@@ -156,7 +156,7 @@
         "validThrough": "Ważny do",
         "validThroughDescription": "Po wygaśnięciu licencji ani Ty, ani przypisani użytkownicy nie będziecie mogli korzystać z dodatkowych funkcji.",
         "lastCheck": "Data ostatniej weryfikacji",
-        "lastCheckDescription": "Licencja jest okresowo weryfikowana pod kątem zmian. Jeśli na przykład odnowiłeś lub rozszerzyłeś licencję, zmiany staną się widoczne lub aktywne po weryfikacji.",
+        "lastCheckDescription": "Licencja jest okresowo weryfikowana pod kątem zmian. Jeśli na przykład odnowiłeś lub rozszerzyłeś licencję, zmiany staną się widoczne lub aktywne po zweryfikowaniu.",
         "checkNow": "weryfikuj licencję",
         "seats": "Stanowiska (liczba użytkowników)",
         "licensedTo": "Licencjobiorca",
@@ -164,22 +164,22 @@
         "applications": "Aplikacje / bazy danych",
         "unlimited": "Bez limitu",
         "rowUsage": "Wykorzystanie wierszy",
-        "storeUsage": "Wykorzystanie pamięci masowej",
+        "storeUsage": "Wykorzystanie dysku",
         "disconnectLicense": "Wyrejestruj licencję",
-        "disconnectDescription": "Wyrejestrowanie aktywnej licencji spowoduje, że powiązani z nią użytkownicy stracą dostęp do tego planu, a licencja zostanie usunięta. Jeśli chcesz użyć tej licencji w osobnej instancji hostowanej na własnym serwerze, skontaktuj się z naszym zespołem pomocy technicznej pod adresem {contact}.",
-        "premiumFeatureName": "Wersja Premium",
+        "disconnectDescription": "Czy jesteś pewien/na, że chcesz wyrejestrować tę licencję? Wyrejestrowanie aktywnej licencji spowoduje, że powiązani z nią użytkownicy stracą dostęp do tego planu, a licencja zostanie usunięta z tej instancji. Jeśli jest taka potrzeba oraz jeżeli korzystasz z wersji Enterprise, to na stronie subskrypcji na {subscriptions} lub kontaktując się z naszym zespołem pomocy technicznej pod adresem {contact}, możesz zmienić ID instancji swojej subskrypcji.",
+        "premiumFeatureName": "Wersja premium",
         "supportFeatureName": "Pomoc techniczna",
         "moreSeatsNeededTitle": "Potrzebujesz więcej stanowisk",
         "enterpriseFeatureName": "Wersja Enterprise",
-        "contactSalesMoreSeats": "Aby wykupić większeą liczbę stanowisk skontaktuj się z działem sprzedaży",
+        "contactSalesMoreSeats": "Aby wykupić większą liczbę stanowisk skontaktuj się z działem sprzedaży",
         "automaticSeatsProgressBarStatus": "masz {seats_taken} / {seats} płatnych i {free_users_count} bezpłatnych stanowisk",
-        "applicationUsersDescription": "Całkowita liczba użytkowników aplikacji w opublikowanych źródłach użytkowników konstruktora aplikacji.",
+        "applicationUsersDescription": "Całkowita liczba użytkowników aplikacji w opublikowanych źródłach użytkowników konfiguratora aplikacji.",
         "applicationUsers": "Użytkownicy aplikacji",
         "advancedFeatureName": "Wersja Advanced"
     },
     "viewDecoratorType": {
         "leftBorderColor": "Lewa krawędź",
-        "leftBorderColorDescription": "Koloruj lewą krawędź wiersza",
+        "leftBorderColorDescription": "Pokoloruj lewą krawędź wiersza",
         "backgroundColor": "Kolor tła",
         "backgroundColorDescription": "Pokoloruj tło wiersza",
         "onlyForPremium": "Dostępne w wersji premium",
@@ -215,7 +215,7 @@
     },
     "formViewModePreviewSurvey": {
         "orderFields": "Uporządkuj pola",
-        "deactivated": "Formularz w trybie ankiety jest dostępny w wersji premium.",
+        "deactivated": "Formularz ankiety jest dostępny w wersji premium.",
         "more": "Więcej informacji"
     },
     "formViewModeType": {
@@ -226,7 +226,7 @@
     "shareLinkOptions": {
         "baserowLogo": {
             "label": "Ukryj logo Baserow w widoku udostępnionym",
-            "premiumModalName": "usuwanie logo z widoku publicznego"
+            "premiumModalName": "usunięcie logo z widoku publicznego"
         },
         "allowPublicExportLabel": "Pozwól na eksport z widoku udostępnionego"
     },
@@ -267,7 +267,7 @@
         "save": "Zapisz"
     },
     "RowEditModalCommentNotificationMode": {
-        "modeMentionsDesc": "Otrzymasz powiadomienia wyłącznie, gdy ktoś wspomni o Tobie we wzmiance.",
+        "modeMentionsDesc": "Otrzymasz powiadomienia wyłącznie, gdy zostaniesz \"wspomniany\".",
         "modeAllTitle": "Wszystkie komentarze",
         "modeMentionsTitle": "Tylko wzmianki",
         "modeAllDesc": "Otrzymasz powiadomienia o wszystkich komentarzach do tego wiersza."
@@ -281,14 +281,14 @@
     },
     "fieldAISubForm": {
         "AIModel": "Model AI",
-        "premiumFeature": "Pole AI zalicza się do funkcji premium",
+        "premiumFeature": "Pole AI należy do funkcji premium",
         "AIType": "Typ AI",
         "prompt": "Prompt",
         "fileFieldHelp": "Pierwszy plik tekstowy w polu z rozszerzeniem .txt, .md, .pdf lub .docx zostanie użyty jako baza wiedzy (knowledge base).",
         "promptPlaceholder": "Czym jest Baserow?",
         "emptyFileField": "Brak",
-        "outputTypeTooltip": "Wybierz format, w jakim LLM ma wygenerować dane wyjściowe.",
-        "outputType": "Format danych wyjściowych",
+        "outputTypeTooltip": "Wybierz format, w jakim LLM ma wygenerować odpowiedź.",
+        "outputType": "Format odpowiedzi",
         "outputTypeChangedWarning": "Kasuje wygenerowane wartości w komórkach.",
         "autoUpdate": "Automatyczna aktualizacja",
         "autoUpdateHelp": "Włączenie tej opcji spowoduje, że po aktualizacji któregoś z pól użytych w promptcie wartość pola AI zostanie automatycznie wygenerowana ponownie.",
@@ -309,7 +309,7 @@
     "aiFormulaModal": {
         "noModels": "Żaden model AI nie został skonfigurowany w tej instancji Baserow bądź w obszarze roboczym. Przejdź do strony głównej, kliknij nazwę obszaru roboczego, następnie ustawienia i wybierz model AI.",
         "title": "Wygeneruj formułę przy pomocy AI",
-        "description": "Zwróć uwagę, że wygenerowane formuły mogą nie działać tak, jak się tego spodziewasz. Rozbieżności mogą się pojawić, ponieważ konstrukcja formuły zależy od promptu i wybranego modelu, a wynik jest wstawiany bezpośrednio do pola wprowadzania formuły. Funkcja działa najlepiej przy użyciu wysokoparametrycznego modelu, np. gpt-4-turbo-preview.",
+        "description": "Zwróć uwagę, że wygenerowane formuły mogą nie działać tak, jak się tego spodziewasz. Wygenerowane formuły zależą od zawartości promptu i wybranego modelu, a wynik jest wstawiany bezpośrednio do pola formuły. Funkcja działa najlepiej przy użyciu wysokoparametrycznego modelu, np. gpt-4-turbo-preview.",
         "label": "Prompt",
         "labelDescription": "Opisz formułę, którą chcesz wygenerować",
         "generate": "Wygeneruj"
@@ -329,7 +329,7 @@
         "today": "Dziś"
     },
     "timelineDateSettingsForm": {
-        "incompatibleFieldsErrorMessage": "Te pola nie są kompatybilne. Wybierz dwa pola daty z ustawioną opcją godziny oraz z tą samą strefą czasową dla wszystkich współpracowników.",
+        "incompatibleFieldsErrorMessage": "Te pola nie są kompatybilne. Wybierz dwa pola daty z ustawioną opcją godziny oraz z tą samą strefą czasową ustawioną dla wszystkich współpracowników.",
         "startDateField": "Data początkowa",
         "endDateField": "Data końcowa",
         "noCompatibleDateFields": "W tej tabeli nie ma pól dat. Utwórz pola daty początkowej i końcowej.",
@@ -377,7 +377,7 @@
     },
     "paidFeaturesModal": {
         "viewPricing": "Zobacz cennik",
-        "description": "Ta funkcja jest dostępna w planie {plan} i wymaga zmiany obecnego planu. Kliknij poniżej, żeby sprawdzić nasze opcje cenowe."
+        "description": "Ta funkcja jest dostępna w wersji {plan} i wymaga zmiany obecnego planu. Kliknij poniżej, żeby sprawdzić dostępne opcje."
     },
     "kanbanView": {
         "addStack": "Dodaj grupowanie kart"
@@ -393,7 +393,7 @@
         "started": "Rozpoczęte",
         "finished": "Zakończone",
         "running": "W toku",
-        "failed": "Zakończone niepowodzeniem",
+        "failed": "Wystąpił błąd",
         "cancelled": "Anulowane",
         "pending": "Oczekujące",
         "view": "Widok: {name}",
@@ -406,8 +406,8 @@
         "scopeLabel": "Zakres",
         "entireTable": "Cała tabela",
         "skipPopulated": "Wygeneruj tylko wartości w pustych komórkach",
-        "warningTitle": "Ostrzeżenie o zużyciu tokenów",
-        "warningMessage": "W trakcie generowania danych AI korzysta z tokenów API. Ponadto w zależności od liczby wierszy przetwarzanie może potrwać dłuższy okres."
+        "warningTitle": "Ostrzeżenie o wykorzystaniu tokenów",
+        "warningMessage": "W trakcie generowania danych AI korzysta z tokenów API. W zależności od liczby wierszy przetwarzanie może potrwać dłuższy okres."
     },
     "generateAIValuesFormFooter": {
         "generate": "Wygeneruj za pomocą AI",
@@ -418,6 +418,6 @@
     },
     "viewOwnershipType": {
         "personal": "Osobisty",
-        "personalDescription": "Tylko Ty widzisz ten widok."
+        "personalDescription": "Tylko Ty możesz wyświetlić ten widok."
     }
 }
