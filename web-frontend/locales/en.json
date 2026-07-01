@@ -257,6 +257,7 @@
     "containsNot": "doesn't contain",
     "containsWord": "contains word",
     "doesntContainWord": "doesn't contain word",
+    "startsWith": "starts with",
     "filenameContains": "filename contains",
     "has": "has",
     "hasNot": "doesn't have",

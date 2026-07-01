@@ -202,6 +202,7 @@ from .field_filters import (
     contains_word_filter,
     filename_contains_filter,
     parse_ids_from_csv_string,
+    starts_with_filter,
 )
 from .field_helpers import prepare_files_for_export
 from .field_sortings import OptionallyAnnotatedOrderBy
@@ -378,6 +379,9 @@ class TextFieldMatchingRegexFieldType(FieldType, ABC):
     def contains_query(self, *args):
         return contains_filter(*args)
 
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
+
     def contains_word_query(self, *args):
         return contains_word_filter(*args)
 
@@ -474,6 +478,9 @@ class TextFieldType(CollationSortMixin, FieldType):
     def contains_query(self, *args):
         return contains_filter(*args)
 
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
+
     def contains_word_query(self, *args):
         return contains_word_filter(*args)
 
@@ -543,6 +550,9 @@ class LongTextFieldType(CollationSortMixin, FieldType):
 
     def contains_query(self, *args):
         return contains_filter(*args)
+
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
 
     def contains_word_query(self, *args):
         return contains_word_filter(*args)
@@ -797,6 +807,9 @@ class NumberFieldType(FieldType):
 
     def contains_query(self, *args):
         return contains_filter(*args)
+
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
 
     def get_export_serialized_value(self, row, field_name, cache, files_zip, storage):
         value = self.get_internal_value_from_db(row, field_name)
@@ -4712,6 +4725,13 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             return Q()
         return Q(**{f"{field_name}__value__icontains": value})
 
+    def starts_with_query(self, field_name, value, model_field, field):
+        value = value.strip()
+        # If an empty value has been provided we do not want to filter at all.
+        if value == "":
+            return Q()
+        return Q(**{f"{field_name}__value__istartswith": value})
+
     def contains_word_query(self, field_name, value, model_field, field):
         value = value.strip()
         # If an empty value has been provided we do not want to filter at all.
@@ -5634,6 +5654,15 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(field)
         return field_type.contains_query(field_name, value, model_field, field_instance)
+
+    def starts_with_query(self, field_name, value, model_field, field: FormulaField):
+        (
+            field_instance,
+            field_type,
+        ) = self.get_field_instance_and_type_from_formula_field(field)
+        return field_type.starts_with_query(
+            field_name, value, model_field, field_instance
+        )
 
     def contains_word_query(self, field_name, value, model_field, field):
         (
@@ -7451,6 +7480,9 @@ class AutonumberFieldType(ReadOnlyFieldType):
 
     def contains_query(self, *args):
         return contains_filter(*args)
+
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
 
     def update_rows_with_field_sequence(
         self, field: Field, view: Optional["View"] = None

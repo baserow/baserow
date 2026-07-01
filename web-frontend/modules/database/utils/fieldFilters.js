@@ -38,6 +38,20 @@ export function genericContainsFilter(
   return humanReadableRowValue.includes(filterValue)
 }
 
+export function genericStartsWithFilter(
+  rowValue,
+  humanReadableRowValue,
+  filterValue
+) {
+  if (humanReadableRowValue == null) {
+    return false
+  }
+  humanReadableRowValue = String(humanReadableRowValue).toLowerCase().trim()
+  filterValue = String(filterValue).toLowerCase().trim()
+
+  return humanReadableRowValue.startsWith(filterValue)
+}
+
 export function genericContainsWordFilter(
   rowValue,
   humanReadableRowValue,

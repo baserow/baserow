@@ -72,6 +72,7 @@ import {
   LinkRowNotContainsFilterType,
   ContainsWordViewFilterType,
   DoesntContainWordViewFilterType,
+  StartsWithViewFilterType,
   UserIsFilterType,
   UserIsNotFilterType,
   DateIsEqualMultiStepViewFilterType,
@@ -543,6 +544,7 @@ export default defineNuxtPlugin({
       'viewFilter',
       new DoesntContainWordViewFilterType(context)
     )
+    $registry.register('viewFilter', new StartsWithViewFilterType(context))
     $registry.register(
       'viewFilter',
       new FilenameContainsViewFilterType(context)

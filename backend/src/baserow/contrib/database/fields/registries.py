@@ -510,6 +510,26 @@ class FieldType(
 
         return Q()
 
+    def starts_with_query(self, field_name, value, model_field, field):
+        """
+        Returns a Q or AnnotatedQ filter which performs a starts with filter over the
+        provided field for this specific type of field.
+
+        :param field_name: The name of the field.
+        :type field_name: str
+        :param value: The value to check if this field starts with or not.
+        :type value: str
+        :param model_field: The field's actual django field model instance.
+        :type model_field: models.Field
+        :param field: The related field's instance.
+        :type field: Field
+        :return: A Q or AnnotatedQ filter.
+            given value.
+        :rtype: OptionallyAnnotatedQ
+        """
+
+        return Q()
+
     def contains_word_query(self, field_name, value, model_field, field):
         """
         Returns a Q or AnnotatedQ filter which performs a regex filter over the
