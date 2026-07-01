@@ -22,7 +22,10 @@ describe('SimpleContainerElementForm', () => {
     template: '<div class="radio-group-stub" />',
   })
 
-  const mountComponent = (defaultValues = {}, { parentElement = null } = {}) => {
+  const mountComponent = (
+    defaultValues = {},
+    { parentElement = null } = {}
+  ) => {
     return mountSuspended(SimpleContainerElementForm, {
       props: {
         defaultValues: {
