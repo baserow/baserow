@@ -2,7 +2,8 @@
   <div v-if="entries.length > 0" class="grid-view__focus-badge">
     <div
       class="grid-view__focus-badge-item"
-      :style="{ backgroundColor: anchorColor }"
+      :style="badgeStyle"
+      :title="allNames"
     >
       <span v-if="isEditing" class="grid-view__focus-badge-typing">
         <span class="grid-view__focus-badge-dot"></span>
@@ -10,7 +11,9 @@
         <span class="grid-view__focus-badge-dot"></span>
       </span>
       <template v-else>
-        {{ anchorInitials }}
+        <span class="grid-view__focus-badge-name">
+          {{ anchorName }}
+        </span>
         <span v-if="overflowCount > 0" class="grid-view__focus-badge-count">
           +{{ overflowCount }}
         </span>
@@ -20,14 +23,16 @@
 </template>
 
 <script>
-import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
-
 export default {
   name: 'GridViewFocusBadge',
   props: {
     entries: {
       type: Array,
       default: () => [],
+    },
+    maxWidth: {
+      type: Number,
+      default: 120,
     },
   },
   computed: {
@@ -40,17 +45,32 @@ export default {
         this.anchorEntry.user_id
       )
     },
-    anchorInitials() {
-      return this.anchorUser ? nameAbbreviation(this.anchorUser.name) : '?'
+    anchorName() {
+      return this.anchorUser ? this.anchorUser.name : '?'
     },
     anchorColor() {
       return this.anchorEntry ? this.anchorEntry.color : undefined
+    },
+    allNames() {
+      return this.entries
+        .map((e) => {
+          const user = this.$store.getters['workspace/getUserById'](e.user_id)
+          const name = user ? user.name : '?'
+          return e.editing ? `${name} (editing)` : name
+        })
+        .join(', ')
     },
     overflowCount() {
       return Math.max(0, this.entries.length - 1)
     },
     isEditing() {
       return this.entries.some((e) => e.editing)
+    },
+    badgeStyle() {
+      return {
+        backgroundColor: this.anchorColor,
+        maxWidth: this.maxWidth + 'px',
+      }
     },
   },
 }

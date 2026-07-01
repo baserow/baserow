@@ -19,6 +19,7 @@
     <GridViewFocusBadge
       v-if="focusEntries.length > 0"
       :entries="focusEntries"
+      :max-width="fieldWidth"
     />
     <component
       :is="getFunctionalComponent()"
@@ -117,6 +118,10 @@ export default {
     focusEntries: {
       type: Array,
       default: () => [],
+    },
+    fieldWidth: {
+      type: Number,
+      default: 120,
     },
     addKeepAlive: {
       type: Function,

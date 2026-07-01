@@ -59,6 +59,14 @@
   gap: 3px;
   line-height: 1;
   white-space: nowrap;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.grid-view__focus-badge-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .grid-view__focus-badge-count {

@@ -121,6 +121,7 @@
         :is-selected="isCellSelected(field.id)"
         :is-alive="isAlive(field.id)"
         :focus-entries="getCellFocusEntries(field)"
+        :field-width="fieldWidths[field.id]"
         :add-keep-alive="addKeepAlive"
         :remove-keep-alive="removeKeepAlive"
         @update="$emit('update', $event)"
