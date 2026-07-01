@@ -625,7 +625,7 @@ def test_delete_expired_users_and_related_workspaces_if_last_admin(
                 grace_delay=timedelta(days=3)
             )
 
-    user_ids = User.objects.values_list("pk", flat=True)
+    user_ids = set(User.objects.values_list("pk", flat=True))
     assert len(user_ids) == 5
     assert user1.id not in user_ids
     assert user5.id not in user_ids
@@ -635,7 +635,7 @@ def test_delete_expired_users_and_related_workspaces_if_last_admin(
     assert user6.id in user_ids
     assert user7.id in user_ids
 
-    workspace_ids = Workspace.objects.values_list("pk", flat=True)
+    workspace_ids = set(Workspace.objects.values_list("pk", flat=True))
     assert len(workspace_ids) == 4
     assert workspaceuser1.workspace.id not in workspace_ids
     assert workspaceuser1_2.workspace.id not in workspace_ids

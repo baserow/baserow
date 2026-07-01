@@ -823,7 +823,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
                 (u.id, u.username, u.email, u.profile.language, workspace_ids)
             )
 
-        # A workspace need to be deleted if one of the deleted users was an admin
+        # A workspace needs to be deleted if one of the deleted users was an admin
         # and there is no *active* admin left after the deletion. Workspaces where
         # none of the deleted users were admins are left untouched, even if they
         # already had no admin.
