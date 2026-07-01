@@ -30,21 +30,23 @@ def test_header_footer_child_types_allowed():
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "model_class,element_type",
+    "model_class,element_type_class",
     [
-        (HeaderElement, HeaderElementType.type),
-        (FooterElement, FooterElementType.type),
+        (HeaderElement, HeaderElementType),
+        (FooterElement, FooterElementType),
     ],
 )
-def test_header_footer_position_fixed_field(data_fixture, model_class, element_type):
+def test_header_footer_position_fixed_field(
+    data_fixture, model_class, element_type_class
+):
     page = data_fixture.create_builder_page()
     shared_page = page.builder.shared_page
     element = data_fixture.create_builder_element(
-        model_class,
+        element_type_class,
         page=shared_page,
         behaviour=model_class.PAGE_BEHAVIOURS.FIXED,
     )
-    element_type = element_type_registry.get(element_type)
+    element_type = element_type_registry.get(element_type_class.type)
 
     serialized = element_type.export_serialized(element)
 
