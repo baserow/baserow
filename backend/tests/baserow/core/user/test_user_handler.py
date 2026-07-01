@@ -599,6 +599,13 @@ def test_delete_expired_users_and_related_workspaces_if_last_admin(
         user=user5, workspace=workspaceuser4_2.workspace
     )
 
+    # An existing workspace that already has no admin and where none of the
+    # deleted users are admins must not be affected by the deletion.
+    user7 = data_fixture.create_user(email="test7@localhost")
+    workspaceuser7 = data_fixture.create_user_workspace(
+        user=user7, permissions="MEMBER"
+    )
+
     handler = UserHandler()
 
     # Last login before max expiration date (should be deleted)
@@ -619,22 +626,25 @@ def test_delete_expired_users_and_related_workspaces_if_last_admin(
             )
 
     user_ids = User.objects.values_list("pk", flat=True)
-    assert len(user_ids) == 4
+    assert len(user_ids) == 5
     assert user1.id not in user_ids
     assert user5.id not in user_ids
     assert user2.id in user_ids
     assert user3.id in user_ids
     assert user4.id in user_ids
     assert user6.id in user_ids
+    assert user7.id in user_ids
 
     workspace_ids = Workspace.objects.values_list("pk", flat=True)
-    assert len(workspace_ids) == 3
+    assert len(workspace_ids) == 4
     assert workspaceuser1.workspace.id not in workspace_ids
     assert workspaceuser1_2.workspace.id not in workspace_ids
     assert workspaceuser1_3.workspace.id in workspace_ids
     assert workspaceuser2.workspace.id in workspace_ids
     assert workspaceuser4.workspace.id in workspace_ids
     assert workspaceuser4_2.workspace.id not in workspace_ids
+    # The admin-less workspace unrelated to the deleted users survives.
+    assert workspaceuser7.workspace.id in workspace_ids
 
     end_table_names = sorted(connection.introspection.table_names())
 
