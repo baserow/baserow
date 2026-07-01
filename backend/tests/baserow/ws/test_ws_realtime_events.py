@@ -1676,6 +1676,20 @@ async def test_replay_events_cant_replay_when_last_seen_expired(data_fixture):
     user, token = await sync_to_async(data_fixture.create_user_and_token)()
     await sync_to_async(data_fixture.create_workspace)(user=user)
 
+    # Last-seen event cleaned by retention while a newer one survives: replay can't
+    # anchor, so it must force a refresh. Capture the real id — the sequence isn't
+    # reset between transactional tests.
+    stale_last_seen_id = await sync_to_async(_record_event)(
+        "users",
+        {
+            "type": "broadcast_to_users",
+            "user_ids": [user.id],
+            "send_to_all_users": False,
+            "payload": {"type": "stale"},
+            "ignore_web_socket_id": "ws-other",
+        },
+    )
+    await sync_to_async(RealtimeEvent.objects.filter(id=stale_last_seen_id).delete)()
     await sync_to_async(_record_event)(
         "users",
         {
@@ -1696,12 +1710,10 @@ async def test_replay_events_cant_replay_when_last_seen_expired(data_fixture):
     assert connected is True
     await communicator.receive_json_from()
 
-    # last_seen_id=1 does not exist — retention cleaned it (simulated by
-    # never having created id=1). Replay can't proceed — client must refresh.
     await communicator.send_json_to(
         {
             "type": "replay_events",
-            "last_seen_id": 1,
+            "last_seen_id": stale_last_seen_id,
         }
     )
 
