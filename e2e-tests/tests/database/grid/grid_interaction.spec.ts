@@ -19,7 +19,7 @@ import {
   resetRows,
   setupGrid,
 } from "../../../fixtures/database/gridSetup";
-import { listRows, updateRows } from "../../../fixtures/database/rows";
+import { createGridView, View } from "../../../fixtures/database/view";
 import { pauseRows } from "../../../fixtures/network";
 import { baserowConfig } from "../../../playwright.config";
 
@@ -842,6 +842,7 @@ test.describe("12.2 Row context menu actions", () => {
 test.describe("14.2 Row edit modal with filters", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
+  let unfilteredView: View;
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -853,6 +854,9 @@ test.describe("14.2 Row edit modal with filters", () => {
       ],
       filters: [{ fieldName: "Status", type: "equal", value: "keep" }],
     });
+    unfilteredView = await createGridView(g.user, g.table, {
+      name: "All rows",
+    });
   });
 
   test.beforeEach(async ({ page }) => {
@@ -861,7 +865,7 @@ test.describe("14.2 Row edit modal with filters", () => {
       { Name: "Bob", Status: "keep" },
     ]);
     const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
+    await grid.goTo(g.database, g.table, g.view);
   });
 
   test("14.2.1 modal edit that stops matching the filter keeps the row visible with a warning until modal close", async ({
@@ -893,7 +897,7 @@ test.describe("14.2 Row edit modal with filters", () => {
     await grid.expectPrimaryText(0, "Bob");
   });
 
-  test("14.2.2 a modal row that stopped matching the filter still receives realtime updates", async ({
+  test("14.2.2 a row edit modal continues receiving realtime updates after its row stops matching filters", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -901,17 +905,31 @@ test.describe("14.2 Row edit modal with filters", () => {
 
     await grid.openRowModalFromContext(0);
     await grid.expectRowModalVisibleFor("Alice");
-    await grid.fillRowModalTextField("Status", "gone");
-    await grid.expectRowWarningVisible(0);
 
-    // Another client updates the row; the open modal must reflect the change
-    // even though the row no longer matches the view filters.
-    const rows = await listRows(g.user, g.table);
-    const alice = rows.find((row) => row.Name === "Alice");
-    await updateRows(g.user, g.table, [
-      { id: alice.id, Name: "Alice updated" },
-    ]);
-    await grid.expectRowModalVisibleFor("Alice updated");
+    const otherPage = await page.context().newPage();
+    try {
+      const otherGrid = new GridPage(otherPage, g.user);
+      await otherGrid.goTo(g.database, g.table, unfilteredView);
+      await otherGrid.startEditingField(0, 0);
+      await otherGrid.type("gone");
+      await otherGrid.confirmWithEnter();
+      await otherGrid.expectRowCount(2);
+
+      // The first remote update is the one that removes the row from the filtered
+      // grid buffer. The open modal must still receive that exact realtime event.
+      await grid.expectRowCount(1);
+      await grid.expectRowModalTextFieldValue("Status", "gone");
+
+      await otherGrid.startEditingField(0, 0);
+      await otherGrid.type("still gone");
+      await otherGrid.confirmWithEnter();
+
+      // This follow-up update happens after the row no longer matches the first
+      // page's filters, which is the disconnected-modal regression from the review.
+      await grid.expectRowModalTextFieldValue("Status", "still gone");
+    } finally {
+      await otherPage.close();
+    }
   });
 });
 

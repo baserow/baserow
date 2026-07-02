@@ -112,6 +112,21 @@ export async function getDefaultGridView(
   );
 }
 
+export async function createGridView(
+  user: User,
+  table: Table,
+  { name = "Grid" }: { name?: string } = {},
+): Promise<View> {
+  const response: any = await getClient(user).post(
+    `database/views/table/${table.id}/`,
+    { name, type: "grid" },
+  );
+  const data = response.data;
+  const view = new View(data.id, data.name, data.type, data.slug, table);
+  await ensureViewFieldOptions(user, view);
+  return view;
+}
+
 export async function ensureViewFieldOptions(
   user: User,
   view: View,

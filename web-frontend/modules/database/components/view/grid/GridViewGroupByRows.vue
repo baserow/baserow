@@ -222,16 +222,18 @@ export default {
     },
     /**
      * Vertical cell separators inside the group banner, at every internal field
-     * boundary. Only the scrollable-right section gets them: the section edge
-     * already draws the outer border, and the left section's banner content
-     * (chevron, label, count) flows across its columns.
+     * boundary. The left section starts with the row-details lane, so offset
+     * field separators and draw that first lane boundary there too.
      */
     bannerSeparatorPositions() {
-      if (this.includeRowDetails) {
-        return []
-      }
       const positions = []
       let x = 0
+
+      if (this.includeRowDetails) {
+        x += this.gridViewRowDetailsWidth
+        positions.push(x)
+      }
+
       this.visibleFields.slice(0, -1).forEach((field) => {
         x += this.getFieldWidth(field)
         positions.push(x)

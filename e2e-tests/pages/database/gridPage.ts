@@ -3,6 +3,7 @@ import { baserowConfig } from "../../playwright.config";
 import { Database } from "../../fixtures/database/database";
 import { Table } from "../../fixtures/database/table";
 import { User } from "../../fixtures/user";
+import { View } from "../../fixtures/database/view";
 
 /**
  * Page object for the Baserow grid view.
@@ -38,9 +39,11 @@ export class GridPage {
 
   // -- Navigation --------------------------------------------------------------
 
-  async goTo(database: Database, table: Table): Promise<void> {
+  async goTo(database: Database, table: Table, view?: View): Promise<void> {
     const url = new URL(
-      `/database/${database.id}/table/${table.id}`,
+      `/database/${database.id}/table/${table.id}${
+        view ? `/${view.id}` : ""
+      }`,
       this.baseUrl,
     );
     url.searchParams.set("token", this.user.refreshToken);
@@ -235,6 +238,14 @@ export class GridPage {
     return this.page.locator(".modal__box", {
       has: this.page.locator(".row-modal__title"),
     });
+  }
+
+  rowEditModalTextField(fieldName: string): Locator {
+    return this.rowEditModal()
+      .locator(".row-modal__field-item", { hasText: fieldName })
+      .first()
+      .locator("input")
+      .first();
   }
 
   groupByBannerByValue(value: string): Locator {
@@ -609,10 +620,7 @@ export class GridPage {
    * is persisted.
    */
   async fillRowModalTextField(fieldName: string, value: string): Promise<void> {
-    const item = this.rowEditModal()
-      .locator(".row-modal__field-item", { hasText: fieldName })
-      .first();
-    const input = item.locator("input").first();
+    const input = this.rowEditModalTextField(fieldName);
     await input.fill(value);
     await input.blur();
   }
@@ -916,6 +924,15 @@ export class GridPage {
   async expectRowModalVisibleFor(primaryValue: string): Promise<void> {
     await expect(this.rowEditModal()).toBeVisible({ timeout: 10_000 });
     await expect(this.rowEditModal()).toContainText(primaryValue, {
+      timeout: 10_000,
+    });
+  }
+
+  async expectRowModalTextFieldValue(
+    fieldName: string,
+    value: string,
+  ): Promise<void> {
+    await expect(this.rowEditModalTextField(fieldName)).toHaveValue(value, {
       timeout: 10_000,
     });
   }
