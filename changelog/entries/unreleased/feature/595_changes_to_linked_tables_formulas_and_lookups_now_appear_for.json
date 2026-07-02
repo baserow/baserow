@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Changes to linked tables, formulas and lookups now appear for everyone without refreshing",
+    "issue_origin": "github",
+    "issue_number": 595,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-02"
+}

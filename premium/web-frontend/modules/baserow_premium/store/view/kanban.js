@@ -17,6 +17,7 @@ import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/
 import {
   extractChangedFields,
   getRowMetadata,
+  isSkeletonRow,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
@@ -607,15 +608,28 @@ export const actions = {
     const singleSelectFieldId = getters.getSingleSelectFieldId
     const fieldName = `field_${singleSelectFieldId}`
 
+    // The before row can be a bare `{ id }` skeleton (e.g. dependency cascade
+    // events); the buffered row holds the truthful previous state.
+    const found = getters.findStackIdAndIndex(row.id)
+    const bufferedRow = found !== undefined ? found[2] : undefined
+    if (bufferedRow === undefined && isSkeletonRow(row)) {
+      // The old stack is unknowable, so no move can be computed safely.
+      return
+    }
+    const baseRow =
+      bufferedRow !== undefined
+        ? Object.assign(clone(bufferedRow), clone(row))
+        : clone(row)
+
     // First, we virtually need to figure out if the row was in the old stack.
-    const oldRow = populateRow(clone(row))
+    const oldRow = populateRow(clone(baseRow))
     const oldRowMatchesFilters = await dispatch('rowMatchesFilters', {
       view,
       row: oldRow,
       fields,
     })
     const oldOption = oldRow[fieldName]
-    const oldStackId = oldOption !== null ? oldOption.id : 'null'
+    const oldStackId = oldOption != null ? oldOption.id : 'null'
     const oldStackResults = clone(getters.getStack(oldStackId).results)
     const oldExistingIndex = oldStackResults.findIndex(
       (r) => r.id === oldRow.id
@@ -623,14 +637,14 @@ export const actions = {
     const oldExists = oldExistingIndex > -1 && oldRowMatchesFilters
 
     // Second, we need to figure out if the row should be visible in the new stack.
-    const newRow = Object.assign(populateRow(clone(row)), values)
+    const newRow = Object.assign(populateRow(clone(baseRow)), values)
     const newRowMatchesFilters = await dispatch('rowMatchesFilters', {
       view,
       row: newRow,
       fields,
     })
     const newOption = newRow[fieldName]
-    const newStackId = newOption !== null ? newOption.id : 'null'
+    const newStackId = newOption != null ? newOption.id : 'null'
     const newStack = getters.getStack(newStackId)
     const newStackResults = clone(newStack.results)
     const newRowCurrentIndex = newStackResults.findIndex(

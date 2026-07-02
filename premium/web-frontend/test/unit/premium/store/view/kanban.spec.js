@@ -461,4 +461,52 @@ describe('Kanban view store', () => {
     expect(moveGroupId).toBeTruthy()
     expect(updateGroupId).toBe(moveGroupId)
   })
+
+  test('updatedExistingRow with a skeleton before row', async () => {
+    const stacks = {}
+    stacks.null = {
+      count: 1,
+      results: [{ id: 2, order: '2.00', field_1: null }],
+    }
+    stacks['1'] = {
+      count: 2,
+      results: [
+        { id: 10, order: '10.00', field_1: { id: 1 } },
+        { id: 11, order: '11.00', field_1: { id: 1 } },
+      ],
+    }
+
+    const state = Object.assign(kanbanStore.state(), {
+      singleSelectFieldId: 1,
+      stacks,
+    })
+    store.replaceState({ ...store.state, kanban: state })
+
+    const fields = []
+
+    // A buffered row must move stacks based on its buffered old state.
+    await store.dispatch('kanban/updatedExistingRow', {
+      view,
+      row: { id: 11 },
+      values: { field_1: null, order: '1.00' },
+      fields,
+    })
+    expect(
+      store.state.kanban.stacks['1'].results.findIndex((r) => r.id === 11)
+    ).toBe(-1)
+    expect(store.state.kanban.stacks.null.results[0].id).toBe(11)
+
+    // A skeleton before row for an unbuffered row has no usable old state, so
+    // the event must be ignored instead of throwing or duplicating cards.
+    const before = JSON.parse(JSON.stringify(store.state.kanban.stacks))
+    await store.dispatch('kanban/updatedExistingRow', {
+      view,
+      row: { id: 99 },
+      values: { order: '5.00', field_1: { id: 1 } },
+      fields,
+    })
+    expect(JSON.parse(JSON.stringify(store.state.kanban.stacks))).toStrictEqual(
+      before
+    )
+  })
 })

@@ -16,6 +16,7 @@ import RowService from '@baserow/modules/database/services/row'
 import {
   extractChangedFields,
   getRowMetadata,
+  isSkeletonRow,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
@@ -953,11 +954,23 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * can't be 100% sure, the row will be updated as `null`.
      */
     async afterExistingRowUpdated(
-      { dispatch, commit },
+      { dispatch, commit, getters },
       { view, fields, row, values }
     ) {
-      const oldRow = clone(row)
-      let newRow = Object.assign(clone(row), values)
+      // The before row can be a bare `{ id }` skeleton (e.g. dependency
+      // cascade events); the buffered row holds the truthful previous state.
+      const bufferedRow = getters.getRow(row.id)
+      if (bufferedRow === undefined && isSkeletonRow(row)) {
+        // The old state is unknowable, so no filter/sort transition can be
+        // computed safely; the buffer fetch picks the row up instead.
+        return
+      }
+      const baseRow =
+        bufferedRow !== undefined
+          ? Object.assign(clone(bufferedRow), clone(row))
+          : clone(row)
+      const oldRow = clone(baseRow)
+      let newRow = Object.assign(clone(baseRow), values)
       populateRow(oldRow)
       populateRow(newRow)
 

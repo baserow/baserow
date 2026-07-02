@@ -5,6 +5,14 @@ import {
 } from '@baserow/modules/database/utils/view'
 
 /**
+ * Realtime events for rows changed by a dependency cascade carry a before row
+ * without any field values because the sender doesn't know them.
+ */
+export function isSkeletonRow(row) {
+  return !Object.keys(row).some((key) => key.startsWith('field_'))
+}
+
+/**
  * Serializes a row to make sure that the values are according to what the API expects.
  *
  * If a field doesn't have a value it will be assigned the empty value of the field

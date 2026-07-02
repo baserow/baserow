@@ -34,8 +34,10 @@ from opentelemetry import metrics, trace
 from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
 from baserow.contrib.database.fields.dependencies.update_collector import (
+    DependantRowsUpdate,
     DependencyContext,
     FieldUpdateCollector,
+    merge_dependant_rows_updates,
 )
 from baserow.contrib.database.fields.exceptions import (
     FieldDataConstraintException,
@@ -103,6 +105,7 @@ from .signals import (
     before_rows_create,
     before_rows_delete,
     before_rows_update,
+    dependant_rows_updated,
     row_orders_recalculated,
     rows_created,
     rows_deleted,
@@ -970,15 +973,25 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         cascade_update = field_rules_handler.collector.get_processed_rows()
 
-        fields, dependant_fields = self.update_dependencies_of_rows_created(
-            model, [instance]
+        fields, dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_created(model, [instance])
         )
 
-        self.update_dependencies_of_rows_updated(
+        _, cascade_dependant_rows_updates = self.update_dependencies_of_rows_updated(
             table=table,
             model=model,
             updated_rows=cascade_update.updated_rows,
             updated_field_ids=cascade_update.field_ids,
+        )
+        dependant_rows_updates = merge_dependant_rows_updates(
+            dependant_rows_updates,
+            cascade_dependant_rows_updates,
+            self.cascade_dependant_rows_update(
+                table,
+                cascade_update.row_ids,
+                cascade_update.field_ids,
+                exclude_row_ids=[instance.id],
+            ),
         )
 
         if model.fields_requiring_refresh_after_insert():
@@ -1016,6 +1029,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             dependant_fields=dependant_fields,
             before_return=before_return,
         )
+        self.send_dependant_rows_updated(user, table, dependant_rows_updates)
 
         return instance
 
@@ -1220,8 +1234,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 raise exc
         rows_updated_counter.add(1)
 
-        dependant_fields = self.update_dependencies_of_rows_updated(
-            table, [row], model, updated_field_ids, m2m_change_tracker
+        dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_updated(
+                table, [row], model, updated_field_ids, m2m_change_tracker
+            )
         )
         # We need to refresh here as ExpressionFields might have had their values
         # updated. Django does not support UPDATE .... RETURNING and so we need to
@@ -1249,8 +1265,55 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields=[f for f in updated_fields if f.id in updated_field_ids],
             dependant_fields=dependant_fields,
         )
+        self.send_dependant_rows_updated(user, table, dependant_rows_updates)
 
         return row
+
+    def send_dependant_rows_updated(
+        self,
+        user: Optional[AbstractUser],
+        table: Table,
+        dependant_rows_updates: List[DependantRowsUpdate],
+        send_realtime_update: bool = True,
+    ) -> None:
+        """
+        Notifies receivers about rows whose values changed as a consequence of
+        a change in the starting table, so realtime events can be sent.
+        """
+
+        if not dependant_rows_updates:
+            return
+        dependant_rows_updated.send(
+            self,
+            user=user,
+            table=table,
+            dependant_rows_updates=dependant_rows_updates,
+            send_realtime_update=send_realtime_update,
+        )
+
+    def cascade_dependant_rows_update(
+        self,
+        table: Table,
+        cascade_row_ids: Iterable[int],
+        cascade_field_ids: Iterable[int],
+        exclude_row_ids: Iterable[int],
+    ) -> List[DependantRowsUpdate]:
+        """
+        Rows changed by field rules only reach the acting user via the HTTP
+        response, so other subscribers need them as dependant rows updates.
+        """
+
+        row_ids = sorted(set(cascade_row_ids) - set(exclude_row_ids))
+        if not row_ids:
+            return []
+        return [
+            DependantRowsUpdate(
+                table=table,
+                row_ids=row_ids,
+                field_ids=sorted(cascade_field_ids),
+                requires_refresh=False,
+            )
+        ]
 
     def update_dependencies_of_rows_updated(
         self,
@@ -1260,7 +1323,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         updated_field_ids: Set[int],
         m2m_change_tracker: Optional[RowM2MChangeTracker] = None,
         skip_search_updates: bool = False,
-    ) -> List["DjangoField"]:
+        collect_dependant_rows: bool = True,
+    ) -> Tuple[List["DjangoField"], List[DependantRowsUpdate]]:
         """
         Prepares a list of fields that are dependent on the updated fields and updates
         them.
@@ -1272,7 +1336,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param m2m_change_tracker: The tracker that keeps track of the many to many
             changes.
         :param skip_search_updates: Set to True to skip search updates.
-        :return: The dependant fields that are updated.
+        :param collect_dependant_rows: Set to False when no realtime events will
+            be sent, to skip tracking the affected rows per table.
+        :return: The dependant fields that are updated and the rows per table whose
+            values changed as a consequence, for realtime events.
         """
 
         field_cache = FieldCache()
@@ -1295,6 +1362,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             table,
             starting_row_ids=[row.id for row in updated_rows],
             deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
+            collect_dependant_rows=collect_dependant_rows,
         )
         updated_fields = []
         for depth, dependant_fields_group in enumerate(
@@ -1318,7 +1386,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             update_collector.apply_updates_and_get_updated_fields(
                 field_cache, skip_search_updates
             )
-        return updated_fields
+        return updated_fields, update_collector.get_dependant_rows_updates()
 
     def force_create_rows(
         self,
@@ -1475,9 +1543,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             through = getattr(model, field_name).through
             through.objects.bulk_create(values)
 
-        _, dependant_fields = self.update_dependencies_of_rows_created(
-            model,
-            inserted_rows,
+        _, dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_created(
+                model,
+                inserted_rows,
+                collect_dependant_rows=send_realtime_update,
+            )
         )
 
         from baserow.contrib.database.views.handler import ViewHandler
@@ -1534,6 +1605,20 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 dependant_fields=dependant_fields,
                 before_return=before_return,
                 **signal_params,
+            )
+            self.send_dependant_rows_updated(
+                user,
+                table,
+                merge_dependant_rows_updates(
+                    dependant_rows_updates,
+                    self.cascade_dependant_rows_update(
+                        table,
+                        cascade_updated.row_ids,
+                        cascade_updated.field_ids,
+                        exclude_row_ids=[row.id for row in inserted_rows],
+                    ),
+                ),
+                send_realtime_update=send_realtime_update,
             )
 
         return CreatedRowsData(
@@ -1625,19 +1710,28 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         self,
         model: Type[GeneratedTableModel],
         created_rows: List[GeneratedTableModel],
-    ) -> List["DjangoField"]:
+        collect_dependant_rows: bool = True,
+    ) -> Tuple[List["DjangoField"], List["DjangoField"], List[DependantRowsUpdate]]:
         """
         Generates a list of dependant fields that need to be updated after the rows have
         been created and updates them.
 
         :param model: The model of the table.
         :param rows: The rows that have been created.
-        :return: The dependant fields that are updated.
+        :param collect_dependant_rows: Set to False when no realtime events will
+            be sent, to skip tracking the affected rows per table.
+        :return: The fields of the table, the dependant fields that are updated and
+            the rows per table whose values changed as a consequence, for realtime
+            events.
         """
 
         row_ids = [row.id for row in created_rows]
         table = model.baserow_table
-        update_collector = FieldUpdateCollector(table, starting_row_ids=row_ids)
+        update_collector = FieldUpdateCollector(
+            table,
+            starting_row_ids=row_ids,
+            collect_dependant_rows=collect_dependant_rows,
+        )
 
         field_cache = FieldCache()
         field_cache.cache_model(model)
@@ -1685,7 +1779,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     dependency_context,
                 )
             update_collector.apply_updates_and_get_updated_fields(field_cache)
-        return fields, dependant_fields
+        return fields, dependant_fields, update_collector.get_dependant_rows_updates()
 
     def _prepare_m2m_field_related_objects(
         self, row: GeneratedTableModel, field_name: str, value: List[Any]
@@ -2567,12 +2661,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if cascade_updated.updated_rows:
             model.objects.bulk_update(cascade_updated.updated_rows, cascade_fields)
 
-        dependant_fields = self.update_dependencies_of_rows_updated(
-            table,
-            list(rows_to_update) + cascade_updated.updated_rows,
-            model,
-            updated_field_ids.union(cascade_updated.field_ids),
-            m2m_change_tracker,
+        dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_updated(
+                table,
+                list(rows_to_update) + cascade_updated.updated_rows,
+                model,
+                updated_field_ids.union(cascade_updated.field_ids),
+                m2m_change_tracker,
+                collect_dependant_rows=send_realtime_update,
+            )
         )
 
         from baserow.contrib.database.views.handler import ViewHandler
@@ -2620,6 +2717,20 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             dependant_fields=dependant_fields,
             cascade_update=cascade_updated,
             **signal_params,
+        )
+        self.send_dependant_rows_updated(
+            user,
+            table,
+            merge_dependant_rows_updates(
+                dependant_rows_updates,
+                self.cascade_dependant_rows_update(
+                    table,
+                    cascade_updated.row_ids,
+                    cascade_updated.field_ids,
+                    exclude_row_ids=row_ids,
+                ),
+            ),
+            send_realtime_update=send_realtime_update,
         )
 
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
@@ -2861,8 +2972,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 field = field_object["field"]
                 updated_fields.append(field)
 
-        dependant_fields = self.update_dependencies_of_rows_updated(
-            table, [row], model, updated_field_ids
+        dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_updated(
+                table, [row], model, updated_field_ids
+            )
         )
 
         from baserow.contrib.database.views.handler import ViewHandler
@@ -2882,6 +2995,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields=[],
             dependant_fields=dependant_fields,
         )
+        self.send_dependant_rows_updated(user, table, dependant_rows_updates)
 
         return row
 
@@ -2977,7 +3091,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         (
             updated_fields,
             dependant_fields,
-        ) = self.update_dependencies_of_rows_deleted(table, row, model)
+            dependant_rows_updates,
+        ) = self.update_dependencies_of_rows_deleted(
+            table, row, model, collect_dependant_rows=send_realtime_update
+        )
 
         from baserow.contrib.database.views.handler import ViewHandler
 
@@ -2995,10 +3112,23 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields=updated_fields,
             dependant_fields=dependant_fields,
         )
+        self.send_dependant_rows_updated(
+            user, table, dependant_rows_updates, send_realtime_update
+        )
         return row
 
-    def update_dependencies_of_rows_deleted(self, table, row, model):
-        update_collector = FieldUpdateCollector(table, starting_row_ids=[row.id])
+    def update_dependencies_of_rows_deleted(
+        self,
+        table: Table,
+        row: GeneratedTableModel,
+        model: Type[GeneratedTableModel],
+        collect_dependant_rows: bool = True,
+    ) -> Tuple[List["DjangoField"], List["DjangoField"], List[DependantRowsUpdate]]:
+        update_collector = FieldUpdateCollector(
+            table,
+            starting_row_ids=[row.id],
+            collect_dependant_rows=collect_dependant_rows,
+        )
         field_cache = FieldCache()
         field_cache.cache_model(model)
         updated_field_ids = []
@@ -3044,7 +3174,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 )
 
             update_collector.apply_updates_and_get_updated_fields(field_cache)
-        return updated_fields, dependant_fields
+        return (
+            updated_fields,
+            dependant_fields,
+            update_collector.get_dependant_rows_updates(),
+        )
 
     def delete_rows(
         self,
@@ -3173,7 +3307,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             field = field_object["field"]
             updated_fields.append(field)
 
-        update_collector = FieldUpdateCollector(table, starting_row_ids=row_ids)
+        update_collector = FieldUpdateCollector(
+            table,
+            starting_row_ids=row_ids,
+            collect_dependant_rows=send_realtime_update,
+        )
         field_cache = FieldCache()
         field_cache.cache_model(model)
         dependant_fields = []
@@ -3224,6 +3362,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields=updated_fields,
             dependant_fields=dependant_fields,
             **signal_params,
+        )
+        self.send_dependant_rows_updated(
+            user,
+            table,
+            update_collector.get_dependant_rows_updates(),
+            send_realtime_update,
         )
 
         return trashed_rows

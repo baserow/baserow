@@ -1,5 +1,8 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from functools import partial
+from typing import TYPE_CHECKING, List
 
+from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.dispatch import receiver
 
@@ -9,13 +12,32 @@ from baserow.contrib.database.api.rows.serializers import (
     get_row_serializer_class,
     serialize_rows_for_response,
 )
+from baserow.contrib.database.fields.dependencies.update_collector import (
+    DependantRowsUpdate,
+)
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.rows.registries import row_metadata_registry
-from baserow.contrib.database.table.models import GeneratedTableModel
+from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.table.signals import table_updated
+from baserow.contrib.database.ws.rows.messages import RealtimeRowMessages
+from baserow.contrib.database.ws.rows.tasks import (
+    DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS,
+    broadcast_dependant_rows_updated,
+    dependant_rows_force_refresh_cache_key,
+    send_trailing_force_table_refresh,
+)
 from baserow.ws.registries import PageType, page_registry
 
 if TYPE_CHECKING:
     from baserow.contrib.database.rows.models import RowHistory
+
+# Tables beyond this per-action maximum fall back to a whole-table refresh so
+# the amount of serialization work stays bounded.
+MAX_EXACT_DEPENDANT_TABLE_BROADCASTS = 10
+# Per table, exact broadcasts beyond this per-debounce-window maximum degrade
+# to the debounced refresh, so per-row driver loops (AI jobs, one-row-at-a-time
+# integrations) can't flood the celery queue with serialization tasks.
+MAX_EXACT_BROADCASTS_PER_TABLE_PER_WINDOW = 5
 
 
 @receiver(row_signals.before_rows_update)
@@ -117,6 +139,91 @@ def rows_updated(
     )
 
 
+def _send_force_table_refresh_debounced(sender, table: Table):
+    """
+    Coalesces bursts of expensive whole-table refreshes: the first refreshes
+    immediately, one trailing refresh delivers the final state.
+    """
+
+    def send_after_commit():
+        leading_key = dependant_rows_force_refresh_cache_key(table.id, trailing=False)
+        if cache.add(
+            leading_key, True, timeout=DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS
+        ):
+            table_updated.send(sender, table=table, user=None, force_table_refresh=True)
+            return
+
+        trailing_key = dependant_rows_force_refresh_cache_key(table.id, trailing=True)
+        if cache.add(
+            trailing_key,
+            True,
+            timeout=DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS * 2,
+        ):
+            send_trailing_force_table_refresh.apply_async(
+                args=[table.id],
+                countdown=DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS,
+            )
+
+    # Deciding post-commit stops rolled back transactions from consuming the
+    # keys and guarantees a trailing task covers every suppressed event.
+    transaction.on_commit(send_after_commit)
+
+
+def _exact_broadcast_slot_available(table_id: int) -> bool:
+    key = f"dependant_rows_exact_broadcasts:{table_id}"
+    if cache.add(key, 1, timeout=DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS):
+        return True
+    try:
+        return cache.incr(key) <= MAX_EXACT_BROADCASTS_PER_TABLE_PER_WINDOW
+    except ValueError:
+        # The key expired between the add and the incr.
+        return True
+
+
+def _broadcast_exact_or_refresh_debounced(sender, update: DependantRowsUpdate):
+    if _exact_broadcast_slot_available(update.table.id):
+        broadcast_dependant_rows_updated.delay(
+            table_id=update.table.id,
+            row_ids=list(update.row_ids),
+            updated_field_ids=list(update.field_ids),
+        )
+    else:
+        _send_force_table_refresh_debounced(sender, update.table)
+
+
+@receiver(row_signals.dependant_rows_updated)
+def dependant_rows_updated(
+    sender,
+    user,
+    table,
+    dependant_rows_updates: List[DependantRowsUpdate],
+    send_realtime_update: bool = True,
+    **kwargs,
+):
+    """
+    Broadcasts realtime events for rows changed by a dependency cascade so the
+    affected tables' subscribers see the new values without refreshing.
+    """
+
+    if not send_realtime_update or not dependant_rows_updates:
+        return
+    if settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT <= 0:
+        return
+
+    exact_broadcasts = 0
+    for update in dependant_rows_updates:
+        if (
+            update.requires_refresh
+            or exact_broadcasts >= MAX_EXACT_DEPENDANT_TABLE_BROADCASTS
+        ):
+            _send_force_table_refresh_debounced(sender, update.table)
+        else:
+            exact_broadcasts += 1
+            transaction.on_commit(
+                partial(_broadcast_exact_or_refresh_debounced, sender, update)
+            )
+
+
 @receiver(row_signals.rows_ai_values_generation_error)
 def rows_ai_values_generation_error(
     sender, user, rows, field, table, error_message, **kwargs
@@ -206,63 +313,3 @@ def rows_history_updated(
         )
 
     transaction.on_commit(send_rows)
-
-
-class RealtimeRowMessages:
-    """
-    A collection of functions which construct the payloads for the realtime
-    websocket messages related to rows.
-    """
-
-    @staticmethod
-    def rows_deleted(
-        table_id: int, serialized_rows: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        return {
-            "type": "rows_deleted",
-            "table_id": table_id,
-            "row_ids": [r["id"] for r in serialized_rows],
-            "rows": serialized_rows,
-        }
-
-    @staticmethod
-    def rows_created(
-        table_id: int,
-        serialized_rows: List[Dict[str, Any]],
-        metadata: Dict[str, Any],
-        before: Optional[GeneratedTableModel],
-    ) -> Dict[str, Any]:
-        return {
-            "type": "rows_created",
-            "table_id": table_id,
-            "rows": serialized_rows,
-            "metadata": metadata,
-            "before_row_id": before.id if before else None,
-        }
-
-    @staticmethod
-    def rows_updated(
-        table_id: int,
-        serialized_rows_before_update: List[Dict[str, Any]],
-        serialized_rows: List[Dict[str, Any]],
-        metadata: Dict[int, Dict[str, Any]],
-        updated_field_ids: List[int],
-    ) -> Dict[str, Any]:
-        return {
-            "type": "rows_updated",
-            "table_id": table_id,
-            # The web-frontend expects a serialized version of the rows before it
-            # was updated in order to estimate what position the row had in the
-            # view.
-            "rows_before_update": serialized_rows_before_update,
-            "rows": serialized_rows,
-            "metadata": metadata,
-            "updated_field_ids": updated_field_ids,
-        }
-
-    @staticmethod
-    def row_orders_recalculated(table_id: int) -> Dict[str, Any]:
-        return {
-            "type": "row_orders_recalculated",
-            "table_id": table_id,
-        }

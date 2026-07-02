@@ -2,6 +2,7 @@ import dataclasses
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple, cast
 
+from django.conf import settings
 from django.db.models import Expression, Q, Value
 
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -31,6 +32,66 @@ class DependencyContext:
     depth: int = 0
 
 
+@dataclasses.dataclass
+class DependantRowsUpdate:
+    """
+    Rows of a table whose cell values changed as a consequence of a change in
+    another (or the same) table, so that realtime updates can be sent for them.
+    """
+
+    table: Table
+    # Empty when requires_refresh is True.
+    row_ids: List[int]
+    # The ids of the fields in this table whose values changed.
+    field_ids: List[int]
+    # True when the rows are unknown or over the limit: refresh the whole table.
+    requires_refresh: bool
+
+
+def merge_dependant_rows_updates(
+    *updates_lists: List[DependantRowsUpdate],
+) -> List[DependantRowsUpdate]:
+    """
+    Merges lists of DependantRowsUpdate into one entry per table, unioning
+    row/field ids, respecting the limit and dropping empty entries.
+    """
+
+    limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
+    if limit <= 0:
+        return []
+
+    merged: Dict[int, DependantRowsUpdate] = {}
+    for updates in updates_lists:
+        for update in updates:
+            existing = merged.get(update.table.id)
+            if existing is None:
+                merged[update.table.id] = DependantRowsUpdate(
+                    table=update.table,
+                    row_ids=list(update.row_ids),
+                    field_ids=list(update.field_ids),
+                    requires_refresh=update.requires_refresh,
+                )
+                existing = merged[update.table.id]
+            else:
+                existing.field_ids = sorted(
+                    set(existing.field_ids) | set(update.field_ids)
+                )
+                if update.requires_refresh:
+                    existing.requires_refresh = True
+                else:
+                    existing.row_ids = sorted(
+                        set(existing.row_ids) | set(update.row_ids)
+                    )
+            if existing.requires_refresh or len(existing.row_ids) > limit:
+                existing.requires_refresh = True
+                existing.row_ids = []
+    return [
+        update
+        for update in merged.values()
+        if update.row_ids or update.requires_refresh
+    ]
+
+
 class PathBasedUpdateStatementCollector:
     def __init__(
         self,
@@ -55,6 +116,7 @@ class PathBasedUpdateStatementCollector:
         """
 
         self.update_statements: Dict[str, Expression] = {}
+        self.changed_only_fields: List[Field] = []
         self.table = table
         self.sub_paths: Dict[str, PathBasedUpdateStatementCollector] = {}
         self.connection_here: Optional[LinkRowField] = connection_here
@@ -99,6 +161,8 @@ class PathBasedUpdateStatementCollector:
                     self.update_statements[field.db_column] = (
                         update_statement if update_statement != Value(None) else None
                     )
+                else:
+                    self.changed_only_fields.append(field)
         else:
             next_via_field_link = path_from_starting_table[0]
             if next_via_field_link.link_row_table != self.table:
@@ -143,6 +207,8 @@ class PathBasedUpdateStatementCollector:
         path_to_starting_table: StartingRowIdsType = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
         result: Optional[Dict[int, Set[int]]] = None,
+        overflowed_table_ids: Optional[Set[int]] = None,
+        collect_dependant_rows: bool = True,
     ) -> Dict[int, Set[int]]:
         """
         Executes all the pending update statements in the correct order and returns
@@ -164,11 +230,15 @@ class PathBasedUpdateStatementCollector:
         :param result: If the result dict containing the table and the updated rows
             already exists, then it can be provided here. If provided, it will be
             updated.
+        :param overflowed_table_ids: If provided, table ids whose changed rows could
+            not be determined or exceeded the realtime update limit are added to it.
         :return: A dictionary containing a set of updated row ids per table id.
         """
 
         if result is None:
             result = defaultdict(set)
+        if overflowed_table_ids is None:
+            overflowed_table_ids = set()
 
         path_to_starting_table = path_to_starting_table or []
         if self.connection_here is not None:
@@ -181,6 +251,16 @@ class PathBasedUpdateStatementCollector:
         )
         result[self.table.id].update(updated_row_ids)
 
+        if collect_dependant_rows:
+            self._collect_changed_only_row_ids(
+                field_cache,
+                path_to_starting_table,
+                starting_row_ids,
+                deleted_m2m_rels_per_link_field,
+                result,
+                overflowed_table_ids,
+            )
+
         for sub_path in self.sub_paths.values():
             result = sub_path.execute_all(
                 starting_row_ids=starting_row_ids,
@@ -188,8 +268,105 @@ class PathBasedUpdateStatementCollector:
                 field_cache=field_cache,
                 deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
                 result=result,
+                overflowed_table_ids=overflowed_table_ids,
+                collect_dependant_rows=collect_dependant_rows,
             )
         return result
+
+    def _collect_changed_only_row_ids(
+        self,
+        field_cache: FieldCache,
+        path_to_starting_table: List[LinkRowField],
+        starting_row_ids: StartingRowIdsType,
+        deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
+        result: Dict[int, Set[int]],
+        overflowed_table_ids: Set[int],
+    ) -> None:
+        """
+        Fields marked as changed without an update statement (e.g. link row
+        fields resolve their values at serialization time) never appear in
+        `update_returning_ids`, so their affected rows are found with a bounded
+        SELECT joining back to the starting rows instead.
+        """
+
+        limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
+        if limit <= 0 or self.update_statements or not self.changed_only_fields:
+            # The UPDATE already returned the ids of every row joining back.
+            return
+        if starting_row_ids is None or not path_to_starting_table:
+            # Starting rows and whole-column updates are broadcast elsewhere.
+            return
+        if self.connection_is_broken:
+            overflowed_table_ids.add(self.table.id)
+            return
+
+        model = field_cache.get_model(self.table)
+        # The starting rows themselves are excluded from realtime updates, so
+        # their filter half is skipped here entirely.
+        filters = self._filters_for_rows_connected_to_starting_rows(
+            path_to_starting_table,
+            starting_row_ids,
+            deleted_m2m_rels_per_link_field,
+            include_starting_rows=False,
+        )
+        # The m2m join yields one result per relation. DISTINCT would bait the
+        # planner into a full index scan for large id lists, so a generous raw
+        # cap is fetched instead and deduplicated here. Row sets with more
+        # duplicated relations than the raw cap fall back to a table refresh.
+        raw_cap = min(limit * 5, 1000) + 1
+        raw_ids: List[int] = []
+        for row_filter in filters:
+            remaining = raw_cap - len(raw_ids)
+            if remaining <= 0:
+                break
+            # Trashed rows need value updates but never realtime events.
+            raw_ids += list(
+                model.objects.filter(row_filter)
+                .order_by()
+                .values_list("id", flat=True)[:remaining]
+            )
+        row_ids = set(raw_ids)
+        if len(raw_ids) >= raw_cap or len(row_ids) > limit:
+            overflowed_table_ids.add(self.table.id)
+        else:
+            result[self.table.id].update(row_ids)
+
+    def _filters_for_rows_connected_to_starting_rows(
+        self,
+        path_to_starting_table: List[LinkRowField],
+        starting_row_ids: List[int],
+        deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
+        include_starting_rows: bool = True,
+    ) -> List[Q]:
+        """
+        Returns the filters matching every row affected by a change to the
+        starting rows, one per statement. OR-ing a joined column with a base
+        column defeats every index (full table + through-table scans), so each
+        filter stays driveable by a single index instead.
+        """
+
+        if len(path_to_starting_table) == 0:
+            return [Q(id__in=starting_row_ids)] if include_starting_rows else []
+
+        m2m_column = (
+            "__".join([p.db_column for p in path_to_starting_table]) + "__id__in"
+        )
+        filters = [Q(**{m2m_column: starting_row_ids})]
+        if include_starting_rows and (
+            len(path_to_starting_table) == 1
+            and path_to_starting_table[0].link_row_table_id == self.table.id
+        ):
+            # A change via a self-link affects both the rows linking to the
+            # starting rows and the starting rows themselves (their own cells
+            # read through the link).
+            filters.append(Q(id__in=starting_row_ids))
+        deleted_q = self._include_rows_connected_to_deleted_m2m_relationships(
+            deleted_m2m_rels_per_link_field,
+            path_to_starting_table,
+        )
+        if deleted_q:
+            filters.append(deleted_q)
+        return filters
 
     def _execute_pending_update_statements(
         self,
@@ -199,36 +376,20 @@ class PathBasedUpdateStatementCollector:
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
     ) -> list[int]:
         model = field_cache.get_model(self.table)
-        qs = model.objects_and_trash
+        base_queryset = model.objects_and_trash
         # If the connection is broken back to the starting table then there is no
         # way to join back to these starting rows. So we just update all cells.
         if starting_row_ids is not None and not self.connection_is_broken:
-            if len(path_to_starting_table) == 0:
-                path_to_starting_table_id_column = "id"
-            # If the path back to the starting table is a relationship pointing to the
-            # same table, then the `starting_row_ids` are directly related to the same
-            # table. We then can't go through the through table because the reversed
-            # lookup would use the `to` starting row and not `from`. This causes rows
-            # with a relation to another row to not be updated.
-            elif (
-                len(path_to_starting_table) == 1
-                and path_to_starting_table[0].link_row_table_id == self.table.id
-            ):
-                path_to_starting_table_id_column = "id"
-            else:
-                path_to_starting_table_id_column = (
-                    "__".join([p.db_column for p in path_to_starting_table]) + "__id"
+            querysets = [
+                base_queryset.filter(row_filter)
+                for row_filter in self._filters_for_rows_connected_to_starting_rows(
+                    path_to_starting_table,
+                    starting_row_ids,
+                    deleted_m2m_rels_per_link_field,
                 )
-            path_to_starting_table_id_column += "__in"
-
-            filter_for_rows_connected_to_starting_row = Q(
-                **{path_to_starting_table_id_column: starting_row_ids}
-            ) | self._include_rows_connected_to_deleted_m2m_relationships(
-                deleted_m2m_rels_per_link_field,
-                path_to_starting_table,
-            )
-
-            qs = qs.filter(filter_for_rows_connected_to_starting_row)
+            ]
+        else:
+            querysets = [base_queryset]
         if starting_row_ids is None:
             # We aren't updating individual rows but instead entire columns, so don't
             # set this per row attribute.
@@ -262,11 +423,14 @@ class PathBasedUpdateStatementCollector:
                         }
                     ) | ~Q(**{field: expr})
 
-            updated_row_ids = (
-                qs.annotate(**annotations)
-                .filter(filters)
-                .update_returning_ids(**self.update_statements)
-            )
+            # Recalculating a row twice is idempotent, so overlapping filters
+            # (e.g. a starting row linking to another starting row) are fine.
+            for qs in querysets:
+                updated_row_ids += (
+                    qs.annotate(**annotations)
+                    .filter(filters)
+                    .update_returning_ids(**self.update_statements)
+                )
         return updated_row_ids
 
     def _include_rows_connected_to_deleted_m2m_relationships(
@@ -346,6 +510,7 @@ class FieldUpdateCollector:
         starting_row_ids: StartingRowIdsType = None,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]] = None,
         update_changes_only: bool = False,
+        collect_dependant_rows: bool = True,
     ):
         """
         :param starting_table: The table where the triggering field update begins.
@@ -361,6 +526,9 @@ class FieldUpdateCollector:
             rows in the table. Because of how Postgres works, this could save a lot of
             disk space and IO, at the cost of a more complex query and a longer
             execution time.
+        :param collect_dependant_rows: Set to False when no realtime events will
+            be sent for this update, to skip the work of tracking the affected
+            rows per table.
         """
 
         # Track the fields which have been updated since last call to apply_updates
@@ -368,10 +536,16 @@ class FieldUpdateCollector:
         # Track all fields which have been updated in this collector
         self._all_field_updates = FieldUpdatesTracker()
 
+        # Updated row ids per table across all apply_updates calls, bounded by
+        # the realtime update limit; overflowing tables move to the other set.
+        self._updated_rows_per_table: Dict[int, Set[int]] = defaultdict(set)
+        self._overflowed_table_ids: Set[int] = set()
+
         self._starting_row_ids = starting_row_ids
         self._starting_table = starting_table
         self._deleted_m2m_rels_per_link_field = deleted_m2m_rels_per_link_field
         self.update_changes_only = update_changes_only
+        self.collect_dependant_rows = collect_dependant_rows
 
         self._update_statement_collector = self._init_update_statement_collector()
 
@@ -450,18 +624,70 @@ class FieldUpdateCollector:
             field, via_path_to_starting_table
         )
 
-    def apply_updates(self, field_cache: FieldCache) -> dict[int, list[int]]:
+    def apply_updates(self, field_cache: FieldCache) -> Dict[int, Set[int]]:
         """
         Triggers all update statements to be executed in the correct order in as few
-        update queries as possible and return a dictionary containing a list of
+        update queries as possible and return a dictionary containing a set of
         updated row ids per table id.
         """
 
-        return self._update_statement_collector.execute_all(
+        updated_rows_per_table = self._update_statement_collector.execute_all(
             field_cache,
             self._starting_row_ids,
             deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
+            overflowed_table_ids=self._overflowed_table_ids,
+            collect_dependant_rows=self.collect_dependant_rows,
         )
+        self._accumulate_updated_rows(updated_rows_per_table)
+        return updated_rows_per_table
+
+    def _accumulate_updated_rows(
+        self, updated_rows_per_table: Dict[int, Set[int]]
+    ) -> None:
+        limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
+        if limit <= 0 or not self.collect_dependant_rows:
+            return
+        for table_id, row_ids in updated_rows_per_table.items():
+            if table_id in self._overflowed_table_ids:
+                continue
+            accumulated = self._updated_rows_per_table[table_id]
+            accumulated.update(row_ids)
+            if len(accumulated) > limit:
+                # Past the limit only the refresh flag matters; free the ids.
+                self._overflowed_table_ids.add(table_id)
+                del self._updated_rows_per_table[table_id]
+
+    def get_dependant_rows_updates(self) -> List[DependantRowsUpdate]:
+        """
+        Returns, per affected table, the rows whose values changed as a
+        consequence of the applied updates, excluding the starting rows
+        (already broadcast by the row signals). Empty when the limit is <= 0.
+        """
+
+        limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
+        if limit <= 0 or not self.collect_dependant_rows:
+            return []
+
+        starting_row_ids = set(self._starting_row_ids or [])
+        updates = []
+        for table in self._all_field_updates.tables():
+            row_ids = self._updated_rows_per_table.get(table.id, set())
+            if table.id == self._starting_table.id:
+                row_ids = row_ids - starting_row_ids
+            requires_refresh = table.id in self._overflowed_table_ids
+            if not row_ids and not requires_refresh:
+                continue
+            updates.append(
+                DependantRowsUpdate(
+                    table=table,
+                    row_ids=[] if requires_refresh else sorted(row_ids),
+                    field_ids=[
+                        field.id for field in self._all_field_updates.fields(table)
+                    ],
+                    requires_refresh=requires_refresh,
+                )
+            )
+        return updates
 
     def apply_fields_type_changed(self, field_cache: FieldCache):
         if len(self._fields_type_changed) > 0:

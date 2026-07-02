@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.db.models import Case, Value, When
+from django.test.utils import override_settings
 
 import pytest
 
@@ -480,3 +481,310 @@ def test_apply_updates_returns_only_last_updated_fields_but_update_collector_tra
         assert mock.call_args_list[0][1]["table"].id == table_1.id
         assert mock.call_args_list[1][1]["table"].id == table_2.id
         assert mock.call_args_list[2][1]["table"].id == table_3.id
+
+
+@pytest.mark.django_db
+def test_get_dependant_rows_updates_finds_rows_of_marked_only_link_fields(
+    data_fixture,
+):
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables()
+    table_a_model = table_a.get_model(attribute_names=True)
+    table_b_model = table_b.get_model(attribute_names=True)
+
+    row_b1 = table_b_model.objects.create(primary="b1")
+    row_b2 = table_b_model.objects.create(primary="b2")
+    a_linked_to_b1 = table_a_model.objects.create(primary="1")
+    a_also_linked_to_b1 = table_a_model.objects.create(primary="2")
+    a_linked_to_b2 = table_a_model.objects.create(primary="3")
+    a_linked_to_b1.link.add(row_b1.id)
+    a_also_linked_to_b1.link.add(row_b1.id)
+    a_linked_to_b2.link.add(row_b2.id)
+
+    field_cache = FieldCache()
+    update_collector = FieldUpdateCollector(table_b, starting_row_ids=[row_b1.id])
+    update_collector.add_field_which_has_changed(
+        link_field, via_path_to_starting_table=[link_field]
+    )
+    update_collector.apply_updates_and_get_updated_fields(field_cache)
+
+    updates = update_collector.get_dependant_rows_updates()
+    assert len(updates) == 1
+    assert updates[0].table.id == table_a.id
+    assert updates[0].row_ids == sorted([a_linked_to_b1.id, a_also_linked_to_b1.id])
+    assert updates[0].field_ids == [link_field.id]
+    assert updates[0].requires_refresh is False
+
+
+@pytest.mark.django_db
+def test_get_dependant_rows_updates_deduplicates_relations_before_the_limit(
+    data_fixture,
+):
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables()
+    table_a_model = table_a.get_model(attribute_names=True)
+    table_b_model = table_b.get_model(attribute_names=True)
+
+    starting_rows = [table_b_model.objects.create(primary=str(i)) for i in range(5)]
+    row_a1 = table_a_model.objects.create(primary="1")
+    row_a2 = table_a_model.objects.create(primary="2")
+    for starting_row in starting_rows:
+        row_a1.link.add(starting_row.id)
+        row_a2.link.add(starting_row.id)
+
+    field_cache = FieldCache()
+    update_collector = FieldUpdateCollector(
+        table_b, starting_row_ids=[row.id for row in starting_rows]
+    )
+    update_collector.add_field_which_has_changed(
+        link_field, via_path_to_starting_table=[link_field]
+    )
+    # 10 m2m relations point back to the starting rows but only 2 distinct rows
+    # exist, which is within the limit of 3.
+    with override_settings(DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT=3):
+        update_collector.apply_updates_and_get_updated_fields(field_cache)
+        updates = update_collector.get_dependant_rows_updates()
+
+    assert len(updates) == 1
+    assert updates[0].row_ids == sorted([row_a1.id, row_a2.id])
+    assert updates[0].requires_refresh is False
+
+
+@pytest.mark.django_db
+def test_get_dependant_rows_updates_requires_refresh_over_the_limit(data_fixture):
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables()
+    table_a_model = table_a.get_model(attribute_names=True)
+    table_b_model = table_b.get_model(attribute_names=True)
+
+    row_b = table_b_model.objects.create(primary="b")
+    for i in range(3):
+        row_a = table_a_model.objects.create(primary=str(i))
+        row_a.link.add(row_b.id)
+
+    field_cache = FieldCache()
+    update_collector = FieldUpdateCollector(table_b, starting_row_ids=[row_b.id])
+    update_collector.add_field_which_has_changed(
+        link_field, via_path_to_starting_table=[link_field]
+    )
+    with override_settings(DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT=2):
+        update_collector.apply_updates_and_get_updated_fields(field_cache)
+        updates = update_collector.get_dependant_rows_updates()
+
+    assert len(updates) == 1
+    assert updates[0].table.id == table_a.id
+    assert updates[0].row_ids == []
+    assert updates[0].requires_refresh is True
+
+
+@pytest.mark.django_db
+def test_get_dependant_rows_updates_returns_nothing_when_disabled(data_fixture):
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables()
+    table_a_model = table_a.get_model(attribute_names=True)
+    table_b_model = table_b.get_model(attribute_names=True)
+
+    row_b = table_b_model.objects.create(primary="b")
+    row_a = table_a_model.objects.create(primary="1")
+    row_a.link.add(row_b.id)
+
+    field_cache = FieldCache()
+    update_collector = FieldUpdateCollector(table_b, starting_row_ids=[row_b.id])
+    update_collector.add_field_which_has_changed(
+        link_field, via_path_to_starting_table=[link_field]
+    )
+    with override_settings(DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT=0):
+        update_collector.apply_updates_and_get_updated_fields(field_cache)
+        assert update_collector.get_dependant_rows_updates() == []
+
+
+@pytest.mark.django_db
+def test_get_dependant_rows_updates_excludes_starting_rows_from_update_statements(
+    data_fixture,
+):
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables()
+    table_b_field = data_fixture.create_text_field(name="other", table=table_b)
+    table_a_field = data_fixture.create_text_field(name="other", table=table_a)
+    table_a_model = table_a.get_model(attribute_names=True)
+    table_b_model = table_b.get_model(attribute_names=True)
+
+    row_b = table_b_model.objects.create(primary="b")
+    a_linked = table_a_model.objects.create(primary="1")
+    a_unlinked = table_a_model.objects.create(primary="2")
+    a_linked.link.add(row_b.id)
+
+    field_cache = FieldCache()
+    update_collector = FieldUpdateCollector(table_b, starting_row_ids=[row_b.id])
+    update_collector.add_field_with_pending_update_statement(
+        table_b_field, Value("changed")
+    )
+    update_collector.add_field_with_pending_update_statement(
+        table_a_field,
+        Value("changed"),
+        via_path_to_starting_table=[link_field],
+    )
+    update_collector.apply_updates_and_get_updated_fields(field_cache)
+
+    updates = update_collector.get_dependant_rows_updates()
+    # The starting table entry is dropped: its only updated row is a starting
+    # row, already broadcast by the regular row signals.
+    assert len(updates) == 1
+    assert updates[0].table.id == table_a.id
+    assert updates[0].row_ids == [a_linked.id]
+    assert updates[0].field_ids == [table_a_field.id]
+    assert updates[0].requires_refresh is False
+    assert a_unlinked.id not in updates[0].row_ids
+
+
+@pytest.mark.django_db
+def test_get_dependant_rows_updates_accumulates_across_apply_updates_calls(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    table_c = data_fixture.create_database_table(database=table_a.database)
+    data_fixture.create_text_field(name="primary", primary=True, table=table_c)
+    table_c_link: LinkRowField = FieldHandler().create_field(
+        user=user,
+        table=table_c,
+        type_name="link_row",
+        link_row_table=table_b,
+        name="link",
+    )
+    table_a_field = data_fixture.create_text_field(name="other", table=table_a)
+    table_c_field = data_fixture.create_text_field(name="other", table=table_c)
+
+    table_a_model = table_a.get_model(attribute_names=True)
+    table_b_model = table_b.get_model(attribute_names=True)
+    table_c_model = table_c.get_model(attribute_names=True)
+    row_b = table_b_model.objects.create(primary="b")
+    row_a = table_a_model.objects.create(primary="1")
+    row_c = table_c_model.objects.create(primary="1")
+    row_a.link.add(row_b.id)
+    row_c.link.add(row_b.id)
+
+    field_cache = FieldCache()
+    update_collector = FieldUpdateCollector(table_b, starting_row_ids=[row_b.id])
+    update_collector.add_field_with_pending_update_statement(
+        table_a_field, Value("level 0"), via_path_to_starting_table=[link_field]
+    )
+    update_collector.apply_updates_and_get_updated_fields(field_cache)
+    update_collector.add_field_with_pending_update_statement(
+        table_c_field, Value("level 1"), via_path_to_starting_table=[table_c_link]
+    )
+    update_collector.apply_updates_and_get_updated_fields(field_cache)
+
+    updates = {u.table.id: u for u in update_collector.get_dependant_rows_updates()}
+    assert set(updates.keys()) == {table_a.id, table_c.id}
+    assert updates[table_a.id].row_ids == [row_a.id]
+    assert updates[table_c.id].row_ids == [row_c.id]
+
+
+@pytest.mark.django_db
+def test_get_dependant_rows_updates_self_link_finds_rows_linking_to_starting_rows(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(name="primary", primary=True, table=table)
+    self_link: LinkRowField = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="link_row",
+        link_row_table=table,
+        name="self link",
+    )
+    model = table.get_model()
+
+    row_a = model.objects.create()
+    row_b = model.objects.create()
+    row_unrelated = model.objects.create()
+    getattr(row_b, self_link.db_column).add(row_a.id)
+
+    field_cache = FieldCache()
+    update_collector = FieldUpdateCollector(table, starting_row_ids=[row_a.id])
+    update_collector.add_field_which_has_changed(
+        self_link, via_path_to_starting_table=[self_link]
+    )
+    update_collector.apply_updates_and_get_updated_fields(field_cache)
+
+    updates = update_collector.get_dependant_rows_updates()
+    # Row b displays row a through the self link, so it needs a realtime
+    # update; row a itself is a starting row and row_unrelated links nothing.
+    assert len(updates) == 1
+    assert updates[0].table.id == table.id
+    assert updates[0].row_ids == [row_b.id]
+    assert row_unrelated.id not in updates[0].row_ids
+
+
+@pytest.mark.django_db
+def test_get_dependant_rows_updates_includes_rows_with_deleted_m2m_relationships(
+    data_fixture,
+):
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables()
+    table_a_model = table_a.get_model(attribute_names=True)
+    table_b_model = table_b.get_model(attribute_names=True)
+
+    row_b = table_b_model.objects.create(primary="b")
+    # This row just lost its connection to the starting row, so the m2m join
+    # can't find it and it must come from the deleted relationships instead.
+    a_unlinked_row = table_a_model.objects.create(primary="1")
+
+    field_cache = FieldCache()
+    update_collector = FieldUpdateCollector(
+        table_b,
+        starting_row_ids=[row_b.id],
+        deleted_m2m_rels_per_link_field={
+            link_field.link_row_related_field_id: {a_unlinked_row.id}
+        },
+    )
+    update_collector.add_field_which_has_changed(
+        link_field, via_path_to_starting_table=[link_field]
+    )
+    update_collector.apply_updates_and_get_updated_fields(field_cache)
+
+    updates = update_collector.get_dependant_rows_updates()
+    assert len(updates) == 1
+    assert updates[0].table.id == table_a.id
+    assert updates[0].row_ids == [a_unlinked_row.id]
+
+
+@pytest.mark.django_db
+def test_self_link_update_statements_also_update_rows_linking_to_starting_rows(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(name="primary", primary=True, table=table)
+    other_field = data_fixture.create_text_field(name="other", table=table)
+    self_link: LinkRowField = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="link_row",
+        link_row_table=table,
+        name="self link",
+    )
+    model = table.get_model()
+
+    row_a = model.objects.create()
+    row_b = model.objects.create()
+    getattr(row_b, self_link.db_column).add(row_a.id)
+
+    field_cache = FieldCache()
+    update_collector = FieldUpdateCollector(table, starting_row_ids=[row_a.id])
+    update_collector.add_field_with_pending_update_statement(
+        other_field, Value("changed"), via_path_to_starting_table=[self_link]
+    )
+    update_collector.add_field_which_has_changed(
+        self_link, via_path_to_starting_table=[self_link]
+    )
+    update_collector.apply_updates_and_get_updated_fields(field_cache)
+
+    # Both the starting row (its own cells read through the link) and the rows
+    # linking to it must be recalculated.
+    row_a.refresh_from_db()
+    row_b.refresh_from_db()
+    assert getattr(row_a, other_field.db_column) == "changed"
+    assert getattr(row_b, other_field.db_column) == "changed"
+
+    updates = update_collector.get_dependant_rows_updates()
+    assert len(updates) == 1
+    assert updates[0].row_ids == [row_b.id]

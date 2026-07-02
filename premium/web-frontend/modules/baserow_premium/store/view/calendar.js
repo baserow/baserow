@@ -19,6 +19,7 @@ import {
 import {
   extractChangedFields,
   getRowMetadata,
+  isSkeletonRow,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
@@ -720,8 +721,21 @@ export const actions = {
     const dateFieldId = getters.getDateFieldIdIfNotTrashed(fields)
     const fieldName = `field_${dateFieldId}`
 
+    // The before row can be a bare `{ id }` skeleton (e.g. dependency cascade
+    // events); the buffered row holds the truthful previous state.
+    const found = getters.findStackIdAndIndex(row.id)
+    const bufferedRow = found !== undefined ? found[2] : undefined
+    if (bufferedRow === undefined && isSkeletonRow(row)) {
+      // The old stack is unknowable, so no move can be computed safely.
+      return
+    }
+    const baseRow =
+      bufferedRow !== undefined
+        ? Object.assign(clone(bufferedRow), clone(row))
+        : clone(row)
+
     // First, we virtually need to figure out if the row was in the old stack.
-    const oldRow = populateRow(clone(row))
+    const oldRow = populateRow(clone(baseRow))
     const oldRowMatchesFilters = await dispatch('rowMatchesFilters', {
       view,
       row: oldRow,
@@ -743,7 +757,7 @@ export const actions = {
     }
 
     // Second, we need to figure out if the row should be visible in the new stack.
-    const newRow = Object.assign(populateRow(clone(row)), values)
+    const newRow = Object.assign(populateRow(clone(baseRow)), values)
     const newRowMatchesFilters = await dispatch('rowMatchesFilters', {
       view,
       row: newRow,

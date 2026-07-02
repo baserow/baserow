@@ -965,4 +965,12 @@ def test_rows_updated_can_trigger_webhooks_in_linked_tables_without_additional_q
             _update_rows()
 
         assert p.call_count == 1  # the webhook was called
-        assert len(captured.captured_queries) >= len(captured2.captured_queries)
+
+        # Generated model version checks depend on which cache invalidations
+        # happened before each run, so they're noise in this comparison.
+        def _without_version_checks(queries):
+            return [q for q in queries if '"database_table"."version"' not in q["sql"]]
+
+        assert len(_without_version_checks(captured.captured_queries)) >= len(
+            _without_version_checks(captured2.captured_queries)
+        )

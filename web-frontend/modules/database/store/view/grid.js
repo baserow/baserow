@@ -35,6 +35,7 @@ import {
   buildNewRowDefaults,
   computeRowMatchFlags,
   computeRowInsertPosition,
+  isSkeletonRow,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import {
@@ -1744,6 +1745,7 @@ const activeGroupByRowsRequests = new Map()
 
 // We want to cancel previous aggregation request before creating a new one.
 const lastAggregationRequest = { request: null, controller: null }
+const fireAggregation = { timeout: null, last: 0 }
 
 const lastGroupByAggregationRequest = { controller: null }
 
@@ -3380,6 +3382,21 @@ export const actions = {
   forceUpdateAllFieldOptions({ commit, dispatch }, fieldOptions) {
     commit('UPDATE_ALL_FIELD_OPTIONS', fieldOptions)
     dispatch('correctMultiSelect')
+  },
+  fetchAllFieldAggregationDataDebounced({ dispatch }, { view }) {
+    // Realtime row events arrive in bursts of up to hundreds of rows; refetch
+    // the aggregations at most once per window (leading + trailing).
+    const now = Date.now()
+    clearTimeout(fireAggregation.timeout)
+    if (now - fireAggregation.last > 500) {
+      fireAggregation.last = now
+      dispatch('fetchAllFieldAggregationData', { view })
+    } else {
+      fireAggregation.timeout = setTimeout(() => {
+        fireAggregation.last = Date.now()
+        dispatch('fetchAllFieldAggregationData', { view })
+      }, 500)
+    }
   },
   /**
    * Fetch all field aggregation data from the server for this view. Set loading state
@@ -5263,8 +5280,20 @@ export const actions = {
     }
   ) {
     const { $registry } = this
-    const oldRow = clone(row)
-    const newRow = Object.assign(clone(row), values)
+    // The before row can be a bare `{ id }` skeleton (e.g. dependency cascade
+    // events); the buffered row holds the truthful previous state.
+    const bufferedRow = getters.getRow(row.id)
+    if (bufferedRow === undefined && isSkeletonRow(row)) {
+      // The old state is unknowable, so no filter/sort/group transition can
+      // be computed safely; the buffer fetch picks the row up instead.
+      return
+    }
+    const baseRow =
+      bufferedRow !== undefined
+        ? Object.assign(clone(bufferedRow), clone(row))
+        : clone(row)
+    const oldRow = clone(baseRow)
+    const newRow = Object.assign(clone(baseRow), values)
     populateRow(oldRow, metadata)
     populateRow(newRow, metadata)
 
@@ -5370,10 +5399,10 @@ export const actions = {
       return
     }
 
-    // When the row crosses the view boundary, delegate to the create/delete paths
-    // so filter/search checks and group-by metadata updates stay aligned.
+    // When the row crosses the view boundary, delegate to the create/delete
+    // paths; the delete path re-evaluates search/group-by from the old row.
     if (oldRowExists && !newRowExists) {
-      await dispatch('deletedExistingRow', { view, fields, row })
+      await dispatch('deletedExistingRow', { view, fields, row: oldRow })
       return
     }
     if (!oldRowExists && newRowExists) {
