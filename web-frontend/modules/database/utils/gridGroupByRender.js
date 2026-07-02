@@ -117,7 +117,7 @@ export function buildLayout({
   const maxDepth = fields.length - 1
   const exceptionKeys = collapseExceptionKeys(collapse, fields)
   let skipDescendantsAtDepth = -1
-  let seenFirstDepth0 = false
+  let lastPlacedDepth = null
 
   for (const node of nodes) {
     if (skipDescendantsAtDepth >= 0 && node.depth > skipDescendantsAtDepth) {
@@ -133,15 +133,13 @@ export function buildLayout({
       continue
     }
 
-    // Only top-level sibling groups are separated by a gap; the first one sits
-    // flush under the head. `gapAbove` also drives the banner's darker top border.
-    const gapAbove = node.depth === 0 && seenFirstDepth0
+    // A gap separates sibling groups at every depth; only a group directly under
+    // its parent's banner (a first child) sits flush against it.
+    const gapAbove = lastPlacedDepth !== null && lastPlacedDepth >= node.depth
     if (gapAbove) {
       y += GROUP_GAP
     }
-    if (node.depth === 0) {
-      seenFirstDepth0 = true
-    }
+    lastPlacedDepth = node.depth
 
     const collapsed = pathCollapsedAgainst(
       node.path,
@@ -207,13 +205,10 @@ function getSortedLoadedIndexes(page) {
     .sort((a, b) => a - b)
 }
 
-function unloadedGroupRangeHeight(startIndex, endIndex, depth) {
+function unloadedGroupRangeHeight(startIndex, endIndex) {
   const count = Math.max(0, endIndex - startIndex)
   if (count === 0) {
     return 0
-  }
-  if (depth !== 0) {
-    return count * HEADER_HEIGHT
   }
   const gaps = count - (startIndex === 0 ? 1 : 0)
   return count * HEADER_HEIGHT + gaps * GROUP_GAP
@@ -223,13 +218,6 @@ function placeholderStartIndexAtOffset(item, offset) {
   const startIndex = item.siblingStartIndex
   const endIndex = item.siblingEndIndex
   const clampedOffset = Math.max(0, Math.min(offset, item.height))
-
-  if (item.depth !== 0) {
-    return Math.min(
-      endIndex,
-      startIndex + Math.floor(clampedOffset / HEADER_HEIGHT)
-    )
-  }
 
   if (startIndex === 0) {
     if (clampedOffset < HEADER_HEIGHT) {
@@ -260,7 +248,7 @@ function pushUnloadedGroupPlaceholder({
   globalStartIndex,
   y,
 }) {
-  const height = unloadedGroupRangeHeight(startIndex, endIndex, depth)
+  const height = unloadedGroupRangeHeight(startIndex, endIndex)
   if (height <= 0) {
     return y
   }
@@ -368,7 +356,7 @@ function buildPagedLayout({
         loadedPointer += 1
         continue
       }
-      const gapAbove = depth === 0 && placedSibling
+      const gapAbove = placedSibling
       if (gapAbove) {
         y += GROUP_GAP
       }
@@ -632,11 +620,10 @@ export function renderViewport({
       const rangeBottom = item.y + item.height
       const maxDepth = Math.max((fields?.length ?? 1) - 1, item.depth)
       const levelsBelow = maxDepth - item.depth + 1
-      // Top-level groups are laid out with a gap between siblings (see
+      // Sibling groups are laid out with a gap between them (see
       // `unloadedGroupRangeHeight`), so step by the same stride or the staircase
       // over-produces slots across the gapped range.
-      const slotStep =
-        item.depth === 0 ? HEADER_HEIGHT + GROUP_GAP : HEADER_HEIGHT
+      const slotStep = HEADER_HEIGHT + GROUP_GAP
       const firstSlotIndex = Math.max(0, Math.floor((top - item.y) / slotStep))
       let slotIndex = firstSlotIndex
       for (

@@ -43,7 +43,10 @@
       <div
         v-if="primaryFieldWidth > 0"
         class="grid-view__group-by-banner-primary"
-        :style="{ width: primaryFieldWidth + 'px' }"
+        :style="{
+          width: primaryFieldWidth + 'px',
+          paddingLeft: indentPx + 'px',
+        }"
       >
         <div class="grid-view__group-by-banner-stack">
           <div class="grid-view__group-by-banner-label">

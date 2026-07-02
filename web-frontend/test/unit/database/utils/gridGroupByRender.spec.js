@@ -297,18 +297,13 @@ describe('gridGroupByRender', () => {
       fields,
     })
 
-    const aHeader = layout.items.find(
-      (item) => item.type === 'header' && item.path.field_1 === 'A'
-    )
     const bHeader = layout.items.find(
       (item) => item.type === 'header' && item.path.field_1 === 'B'
     )
-    expect(aHeader.gapAbove).toBe(false)
-    expect(bHeader.gapAbove).toBe(true)
     expect(bHeader.y).toBe(HEADER_HEIGHT + ROW_HEIGHT + ROW_HEIGHT + GROUP_GAP)
   })
 
-  test('sibling sub-groups stack without a gap', () => {
+  test('sibling sub-groups get a gap while a first child stays flush', () => {
     const fields = [textField(1), textField(2)]
     const layout = buildLayout({
       nodes: [
@@ -326,11 +321,13 @@ describe('gridGroupByRender', () => {
       )
     expect(headerFor('X').y).toBe(HEADER_HEIGHT)
     expect(headerFor('X').gapAbove).toBe(false)
-    expect(headerFor('Y').y).toBe(2 * HEADER_HEIGHT + ROW_HEIGHT + ROW_HEIGHT)
-    expect(headerFor('Y').gapAbove).toBe(false)
+    expect(headerFor('Y').y).toBe(
+      2 * HEADER_HEIGHT + ROW_HEIGHT + ROW_HEIGHT + GROUP_GAP
+    )
+    expect(headerFor('Y').gapAbove).toBe(true)
   })
 
-  test('the paged layout also stacks sibling sub-groups without a gap', () => {
+  test('the paged layout also separates sibling sub-groups with a gap', () => {
     const fields = [textField(1), textField(2)]
     const parentKey = pathKey({ field_1: 'A' }, fields)
     const leaf = (index, value) => ({
@@ -370,8 +367,10 @@ describe('gridGroupByRender', () => {
         (item) => item.type === 'header' && item.path.field_2 === value
       )
     expect(headerFor('X').gapAbove).toBe(false)
-    expect(headerFor('Y').gapAbove).toBe(false)
-    expect(headerFor('Y').y).toBe(2 * HEADER_HEIGHT + ROW_HEIGHT + ROW_HEIGHT)
+    expect(headerFor('Y').gapAbove).toBe(true)
+    expect(headerFor('Y').y).toBe(
+      2 * HEADER_HEIGHT + ROW_HEIGHT + ROW_HEIGHT + GROUP_GAP
+    )
   })
 
   test('buildLayout supports sparse paged group data', () => {
@@ -673,6 +672,8 @@ describe('buildLayout cycle safety', () => {
 })
 
 describe('renderViewport group skeletons', () => {
+  // Sibling groups are separated by a gap at every depth; a range starting at the
+  // parent's first child has no gap above its first slot.
   const placeholderLayout = (depth, count) => ({
     items: [
       {
@@ -682,10 +683,10 @@ describe('renderViewport group skeletons', () => {
         siblingStartIndex: 0,
         siblingEndIndex: count,
         y: 0,
-        height: count * HEADER_HEIGHT,
+        height: count * HEADER_HEIGHT + (count - 1) * GROUP_GAP,
       },
     ],
-    totalHeight: count * HEADER_HEIGHT,
+    totalHeight: count * HEADER_HEIGHT + (count - 1) * GROUP_GAP,
     totalRowCount: 0,
   })
 
@@ -701,8 +702,8 @@ describe('renderViewport group skeletons', () => {
     expect(skeletons.every((s) => s.depth === 1)).toBe(true)
     expect(skeletons.map((s) => s.y)).toEqual([
       0,
-      HEADER_HEIGHT,
-      2 * HEADER_HEIGHT,
+      HEADER_HEIGHT + GROUP_GAP,
+      2 * (HEADER_HEIGHT + GROUP_GAP),
     ])
   })
 

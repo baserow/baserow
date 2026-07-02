@@ -166,4 +166,14 @@ describe('GridViewGroupByBanner component', () => {
     expect(manyStep).toBeLessThan(fewStep)
     expect(manyStep).toBeGreaterThan(0)
   })
+
+  test('indents the field-name block in lockstep with its chevron', async () => {
+    const subGroup = await mountAtDepth(2, 1)
+    const labelPadding = parseFloat(
+      subGroup.find('.grid-view__group-by-banner-primary').element.style
+        .paddingLeft
+    )
+    expect(labelPadding).toBe(chevronPadding(subGroup))
+    expect(labelPadding).toBeGreaterThan(12)
+  })
 })

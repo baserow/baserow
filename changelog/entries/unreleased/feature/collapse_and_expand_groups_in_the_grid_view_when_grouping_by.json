@@ -2,7 +2,7 @@
     "type": "feature",
     "message": "Collapse and expand groups in the grid view when grouping by one or more fields.",
     "issue_origin": "github",
-    "issue_number": null,
+    "issue_number": 2257,
     "domain": "database",
     "bullet_points": [],
     "created_at": "2026-06-18"
