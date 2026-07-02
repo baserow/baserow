@@ -1,11 +1,11 @@
 <template>
   <div class="page">
     <div
-      v-if="fixedHeaderElements.length !== 0"
+      v-if="headerElementsSection.fixedElements.length !== 0"
       class="page__fixed-stack page__fixed-stack--top"
     >
       <PageElement
-        v-for="element in fixedHeaderElements"
+        v-for="element in headerElementsSection.fixedElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -15,9 +15,12 @@
         }"
       />
     </div>
-    <header v-if="normalHeaderElements.length !== 0" class="page__header">
+    <header
+      v-if="headerElementsSection.normalElements.length !== 0"
+      class="page__header"
+    >
       <PageElement
-        v-for="element in normalHeaderElements"
+        v-for="element in headerElementsSection.normalElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -37,9 +40,12 @@
         recordIndexPath: [],
       }"
     />
-    <footer v-if="normalFooterElements.length !== 0" class="page__footer">
+    <footer
+      v-if="footerElementsSection.normalElements.length !== 0"
+      class="page__footer"
+    >
       <PageElement
-        v-for="element in normalFooterElements"
+        v-for="element in footerElementsSection.normalElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -50,11 +56,11 @@
       />
     </footer>
     <div
-      v-if="fixedFooterElements.length !== 0"
+      v-if="footerElementsSection.fixedElements.length !== 0"
       class="page__fixed-stack page__fixed-stack--bottom"
     >
       <PageElement
-        v-for="element in fixedFooterElements"
+        v-for="element in footerElementsSection.fixedElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -71,10 +77,8 @@
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import _ from 'lodash'
-import {
-  PAGE_ELEMENT_BEHAVIOURS,
-  PAGE_PLACES,
-} from '@baserow/modules/builder/enums'
+import { PAGE_PLACES } from '@baserow/modules/builder/enums'
+import { getElementsPerPlace } from '@baserow/modules/builder/utils/pagePlaceElements'
 
 export default {
   components: { PageElement },
@@ -99,38 +103,17 @@ export default {
     },
   },
   computed: {
-    headerElements() {
-      return this.sharedElements.filter(
-        (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
-          PAGE_PLACES.HEADER
+    elementsPerPlace() {
+      return getElementsPerPlace(this.sharedElements, this.$registry)
+    },
+    headerElementsSection() {
+      return this.elementsPerPlace.find(
+        (section) => section.place === PAGE_PLACES.HEADER
       )
     },
-    footerElements() {
-      return this.sharedElements.filter(
-        (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
-          PAGE_PLACES.FOOTER
-      )
-    },
-    fixedHeaderElements() {
-      return this.headerElements.filter(
-        (element) => element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
-      )
-    },
-    fixedFooterElements() {
-      return this.footerElements.filter(
-        (element) => element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
-      )
-    },
-    normalHeaderElements() {
-      return this.headerElements.filter(
-        (element) => element.behaviour !== PAGE_ELEMENT_BEHAVIOURS.FIXED
-      )
-    },
-    normalFooterElements() {
-      return this.footerElements.filter(
-        (element) => element.behaviour !== PAGE_ELEMENT_BEHAVIOURS.FIXED
+    footerElementsSection() {
+      return this.elementsPerPlace.find(
+        (section) => section.place === PAGE_PLACES.FOOTER
       )
     },
   },

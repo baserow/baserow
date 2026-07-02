@@ -18,11 +18,11 @@
       >
         <ThemeProvider class="page">
           <div
-            v-if="fixedHeaderElements.length !== 0"
+            v-if="headerElementsSection.fixedElements.length !== 0"
             class="page__fixed-stack page__fixed-stack--top page__fixed-stack--header"
           >
             <ElementPreview
-              v-for="element in fixedHeaderElements"
+              v-for="element in headerElementsSection.fixedElements"
               :key="element.id"
               :element="element"
               :is-first-element="element.id === firstPreviewElementId"
@@ -39,9 +39,9 @@
               </span>
             </div>
           </div>
-          <template v-if="headerElements.length !== 0">
+          <template v-if="headerElementsSection.hasElements">
             <header
-              v-if="normalHeaderElements.length !== 0"
+              v-if="headerElementsSection.normalElements.length !== 0"
               class="page__header"
               :class="{
                 'page__header--element-selected':
@@ -49,7 +49,7 @@
               }"
             >
               <ElementPreview
-                v-for="element in normalHeaderElements"
+                v-for="element in headerElementsSection.normalElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -63,8 +63,8 @@
             </header>
             <div
               v-if="
-                normalHeaderElements.length !== 0 ||
-                fixedHeaderElements.length === 0
+                headerElementsSection.normalElements.length !== 0 ||
+                headerElementsSection.fixedElements.length === 0
               "
               class="page-preview__separator"
             >
@@ -104,11 +104,11 @@
               />
             </div>
           </template>
-          <template v-if="footerElements.length !== 0">
+          <template v-if="footerElementsSection.hasElements">
             <div
               v-if="
-                normalFooterElements.length !== 0 ||
-                fixedFooterElements.length === 0
+                footerElementsSection.normalElements.length !== 0 ||
+                footerElementsSection.fixedElements.length === 0
               "
               class="page-preview__separator"
             >
@@ -117,7 +117,7 @@
               </span>
             </div>
             <footer
-              v-if="normalFooterElements.length !== 0"
+              v-if="footerElementsSection.normalElements.length !== 0"
               class="page__footer"
               :class="{
                 'page__footer--element-selected':
@@ -125,7 +125,7 @@
               }"
             >
               <ElementPreview
-                v-for="element in normalFooterElements"
+                v-for="element in footerElementsSection.normalElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -139,7 +139,7 @@
             </footer>
           </template>
           <div
-            v-if="fixedFooterElements.length !== 0"
+            v-if="footerElementsSection.fixedElements.length !== 0"
             class="page__fixed-stack page__fixed-stack--bottom page__fixed-stack--footer"
           >
             <div class="page-preview__separator">
@@ -148,7 +148,7 @@
               </span>
             </div>
             <ElementPreview
-              v-for="element in fixedFooterElements"
+              v-for="element in footerElementsSection.fixedElements"
               :key="element.id"
               :element="element"
               :is-first-element="element.id === firstPreviewElementId"
@@ -185,13 +185,13 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import PreviewNavigationBar from '@baserow/modules/builder/components/page/PreviewNavigationBar'
 import {
   DIRECTIONS,
-  PAGE_ELEMENT_BEHAVIOURS,
   PAGE_PLACES,
 } from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
+import { getElementsPerPlace } from '@baserow/modules/builder/utils/pagePlaceElements'
 
 export default {
   name: 'PagePreview',
@@ -262,47 +262,26 @@ export default {
     sharedElements() {
       return this.$store.getters['element/getRootElements'](this.sharedPage)
     },
-    headerElements() {
-      return this.sharedElements.filter(
-        (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
-          PAGE_PLACES.HEADER
+    elementsPerPlace() {
+      return getElementsPerPlace(this.sharedElements, this.$registry)
+    },
+    headerElementsSection() {
+      return this.elementsPerPlace.find(
+        (section) => section.place === PAGE_PLACES.HEADER
       )
     },
-    footerElements() {
-      return this.sharedElements.filter(
-        (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
-          PAGE_PLACES.FOOTER
-      )
-    },
-    fixedHeaderElements() {
-      return this.headerElements.filter(
-        (element) => element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
-      )
-    },
-    fixedFooterElements() {
-      return this.footerElements.filter(
-        (element) => element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
-      )
-    },
-    normalHeaderElements() {
-      return this.headerElements.filter(
-        (element) => element.behaviour !== PAGE_ELEMENT_BEHAVIOURS.FIXED
-      )
-    },
-    normalFooterElements() {
-      return this.footerElements.filter(
-        (element) => element.behaviour !== PAGE_ELEMENT_BEHAVIOURS.FIXED
+    footerElementsSection() {
+      return this.elementsPerPlace.find(
+        (section) => section.place === PAGE_PLACES.FOOTER
       )
     },
     firstPreviewElementId() {
       return (
-        this.fixedHeaderElements[0]?.id ||
-        this.normalHeaderElements[0]?.id ||
+        this.headerElementsSection.fixedElements[0]?.id ||
+        this.headerElementsSection.normalElements[0]?.id ||
         this.elements[0]?.id ||
-        this.normalFooterElements[0]?.id ||
-        this.fixedFooterElements[0]?.id ||
+        this.footerElementsSection.normalElements[0]?.id ||
+        this.footerElementsSection.fixedElements[0]?.id ||
         null
       )
     },
