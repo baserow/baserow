@@ -604,6 +604,19 @@ export class GridPage {
     await expect(this.rowEditModal()).toHaveCount(0, { timeout: 10_000 });
   }
 
+  /**
+   * Fill a text field inside the open row edit modal and blur it so the value
+   * is persisted.
+   */
+  async fillRowModalTextField(fieldName: string, value: string): Promise<void> {
+    const item = this.rowEditModal()
+      .locator(".row-modal__field-item", { hasText: fieldName })
+      .first();
+    const input = item.locator("input").first();
+    await input.fill(value);
+    await input.blur();
+  }
+
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }

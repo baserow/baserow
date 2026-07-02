@@ -156,10 +156,14 @@ export default (client) => {
       includeDescendants = false,
       descendantLimit = null,
       descendantRowBudget = null,
+      groupBy = '',
     }) {
       const params = new URLSearchParams()
       params.append('offset', offset)
       params.append('limit', limit)
+      if (groupBy) {
+        params.append('group_by', groupBy)
+      }
       if (includeDescendants) {
         params.append('include_descendants', 'true')
       }

@@ -58,6 +58,7 @@ import {
   getGroupByParentRowOffset,
   getGroupByRowInsertLocation,
   getMissingGroupBySectionRanges,
+  groupDisplayFromRow,
   groupPathDefaults,
   groupPathFromRow,
   isGroupByDataPageLoaded,
@@ -620,6 +621,99 @@ function getGroupByRowStateById(state, rowId) {
 }
 
 /**
+ * The group path whose tree count a buffered row contributes to. A row kept in
+ * place with a move warning still occupies its pre-move section, so the located
+ * section's path is authoritative over the row's current values; rows without a
+ * location fall back to their value-derived path.
+ */
+function getGroupByRowTreePath(state, getters, row, groupByFields, registry) {
+  const location = state.groupBy.rowLocations[row.id]
+  if (location) {
+    const section = findGroupByRowSection(
+      getters.getGroupByLayout,
+      location.sectionKey,
+      groupByFields
+    )
+    if (section) {
+      return section.path
+    }
+  }
+  return groupPathFromRow(row, groupByFields, registry)
+}
+
+/**
+ * Moves a buffered grouped row from the section it occupies to the sorted position
+ * inside the group derived from its current values, transferring the tree counts
+ * when the group changed. With `onlyIfGroupChanged` a row already in its
+ * value-derived group is left untouched (its within-group reposition stays
+ * deferred). Returns whether the row was moved.
+ */
+function moveGroupByRowToValueGroup(
+  { commit, getters, state },
+  { row, view, fields, registry, onlyIfGroupChanged = false }
+) {
+  const groupByFields = getGroupByFieldsFromActiveGroupBys(
+    getters.getActiveGroupBys,
+    fields
+  )
+  const oldLocation = state.groupBy.rowLocations[row.id]
+  const oldSection = oldLocation
+    ? findGroupByRowSection(
+        getters.getGroupByLayout,
+        oldLocation.sectionKey,
+        groupByFields
+      )
+    : null
+  const newPath = groupPathFromRow(row, groupByFields, registry)
+  const groupChanged =
+    oldSection === null ||
+    pathKey(oldSection.path, groupByFields) !== pathKey(newPath, groupByFields)
+  if (onlyIfGroupChanged && !groupChanged) {
+    return false
+  }
+
+  if (oldLocation) {
+    commit('REMOVE_ROW_AT_LOCATION', {
+      sectionKey: oldLocation.sectionKey,
+      position: oldLocation.position,
+      rowId: row.id,
+    })
+  }
+  // Resolve the insert location after removing the row so the section's positions
+  // are already reindexed and the returned absolute position is correct.
+  const newLocation = getGroupByRowInsertLocation({
+    row,
+    view,
+    fields,
+    registry,
+    groupByFields,
+    sectionRows: state.groupBy.sectionRows,
+  })
+  commit('INSERT_ROW_AT_LOCATION', {
+    sectionKey: newLocation.sectionKey,
+    position: newLocation.position,
+    row,
+  })
+
+  if (oldSection && groupChanged) {
+    commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
+      path: oldSection.path,
+      fields: groupByFields,
+      delta: -1,
+      registry,
+    })
+    commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
+      path: newPath,
+      fields: groupByFields,
+      delta: 1,
+      registry,
+      display: groupDisplayFromRow(row, groupByFields),
+    })
+  }
+  return true
+}
+
+/**
  * Resolves the group-by fields and the section/path where `row` should be inserted,
  * bundling the boilerplate shared by every grouped insert site: map the active
  * group-bys to fields, then compute the insert location from the current layout and
@@ -780,6 +874,8 @@ export const state = () => ({
   adhocFiltering: false,
   // If true, ad hoc sorting is used
   adhocSorting: false,
+  // If true, ad hoc group by is used instead of the persistent one
+  adhocGrouping: false,
   // Contains the custom field options per view. Things like the field width are
   // stored here.
   fieldOptions: {},
@@ -952,7 +1048,10 @@ export const mutations = {
       ...rowsByOffset,
     }
   },
-  UPDATE_GROUP_BY_TREE_PATH_COUNT(state, { path, fields, delta, registry }) {
+  UPDATE_GROUP_BY_TREE_PATH_COUNT(
+    state,
+    { path, fields, delta, registry, display = null }
+  ) {
     state.groupBy.revision = (state.groupBy.revision || 0) + 1
     state.groupBy.absoluteRows = {}
     // Locally recomputed offsets may diverge from the server until the next full
@@ -967,7 +1066,8 @@ export const mutations = {
       delta,
       groupBys,
       registry,
-      hasSparsePages
+      hasSparsePages,
+      display
     )
     if (hasSparsePages) {
       state.groupBy.pages = updateGroupByDataPagesForPath(
@@ -976,7 +1076,8 @@ export const mutations = {
         fields,
         delta,
         groupBys,
-        registry
+        registry,
+        display
       )
     }
   },
@@ -992,6 +1093,9 @@ export const mutations = {
   },
   SET_ADHOC_SORTING(state, adhocSorting) {
     state.adhocSorting = adhocSorting
+  },
+  SET_ADHOC_GROUPING(state, adhocGrouping) {
+    state.adhocGrouping = adhocGrouping
   },
   SET_SCROLL_TOP(state, scrollTop) {
     state.scrollTop = scrollTop
@@ -1578,6 +1682,7 @@ export const actions = {
       includeDescendants,
       descendantLimit,
       descendantRowBudget,
+      groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
       signal,
     })
     if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
@@ -1652,7 +1757,7 @@ export const actions = {
     const searchMode = getDefaultSearchModeFromEnv($config)
     const publicUrl = rootGetters['page/view/public/getIsPublic']
     const publicAuthToken = rootGetters['page/view/public/getAuthToken']
-    const groupBy = getGroupBy(rootGetters, gridId)
+    const groupBy = getGroupBy(rootGetters, gridId, getters.getAdhocGrouping)
     const orderBy = getOrderBy(view, getters.getAdhocSorting)
     const filters = getFilters(view, getters.getAdhocFiltering)
     const requestParams = {
@@ -1752,7 +1857,7 @@ export const actions = {
       searchMode: getDefaultSearchModeFromEnv($config),
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-      groupBy: getGroupBy(rootGetters, gridId),
+      groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
       orderBy: getOrderBy(view, getters.getAdhocSorting),
       filters: getFilters(view, getters.getAdhocFiltering),
     })
@@ -2178,7 +2283,11 @@ export const actions = {
           searchMode: getDefaultSearchModeFromEnv($config),
           publicUrl: rootGetters['page/view/public/getIsPublic'],
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-          groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+          groupBy: getGroupBy(
+            rootGetters,
+            getters.getLastGridId,
+            getters.getAdhocGrouping
+          ),
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
           excludeCount: getters.canExcludeCount,
@@ -2332,7 +2441,7 @@ export const actions = {
    */
   async fetchInitial(
     { dispatch, commit, getters, rootGetters },
-    { gridId, fields, adhocFiltering, adhocSorting }
+    { gridId, fields, adhocFiltering, adhocSorting, adhocGrouping }
   ) {
     const { $registry, $client, $i18n, $config } = this
     // Reset scrollTop when switching table
@@ -2347,6 +2456,7 @@ export const actions = {
     commit('SET_LAST_GRID_ID', gridId)
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
+    commit('SET_ADHOC_GROUPING', adhocGrouping)
 
     const view = getViewOrFlatDefault(rootGetters, getters.getLastGridId)
     commit('SET_ACTIVE_GROUP_BYS', clone(view.group_bys || []))
@@ -2357,6 +2467,7 @@ export const actions = {
       commit('SET_LAST_GRID_ID', gridId)
       commit('SET_ADHOC_FILTERING', adhocFiltering)
       commit('SET_ADHOC_SORTING', adhocSorting)
+      commit('SET_ADHOC_GROUPING', adhocGrouping)
       commit('SET_GROUP_BY_COLLAPSE', getGroupByCollapseAllState(false))
       // One descendant request loads the whole visible subtree, then a single rows
       // request fetches the first page for the now-known sections.
@@ -2389,7 +2500,11 @@ export const actions = {
       searchMode: getDefaultSearchModeFromEnv($config),
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-      groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+      groupBy: getGroupBy(
+        rootGetters,
+        getters.getLastGridId,
+        getters.getAdhocGrouping
+      ),
       orderBy: getOrderBy(view, adhocSorting),
       filters: getFilters(view, adhocFiltering),
     })
@@ -2436,6 +2551,7 @@ export const actions = {
       fields,
       adhocFiltering,
       adhocSorting,
+      adhocGrouping,
       includeFieldOptions = false,
       sourceEvent = null,
     }
@@ -2453,6 +2569,7 @@ export const actions = {
     const groupBysChanged = !_.isEqual(state.activeGroupBys || [], nextGroupBys)
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
+    commit('SET_ADHOC_GROUPING', adhocGrouping)
     const nextGroupByFields = getGroupByFieldsFromActiveGroupBys(
       nextGroupBys,
       fields
@@ -2588,7 +2705,11 @@ export const actions = {
             searchMode: getDefaultSearchModeFromEnv($config),
             publicUrl: rootGetters['page/view/public/getIsPublic'],
             publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-            groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+            groupBy: getGroupBy(
+              rootGetters,
+              getters.getLastGridId,
+              getters.getAdhocGrouping
+            ),
             orderBy: getOrderBy(view, adhocSorting),
             filters: getFilters(view, adhocFiltering),
             excludeCount: true, // We already have it from the previous request.
@@ -2723,7 +2844,7 @@ export const actions = {
             searchMode: getDefaultSearchModeFromEnv($config),
             publicUrl: rootGetters['page/view/public/getIsPublic'],
             publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-            groupBy: getGroupBy(rootGetters, gridId),
+            groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
             orderBy: getOrderBy(view, getters.getAdhocSorting),
             filters: getFilters(view, getters.getAdhocFiltering),
             excludeCount: getters.canExcludeCount,
@@ -2745,6 +2866,7 @@ export const actions = {
       includeDescendants: groupByCollapse.mode === 'expand',
       descendantLimit: getters.getBufferRequestSize,
       descendantRowBudget: getGroupByDescendantRowBudget(getters),
+      groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
     })
     if ((state.groupBy.generation || 0) !== groupByGeneration) {
       return true
@@ -2840,7 +2962,7 @@ export const actions = {
           searchMode: getDefaultSearchModeFromEnv($config),
           publicUrl: rootGetters['page/view/public/getIsPublic'],
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-          groupBy: getGroupBy(rootGetters, gridId),
+          groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
           excludeCount: getters.canExcludeCount,
@@ -3605,7 +3727,11 @@ export const actions = {
         searchMode: getDefaultSearchModeFromEnv($config),
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-        groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+        groupBy: getGroupBy(
+          rootGetters,
+          getters.getLastGridId,
+          getters.getAdhocGrouping
+        ),
         orderBy: getOrderBy(view, getters.getAdhocSorting),
         filters: getFilters(view, getters.getAdhocFiltering),
         includeFields: fields,
@@ -3834,9 +3960,16 @@ export const actions = {
           { getters, state, registry: $registry },
           { row, view, fields }
         )
-        const rowPath = path ?? location.path
-        const sectionKey =
-          path === null ? location.sectionKey : pathKey(path, groupByFields)
+        // A partial path (e.g. the empty-view add-row line's `{}`) cannot address
+        // a leaf section, so complete it from the row's own values; otherwise the
+        // row lands in a section no layout item references and never renders.
+        const pathIsComplete =
+          path !== null &&
+          getGroupByPathDepth(path, groupByFields) === groupByFields.length
+        const rowPath = pathIsComplete ? path : location.path
+        const sectionKey = pathIsComplete
+          ? pathKey(path, groupByFields)
+          : location.sectionKey
         let position = location.position
 
         const beforeLocation =
@@ -3860,6 +3993,7 @@ export const actions = {
           fields: groupByFields,
           delta: 1,
           registry: $registry,
+          display: groupDisplayFromRow(row, groupByFields),
         })
         optimisticGroupByTreePaths.push({
           path: rowPath,
@@ -4263,7 +4397,7 @@ export const actions = {
    * experience for the user.
    */
   async updateRowValue(
-    { commit, dispatch, getters },
+    { commit, dispatch, getters, state },
     {
       table,
       view,
@@ -4328,10 +4462,13 @@ export const actions = {
         if (rowExistsInBuffer) {
           const isSelected =
             (getters.getRow(row.id)?._?.selectedBy?.length ?? 0) > 0
+          const openedInModal =
+            isRowOpenedInModal !== undefined ? isRowOpenedInModal(row) : false
           if (
             optimisticUpdate &&
             hasViewRulesThatCanMoveOrHideRows &&
-            !isSelected
+            !isSelected &&
+            !openedInModal
           ) {
             await dispatch('updatedExistingRow', {
               view,
@@ -4340,16 +4477,36 @@ export const actions = {
               values,
             })
           } else {
-            // While the edited row stays selected, keep it in place with a match
-            // warning rather than moving/removing it; the move/remove/regroup is
-            // deferred to deselect (selected-aware refreshRow) or backend confirmation,
-            // per the grid-view-test-plan contract (2.2.1a / 2.2.7a / 2.3.1a).
+            // While the edited row stays selected or open in the row edit modal,
+            // keep it in place with a match warning rather than moving/removing it;
+            // the move/remove is deferred to deselect/modal close (selected-aware
+            // refreshRow) or backend confirmation, per the grid-view-test-plan
+            // contract (2.2.1a / 2.2.7a / 2.3.1a / 14.2.x). A changed group-by
+            // value is the exception: the row re-groups immediately so the banner
+            // above it always reflects its actual group.
             commit('UPDATE_ROW_VALUES', {
               row,
               values: { ...values },
             })
             if (optimisticUpdate) {
               await dispatch('onRowChange', { view, row, fields })
+              const bufferRow = getters.getRow(row.id)
+              if (
+                getters.isGroupByMode &&
+                bufferRow &&
+                moveGroupByRowToValueGroup(
+                  { commit, getters, state },
+                  {
+                    row: bufferRow,
+                    view,
+                    fields,
+                    registry: $registry,
+                    onlyIfGroupChanged: true,
+                  }
+                )
+              ) {
+                await dispatch('onRowChange', { view, row: bufferRow, fields })
+              }
             }
           }
         } else {
@@ -4827,6 +4984,33 @@ export const actions = {
     }
 
     if (!oldRowExists && !newRowExists) {
+      // A row outside the view can still be materialized in the buffer when it's
+      // kept in place with a match warning (selected or open in the row edit
+      // modal). Keep applying value updates so the warned row and its modal stay
+      // in sync with realtime changes, and re-group it right away so the banner
+      // above it always reflects its actual group.
+      const materializedRow = getters.getRow(newRow.id)
+      if (materializedRow) {
+        commit('UPDATE_ROW_IN_BUFFER', {
+          row: materializedRow,
+          values,
+          metadata,
+        })
+        await dispatch('onRowChange', { view, row: materializedRow, fields })
+        if (getters.isGroupByMode) {
+          moveGroupByRowToValueGroup(
+            { commit, getters, state },
+            {
+              row: materializedRow,
+              view,
+              fields,
+              registry: $registry,
+              onlyIfGroupChanged: true,
+            }
+          )
+        }
+        clearPendingFieldOperations()
+      }
       return
     }
 
@@ -4862,7 +5046,13 @@ export const actions = {
         getters.getActiveGroupBys,
         fields
       )
-      const oldPath = groupPathFromRow(oldRow, groupByFields, $registry)
+      const oldPath = getGroupByRowTreePath(
+        state,
+        getters,
+        oldRow,
+        groupByFields,
+        $registry
+      )
       const newPath = groupPathFromRow(newRow, groupByFields, $registry)
       if (pathKey(oldPath, groupByFields) !== pathKey(newPath, groupByFields)) {
         commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
@@ -4876,6 +5066,7 @@ export const actions = {
           fields: groupByFields,
           delta: 1,
           registry: $registry,
+          display: groupDisplayFromRow(newRow, groupByFields),
         })
       }
     }
@@ -5157,7 +5348,7 @@ export const actions = {
    * via another channel.
    */
   async deletedExistingRow(
-    { commit, getters, dispatch },
+    { commit, getters, dispatch, state },
     { view, fields, row }
   ) {
     const { $registry } = this
@@ -5186,7 +5377,13 @@ export const actions = {
               fields
             )
             commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-              path: groupPathFromRow(row, groupByFields, $registry),
+              path: getGroupByRowTreePath(
+                state,
+                getters,
+                row,
+                groupByFields,
+                $registry
+              ),
               fields: groupByFields,
               delta: -1,
               registry: $registry,
@@ -5379,7 +5576,13 @@ export const actions = {
           fields
         )
         commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-          path: groupPathFromRow(row, groupByFields, $registry),
+          path: getGroupByRowTreePath(
+            state,
+            getters,
+            row,
+            groupByFields,
+            $registry
+          ),
           fields: groupByFields,
           delta: -1,
           registry: $registry,
@@ -5388,58 +5591,10 @@ export const actions = {
       commit('DELETE_ROW_IN_BUFFER', row)
     } else if (row._.selectedBy.length === 0 && !row._.matchSortings) {
       if (getters.isGroupByMode) {
-        const groupByFields = getGroupByFieldsFromActiveGroupBys(
-          getters.getActiveGroupBys,
-          fields
+        moveGroupByRowToValueGroup(
+          { commit, getters, state },
+          { row, view: grid, fields, registry: $registry }
         )
-        const oldLocation = state.groupBy.rowLocations[row.id]
-        const layout = getters.getGroupByLayout
-        const oldSection = oldLocation
-          ? findGroupByRowSection(layout, oldLocation.sectionKey, groupByFields)
-          : null
-        const newPath = groupPathFromRow(row, groupByFields, $registry)
-
-        if (oldLocation) {
-          commit('REMOVE_ROW_AT_LOCATION', {
-            sectionKey: oldLocation.sectionKey,
-            position: oldLocation.position,
-            rowId: row.id,
-          })
-        }
-        // Resolve the insert location after removing the row so the section's positions
-        // are already reindexed and the returned absolute position is correct.
-        const newLocation = getGroupByRowInsertLocation({
-          row,
-          view: grid,
-          fields,
-          registry: $registry,
-          groupByFields,
-          sectionRows: state.groupBy.sectionRows,
-        })
-        commit('INSERT_ROW_AT_LOCATION', {
-          sectionKey: newLocation.sectionKey,
-          position: newLocation.position,
-          row,
-        })
-
-        if (
-          oldSection &&
-          pathKey(oldSection.path, groupByFields) !==
-            pathKey(newPath, groupByFields)
-        ) {
-          commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-            path: oldSection.path,
-            fields: groupByFields,
-            delta: -1,
-            registry: $registry,
-          })
-          commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-            path: newPath,
-            fields: groupByFields,
-            delta: 1,
-            registry: $registry,
-          })
-        }
         commit('SET_ROW_MATCH_SORTINGS', { row, value: true })
         dispatch('correctMultiSelect')
         handledLocally = true
@@ -5961,6 +6116,9 @@ export const getters = {
   },
   getAdhocSorting(state) {
     return state.adhocSorting
+  },
+  getAdhocGrouping(state) {
+    return state.adhocGrouping
   },
   hasPendingFieldOps: (state) => (fieldId, rowId) => {
     const key = getPendingOperationKey(fieldId, rowId)

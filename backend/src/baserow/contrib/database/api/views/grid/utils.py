@@ -15,11 +15,13 @@ response, and key-building helpers used by both.
 """
 
 import json
+import re
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
 
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Model
 from django.db.models.query import QuerySet
 from django.http import QueryDict
 
@@ -28,17 +30,84 @@ from rest_framework.request import Request
 
 from baserow.config.settings.utils import str_to_bool, try_int
 from baserow.contrib.database.api.views.utils import serialize_group_by_data_pages
+from baserow.contrib.database.fields.exceptions import OrderByFieldNotFound
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.views.constants import GROUP_BY_DATA_DEFAULT_LIMIT
+from baserow.contrib.database.views.exceptions import ViewGroupByFieldNotSupported
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.models import ViewGroupBy
+from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY, ViewGroupBy
+from baserow.core.utils import split_comma_separated_string
 
 GROUP_BY_DATA_DESCENDANT_MAX_GROUPS = 2000
 # Only a coarse backstop: a deep tree legitimately produces one parent page per internal
 # node. The per-level batched descent runs one query per level regardless of page count,
 # so the visible-row window and the group cap are what actually bound the work.
 GROUP_BY_DATA_DESCENDANT_MAX_PAGES = GROUP_BY_DATA_DESCENDANT_MAX_GROUPS
+
+
+def parse_adhoc_view_group_bys(
+    raw_group_by: Optional[str],
+    model: Type[Model],
+    allowed_field_ids: Optional[Iterable[int]] = None,
+) -> Optional[List[ViewGroupBy]]:
+    """
+    Parses the ad-hoc ``group_by`` query parameter into unsaved ``ViewGroupBy``
+    instances usable by the group-by data handler.
+
+    The parameter uses the rows-endpoint sort string format
+    (e.g. ``-field_1[default],field_2``). Publicly shared views let visitors
+    group by fields the view itself is not grouped by, so when the parameter is
+    present the group tree must be built from it instead of the saved view
+    group-bys.
+
+    :param raw_group_by: The raw ``group_by`` query parameter value.
+    :param model: The generated table model whose field objects validate the
+        referenced fields.
+    :param allowed_field_ids: When provided, fields outside this set are
+        rejected (e.g. hidden fields of a public view).
+    :raises OrderByFieldNotFound: When a referenced field does not exist on the
+        model or is not allowed.
+    :raises ViewGroupByFieldNotSupported: When a referenced field cannot be
+        grouped by.
+    :return: The unsaved group-bys, or ``None`` when the parameter is missing
+        or empty.
+    """
+
+    if not raw_group_by:
+        return None
+
+    if allowed_field_ids is not None:
+        allowed_field_ids = set(allowed_field_ids)
+
+    field_objects = model._field_objects
+    group_bys = []
+    for raw_entry in split_comma_separated_string(raw_group_by):
+        field_id = get_field_id_from_field_key(raw_entry, strict=False)
+        if (
+            field_id is None
+            or field_id not in field_objects
+            or (allowed_field_ids is not None and field_id not in allowed_field_ids)
+        ):
+            raise OrderByFieldNotFound(raw_entry)
+
+        order = "DESC" if raw_entry.startswith("-") else "ASC"
+        type_match = re.search(r"\[(.*?)\]", raw_entry)
+        sort_type = type_match.group(1) if type_match else DEFAULT_SORT_TYPE_KEY
+
+        field_object = field_objects[field_id]
+        if not field_object["type"].check_can_group_by(
+            field_object["field"], sort_type
+        ):
+            raise ViewGroupByFieldNotSupported(
+                f"It is not possible to group by field type "
+                f"{field_object['type'].type} using sort type {sort_type}."
+            )
+
+        group_bys.append(ViewGroupBy(field_id=field_id, order=order, type=sort_type))
+
+    return group_bys
 
 
 def parse_non_negative_int(raw: Any, default: int) -> int:
@@ -519,12 +588,32 @@ def get_group_by_data_pages(
                 group["row_offset"] += offset_by_key.get(parent_key, 0)
                 page["groups"].append(group)
 
+            # A requested parent that yields no groups (e.g. a view whose filters
+            # match nothing) must still report its empty page with exact counts,
+            # or the client cannot tell a loaded-empty tree from an unloaded one.
+            for parent in parents:
+                parent_key = group_by_data_page_key(parent, group_by_fields)
+                if parent_key in page_by_key:
+                    continue
+                page = view_handler.get_group_by_data(
+                    base_queryset,
+                    view_group_bys,
+                    parent_path=parent,
+                    offset=offset,
+                    limit=limit,
+                )
+                page["parent"] = parent
+                page_by_key[parent_key] = page
+                page_order.append(parent_key)
+
             if window_end is None and page_by_key:
-                window_end = row_budget + min(
+                group_row_offsets = [
                     group["row_offset"]
                     for page in page_by_key.values()
                     for group in page["groups"]
-                )
+                ]
+                if group_row_offsets:
+                    window_end = row_budget + min(group_row_offsets)
 
             for parent_key in page_order:
                 if (

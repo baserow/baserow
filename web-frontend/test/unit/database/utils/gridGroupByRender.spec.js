@@ -143,6 +143,32 @@ describe('gridGroupByRender', () => {
     )
   })
 
+  test('an empty loaded paged layout keeps a top-level add-row line', () => {
+    const fields = [textField(1)]
+
+    const layout = buildLayout({
+      pages: {
+        '': { parentPath: {}, totalSiblingCount: 0, nodes: {} },
+      },
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+    })
+    expect(layout.items).toEqual([
+      { type: 'addRow', depth: 0, path: {}, y: 0, height: ADD_ROW_HEIGHT },
+    ])
+    expect(layout.totalHeight).toBe(ADD_ROW_HEIGHT)
+    expect(layout.totalRowCount).toBe(0)
+
+    // A tree without a loaded root page renders nothing, so the add-row line
+    // doesn't flash while the first request is in flight.
+    const unloaded = buildLayout({
+      pages: {},
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+    })
+    expect(unloaded.items).toEqual([])
+  })
+
   test('add-row trailers keep the small height when the view row height is larger', () => {
     const fields = [textField(1)]
     const rowHeight = 99

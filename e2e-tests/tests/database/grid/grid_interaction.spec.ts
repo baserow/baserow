@@ -19,6 +19,7 @@ import {
   resetRows,
   setupGrid,
 } from "../../../fixtures/database/gridSetup";
+import { listRows, updateRows } from "../../../fixtures/database/rows";
 import { pauseRows } from "../../../fixtures/network";
 import { baserowConfig } from "../../../playwright.config";
 
@@ -831,6 +832,86 @@ test.describe("12.2 Row context menu actions", () => {
     await grid.openRowModalFromContext(0);
     await grid.expectRowModalVisibleFor("Alice");
     await grid.closeRowModal();
+  });
+});
+
+// -----------------------------------------------------------------------------
+// section 14.2  Row edit modal with filters
+// -----------------------------------------------------------------------------
+
+test.describe("14.2 Row edit modal with filters", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "ModalFilterDb",
+      fields: [{ name: "Status", type: "text" }],
+      rows: [
+        { Name: "Alice", Status: "keep" },
+        { Name: "Bob", Status: "keep" },
+      ],
+      filters: [{ fieldName: "Status", type: "equal", value: "keep" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Alice", Status: "keep" },
+      { Name: "Bob", Status: "keep" },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+  });
+
+  test("14.2.1 modal edit that stops matching the filter keeps the row visible with a warning until modal close", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.expectRowCount(2);
+
+    await grid.openRowModalFromContext(0);
+    await grid.expectRowModalVisibleFor("Alice");
+    await grid.fillRowModalTextField("Status", "gone");
+
+    // The edited row keeps its place with a filter warning instead of being
+    // hidden while the modal stays open.
+    await grid.expectRowWarningVisible(0);
+    await grid.expectRowWarningText(0, "Row does not match filters");
+    await grid.expectRowCount(2);
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryText(1, "Bob");
+
+    // A follow-up edit must not hide any other row.
+    await grid.fillRowModalTextField("Status", "still gone");
+    await grid.expectRowCount(2);
+    await grid.expectPrimaryText(1, "Bob");
+
+    // Closing the modal hides the row that no longer matches.
+    await grid.closeRowModal();
+    await grid.expectRowCount(1);
+    await grid.expectPrimaryText(0, "Bob");
+  });
+
+  test("14.2.2 a modal row that stopped matching the filter still receives realtime updates", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.expectRowCount(2);
+
+    await grid.openRowModalFromContext(0);
+    await grid.expectRowModalVisibleFor("Alice");
+    await grid.fillRowModalTextField("Status", "gone");
+    await grid.expectRowWarningVisible(0);
+
+    // Another client updates the row; the open modal must reflect the change
+    // even though the row no longer matches the view filters.
+    const rows = await listRows(g.user, g.table);
+    const alice = rows.find((row) => row.Name === "Alice");
+    await updateRows(g.user, g.table, [
+      { id: alice.id, Name: "Alice updated" },
+    ]);
+    await grid.expectRowModalVisibleFor("Alice updated");
   });
 });
 

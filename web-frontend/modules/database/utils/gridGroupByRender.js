@@ -128,11 +128,10 @@ export function buildLayout({
     }
     skipDescendantsAtDepth = -1
 
-    // Hide optimistically-emptied leaf groups (the node is kept for reconciliation).
-    if (
-      node.depth === maxDepth &&
-      (node.rowCount ?? node.row_count ?? 0) === 0
-    ) {
+    // Hide optimistically-emptied groups at any depth (the node is kept for
+    // reconciliation); an emptied parent hides its whole subtree.
+    if ((node.rowCount ?? node.row_count ?? 0) === 0) {
+      skipDescendantsAtDepth = node.depth
       continue
     }
 
@@ -347,13 +346,11 @@ function buildPagedLayout({
       }
 
       const node = page.nodes[loadedIndex]
-      // Hide optimistically-emptied leaf groups (the node is kept for reconciliation).
-      // The slot still counts toward the depth offset, since the server keeps enumerating
-      // the group until the move is persisted.
-      if (
-        (node.depth ?? depth) === maxDepth &&
-        (node.rowCount ?? node.row_count ?? 0) === 0
-      ) {
+      // Hide optimistically-emptied groups at any depth (the node is kept for
+      // reconciliation); an emptied parent hides its whole subtree by not walking
+      // its child page. The slot still counts toward the depth offset, since the
+      // server keeps enumerating the group until the move is persisted.
+      if ((node.rowCount ?? node.row_count ?? 0) === 0) {
         advanceGlobalSiblingCount(depth, 1)
         index += 1
         loadedPointer += 1
@@ -422,6 +419,22 @@ function buildPagedLayout({
   }
 
   walkPage({}, 0)
+
+  // A loaded but group-less view (no rows, or every group emptied) would otherwise
+  // render nothing to click, so keep one top-level add-row line available. Gated on
+  // the loaded root page so nothing flashes while the first request is in flight,
+  // and on a fully empty layout so it never stacks under loading placeholders.
+  const rootPageLoaded = getPage(pages, {}, fields) !== null
+  if (rootPageLoaded && items.length === 0) {
+    items.push({
+      type: 'addRow',
+      depth: 0,
+      path: {},
+      y,
+      height: ADD_ROW_HEIGHT,
+    })
+    y += ADD_ROW_HEIGHT
+  }
 
   return { items, totalHeight: y, totalRowCount: visibleRowCount }
 }

@@ -511,25 +511,25 @@ These simple-field filter cases run in both flat and expanded group-by views.
 ### 2.2.7a Change single-select group-by value
 
 - New single-select value is visible immediately.
-- "Row has moved" is visible immediately.
-- Row remains in its original group while selected.
-- No grid rows GET request is made for the single row update.
-- After deselect, the row moves to the target group.
+- The row moves to the target group immediately, even while it stays selected,
+  so the banner above it always reflects its actual group.
+- No "Row has moved" warning is shown for a pure group change.
 - Source and target group counters update locally.
+- No grid rows GET request is made for the single row update.
+- Deselecting changes nothing further.
 
 ### 2.2.7b Change single-select group-by value deselected before confirmation
 
-- New single-select value is visible immediately with a "Row has moved" warning.
-- Deselecting before confirmation moves the row to its new group immediately.
-- Source and target group counters update locally.
+- New single-select value is visible immediately and the row moves to its new
+  group immediately.
+- Deselecting before confirmation changes nothing further.
 - The move stays stable after the backend confirms.
 
 ### 2.2.7c Backend returns 500 on single-select group-by change
 
 - PATCH request returns 500.
 - The optimistic group-by value is rolled back to the original option.
-- The "Row has moved" warning clears and the row stays in its original group.
-- Group counters are unchanged.
+- The row returns to its original group and counters are restored.
 - Error toast is visible.
 
 ### 2.3.1a Edit sorted row so it should move and keep it selected
@@ -615,19 +615,19 @@ These simple-field sort cases run in both flat and expanded group-by views.
 - After scrolling to the row's sorted destination, the updated row is visible
   there.
 
-### 2.4.1 Change text group-by value deselected before confirmation
+### 2.4.1 Change text group-by value while it stays selected
 
-- New text value is visible immediately with a "Row has moved" warning.
-- Deselecting before confirmation moves the row to its new group immediately.
+- New text value is visible immediately and the row moves to its new group
+  immediately, even while it stays selected.
 - Source and target group counters update locally.
+- Deselecting changes nothing further.
 - The move stays stable after the backend confirms.
 
 ### 2.4.2 Backend returns 500 on text group-by change
 
 - PATCH request returns 500.
 - The optimistic group-by value is rolled back to the original text.
-- The "Row has moved" warning clears and the row stays in its original group.
-- Group counters are unchanged.
+- The row returns to its original group and counters are restored.
 - Error toast is visible.
 
 ### 2.4.3 Press Escape during text group-by-value edit
@@ -636,12 +636,12 @@ These simple-field sort cases run in both flat and expanded group-by views.
 - No "Row has moved" warning appears.
 - The row stays in its original group and group counters are unchanged.
 
-### 2.4.4a Formula-grouped edit shows no warning until backend responds
+### 2.4.4a Formula-grouped edit re-groups when the backend responds
 
 - Typed value is visible immediately, with the row loading and no warning while
   the request is pending (the formula group cannot be evaluated locally).
-- After the backend responds, the "Row has moved" warning appears.
-- After deselect, the row moves into its new group and counters update.
+- After the backend responds, the row re-groups immediately, even while it
+  stays selected, and counters update.
 
 ### 2.4.4b Formula-grouped edit deselected before confirmation
 
@@ -1056,6 +1056,19 @@ flat/group-by runs, the same way filters and sorts do.
 - Modal contains the selected row value.
 - Closing the modal hides it.
 
+### 14.2.1 Modal edit that stops matching the filters
+
+- Editing a modal-open row so it stops matching the filters keeps the row
+  visible with a "Row does not match filters" warning.
+- Row count is unchanged while the modal stays open.
+- A follow-up edit in the modal does not hide any other row.
+- Closing the modal hides the row that no longer matches.
+
+### 14.2.2 Realtime updates into a non-matching modal row
+
+- After a modal edit makes the row stop matching the filters, an update from
+  another client is still reflected in the open modal.
+
 ## Public Shared Grid
 
 ### 15.1.1 Public grid renders rows without edit controls
@@ -1097,11 +1110,22 @@ flat/group-by runs, the same way filters and sorts do.
 - 7.x: Group-by standalone behavior not yet automated — each group renders its
   own add-row line and adding from a non-first group lands in that group; the
   add-row line keeps the small row height at medium/large row heights (covered
-  by unit tests, not e2e); collapse/expand state persists across reload and is
+  by unit tests, not e2e); an empty grouped view keeps a top-level add-row line
+  and a row created from it lands in its value-derived group, selected and with
+  a filter warning when it does not match (covered by unit tests, not e2e);
+  group banners draw a vertical cell
+  separator at each field boundary in the scrollable-right section (covered by
+  unit tests, not e2e); collapse/expand state persists across reload and is
   re-projected (kept on trailing-level add/remove, reset on reorder/replace);
   nested multi-level group-by collapse/expand, counts, and add-row;
   lazy-loading rows when scrolling deep into a large group (covered by unit
   tests, not e2e).
+- 15.x: Ad-hoc grouping in the publicly shared grid — a visitor applying a
+  different group-by rebuilds the group tree and loads rows for the new groups
+  (covered by backend tests, not e2e).
+- 7.x: Ad-hoc grouping for users who cannot update the view (e.g. read-only
+  role) — the `group_by` parameter drives the group tree instead of the saved
+  view group-bys (covered by backend tests, not e2e).
 - 9.1.x: Row coloring from a formula-based decoration (section 9.1 covers
   single-select only).
 - 9.4.x: Freeze columns drag UI and limits.

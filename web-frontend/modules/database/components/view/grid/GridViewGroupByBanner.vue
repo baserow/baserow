@@ -76,6 +76,12 @@
         </div>
       </div>
     </template>
+    <div
+      v-for="(position, index) in separatorPositions"
+      :key="'separator-' + index"
+      class="grid-view__group-by-banner-separator"
+      :style="{ left: position - 1 + 'px' }"
+    />
   </div>
 </template>
 
@@ -108,6 +114,10 @@ export default {
     workspaceId: {
       type: null,
       default: null,
+    },
+    separatorPositions: {
+      type: Array,
+      default: () => [],
     },
     width: {
       type: Number,

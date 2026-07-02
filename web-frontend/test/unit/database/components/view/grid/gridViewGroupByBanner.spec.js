@@ -54,6 +54,34 @@ describe('GridViewGroupByBanner component', () => {
     expect(wrapper.text()).toContain('Row A')
   })
 
+  test('renders a cell separator at each provided position', async () => {
+    const field = { id: 1, type: 'text', name: 'Name' }
+    const wrapper = await testApp.mount(GridViewGroupByBanner, {
+      props: {
+        groupByFields: [field],
+        item: {
+          depth: 0,
+          path: { field_1: 'A' },
+          display: {},
+          rowCount: 1,
+          collapsed: false,
+          y: 0,
+          height: 48,
+        },
+        includeRowDetails: false,
+        primaryFieldWidth: 0,
+        separatorPositions: [200, 350],
+        width: 500,
+        workspaceId: null,
+      },
+    })
+
+    const separators = wrapper.findAll('.grid-view__group-by-banner-separator')
+    expect(separators).toHaveLength(2)
+    expect(separators.at(0).element.style.left).toBe('199px')
+    expect(separators.at(1).element.style.left).toBe('349px')
+  })
+
   test('renders the single select value from the backend display value', async () => {
     const field = {
       id: 3,

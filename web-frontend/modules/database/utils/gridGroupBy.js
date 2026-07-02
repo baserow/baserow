@@ -467,6 +467,32 @@ export function reindexGroupByTreeSiblingMetadata(nodes, fields) {
  * Applies a row-count change (`delta`) to each group along a path, adding or
  * updating nodes. Used by the store for optimistic row add/move/delete.
  */
+/**
+ * Display values for optimistically created group nodes, derived from the row the
+ * group is created for. Mirrors the backend's `display` resolution: only reference
+ * fields (object/array row values, e.g. selects, collaborators, link rows) need
+ * it — scalar group values are renderable from the path alone.
+ */
+export function groupDisplayFromRow(row, fields) {
+  const display = {}
+  for (const field of fields) {
+    const key = `field_${field.id}`
+    const value = row[key]
+    if (value !== null && typeof value === 'object') {
+      display[key] = value
+    }
+  }
+  return display
+}
+
+function nodeDisplayForDepth(display, fields, depth) {
+  const key = `field_${fields[depth].id}`
+  if (!display || !(key in display)) {
+    return null
+  }
+  return { [key]: display[key] }
+}
+
 export function updateGroupByTreeNodesForPath(
   nodes,
   path,
@@ -474,7 +500,8 @@ export function updateGroupByTreeNodesForPath(
   delta,
   groupBys,
   registry,
-  forceSiblingMetadata = false
+  forceSiblingMetadata = false,
+  display = null
 ) {
   let updated = [...nodes]
   const pathDepth = getGroupByPathDepth(path, fields)
@@ -484,6 +511,7 @@ export function updateGroupByTreeNodesForPath(
 
   for (let depth = 0; depth < pathDepth; depth += 1) {
     const targetPath = getGroupByPathPrefix(path, fields, depth)
+    const nodeDisplay = nodeDisplayForDepth(display, fields, depth)
     const existingIndex = updated.findIndex(
       (node) =>
         (node.depth ?? 0) === depth &&
@@ -498,6 +526,9 @@ export function updateGroupByTreeNodesForPath(
         path: targetPath,
         depth,
         row_count: delta,
+      }
+      if (nodeDisplay) {
+        node.display = nodeDisplay
       }
       const insertIndex = findGroupByNodeInsertionIndex(
         updated,
@@ -518,6 +549,7 @@ export function updateGroupByTreeNodesForPath(
     updated[existingIndex] = {
       ...current,
       row_count: rowCount,
+      ...(nodeDisplay && !current.display ? { display: nodeDisplay } : {}),
     }
   }
 
@@ -553,8 +585,10 @@ export function updateGroupByDataPageForPath({
   delta,
   groupBys,
   registry,
+  display = null,
 }) {
   const targetPath = getGroupByPathPrefix(path, fields, depth)
+  const nodeDisplay = nodeDisplayForDepth(display, fields, depth)
   let nodes = { ...(page.nodes || {}) }
   const indexedNodes = Object.entries(nodes).map(([index, node]) => ({
     index: Number(index),
@@ -584,6 +618,7 @@ export function updateGroupByDataPageForPath({
           updatedNode = {
             ...updatedNode,
             row_count: rowCount,
+            ...(nodeDisplay && !node.display ? { display: nodeDisplay } : {}),
           }
         }
         if (
@@ -621,6 +656,9 @@ export function updateGroupByDataPageForPath({
     path: targetPath,
     depth,
     row_count: delta,
+  }
+  if (nodeDisplay) {
+    newNode.display = nodeDisplay
   }
   if (depth < fields.length - 1) {
     newNode.children_count = 1
@@ -726,7 +764,8 @@ export function updateGroupByDataPagesForPath(
   fields,
   delta,
   groupBys,
-  registry
+  registry,
+  display = null
 ) {
   let updated = { ...(pages || {}) }
   const pathDepth = getGroupByPathDepth(path, fields)
@@ -769,6 +808,7 @@ export function updateGroupByDataPagesForPath(
         delta,
         groupBys,
         registry,
+        display,
       }),
     }
   }

@@ -508,6 +508,14 @@
   border-bottom-color: $palette-neutral-400;
 }
 
+.grid-view__group-by-banner-separator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: $palette-neutral-200;
+}
+
 .grid-view__group-by-banner-chevron-lane {
   flex: 0 0 auto;
   display: flex;

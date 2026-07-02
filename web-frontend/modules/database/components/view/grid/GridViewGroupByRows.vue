@@ -9,6 +9,7 @@
         :primary-field-width="primaryFieldWidth"
         :row-details-width="gridViewRowDetailsWidth"
         :workspace-id="workspaceId"
+        :separator-positions="bannerSeparatorPositions"
         :width="sectionWidth"
         @toggle="toggleGroup"
       />
@@ -216,6 +217,24 @@ export default {
       this.visibleFields.forEach((field) => {
         last += this.getFieldWidth(field)
         positions[field.id] = last
+      })
+      return positions
+    },
+    /**
+     * Vertical cell separators inside the group banner, at every internal field
+     * boundary. Only the scrollable-right section gets them: the section edge
+     * already draws the outer border, and the left section's banner content
+     * (chevron, label, count) flows across its columns.
+     */
+    bannerSeparatorPositions() {
+      if (this.includeRowDetails) {
+        return []
+      }
+      const positions = []
+      let x = 0
+      this.visibleFields.slice(0, -1).forEach((field) => {
+        x += this.getFieldWidth(field)
+        positions.push(x)
       })
       return positions
     },

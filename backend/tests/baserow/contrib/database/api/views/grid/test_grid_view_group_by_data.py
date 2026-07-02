@@ -5,7 +5,12 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_404_NOT_FOUND,
+)
 
 from baserow.contrib.database.api.views.grid import utils as grid_view_utils
 from baserow.contrib.database.views.handler import ViewHandler
@@ -48,6 +53,107 @@ def test_returns_empty_group_by_data_when_view_has_no_group_by(
             }
         ]
     }
+
+
+@pytest.mark.django_db
+def test_returns_empty_root_page_with_descendants_when_no_rows_match(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    data_fixture.create_view_filter(
+        view=grid, field=color, type="equal", value="nomatch"
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green"})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(
+        url, {"include_descendants": "true"}, HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    # The empty root page must still be reported, otherwise the client cannot
+    # tell a loaded-empty tree apart from an unloaded one (and would render no
+    # add-row line).
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    assert page["parent"] == {}
+    assert page["groups"] == []
+    assert page["group_count"] == 0
+
+
+@pytest.mark.django_db
+def test_group_by_data_adhoc_group_by_overrides_saved_group_bys(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    size = data_fixture.create_text_field(table=table, name="Size")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{size.id}": "Small"})
+    model.objects.create(**{f"field_{color.id}": "Red", f"field_{size.id}": "Large"})
+    model.objects.create(**{f"field_{color.id}": "Red", f"field_{size.id}": "Small"})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(
+        url, {"group_by": f"field_{size.id}"}, HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    assert [group["path"] for group in page["groups"]] == [
+        {f"field_{size.id}": "Large"},
+        {f"field_{size.id}": "Small"},
+    ]
+    assert [group["row_count"] for group in page["groups"]] == [1, 2]
+
+
+@pytest.mark.django_db
+def test_group_by_data_adhoc_group_by_without_saved_group_bys(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    grid = data_fixture.create_grid_view(table=table)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green"})
+    model.objects.create(**{f"field_{color.id}": "Red"})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(
+        url, {"group_by": f"-field_{color.id}"}, HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    assert [group["path"][f"field_{color.id}"] for group in page["groups"]] == [
+        "Red",
+        "Green",
+    ]
+
+
+@pytest.mark.django_db
+def test_group_by_data_adhoc_group_by_rejects_unknown_field(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Color")
+    grid = data_fixture.create_grid_view(table=table)
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(
+        url, {"group_by": "field_999999"}, HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_ORDER_BY_FIELD_NOT_FOUND"
 
 
 @pytest.mark.django_db
@@ -1070,6 +1176,114 @@ def test_public_group_by_data(api_client, data_fixture):
             "row_offset": 1,
         },
     ]
+
+
+@pytest.mark.django_db
+def test_public_group_by_data_adhoc_group_by_overrides_saved_group_bys(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    size = data_fixture.create_text_field(table=table, name="Size")
+    grid = data_fixture.create_grid_view(table=table, public=True)
+    data_fixture.create_view_group_by(view=grid, field=color)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{size.id}": "Small"})
+    model.objects.create(**{f"field_{color.id}": "Red", f"field_{size.id}": "Large"})
+    model.objects.create(**{f"field_{color.id}": "Red", f"field_{size.id}": "Small"})
+
+    url = reverse(
+        "api:database:views:grid:public-group-by-data", kwargs={"slug": grid.slug}
+    )
+    response = api_client.get(url, {"group_by": f"field_{size.id}"})
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    assert [group["path"] for group in page["groups"]] == [
+        {f"field_{size.id}": "Large"},
+        {f"field_{size.id}": "Small"},
+    ]
+    assert [group["row_count"] for group in page["groups"]] == [1, 2]
+
+
+@pytest.mark.django_db
+def test_public_group_by_data_adhoc_group_by_without_saved_group_bys(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    grid = data_fixture.create_grid_view(table=table, public=True)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green"})
+    model.objects.create(**{f"field_{color.id}": "Red"})
+
+    url = reverse(
+        "api:database:views:grid:public-group-by-data", kwargs={"slug": grid.slug}
+    )
+    response = api_client.get(url, {"group_by": f"-field_{color.id}"})
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    assert [group["path"][f"field_{color.id}"] for group in page["groups"]] == [
+        "Red",
+        "Green",
+    ]
+
+
+@pytest.mark.django_db
+def test_public_group_by_data_adhoc_group_by_rejects_hidden_field(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    hidden = data_fixture.create_text_field(table=table, name="Hidden")
+    grid = data_fixture.create_grid_view(table=table, public=True)
+    data_fixture.create_grid_view_field_option(grid, hidden, hidden=True)
+    data_fixture.create_view_group_by(view=grid, field=color)
+
+    url = reverse(
+        "api:database:views:grid:public-group-by-data", kwargs={"slug": grid.slug}
+    )
+    response = api_client.get(url, {"group_by": f"field_{hidden.id}"})
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_ORDER_BY_FIELD_NOT_FOUND"
+
+
+@pytest.mark.django_db
+def test_public_group_by_data_adhoc_group_by_rejects_non_groupable_field(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    linked_table = data_fixture.create_database_table(user=user)
+    linked_primary = data_fixture.create_text_field(
+        table=linked_table, name="Name", primary=True
+    )
+    link = data_fixture.create_link_row_field(
+        table=table, link_row_table=linked_table, name="Links"
+    )
+    lookup = data_fixture.create_lookup_field(
+        table=table,
+        through_field=link,
+        target_field=linked_primary,
+        through_field_name=link.name,
+        target_field_name=linked_primary.name,
+    )
+    grid = data_fixture.create_grid_view(table=table, public=True)
+
+    url = reverse(
+        "api:database:views:grid:public-group-by-data", kwargs={"slug": grid.slug}
+    )
+    response = api_client.get(url, {"group_by": f"field_{lookup.id}"})
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED"
 
 
 @pytest.mark.django_db

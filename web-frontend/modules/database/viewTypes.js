@@ -10,6 +10,7 @@ import { FileFieldType } from '@baserow/modules/database/fieldTypes'
 import {
   filterVisibleFieldsFunction,
   isAdhocFiltering,
+  isAdhocGroupBy,
   isAdhocSorting,
   newFieldMatchesActiveSearchTerm,
   sortFieldsByOrderAndIdFunction,
@@ -584,6 +585,12 @@ export class GridViewType extends ViewType {
       view,
       isPublic
     )
+    const adhocGrouping = isAdhocGroupBy(
+      this.app,
+      database.workspace,
+      view,
+      isPublic
+    )
 
     await store.dispatch(
       storePrefix + 'view/grid/setRowHeight',
@@ -594,6 +601,7 @@ export class GridViewType extends ViewType {
       fields,
       adhocFiltering,
       adhocSorting,
+      adhocGrouping,
     })
     // The grid view store keeps a copy of the group bys that must only be updated
     // after the refresh of the page. This is because the group by depends on the rows
@@ -640,12 +648,19 @@ export class GridViewType extends ViewType {
       view,
       isPublic
     )
+    const adhocGrouping = isAdhocGroupBy(
+      this.app,
+      database.workspace,
+      view,
+      isPublic
+    )
     await store.dispatch(storePrefix + 'view/grid/refresh', {
       view,
       fields,
       includeFieldOptions,
       adhocFiltering,
       adhocSorting,
+      adhocGrouping,
       sourceEvent,
     })
   }
