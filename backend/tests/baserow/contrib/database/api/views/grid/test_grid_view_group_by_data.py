@@ -509,6 +509,82 @@ def test_group_by_data_include_totals_bundles_table_totals(api_client, data_fixt
 
 
 @pytest.mark.django_db
+def test_group_by_data_parents_chain_aggregations_only_with_totals(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    size = data_fixture.create_number_field(
+        table=table, name="Size", number_decimal_places=0
+    )
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    data_fixture.create_view_group_by(view=grid, field=size)
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {"aggregation_type": "sum", "aggregation_raw_type": "sum"}
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(
+        **{f"field_{color.id}": "Blue", f"field_{size.id}": 1, f"field_{amount.id}": 10}
+    )
+    model.objects.create(
+        **{f"field_{color.id}": "Blue", f"field_{size.id}": 1, f"field_{amount.id}": 20}
+    )
+    model.objects.create(
+        **{
+            f"field_{color.id}": "Green",
+            f"field_{size.id}": 5,
+            f"field_{amount.id}": 100,
+        }
+    )
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    # Mirror the frontend targeted refetch for a row changed in Blue > 1: the root page
+    # (the Blue group) plus the Blue parent page (the size groups under Blue).
+    parents = [
+        {"parent": {}, "offset": 0, "limit": 40},
+        {"parent": {f"field_{color.id}": "Blue"}, "offset": 0, "limit": 40},
+    ]
+    response = api_client.get(
+        url,
+        {
+            "parents": json.dumps(parents),
+            "aggregations_only": "true",
+            "include_totals": "true",
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    body = response.json()
+    root_page = _get_page_by_parent(body, {})
+    blue_group = next(
+        group
+        for group in root_page["groups"]
+        if group["path"] == {f"field_{color.id}": "Blue"}
+    )
+    assert blue_group["aggregations"] == {f"field_{amount.id}": 30}
+    # Lean mode omits the window-function layout.
+    assert "row_offset" not in blue_group
+    blue_page = _get_page_by_parent(body, {f"field_{color.id}": "Blue"})
+    assert blue_page["groups"][0]["path"] == {
+        f"field_{color.id}": "Blue",
+        f"field_{size.id}": "1",
+    }
+    assert blue_page["groups"][0]["aggregations"] == {f"field_{amount.id}": 30}
+    # Footer total bundled in the same request.
+    assert body["aggregations"] == {f"field_{amount.id}": 130}
+
+
+@pytest.mark.django_db
 def test_returns_empty_group_by_data_when_view_has_no_group_by(
     api_client, data_fixture
 ):

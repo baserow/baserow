@@ -838,9 +838,24 @@ Behind the `group_by_aggregations` feature flag.
 - Clicking it opens the aggregation menu; choosing a function sets it for the
   column, so the bottom footer and every group's header show that function
   together (shared column setting).
-- After choosing — and after editing a row — the affected group values show a
-  brief loading spinner and update in place. The group layout (rows, counts,
-  offsets) is not rebuilt; only the aggregation values change.
+- After choosing a function, the affected values show a brief loading spinner and
+  update in place. The group layout (rows, counts, offsets) is not rebuilt; only
+  the aggregation values change.
+
+### 7.3.3 Live group aggregation updates on row changes
+
+Behind the `group_by_aggregations` feature flag.
+
+- Editing a cell updates that row's group value (and its ancestor groups + the
+  footer total) in place, with no spinner — like a spreadsheet SUM.
+- Moving a row between groups (editing a group-by field) updates both the source
+  and destination group values.
+- A second browser session viewing the same grouped view sees the values update
+  via realtime, the same way.
+- Changing the sort does not change aggregation values (they are order-independent),
+  so no aggregation request is made for a sort change.
+- In grouped mode the values come from a single `group-by-data` request (the
+  standalone `/aggregations/` footer endpoint is not called).
 
 ## Search
 

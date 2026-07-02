@@ -95,6 +95,27 @@ export async function updateFormFieldOptions(
   });
 }
 
+/**
+ * Configure a column's "Summarize" aggregation on a grid view, the same
+ * field-options PATCH the footer/group-header picker sends.
+ */
+export async function setViewFieldAggregation(
+  user: User,
+  view: View,
+  field: Field,
+  aggregationType: string,
+  aggregationRawType: string,
+): Promise<void> {
+  await getClient(user).patch(`database/views/${view.id}/field-options/`, {
+    field_options: {
+      [field.id]: {
+        aggregation_type: aggregationType,
+        aggregation_raw_type: aggregationRawType,
+      },
+    },
+  });
+}
+
 export async function getDefaultGridView(
   user: User,
   table: Table,

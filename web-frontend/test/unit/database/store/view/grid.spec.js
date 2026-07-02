@@ -3608,12 +3608,120 @@ describe('Grid view store', () => {
     })
     expect(mockServer.mock.history.get).toHaveLength(2)
     expect(groupByRequestParams.get('include_descendants')).toBe('true')
-    // Expand-all fetches the first rows page in parallel with the skeleton, sized to
-    // the buffer (offset 0) rather than right-sized to the not-yet-known sections.
+    expect(groupByRequestParams.get('include_totals')).toBe('true')
     expect(rowRequestParams.get('offset')).toBe('0')
     expect(rowRequestParams.get('limit')).toBe('40')
     expect(correctMultiSelect).toHaveBeenCalledOnce()
-    expect(fetchAllFieldAggregationData).toHaveBeenCalledOnce()
+    // Grouped mode bundles footer totals into the group-by-data request, so the
+    // standalone aggregation fetch is no longer dispatched.
+    expect(fetchAllFieldAggregationData).not.toHaveBeenCalled()
+  })
+
+  test('fetchAllFieldAggregationData refreshes per-group values + footer totals in grouped mode', async () => {
+    const baseState = gridStore.state()
+    const state = Object.assign(baseState, {
+      lastGridId: 1,
+      activeGroupBys: [{ field: 2, order: 'ASC', type: 'default' }],
+      rowHeight: 33,
+      windowHeight: 330,
+      fieldOptions: {
+        3: { aggregation_type: 'sum', aggregation_raw_type: 'sum' },
+      },
+      groupBy: {
+        ...baseState.groupBy,
+        treeNodes: [
+          { path: { field_2: 'A' }, depth: 0, aggregations: { field_3: 10 } },
+        ],
+      },
+    })
+    const aggStore = testApp.createStore({
+      modules: {
+        grid: gridStore,
+        field: {
+          namespaced: true,
+          getters: {
+            getAll: () => [
+              { id: 2, name: 'Team', type: 'text' },
+              { id: 3, name: 'Amount', type: 'number' },
+            ],
+          },
+        },
+      },
+    })
+    aggStore.replaceState({ ...aggStore.state, grid: state })
+    aggStore.app = { $featureFlagIsEnabled: () => true }
+
+    let params = null
+    mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        params = config.params
+        return [
+          200,
+          {
+            pages: [
+              {
+                parent: {},
+                groups: [
+                  {
+                    path: { field_2: 'A' },
+                    depth: 0,
+                    aggregations: { field_3: 99 },
+                  },
+                ],
+                offset: 0,
+                limit: 40,
+              },
+            ],
+            aggregations: { field_3: 99 },
+          },
+        ]
+      })
+
+    await aggStore.dispatch('grid/fetchAllFieldAggregationData', {
+      view: { id: 1 },
+    })
+
+    // Consolidated: one group-by-data request carries group values + footer totals;
+    // no standalone /aggregations/ call, and no spinner on a row-driven refresh.
+    expect(params.get('aggregations_only')).toBe('true')
+    expect(params.get('include_totals')).toBe('true')
+    expect(aggStore.state.grid.groupBy.treeNodes[0].aggregations).toEqual({
+      field_3: 99,
+    })
+    expect(aggStore.getters['grid/getAllFieldAggregationData']).toEqual({
+      3: { loading: false, value: 99 },
+    })
+    expect(aggStore.getters['grid/getGroupByAggregationsLoading']()).toBe(false)
+  })
+
+  test('fetchAllFieldAggregationData makes no request in grouped mode when no aggregation is configured', async () => {
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: [{ field: 2, order: 'ASC', type: 'default' }],
+      rowHeight: 33,
+      windowHeight: 330,
+    })
+    const aggStore = testApp.createStore({
+      modules: {
+        grid: gridStore,
+        field: { namespaced: true, getters: { getAll: () => [] } },
+      },
+    })
+    aggStore.replaceState({ ...aggStore.state, grid: state })
+    aggStore.app = { $featureFlagIsEnabled: () => true }
+
+    let called = false
+    mockServer.mock.onGet(/group-by-data|aggregations/).reply(() => {
+      called = true
+      return [200, { pages: [] }]
+    })
+
+    await aggStore.dispatch('grid/fetchAllFieldAggregationData', {
+      view: { id: 1 },
+    })
+
+    expect(called).toBe(false)
   })
 
   test('refresh keeps the previous group-by state until the next grouping is ready', async () => {
@@ -3841,7 +3949,9 @@ describe('Grid view store', () => {
     ).toEqual([10])
     expect(mockServer.mock.history.get).toHaveLength(2)
     expect(correctMultiSelect).toHaveBeenCalledOnce()
-    expect(fetchAllFieldAggregationData).toHaveBeenCalledOnce()
+    // Grouped mode bundles footer totals into the group-by-data request, so the
+    // standalone aggregation fetch is no longer dispatched.
+    expect(fetchAllFieldAggregationData).not.toHaveBeenCalled()
   })
 
   test('late group-by data responses from an older generation are ignored', async () => {
@@ -4456,7 +4566,9 @@ describe('Grid view store', () => {
     // (otherwise the viewport would sit on an unloaded region and render blank).
     expect(groupByStore.state.grid.scrollTop).toBe(0)
     expect(correctMultiSelect).toHaveBeenCalledOnce()
-    expect(fetchAllFieldAggregationData).toHaveBeenCalledOnce()
+    // Grouped mode bundles footer totals into the group-by-data request, so the
+    // standalone aggregation fetch is no longer dispatched.
+    expect(fetchAllFieldAggregationData).not.toHaveBeenCalled()
   })
 
   test('refresh preserves group-by collapse state when removing a group-by', async () => {
@@ -4579,7 +4691,9 @@ describe('Grid view store', () => {
     })
     expect(mockServer.mock.history.get).toHaveLength(1)
     expect(correctMultiSelect).toHaveBeenCalledOnce()
-    expect(fetchAllFieldAggregationData).toHaveBeenCalledOnce()
+    // Grouped mode bundles footer totals into the group-by-data request, so the
+    // standalone aggregation fetch is no longer dispatched.
+    expect(fetchAllFieldAggregationData).not.toHaveBeenCalled()
   })
 
   test('group-by scroll fetch aborts the previous in-flight scroll request', async () => {
@@ -4737,7 +4851,9 @@ describe('Grid view store', () => {
     expect(groupByStore.state.grid.groupBy.collapse).toEqual(collapse)
     expect(mockServer.mock.history.get).toHaveLength(2)
     expect(correctMultiSelect).toHaveBeenCalledOnce()
-    expect(fetchAllFieldAggregationData).toHaveBeenCalledOnce()
+    // Grouped mode bundles footer totals into the group-by-data request, so the
+    // standalone aggregation fetch is no longer dispatched.
+    expect(fetchAllFieldAggregationData).not.toHaveBeenCalled()
   })
 
   test('fetchInitial uses group-by mode after syncing active group-bys', async () => {

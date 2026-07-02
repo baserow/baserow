@@ -1684,7 +1684,7 @@ export const actions = {
   // them in place without rebuilding the layout. Used after an aggregation or row change.
   async refreshGroupByAggregations(
     { commit, getters, rootGetters },
-    { view, fields, fieldId = null }
+    { view, fields, fieldId = null, silent = false }
   ) {
     const { $client, $config } = this
     if (!getters.isGroupByMode) {
@@ -1698,10 +1698,14 @@ export const actions = {
       return
     }
     const gridId = getters.getLastGridId
-    commit(
-      'SET_GROUP_BY_AGGREGATIONS_LOADING',
-      fieldId !== null ? [fieldId] : true
-    )
+    // Row edits refresh silently (values change in place); the picker passes a
+    // fieldId to show that column's spinner while its function changes.
+    if (!silent) {
+      commit(
+        'SET_GROUP_BY_AGGREGATIONS_LOADING',
+        fieldId !== null ? [fieldId] : true
+      )
+    }
     try {
       const { data } = await GridService($client).fetchGroupByData({
         gridId,
@@ -1728,7 +1732,9 @@ export const actions = {
         }
       }
     } finally {
-      commit('SET_GROUP_BY_AGGREGATIONS_LOADING', false)
+      if (!silent) {
+        commit('SET_GROUP_BY_AGGREGATIONS_LOADING', false)
+      }
     }
   },
   async fetchGroupByData(
@@ -1745,6 +1751,7 @@ export const actions = {
       includeDescendants = false,
       descendantLimit = null,
       descendantRowBudget = null,
+      includeTotals = false,
       signal = null,
     }
   ) {
@@ -1783,6 +1790,7 @@ export const actions = {
       descendantLimit,
       descendantRowBudget,
       groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
+      includeTotals,
       signal,
     })
     if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
@@ -1794,6 +1802,12 @@ export const actions = {
         parentPath: page.parent || {},
         fields: groupByFields,
       })
+    }
+    for (const [fieldKey, value] of Object.entries(data.aggregations || {})) {
+      const fieldId = parseInt(fieldKey.replace('field_', ''), 10)
+      if (!isNaN(fieldId)) {
+        commit('SET_FIELD_AGGREGATION_DATA', { fieldId, value })
+      }
     }
     placeLoadedGroupByRowsInViewport({
       commit,
@@ -2689,7 +2703,6 @@ export const actions = {
             return
           }
           dispatch('correctMultiSelect')
-          dispatch('fetchAllFieldAggregationData', { view })
         })
         .catch((error) => {
           if (axios.isCancel(error)) {
@@ -2740,6 +2753,8 @@ export const actions = {
         .then(async () => {
           commit('SET_GROUP_BY_COLLAPSE', groupByCollapse)
           commit('RESET_GROUP_BY_DATA')
+          // Per-group values + footer totals come bundled in this one request, so the
+          // standalone /aggregations/ fetch is not needed in grouped mode.
           await dispatch('fetchGroupByData', {
             gridId,
             view,
@@ -2748,6 +2763,7 @@ export const actions = {
             includeDescendants: groupByCollapse.mode === 'expand',
             descendantLimit: getters.getBufferRequestSize,
             descendantRowBudget: getGroupByDescendantRowBudget(getters),
+            includeTotals: true,
           })
           await dispatch('fetchGroupByRowsByScrollTop', {
             gridId,
@@ -2757,7 +2773,6 @@ export const actions = {
             includeFieldOptions,
           })
           dispatch('correctMultiSelect')
-          dispatch('fetchAllFieldAggregationData', { view })
         })
         .catch((error) => {
           if (axios.isCancel(error)) {
@@ -2967,9 +2982,18 @@ export const actions = {
       descendantLimit: getters.getBufferRequestSize,
       descendantRowBudget: getGroupByDescendantRowBudget(getters),
       groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
+      includeTotals: true,
     })
     if ((state.groupBy.generation || 0) !== groupByGeneration) {
       return true
+    }
+    for (const [fieldKey, value] of Object.entries(
+      groupByData.aggregations || {}
+    )) {
+      const fieldId = parseInt(fieldKey.replace('field_', ''), 10)
+      if (!isNaN(fieldId)) {
+        commit('SET_FIELD_AGGREGATION_DATA', { fieldId, value })
+      }
     }
 
     for (const page of groupByData.pages || []) {
@@ -3214,7 +3238,7 @@ export const actions = {
    * If a request is already in progress, it is aborted in favour of the new one.
    */
   async fetchAllFieldAggregationData(
-    { rootGetters, getters, commit },
+    { rootGetters, getters, commit, dispatch },
     { view }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -3222,6 +3246,25 @@ export const actions = {
     const search = getters.getActiveSearchTerm
     const fieldOptions = getters.getAllFieldOptions
     const gridId = getters.getLastGridId
+    const hasAggregation = Object.values(fieldOptions).some(
+      (options) => options.aggregation_raw_type
+    )
+    // In grouped mode the per-group values and the footer totals come from one
+    // group-by-data request, so it replaces the standalone footer fetch entirely.
+    // Skip entirely when nothing is configured, matching the flat-mode early return.
+    const groupAggregations =
+      typeof this.app?.$featureFlagIsEnabled === 'function' &&
+      this.app.$featureFlagIsEnabled('group_by_aggregations')
+    if (groupAggregations && getters.isGroupByMode) {
+      if (hasAggregation) {
+        return dispatch('refreshGroupByAggregations', {
+          view,
+          fields: rootGetters['field/getAll'],
+          silent: true,
+        })
+      }
+      return
+    }
     let atLeastOneAggregation = false
 
     Object.entries(fieldOptions).forEach(([fieldId, options]) => {

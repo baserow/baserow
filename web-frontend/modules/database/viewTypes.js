@@ -802,26 +802,12 @@ export class GridViewType extends ViewType {
     )
   }
 
-  // In grouped mode (flag on), refresh per-group values via a lean request that keeps
-  // the layout; otherwise refresh the footer aggregations as before.
+  // fetchAllFieldAggregationData refreshes the footer in flat mode and the per-group
+  // values + footer totals (one request) in grouped mode, so this works for both.
   refreshAggregationsAfterRowChange(store, fields, storePrefix) {
-    const view = store.getters['view/getSelected']
-    const groupAggregations =
-      typeof this.app.$featureFlagIsEnabled === 'function' &&
-      this.app.$featureFlagIsEnabled('group_by_aggregations')
-    if (
-      groupAggregations &&
-      store.getters[storePrefix + 'view/grid/isGroupByMode']
-    ) {
-      store.dispatch(storePrefix + 'view/grid/refreshGroupByAggregations', {
-        view,
-        fields,
-      })
-    } else {
-      store.dispatch(storePrefix + 'view/grid/fetchAllFieldAggregationData', {
-        view,
-      })
-    }
+    store.dispatch(storePrefix + 'view/grid/fetchAllFieldAggregationData', {
+      view: store.getters['view/getSelected'],
+    })
   }
 
   async rowCreated(
