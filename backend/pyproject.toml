@@ -41,7 +41,7 @@ dependencies = [
     "celery-redbeat==2.3.3",
     "flower==2.0.1",
     "service-identity==24.2.0",
-    "regex==2025.11.3",
+    "regex==2026.6.28",
     "antlr4-python3-runtime==4.9.3",
     "tqdm==4.67.1",
     "boto3==1.42.57",
