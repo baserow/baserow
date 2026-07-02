@@ -5,11 +5,7 @@
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n-t
-        v-if="limitReached"
-        keypath="applicationUserLimitNotification.titleReached"
-        tag="span"
-      >
+      <i18n-t v-if="limitReached" :keypath="reachedKeypath" tag="span">
         <template #workspaceName>
           <strong>{{ notification.data.workspace_name }}</strong>
         </template>
@@ -39,6 +35,13 @@ export default {
   computed: {
     limitReached() {
       return this.notification.data.threshold >= 100
+    },
+    reachedKeypath() {
+      // When the limit is enforced (hard limit) new users can't sign in, otherwise
+      // the limit is soft and we only prompt to upgrade.
+      return this.notification.data.enforced
+        ? 'applicationUserLimitNotification.titleReachedEnforced'
+        : 'applicationUserLimitNotification.titleReached'
     },
   },
 }

@@ -908,7 +908,8 @@
   },
   "applicationUserLimitNotification": {
     "titleWarning": "{workspaceName} has used {threshold} of its application user limit.",
-    "titleReached": "{workspaceName} has reached its application user limit. New users can't be created until you upgrade."
+    "titleReached": "{workspaceName} has reached its application user limit. Please upgrade.",
+    "titleReachedEnforced": "{workspaceName} has reached its application user limit. New users can't sign in until you upgrade."
   },
   "emailNotifications": {
     "title": "Email notifications",

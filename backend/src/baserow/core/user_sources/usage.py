@@ -116,6 +116,11 @@ def raise_if_over_application_user_login_limit(user_source: UserSource, user) ->
     :raises ApplicationUserLimitReached: When the user is past the limit.
     """
 
+    # Soft limit (the default): the limit is only used to notify workspace members,
+    # nobody is blocked from signing in. The hard limit is opt-in via an env var.
+    if not settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED:
+        return
+
     workspace = user_source.application.workspace
     if workspace is None:
         return

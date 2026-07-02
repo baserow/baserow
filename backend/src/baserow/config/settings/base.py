@@ -500,6 +500,13 @@ BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS = sorted(
     }
 )
 
+# When enabled ("hard" limit) users past the application user limit are refused at
+# login. When disabled (the default "soft" limit) the limit is only used to notify
+# workspace members; nobody is blocked from signing in.
+BASEROW_APPLICATION_USER_LIMIT_ENFORCED = str_to_bool(
+    os.getenv("BASEROW_APPLICATION_USER_LIMIT_ENFORCED", "")
+)
+
 CORS_ALLOW_HEADERS = list(default_headers) + [
     WEBSOCKET_ID_HEADER,
     PUBLIC_VIEW_AUTHORIZATION_HEADER,
