@@ -393,12 +393,15 @@ def test_delete_table_element_removes_associated_workflow_actions(data_fixture):
     assert NotificationWorkflowAction.objects.count() == 1
 
     # Deleting only soft-trashes the element; its fields' workflow actions survive.
+    # The default manager hides actions of trashed elements, so we count via the
+    # manager that includes them.
     ElementService().delete_element(user, table_element)
-    assert NotificationWorkflowAction.objects.count() == 1
+    assert NotificationWorkflowAction.objects.count() == 0
+    assert NotificationWorkflowAction.objects_including_trashed_elements.count() == 1
 
     # Permanently deleting the element removes the associated workflow actions.
     TrashHandler.permanently_delete(table_element)
-    assert NotificationWorkflowAction.objects.count() == 0
+    assert NotificationWorkflowAction.objects_including_trashed_elements.count() == 0
 
 
 @pytest.mark.django_db

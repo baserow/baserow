@@ -395,12 +395,14 @@ def test_all_workflow_actions_removed_when_menu_element_deleted(
     assert NotificationWorkflowAction.objects.count() == 2
 
     # Deleting only soft-trashes the element. Its menu items and workflow actions
-    # must survive so a restore can bring them back.
+    # must survive so a restore can bring them back. The default manager hides
+    # actions of trashed elements, so we count via the manager that includes them.
     ElementService().delete_element(menu_element_fixture["user"], menu_element)
 
     assert MenuElement.objects.count() == 0
     assert MenuItemElement.objects.count() == 2
-    assert NotificationWorkflowAction.objects.count() == 2
+    assert NotificationWorkflowAction.objects.count() == 0
+    assert NotificationWorkflowAction.objects_including_trashed_elements.count() == 2
 
     # Permanently deleting the element cleans up the menu items and their
     # associated workflow actions.
@@ -408,7 +410,7 @@ def test_all_workflow_actions_removed_when_menu_element_deleted(
 
     assert MenuElement.objects_and_trash.count() == 0
     assert MenuItemElement.objects.count() == 0
-    assert NotificationWorkflowAction.objects.count() == 0
+    assert NotificationWorkflowAction.objects_including_trashed_elements.count() == 0
 
 
 @pytest.mark.django_db

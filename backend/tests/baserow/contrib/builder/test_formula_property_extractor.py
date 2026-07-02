@@ -477,48 +477,44 @@ def test_get_workflow_action_property_names_returns_property_names(data_fixture)
 
 
 @pytest.mark.django_db
-def test_get_workflow_action_property_names_skips_trashed_element(data_fixture):
+def test_get_builder_workflow_actions_excludes_trashed_element(data_fixture):
     """
-    A workflow action whose element has been trashed (soft-deleted) must not crash
-    the extraction. The `element` foreign key only cascades on permanent deletion,
-    so the action survives the trash; since it is no longer rendered, its formulas
-    contribute no used properties and it is skipped.
+    An action whose element has been trashed (soft-deleted) must be dropped from the
+    queryset returned by the service. The `element` foreign key only cascades on
+    permanent deletion, so an action can outlive the trashing of its element. Actions
+    without an element (page-scoped) must still be returned.
     """
 
     user = data_fixture.create_user()
-    table, fields, _ = data_fixture.build_table(
-        user=user,
-        columns=[("Fruit", "text")],
-        rows=[["Apple"]],
-    )
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
-    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
-        user=user, page=page, table=table
-    )
     button_element = data_fixture.create_builder_button_element(page=page)
-    workflow_action = (
-        BuilderWorkflowActionService()
-        .create_workflow_action(
-            user,
-            NotificationWorkflowActionType(),
-            page=page,
-            element=button_element,
-            event=EventTypes.CLICK,
-            title=f"get('data_source.{data_source.id}.0.field_{fields[0].id}')",
-        )
-        .specific
+
+    element_action = BuilderWorkflowActionService().create_workflow_action(
+        user,
+        NotificationWorkflowActionType(),
+        page=page,
+        element=button_element,
+        event=EventTypes.CLICK,
+    )
+    page_action = BuilderWorkflowActionService().create_workflow_action(
+        user,
+        NotificationWorkflowActionType(),
+        page=page,
+        event=EventTypes.CLICK,
     )
 
-    # Trash the button. The workflow action still references it via element_id.
+    # Both actions are returned while the element is live.
+    actions = BuilderWorkflowActionService().get_builder_workflow_actions(user, builder)
+    assert {action.id for action in actions} == {element_action.id, page_action.id}
+
+    # Trash the button. Its action still references it via element_id.
     element = ElementHandler().get_element_for_update(button_element.id)
     ElementService().delete_element(user, element)
 
-    # The element is no longer in the live element map, so resolving its import
-    # context would previously raise ElementDoesNotExist.
-    results = get_workflow_action_property_names([workflow_action], {})
-
-    assert results == {"external": {}, "internal": {}}
+    # The trashed element's action is excluded, but the page-scoped one remains.
+    actions = BuilderWorkflowActionService().get_builder_workflow_actions(user, builder)
+    assert {action.id for action in actions} == {page_action.id}
 
 
 @pytest.mark.django_db
