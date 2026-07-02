@@ -45,6 +45,11 @@ def broadcast_dependant_rows_updated(
     """
     Serializes the current values of the provided rows and broadcasts them as
     regular rows_updated messages to the subscribers of the table's page.
+
+    :param table_id: The id of the table the rows belong to.
+    :param row_ids: The ids of the rows whose values changed.
+    :param updated_field_ids: The ids of the fields whose values changed; only
+        these are serialized.
     """
 
     table_page_type = page_registry.get("table")
@@ -113,6 +118,8 @@ def send_trailing_force_table_refresh(self, table_id: int):
     """
     Sends the trailing refresh after a debounced burst of dependant row
     changes, so subscribers end up with the final state.
+
+    :param table_id: The id of the table to refresh.
     """
 
     cache.delete(dependant_rows_force_refresh_cache_key(table_id, trailing=True))

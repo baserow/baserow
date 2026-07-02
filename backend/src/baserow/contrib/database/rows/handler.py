@@ -1279,6 +1279,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         """
         Notifies receivers about rows whose values changed as a consequence of
         a change in the starting table, so realtime events can be sent.
+
+        :param user: The user on whose behalf the change was made, if any.
+        :param table: The starting table where the change originated.
+        :param dependant_rows_updates: The rows per affected table whose values
+            changed as a consequence of the change.
+        :param send_realtime_update: Forwarded to the receivers so they can
+            skip sending realtime events.
         """
 
         if not dependant_rows_updates:
@@ -1301,6 +1308,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         """
         Rows changed by field rules only reach the acting user via the HTTP
         response, so other subscribers need them as dependant rows updates.
+
+        :param table: The table the cascaded changes happened in.
+        :param cascade_row_ids: The ids of the rows changed by field rules.
+        :param cascade_field_ids: The ids of the fields whose values changed.
+        :param exclude_row_ids: Row ids already broadcast by the row signals,
+            to be excluded.
+        :return: A single-entry list with the update for the table, or an empty
+            list when no rows remain.
         """
 
         row_ids = sorted(set(cascade_row_ids) - set(exclude_row_ids))

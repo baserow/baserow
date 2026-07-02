@@ -54,41 +54,43 @@ def merge_dependant_rows_updates(
     """
     Merges lists of DependantRowsUpdate into one entry per table, unioning
     row/field ids, respecting the limit and dropping empty entries.
+
+    :param updates_lists: The lists of dependant rows updates to merge.
+    :return: One update per table with sorted, deduplicated row and field ids.
     """
 
     limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
     if limit <= 0:
         return []
 
-    merged: Dict[int, DependantRowsUpdate] = {}
+    tables: Dict[int, Table] = {}
+    row_ids_per_table: Dict[int, Set[int]] = defaultdict(set)
+    field_ids_per_table: Dict[int, Set[int]] = defaultdict(set)
+    tables_requiring_refresh: Set[int] = set()
+
     for updates in updates_lists:
         for update in updates:
-            existing = merged.get(update.table.id)
-            if existing is None:
-                merged[update.table.id] = DependantRowsUpdate(
-                    table=update.table,
-                    row_ids=list(update.row_ids),
-                    field_ids=list(update.field_ids),
-                    requires_refresh=update.requires_refresh,
-                )
-                existing = merged[update.table.id]
-            else:
-                existing.field_ids = sorted(
-                    set(existing.field_ids) | set(update.field_ids)
-                )
-                if update.requires_refresh:
-                    existing.requires_refresh = True
-                else:
-                    existing.row_ids = sorted(
-                        set(existing.row_ids) | set(update.row_ids)
-                    )
-            if existing.requires_refresh or len(existing.row_ids) > limit:
-                existing.requires_refresh = True
-                existing.row_ids = []
+            table_id = update.table.id
+            tables[table_id] = update.table
+            field_ids_per_table[table_id].update(update.field_ids)
+            if table_id in tables_requiring_refresh:
+                continue
+            row_ids = row_ids_per_table[table_id]
+            row_ids.update(update.row_ids)
+            if update.requires_refresh or len(row_ids) > limit:
+                # Past the limit only the refresh flag matters; free the ids.
+                tables_requiring_refresh.add(table_id)
+                row_ids.clear()
+
     return [
-        update
-        for update in merged.values()
-        if update.row_ids or update.requires_refresh
+        DependantRowsUpdate(
+            table=table,
+            row_ids=sorted(row_ids_per_table[table_id]),
+            field_ids=sorted(field_ids_per_table[table_id]),
+            requires_refresh=table_id in tables_requiring_refresh,
+        )
+        for table_id, table in tables.items()
+        if row_ids_per_table[table_id] or table_id in tables_requiring_refresh
     ]
 
 
@@ -232,6 +234,9 @@ class PathBasedUpdateStatementCollector:
             updated.
         :param overflowed_table_ids: If provided, table ids whose changed rows could
             not be determined or exceeded the realtime update limit are added to it.
+        :param collect_dependant_rows: Set to False when no realtime events will be
+            sent for this update, to skip the extra queries needed to find the rows
+            changed by fields marked as changed without an update statement.
         :return: A dictionary containing a set of updated row ids per table id.
         """
 
@@ -287,6 +292,22 @@ class PathBasedUpdateStatementCollector:
         fields resolve their values at serialization time) never appear in
         `update_returning_ids`, so their affected rows are found with a bounded
         SELECT joining back to the starting rows instead.
+
+        :param field_cache: The field cache to use to get the table model.
+        :param path_to_starting_table: A list of link row fields which lead from
+            self.table to the table containing the starting row ids.
+        :param starting_row_ids: The ids of the rows in the starting table the
+            update originated from.
+        :param deleted_m2m_rels_per_link_field: A dictionary per link field of
+            rows in the table it links to which have had their connections
+            removed.
+        :param result: Output dictionary of updated row ids per table id, to
+            which the found row ids are added.
+        :param overflowed_table_ids: Output set to which the table id is added
+            when the changed rows could not be determined or exceed the
+            realtime update limit.
+        :return: None, the outcome is recorded in `result` and
+            `overflowed_table_ids`.
         """
 
         limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
@@ -343,6 +364,17 @@ class PathBasedUpdateStatementCollector:
         starting rows, one per statement. OR-ing a joined column with a base
         column defeats every index (full table + through-table scans), so each
         filter stays driveable by a single index instead.
+
+        :param path_to_starting_table: A list of link row fields which lead from
+            self.table to the table containing the starting row ids.
+        :param starting_row_ids: The ids of the rows in the starting table the
+            update originated from.
+        :param deleted_m2m_rels_per_link_field: A dictionary per link field of
+            rows in the table it links to which have had their connections
+            removed, so rows which lost a connection still match.
+        :param include_starting_rows: Whether the starting rows themselves must
+            be matched by the returned filters.
+        :return: A list of Q filters, each one to be used in its own statement.
         """
 
         if len(path_to_starting_table) == 0:
@@ -464,12 +496,12 @@ class PathBasedUpdateStatementCollector:
             int, path_to_starting_table[-1].link_row_related_field_id
         )
         filters = Q()
-        if link_row_field_in_starting_table in deleted_m2m_rels_per_link_field:
+        row_ids = deleted_m2m_rels_per_link_field.get(link_row_field_in_starting_table)
+        if row_ids:
             path_to_table_after_starting_table = "".join(
                 [p.db_column + "__" for p in path_to_starting_table[:-1]]
             )
 
-            row_ids = deleted_m2m_rels_per_link_field[link_row_field_in_starting_table]
             filter_kwargs_forcing_update_for_row_with_deleted_rels = {
                 f"{path_to_table_after_starting_table}id__in": row_ids
             }
@@ -644,6 +676,14 @@ class FieldUpdateCollector:
     def _accumulate_updated_rows(
         self, updated_rows_per_table: Dict[int, Set[int]]
     ) -> None:
+        """
+        Accumulates the updated row ids per table across apply_updates calls,
+        marking tables exceeding the realtime update limit as overflowed.
+
+        :param updated_rows_per_table: The updated row ids per table id of the
+            last apply_updates call.
+        """
+
         limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
         if limit <= 0 or not self.collect_dependant_rows:
             return
@@ -662,6 +702,8 @@ class FieldUpdateCollector:
         Returns, per affected table, the rows whose values changed as a
         consequence of the applied updates, excluding the starting rows
         (already broadcast by the row signals). Empty when the limit is <= 0.
+
+        :return: A list with one DependantRowsUpdate per affected table.
         """
 
         limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
