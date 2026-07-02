@@ -241,25 +241,118 @@ describe('presence store', () => {
     expect(map.get('1:2')).toHaveLength(3)
   })
 
-  test('getFocusEntriesByCell returns cached result on repeated access', () => {
+  test('SET_FOCUS mutates in place preserving object identities', () => {
     const s = makeState()
     mutations.SET_MEMBERS(s, {
       space: 'table-1',
       entries: [{ presence_id: 'pid-1', user_id: 10 }],
     })
+    mutations.SET_MEMBERS(s, {
+      space: 'table-2',
+      entries: [{ presence_id: 'pid-9', user_id: 90 }],
+    })
+    const spacesBefore = s.spaces
+    const spaceBefore = s.spaces['table-1']
+    const membersBefore = s.spaces['table-1'].members
+    const unrelatedSpaceBefore = s.spaces['table-2']
+
     mutations.SET_FOCUS(s, {
       space: 'table-1',
       presence_id: 'pid-1',
       focus: { type: 'cell', row_id: 1, field_id: 2, editing: false },
     })
 
-    const getter = applyGetter('getFocusEntriesByCell', s)
-    const first = getter('table-1')
-    const second = getter('table-1')
-    expect(second).toBe(first)
+    expect(s.spaces).toBe(spacesBefore)
+    expect(s.spaces['table-1']).toBe(spaceBefore)
+    expect(s.spaces['table-1'].members).toBe(membersBefore)
+    expect(s.spaces['table-2']).toBe(unrelatedSpaceBefore)
+
+    const map = applyGetter('getFocusEntriesByCell', s)('table-1')
+    expect(map.get('1:2')).toHaveLength(1)
   })
 
-  test('getFocusEntriesByCell cache invalidates on mutation', () => {
+  test('SET_FOCUS is a no-op for unknown space or member', () => {
+    const s = makeState()
+    mutations.SET_MEMBERS(s, {
+      space: 'table-1',
+      entries: [{ presence_id: 'pid-1', user_id: 10 }],
+    })
+    const focus = { type: 'cell', row_id: 1, field_id: 2, editing: false }
+    mutations.SET_FOCUS(s, {
+      space: 'nonexistent',
+      presence_id: 'pid-1',
+      focus,
+    })
+    mutations.SET_FOCUS(s, { space: 'table-1', presence_id: 'unknown', focus })
+
+    expect(s.spaces['table-1'].members['pid-1'].focus).toBeNull()
+  })
+
+  test('empty focus map identity is stable across unrelated updates', () => {
+    const s = makeState()
+    mutations.SET_MEMBERS(s, {
+      space: 'table-1',
+      entries: [{ presence_id: 'pid-1', user_id: 10 }],
+    })
+    mutations.SET_MEMBERS(s, {
+      space: 'table-2',
+      entries: [{ presence_id: 'pid-2', user_id: 20 }],
+    })
+
+    const first = applyGetter('getFocusEntriesByCell', s)('table-1')
+    expect(first.size).toBe(0)
+
+    mutations.SET_FOCUS(s, {
+      space: 'table-2',
+      presence_id: 'pid-2',
+      focus: { type: 'cell', row_id: 3, field_id: 4, editing: false },
+    })
+
+    const second = applyGetter('getFocusEntriesByCell', s)('table-1')
+    expect(second).toBe(first)
+    expect(applyGetter('getFocusEntriesByCell', s)('nonexistent')).toBe(first)
+  })
+
+  test('focus entries are sorted by user_id ascending', () => {
+    const s = makeState()
+    mutations.SET_MEMBERS(s, {
+      space: 'table-1',
+      entries: [
+        { presence_id: 'pid-b', user_id: 30 },
+        { presence_id: 'pid-a', user_id: 10 },
+        { presence_id: 'pid-c', user_id: 20 },
+      ],
+    })
+    const focus = { type: 'cell', row_id: 1, field_id: 2, editing: false }
+    for (const pid of ['pid-b', 'pid-a', 'pid-c']) {
+      mutations.SET_FOCUS(s, { space: 'table-1', presence_id: pid, focus })
+    }
+
+    const entries = applyGetter(
+      'getFocusEntriesByCell',
+      s
+    )('table-1').get('1:2')
+    expect(entries.map((e) => e.user_id)).toEqual([10, 20, 30])
+  })
+
+  test('same user_id ties break on presence_id string compare', () => {
+    const s = makeState()
+    mutations.SET_MEMBERS(s, {
+      space: 'table-1',
+      entries: [
+        { presence_id: 'pid-z', user_id: 10 },
+        { presence_id: 'pid-a', user_id: 10 },
+      ],
+    })
+    const focus = { type: 'row', row_id: 5, editing: false }
+    mutations.SET_FOCUS(s, { space: 'table-1', presence_id: 'pid-z', focus })
+    mutations.SET_FOCUS(s, { space: 'table-1', presence_id: 'pid-a', focus })
+
+    const entries = applyGetter('getFocusEntriesByRow', s)('table-1').get(5)
+    expect(entries.map((e) => e.presence_id)).toEqual(['pid-a', 'pid-z'])
+  })
+
+  test('ordering stays deterministic when members join, leave and join again', () => {
     const s = makeState()
     mutations.SET_MEMBERS(s, {
       space: 'table-1',
@@ -268,22 +361,20 @@ describe('presence store', () => {
         { presence_id: 'pid-2', user_id: 20 },
       ],
     })
-    mutations.SET_FOCUS(s, {
+    mutations.REMOVE_MEMBER(s, { space: 'table-1', presence_id: 'pid-1' })
+    mutations.ADD_MEMBER(s, {
       space: 'table-1',
-      presence_id: 'pid-1',
-      focus: { type: 'cell', row_id: 1, field_id: 2, editing: false },
+      presence_id: 'pid-3',
+      user_id: 5,
     })
+    const focus = { type: 'cell', row_id: 1, field_id: 2, editing: false }
+    mutations.SET_FOCUS(s, { space: 'table-1', presence_id: 'pid-2', focus })
+    mutations.SET_FOCUS(s, { space: 'table-1', presence_id: 'pid-3', focus })
 
-    const first = applyGetter('getFocusEntriesByCell', s)('table-1')
-
-    mutations.SET_FOCUS(s, {
-      space: 'table-1',
-      presence_id: 'pid-2',
-      focus: { type: 'cell', row_id: 3, field_id: 4, editing: false },
-    })
-
-    const second = applyGetter('getFocusEntriesByCell', s)('table-1')
-    expect(second).not.toBe(first)
-    expect(second.size).toBe(2)
+    const entries = applyGetter(
+      'getFocusEntriesByCell',
+      s
+    )('table-1').get('1:2')
+    expect(entries.map((e) => e.user_id)).toEqual([5, 20])
   })
 })

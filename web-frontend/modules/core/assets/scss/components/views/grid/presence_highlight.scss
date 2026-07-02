@@ -1,3 +1,8 @@
+$focus-fallback-rgb:
+  #{red($palette-neutral-500)},
+  #{green($palette-neutral-500)},
+  #{blue($palette-neutral-500)};
+
 .grid-view__column {
   &.grid-view__column--focus-highlight,
   &.grid-view__column--focus-editing {
@@ -26,7 +31,7 @@
 
   // Above row content, below header
   z-index: 2;
-  border: 2px solid rgb(var(--focus-color-rgb, 0, 0, 0));
+  border: 2px solid rgb(var(--focus-color-rgb, #{$focus-fallback-rgb}));
   pointer-events: none;
   border-radius: $rounded-md $rounded-md 0 $rounded-md;
 
@@ -44,5 +49,18 @@
 }
 
 .grid-view__row--warning.grid-view__row--focus-highlight::before {
-  border-color: $palette-yellow-500;
+  border-color: rgb(var(--focus-color-rgb, #{$focus-fallback-rgb}));
+  border-radius: $rounded-md $rounded-md 0 $rounded-md;
+
+  .grid-view__left & {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: 0;
+  }
+
+  .grid-view__right & {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: 0;
+  }
 }

@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING, Any, Optional, Protocol, runtime_checkable
 from loguru import logger
 
 from baserow.core.async_redis import get_async_redis
-from baserow.ws.registries import page_registry
+from baserow.ws.registries import (
+    InvalidFocusPayloadException,
+    page_registry,
+    presence_focus_type_registry,
+)
 from baserow.ws.types import (
     ActivePresenceEntry,
     PresenceMembershipMessage,
@@ -47,9 +51,7 @@ class PresenceHandlerProtocol(Protocol):
         self, page_type_name: str, parameters: dict
     ) -> None: ...
 
-    async def handle_focus(
-        self, page_key: str, page_type_name: str, raw_focus: dict | None
-    ) -> None: ...
+    async def handle_focus(self, page_key: str, raw_focus: dict | None) -> None: ...
 
     async def receive_focus_broadcast(self, event: dict) -> None: ...
 
@@ -73,9 +75,7 @@ class NullPresenceHandler:
     ) -> None:
         pass
 
-    async def handle_focus(
-        self, page_key: str, page_type_name: str, raw_focus: dict | None
-    ) -> None:
+    async def handle_focus(self, page_key: str, raw_focus: dict | None) -> None:
         pass
 
     async def receive_focus_broadcast(self, event: dict) -> None:
@@ -143,27 +143,26 @@ class PresenceSpace:
         await redis.hset(self.redis_key, presence_id, entry)
         await redis.expire(self.redis_key, PRESENCE_SPACE_TTL)
 
-    async def update_entry_focus(self, presence_id: str, focus: dict | None) -> bool:
+    async def update_entry_focus(
+        self, presence_id: str, user_id: int, focus: dict | None
+    ) -> None:
         """
-        Update the focus payload for an existing presence entry in Redis.
+        Upsert the presence entry with the given focus in a single pipelined
+        round trip. Writing the full entry instead of patching an existing one
+        recreates entries whose space hash expired while the connection stayed
+        open, so focus keeps working without a resubscribe.
 
-        :param presence_id: The presence entry to update.
+        :param presence_id: The presence entry to upsert.
+        :param user_id: The user who owns this connection.
         :param focus: The validated focus dict, or None to clear focus.
-        :return: True if updated, False if entry no longer exists.
         """
 
         redis = await get_async_redis()
-        raw = await redis.hget(self.redis_key, presence_id)
-        if raw is None:
-            return False
-        try:
-            entry = json.loads(raw)
-        except (ValueError, TypeError):
-            return False
-        entry["focus"] = focus
-        await redis.hset(self.redis_key, presence_id, json.dumps(entry))
-        await redis.expire(self.redis_key, PRESENCE_SPACE_TTL)
-        return True
+        entry = json.dumps({"user_id": user_id, "focus": focus})
+        async with redis.pipeline(transaction=False) as pipe:
+            pipe.hset(self.redis_key, presence_id, entry)
+            pipe.expire(self.redis_key, PRESENCE_SPACE_TTL)
+            await pipe.execute()
 
     async def remove_entry(self, presence_id: str) -> None:
         """
@@ -255,19 +254,28 @@ class PresenceHandler:
                 {
                     "type": "presence.members",
                     "space": space_name,
-                    "entries": members,
+                    "entries": self._filter_members_focus(
+                        page_type_name, parameters, members
+                    ),
                 }
             )
             await self._broadcast_join(space)
         except Exception:
+            logger.exception("Presence subscribe failed for page {}", page_type_name)
+            # Roll back everything so a later re-subscribe starts clean instead
+            # of early-returning on poisoned local state.
             if space is not None and not already_in_space:
+                self._page_unsubscribed(page_key)
+                try:
+                    await space.remove_entry(self.presence_id)
+                except Exception:
+                    pass
                 try:
                     await self._consumer.channel_layer.group_discard(
                         space.channel_group, self._consumer.channel_name
                     )
                 except Exception:
                     pass
-            logger.exception("Presence subscribe failed for page {}", page_type_name)
 
     async def handle_page_unsubscribed(
         self, page_type_name: str, parameters: dict
@@ -275,40 +283,68 @@ class PresenceHandler:
         """
         Leave the presence space if this was the last page mapping to it.
 
+        Failure domains are split around the Redis removal: if it fails the
+        maps stay intact so ``leave_all_spaces`` retries the idempotent
+        cleanup at disconnect. Once the Redis entry is gone the maps are
+        always committed — keeping them would make a re-subscribe early-return
+        on a page key with no Redis entry behind it — so the remaining
+        notification side effects are individually best-effort.
+
         :param page_type_name: The registered page type name.
         :param parameters: The page subscription parameters.
         """
 
         page_key = make_page_key(page_type_name, parameters)
-        left_space_name = self._page_unsubscribed(page_key)
-        if not left_space_name:
+        space_name = self._page_to_space.get(page_key)
+        if space_name is None:
             return
 
+        pages_in_space = self._space_pages.get(space_name, {})
+        is_last_page_for_space = len(pages_in_space) == 1 and page_key in pages_in_space
+        if not is_last_page_for_space:
+            self._page_unsubscribed(page_key)
+            return
+
+        space = PresenceSpace(name=space_name)
         try:
-            space = PresenceSpace(name=left_space_name)
             await self._leave(space)
-            await self._broadcast_leave(space)
-            await self._consumer.send_json(
+        except Exception:
+            logger.exception("Presence unsubscribe failed for space {}", space_name)
+            return
+
+        for side_effect in (
+            lambda: self._broadcast_leave(space),
+            lambda: self._consumer.send_json(
                 {
                     "type": "presence.space_discard",
-                    "space": left_space_name,
+                    "space": space_name,
                 }
-            )
-            await self._consumer.channel_layer.group_discard(
+            ),
+            lambda: self._consumer.channel_layer.group_discard(
                 space.channel_group, self._consumer.channel_name
-            )
-        except Exception:
-            logger.exception(
-                "Presence unsubscribe failed for space {}", left_space_name
-            )
+            ),
+        ):
+            try:
+                await side_effect()
+            except Exception:
+                logger.exception(
+                    "Presence unsubscribe side effect failed for space {}", space_name
+                )
 
-    async def handle_focus(
-        self, page_key: str, page_type_name: str, raw_focus: dict | None
-    ) -> None:
-        from baserow.ws.registries import (
-            InvalidFocusPayloadException,
-            presence_focus_type_registry,
-        )
+        self._page_unsubscribed(page_key)
+
+    async def handle_focus(self, page_key: str, raw_focus: dict | None) -> None:
+        """
+        Validate an incoming focus payload, upsert it on this connection's
+        presence entry, and broadcast it to the space. The upsert always
+        succeeds (recreating an expired entry if needed) and the consumer
+        processes its own messages serially, so broadcasting unconditionally
+        cannot race this connection's own leave.
+
+        :param page_key: Deterministic key for the page subscription.
+        :param raw_focus: The raw focus payload from the client, or None to
+            clear focus.
+        """
 
         space_name = self._page_to_space.get(page_key)
         if space_name is None:
@@ -322,9 +358,8 @@ class PresenceHandler:
             return
 
         space = PresenceSpace(name=space_name)
-        updated = await space.update_entry_focus(self.presence_id, validated_focus)
-        if updated:
-            await self._broadcast_focus(space, validated_focus, focus_type_name)
+        await space.update_entry_focus(self.presence_id, self.user_id, validated_focus)
+        await self._broadcast_focus(space, validated_focus, focus_type_name)
 
     async def leave_all_spaces(self) -> None:
         """
@@ -455,6 +490,71 @@ class PresenceHandler:
             },
         )
 
+    def _filter_members_focus(
+        self,
+        page_type_name: str,
+        parameters: dict,
+        members: list[ActivePresenceEntry],
+    ) -> list[ActivePresenceEntry]:
+        """
+        Apply the recipient-side focus filter to a members snapshot, mirroring
+        the live path in ``receive_focus_broadcast``. Member visibility is
+        never affected: a focus that cannot be positively cleared for delivery
+        is nulled out instead (fails closed).
+
+        :param page_type_name: The recipient's registered page type name.
+        :param parameters: The recipient's page subscription parameters.
+        :param members: The members snapshot with stored focus payloads.
+        :return: The snapshot with each focus filtered for this recipient.
+        """
+
+        return [
+            {
+                **member,
+                "focus": self._filter_member_focus(
+                    page_type_name, parameters, member["focus"]
+                ),
+            }
+            for member in members
+        ]
+
+    @staticmethod
+    def _filter_member_focus(
+        page_type_name: str,
+        parameters: dict,
+        focus: dict | None,
+    ) -> Optional[dict]:
+        """
+        Return the focus if the recipient page grants visibility, otherwise
+        None. Any resolution failure or filter error also yields None so a
+        stored focus is never leaked to a recipient that was not positively
+        cleared to see it.
+
+        :param page_type_name: The recipient's registered page type name.
+        :param parameters: The recipient's page subscription parameters.
+        :param focus: The stored focus payload, or None.
+        :return: The focus payload if visible to the recipient, else None.
+        """
+
+        if focus is None:
+            return None
+        try:
+            page_type = page_registry.get(page_type_name)
+            focus_type = presence_focus_type_registry.get(focus["type"])
+        except (
+            page_registry.does_not_exist_exception_class,
+            presence_focus_type_registry.does_not_exist_exception_class,
+            KeyError,
+            TypeError,
+        ):
+            return None
+        try:
+            if page_type.filter_focus_for_recipient(parameters, focus, focus_type):
+                return focus
+        except Exception:
+            logger.exception("Focus filtering failed for page type {}", page_type_name)
+        return None
+
     async def receive_focus_broadcast(self, event: dict) -> None:
         """
         Filter and deliver an incoming focus broadcast to this connection.
@@ -462,8 +562,6 @@ class PresenceHandler:
 
         :param event: The channel layer event containing payload and focus_type.
         """
-
-        from baserow.ws.registries import presence_focus_type_registry
 
         payload = event["payload"]
         focus = payload.get("focus")

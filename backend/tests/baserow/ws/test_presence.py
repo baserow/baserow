@@ -1,6 +1,6 @@
 import json
 import uuid
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from channels.db import database_sync_to_async
@@ -12,6 +12,7 @@ from baserow.core.async_redis import get_async_redis
 from baserow.ws.presence import (
     PresenceHandler,
     PresenceSpace,
+    make_page_key,
 )
 
 VALID_ONE_SEAT_ENTERPRISE_LICENSE = (
@@ -76,6 +77,18 @@ async def _presence_ids_in_redis(redis_key):
     """Return set of presence_id keys stored in a Redis presence hash."""
     redis = await get_async_redis()
     return set(await redis.hkeys(redis_key))
+
+
+def _make_mock_handler(user_id=7):
+    """Build a PresenceHandler wired to a fully mocked consumer."""
+    consumer = Mock()
+    consumer.channel_layer = AsyncMock()
+    consumer.channel_name = "chan-test"
+    consumer.send_json = AsyncMock()
+    handler = PresenceHandler(
+        consumer=consumer, web_socket_id="ws-test", user_id=user_id
+    )
+    return handler, consumer
 
 
 async def _create_enterprise_table_with_restricted_view(data_fixture):
@@ -706,3 +719,107 @@ async def test_invalid_shape_entries_cleaned_from_redis():
     assert await redis.hexists(space.redis_key, "valid") is True
     for bad_key in ("list", "empty", "null-uid", "str-uid"):
         assert await redis.hexists(space.redis_key, bad_key) is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_unsubscribe_failure_keeps_state_for_disconnect_retry(presence_types):
+    handler, consumer = _make_mock_handler()
+    params = {"test_param": 1}
+    await handler.handle_page_subscribed("test_presence_page", params)
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == {handler.presence_id}
+    consumer.send_json.reset_mock()
+    consumer.channel_layer.group_discard.reset_mock()
+
+    with patch.object(handler, "_leave", side_effect=Exception("redis down")):
+        await handler.handle_page_unsubscribed("test_presence_page", params)
+
+    # Failure keeps the maps and Redis entry intact and skips every later
+    # side effect, so disconnect cleanup can retry the whole sequence.
+    page_key = make_page_key("test_presence_page", params)
+    assert handler._page_to_space == {page_key: SPACE_NAME}
+    assert page_key in handler._space_pages[SPACE_NAME]
+    assert handler.presence_id in await _presence_ids_in_redis(PRESENCE_KEY)
+    consumer.send_json.assert_not_called()
+    consumer.channel_layer.group_discard.assert_not_called()
+
+    await handler.leave_all_spaces()
+
+    assert handler._page_to_space == {}
+    assert handler._space_pages == {}
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == set()
+    consumer.channel_layer.group_discard.assert_awaited_once_with(
+        f"presence.{SPACE_NAME}", "chan-test"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_unsubscribe_broadcast_failure_after_leave_still_commits_maps(
+    presence_types,
+):
+    handler, consumer = _make_mock_handler()
+    params = {"test_param": 1}
+    await handler.handle_page_subscribed("test_presence_page", params)
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == {handler.presence_id}
+    consumer.send_json.reset_mock()
+
+    with patch.object(
+        handler, "_broadcast_leave", side_effect=Exception("channel layer down")
+    ):
+        await handler.handle_page_unsubscribed("test_presence_page", params)
+
+    # The Redis removal succeeded, so the maps must be committed even though a
+    # later side effect failed; keeping them would make a re-subscribe
+    # early-return on a page key with no Redis entry behind it.
+    assert handler._page_to_space == {}
+    assert handler._space_pages == {}
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == set()
+    # The side effects after the failed broadcast still ran.
+    space_discard_msg = consumer.send_json.await_args_list[0].args[0]
+    assert space_discard_msg["type"] == "presence.space_discard"
+    assert space_discard_msg["space"] == SPACE_NAME
+    consumer.channel_layer.group_discard.assert_awaited_once_with(
+        f"presence.{SPACE_NAME}", "chan-test"
+    )
+
+    consumer.send_json.reset_mock()
+    await handler.handle_page_subscribed("test_presence_page", params)
+
+    page_key = make_page_key("test_presence_page", params)
+    assert handler._page_to_space == {page_key: SPACE_NAME}
+    assert handler.presence_id in await _presence_ids_in_redis(PRESENCE_KEY)
+    members_msg = consumer.send_json.await_args_list[0].args[0]
+    assert members_msg["type"] == "presence.members"
+    assert members_msg["space"] == SPACE_NAME
+
+    await handler.leave_all_spaces()
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_subscribe_failure_rolls_back_state_so_resubscribe_works(
+    presence_types,
+):
+    handler, consumer = _make_mock_handler()
+    params = {"test_param": 1}
+    consumer.send_json.side_effect = Exception("send failed")
+
+    await handler.handle_page_subscribed("test_presence_page", params)
+
+    assert handler._page_to_space == {}
+    assert handler._space_pages == {}
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == set()
+    consumer.channel_layer.group_discard.assert_awaited_once_with(
+        f"presence.{SPACE_NAME}", "chan-test"
+    )
+
+    consumer.send_json = AsyncMock()
+    await handler.handle_page_subscribed("test_presence_page", params)
+
+    page_key = make_page_key("test_presence_page", params)
+    assert handler._page_to_space == {page_key: SPACE_NAME}
+    assert handler.presence_id in await _presence_ids_in_redis(PRESENCE_KEY)
+    members_msg = consumer.send_json.await_args_list[0].args[0]
+    assert members_msg["type"] == "presence.members"
+    assert members_msg["space"] == SPACE_NAME

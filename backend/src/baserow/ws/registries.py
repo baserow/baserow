@@ -95,11 +95,12 @@ class PageType(Instance):
     ) -> bool:
         """
         Decide whether a recipient on this page should see the given focus
-        event. Called per-recipient during focus broadcast.
+        event. Called per-recipient during focus broadcast and when building
+        the members snapshot on subscribe.
 
-        Must be overridden by every page type that enables presence (returns a
-        non-None space name). Raises NotImplementedError by default to prevent
-        data leaks from unimplemented filtering.
+        Focus delivery is opt-in: the default denies everything, so page
+        types that enable presence (return a non-None space name) must
+        override this to grant visibility.
 
         When focus is None (clear-focus), the page type should decide whether
         to deliver the "user stopped focusing" signal.
@@ -110,10 +111,7 @@ class PageType(Instance):
         :return: True if the recipient should see this focus event.
         """
 
-        raise NotImplementedError(
-            "Each presence-enabled page type must explicitly declare "
-            "focus filtering behavior to prevent data leaks."
-        )
+        return False
 
     def broadcast(
         self,

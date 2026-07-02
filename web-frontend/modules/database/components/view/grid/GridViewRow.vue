@@ -161,6 +161,11 @@ import GridViewRowExpandButton from '@baserow/modules/database/components/view/g
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
 import { getPresenceUserColorRgb } from '@baserow/modules/core/utils/presenceColors'
+import { activeFocusEntry } from '@baserow/modules/database/utils/presenceFocusEntries'
+
+// Shared identity for cells without focus entries so their `focusEntries` prop
+// keeps referential equality across renders and doesn't invalidate the cells.
+const EMPTY_ARRAY = Object.freeze([])
 
 export default {
   name: 'GridViewRow',
@@ -346,9 +351,9 @@ export default {
       return entries.filter((e) => e.user_id !== this.currentUserId)
     },
     rowFocusStyle() {
-      if (this.rowFocusEntries.length === 0) return {}
-      const rgb = getPresenceUserColorRgb(this.rowFocusEntries[0].user_id)
-      return { '--focus-color-rgb': rgb }
+      const entry = activeFocusEntry(this.rowFocusEntries)
+      if (entry === null) return {}
+      return { '--focus-color-rgb': getPresenceUserColorRgb(entry.user_id) }
     },
     rowIdentifier() {
       switch (this.rowIdentifierType) {
@@ -510,9 +515,10 @@ export default {
       return this.$registry.get('field', field.type).canWriteFieldValues(field)
     },
     getCellFocusEntries(field) {
-      const key = `${this.row.id}:${field.id}`
-      const entries = this.focusEntriesByCell.get(key) || []
-      return entries.filter((e) => e.user_id !== this.currentUserId)
+      const entries = this.focusEntriesByCell.get(`${this.row.id}:${field.id}`)
+      if (!entries) return EMPTY_ARRAY
+      const filtered = entries.filter((e) => e.user_id !== this.currentUserId)
+      return filtered.length === 0 ? EMPTY_ARRAY : filtered
     },
     toggleRowCheckbox() {
       this.$store.dispatch(

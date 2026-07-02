@@ -632,6 +632,11 @@ export default {
           ) {
             this.populateAndEditRow(newRow)
           } else if (prevRow !== null && newRow === null) {
+            // hide(false) suppresses the `hidden` event, which is the modal's
+            // only presence cleanup path, so the remote focus entry must be
+            // cleared explicitly first.
+            this.$refs.rowEditModal.clearPresenceFocus()
+            this._restorePresenceFocusAfterRowModal()
             // Pass emit=false as argument into the hide function because that will
             // prevent emitting another `hidden` event of the `RowEditModal` which can
             // result in the route changing twice.
@@ -1288,7 +1293,7 @@ export default {
      */
     rowEditModalHidden({ row }) {
       this.$emit('selected-row', undefined)
-      this.presenceFocus?.reemitLastFocus()
+      this._restorePresenceFocusAfterRowModal()
 
       // It could be that the row is not in the buffer anymore and in that case we also
       // don't need to refresh the row.
@@ -1975,6 +1980,22 @@ export default {
     _clearPresenceFocus() {
       if (this.presenceFocus) {
         this.presenceFocus.clearFocus()
+      }
+    },
+    /**
+     * Reconciles the grid sender's focus after the row edit modal closes: if
+     * a cell is still selected its focus becomes the shared remote entry
+     * again, otherwise any focus this sender transmitted is cleared.
+     * clearFocus only sends when this sender actually transmitted something,
+     * so it is correct whether or not the modal's own sender already cleared
+     * the shared entry (e.g. its sends were gated because the user was
+     * alone).
+     */
+    _restorePresenceFocusAfterRowModal() {
+      if (this.selectedCellComponents.length > 0) {
+        this.presenceFocus?.reemitLastFocus()
+      } else {
+        this.presenceFocus?.clearFocus()
       }
     },
     cellEditingChanged({ row, field, editing }) {

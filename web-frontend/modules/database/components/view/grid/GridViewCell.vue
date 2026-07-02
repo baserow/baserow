@@ -69,6 +69,7 @@
 
 <script>
 import GridViewFocusBadge from '@baserow/modules/database/components/view/grid/GridViewFocusBadge'
+import { activeFocusEntry } from '@baserow/modules/database/utils/presenceFocusEntries'
 
 export default {
   components: { GridViewFocusBadge },
@@ -174,12 +175,8 @@ export default {
       }
     },
     focusStyle() {
-      if (this.focusEntries.length === 0) return {}
-      const editingEntry = this.focusEntries.find((e) => e.editing)
-      const color = editingEntry
-        ? editingEntry.color
-        : this.focusEntries[0].color
-      return { '--focus-color': color }
+      const entry = activeFocusEntry(this.focusEntries)
+      return entry === null ? {} : { '--focus-color': entry.color }
     },
     fieldValue() {
       return this.row[`field_${this.field.id}`]

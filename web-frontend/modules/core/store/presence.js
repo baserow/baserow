@@ -7,12 +7,10 @@ export const state = () => ({
 export const mutations = {
   SET_MEMBERS(state, { space, entries }) {
     const members = {}
-    for (let i = 0; i < entries.length; i++) {
-      const entry = entries[i]
+    for (const entry of entries) {
       members[entry.presence_id] = {
         user_id: entry.user_id,
         focus: entry.focus || null,
-        order: i,
       }
     }
     state.spaces = { ...state.spaces, [space]: { members } }
@@ -20,10 +18,9 @@ export const mutations = {
   ADD_MEMBER(state, { space, presence_id, user_id }) {
     const spaceData = state.spaces[space]
     if (!spaceData) return
-    const order = Object.keys(spaceData.members).length
     spaceData.members = {
       ...spaceData.members,
-      [presence_id]: { user_id, focus: null, order },
+      [presence_id]: { user_id, focus: null },
     }
     state.spaces = { ...state.spaces }
   },
@@ -37,15 +34,12 @@ export const mutations = {
     }
   },
   SET_FOCUS(state, { space, presence_id, focus }) {
-    const spaceData = state.spaces[space]
-    if (!spaceData) return
-    const member = spaceData.members[presence_id]
+    // Focus frames are the presence hot path; mutating in place keeps the
+    // space and member identities stable so only consumers of this member's
+    // focus re-render (state is deeply reactive in Vuex 4).
+    const member = state.spaces[space]?.members[presence_id]
     if (!member) return
-    spaceData.members = {
-      ...spaceData.members,
-      [presence_id]: { ...member, focus },
-    }
-    state.spaces = { ...state.spaces }
+    member.focus = focus
   },
   CLEAR_SPACE(state, { space }) {
     const { [space]: _, ...rest } = state.spaces
@@ -77,29 +71,35 @@ export const actions = {
   },
 }
 
-const _cellFocusCache = new WeakMap()
-const _rowFocusCache = new WeakMap()
+// Shared for every no-focus result so consumer prop identity stays stable in
+// the common case where nobody focuses anything.
+const EMPTY_FOCUS_MAP = new Map()
 
-function _buildFocusMap(members, focusType, keyFn, cache) {
-  const cached = cache.get(members)
-  if (cached) return cached
-  const map = new Map()
+function _compareFocusEntries(a, b) {
+  if (a.user_id !== b.user_id) return a.user_id - b.user_id
+  if (a.presence_id < b.presence_id) return -1
+  if (a.presence_id > b.presence_id) return 1
+  return 0
+}
+
+function _buildFocusMap(members, focusType, keyFn) {
+  let map = null
   for (const [presence_id, data] of Object.entries(members)) {
     if (!data.focus || data.focus.type !== focusType) continue
     const key = keyFn(data.focus)
+    if (map === null) map = new Map()
     if (!map.has(key)) map.set(key, [])
     map.get(key).push({
       presence_id,
       user_id: data.user_id,
       editing: data.focus.editing || false,
       color: getPresenceUserColor(data.user_id),
-      order: data.order,
     })
   }
+  if (map === null) return EMPTY_FOCUS_MAP
   for (const entries of map.values()) {
-    entries.sort((a, b) => a.order - b.order)
+    entries.sort(_compareFocusEntries)
   }
-  cache.set(members, map)
   return map
 }
 
@@ -119,23 +119,17 @@ export const getters = {
   },
   getFocusEntriesByCell: (state) => (spaceName) => {
     const spaceData = state.spaces[spaceName]
-    if (!spaceData) return new Map()
+    if (!spaceData) return EMPTY_FOCUS_MAP
     return _buildFocusMap(
       spaceData.members,
       'cell',
-      (f) => `${f.row_id}:${f.field_id}`,
-      _cellFocusCache
+      (f) => `${f.row_id}:${f.field_id}`
     )
   },
   getFocusEntriesByRow: (state) => (spaceName) => {
     const spaceData = state.spaces[spaceName]
-    if (!spaceData) return new Map()
-    return _buildFocusMap(
-      spaceData.members,
-      'row',
-      (f) => f.row_id,
-      _rowFocusCache
-    )
+    if (!spaceData) return EMPTY_FOCUS_MAP
+    return _buildFocusMap(spaceData.members, 'row', (f) => f.row_id)
   },
 }
 

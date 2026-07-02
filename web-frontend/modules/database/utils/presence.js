@@ -33,6 +33,29 @@ export function resolvePresencePageParams(registry, database, table, view) {
 
 const NAVIGATION_DEBOUNCE_MS = 150
 
+/**
+ * Creates a sender that broadcasts the current user's focus (selected cell or
+ * row) over the realtime connection. Non-null focus emissions are debounced
+ * during navigation and suppressed while `hasOtherMembers` returns false, so
+ * solo users generate no traffic. The sender tracks what was actually
+ * transmitted (`sentFocus`) so that a clear is sent if and only if remote
+ * state exists, even when the user is alone by then.
+ *
+ * @param {object} realtime Realtime handler exposing
+ *   `sendFocus(page, parameters, focus)`.
+ * @param {string} page The realtime page name to emit on.
+ * @param {object} parameters The realtime page parameters.
+ * @param {object} [options]
+ * @param {() => boolean} [options.hasOtherMembers] When provided, non-null
+ *   focus is only transmitted while it returns true.
+ * @returns {{
+ *   emitCellFocus: (rowId: number, fieldId: number, editing?: boolean) => void,
+ *   emitRowFocus: (rowId: number, editing?: boolean) => void,
+ *   clearFocus: () => void,
+ *   reemitLastFocus: () => void,
+ *   destroy: () => void,
+ * }}
+ */
 export function createPresenceFocusSender(
   realtime,
   page,
@@ -40,32 +63,46 @@ export function createPresenceFocusSender(
   { hasOtherMembers } = {}
 ) {
   let lastFocus = null
+  let sentFocus = null
   let lastEditing = false
   let debounceTimer = null
 
+  function transmit(focus) {
+    sentFocus = focus
+    realtime.sendFocus(page, parameters, focus)
+  }
+
+  function isGated() {
+    return hasOtherMembers && !hasOtherMembers()
+  }
+
   function send(focus) {
     lastFocus = focus
-    if (hasOtherMembers && !hasOtherMembers()) {
+    if (isGated()) {
+      // An armed timer holds an older payload; letting it fire after the last
+      // member left would transmit stale focus while alone.
+      clearTimeout(debounceTimer)
       return
     }
-    realtime.sendFocus(page, parameters, focus)
+    transmit(focus)
   }
 
   function sendDebounced(focus) {
     lastFocus = focus
-    if (hasOtherMembers && !hasOtherMembers()) {
+    clearTimeout(debounceTimer)
+    if (isGated()) {
       return
     }
-    clearTimeout(debounceTimer)
     debounceTimer = setTimeout(() => {
-      realtime.sendFocus(page, parameters, focus)
+      transmit(focus)
     }, NAVIGATION_DEBOUNCE_MS)
   }
 
   function reemitLastFocus() {
-    if (lastFocus !== null) {
-      realtime.sendFocus(page, parameters, lastFocus)
+    if (lastFocus === null || isGated()) {
+      return
     }
+    transmit(lastFocus)
   }
 
   function emitCellFocus(rowId, fieldId, editing = false) {
@@ -92,13 +129,25 @@ export function createPresenceFocusSender(
 
   function clearFocus() {
     clearTimeout(debounceTimer)
+    lastFocus = null
     lastEditing = false
-    send(null)
+    // A transmitted focus lives in server-side presence state that new
+    // joiners receive, so the clear must bypass the hasOtherMembers gate;
+    // conversely nothing needs to go out if nothing was ever transmitted.
+    if (sentFocus !== null) {
+      transmit(null)
+    }
   }
 
   function destroy() {
     clearTimeout(debounceTimer)
   }
 
-  return { emitCellFocus, emitRowFocus, clearFocus, reemitLastFocus, destroy }
+  return {
+    emitCellFocus,
+    emitRowFocus,
+    clearFocus,
+    reemitLastFocus,
+    destroy,
+  }
 }

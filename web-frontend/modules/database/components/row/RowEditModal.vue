@@ -221,6 +221,11 @@ export default {
       required: false,
       default: () => true,
     },
+    presenceFocusEnabled: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   emits: [
     'field-updated',
@@ -379,6 +384,9 @@ export default {
       }
     },
   },
+  beforeUnmount() {
+    this.clearPresenceFocus()
+  },
   methods: {
     show(rowId, rowFallback = {}, ...args) {
       const row = this.rows.find((r) => r !== null && r.id === rowId)
@@ -399,12 +407,7 @@ export default {
       this.getRootModal().show(...args)
     },
     hidden(...args) {
-      if (this.presenceFocus) {
-        this.presenceFocus.clearFocus()
-        this.presenceFocus.destroy()
-        this.presenceFocus = null
-        this.presenceSpaceName = null
-      }
+      this.clearPresenceFocus()
       if (this.canSubscribeToRowUpdates) {
         this.$realtime.unsubscribe('row', {
           table_id: this.table.id,
@@ -420,6 +423,7 @@ export default {
     },
     _initPresenceFocus() {
       if (
+        !this.presenceFocusEnabled ||
         typeof this.$featureFlagIsEnabled !== 'function' ||
         !this.$featureFlagIsEnabled(FF_USER_PRESENCE)
       ) {
@@ -433,6 +437,16 @@ export default {
           this.view
         )
       if (!focusEnabled) return
+      // Reuse the existing sender when it targets the same realtime page, so
+      // that its transmitted-focus tracking (and any armed debounce timer)
+      // survives consecutive show() calls; a new sender wouldn't know it
+      // still has to clear the previously transmitted focus.
+      const senderKey = JSON.stringify([page, params])
+      if (this.presenceFocus && this.presenceSenderKey === senderKey) {
+        return
+      }
+      this.clearPresenceFocus()
+      this.presenceSenderKey = senderKey
       this.presenceSpaceName = spaceName
       this.presenceFocus = createPresenceFocusSender(
         this.$realtime,
@@ -440,6 +454,19 @@ export default {
         params,
         { hasOtherMembers: () => this._hasOtherPresenceMembers() }
       )
+    },
+    /**
+     * Clears the transmitted presence focus and disposes the sender. Public
+     * because parents hiding the modal with hide(false) suppress the `hidden`
+     * event and must invoke the presence cleanup themselves.
+     */
+    clearPresenceFocus() {
+      if (!this.presenceFocus) return
+      this.presenceFocus.clearFocus()
+      this.presenceFocus.destroy()
+      this.presenceFocus = null
+      this.presenceSenderKey = null
+      this.presenceSpaceName = null
     },
     _hasOtherPresenceMembers() {
       return this.hasOtherPresenceMembers

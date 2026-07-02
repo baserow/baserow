@@ -691,7 +691,7 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
 
         parameters = {param: content.get(param) for param in page_type.parameters}
         page_key = make_page_key(page_type_name, parameters)
-        await self.presence.handle_focus(page_key, page_type_name, content.get("focus"))
+        await self.presence.handle_focus(page_key, content.get("focus"))
 
     async def broadcast_presence_focus(self, event: dict[str, Any]) -> None:
         """

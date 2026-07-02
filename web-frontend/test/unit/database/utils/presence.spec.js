@@ -176,11 +176,23 @@ describe('createPresenceFocusSender', () => {
     )
   })
 
-  test('clearFocus sends null focus immediately', () => {
+  test('clearFocus sends null immediately after a transmitted focus', () => {
+    const rt = mockRealtime()
+    const sender = createPresenceFocusSender(rt, 'table', { table_id: 1 })
+    sender.emitCellFocus(10, 20, true)
+    sender.clearFocus()
+    expect(rt.sendFocus).toHaveBeenLastCalledWith(
+      'table',
+      { table_id: 1 },
+      null
+    )
+  })
+
+  test('clearFocus transmits nothing when nothing was ever transmitted', () => {
     const rt = mockRealtime()
     const sender = createPresenceFocusSender(rt, 'table', { table_id: 1 })
     sender.clearFocus()
-    expect(rt.sendFocus).toHaveBeenCalledWith('table', { table_id: 1 }, null)
+    expect(rt.sendFocus).not.toHaveBeenCalled()
   })
 
   // -- debounce behavior --
@@ -216,14 +228,27 @@ describe('createPresenceFocusSender', () => {
     expect(rt.sendFocus).toHaveBeenCalledOnce()
   })
 
-  test('clearFocus cancels pending debounce', () => {
+  test('clearFocus cancels pending debounce and transmits nothing when the debounce never fired', () => {
     const rt = mockRealtime()
     const sender = createPresenceFocusSender(rt, 'table', { table_id: 1 })
     sender.emitCellFocus(1, 1)
     sender.clearFocus()
     vi.advanceTimersByTime(150)
-    expect(rt.sendFocus).toHaveBeenCalledOnce()
-    expect(rt.sendFocus).toHaveBeenCalledWith('table', { table_id: 1 }, null)
+    expect(rt.sendFocus).not.toHaveBeenCalled()
+  })
+
+  test('clearFocus transmits null after a debounced focus fired', () => {
+    const rt = mockRealtime()
+    const sender = createPresenceFocusSender(rt, 'table', { table_id: 1 })
+    sender.emitCellFocus(1, 1)
+    vi.advanceTimersByTime(150)
+    sender.clearFocus()
+    expect(rt.sendFocus).toHaveBeenCalledTimes(2)
+    expect(rt.sendFocus).toHaveBeenLastCalledWith(
+      'table',
+      { table_id: 1 },
+      null
+    )
   })
 
   test('destroy cancels pending debounce', () => {
@@ -271,7 +296,30 @@ describe('createPresenceFocusSender', () => {
     expect(rt.sendFocus).toHaveBeenCalledOnce()
   })
 
-  test('clearFocus also gated by hasOtherMembers', () => {
+  test('clearFocus bypasses the gate once a focus was transmitted', () => {
+    const rt = mockRealtime()
+    let members = true
+    const sender = createPresenceFocusSender(
+      rt,
+      'table',
+      { table_id: 1 },
+      { hasOtherMembers: () => members }
+    )
+    sender.emitCellFocus(1, 1)
+    vi.advanceTimersByTime(150)
+    expect(rt.sendFocus).toHaveBeenCalledOnce()
+
+    members = false
+    sender.clearFocus()
+    expect(rt.sendFocus).toHaveBeenCalledTimes(2)
+    expect(rt.sendFocus).toHaveBeenLastCalledWith(
+      'table',
+      { table_id: 1 },
+      null
+    )
+  })
+
+  test('gated clearFocus transmits nothing when nothing was ever transmitted', () => {
     const rt = mockRealtime()
     const sender = createPresenceFocusSender(
       rt,
@@ -279,24 +327,61 @@ describe('createPresenceFocusSender', () => {
       { table_id: 1 },
       { hasOtherMembers: () => false }
     )
+    sender.emitCellFocus(1, 1)
+    vi.advanceTimersByTime(150)
     sender.clearFocus()
+    expect(rt.sendFocus).not.toHaveBeenCalled()
+  })
+
+  test('gated sendDebounced cancels an armed timer', () => {
+    const rt = mockRealtime()
+    let members = true
+    const sender = createPresenceFocusSender(
+      rt,
+      'table',
+      { table_id: 1 },
+      { hasOtherMembers: () => members }
+    )
+    sender.emitCellFocus(1, 1)
+    members = false
+    sender.emitCellFocus(2, 2)
+    vi.advanceTimersByTime(150)
+    expect(rt.sendFocus).not.toHaveBeenCalled()
+  })
+
+  test('gated immediate send cancels an armed timer', () => {
+    const rt = mockRealtime()
+    let members = true
+    const sender = createPresenceFocusSender(
+      rt,
+      'table',
+      { table_id: 1 },
+      { hasOtherMembers: () => members }
+    )
+    sender.emitCellFocus(1, 1)
+    members = false
+    sender.emitCellFocus(1, 1, true)
+    vi.advanceTimersByTime(150)
     expect(rt.sendFocus).not.toHaveBeenCalled()
   })
 
   // -- reemitLastFocus --
 
-  test('reemitLastFocus sends cached focus regardless of hasOtherMembers', () => {
+  test('reemitLastFocus respects the hasOtherMembers gate', () => {
     const rt = mockRealtime()
+    let members = false
     const sender = createPresenceFocusSender(
       rt,
       'table',
       { table_id: 1 },
-      { hasOtherMembers: () => false }
+      { hasOtherMembers: () => members }
     )
     sender.emitCellFocus(10, 20)
     vi.advanceTimersByTime(150)
+    sender.reemitLastFocus()
     expect(rt.sendFocus).not.toHaveBeenCalled()
 
+    members = true
     sender.reemitLastFocus()
     expect(rt.sendFocus).toHaveBeenCalledWith(
       'table',
@@ -310,6 +395,29 @@ describe('createPresenceFocusSender', () => {
     )
   })
 
+  test('reemitLastFocus marks the focus as transmitted so a later clear goes out', () => {
+    const rt = mockRealtime()
+    let members = false
+    const sender = createPresenceFocusSender(
+      rt,
+      'table',
+      { table_id: 1 },
+      { hasOtherMembers: () => members }
+    )
+    sender.emitCellFocus(10, 20)
+    vi.advanceTimersByTime(150)
+
+    members = true
+    sender.reemitLastFocus()
+    members = false
+    sender.clearFocus()
+    expect(rt.sendFocus).toHaveBeenLastCalledWith(
+      'table',
+      { table_id: 1 },
+      null
+    )
+  })
+
   test('reemitLastFocus does nothing when no focus was ever emitted', () => {
     const rt = mockRealtime()
     const sender = createPresenceFocusSender(rt, 'table', { table_id: 1 })
@@ -319,14 +427,16 @@ describe('createPresenceFocusSender', () => {
 
   test('reemitLastFocus sends latest focus after multiple calls', () => {
     const rt = mockRealtime()
+    let members = false
     const sender = createPresenceFocusSender(
       rt,
       'table',
       { table_id: 1 },
-      { hasOtherMembers: () => false }
+      { hasOtherMembers: () => members }
     )
     sender.emitCellFocus(1, 2)
     sender.emitCellFocus(3, 4, true)
+    members = true
     sender.reemitLastFocus()
     expect(rt.sendFocus).toHaveBeenCalledWith(
       'table',
