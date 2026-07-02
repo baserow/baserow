@@ -767,6 +767,54 @@ def test_update_field_number_type_deprecation_error(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_and_update_number_field_preserves_prefix_suffix_spaces(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Duration",
+            "type": "number",
+            "number_prefix": "$ ",
+            "number_suffix": " Days",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["number_prefix"] == "$ "
+    assert response_json["number_suffix"] == " Days"
+
+    number_field = NumberField.objects.get(id=response_json["id"])
+    assert number_field.number_prefix == "$ "
+    assert number_field.number_suffix == " Days"
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": number_field.id}),
+        {
+            "number_prefix": " about ",
+            "number_suffix": " days ",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["number_prefix"] == " about "
+    assert response_json["number_suffix"] == " days "
+
+    number_field.refresh_from_db()
+    assert number_field.number_prefix == " about "
+    assert number_field.number_suffix == " days "
+
+
+@pytest.mark.django_db
 def test_change_field_type_with_active_sort_on_field(api_client, data_fixture):
     import uuid
 

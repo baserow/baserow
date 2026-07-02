@@ -611,7 +611,19 @@ class NumberFieldType(FieldType):
             "The number_type option has been removed and can no longer be provided. "
             "Instead set number_decimal_places to 0 for an integer or 1-5 for a "
             "decimal."
-        )
+        ),
+        "number_prefix": serializers.CharField(
+            max_length=10,
+            required=False,
+            allow_blank=True,
+            trim_whitespace=False,
+        ),
+        "number_suffix": serializers.CharField(
+            max_length=100,
+            required=False,
+            allow_blank=True,
+            trim_whitespace=False,
+        ),
     }
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
@@ -745,7 +757,7 @@ class NumberFieldType(FieldType):
             f"{minus_sign}"
             f"{instance.number_prefix}"
             f"{integer_part_with_sep}{fractional_part}"
-            f"{instance.number_suffix}".strip()
+            f"{instance.number_suffix}"
         )
 
     def get_model_field(self, instance, **kwargs):
