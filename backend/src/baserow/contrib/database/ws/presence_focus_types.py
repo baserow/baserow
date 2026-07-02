@@ -1,20 +1,28 @@
 from baserow.ws.registries import PresenceFocusType
 
 
+def _validate_int_id(value: object, name: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{name} must be an integer")
+    return value
+
+
+def _validate_editing(raw_focus: dict) -> bool:
+    editing = raw_focus.get("editing", False)
+    return editing if isinstance(editing, bool) else False
+
+
 class CellFocusType(PresenceFocusType):
     type = "cell"
 
     def validate(self, raw_focus: dict) -> dict:
-        row_id = raw_focus.get("row_id")
-        field_id = raw_focus.get("field_id")
-        if not isinstance(row_id, int) or not isinstance(field_id, int):
-            raise ValueError("cell focus requires int row_id and field_id")
-        editing = bool(raw_focus.get("editing", False))
+        row_id = _validate_int_id(raw_focus.get("row_id"), "row_id")
+        field_id = _validate_int_id(raw_focus.get("field_id"), "field_id")
         return {
             "type": "cell",
             "row_id": row_id,
             "field_id": field_id,
-            "editing": editing,
+            "editing": _validate_editing(raw_focus),
         }
 
 
@@ -22,8 +30,9 @@ class RowFocusType(PresenceFocusType):
     type = "row"
 
     def validate(self, raw_focus: dict) -> dict:
-        row_id = raw_focus.get("row_id")
-        if not isinstance(row_id, int):
-            raise ValueError("row focus requires int row_id")
-        editing = bool(raw_focus.get("editing", False))
-        return {"type": "row", "row_id": row_id, "editing": editing}
+        row_id = _validate_int_id(raw_focus.get("row_id"), "row_id")
+        return {
+            "type": "row",
+            "row_id": row_id,
+            "editing": _validate_editing(raw_focus),
+        }

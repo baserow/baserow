@@ -1,3 +1,4 @@
+import abc
 from typing import Any, Optional
 
 from baserow.core.registry import Instance, Registry
@@ -89,8 +90,8 @@ class PageType(Instance):
     def filter_focus_for_recipient(
         self,
         page_parameters: dict[str, Any],
-        focus: dict[str, Any],
-        focus_type: "PresenceFocusType",
+        focus: dict[str, Any] | None,
+        focus_type: "PresenceFocusType | None",
     ) -> bool:
         """
         Decide whether a recipient on this page should see the given focus
@@ -100,9 +101,12 @@ class PageType(Instance):
         non-None space name). Raises NotImplementedError by default to prevent
         data leaks from unimplemented filtering.
 
+        When focus is None (clear-focus), the page type should decide whether
+        to deliver the "user stopped focusing" signal.
+
         :param page_parameters: The recipient's page subscription parameters.
-        :param focus: The focus event payload.
-        :param focus_type: The focus type instance.
+        :param focus: The focus event payload, or None for clear-focus.
+        :param focus_type: The focus type instance, or None for clear-focus.
         :return: True if the recipient should see this focus event.
         """
 
@@ -184,7 +188,8 @@ class InvalidFocusPayloadException(Exception):
     pass
 
 
-class PresenceFocusType(Instance):
+class PresenceFocusType(abc.ABC, Instance):
+    @abc.abstractmethod
     def validate(self, raw_focus: dict) -> dict:
         """
         Validate and normalize a raw focus payload from the client.
@@ -196,7 +201,7 @@ class PresenceFocusType(Instance):
         :raises ValueError: If the payload is malformed.
         """
 
-        raise NotImplementedError
+        ...
 
 
 class PresenceFocusTypeRegistry(Registry):
@@ -219,6 +224,8 @@ class PresenceFocusTypeRegistry(Registry):
             raise InvalidFocusPayloadException("Missing type in focus payload")
 
         type_name = raw_focus["type"]
+        if not isinstance(type_name, str):
+            raise InvalidFocusPayloadException("Focus type must be a string")
         try:
             focus_type = self.get(type_name)
         except self.does_not_exist_exception_class:

@@ -16,6 +16,7 @@
     @mouseup.left="cellMouseUpLeft($event)"
     @click.shift.exact="cellShiftClick($event)"
   >
+    <div v-if="focusEntries.length > 0" class="grid-view__focus-border" />
     <GridViewFocusBadge
       v-if="focusEntries.length > 0"
       :entries="focusEntries"
@@ -174,7 +175,11 @@ export default {
     },
     focusStyle() {
       if (this.focusEntries.length === 0) return {}
-      return { '--focus-color': this.focusEntries[0].color }
+      const editingEntry = this.focusEntries.find((e) => e.editing)
+      const color = editingEntry
+        ? editingEntry.color
+        : this.focusEntries[0].color
+      return { '--focus-color': color }
     },
     fieldValue() {
       return this.row[`field_${this.field.id}`]

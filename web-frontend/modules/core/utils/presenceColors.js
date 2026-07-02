@@ -31,7 +31,7 @@ function hexToRgb(hex) {
 const PALETTE_RGB = PALETTE.map(hexToRgb)
 
 function _colorIndex(userId) {
-  return ((userId * 2654435761) >>> 0) % PALETTE.length
+  return (Math.imul(userId, 2654435761) >>> 0) % PALETTE.length
 }
 
 export function getPresenceUserColor(userId) {

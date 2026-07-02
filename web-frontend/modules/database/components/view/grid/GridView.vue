@@ -415,14 +415,22 @@ export default {
       row: 'rowModalNavigation/getRow',
     }),
     focusEntriesByCell() {
+      if (!this.presenceSpaceName) return new Map()
       return this.$store.getters['presence/getFocusEntriesByCell'](
         this.presenceSpaceName
       )
     },
     focusEntriesByRow() {
+      if (!this.presenceSpaceName) return new Map()
       return this.$store.getters['presence/getFocusEntriesByRow'](
         this.presenceSpaceName
       )
+    },
+    hasOtherPresenceMembers() {
+      if (!this.presenceSpaceName) return false
+      const spaceData =
+        this.$store.state.presence.spaces[this.presenceSpaceName]
+      return spaceData ? Object.keys(spaceData.members).length > 0 : false
     },
     /**
      * Returns all visible fields no matter in what section they
@@ -603,6 +611,11 @@ export default {
         if (right) right.scrollTop = 0
       })
     },
+    hasOtherPresenceMembers(hasMembers) {
+      if (hasMembers && this.presenceFocus) {
+        this.presenceFocus.reemitLastFocus()
+      }
+    },
     'view.frozen_column_count'() {
       // When the frozen column count changes (e.g. real-time sync from another
       // user), recalculate the viewport fit and update scrollbars. Use $nextTick
@@ -682,23 +695,28 @@ export default {
       typeof this.$featureFlagIsEnabled === 'function' &&
       this.$featureFlagIsEnabled(FF_USER_PRESENCE)
     ) {
-      const { page, params, spaceName } = resolvePresencePageParams(
-        this.$registry,
-        this.database,
-        this.table,
-        this.view
-      )
+      const { page, params, spaceName, focusEnabled } =
+        resolvePresencePageParams(
+          this.$registry,
+          this.database,
+          this.table,
+          this.view
+        )
       this.presenceSpaceName = spaceName
-      this.presenceFocus = createPresenceFocusSender(
-        this.$nuxt.$realtime,
-        page,
-        params
-      )
+      if (focusEnabled) {
+        this.presenceFocus = createPresenceFocusSender(
+          this.$realtime,
+          page,
+          params,
+          { hasOtherMembers: () => this.hasOtherPresenceMembers }
+        )
+      }
     }
   },
   beforeUnmount() {
     if (this.presenceFocus) {
       this.presenceFocus.clearFocus()
+      this.presenceFocus.destroy()
       this.presenceFocus = null
     }
     if (this.resizeObserver !== null) {
@@ -1270,6 +1288,7 @@ export default {
      */
     rowEditModalHidden({ row }) {
       this.$emit('selected-row', undefined)
+      this.presenceFocus?.reemitLastFocus()
 
       // It could be that the row is not in the buffer anymore and in that case we also
       // don't need to refresh the row.

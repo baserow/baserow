@@ -399,6 +399,7 @@ export class RealTimeHandler {
    * navigating to another page that doesn't require updates.
    */
   disconnect() {
+    this.context.store.dispatch('presence/clearAllSpaces')
     if (this.socket) {
       this.socket.onclose = null
       this.socket.close()
@@ -449,12 +450,14 @@ export class RealTimeHandler {
     }
   }
 
+  _isReady() {
+    return (
+      this.connected && this.socket && this.socket.readyState === WebSocket.OPEN
+    )
+  }
+
   sendFocus(page, parameters, focus) {
-    if (
-      !this.connected ||
-      !this.socket ||
-      this.socket.readyState !== WebSocket.OPEN
-    ) {
+    if (!this._isReady()) {
       return
     }
     this.socket.send(

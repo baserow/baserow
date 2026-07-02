@@ -23,7 +23,7 @@ Presence answers one question for people working in the same place: **who else i
 | **Presence focus** | What one connection is doing within a space — a typed value (e.g. a selected cell) or nothing. Each connection has at most one current focus **per space**; only the latest matters (it is a current state, not a history). |
 | **Focus visibility** | The per-recipient decision "should this recipient see this focus?" Lets one space serve viewers with different permissions without leaking what a viewer may not see. |
 | **Presence focus type** | A registered kind of focus (e.g. `cell`, `row`) that owns its payload shape, the page types it applies to, and its visibility rule. Pluggable; not owned by any one page type. |
-| **Presence focus staleness** | A focus state no longer trustworthy. Enforced client-side, per focus type (e.g. an `editing: true` indicator older than ~30s). |
+| **Presence focus staleness** | A focus state no longer trustworthy. Reserved for future client-side enforcement per focus type. Not currently implemented — an `editing: true` indicator persists until an explicit clear (disconnect, navigation, or editing end). |
 
 ### Entity relationships
 
@@ -90,7 +90,7 @@ Before a focus is shown, three questions are answered, in order:
 
 **Emitting and seeing are separate.** Which page types may *emit* a focus kind is independent of who may *see* it. Two users on the same grid emit cell focus identically; the difference in what each *sees* is purely the area-visibility rule (which rows/fields each may see), never the page type.
 
-**Staleness** is judged on the client, per focus type: a state implying active engagement (someone is *editing*) stops being shown after a short silence, because it is no longer trustworthy. Passive states linger longer or indefinitely.
+**Staleness** is reserved for future implementation. Currently, an `editing: true` indicator persists until an explicit clear (the user stops editing, navigates away, or disconnects). A client-side staleness timer may be added later if phantom editing indicators become a problem in practice.
 
 ---
 
@@ -105,7 +105,7 @@ Presence uses **one** space per place and enforces visibility *within* it, per r
 - **Avatars show unique users**, not connections — multiple tabs of one person collapse to a single avatar, with a deterministic per-user colour. When more users are present than fit, the rest collapse into a counter.
 - **A user does not see their own focus** as a presence indicator — the native selection UI already shows it. Their own avatar is **not** shown in the presence bar — only other users appear.
 - **Focus highlights** show another user's selected cell or row (with their colour and initials), and an editing indicator when they are actively editing. Highlights render only for what is currently on screen.
-- **Focus emission is debounced per space.** Rapid navigation within a space emits only the final position (others see where you land, not each step), and activity in one space never interferes with another. Two purposes: a clean end-state for viewers, and protection against flooding.
+- **Focus emission is debounced per space.** Navigation focus (cell/row selection changes) is debounced at 150ms — others see where you land, not each step. Editing state transitions (start/stop editing) and focus clears send immediately, without debounce. When only one user is connected to a space, focus events are skipped entirely.
 - **When several users focus the same target**, their labels collapse into a count.
 
 ---

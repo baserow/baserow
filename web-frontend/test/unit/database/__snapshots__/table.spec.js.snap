@@ -254,11 +254,13 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                     <!--v-if-->
                     <div class="grid-view__column" style="width: 200px;">
                       <!--v-if-->
+                      <!--v-if-->
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">name</div>
                       </div>
                     </div>
                     <div class="grid-view__column" style="width: 200px;">
+                      <!--v-if-->
                       <!--v-if-->
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">last_name</div>
@@ -587,11 +589,13 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                     <!--v-if-->
                     <div class="grid-view__column" style="width: 200px;">
                       <!--v-if-->
+                      <!--v-if-->
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">name</div>
                       </div>
                     </div>
                     <div class="grid-view__column" style="width: 200px;">
+                      <!--v-if-->
                       <!--v-if-->
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">last_name</div>

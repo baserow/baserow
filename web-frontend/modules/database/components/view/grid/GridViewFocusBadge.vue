@@ -66,9 +66,15 @@ export default {
     isEditing() {
       return this.entries.some((e) => e.editing)
     },
+    editingEntry() {
+      return this.entries.find((e) => e.editing) || null
+    },
+    activeColor() {
+      return this.editingEntry ? this.editingEntry.color : this.anchorColor
+    },
     badgeStyle() {
       return {
-        backgroundColor: this.anchorColor,
+        backgroundColor: this.activeColor,
         maxWidth: this.maxWidth + 'px',
       }
     },

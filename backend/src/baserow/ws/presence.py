@@ -143,22 +143,27 @@ class PresenceSpace:
         await redis.hset(self.redis_key, presence_id, entry)
         await redis.expire(self.redis_key, PRESENCE_SPACE_TTL)
 
-    async def update_entry_focus(self, presence_id: str, focus: dict | None) -> None:
+    async def update_entry_focus(self, presence_id: str, focus: dict | None) -> bool:
         """
         Update the focus payload for an existing presence entry in Redis.
-        Silently returns if the entry does not exist (e.g., already removed).
 
         :param presence_id: The presence entry to update.
         :param focus: The validated focus dict, or None to clear focus.
+        :return: True if updated, False if entry no longer exists.
         """
 
         redis = await get_async_redis()
         raw = await redis.hget(self.redis_key, presence_id)
         if raw is None:
-            return
-        entry = json.loads(raw)
+            return False
+        try:
+            entry = json.loads(raw)
+        except (ValueError, TypeError):
+            return False
         entry["focus"] = focus
         await redis.hset(self.redis_key, presence_id, json.dumps(entry))
+        await redis.expire(self.redis_key, PRESENCE_SPACE_TTL)
+        return True
 
     async def remove_entry(self, presence_id: str) -> None:
         """
@@ -224,6 +229,8 @@ class PresenceHandler:
         :param parameters: The page subscription parameters.
         """
 
+        space = None
+        already_in_space = False
         try:
             space_name = self.resolve_space_name(page_type_name, parameters)
             if space_name is None:
@@ -253,6 +260,13 @@ class PresenceHandler:
             )
             await self._broadcast_join(space)
         except Exception:
+            if space is not None and not already_in_space:
+                try:
+                    await self._consumer.channel_layer.group_discard(
+                        space.channel_group, self._consumer.channel_name
+                    )
+                except Exception:
+                    pass
             logger.exception("Presence subscribe failed for page {}", page_type_name)
 
     async def handle_page_unsubscribed(
@@ -284,11 +298,6 @@ class PresenceHandler:
                 space.channel_group, self._consumer.channel_name
             )
         except Exception:
-            self._page_to_space[page_key] = left_space_name
-            self._space_pages.setdefault(left_space_name, {})[page_key] = (
-                page_type_name,
-                parameters,
-            )
             logger.exception(
                 "Presence unsubscribe failed for space {}", left_space_name
             )
@@ -313,8 +322,9 @@ class PresenceHandler:
             return
 
         space = PresenceSpace(name=space_name)
-        await space.update_entry_focus(self.presence_id, validated_focus)
-        await self._broadcast_focus(space, validated_focus, focus_type_name)
+        updated = await space.update_entry_focus(self.presence_id, validated_focus)
+        if updated:
+            await self._broadcast_focus(space, validated_focus, focus_type_name)
 
     async def leave_all_spaces(self) -> None:
         """
@@ -456,16 +466,15 @@ class PresenceHandler:
         from baserow.ws.registries import presence_focus_type_registry
 
         payload = event["payload"]
-
-        if payload.get("focus") is None:
-            await self._consumer.send_json(payload)
-            return
+        focus = payload.get("focus")
 
         focus_type_name = event.get("focus_type")
-        try:
-            focus_type = presence_focus_type_registry.get(focus_type_name)
-        except presence_focus_type_registry.does_not_exist_exception_class:
-            return
+        focus_type = None
+        if focus_type_name:
+            try:
+                focus_type = presence_focus_type_registry.get(focus_type_name)
+            except presence_focus_type_registry.does_not_exist_exception_class:
+                return
 
         space_name = payload["space"]
         recipient_pages = self.get_recipient_pages_for_space(space_name)
@@ -480,7 +489,7 @@ class PresenceHandler:
 
             try:
                 should_deliver = page_type.filter_focus_for_recipient(
-                    page_params, payload["focus"], focus_type
+                    page_params, focus, focus_type
                 )
             except Exception:
                 logger.exception(

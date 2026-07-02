@@ -236,6 +236,11 @@ export default {
     'field-created',
     'field-created-callback-done',
   ],
+  data() {
+    return {
+      presenceSpaceName: null,
+    }
+  },
   computed: {
     ...mapGetters({
       navigationLoading: 'rowModalNavigation/getLoading',
@@ -306,6 +311,12 @@ export default {
         Number.isInteger(this.rowId)
       )
     },
+    hasOtherPresenceMembers() {
+      if (!this.presenceSpaceName) return false
+      const spaceData =
+        this.$store.state.presence.spaces[this.presenceSpaceName]
+      return spaceData ? Object.keys(spaceData.members).length > 0 : false
+    },
     rowModalActionComponents() {
       return this.activeSidebarTypes
         .map((type) => type.getActionComponent(this.row))
@@ -362,6 +373,11 @@ export default {
         this.presenceFocus.emitRowFocus(newValue)
       }
     },
+    hasOtherPresenceMembers(hasMembers) {
+      if (hasMembers && this.presenceFocus) {
+        this.presenceFocus.reemitLastFocus()
+      }
+    },
   },
   methods: {
     show(rowId, rowFallback = {}, ...args) {
@@ -385,7 +401,9 @@ export default {
     hidden(...args) {
       if (this.presenceFocus) {
         this.presenceFocus.clearFocus()
+        this.presenceFocus.destroy()
         this.presenceFocus = null
+        this.presenceSpaceName = null
       }
       if (this.canSubscribeToRowUpdates) {
         this.$realtime.unsubscribe('row', {
@@ -407,17 +425,24 @@ export default {
       ) {
         return
       }
-      const { page, params } = resolvePresencePageParams(
-        this.$registry,
-        this.database,
-        this.table,
-        this.view
-      )
+      const { page, params, spaceName, focusEnabled } =
+        resolvePresencePageParams(
+          this.$registry,
+          this.database,
+          this.table,
+          this.view
+        )
+      if (!focusEnabled) return
+      this.presenceSpaceName = spaceName
       this.presenceFocus = createPresenceFocusSender(
-        this.$nuxt.$realtime,
+        this.$realtime,
         page,
-        params
+        params,
+        { hasOtherMembers: () => this._hasOtherPresenceMembers() }
       )
+    },
+    _hasOtherPresenceMembers() {
+      return this.hasOtherPresenceMembers
     },
     /**
      * Because the modal can't update values by himself, an event will be called to

@@ -96,6 +96,15 @@ export class ViewOwnershipType extends Registerable {
   }
 
   /**
+   * Whether this ownership type supports presence focus (cell/row highlights).
+   * Restricted views override this to disable focus when the user lacks full
+   * table-level realtime access.
+   */
+  supportsPresenceFocus(database, table, view) {
+    return true
+  }
+
+  /**
    * Hook that can be used to change the realtime page payload before subscribing to
    * the page. This can be used to subscribe to a different page with different
    * real-time events, if needed.

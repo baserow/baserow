@@ -17,6 +17,7 @@ exports[`GridViewRows component > Default component 1`] = `
       style="width: 200px;"
     >
       <!--v-if-->
+      <!--v-if-->
       <div
         class="grid-view__cell"
         field="[object Object]"
@@ -37,6 +38,7 @@ exports[`GridViewRows component > Default component 1`] = `
       class="grid-view__column"
       style="width: 200px;"
     >
+      <!--v-if-->
       <!--v-if-->
       <div
         class="grid-view__cell"
@@ -67,6 +69,7 @@ exports[`GridViewRows component > Default component 1`] = `
       style="width: 200px;"
     >
       <!--v-if-->
+      <!--v-if-->
       <div
         class="grid-view__cell"
         field="[object Object]"
@@ -87,6 +90,7 @@ exports[`GridViewRows component > Default component 1`] = `
       class="grid-view__column"
       style="width: 200px;"
     >
+      <!--v-if-->
       <!--v-if-->
       <div
         class="grid-view__cell"
@@ -119,6 +123,7 @@ exports[`GridViewRows component > Default component 1`] = `
       style="width: 200px;"
     >
       <!--v-if-->
+      <!--v-if-->
       <div
         class="grid-view__cell"
         field="[object Object]"
@@ -137,6 +142,7 @@ exports[`GridViewRows component > Default component 1`] = `
       class="grid-view__column"
       style="width: 200px;"
     >
+      <!--v-if-->
       <!--v-if-->
       <div
         class="grid-view__cell"
@@ -211,6 +217,7 @@ exports[`GridViewRows component > With row details 1`] = `
       style="width: 200px;"
     >
       <!--v-if-->
+      <!--v-if-->
       <div
         class="grid-view__cell"
         field="[object Object]"
@@ -231,6 +238,7 @@ exports[`GridViewRows component > With row details 1`] = `
       class="grid-view__column"
       style="width: 200px;"
     >
+      <!--v-if-->
       <!--v-if-->
       <div
         class="grid-view__cell"
@@ -293,6 +301,7 @@ exports[`GridViewRows component > With row details 1`] = `
       style="width: 200px;"
     >
       <!--v-if-->
+      <!--v-if-->
       <div
         class="grid-view__cell"
         field="[object Object]"
@@ -313,6 +322,7 @@ exports[`GridViewRows component > With row details 1`] = `
       class="grid-view__column"
       style="width: 200px;"
     >
+      <!--v-if-->
       <!--v-if-->
       <div
         class="grid-view__cell"
@@ -377,6 +387,7 @@ exports[`GridViewRows component > With row details 1`] = `
       style="width: 200px;"
     >
       <!--v-if-->
+      <!--v-if-->
       <div
         class="grid-view__cell"
         field="[object Object]"
@@ -395,6 +406,7 @@ exports[`GridViewRows component > With row details 1`] = `
       class="grid-view__column"
       style="width: 200px;"
     >
+      <!--v-if-->
       <!--v-if-->
       <div
         class="grid-view__cell"

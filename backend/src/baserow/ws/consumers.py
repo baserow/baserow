@@ -671,11 +671,13 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         if not ignore_web_socket_id or ignore_web_socket_id != web_socket_id:
             await self.send_json(payload)
 
-    async def _handle_presence_focus(self, content):
+    async def _handle_presence_focus(self, content: dict[str, Any]) -> None:
         """
         Handle an incoming ``presence.focus`` message from the client.
         Resolves the page type and parameters, builds the page key, and
         delegates to the presence handler for validation + broadcast.
+
+        :param content: The decoded JSON message from the WebSocket client.
         """
 
         page_type_name = content.get("page")
@@ -691,12 +693,14 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         page_key = make_page_key(page_type_name, parameters)
         await self.presence.handle_focus(page_key, page_type_name, content.get("focus"))
 
-    async def broadcast_presence_focus(self, event):
+    async def broadcast_presence_focus(self, event: dict[str, Any]) -> None:
         """
         Channel-layer handler for focus broadcasts. Focus events are
         ephemeral — not persisted by RealtimeEventHandler and not replayed
         on reconnect. Uses a dedicated message type (not ``broadcast_to_group``)
         so that recipient-side filtering can be applied per page type.
+
+        :param event: The channel-layer event dict containing the focus payload.
         """
 
         web_socket_id = self.scope.get("web_socket_id")

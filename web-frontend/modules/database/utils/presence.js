@@ -14,6 +14,7 @@ export function tablePresenceSpaceName(tableId) {
 export function resolvePresencePageParams(registry, database, table, view) {
   let page = 'table'
   let params = { table_id: table.id }
+  let focusEnabled = true
   if (view) {
     const ownershipType = registry.get('viewOwnershipType', view.ownership_type)
     const result = ownershipType.enhanceRealtimePagePayload(
@@ -24,27 +25,80 @@ export function resolvePresencePageParams(registry, database, table, view) {
     )
     page = result.page
     params = result.params
+    focusEnabled = ownershipType.supportsPresenceFocus(database, table, view)
   }
   const spaceName = tablePresenceSpaceName(table.id)
-  return { page, params, spaceName }
+  return { page, params, spaceName, focusEnabled }
 }
 
-export function createPresenceFocusSender(realtime, page, parameters) {
+const NAVIGATION_DEBOUNCE_MS = 150
+
+export function createPresenceFocusSender(
+  realtime,
+  page,
+  parameters,
+  { hasOtherMembers } = {}
+) {
+  let lastFocus = null
+  let lastEditing = false
+  let debounceTimer = null
+
   function send(focus) {
+    lastFocus = focus
+    if (hasOtherMembers && !hasOtherMembers()) {
+      return
+    }
     realtime.sendFocus(page, parameters, focus)
   }
 
+  function sendDebounced(focus) {
+    lastFocus = focus
+    if (hasOtherMembers && !hasOtherMembers()) {
+      return
+    }
+    clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => {
+      realtime.sendFocus(page, parameters, focus)
+    }, NAVIGATION_DEBOUNCE_MS)
+  }
+
+  function reemitLastFocus() {
+    if (lastFocus !== null) {
+      realtime.sendFocus(page, parameters, lastFocus)
+    }
+  }
+
   function emitCellFocus(rowId, fieldId, editing = false) {
-    send({ type: 'cell', row_id: rowId, field_id: fieldId, editing })
+    const focus = { type: 'cell', row_id: rowId, field_id: fieldId, editing }
+    if (editing !== lastEditing) {
+      lastEditing = editing
+      clearTimeout(debounceTimer)
+      send(focus)
+    } else {
+      sendDebounced(focus)
+    }
   }
 
   function emitRowFocus(rowId, editing = false) {
-    send({ type: 'row', row_id: rowId, editing })
+    const focus = { type: 'row', row_id: rowId, editing }
+    if (editing !== lastEditing) {
+      lastEditing = editing
+      clearTimeout(debounceTimer)
+      send(focus)
+    } else {
+      sendDebounced(focus)
+    }
   }
 
   function clearFocus() {
-    realtime.sendFocus(page, parameters, null)
+    clearTimeout(debounceTimer)
+    lastEditing = false
+    send(null)
   }
 
-  return { emitCellFocus, emitRowFocus, clearFocus }
+  function destroy() {
+    clearTimeout(debounceTimer)
+  }
+
+  return { emitCellFocus, emitRowFocus, clearFocus, reemitLastFocus, destroy }
 }

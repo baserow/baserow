@@ -810,6 +810,88 @@ describe('RealTimeHandler connection watchdog', () => {
   })
 })
 
+describe('RealTimeHandler sendFocus', () => {
+  test('sendFocus sends correctly shaped presence.focus message', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = true
+
+    handler.sendFocus(
+      'table',
+      { table_id: 42 },
+      { type: 'cell', row_id: 1, field_id: 2, editing: false }
+    )
+
+    expect(sentMessages).toHaveLength(1)
+    expect(sentMessages[0]).toEqual({
+      type: 'presence.focus',
+      page: 'table',
+      table_id: 42,
+      focus: { type: 'cell', row_id: 1, field_id: 2, editing: false },
+    })
+  })
+
+  test('sendFocus sends null focus for clear', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = true
+
+    handler.sendFocus('table', { table_id: 42 }, null)
+
+    expect(sentMessages).toHaveLength(1)
+    expect(sentMessages[0]).toEqual({
+      type: 'presence.focus',
+      page: 'table',
+      table_id: 42,
+      focus: null,
+    })
+  })
+
+  test('sendFocus is suppressed when not connected', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = false
+
+    handler.sendFocus(
+      'table',
+      { table_id: 42 },
+      { type: 'cell', row_id: 1, field_id: 2, editing: false }
+    )
+
+    expect(sentMessages).toHaveLength(0)
+  })
+
+  test('sendFocus is suppressed when socket is not open', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = true
+    handler.socket.readyState = WebSocket.CLOSED
+
+    handler.sendFocus(
+      'table',
+      { table_id: 42 },
+      { type: 'cell', row_id: 1, field_id: 2, editing: false }
+    )
+
+    expect(sentMessages).toHaveLength(0)
+  })
+
+  test('sendFocus spreads parameters into top-level message', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = true
+
+    handler.sendFocus(
+      'table',
+      { table_id: 10, extra_param: 'val' },
+      { type: 'row', row_id: 5, editing: true }
+    )
+
+    expect(sentMessages[0]).toEqual({
+      type: 'presence.focus',
+      page: 'table',
+      table_id: 10,
+      extra_param: 'val',
+      focus: { type: 'row', row_id: 5, editing: true },
+    })
+  })
+})
+
 describe('RealTimeHandler presence events', () => {
   test('presence.members dispatches handleMembers', () => {
     const { handler, store } = makeHandler()
@@ -869,6 +951,45 @@ describe('RealTimeHandler presence events', () => {
     expect(
       store._dispatched.some(
         ([n, v]) => n === 'presence/clearSpace' && v.space === 'table-1'
+      )
+    ).toBe(true)
+  })
+
+  test('presence.focus dispatches handleFocus with correct shape', () => {
+    const { handler, store } = makeHandler()
+    fire(handler, 'presence.focus', {
+      space: 'table-1',
+      presence_id: 'pid-5',
+      focus: { type: 'cell', row_id: 10, field_id: 20, editing: true },
+    })
+    expect(
+      store._dispatched.some(
+        ([n, v]) =>
+          n === 'presence/handleFocus' &&
+          v.space === 'table-1' &&
+          v.presence_id === 'pid-5' &&
+          v.focus.type === 'cell' &&
+          v.focus.row_id === 10 &&
+          v.focus.field_id === 20 &&
+          v.focus.editing === true
+      )
+    ).toBe(true)
+  })
+
+  test('presence.focus dispatches null focus for clear', () => {
+    const { handler, store } = makeHandler()
+    fire(handler, 'presence.focus', {
+      space: 'table-1',
+      presence_id: 'pid-6',
+      focus: null,
+    })
+    expect(
+      store._dispatched.some(
+        ([n, v]) =>
+          n === 'presence/handleFocus' &&
+          v.space === 'table-1' &&
+          v.presence_id === 'pid-6' &&
+          v.focus === null
       )
     ).toBe(true)
   })
