@@ -4512,14 +4512,6 @@ export class FormulaFieldType extends mix(
     return underlyingFieldType.getContainsWordFilterFunction()
   }
 
-  getStartsWithFilterFunction(field) {
-    const underlyingFieldType = this.app.$registry.get(
-      'field',
-      this._mapFormulaTypeToFieldType(field.formula_type)
-    )
-    return underlyingFieldType.getStartsWithFilterFunction()
-  }
-
   /**
    * Delegate to the underlying field type so the searchable-string conversion
    * (e.g. a number's raw value vs its formatted display) stays consistent with

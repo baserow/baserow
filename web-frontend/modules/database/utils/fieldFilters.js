@@ -40,19 +40,19 @@ export function genericContainsFilter(
 
 export function genericStartsWithFilter(
   rowValue,
-  humanReadableRowValue,
+  searchableRowValue,
   filterValue
 ) {
-  if (humanReadableRowValue == null) {
+  if (searchableRowValue == null) {
     return false
   }
   // The backend runs `__istartswith` on the raw cell value and only strips the
   // filter value, so we must not trim the row value here or leading whitespace
   // would make the real-time match disagree with the backend query.
-  humanReadableRowValue = String(humanReadableRowValue).toLowerCase()
+  searchableRowValue = String(searchableRowValue).toLowerCase()
   filterValue = String(filterValue).toLowerCase().trim()
 
-  return humanReadableRowValue.startsWith(filterValue)
+  return searchableRowValue.startsWith(filterValue)
 }
 
 export function genericContainsWordFilter(
