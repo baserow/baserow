@@ -209,6 +209,8 @@
   },
   "pagePreview": {
     "emptyMessage": "Click to create an element",
+    "fixedHeader": "FIXED HEADER",
+    "fixedFooter": "FIXED FOOTER",
     "header": "HEADER",
     "footer": "FOOTER"
   },

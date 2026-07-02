@@ -33,12 +33,9 @@
               :show-element-id="showElementId"
               @move="moveElement($event)"
             />
-            <div
-              v-if="normalHeaderElements.length === 0"
-              class="page-preview__separator"
-            >
+            <div class="page-preview__separator">
               <span class="page-preview__separator-label">
-                {{ $t('pagePreview.header') }}
+                {{ $t('pagePreview.fixedHeader') }}
               </span>
             </div>
           </div>
@@ -145,12 +142,9 @@
             v-if="fixedFooterElements.length !== 0"
             class="page__fixed-stack page__fixed-stack--bottom page__fixed-stack--footer"
           >
-            <div
-              v-if="normalFooterElements.length === 0"
-              class="page-preview__separator"
-            >
+            <div class="page-preview__separator">
               <span class="page-preview__separator-label">
-                {{ $t('pagePreview.footer') }}
+                {{ $t('pagePreview.fixedFooter') }}
               </span>
             </div>
             <ElementPreview

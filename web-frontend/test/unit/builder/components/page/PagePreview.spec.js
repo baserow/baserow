@@ -213,13 +213,20 @@ describe('PagePreview', () => {
     expect(wrapper.find('.page-preview__fixed-elements').exists()).toBeFalsy()
     expect(topStack.classes()).toContain('page__fixed-stack--header')
     expect(getRenderedIds(topStack)).toEqual(['44'])
-    expect(topStack.find('.page-preview__separator').exists()).toBe(false)
+    expect(getDirectChildClassNames(topStack)).toEqual([
+      'element-preview-stub',
+      'page-preview__separator',
+    ])
     expect(getRenderedIds(header)).toEqual(['45'])
     expect(getRenderedIds(content)).toEqual(['42', '43', '46'])
     expect(getRenderedIds(footer)).toEqual(['48'])
     expect(bottomStack.classes()).toContain('page__fixed-stack--footer')
     expect(getRenderedIds(bottomStack)).toEqual(['47'])
-    expect(bottomStack.find('.page-preview__separator').exists()).toBe(false)
+    expect(getDirectChildClassNames(bottomStack)).toEqual([
+      'page-preview__separator',
+      'element-preview-stub',
+    ])
+    expect(wrapper.findAll('.page-preview__separator')).toHaveLength(4)
   })
 
   test('renders normal header and footer elements in their page sections', async () => {
@@ -284,10 +291,10 @@ describe('PagePreview', () => {
       'element-preview-stub',
     ])
     expect(topStack.find('.page-preview__separator-label').text()).toBe(
-      'pagePreview.header'
+      'pagePreview.fixedHeader'
     )
     expect(bottomStack.find('.page-preview__separator-label').text()).toBe(
-      'pagePreview.footer'
+      'pagePreview.fixedFooter'
     )
   })
 })
