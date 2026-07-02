@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Allow to customize history entries from plugins",
+    "issue_origin": "github",
+    "issue_number": 5616,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-07-02"
+}
