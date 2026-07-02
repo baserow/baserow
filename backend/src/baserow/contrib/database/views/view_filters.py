@@ -314,6 +314,9 @@ class StartsWithViewFilterType(ViewFilterType):
     """
 
     type = "starts_with"
+    # Field types that resolve to one of these via `get_compatible_filter_field_type`
+    # also become compatible, so they must implement `starts_with_query`. Otherwise
+    # the base implementation returns an empty `Q()` and the filter matches every row.
     compatible_field_types = [
         TextFieldType.type,
         LongTextFieldType.type,
