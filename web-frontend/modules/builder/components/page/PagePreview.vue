@@ -183,10 +183,7 @@ import { mapActions, mapGetters } from 'vuex'
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import PreviewNavigationBar from '@baserow/modules/builder/components/page/PreviewNavigationBar'
-import {
-  DIRECTIONS,
-  PAGE_PLACES,
-} from '@baserow/modules/builder/enums'
+import { DIRECTIONS, PAGE_PLACES } from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
