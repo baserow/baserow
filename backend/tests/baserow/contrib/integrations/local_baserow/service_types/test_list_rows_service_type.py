@@ -116,7 +116,6 @@ def test_export_import_local_baserow_list_rows_service(data_fixture):
                 "field_id": service_filter.field_id,
                 "type": service_filter.type,
                 "value": service_filter.value,
-                "value_is_formula": service_filter.value_is_formula,
                 "group": service_filter.group_id,
             }
         ],
@@ -149,7 +148,7 @@ def test_export_import_local_baserow_list_rows_service(data_fixture):
     assert service_filter.type == exported["filters"][0]["type"]
     assert service_filter.value == exported["filters"][0]["value"]
     assert service_filter.field_id == exported["filters"][0]["field_id"]
-    assert service_filter.value_is_formula == exported["filters"][0]["value_is_formula"]
+    assert service_filter.value["mode"] == exported["filters"][0]["value"]["mode"]
 
     assert service.service_sorts.count() == 1
     service_sort = service.service_sorts.get()
@@ -814,11 +813,11 @@ def test_import_formula_local_baserow_list_rows_user_service_type(data_fixture):
         imported_service_filter_0.value["formula"]
         == f"get('data_source.{data_source2.id}.0.{text_field.db_column}')"
     )
-    assert imported_service_filter_0.value_is_formula is True
+    assert imported_service_filter_0.value["mode"] == "simple"
 
     imported_service_filter_1 = imported_service.service_filters.get(order=1)
     assert imported_service_filter_1.value["formula"] == "fooValue"
-    assert imported_service_filter_1.value_is_formula is False
+    assert imported_service_filter_1.value["mode"] == "raw"
 
 
 @pytest.mark.django_db

@@ -33,44 +33,34 @@
       >
     </div>
 
-    <Modal
+    <FormulaInputModeChangeModal
       ref="advancedModeModal"
-      class="formula-input-explorer-context__advanced-mode-modal"
-    >
-      <h2 class="box__title">
-        {{
-          isAdvancedMode
-            ? $t('formulaInputExplorerContext.useSimpleInputModalTitle')
-            : $t('formulaInputExplorerContext.useAdvancedInputModalTitle')
-        }}
-      </h2>
-      <p>{{ $t('formulaInputExplorerContext.modalMessage') }}</p>
-
-      <div class="actions actions--right actions--gap margin-bottom-0">
-        <Button type="secondary" size="large" @click="cancelModeChange">
-          {{ $t('action.cancel') }}
-        </Button>
-        <Button type="danger" size="large" @click="confirmModeChange">
-          {{
-            isAdvancedMode
-              ? $t('formulaInputExplorerContext.useSimpleInput')
-              : $t('formulaInputExplorerContext.useAdvancedInput')
-          }}
-        </Button>
-      </div>
-    </Modal>
+      :title="
+        isAdvancedMode
+          ? $t('formulaInputExplorerContext.useSimpleInputModalTitle')
+          : $t('formulaInputExplorerContext.useAdvancedInputModalTitle')
+      "
+      :confirm-label="
+        isAdvancedMode
+          ? $t('formulaInputExplorerContext.useSimpleInput')
+          : $t('formulaInputExplorerContext.useAdvancedInput')
+      "
+      @confirm="confirmModeChange"
+    />
   </Context>
 </template>
 
 <script>
 import context from '@baserow/modules/core/mixins/context'
 import NodeExplorer from '@baserow/modules/core/components/nodeExplorer/NodeExplorer'
+import FormulaInputModeChangeModal from '@baserow/modules/core/components/formula/FormulaInputModeChangeModal'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputExplorerContext',
   components: {
     NodeExplorer,
+    FormulaInputModeChangeModal,
   },
   mixins: [context],
   props: {
@@ -259,14 +249,10 @@ export default {
       this.$refs.advancedModeModal.show()
     },
     confirmModeChange() {
-      this.$refs.advancedModeModal.hide()
       this.$emit(
         'mode-changed',
         this.mode === 'advanced' ? 'simple' : 'advanced'
       )
-    },
-    cancelModeChange() {
-      this.$refs.advancedModeModal.hide()
     },
   },
 }

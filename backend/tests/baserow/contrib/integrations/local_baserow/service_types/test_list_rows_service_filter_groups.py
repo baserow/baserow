@@ -11,8 +11,16 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowListRowsUserServiceType,
 )
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BaserowFormulaObject,
+)
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext, fake_import_formula
+
+
+def raw_formula(value):
+    return BaserowFormulaObject.create(value, mode=BASEROW_FORMULA_MODE_RAW)
 
 
 def _build_ingredient_cost_table(data_fixture, user):
@@ -72,16 +80,32 @@ def test_dispatch_with_filter_groups(data_fixture):
         service=service, filter_type="AND"
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=ingredient, value="Duck", order=0, group=group_duck
+        service=service,
+        field=ingredient,
+        value=raw_formula("Duck"),
+        order=0,
+        group=group_duck,
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=cost, value="50", order=1, group=group_duck
+        service=service,
+        field=cost,
+        value=raw_formula("50"),
+        order=1,
+        group=group_duck,
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=ingredient, value="Goose", order=2, group=group_goose
+        service=service,
+        field=ingredient,
+        value=raw_formula("Goose"),
+        order=2,
+        group=group_goose,
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=cost, value="150", order=3, group=group_goose
+        service=service,
+        field=cost,
+        value=raw_formula("150"),
+        order=3,
+        group=group_goose,
     )
 
     service_type = LocalBaserowListRowsUserServiceType()
@@ -117,13 +141,25 @@ def test_dispatch_with_nested_filter_groups(data_fixture):
         service=service, filter_type="OR", parent_group=outer
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=ingredient, value="Beef", order=0, group=outer
+        service=service,
+        field=ingredient,
+        value=raw_formula("Beef"),
+        order=0,
+        group=outer,
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=cost, value="50", order=1, group=inner
+        service=service,
+        field=cost,
+        value=raw_formula("50"),
+        order=1,
+        group=inner,
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=cost, value="150", order=2, group=inner
+        service=service,
+        field=cost,
+        value=raw_formula("150"),
+        order=2,
+        group=inner,
     )
 
     service_type = LocalBaserowListRowsUserServiceType()
@@ -155,10 +191,10 @@ def test_dispatch_ungrouped_filters_unchanged(data_fixture):
     )
     # ingredient=Duck OR ingredient=Goose, no groups.
     data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=ingredient, value="Duck", order=0
+        service=service, field=ingredient, value=raw_formula("Duck"), order=0
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=ingredient, value="Goose", order=1
+        service=service, field=ingredient, value=raw_formula("Goose"), order=1
     )
 
     service_type = LocalBaserowListRowsUserServiceType()

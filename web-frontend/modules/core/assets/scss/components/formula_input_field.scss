@@ -1,3 +1,15 @@
+.formula-input-field__container {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.formula-input-field__editor {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .formula-input-field {
   height: auto;
   font-size: 13px;
@@ -16,6 +28,43 @@
     line-height: 25px;
     padding: 10px 12px;
     min-height: 48px;
+  }
+}
+
+.formula-input-field__raw-mode-toggle {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: $palette-neutral-700;
+
+  @include rounded($rounded);
+
+  &:hover:not(.button-icon--loading):not([disabled]),
+  &:active:not(.button-icon--loading):not([disabled]) {
+    background: $palette-neutral-100;
+    box-shadow: none !important;
+    color: $palette-neutral-1200;
+  }
+
+  &[disabled]:not(.button-icon--loading) {
+    background: transparent !important;
+    color: $palette-neutral-500;
+  }
+
+  .button-icon__icon {
+    font-size: 14px;
+  }
+}
+
+.formula-input-field__raw-mode-toggle--active {
+  color: $palette-blue-500;
+
+  &:hover:not(.button-icon--loading):not([disabled]),
+  &:active:not(.button-icon--loading):not([disabled]) {
+    color: $palette-blue-600;
   }
 }
 
