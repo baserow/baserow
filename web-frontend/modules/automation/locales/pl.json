@@ -16,7 +16,7 @@
     },
     "automationHistoryGuidedTourStep": {
         "title": "Wyświetl historię przebiegów procesu",
-        "content": "W panelu historii możesz przejrzeć wyniki testów oraz przebigi opublikowanych procesów. To świetny sposób na sprawdzenie rezultatów lub analizę błędów."
+        "content": "W panelu historii możesz przejrzeć wyniki testów oraz przebiegi opublikowanych procesów. To świetny sposób na sprawdzenie rezultatów lub analizę błędów."
     },
     "automationPublishGuidedTourStep": {
         "title": "Opublikuj proces",
@@ -44,7 +44,7 @@
         "namePlaceholder": "Wpisz nazwę..."
     },
     "duplicateAutomationWorkflowJobType": {
-        "name": "Duplikuj proces",
+        "name": "Zduplikuj proces",
         "duplicating": "Duplikowanie",
         "duplicatedTitle": "Proces został zduplikowany"
     },
@@ -107,7 +107,7 @@
         "statusSuccess": "Wykonano pomyślnie",
         "statusError": "Nie udało się wykonać",
         "statusSuccessBadge": "Ukończony",
-        "statusErrorBadge": "Nieudany",
+        "statusErrorBadge": "Wystąpił błąd",
         "statusDisabled": "Wyłączony przez Baserow",
         "successfulRuns": "Udane przebiegi",
         "completedInSeconds": "Czas wykonania: {s} sekund.",
@@ -122,13 +122,13 @@
         "showResult": "Pokaż wynik"
     },
     "nodeType": {
-        "triggerDeletionError": "Triggery mogą być wyłącznie zamienione, a nie usunięte.",
+        "triggerDeletionError": "Triggery mogą być wyłącznie zamienione, nie można ich usunąć.",
         "localBaserowRowsCreatedLabel": "Wiersze zostaną utworzone w tabeli {tableName}",
         "localBaserowRowsUpdatedLabel": "Wiersze zostaną zaktualizowane w tabeli {tableName}",
         "localBaserowRowsDeletedLabel": "Wiersze zostaną usunięte z tabeli {tableName}",
         "localBaserowCreateRowLabel": "Utwórz wiersz w tabeli {tableName}",
         "localBaserowUpdateRowLabel": "Zaktualizuj wiersz w tabeli {tableName}",
-        "localBaserowDeleteRowLabel": "Usuń wiersz z tabeli {tableName}",
+        "localBaserowDeleteRowLabel": "Usuń wiersze z tabeli {tableName}",
         "localBaserowGetRowLabel": "Odczytaj wiersz z {tableName}",
         "localBaserowListRowsLabel": "Wyświetl wiersze z {tableName}",
         "localBaserowAggregateRowsLabel": "Podsumuj wiersze w tabeli {tableName}",
@@ -137,30 +137,37 @@
         "routerLabel": "Wykonaj 1 z {edgeCount} rozgałęzień",
         "iterationLabel": "Iteruj elementy",
         "defaultEdgeLabelFallback": "Domyślny",
-        "routerWithOutputNodesDeleteError": "Nie można usunąć, najpierw usuń węzły wyjściowe. Liczba węzłów do usunięcia: ({outputCount})",
+        "routerWithOutputNodesDeleteError": "Nie można usunąć, dopóki węzły wyjściowe w liczbie {outputCount} nie zostaną usunięte.",
         "routerWithOutputNodesReplaceError": "Nie można zastąpić, najpierw usuń węzły wyjściowe. Liczba węzłów do usunięcia: ({outputCount}).",
-        "iteratorWithChildrenNodesDeleteError": "Nie można usunąć, najpierw usuń węzły podrzędne.",
-        "iteratorWithChildrenNodesReplaceError": "Nie można zastąpić, najpierw usuń węzły podrzędne.",
+        "iteratorWithChildrenNodesDeleteError": "Nie można usunąć. Najpierw usuń węzły podrzędne.",
+        "iteratorWithChildrenNodesReplaceError": "Nie można zastąpić. Najpierw usuń węzły podrzędne.",
         "periodicTriggerLabel": "Trigger okresowy",
         "aiAgent": "Prompt AI",
         "slackWriteMessageName": "Wyślij wiadomość Slack",
-        "slackWriteMessageLabel": "Wyślij wiadomość do #{channel}"
+        "slackWriteMessageLabel": "Wyślij wiadomość do #{channel}",
+        "localBaserowFieldsUpdatedLabel": "Pole {fieldName} w tabeli {tableName} zostało zaktualizowane",
+        "localBaserowFieldsUpdatedMultipleLabel": "Wartości {count} pól w tabeli {tableName} zostały zaktualizowane",
+        "localBaserowFieldsUpdatedNoFieldLabel": "Poszczególne wartości pól zostały zaktualizowane",
+        "localBaserowCreateRowsLabel": "Zbiorcze tworzenie wierszy w tabeli {tableName}",
+        "localBaserowUpdateRowsLabel": "Zbiorczo zaktualnizuj wiersze w tabeli {tableName}",
+        "csvFileReaderLabel": "Wczytaj plik CSV",
+        "startWorkflowLabel": "Uruchom proces {workflowName}"
     },
     "workflowNode": {
         "actionDelete": "Usuń",
         "actionReplace": "Zamień",
-        "actionDuplicate": "Duplikuj",
-        "actionConfigure": "Konfiguruj",
+        "actionDuplicate": "Zduplikuj",
+        "actionConfigure": "Skonfiguruj",
         "beforeLabelTrigger": "Rozpoczyna się, gdy",
         "beforeLabelAction": "Następnie",
         "beforeLabelCondition": "Jeśli warunek jest spełniony",
-        "beforeLabelConditionDefault": "Jeśli żadne warunki nie są spełnione",
+        "beforeLabelConditionDefault": "Jeśli żaden warunek(ki) nie jest(są) spełnione",
         "beforeLabelRepeat": "Dla każdego elementu",
         "moreEdit": "Edytuj",
         "moreReplace": "Zastąp",
         "nodeOptions": "Opcje węzła",
         "displayLabelDebug": "ID: {id} | Poprz: {previousNodeId} | {outputUid}",
-        "moreDuplicate": "Duplikuj"
+        "moreDuplicate": "Zduplikuj"
     },
     "workflowAddNode": {
         "displayTitle": "Utwórz węzeł automatyzacji"
@@ -174,9 +181,11 @@
         "periodicTrigger": "Trigger okresowy",
         "periodicTriggerDescription": "Uruchamia proces okresowo w podanych odstępach czasu",
         "periodicTriggerTriggeredAt": "Uruchamiany o",
-        "errorIntervalMissing": "Należy podać jest interwał.",
+        "errorIntervalMissing": "Należy podać interwał.",
         "coreHTTPTrigger": "Trigger HTTP",
-        "coreHTTPTriggerDescription": "Użyj żądania HTTP jako triggera procesu"
+        "coreHTTPTriggerDescription": "Użyj żądania HTTP jako triggera procesu",
+        "coreManualTrigger": "Trigger ręczny",
+        "coreManualTriggerDescription": "Uruchomi się tylko wtedy, gdy inna operacja uruchami ten proces"
     },
     "workflowEditor": {
         "chooseEvent": "Wybierz zdarzenie..."
@@ -185,12 +194,12 @@
         "sampleDataLabel": "Rezultat",
         "triggerNodeAwaitingEvent": "Węzeł oczekuje na dane. Uruchom zdarzenie ręcznie, test zakończy się po dostarczeniu payloadu.",
         "simulationInProgress": "Trwa testowanie węzła...",
-        "errorNodeNotConfigured": "Węzeł musi być skonfigurowany przed testowaniem.",
+        "errorNodeNotConfigured": "Węzeł musi być skonfigurowany przed przetestowaniem.",
         "errorPreviousNodeNotConfigured": "Należy najpierw skonfigurować poprzedni węzeł \"{node}\".",
         "errorPreviousNodesNotTested": "Poprzedni węzeł \"{node}\" musi być najpierw przetestowany.",
-        "buttonLabelTest": "Przetestuj zdarzenie",
-        "buttonLabelTestAgain": "Ponownie przetestuj zdarzenie",
-        "testNodeDescription": "Przetestuj zdarzenie, aby potwierdzić poprawność konfiguracji. Dane z testu mogą być użyte w późniejszych krokach.",
+        "buttonLabelTest": "Przetestuj węzeł",
+        "buttonLabelTestAgain": "Ponownie przetestuj węzeł",
+        "testNodeDescription": "Przetestuj węzeł, aby potwierdzić poprawność konfiguracji. Dane z testu mogą być użyte w późniejszych krokach.",
         "buttonLabelShowPayload": "Pokaż payload",
         "buttonLabelShowError": "Pokaż błąd",
         "sampleDataModalTitle": "Payload dla węzła {nodeLabel}",
