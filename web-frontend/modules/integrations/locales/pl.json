@@ -43,31 +43,31 @@
         "localBaserowAggregateRows": "Podsumuj pole",
         "misconfigured": "Nieprawidłowa konfiguracja",
         "trashedField": "Pole usunięte",
-        "localBaserowGetRowDescription": "Odczytuje pojedynczy wiersz z tabeli Baserow.",
-        "localBaserowListRowsDescription": "Odczytuje wiele wierszy z tabeli Baserow.",
+        "localBaserowGetRowDescription": "Wczytaj pojedynczy wiersz z tabeli Baserow.",
+        "localBaserowListRowsDescription": "Wczytuje wiele wierszy z tabeli Baserow.",
         "localBaserowAggregateRowsDescription": "Podsumowuje pole w tabeli Baserow.",
         "localBaserowCreateRow": "Utwórz wiersz",
         "localBaserowCreateRowDescription": "Tworzy nowy wiersz w tabeli Baserow.",
-        "localBaserowUpdateRow": "Aktualizuj wiersz",
+        "localBaserowUpdateRow": "Zaktualizuj wiersz",
         "localBaserowUpdateRowDescription": "Aktualizuje istniejący wiersz w tabeli Baserow.",
         "localBaserowDeleteRow": "Usuń wiersz",
-        "localBaserowDeleteRowDescription": "Usuwa wiersz z tabeli Baserow.",
+        "localBaserowDeleteRowDescription": "Usuwa jeden lub więcej wierszy z tabeli bazy Baserow.",
         "localBaserowRowsCreated": "Wiersze zostały utworzone",
-        "localBaserowRowsCreatedDescription": "Uruchomi się, gdy będą tworzone nowe wiersze w tabeli Baserow.",
+        "localBaserowRowsCreatedDescription": "Uruchamia się, gdy w tabeli bazy Baserow tworzone są wiersze.",
         "localBaserowRowsUpdated": "Wiersze zostały zaktualizowane",
-        "localBaserowRowsUpdatedDescription": "Uruchomi się, gdy będą aktualizowane wiersze w tabeli Baserow.",
+        "localBaserowRowsUpdatedDescription": "Uruchamia się, gdy w tabeli bazy Baserow aktualizowane są jakiekolwiek wiersze.",
         "localBaserowRowsDeleted": "Wiersze zostały usunięte",
-        "localBaserowRowsDeletedDescription": "Uruchomi się, gdy będą usuwane wiersze z tabeli Baserow.",
-        "coreHTTPTrigger": "Odebrane żądanie HTTP",
-        "coreHTTPTriggerDescription": "Uruchomi się, gdy zostanie odebrane żądanie HTTP.",
+        "localBaserowRowsDeletedDescription": "Uruchamia się, gdy z tabeli bazy Baserow usuwane są wiersze.",
+        "coreHTTPTrigger": "Odbierz żądanie HTTP",
+        "coreHTTPTriggerDescription": "Uruchamia się, gdy zostanie odebrane żądanie HTTP.",
         "coreHTTPRequest": "Wyślij żądanie HTTP",
-        "coreHTTPRequestDescription": "Wysyła żądanie HTTP do wskazanego punktu końcowego (endpoint).",
+        "coreHTTPRequestDescription": "Wysyła żądanie HTTP do wskazanego endpointu.",
         "coreSMTPEmail": "Wyślij e-mail",
-        "coreRouter": "Router",
+        "coreRouter": "Rozgałęzienie",
         "coreRouterEdgesRequired": "Wymagana jest co najmniej jedna krawędź",
         "coreRouterEdgeLabelRequired": "Wymagana jest etykieta rozgałęzienia.",
         "coreRouterEdgeConditionRequired": "Wymagany jest warunek rozgałęzienia.",
-        "coreRouterDescription": "Kieruje proces do następnego rozgałęzienia na podstawie warunku.",
+        "coreRouterDescription": "Na podstawie warunku kieruje proces do kolejnego rozgałęzienia.",
         "coreSMTPEmailDescription": "Wysyła e-mail za pomocą konfiguracji SMTP.",
         "coreIteration": "Iterator",
         "coreIterationDescription": "Iteruje po elementach.",
@@ -77,24 +77,41 @@
         "errorNoTableSelected": "Nie wybrano tabeli",
         "errorFilterInError": "Co najmniej jeden filtr jest nieprawidłowo skonfigurowany",
         "errorSortingInError": "Co najmniej jedno sortowanie jest nieprawidłowo skonfigurowane",
-        "errorNoFieldSelected": "Nie wybrano pola",
-        "errorNoAggregationTypeSelected": "Nie wybrano typu agregacji",
+        "errorNoFieldSelected": "Nie wybrano żadnych pól",
+        "errorNoAggregationTypeSelected": "Nie wybrano żadnego typu agregacji",
         "corePeriodic": "Trigger okresowy",
         "corePeriodicDescription": "Uruchamia procesy w określonych odstępach czasu",
         "corePeriodicErrorIntervalMissing": "Wymagany jest interwał.",
-        "errorIterationSourceMissing": "Brak źródła",
+        "errorIterationSourceMissing": "Brak atrybutu źródła",
         "aiAgent": "Prompt AI",
         "aiAgentDescription": "Wysyła prompty AI przy użyciu skonfigurowanych modeli AI.",
-        "errorNoIntegrationSelected": "Nie wybrano integracji",
-        "errorNoAIProviderSelected": "Nie wybrano dostawcy AI",
-        "errorNoAIModelSelected": "Nie wybrano modelu AI",
-        "errorNoPromptProvided": "Nie podano promptu",
-        "errorNoChoicesProvided": "Nie podano opcji dla typu danych wyjściowych",
+        "errorNoIntegrationSelected": "Nie wybrano żadnej integracji",
+        "errorNoAIProviderSelected": "Nie wybrano żadnego dostawcy AI",
+        "errorNoAIModelSelected": "Nie wybrano żadnego modelu AI",
+        "errorNoPromptProvided": "Nie podano żadnego promptu",
+        "errorNoChoicesProvided": "Nie podano żadnych opcji typu danych wyjściowych",
         "slackWriteMessage": "Wyślij wiadomość Slack",
         "slackWriteMessageDescription": "Wysyła wiadomość na określony #kanał Slack",
-        "slackWriteMessageMissingChannel": "Wymagany jest kanał.",
-        "slackWriteMessageMissingMessage": "Wymagana jest wiadomość.",
-        "slackWriteMessageMissingIntegration": "Nie wybrano integracji w Slacku."
+        "slackWriteMessageMissingChannel": "Należy podać kanał.",
+        "slackWriteMessageMissingMessage": "Należy wpisać wiadomość.",
+        "slackWriteMessageMissingIntegration": "Nie wybrano żadnej integracji ze Slack.",
+        "coreManualTrigger": "Trigger ręczny",
+        "localBaserowCreateRows": "Utwórz wiersze zbiorczo",
+        "localBaserowCreateRowsDescription": "Zbiorczo tworzy nowe wiersze w tabeli bazy Baserow.",
+        "localBaserowUpdateRows": "Zbiorczo zaktualizuj wiersze",
+        "localBaserowUpdateRowsDescription": "Zbiorczo aktualizuje istniejące wiersze w tabeli bazy Baserow.",
+        "localBaserowFieldsUpdated": "Uaktualnia konkretne wartości pól",
+        "localBaserowFieldsUpdatedDescription": "Uruchamia się, gdy w określonych polach tabeli bazy Baserow są aktualizowane wiersze.",
+        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja uruchomi ten proces.",
+        "coreCSVFileReader": "Wczytaj plik CSV",
+        "coreCSVFileReaderDescription": "Wczytuje wiersze z pliku CSV.",
+        "coreStartWorkflow": "Uruchom proces",
+        "coreStartWorkflowDescription": "Uruchamia proces automatyzacji.",
+        "errorNoRowsSelected": "Nie wybrano żadnych wierszy",
+        "errorCSVFileMissing": "Brak atrybutu pliku CSV",
+        "errorCSVContentMissing": "Brak atrybutu danych w pliku CSV",
+        "errorNoWorkflowSelected": "Nie wybrano żadnego procesu",
+        "errorWorkflowNotImmediateDispatch": "Wybrany proces musi zostać uruchomiony przez trigger, który wyzwala się w sposób natychmiastowy."
     },
     "userSourceType": {
         "localBaserow": "Uwierzytelnianie tabeli Baserow"
@@ -136,9 +153,9 @@
         "multipleRows": "wiele wierszy"
     },
     "localBaserowIntegrationType": {
-        "localBaserowWarning": "Autoryzacja konta daje każdemu, kto ma uprawnienia do edycji aplikacji, pełny dostęp do danych, do których masz dostęp. Możliwe jest utworzenie drugiego użytkownika, nadanie mu odpowiednich uprawnień i korzystanie z niego.",
+        "localBaserowWarning": "Autoryzacja konta daje każdemu użytkownikowi, który ma uprawnienia do edycji aplikacji pełny dostęp do Twoich danych. Możesz utworzyć drugiego użytkownika, nadać mu odpowiednich uprawnienia i w ten sposób korzystać z tego konta.",
         "localBaserowSummary": "Lokalna instalacja Baserow - {name}, {username}",
-        "localBaserowNoUser": "Lokalna instalacja Baserow - nie została skonfigurowana"
+        "localBaserowNoUser": "Lokalna instalacja Baserow - nie skonfigurowano"
     },
     "localBaserowAggregateRowsForm": {
         "filterTabTitle": "Filtry",
@@ -154,7 +171,7 @@
     },
     "slackBotIntegrationType": {
         "slackBotSummary": "Bot Slack",
-        "slackBotNoToken": "Bot Slack – nie został skonfigurowany"
+        "slackBotNoToken": "Bot Slack – nie skonfigurowany"
     },
     "aiForm": {
         "description": "Skonfiguruj ustawienia dostawcy AI dla tej integracji. Domyślnie dziedziczone są ustawienia AI obszaru roboczego.",
@@ -339,5 +356,48 @@
         "fieldMappingPlaceholderDuration": "Wybierz wartość czasu trwania, np. 1:23:40",
         "noTableSelectedMessage": "Wybierz tabelę, aby rozpocząć konfigurację pól.",
         "noWritableFields": "Ta tabela nie zawiera pól z możliwością zapisu."
+    },
+    "localBaserowFieldsUpdatedForm": {
+        "fieldLabel": "Pola",
+        "fieldHelper": "Ten proces uruchamia się wyłącznie wtedy, gdy zmieni się wartość jednego z pól."
+    },
+    "coreCSVFileReaderServiceForm": {
+        "inputType": "Źródło",
+        "inputTypeFile": "Plik",
+        "inputTypeContent": "Zawartość",
+        "file": "Plik CSV",
+        "filePlaceholder": "Wybierz plik CSV...",
+        "csv": "Dane z pliku CSV",
+        "csvPlaceholder": "Wprowadź dane z pliku CSV...",
+        "separator": "Separator",
+        "encoding": "Kodowanie znaków",
+        "firstLineIsHeader": "Pierwszy wiersz zawiera nagłówek",
+        "comma": "Przecinek",
+        "semicolon": "Średnik",
+        "tab": "Zakładka",
+        "pipe": "Znak \"pipe\"",
+        "utf8": "UTF-8",
+        "utf8Bom": "UTF-8 z BOM",
+        "latin1": "Latin-1"
+    },
+    "coreStartWorkflowServiceForm": {
+        "automation": "Automatyzacja",
+        "workflow": "Proces",
+        "workflowHelperText": "Uruchomić można wyłącznie opublikowane procesy z triggerem ręcznym. Jeśli w danym procesie znajdują się nieopublikowane zmiany, uruchomiona zostanie ostatnia opublikowana wersja."
+    },
+    "localBaserowDeleteRowServiceForm": {
+        "rowIdLabel": "ID wiersza/y",
+        "rowIdPlaceholder": "Wybierz ID wiersza lub szereg zawierający ID wierszy",
+        "rowIdHelper": "Choose a row ID or an array of row IDs. Jednorazowo można usunąć maksymalnie {limit} wierszy."
+    },
+    "localBaserowCreateRowsServiceForm": {
+        "rowsLabel": "Wiersze",
+        "rowsPlaceholder": "Wybierz listę obiektów typu \"wiersz\"",
+        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który, po przetworzeniu, tworzy tablicę obiektów wierszy. Jako klucze obiektów należy użyć nazw pól lub ID pól. Jednorazowo można utworzyć maksymalnie {limit} wierszy."
+    },
+    "localBaserowUpdateRowsServiceForm": {
+        "rowsLabel": "Wiersze",
+        "rowsPlaceholder": "Wybierz liste ID obiektów typu \"wiersz\"",
+        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który, po przetworzeniu, tworzy tablicę obiektów wierszy. Każdy obiekt musi zawierać atrybut identyfikacyjny. Jako klucz obiektu można użyć nazwy lub ID pola. Jednorazowo można zaktualizować maksymalnie {limit} wierszy."
     }
 }
