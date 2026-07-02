@@ -1,6 +1,9 @@
 export const HEADER_HEIGHT = 48
 export const ROW_HEIGHT = 33
 export const GROUP_GAP = 8
+// The add-row slot keeps the small row height even when the view uses taller rows,
+// matching the fixed-height ungrouped `GridViewRowAdd`.
+export const ADD_ROW_HEIGHT = ROW_HEIGHT
 
 const GROUP_BANNER_DEPTH_INDENT_PX = 24
 const GROUP_BANNER_BASE_GUTTER = 12
@@ -186,9 +189,9 @@ export function buildLayout({
         depth: node.depth,
         path: node.path,
         y,
-        height: rowHeight,
+        height: ADD_ROW_HEIGHT,
       })
-      y += rowHeight
+      y += ADD_ROW_HEIGHT
     }
   }
 
@@ -404,9 +407,9 @@ function buildPagedLayout({
             depth: node.depth ?? depth,
             path: node.path,
             y,
-            height: rowHeight,
+            height: ADD_ROW_HEIGHT,
           })
-          y += rowHeight
+          y += ADD_ROW_HEIGHT
         } else {
           walkPage(node.path, (node.depth ?? depth) + 1, childrenCount)
         }

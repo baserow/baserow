@@ -640,33 +640,45 @@ test.describe("8.2 Search hide-not-matching mode", () => {
 test.describe("9.1 Row coloring", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
+  let gGrouped: Setup;
   let license: License;
+
+  const statusField: FieldSpec = {
+    name: "Status",
+    type: "single_select",
+    options: [
+      { value: "Blocked", color: "red" },
+      { value: "Ready", color: "green" },
+    ],
+  };
+  const statusColorDecoration = (setup: Setup) =>
+    createViewDecoration(setup.user, setup.view, {
+      type: "background_color",
+      value_provider_type: "single_select_color",
+      value_provider_conf: { field_id: setup.fieldByName.Status.id },
+    });
 
   test.beforeAll(async () => {
     license = await createLicense(ENTERPRISE_LICENSE);
     g = await setupGrid({
       dbName: "RowColoringDb",
-      fields: [
-        {
-          name: "Status",
-          type: "single_select",
-          options: [
-            { value: "Blocked", color: "red" },
-            { value: "Ready", color: "green" },
-          ],
-        },
-        { name: "Notes", type: "text" },
-      ],
+      fields: [statusField, { name: "Notes", type: "text" }],
       rows: [
         { Name: "Alice", Status: "Blocked", Notes: "Investigate" },
         { Name: "Bob", Status: "Ready", Notes: "Ship" },
       ],
     });
-    await createViewDecoration(g.user, g.view, {
-      type: "background_color",
-      value_provider_type: "single_select_color",
-      value_provider_conf: { field_id: g.fieldByName.Status.id },
+    await statusColorDecoration(g);
+    gGrouped = await setupGrid({
+      dbName: "RowColoringGroupedDb",
+      fields: [statusField, { name: "Team", type: "text" }],
+      rows: [
+        { Name: "Alice", Status: "Blocked", Team: "A" },
+        { Name: "Bob", Status: "Ready", Team: "B" },
+      ],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
     });
+    await statusColorDecoration(gGrouped);
   });
 
   test.afterAll(async () => {
@@ -675,24 +687,43 @@ test.describe("9.1 Row coloring", () => {
     }
   });
 
-  test.beforeEach(async ({ page }) => {
-    const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
-  });
-
   test("9.1.1 background row coloring uses the selected single-select option color on both grid sections", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
 
     await grid.expectRowCount(2);
     await grid.expectPrimaryText(0, "Alice");
     await grid.expectFieldText(0, 0, "Blocked");
     await grid.expectRowBackgroundColor(0, "red");
+    await grid.expectRowBackgroundNotObscured(0);
 
     await grid.expectPrimaryText(1, "Bob");
     await grid.expectFieldText(1, 0, "Ready");
     await grid.expectRowBackgroundColor(1, "green");
+    await grid.expectRowBackgroundNotObscured(1);
+    await grid.expectNoRowsLoading();
+  });
+
+  test("9.1.2 background row coloring still paints rows when a group-by is active", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, gGrouped.user);
+    await grid.goTo(gGrouped.database, gGrouped.table);
+
+    await grid.expandAllGroupsFromContext();
+    await grid.expectGroupByBanner("A", 1);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectRowCount(2);
+
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectRowBackgroundColor(0, "red");
+    await grid.expectRowBackgroundNotObscured(0);
+
+    await grid.expectPrimaryText(1, "Bob");
+    await grid.expectRowBackgroundColor(1, "green");
+    await grid.expectRowBackgroundNotObscured(1);
     await grid.expectNoRowsLoading();
   });
 });

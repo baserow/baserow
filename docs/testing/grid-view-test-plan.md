@@ -861,6 +861,20 @@ flat/group-by runs, the same way filters and sorts do.
 - Selected single-select values are visible.
 - Row background uses the selected option color in the frozen-left section.
 - Row background uses the selected option color in the scrollable-right section.
+- The row surface on top of the color wrapper stays transparent, so the
+  decoration color is actually painted.
+- No row loading spinner is shown because row coloring is loaded from the saved
+  view decoration.
+
+### 9.1.2 Row coloring with group-by
+
+- Grid opens with the saved group-by applied.
+- Group banners show each group value with its row count.
+- Row background uses the selected option color in the frozen-left section.
+- Row background uses the selected option color in the scrollable-right section.
+- The row surface on top of the color wrapper stays transparent, so the
+  decoration color is actually painted (grouped rows previously painted an
+  opaque background over it).
 - No row loading spinner is shown because row coloring is loaded from the saved
   view decoration.
 
@@ -1081,11 +1095,13 @@ flat/group-by runs, the same way filters and sorts do.
   by 4.7.1a–4.7.1b.
 - 5.3.x: OR filter combinations and filter groups.
 - 7.x: Group-by standalone behavior not yet automated — each group renders its
-  own add-row line and adding from a non-first group lands in that group;
-  collapse/expand state persists across reload and is re-projected (kept on
-  trailing-level add/remove, reset on reorder/replace); nested multi-level
-  group-by collapse/expand, counts, and add-row; lazy-loading rows when scrolling
-  deep into a large group (covered by unit tests, not e2e).
+  own add-row line and adding from a non-first group lands in that group; the
+  add-row line keeps the small row height at medium/large row heights (covered
+  by unit tests, not e2e); collapse/expand state persists across reload and is
+  re-projected (kept on trailing-level add/remove, reset on reorder/replace);
+  nested multi-level group-by collapse/expand, counts, and add-row;
+  lazy-loading rows when scrolling deep into a large group (covered by unit
+  tests, not e2e).
 - 9.1.x: Row coloring from a formula-based decoration (section 9.1 covers
   single-select only).
 - 9.4.x: Freeze columns drag UI and limits.

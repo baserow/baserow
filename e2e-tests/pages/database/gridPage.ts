@@ -1139,6 +1139,30 @@ export class GridPage {
   }
 
   /**
+   * Assert the decoration color actually paints: the row element stacked on top
+   * of the colored `.grid-view__row-background-wrapper` must keep a transparent
+   * background in both grid sections, otherwise the wrapper color is hidden
+   * even though the color class is applied.
+   */
+  async expectRowBackgroundNotObscured(rowIndex: number): Promise<void> {
+    const transparent = "rgba(0, 0, 0, 0)";
+    await expect(
+      this.page
+        .locator(
+          ".grid-view__left .grid-view__row-background-wrapper > .grid-view__row",
+        )
+        .nth(rowIndex),
+    ).toHaveCSS("background-color", transparent, { timeout: 10_000 });
+    await expect(
+      this.page
+        .locator(
+          ".grid-view__right .grid-view__row-background-wrapper > .grid-view__row",
+        )
+        .nth(rowIndex),
+    ).toHaveCSS("background-color", transparent, { timeout: 10_000 });
+  }
+
+  /**
    * Assert that an error toast is visible.
    *
    * Baserow toasts render as:

@@ -1,6 +1,7 @@
 import {
   HEADER_HEIGHT,
   ROW_HEIGHT,
+  ADD_ROW_HEIGHT,
   GROUP_GAP,
   buildLayout,
   pathKey,
@@ -140,6 +141,49 @@ describe('gridGroupByRender', () => {
         expect.objectContaining({ rowCount: 1, firstGlobalRowOffset: 2 }),
       ])
     )
+  })
+
+  test('add-row trailers keep the small height when the view row height is larger', () => {
+    const fields = [textField(1)]
+    const rowHeight = 99
+
+    const treeLayout = buildLayout({
+      nodes: [{ path: { field_1: 'A' }, depth: 0, row_count: 2 }],
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+      rowHeight,
+    })
+    const [, treeSection, treeAddRow] = treeLayout.items
+    expect(treeSection.height).toBe(2 * rowHeight)
+    expect(treeAddRow.height).toBe(ADD_ROW_HEIGHT)
+    expect(treeAddRow.y).toBe(HEADER_HEIGHT + 2 * rowHeight)
+    expect(treeLayout.totalHeight).toBe(
+      HEADER_HEIGHT + 2 * rowHeight + ADD_ROW_HEIGHT
+    )
+
+    const pagedLayout = buildLayout({
+      pages: {
+        '': {
+          parentPath: {},
+          totalSiblingCount: 1,
+          nodes: {
+            0: {
+              path: { field_1: 'A' },
+              depth: 0,
+              row_count: 2,
+              sibling_index: 0,
+              row_offset: 0,
+            },
+          },
+        },
+      },
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+      rowHeight,
+    })
+    const pagedAddRow = pagedLayout.items.find((item) => item.type === 'addRow')
+    expect(pagedAddRow.height).toBe(ADD_ROW_HEIGHT)
+    expect(pagedAddRow.y).toBe(HEADER_HEIGHT + 2 * rowHeight)
   })
 
   test('buildLayout skips collapsed descendants', () => {
