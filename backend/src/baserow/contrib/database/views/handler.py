@@ -4052,9 +4052,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param limit: The maximum number of siblings to return.
         :param parent_row_offset: The optional precomputed absolute row offset of
             the parent group.
-        :param aggregations_only: When ``True`` only ``path`` + ``aggregations`` are
-            returned, skipping the window-function layout (row count, sibling index,
-            row offset). Used by the lean values-only refresh.
+        :param aggregations_only: When ``True`` only ``path`` + ``row_count`` +
+            ``aggregations`` are returned, skipping the window-function layout
+            (sibling index and row offset). Used by the lean values-only refresh.
         :return: The paginated group-by data response.
         """
 
@@ -5028,10 +5028,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         aggregations: Optional[List[Tuple[Field, str]]],
     ) -> Dict[str, Any]:
         """
-        Builds a lean group page with only ``path`` (+ ``children_count``) and
-        ``aggregations``, skipping the window-function layout (row count, sibling
-        index, row offset). The grouped query runs without the windowed wrapper, so
-        the values-only refresh doesn't recompute layout it already has.
+        Builds a lean group page with only ``path``, ``row_count``
+        (+ ``children_count``) and ``aggregations``, skipping the window-function
+        layout (sibling index and row offset). The grouped query runs without the
+        windowed wrapper, so the values-only refresh doesn't recompute layout it
+        already has.
         ``children_count`` is kept so the descendant fan-out can still recurse.
         """
 
@@ -5041,7 +5042,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             path = {
                 field.db_column: entry[field.db_column] for field in fields[: depth + 1]
             }
-            group: Dict[str, Any] = {"path": path, "depth": depth}
+            group: Dict[str, Any] = {
+                "path": path,
+                "depth": depth,
+                "row_count": entry["row_count"],
+            }
             if "children_count" in entry:
                 group["children_count"] = entry["children_count"]
             if aggregations:

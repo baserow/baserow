@@ -262,11 +262,12 @@ describe('GridViewGroupByBanner aggregations', () => {
   const amountField = { id: 2, name: 'Amount', type: 'number' }
   const sizeField = { id: 3, name: 'Size', type: 'number' }
 
-  const header = (aggregations) => ({
+  const header = (aggregations, aggregationRowCount = undefined) => ({
     type: 'header',
     depth: 0,
     path: { field_1: 'Green' },
     rowCount: 2,
+    aggregationRowCount,
     y: 0,
     height: 48,
     collapsed: false,
@@ -299,6 +300,14 @@ describe('GridViewGroupByBanner aggregations', () => {
     expect(cell.props('rawValue')).toBe(30)
     expect(cell.props('rowCount')).toBe(2)
     expect(cell.props('field')).toEqual(amountField)
+  })
+
+  test('passes the server-confirmed aggregation row count separately', async () => {
+    const wrapper = await mountBanner(header({ field_2: 30 }, 1))
+
+    const cell = wrapper.findComponent(GridViewGroupByAggregation)
+    expect(cell.props('rowCount')).toBe(2)
+    expect(cell.props('aggregationRowCount')).toBe(1)
   })
 
   test('passes an undefined raw value when the group has no value for the field', async () => {

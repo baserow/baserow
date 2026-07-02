@@ -493,6 +493,34 @@ describe('gridGroupBy node helpers', () => {
       ])
     })
 
+    test('preserves the confirmed aggregation row count on an optimistic count update', () => {
+      const nodes = [
+        {
+          path: { field_1: 'A' },
+          depth: 0,
+          row_count: 2,
+          aggregations: { field_2: 1 },
+        },
+      ]
+      const result = updateGroupByTreeNodesForPath(
+        nodes,
+        { field_1: 'A' },
+        fields,
+        1,
+        groupBys,
+        registry
+      )
+      expect(result).toEqual([
+        {
+          path: { field_1: 'A' },
+          depth: 0,
+          row_count: 3,
+          aggregations: { field_2: 1 },
+          aggregation_row_count: 2,
+        },
+      ])
+    })
+
     test('inserts a new node in sorted order on a positive delta', () => {
       const nodes = [
         { path: { field_1: 'A' }, depth: 0, row_count: 1 },
@@ -707,6 +735,41 @@ describe('gridGroupBy paged tree maintenance', () => {
       // B's offset shifts because A now has one more row.
       expect(result.nodes[1].row_offset).toBe(3)
       expect(result.totalSiblingCount).toBe(2)
+    })
+
+    test('preserves the confirmed aggregation row count on a paged optimistic count update', () => {
+      const page = {
+        nodes: {
+          0: {
+            path: { field_1: 'A' },
+            depth: 0,
+            row_count: 2,
+            sibling_index: 0,
+            row_offset: 0,
+            aggregations: { field_2: 1 },
+          },
+        },
+        totalSiblingCount: 1,
+        rowOffset: 0,
+      }
+      const result = updateGroupByDataPageForPath({
+        page,
+        path: { field_1: 'A' },
+        fields,
+        depth: 0,
+        delta: 1,
+        groupBys,
+        registry,
+      })
+      expect(result.nodes[0]).toEqual({
+        path: { field_1: 'A' },
+        depth: 0,
+        row_count: 3,
+        sibling_index: 0,
+        row_offset: 0,
+        aggregations: { field_2: 1 },
+        aggregation_row_count: 2,
+      })
     })
 
     test('increments a matching node without densifying sparse loaded windows', () => {

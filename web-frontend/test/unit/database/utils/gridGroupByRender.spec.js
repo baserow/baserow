@@ -220,6 +220,7 @@ describe('gridGroupByRender', () => {
           path: { field_1: 'A' },
           depth: 0,
           row_count: 2,
+          aggregation_row_count: 1,
           aggregations: { field_2: 30 },
         },
         { path: { field_1: 'B' }, depth: 0, row_count: 1 },
@@ -230,7 +231,10 @@ describe('gridGroupByRender', () => {
 
     const headers = layout.items.filter((item) => item.type === 'header')
     expect(headers[0].aggregations).toStrictEqual({ field_2: 30 })
+    expect(headers[0].rowCount).toBe(2)
+    expect(headers[0].aggregationRowCount).toBe(1)
     expect(headers[1].aggregations).toBe(null)
+    expect(headers[1].aggregationRowCount).toBe(1)
   })
 
   test('renderViewport preserves header aggregations', () => {
@@ -241,6 +245,7 @@ describe('gridGroupByRender', () => {
           path: { field_1: 'A' },
           depth: 0,
           row_count: 1,
+          aggregation_row_count: 2,
           aggregations: { field_2: 5 },
         },
       ],
@@ -257,6 +262,7 @@ describe('gridGroupByRender', () => {
 
     const header = items.find((item) => item.type === 'header')
     expect(header.aggregations).toStrictEqual({ field_2: 5 })
+    expect(header.aggregationRowCount).toBe(2)
   })
 
   test('buildLayout skips collapsed descendants', () => {

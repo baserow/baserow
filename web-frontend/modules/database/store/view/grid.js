@@ -152,6 +152,50 @@ function rowHasViewWarning(row) {
   )
 }
 
+function hasConfiguredGroupAggregation(fieldOptions) {
+  return Object.values(fieldOptions || {}).some(
+    (options) => options.aggregation_raw_type
+  )
+}
+
+function groupAggregationPathKeysForPaths(pathsWithFields) {
+  const loadingPaths = []
+  for (const { path, fields } of pathsWithFields) {
+    const depth = getGroupByPathDepth(path, fields)
+    for (let pathDepth = 0; pathDepth < depth; pathDepth += 1) {
+      loadingPaths.push(
+        pathKey(getGroupByPathPrefix(path, fields, pathDepth), fields)
+      )
+    }
+  }
+  return loadingPaths
+}
+
+function markGroupAggregationPathsLoading(
+  { commit, getters },
+  pathsWithFields
+) {
+  if (
+    pathsWithFields.length === 0 ||
+    !hasConfiguredGroupAggregation(getters.getAllFieldOptions)
+  ) {
+    return []
+  }
+
+  const loadingPaths = new Set(getters.getGroupByAggregationsLoadingPaths)
+  const addedPathKeys = []
+  for (const groupPathKey of groupAggregationPathKeysForPaths(
+    pathsWithFields
+  )) {
+    if (!loadingPaths.has(groupPathKey)) {
+      addedPathKeys.push(groupPathKey)
+    }
+    loadingPaths.add(groupPathKey)
+  }
+  commit('SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [...loadingPaths])
+  return addedPathKeys
+}
+
 function getGroupByFieldRefsFromState(state) {
   // Skip group-bys whose field was deleted but still lingers in activeGroupBys until
   // the next refresh; keeping them would make pathKey truncate mid-path and the layout
@@ -683,6 +727,13 @@ function moveGroupByRowToValueGroup(
     return false
   }
 
+  if (oldSection && groupChanged) {
+    markGroupAggregationPathsLoading({ commit, getters }, [
+      { path: oldSection.path, fields: groupByFields },
+      { path: newPath, fields: groupByFields },
+    ])
+  }
+
   if (oldLocation) {
     commit('REMOVE_ROW_AT_LOCATION', {
       sectionKey: oldLocation.sectionKey,
@@ -1068,17 +1119,26 @@ export const mutations = {
   // Updates only the loaded group nodes' `aggregations` from a lean response,
   // matched by path so it survives sibling-order changes. Layout untouched.
   UPDATE_GROUP_BY_AGGREGATIONS_FROM_PAGES(state, { pages, fields }) {
-    const aggregationsByPath = {}
+    const aggregationDataByPath = {}
     for (const page of pages) {
       for (const group of page.groups || []) {
-        aggregationsByPath[pathKey(group.path, fields)] =
-          group.aggregations || {}
+        aggregationDataByPath[pathKey(group.path, fields)] = {
+          aggregations: group.aggregations || {},
+          rowCount: group.row_count,
+        }
       }
     }
 
     const applyTo = (node) => {
-      const aggregations = aggregationsByPath[pathKey(node.path, fields)]
-      return aggregations !== undefined ? { ...node, aggregations } : node
+      const data = aggregationDataByPath[pathKey(node.path, fields)]
+      return data !== undefined
+        ? {
+            ...node,
+            aggregations: data.aggregations,
+            aggregation_row_count:
+              data.rowCount ?? node.row_count ?? node.rowCount ?? 0,
+          }
+        : node
     }
 
     const newPages = {}
@@ -1699,7 +1759,13 @@ export const actions = {
   // them in place without rebuilding the layout. Used after an aggregation or row change.
   async refreshGroupByAggregations(
     { commit, getters, rootGetters },
-    { view, fields, fieldId = null, silent = false }
+    {
+      view,
+      fields,
+      fieldId = null,
+      silent = false,
+      clearGroupByAggregationLoadingPaths = false,
+    }
   ) {
     const { $client, $config } = this
     if (!getters.isGroupByMode) {
@@ -1765,6 +1831,9 @@ export const actions = {
       if (lastGroupByAggregationRequest.controller === controller) {
         lastGroupByAggregationRequest.controller = null
         commit('SET_GROUP_BY_AGGREGATIONS_LOADING', false)
+        if (clearGroupByAggregationLoadingPaths) {
+          commit('SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [])
+        }
         if (loadingFieldIds !== null) {
           loadingFieldIds.forEach((id) =>
             commit('SET_FIELD_AGGREGATION_DATA_LOADING', {
@@ -3290,7 +3359,7 @@ export const actions = {
    */
   async fetchAllFieldAggregationData(
     { rootGetters, getters, commit, dispatch },
-    { view, fieldId = null }
+    { view, fieldId = null, clearGroupByAggregationLoadingPaths = false }
   ) {
     const { $registry, $client, $i18n, $config } = this
     const isPublic = rootGetters['page/view/public/getIsPublic']
@@ -3309,6 +3378,7 @@ export const actions = {
           fields: rootGetters['field/getAll'],
           fieldId,
           silent: true,
+          clearGroupByAggregationLoadingPaths,
         })
       }
       return
@@ -4179,16 +4249,19 @@ export const actions = {
             0
         }
 
+        optimisticGroupByTreePaths.push({
+          path: rowPath,
+          fields: groupByFields,
+        })
+        markGroupAggregationPathsLoading({ commit, getters }, [
+          { path: rowPath, fields: groupByFields },
+        ])
         commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
           path: rowPath,
           fields: groupByFields,
           delta: 1,
           registry: $registry,
           display: groupDisplayFromRow(row, groupByFields),
-        })
-        optimisticGroupByTreePaths.push({
-          path: rowPath,
-          fields: groupByFields,
         })
         commit('INSERT_ROW_AT_LOCATION', {
           sectionKey,
@@ -4249,27 +4322,7 @@ export const actions = {
       // value recomputed from the bumped count before the backend returns.
       const hasGroupAggregation =
         optimisticGroupByTreePaths.length > 0 &&
-        Object.values(getters.getAllFieldOptions).some(
-          (options) => options.aggregation_raw_type
-        )
-      if (hasGroupAggregation) {
-        const loadingPaths = new Set()
-        for (const {
-          path,
-          fields: groupByFields,
-        } of optimisticGroupByTreePaths) {
-          const depth = getGroupByPathDepth(path, groupByFields)
-          for (let pathDepth = 0; pathDepth < depth; pathDepth += 1) {
-            loadingPaths.add(
-              pathKey(
-                getGroupByPathPrefix(path, groupByFields, pathDepth),
-                groupByFields
-              )
-            )
-          }
-        }
-        commit('SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [...loadingPaths])
-      }
+        hasConfiguredGroupAggregation(getters.getAllFieldOptions)
 
       dispatch('visibleByScrollTop')
 
@@ -4698,6 +4751,7 @@ export const actions = {
               fields,
               row,
               values,
+              markGroupAggregationsLoading: optimisticUpdate,
             })
           } else {
             // While the edited row stays selected or open in the row edit modal,
@@ -4817,6 +4871,7 @@ export const actions = {
         dispatch('fetchAllFieldAggregationData', {
           view,
           fieldId: field.id,
+          clearGroupByAggregationLoadingPaths: true,
         })
       } catch (error) {
         if (!canUpdateOptimistically) {
@@ -4831,6 +4886,12 @@ export const actions = {
             fields,
             isRowOpenedInModal,
           })
+        }
+        if (
+          getters.isGroupByMode &&
+          hasConfiguredGroupAggregation(getters.getAllFieldOptions)
+        ) {
+          commit('SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [])
         }
         throw error
       }
@@ -5139,7 +5200,15 @@ export const actions = {
    */
   async updatedExistingRow(
     { commit, getters, dispatch, state },
-    { view, fields, row, values, metadata, updatedFieldIds = [] }
+    {
+      view,
+      fields,
+      row,
+      values,
+      metadata,
+      updatedFieldIds = [],
+      markGroupAggregationsLoading = false,
+    }
   ) {
     const { $registry } = this
     const oldRow = clone(row)
@@ -5278,6 +5347,12 @@ export const actions = {
 
     if (getters.isGroupByMode && groupByPathChanged) {
       if (!keepSelectedGroupByRowInPlace) {
+        if (markGroupAggregationsLoading) {
+          markGroupAggregationPathsLoading({ commit, getters }, [
+            { path: oldGroupByPath, fields: groupByFields },
+            { path: newGroupByPath, fields: groupByFields },
+          ])
+        }
         commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
           path: oldGroupByPath,
           fields: groupByFields,

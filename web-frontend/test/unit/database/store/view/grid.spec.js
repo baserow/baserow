@@ -1133,6 +1133,169 @@ describe('Grid view store', () => {
     expect(mockServer.mock.history.get).toHaveLength(0)
   })
 
+  test('updateRowValue spins affected group aggregations before an optimistic group move changes counts', async () => {
+    const optionA = { id: 101, value: 'A', color: 'blue' }
+    const optionB = { id: 102, value: 'B', color: 'green' }
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      {
+        id: 2,
+        name: 'Team',
+        type: 'single_select',
+        select_options: [optionA, optionB],
+      },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    store = testApp.createStore({
+      modules: {
+        grid: gridStore,
+        field: {
+          namespaced: true,
+          getters: { getAll: () => fields },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 2,
+      fieldOptions: {
+        1: {
+          hidden: false,
+          order: 0,
+          aggregation_type: 'not_empty_count',
+          aggregation_raw_type: 'empty_count',
+        },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [
+          {
+            path: { field_2: optionA.id },
+            depth: 0,
+            row_count: 1,
+            aggregations: { field_1: 1 },
+          },
+          {
+            path: { field_2: optionB.id },
+            depth: 0,
+            row_count: 1,
+            aggregations: { field_1: 0 },
+          },
+        ],
+        collapse: { mode: 'expand', paths: [] },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+
+    store.replaceState({ ...store.state, grid: state })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, optionA.id),
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: '',
+          field_2: optionA,
+          _: {
+            ...rowMetadata,
+            persistentId: 'r10',
+          },
+        },
+      ],
+      startPosition: 0,
+    })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, optionB.id),
+      rows: [
+        {
+          id: 11,
+          order: '2.00',
+          field_1: 'Bob',
+          field_2: optionB,
+          _: { ...rowMetadata, persistentId: 'r11' },
+        },
+      ],
+      startPosition: 0,
+    })
+
+    let finishUpdate
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(
+      () =>
+        new Promise((resolve) => {
+          finishUpdate = () =>
+            resolve([
+              200,
+              {
+                items: [{ id: 10, field_2: optionB }],
+                metadata: { updated_field_ids: [2] },
+              },
+            ])
+        })
+    )
+    mockServer.mock.onGet('/database/views/grid/1/group-by-data/').reply(200, {
+      pages: [
+        {
+          parent: {},
+          groups: [
+            {
+              path: { field_2: optionB.id },
+              depth: 0,
+              row_count: 2,
+              aggregations: { field_1: 1 },
+            },
+          ],
+          offset: 0,
+          limit: 40,
+        },
+      ],
+      aggregations: { field_1: 1 },
+    })
+
+    const updatePromise = store.dispatch('grid/updateRowValue', {
+      table: { id: 1 },
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      row: store.getters['grid/getRow'](10),
+      field: fields[1],
+      fields,
+      value: optionB,
+      oldValue: optionA,
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+
+    expect(store.state.grid.groupBy.treeNodes[0].row_count).toBe(0)
+    expect(store.state.grid.groupBy.aggregationsLoadingPaths).toEqual([
+      groupPathKey(2, optionA.id),
+      groupPathKey(2, optionB.id),
+    ])
+
+    finishUpdate()
+    await updatePromise
+    await flushPromises()
+
+    expect(store.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
+  })
+
   test('updateRowValue keeps a modal-open edit in place with a filter warning', async () => {
     const fields = [
       {
@@ -3828,6 +3991,7 @@ describe('Grid view store', () => {
                   {
                     path: { field_2: 'A' },
                     depth: 0,
+                    row_count: 4,
                     aggregations: { field_3: 99 },
                   },
                 ],
@@ -3851,6 +4015,9 @@ describe('Grid view store', () => {
     expect(aggStore.state.grid.groupBy.treeNodes[0].aggregations).toEqual({
       field_3: 99,
     })
+    expect(aggStore.state.grid.groupBy.treeNodes[0].aggregation_row_count).toBe(
+      4
+    )
     expect(aggStore.getters['grid/getAllFieldAggregationData']).toEqual({
       3: { loading: false, value: 99 },
     })
@@ -3906,6 +4073,7 @@ describe('Grid view store', () => {
                       {
                         path: { field_2: 'A' },
                         depth: 0,
+                        row_count: 4,
                         aggregations: { field_3: 99 },
                       },
                     ],
@@ -3937,6 +4105,9 @@ describe('Grid view store', () => {
     expect(aggStore.state.grid.groupBy.treeNodes[0].aggregations).toEqual({
       field_3: 99,
     })
+    expect(aggStore.state.grid.groupBy.treeNodes[0].aggregation_row_count).toBe(
+      4
+    )
   })
 
   test('fetchAllFieldAggregationData makes no request in grouped mode when no aggregation is configured', async () => {

@@ -86,6 +86,7 @@
         :store-prefix="storePrefix"
         :raw-value="aggregationValueFor(field)"
         :row-count="item.rowCount"
+        :aggregation-row-count="item.aggregationRowCount"
         :loading="aggregationLoadingFor(field.id) || groupAggregationsLoading"
         @change="$emit('aggregation-changed', field.id)"
       />

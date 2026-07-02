@@ -77,8 +77,10 @@ class GridViewGroupByDataGroupSerializer(serializers.Serializer):
     row_count = serializers.IntegerField(
         required=False,
         help_text=(
-            "Number of leaf rows descending from this group. Omitted in "
-            "`aggregations_only` mode, which returns no windowed layout."
+            "Number of leaf rows descending from this group. In "
+            "`aggregations_only` mode, this is still returned so derived "
+            "aggregation values can be formatted without using optimistic "
+            "client-side counts."
         ),
     )
     children_count = serializers.IntegerField(

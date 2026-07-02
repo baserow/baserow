@@ -425,9 +425,9 @@ def test_group_by_data_aggregations_only_skips_layout(api_client, data_fixture):
     page = _get_only_page(response)
     group = page["groups"][0]
     assert group["path"] == {f"field_{color.id}": "Green"}
+    assert group["row_count"] == 2
     assert group["aggregations"] == {f"field_{amount.id}": 30}
     # The expensive window-function layout is skipped in lean mode.
-    assert "row_count" not in group
     assert "sibling_index" not in group
     assert "row_offset" not in group
 
@@ -571,6 +571,7 @@ def test_group_by_data_parents_chain_aggregations_only_with_totals(
         for group in root_page["groups"]
         if group["path"] == {f"field_{color.id}": "Blue"}
     )
+    assert blue_group["row_count"] == 2
     assert blue_group["aggregations"] == {f"field_{amount.id}": 30}
     # Lean mode omits the window-function layout.
     assert "row_offset" not in blue_group
@@ -579,6 +580,7 @@ def test_group_by_data_parents_chain_aggregations_only_with_totals(
         f"field_{color.id}": "Blue",
         f"field_{size.id}": "1",
     }
+    assert blue_page["groups"][0]["row_count"] == 2
     assert blue_page["groups"][0]["aggregations"] == {f"field_{amount.id}": 30}
     # Footer total bundled in the same request.
     assert body["aggregations"] == {f"field_{amount.id}": 130}

@@ -38,6 +38,14 @@ describe('GridViewGroupByAggregation', () => {
       2: { aggregation_type: 'sum', aggregation_raw_type: 'sum' },
     })
 
+  const configureNotEmptyCount = () =>
+    store.dispatch('page/view/grid/forceUpdateAllFieldOptions', {
+      2: {
+        aggregation_type: 'not_empty_count',
+        aggregation_raw_type: 'empty_count',
+      },
+    })
+
   const configureDistribution = () =>
     store.dispatch('page/view/grid/forceUpdateAllFieldOptions', {
       2: {
@@ -67,6 +75,20 @@ describe('GridViewGroupByAggregation', () => {
     expect(
       wrapper.find('.grid-view-aggregation__generic-value--loading').exists()
     ).toBe(true)
+  })
+
+  test('formats derived counts with the server-confirmed aggregation row count', async () => {
+    await configureNotEmptyCount()
+
+    const wrapper = await mountCell({
+      rawValue: 1,
+      rowCount: 3,
+      aggregationRowCount: 2,
+    })
+
+    expect(wrapper.find('.grid-view-aggregation__generic-value').text()).toBe(
+      '1'
+    )
   })
 
   test('shows a spinner while loading the first value (none to aggregation)', async () => {

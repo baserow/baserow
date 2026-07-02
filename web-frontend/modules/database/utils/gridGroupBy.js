@@ -293,6 +293,26 @@ export function getGroupByNodeRowCount(node) {
   return node.row_count ?? 0
 }
 
+function hasGroupByNodeAggregations(node) {
+  return (
+    node.aggregations !== undefined ||
+    node.aggregation_row_count !== undefined ||
+    node.aggregationRowCount !== undefined
+  )
+}
+
+function preserveGroupByNodeAggregationRowCount(node) {
+  if (!hasGroupByNodeAggregations(node)) {
+    return {}
+  }
+  return {
+    aggregation_row_count:
+      node.aggregation_row_count ??
+      node.aggregationRowCount ??
+      getGroupByNodeRowCount(node),
+  }
+}
+
 /**
  * Turns a group value into a row-shaped value the sort comparator understands
  * (resolves a single-select id to its option).
@@ -549,6 +569,7 @@ export function updateGroupByTreeNodesForPath(
     updated[existingIndex] = {
       ...current,
       row_count: rowCount,
+      ...preserveGroupByNodeAggregationRowCount(current),
       ...(nodeDisplay && !current.display ? { display: nodeDisplay } : {}),
     }
   }
@@ -618,6 +639,7 @@ export function updateGroupByDataPageForPath({
           updatedNode = {
             ...updatedNode,
             row_count: rowCount,
+            ...preserveGroupByNodeAggregationRowCount(updatedNode),
             ...(nodeDisplay && !node.display ? { display: nodeDisplay } : {}),
           }
         }

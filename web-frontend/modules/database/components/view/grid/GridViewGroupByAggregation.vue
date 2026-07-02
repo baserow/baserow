@@ -110,6 +110,10 @@ export default {
       type: Number,
       default: 0,
     },
+    aggregationRowCount: {
+      type: Number,
+      default: null,
+    },
     loading: {
       type: Boolean,
       default: false,
@@ -177,7 +181,7 @@ export default {
         return undefined
       }
       return this.viewAggregationType.getValue(this.rawValue, {
-        rowCount: this.rowCount,
+        rowCount: this.aggregationRowCount ?? this.rowCount,
         field: this.field,
         fieldType: this.fieldType,
       })
