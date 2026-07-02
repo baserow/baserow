@@ -73,15 +73,14 @@
               </span>
             </div>
           </template>
-          <template v-if="elements.length === 0">
-            <AddElementZone
-              class="add-element-zone--full-height"
-              :page="currentPage"
-              :target-page-place="PAGE_PLACES.CONTENT"
-              :label="$t('pagePreview.emptyMessage')"
-              @add-element="$refs.addElementModal.show()"
-            />
-          </template>
+          <AddElementZone
+            v-if="elements.length === 0"
+            class="page__content add-element-zone--full-height"
+            :page="currentPage"
+            :target-page-place="PAGE_PLACES.CONTENT"
+            :label="$t('pagePreview.emptyMessage')"
+            @add-element="$refs.addElementModal.show()"
+          />
           <template v-else>
             <div
               class="page__content"

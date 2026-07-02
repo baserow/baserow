@@ -151,15 +151,12 @@ describe('PageContent', () => {
     const topStack = wrapper.find('.page__fixed-stack--top')
     const bottomStack = wrapper.find('.page__fixed-stack--bottom')
     const header = wrapper.find('.page__header')
+    const content = wrapper.find('.page__content')
     const footer = wrapper.find('.page__footer')
 
     expect(getRenderedIds(topStack)).toEqual(['44'])
     expect(getRenderedIds(header)).toEqual(['45'])
-    expect(
-      wrapper
-        .findAll('.page > .page-element-stub')
-        .map((element) => element.attributes('data-element-id'))
-    ).toEqual(['42', '43', '46'])
+    expect(getRenderedIds(content)).toEqual(['42', '43', '46'])
     expect(getRenderedIds(footer)).toEqual(['48'])
     expect(getRenderedIds(bottomStack)).toEqual(['47'])
   })

@@ -1,4 +1,6 @@
 .page {
+  display: flex;
+  flex-direction: column;
   background-color: var(--page-background-color, #fff);
   background-image: var(--page-background-image, none);
   background-size: var(--page-background-size, cover);
@@ -11,8 +13,10 @@
 
   .page-preview__scaled & {
     min-height: 100%;
-    display: flex;
-    flex-direction: column;
+  }
+
+  .page__content {
+    flex: 1 0 auto;
   }
 
   .page__fixed-stack {

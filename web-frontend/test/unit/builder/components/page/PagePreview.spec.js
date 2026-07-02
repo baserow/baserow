@@ -260,6 +260,14 @@ describe('PagePreview', () => {
     expect(getRenderedIds(bottomStack)).toEqual(['46'])
   })
 
+  test('renders the empty page add zone in the content section', async () => {
+    const { wrapper } = await mountComponent()
+    const content = wrapper.find('.page__content')
+
+    expect(content.exists()).toBe(true)
+    expect(content.classes()).toContain('add-element-zone--full-height')
+  })
+
   test('renders header and footer separators when only fixed elements exist', async () => {
     const fixedHeader = createElement({
       id: 44,

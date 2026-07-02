@@ -27,16 +27,18 @@
         }"
       />
     </header>
-    <PageElement
-      v-for="element in elements"
-      :key="element.id"
-      :element="element"
-      :mode="mode"
-      :application-context-additions="{
-        page: currentPage,
-        recordIndexPath: [],
-      }"
-    />
+    <div class="page__content">
+      <PageElement
+        v-for="element in elements"
+        :key="element.id"
+        :element="element"
+        :mode="mode"
+        :application-context-additions="{
+          page: currentPage,
+          recordIndexPath: [],
+        }"
+      />
+    </div>
     <footer v-if="normalFooterElements.length !== 0" class="page__footer">
       <PageElement
         v-for="element in normalFooterElements"
