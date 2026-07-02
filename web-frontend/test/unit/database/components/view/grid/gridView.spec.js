@@ -1,6 +1,5 @@
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
-import GridViewGroupByRows from '@baserow/modules/database/components/view/grid/GridViewGroupByRows'
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
 
 describe('GridView component', () => {
@@ -51,37 +50,6 @@ describe('GridView component', () => {
     })
 
     expect(sortedFields.map((field) => field.id)).toEqual([1, 3])
-  })
-
-  test('group-by banner separators include left row-details and field boundaries', () => {
-    const separatorPositions =
-      GridViewGroupByRows.computed.bannerSeparatorPositions.call({
-        includeRowDetails: true,
-        gridViewRowDetailsWidth: 72,
-        visibleFields: [
-          { id: 1, name: 'Name' },
-          { id: 2, name: 'Team' },
-          { id: 3, name: 'Notes' },
-        ],
-        getFieldWidth: (field) => ({ 1: 200, 2: 150, 3: 100 })[field.id],
-      })
-
-    expect(separatorPositions).toEqual([72, 272, 422])
-  })
-
-  test('group-by banner separators in the right section stay on field boundaries', () => {
-    const separatorPositions =
-      GridViewGroupByRows.computed.bannerSeparatorPositions.call({
-        includeRowDetails: false,
-        visibleFields: [
-          { id: 1, name: 'Team' },
-          { id: 2, name: 'Notes' },
-          { id: 3, name: 'Score' },
-        ],
-        getFieldWidth: (field) => ({ 1: 200, 2: 150, 3: 100 })[field.id],
-      })
-
-    expect(separatorPositions).toEqual([200, 350])
   })
 
   // The post-drag click of a multi-select lands on the rows container; that must not

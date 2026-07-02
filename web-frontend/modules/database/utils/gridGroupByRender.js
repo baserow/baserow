@@ -161,6 +161,7 @@ export function buildLayout({
       height: HEADER_HEIGHT,
       collapsed,
       gapAbove,
+      aggregations: node.aggregations ?? null,
     })
     y += HEADER_HEIGHT
 
@@ -381,6 +382,7 @@ function buildPagedLayout({
         height: HEADER_HEIGHT,
         collapsed,
         gapAbove,
+        aggregations: node.aggregations ?? null,
       })
       y += HEADER_HEIGHT
 
@@ -614,6 +616,7 @@ export function renderViewport({
         height: item.height,
         collapsed: item.collapsed,
         gapAbove: item.gapAbove,
+        aggregations: item.aggregations ?? null,
       })
       continue
     }

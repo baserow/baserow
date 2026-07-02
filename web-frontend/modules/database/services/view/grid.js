@@ -157,6 +157,8 @@ export default (client) => {
       descendantLimit = null,
       descendantRowBudget = null,
       groupBy = '',
+      aggregationsOnly = false,
+      includeTotals = false,
     }) {
       const params = new URLSearchParams()
       params.append('offset', offset)
@@ -166,6 +168,12 @@ export default (client) => {
       }
       if (includeDescendants) {
         params.append('include_descendants', 'true')
+      }
+      if (aggregationsOnly) {
+        params.append('aggregations_only', 'true')
+      }
+      if (includeTotals) {
+        params.append('include_totals', 'true')
       }
       if (descendantLimit !== null) {
         params.append('descendant_limit', descendantLimit)

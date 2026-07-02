@@ -17,6 +17,7 @@ from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.schemas import get_error_schema
 from baserow.api.search.serializers import SearchQueryParamSerializer
 from baserow.api.serializers import get_example_pagination_serializer_class
+from baserow.config.settings.utils import str_to_bool
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
@@ -108,6 +109,7 @@ from .serializers import GridViewFilterSerializer, GridViewGroupByDataSerializer
 from .utils import (
     build_group_by_data_response,
     empty_group_by_data_page,
+    get_grid_view_group_by_aggregations,
     parse_adhoc_view_group_bys,
 )
 
@@ -557,9 +559,32 @@ class GridViewGroupByDataView(APIView):
             )
 
         group_by_fields = view_handler.get_group_by_fields(queryset, view_group_bys)
+        aggregations = get_grid_view_group_by_aggregations(view, view_type)
+
+        totals = None
+        if aggregations and str_to_bool(str(request.GET.get("include_totals"))):
+            totals = view_handler.get_view_field_aggregations(
+                request.user,
+                view,
+                search=query_params.get("search"),
+                search_mode=query_params.get("search_mode"),
+                adhoc_filters=adhoc_filters,
+            )
+            totals = {
+                field: (
+                    "NaN" if isinstance(value, Decimal) and value.is_nan() else value
+                )
+                for field, value in totals.items()
+            }
 
         response_data = build_group_by_data_response(
-            view_handler, request, queryset, view_group_bys, group_by_fields
+            view_handler,
+            request,
+            queryset,
+            view_group_bys,
+            group_by_fields,
+            aggregations,
+            totals=totals,
         )
 
         return Response(response_data)
@@ -992,9 +1017,15 @@ class PublicGridViewGroupByDataView(APIView):
             )
 
         group_by_fields = view_handler.get_group_by_fields(queryset, view_group_bys)
+        aggregations = get_grid_view_group_by_aggregations(view, view_type)
 
         response_data = build_group_by_data_response(
-            view_handler, request, queryset, view_group_bys, group_by_fields
+            view_handler,
+            request,
+            queryset,
+            view_group_bys,
+            group_by_fields,
+            aggregations,
         )
 
         return Response(response_data)

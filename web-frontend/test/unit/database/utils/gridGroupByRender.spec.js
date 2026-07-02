@@ -212,6 +212,53 @@ describe('gridGroupByRender', () => {
     expect(pagedAddRow.y).toBe(HEADER_HEIGHT + 2 * rowHeight)
   })
 
+  test('buildLayout carries per-group aggregations onto header items', () => {
+    const fields = [textField(1)]
+    const layout = buildLayout({
+      nodes: [
+        {
+          path: { field_1: 'A' },
+          depth: 0,
+          row_count: 2,
+          aggregations: { field_2: 30 },
+        },
+        { path: { field_1: 'B' }, depth: 0, row_count: 1 },
+      ],
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+    })
+
+    const headers = layout.items.filter((item) => item.type === 'header')
+    expect(headers[0].aggregations).toStrictEqual({ field_2: 30 })
+    expect(headers[1].aggregations).toBe(null)
+  })
+
+  test('renderViewport preserves header aggregations', () => {
+    const fields = [textField(1)]
+    const layout = buildLayout({
+      nodes: [
+        {
+          path: { field_1: 'A' },
+          depth: 0,
+          row_count: 1,
+          aggregations: { field_2: 5 },
+        },
+      ],
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+    })
+
+    const items = renderViewport({
+      layout,
+      sectionRows: new Map(),
+      viewport: { scrollTop: 0, clientHeight: 1000 },
+      fields,
+    })
+
+    const header = items.find((item) => item.type === 'header')
+    expect(header.aggregations).toStrictEqual({ field_2: 5 })
+  })
+
   test('buildLayout skips collapsed descendants', () => {
     const fields = [textField(1), textField(2)]
     const layout = buildLayout({
