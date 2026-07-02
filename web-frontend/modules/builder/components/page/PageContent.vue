@@ -1,11 +1,11 @@
 <template>
   <div class="page">
     <div
-      v-if="headerElementsSection.fixedElements.length !== 0"
+      v-if="fixedHeaderElements.length !== 0"
       class="page__fixed-stack page__fixed-stack--top"
     >
       <PageElement
-        v-for="element in headerElementsSection.fixedElements"
+        v-for="element in fixedHeaderElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -15,12 +15,9 @@
         }"
       />
     </div>
-    <header
-      v-if="headerElementsSection.normalElements.length !== 0"
-      class="page__header"
-    >
+    <header v-if="normalHeaderElements.length !== 0" class="page__header">
       <PageElement
-        v-for="element in headerElementsSection.normalElements"
+        v-for="element in normalHeaderElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -40,12 +37,9 @@
         recordIndexPath: [],
       }"
     />
-    <footer
-      v-if="footerElementsSection.normalElements.length !== 0"
-      class="page__footer"
-    >
+    <footer v-if="normalFooterElements.length !== 0" class="page__footer">
       <PageElement
-        v-for="element in footerElementsSection.normalElements"
+        v-for="element in normalFooterElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -56,11 +50,11 @@
       />
     </footer>
     <div
-      v-if="footerElementsSection.fixedElements.length !== 0"
+      v-if="fixedFooterElements.length !== 0"
       class="page__fixed-stack page__fixed-stack--bottom"
     >
       <PageElement
-        v-for="element in footerElementsSection.fixedElements"
+        v-for="element in fixedFooterElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -116,6 +110,18 @@ export default {
         (section) => section.place === PAGE_PLACES.FOOTER
       )
     },
+    fixedHeaderElements() {
+      return this.getElementsForBehaviour(this.headerElementsSection, true)
+    },
+    normalHeaderElements() {
+      return this.getElementsForBehaviour(this.headerElementsSection, false)
+    },
+    fixedFooterElements() {
+      return this.getElementsForBehaviour(this.footerElementsSection, true)
+    },
+    normalFooterElements() {
+      return this.getElementsForBehaviour(this.footerElementsSection, false)
+    },
   },
   watch: {
     'dimensions.width': {
@@ -130,6 +136,11 @@ export default {
     this.dimensions.targetElement = document.documentElement
   },
   methods: {
+    getElementsForBehaviour(section, isFixed) {
+      return section.elements
+        .filter((elementEntry) => elementEntry.isFixed === isFixed)
+        .map((elementEntry) => elementEntry.element)
+    },
     /**
      * Returns the device type that is the closest to the given observer width.
      * It does this by sorting the device types by order ASC (as we want to start

@@ -18,11 +18,11 @@
       >
         <ThemeProvider class="page">
           <div
-            v-if="headerElementsSection.fixedElements.length !== 0"
+            v-if="fixedHeaderElements.length !== 0"
             class="page__fixed-stack page__fixed-stack--top page__fixed-stack--header"
           >
             <ElementPreview
-              v-for="element in headerElementsSection.fixedElements"
+              v-for="element in fixedHeaderElements"
               :key="element.id"
               :element="element"
               :is-first-element="element.id === firstPreviewElementId"
@@ -39,9 +39,9 @@
               </span>
             </div>
           </div>
-          <template v-if="headerElementsSection.hasElements">
+          <template v-if="headerElementsSection.elements.length !== 0">
             <header
-              v-if="headerElementsSection.normalElements.length !== 0"
+              v-if="normalHeaderElements.length !== 0"
               class="page__header"
               :class="{
                 'page__header--element-selected':
@@ -49,7 +49,7 @@
               }"
             >
               <ElementPreview
-                v-for="element in headerElementsSection.normalElements"
+                v-for="element in normalHeaderElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -63,8 +63,8 @@
             </header>
             <div
               v-if="
-                headerElementsSection.normalElements.length !== 0 ||
-                headerElementsSection.fixedElements.length === 0
+                normalHeaderElements.length !== 0 ||
+                fixedHeaderElements.length === 0
               "
               class="page-preview__separator"
             >
@@ -104,11 +104,11 @@
               />
             </div>
           </template>
-          <template v-if="footerElementsSection.hasElements">
+          <template v-if="footerElementsSection.elements.length !== 0">
             <div
               v-if="
-                footerElementsSection.normalElements.length !== 0 ||
-                footerElementsSection.fixedElements.length === 0
+                normalFooterElements.length !== 0 ||
+                fixedFooterElements.length === 0
               "
               class="page-preview__separator"
             >
@@ -117,7 +117,7 @@
               </span>
             </div>
             <footer
-              v-if="footerElementsSection.normalElements.length !== 0"
+              v-if="normalFooterElements.length !== 0"
               class="page__footer"
               :class="{
                 'page__footer--element-selected':
@@ -125,7 +125,7 @@
               }"
             >
               <ElementPreview
-                v-for="element in footerElementsSection.normalElements"
+                v-for="element in normalFooterElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -139,7 +139,7 @@
             </footer>
           </template>
           <div
-            v-if="footerElementsSection.fixedElements.length !== 0"
+            v-if="fixedFooterElements.length !== 0"
             class="page__fixed-stack page__fixed-stack--bottom page__fixed-stack--footer"
           >
             <div class="page-preview__separator">
@@ -148,7 +148,7 @@
               </span>
             </div>
             <ElementPreview
-              v-for="element in footerElementsSection.fixedElements"
+              v-for="element in fixedFooterElements"
               :key="element.id"
               :element="element"
               :is-first-element="element.id === firstPreviewElementId"
@@ -272,13 +272,25 @@ export default {
         (section) => section.place === PAGE_PLACES.FOOTER
       )
     },
+    fixedHeaderElements() {
+      return this.getElementsForBehaviour(this.headerElementsSection, true)
+    },
+    normalHeaderElements() {
+      return this.getElementsForBehaviour(this.headerElementsSection, false)
+    },
+    fixedFooterElements() {
+      return this.getElementsForBehaviour(this.footerElementsSection, true)
+    },
+    normalFooterElements() {
+      return this.getElementsForBehaviour(this.footerElementsSection, false)
+    },
     firstPreviewElementId() {
       return (
-        this.headerElementsSection.fixedElements[0]?.id ||
-        this.headerElementsSection.normalElements[0]?.id ||
+        this.fixedHeaderElements[0]?.id ||
+        this.normalHeaderElements[0]?.id ||
         this.elements[0]?.id ||
-        this.footerElementsSection.normalElements[0]?.id ||
-        this.footerElementsSection.fixedElements[0]?.id ||
+        this.normalFooterElements[0]?.id ||
+        this.fixedFooterElements[0]?.id ||
         null
       )
     },
@@ -412,6 +424,11 @@ export default {
       actionSelectElement: 'element/select',
       actionMoveElement: 'element/move',
     }),
+    getElementsForBehaviour(section, isFixed) {
+      return section.elements
+        .filter((elementEntry) => elementEntry.isFixed === isFixed)
+        .map((elementEntry) => elementEntry.element)
+    },
     preventScrollIfFocused(e) {
       if (this.$refs.previewScaled === document.activeElement) {
         switch (e.key) {

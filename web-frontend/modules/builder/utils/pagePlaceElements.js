@@ -4,17 +4,19 @@ import {
 } from '@baserow/modules/builder/enums'
 
 /**
- * Groups elements by their registered page place and splits each group by
- * behaviour. The optional places list controls which sections are returned.
+ * Groups elements by page place while keeping the source element untouched.
+ * `isFixed` is derived here so renderers can split a place into fixed and
+ * normal flows without mutating store/API element objects.
  *
  * @param {Array} elements
  * @param {Object} registry
  * @param {Array<string>} places
  * @returns {Array<{
  *   place: string,
- *   hasElements: boolean,
- *   fixedElements: Array,
- *   normalElements: Array
+ *   elements: Array<{
+ *     element: Object,
+ *     isFixed: boolean
+ *   }>
  * }>}
  */
 export function getElementsPerPlace(
@@ -24,9 +26,7 @@ export function getElementsPerPlace(
 ) {
   const elementsPerPlace = places.map((place) => ({
     place,
-    hasElements: false,
-    fixedElements: [],
-    normalElements: [],
+    elements: [],
   }))
   const elementsPerPlaceByPlace = elementsPerPlace.reduce((acc, section) => {
     acc[section.place] = section
@@ -41,13 +41,10 @@ export function getElementsPerPlace(
       return
     }
 
-    section.hasElements = true
-
-    if (element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED) {
-      section.fixedElements.push(element)
-    } else {
-      section.normalElements.push(element)
-    }
+    section.elements.push({
+      element,
+      isFixed: element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
   })
 
   return elementsPerPlace
