@@ -3,7 +3,7 @@
     class="grid-view__group-by-banner"
     :class="{
       'grid-view__group-by-banner--collapsed': item.collapsed,
-      'grid-view__group-by-banner--first-level': item.depth === 0,
+      'grid-view__group-by-banner--gap-above': item.gapAbove,
     }"
     :style="{
       top: item.y + 'px',

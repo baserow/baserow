@@ -104,6 +104,7 @@ describe('GridView component', () => {
         allVisibleFields: navFields,
         fields: navFields,
         $store: { getters: {}, dispatch },
+        scrollToGroupByRowIfNeeded: vi.fn(),
       },
       { row: { id: 10 }, field, direction }
     )

@@ -1393,6 +1393,36 @@ export default {
         fieldId: nextFieldId,
         fields: this.fields,
       })
+
+      this.scrollToGroupByRowIfNeeded(nextRowId, field)
+    },
+    /**
+     * The group-by canvas only renders rows inside the viewport, so a cell selected
+     * outside of it never mounts and can't trigger the usual scroll-into-view via its
+     * `selected` event. Scroll to the row's layout position instead; once visible, the
+     * mounted cell fine-tunes the scroll itself.
+     */
+    scrollToGroupByRowIfNeeded(rowId, field) {
+      if (!this.$store.getters[this.storePrefix + 'view/grid/isGroupByMode']) {
+        return
+      }
+      const range = this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupByRowVerticalRange'
+      ](rowId, this.fields)
+      if (range === null) {
+        return
+      }
+      const scrollTop = this.$refs.right.$refs.body.scrollTop
+      this.scrollToElementRect(
+        {
+          elementTop: range.top - scrollTop,
+          elementBottom: range.bottom - scrollTop,
+          elementLeft: 0,
+          elementRight: 0,
+        },
+        'vertical',
+        field
+      )
     },
     cellSelected({ fieldId, rowId }) {
       this.$store.dispatch(this.storePrefix + 'view/grid/setSelectedCell', {

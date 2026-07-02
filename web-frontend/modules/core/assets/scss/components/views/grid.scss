@@ -490,17 +490,22 @@
   align-items: stretch;
   box-sizing: border-box;
   background: $palette-neutral-50;
-  border-right: 1px solid $palette-neutral-200;
+  border-right: 1px solid $palette-neutral-400;
   border-bottom: 1px solid $palette-neutral-300;
   font-size: 13px;
+
+  .grid-view__left & {
+    border-right: none;
+  }
 }
 
-.grid-view__group-by-banner--first-level {
-  border-top: 1px solid $palette-neutral-300;
+.grid-view__group-by-banner--gap-above {
+  border-top: 1px solid $palette-neutral-400;
 }
 
 .grid-view__group-by-banner--collapsed {
   background: $palette-neutral-100;
+  border-bottom-color: $palette-neutral-400;
 }
 
 .grid-view__group-by-banner-chevron-lane {
@@ -713,15 +718,20 @@
   position: relative;
 }
 
+// `right` stays auto so each element shrink-wraps to its content (the row cells) or
+// its inline width, instead of stretching its background across the full canvas.
 .grid-view__group-by-rows-row,
 .grid-view__group-by-rows-placeholder,
 .grid-view__group-by-rows-add {
-  @include absolute(null, 0, null, 0);
+  @include absolute(null, auto, null, 0);
 }
 
-.grid-view__group-by-rows-row,
 .grid-view__group-by-rows-row .grid-view__row {
   background: $palette-neutral-0;
+}
+
+.grid-view__right .grid-view__group-by-rows-row .grid-view__column:last-child {
+  border-right-color: $palette-neutral-400;
 }
 
 .grid-view__group-by-rows-placeholder {
@@ -751,6 +761,10 @@
       $palette-neutral-0 1px $grid-view-row-height-large
     );
   }
+
+  .grid-view__right & .grid-view__placeholder-column:last-child {
+    border-right-color: $palette-neutral-400;
+  }
 }
 
 .grid-view__group-by-rows-row--warning {
@@ -764,13 +778,16 @@
 .grid-view__group-by-rows-add {
   display: block;
   box-sizing: border-box;
-  width: 100%;
   padding: 0;
   border: 0;
-  border-right: 1px solid $palette-neutral-200;
-  border-bottom: 1px solid $palette-neutral-200;
+  border-right: 1px solid $palette-neutral-400;
+  border-bottom: 1px solid $palette-neutral-400;
   background: $palette-neutral-0;
   cursor: pointer;
+
+  .grid-view__left & {
+    border-right: none;
+  }
 }
 
 .grid-view__row-info {

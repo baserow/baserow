@@ -297,10 +297,81 @@ describe('gridGroupByRender', () => {
       fields,
     })
 
+    const aHeader = layout.items.find(
+      (item) => item.type === 'header' && item.path.field_1 === 'A'
+    )
     const bHeader = layout.items.find(
       (item) => item.type === 'header' && item.path.field_1 === 'B'
     )
+    expect(aHeader.gapAbove).toBe(false)
+    expect(bHeader.gapAbove).toBe(true)
     expect(bHeader.y).toBe(HEADER_HEIGHT + ROW_HEIGHT + ROW_HEIGHT + GROUP_GAP)
+  })
+
+  test('sibling sub-groups stack without a gap', () => {
+    const fields = [textField(1), textField(2)]
+    const layout = buildLayout({
+      nodes: [
+        { path: { field_1: 'A' }, depth: 0, row_count: 2 },
+        { path: { field_1: 'A', field_2: 'X' }, depth: 1, row_count: 1 },
+        { path: { field_1: 'A', field_2: 'Y' }, depth: 1, row_count: 1 },
+      ],
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+    })
+
+    const headerFor = (value) =>
+      layout.items.find(
+        (item) => item.type === 'header' && item.path.field_2 === value
+      )
+    expect(headerFor('X').y).toBe(HEADER_HEIGHT)
+    expect(headerFor('X').gapAbove).toBe(false)
+    expect(headerFor('Y').y).toBe(2 * HEADER_HEIGHT + ROW_HEIGHT + ROW_HEIGHT)
+    expect(headerFor('Y').gapAbove).toBe(false)
+  })
+
+  test('the paged layout also stacks sibling sub-groups without a gap', () => {
+    const fields = [textField(1), textField(2)]
+    const parentKey = pathKey({ field_1: 'A' }, fields)
+    const leaf = (index, value) => ({
+      path: { field_1: 'A', field_2: value },
+      depth: 1,
+      row_count: 1,
+      sibling_index: index,
+      row_offset: index,
+    })
+    const layout = buildLayout({
+      pages: {
+        '': {
+          totalSiblingCount: 1,
+          nodes: {
+            0: {
+              path: { field_1: 'A' },
+              depth: 0,
+              row_count: 2,
+              children_count: 2,
+              sibling_index: 0,
+              row_offset: 0,
+            },
+          },
+        },
+        [parentKey]: {
+          totalSiblingCount: 2,
+          nodes: { 0: leaf(0, 'X'), 1: leaf(1, 'Y') },
+        },
+      },
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+      pageSize: 40,
+    })
+
+    const headerFor = (value) =>
+      layout.items.find(
+        (item) => item.type === 'header' && item.path.field_2 === value
+      )
+    expect(headerFor('X').gapAbove).toBe(false)
+    expect(headerFor('Y').gapAbove).toBe(false)
+    expect(headerFor('Y').y).toBe(2 * HEADER_HEIGHT + ROW_HEIGHT + ROW_HEIGHT)
   })
 
   test('buildLayout supports sparse paged group data', () => {

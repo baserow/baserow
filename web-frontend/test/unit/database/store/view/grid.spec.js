@@ -159,6 +159,19 @@ describe('Grid view store', () => {
       fields: [{ id: 1, primary: true }],
     })
     expect(store.getters['grid/getRow'](12)._.selected).toBe(true)
+
+    // The vertical range follows the layout: header A (48) + two rows + add row
+    // (3 * 33) + the sibling group gap (8) puts header B at 155 and row 12 at 203.
+    const fields = [{ id: 1, primary: true }]
+    expect(
+      store.getters['grid/getGroupByRowVerticalRange'](10, fields)
+    ).toEqual({ top: 48, bottom: 81 })
+    expect(
+      store.getters['grid/getGroupByRowVerticalRange'](12, fields)
+    ).toEqual({ top: 203, bottom: 236 })
+    expect(
+      store.getters['grid/getGroupByRowVerticalRange'](999, fields)
+    ).toBeNull()
   })
 
   // Regression safety net for the grouped-store refactor: flat mode and grouped

@@ -133,7 +133,10 @@ export function buildLayout({
       continue
     }
 
-    if (node.depth === 0 && seenFirstDepth0) {
+    // Only top-level sibling groups are separated by a gap; the first one sits
+    // flush under the head. `gapAbove` also drives the banner's darker top border.
+    const gapAbove = node.depth === 0 && seenFirstDepth0
+    if (gapAbove) {
       y += GROUP_GAP
     }
     if (node.depth === 0) {
@@ -157,6 +160,7 @@ export function buildLayout({
       y,
       height: HEADER_HEIGHT,
       collapsed,
+      gapAbove,
     })
     y += HEADER_HEIGHT
 
@@ -364,7 +368,8 @@ function buildPagedLayout({
         loadedPointer += 1
         continue
       }
-      if (depth === 0 && placedSibling) {
+      const gapAbove = depth === 0 && placedSibling
+      if (gapAbove) {
         y += GROUP_GAP
       }
       placedSibling = true
@@ -387,6 +392,7 @@ function buildPagedLayout({
         y,
         height: HEADER_HEIGHT,
         collapsed,
+        gapAbove,
       })
       y += HEADER_HEIGHT
 
@@ -603,6 +609,7 @@ export function renderViewport({
         y: item.y,
         height: item.height,
         collapsed: item.collapsed,
+        gapAbove: item.gapAbove,
       })
       continue
     }

@@ -129,6 +129,9 @@ function getEmptyGroupByState() {
     sectionRows: {},
     rowLocations: {},
     sectionAccessOrder: [],
+    // pathKey of the group whose add-row button is hovered, so the buttons in the
+    // frozen and scrollable sections highlight together like the flat add-row does.
+    addRowHoverPathKey: null,
     // Threading a parent row_offset to the server is only safe while offsets are
     // server-authoritative; an optimistic mutation clears this until the next load.
     offsetsServerConfirmed: true,
@@ -1007,6 +1010,9 @@ export const mutations = {
   },
   SET_ADD_ROW_HOVER(state, value) {
     state.addRowHover = value
+  },
+  SET_GROUP_BY_ADD_ROW_HOVER(state, pathKey) {
+    state.groupBy.addRowHoverPathKey = pathKey
   },
   /**
    * It will add and remove rows to the state based on the provided values. For example
@@ -3218,6 +3224,9 @@ export const actions = {
   },
   setAddRowHover({ commit }, value) {
     commit('SET_ADD_ROW_HOVER', value)
+  },
+  setGroupByAddRowHover({ commit }, pathKey) {
+    commit('SET_GROUP_BY_ADD_ROW_HOVER', pathKey)
   },
   setSelectedCell({ commit, getters }, { rowId, fieldId, fields }) {
     commit('SET_SELECTED_CELL', { rowId, fieldId })
@@ -5711,6 +5720,9 @@ export const getters = {
   getAddRowHover(state) {
     return state.addRowHover
   },
+  getGroupByAddRowHoverPathKey(state) {
+    return state.groupBy.addRowHoverPathKey
+  },
   getActiveSearchTerm(state) {
     return state.activeSearchTerm
   },
@@ -5912,6 +5924,30 @@ export const getters = {
       fields: groupByFields,
       rowHeight: state.rowHeight,
     })
+  },
+  /**
+   * The vertical pixel range a row occupies in the group-by layout, so the view can
+   * scroll to a row that is outside the viewport and therefore not rendered.
+   */
+  getGroupByRowVerticalRange: (state, getters) => (rowId, fields) => {
+    const location = state.groupBy.rowLocations[rowId]
+    if (!location) {
+      return null
+    }
+    const groupByFields = getGroupByFieldsFromActiveGroupBys(
+      state.activeGroupBys,
+      fields
+    )
+    const section = findGroupByRowSection(
+      getters.getGroupByLayout,
+      location.sectionKey,
+      groupByFields
+    )
+    if (!section) {
+      return null
+    }
+    const top = section.y + location.position * getters.getRowHeight
+    return { top, bottom: top + getters.getRowHeight }
   },
   hasSelectedCell(state, getters) {
     return getters.getAllRows.some((row) => {

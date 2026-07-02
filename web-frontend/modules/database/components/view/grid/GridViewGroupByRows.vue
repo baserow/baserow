@@ -65,7 +65,11 @@
       <div
         v-else-if="item.type === 'placeholder' && shouldRenderRows"
         class="grid-view__group-by-rows-placeholder"
-        :style="{ top: item.y + 'px', height: item.height + 'px' }"
+        :style="{
+          top: item.y + 'px',
+          height: item.height + 'px',
+          width: sectionWidth + 'px',
+        }"
       >
         <div
           v-for="(value, index) in placeholderPositions"
@@ -78,10 +82,19 @@
         v-else-if="item.type === 'addRow' && shouldRenderAddRows"
         type="button"
         class="grid-view__row grid-view__group-by-rows-add"
-        :style="{ top: item.y + 'px', height: item.height + 'px' }"
+        :style="{
+          top: item.y + 'px',
+          height: item.height + 'px',
+          width: sectionWidth + 'px',
+        }"
         @click="addRow($event, item.path)"
+        @mouseover="setAddRowHover(item.path)"
+        @mouseleave="setAddRowHover(null)"
       >
-        <span class="grid-view__add-row">
+        <span
+          class="grid-view__add-row"
+          :class="{ hover: isAddRowHovered(item.path) }"
+        >
           <i
             v-if="includeRowDetails"
             class="grid-view__add-row-icon iconoir-plus"
@@ -216,11 +229,28 @@ export default {
     shouldRenderAddRows() {
       return this.canAddRow && this.shouldRenderRows
     },
+    addRowHoverPathKey() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupByAddRowHoverPathKey'
+      ]
+    },
   },
   methods: {
     addRow(event, path) {
       event.preventFieldCellUnselect = true
       this.$emit('add-row', { groupPath: path })
+    },
+    setAddRowHover(path) {
+      this.$store.dispatch(
+        this.storePrefix + 'view/grid/setGroupByAddRowHover',
+        path === null ? null : pathKey(path, this.groupByFields)
+      )
+    },
+    isAddRowHovered(path) {
+      return (
+        this.addRowHoverPathKey !== null &&
+        this.addRowHoverPathKey === pathKey(path, this.groupByFields)
+      )
     },
     groupSkeletonIndent(depth) {
       return groupBannerIndentPx(
