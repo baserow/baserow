@@ -386,6 +386,7 @@ class _LevelGroupByDataHandler:
         depth,
         offset=0,
         per_parent_limit=40,
+        aggregations=None,
     ):
         self.level_calls.append((depth, [dict(parent) for parent in parents]))
         groups = []

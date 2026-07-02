@@ -1,5 +1,6 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import GridViewGroupByBanner from '@baserow/modules/database/components/view/grid/GridViewGroupByBanner'
+import GridViewGroupByAggregation from '@baserow/modules/database/components/view/grid/GridViewGroupByAggregation'
 
 describe('GridViewGroupByBanner component', () => {
   let testApp = null
@@ -17,6 +18,7 @@ describe('GridViewGroupByBanner component', () => {
       props: {
         groupByFields: [field],
         item: {
+          type: 'header',
           depth: 0,
           path,
           display,
@@ -26,7 +28,8 @@ describe('GridViewGroupByBanner component', () => {
           height: 48,
         },
         includeRowDetails: true,
-        primaryFieldWidth: 200,
+        visibleFields: [field],
+        fieldWidths: { [field.id]: 200 },
         width: 300,
         workspaceId: null,
       },
@@ -52,34 +55,6 @@ describe('GridViewGroupByBanner component', () => {
     })
 
     expect(wrapper.text()).toContain('Row A')
-  })
-
-  test('renders a cell separator at each provided position', async () => {
-    const field = { id: 1, type: 'text', name: 'Name' }
-    const wrapper = await testApp.mount(GridViewGroupByBanner, {
-      props: {
-        groupByFields: [field],
-        item: {
-          depth: 0,
-          path: { field_1: 'A' },
-          display: {},
-          rowCount: 1,
-          collapsed: false,
-          y: 0,
-          height: 48,
-        },
-        includeRowDetails: false,
-        primaryFieldWidth: 0,
-        separatorPositions: [200, 350],
-        width: 500,
-        workspaceId: null,
-      },
-    })
-
-    const separators = wrapper.findAll('.grid-view__group-by-banner-separator')
-    expect(separators).toHaveLength(2)
-    expect(separators.at(0).element.style.left).toBe('199px')
-    expect(separators.at(1).element.style.left).toBe('349px')
   })
 
   test('renders the single select value from the backend display value', async () => {
@@ -165,7 +140,8 @@ describe('GridViewGroupByBanner component', () => {
           height: 48,
         },
         includeRowDetails: true,
-        primaryFieldWidth: 200,
+        visibleFields: [{ id: 1, type: 'text', name: 'Field 1' }],
+        fieldWidths: { 1: 200 },
         rowDetailsWidth,
         width: 300,
         workspaceId: null,
@@ -198,10 +174,134 @@ describe('GridViewGroupByBanner component', () => {
   test('indents the field-name block in lockstep with its chevron', async () => {
     const subGroup = await mountAtDepth(2, 1)
     const labelPadding = parseFloat(
-      subGroup.find('.grid-view__group-by-banner-primary').element.style
+      subGroup.find('.grid-view__group-by-banner-field--primary').element.style
         .paddingLeft
     )
     expect(labelPadding).toBe(chevronPadding(subGroup))
     expect(labelPadding).toBeGreaterThan(12)
+  })
+})
+
+describe('GridViewGroupByBanner aggregations', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  const colorField = { id: 1, name: 'Color', type: 'text' }
+  const amountField = { id: 2, name: 'Amount', type: 'number' }
+  const sizeField = { id: 3, name: 'Size', type: 'number' }
+
+  const header = (aggregations) => ({
+    type: 'header',
+    depth: 0,
+    path: { field_1: 'Green' },
+    rowCount: 2,
+    y: 0,
+    height: 48,
+    collapsed: false,
+    aggregations,
+  })
+
+  const mountBanner = (item, featureEnabled = true) =>
+    testApp.mount(GridViewGroupByBanner, {
+      propsData: {
+        item,
+        groupByFields: [colorField],
+        includeRowDetails: false,
+        width: 200,
+        workspaceId: 1,
+        visibleFields: [amountField],
+        fieldWidths: { [amountField.id]: 200 },
+        view: { id: 1 },
+        storePrefix: 'page/',
+      },
+      global: {
+        mocks: { $featureFlagIsEnabled: () => featureEnabled },
+        stubs: { GridViewGroupByAggregation: true },
+      },
+    })
+
+  test('renders an aggregation cell per visible field with the group value when enabled', async () => {
+    const wrapper = await mountBanner(header({ field_2: 30 }))
+
+    const cell = wrapper.findComponent(GridViewGroupByAggregation)
+    expect(cell.exists()).toBe(true)
+    expect(cell.props('rawValue')).toBe(30)
+    expect(cell.props('rowCount')).toBe(2)
+    expect(cell.props('field')).toEqual(amountField)
+  })
+
+  test('renders no aggregation cell when the feature flag is disabled', async () => {
+    const wrapper = await mountBanner(header({ field_2: 30 }), false)
+
+    expect(wrapper.findComponent(GridViewGroupByAggregation).exists()).toBe(
+      false
+    )
+  })
+
+  test('passes an undefined raw value when the group has no value for the field', async () => {
+    const wrapper = await mountBanner(header({}))
+
+    const cell = wrapper.findComponent(GridViewGroupByAggregation)
+    expect(cell.exists()).toBe(true)
+    expect(cell.props('rawValue')).toBeUndefined()
+  })
+
+  const mountTwoFieldBanner = (aggregations) =>
+    testApp.mount(GridViewGroupByBanner, {
+      propsData: {
+        item: header(aggregations),
+        groupByFields: [colorField],
+        includeRowDetails: false,
+        width: 400,
+        workspaceId: 1,
+        visibleFields: [amountField, sizeField],
+        fieldWidths: { [amountField.id]: 200, [sizeField.id]: 200 },
+        view: { id: 1 },
+        storePrefix: 'page/',
+      },
+      global: {
+        mocks: { $featureFlagIsEnabled: () => true },
+        stubs: { GridViewGroupByAggregation: true },
+      },
+    })
+
+  test('spins only the changed field when a single aggregation is refreshing', async () => {
+    testApp.store.commit('page/view/grid/SET_GROUP_BY_AGGREGATIONS_LOADING', [
+      amountField.id,
+    ])
+    const wrapper = await mountTwoFieldBanner({ field_2: 30, field_3: 5 })
+
+    const cells = wrapper.findAllComponents(GridViewGroupByAggregation)
+    expect(cells[0].props('field')).toEqual(amountField)
+    expect(cells[0].props('loading')).toBe(true)
+    expect(cells[1].props('field')).toEqual(sizeField)
+    expect(cells[1].props('loading')).toBe(false)
+  })
+
+  test('spins every field when all aggregations are refreshing after a row edit', async () => {
+    testApp.store.commit(
+      'page/view/grid/SET_GROUP_BY_AGGREGATIONS_LOADING',
+      true
+    )
+    const wrapper = await mountTwoFieldBanner({ field_2: 30, field_3: 5 })
+
+    const cells = wrapper.findAllComponents(GridViewGroupByAggregation)
+    expect(cells[0].props('loading')).toBe(true)
+    expect(cells[1].props('loading')).toBe(true)
+  })
+
+  test('forwards the changed field id with the aggregation-changed event', async () => {
+    const wrapper = await mountBanner(header({ field_2: 30 }))
+
+    wrapper.findComponent(GridViewGroupByAggregation).vm.$emit('change')
+
+    expect(wrapper.emitted('aggregation-changed')[0]).toEqual([amountField.id])
   })
 })

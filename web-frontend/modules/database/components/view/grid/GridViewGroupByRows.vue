@@ -6,12 +6,15 @@
         :item="item"
         :group-by-fields="groupByFields"
         :include-row-details="includeRowDetails"
-        :primary-field-width="primaryFieldWidth"
         :row-details-width="gridViewRowDetailsWidth"
         :workspace-id="workspaceId"
-        :separator-positions="bannerSeparatorPositions"
         :width="sectionWidth"
+        :visible-fields="visibleFields"
+        :field-widths="fieldWidths"
+        :view="view"
+        :store-prefix="storePrefix"
         @toggle="toggleGroup"
+        @aggregation-changed="onAggregationChanged"
       />
       <div
         v-else-if="item.type === 'row' && shouldRenderRows"
@@ -220,28 +223,6 @@ export default {
       })
       return positions
     },
-    /**
-     * Vertical cell separators inside the group banner, at every internal field
-     * boundary. Only the scrollable-right section gets them: the section edge
-     * already draws the outer border, and the left section's banner content
-     * (chevron, label, count) flows across its columns.
-     */
-    bannerSeparatorPositions() {
-      if (this.includeRowDetails) {
-        return []
-      }
-      const positions = []
-      let x = 0
-      this.visibleFields.slice(0, -1).forEach((field) => {
-        x += this.getFieldWidth(field)
-        positions.push(x)
-      })
-      return positions
-    },
-    primaryFieldWidth() {
-      const primaryField = this.visibleFields[0]
-      return primaryField ? this.getFieldWidth(primaryField) : 0
-    },
     shouldRenderRows() {
       return this.includeRowDetails || this.visibleFields.length > 0
     },
@@ -306,6 +287,20 @@ export default {
             path,
             view: this.view,
             fields: this.allFieldsInTable,
+          }
+        )
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
+    },
+    async onAggregationChanged(fieldId) {
+      try {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/refreshGroupByAggregations',
+          {
+            view: this.view,
+            fields: this.allFieldsInTable,
+            fieldId,
           }
         )
       } catch (error) {

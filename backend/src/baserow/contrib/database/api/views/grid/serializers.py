@@ -90,6 +90,14 @@ class GridViewGroupByDataGroupSerializer(serializers.Serializer):
             "grouped row order."
         )
     )
+    aggregations = serializers.DictField(
+        required=False,
+        help_text=(
+            "Per-group aggregation values keyed by field db_column, mirroring the "
+            "grid view field-aggregations response. Only present for visible fields "
+            "that have a scalar aggregation configured."
+        ),
+    )
 
 
 class GridViewGroupByDataPageSerializer(serializers.Serializer):

@@ -125,6 +125,9 @@ function getEmptyGroupByState() {
     absoluteRows: {},
     revision: 0,
     generation: 0,
+    // True while a lean values-only aggregation refresh is in flight, so the group
+    // header cells show a loading spinner without rebuilding the layout.
+    aggregationsLoading: false,
     collapse: { mode: 'expand', paths: [] },
     collapseInitialized: false,
     sectionRows: {},
@@ -1048,6 +1051,37 @@ export const mutations = {
       ...rowsByOffset,
     }
   },
+  SET_GROUP_BY_AGGREGATIONS_LOADING(state, value) {
+    state.groupBy.aggregationsLoading = value
+  },
+  // Updates only the loaded group nodes' `aggregations` from a lean response,
+  // matched by path so it survives sibling-order changes. Layout untouched.
+  UPDATE_GROUP_BY_AGGREGATIONS_FROM_PAGES(state, { pages, fields }) {
+    const aggregationsByPath = {}
+    for (const page of pages) {
+      for (const group of page.groups || []) {
+        aggregationsByPath[pathKey(group.path, fields)] =
+          group.aggregations || {}
+      }
+    }
+
+    const applyTo = (node) => {
+      const aggregations = aggregationsByPath[pathKey(node.path, fields)]
+      return aggregations !== undefined ? { ...node, aggregations } : node
+    }
+
+    const newPages = {}
+    for (const [pageKey, page] of Object.entries(state.groupBy.pages || {})) {
+      const newNodes = {}
+      for (const [index, node] of Object.entries(page.nodes || {})) {
+        newNodes[index] = applyTo(node)
+      }
+      newPages[pageKey] = { ...page, nodes: newNodes }
+    }
+    state.groupBy.pages = newPages
+    state.groupBy.treeNodes = (state.groupBy.treeNodes || []).map(applyTo)
+    state.groupBy.revision = (state.groupBy.revision || 0) + 1
+  },
   UPDATE_GROUP_BY_TREE_PATH_COUNT(
     state,
     { path, fields, delta, registry, display = null }
@@ -1631,6 +1665,68 @@ const activeGroupByRowsRequests = new Map()
 const lastAggregationRequest = { request: null, controller: null }
 
 export const actions = {
+  // Toggles per-group aggregation loading. A `fieldId` spins one column; omitting it
+  // spins all (a row edit can change any value).
+  setGroupByAggregationsLoading(
+    { commit },
+    { fieldId = null, loading = true }
+  ) {
+    commit(
+      'SET_GROUP_BY_AGGREGATIONS_LOADING',
+      loading ? (fieldId !== null ? [fieldId] : true) : false
+    )
+  },
+  // Lean values-only refresh: refetches per-group values + bundled totals and updates
+  // them in place without rebuilding the layout. Used after an aggregation or row change.
+  async refreshGroupByAggregations(
+    { commit, getters, rootGetters },
+    { view, fields, fieldId = null }
+  ) {
+    const { $client, $config } = this
+    if (!getters.isGroupByMode) {
+      return
+    }
+    const groupByFields = getGroupByFieldsFromActiveGroupBys(
+      getters.getActiveGroupBys,
+      fields
+    )
+    if (groupByFields.length === 0) {
+      return
+    }
+    const gridId = getters.getLastGridId
+    commit(
+      'SET_GROUP_BY_AGGREGATIONS_LOADING',
+      fieldId !== null ? [fieldId] : true
+    )
+    try {
+      const { data } = await GridService($client).fetchGroupByData({
+        gridId,
+        search: getters.getServerSearchTerm,
+        searchMode: getDefaultSearchModeFromEnv($config),
+        publicUrl: rootGetters['page/view/public/getIsPublic'],
+        publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+        filters: getFilters(view, getters.getAdhocFiltering),
+        offset: 0,
+        limit: getters.getBufferRequestSize,
+        includeDescendants: true,
+        descendantLimit: getters.getBufferRequestSize,
+        aggregationsOnly: true,
+        includeTotals: true,
+      })
+      commit('UPDATE_GROUP_BY_AGGREGATIONS_FROM_PAGES', {
+        pages: data.pages || [],
+        fields: groupByFields,
+      })
+      for (const [fieldKey, value] of Object.entries(data.aggregations || {})) {
+        const fieldId = parseInt(fieldKey.replace('field_', ''), 10)
+        if (!isNaN(fieldId)) {
+          commit('SET_FIELD_AGGREGATION_DATA', { fieldId, value })
+        }
+      }
+    } finally {
+      commit('SET_GROUP_BY_AGGREGATIONS_LOADING', false)
+    }
+  },
   async fetchGroupByData(
     { commit, getters, rootGetters, state },
     {
@@ -6062,6 +6158,18 @@ export const getters = {
   // per-call fields array would be a new reference every time and defeat the cache.
   getGroupByLayout(state) {
     return getGroupByLayoutFromState(state)
+  },
+  getGroupByAggregationsLoading(state) {
+    const loading = state.groupBy.aggregationsLoading
+    return (fieldId = null) => {
+      if (loading === true) {
+        return true
+      }
+      if (Array.isArray(loading)) {
+        return fieldId !== null && loading.includes(fieldId)
+      }
+      return false
+    }
   },
   getGroupBySectionRowsMap: (state) => {
     return makeSectionRowsMap(state.groupBy.sectionRows)

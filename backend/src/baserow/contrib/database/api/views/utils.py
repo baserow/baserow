@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type
 
 from django.conf import settings
@@ -491,16 +492,30 @@ def serialize_group_by_data(
         out_group = {
             "path": serialize_path(group["path"]),
             "depth": group["depth"],
-            "row_count": group["row_count"],
-            "sibling_index": group["sibling_index"],
-            "row_offset": group["row_offset"],
         }
+        # Layout keys are omitted in the lean "aggregations only" mode, so only
+        # copy the ones the handler provided.
+        for layout_key in (
+            "row_count",
+            "sibling_index",
+            "row_offset",
+            "children_count",
+        ):
+            if layout_key in group:
+                out_group[layout_key] = group[layout_key]
         # `containers[0]` is the parent, so the groups start at index 1.
         display = serialize_display(group_index + 1)
         if display:
             out_group["display"] = display
-        if "children_count" in group:
-            out_group["children_count"] = group["children_count"]
+        if "aggregations" in group:
+            # Mirror the grid footer: raw values, with Decimal("NaN") replaced by
+            # its literal string since it can't be JSON-serialized.
+            out_group["aggregations"] = {
+                db_column: (
+                    "NaN" if isinstance(value, Decimal) and value.is_nan() else value
+                )
+                for db_column, value in group["aggregations"].items()
+            }
         groups.append(out_group)
 
     return {

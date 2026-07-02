@@ -439,6 +439,8 @@ def get_group_by_data_pages(
     include_descendants: bool = False,
     descendant_limit: int = GROUP_BY_DATA_DEFAULT_LIMIT,
     row_budget: int = GROUP_BY_DATA_DESCENDANT_MAX_GROUPS,
+    aggregations: Optional[List[Tuple[Field, str]]] = None,
+    aggregations_only: bool = False,
 ) -> Tuple[List[Dict[str, Any]], bool]:
     """
     **Parent mode.** Returns bounded group-by pages for the requested parents.
@@ -494,6 +496,8 @@ def get_group_by_data_pages(
                 offset=request["offset"],
                 limit=request["limit"],
                 parent_row_offset=request.get("parent_row_offset"),
+                aggregations=aggregations,
+                aggregations_only=aggregations_only,
             )
             page["parent"] = parent
             group_count += len(page.get("groups", []))
@@ -564,6 +568,7 @@ def get_group_by_data_pages(
                 depth,
                 offset=offset,
                 per_parent_limit=limit,
+                aggregations=aggregations,
             )
 
             # Split the batched groups into one page per parent, making each group's
@@ -646,12 +651,40 @@ def get_group_by_data_pages(
     return pages, truncated
 
 
+def get_grid_view_group_by_aggregations(view, view_type) -> List[Tuple[Field, str]]:
+    """
+    Resolves the per-group aggregations to compute for a grid view's group-by data.
+
+    Reuses the column footer aggregation configuration
+    (``GridViewFieldOptions.aggregation_raw_type``) so a single "Summarize" choice
+    drives both the grid footer and the per-group header values.
+
+    :param view: The grid view to resolve the configured aggregations for.
+    :param view_type: The resolved view type of ``view``.
+    :return: The configured ``(field, aggregation_raw_type)`` pairs, or an empty
+        list when the view type does not support field aggregations.
+    """
+
+    if not getattr(view_type, "can_aggregate_field", False):
+        return []
+    visible_field_ids = {
+        option.field_id for option in view_type.get_visible_field_options_in_order(view)
+    }
+    return [
+        (field.specific, raw_type)
+        for field, raw_type in view_type.get_aggregations(view)
+        if field.id in visible_field_ids
+    ]
+
+
 def build_group_by_data_response(
     view_handler: ViewHandler,
     request: Request,
     queryset: QuerySet,
     view_group_bys: List[ViewGroupBy],
     group_by_fields: List[Field],
+    aggregations: Optional[List[Tuple[Field, str]]] = None,
+    totals: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     **Entry point.** Builds the serialized group-by data response for a grid view.
@@ -666,9 +699,13 @@ def build_group_by_data_response(
     :param queryset: The filtered/searched rows queryset to group.
     :param view_group_bys: The view group-by configuration rows.
     :param group_by_fields: The ordered group-by fields configured on the view.
+    :param totals: The optional table-level aggregations to bundle top-level (when
+        ``include_totals`` was requested), so the client can update the footer from
+        the same request.
     :return: The serialized group-by data response.
     """
 
+    aggregations_only = str_to_bool(str(request.GET.get("aggregations_only")))
     offset = parse_non_negative_int(request.GET.get("offset"), 0)
     limit = min(
         parse_non_negative_int(request.GET.get("limit"), GROUP_BY_DATA_DEFAULT_LIMIT),
@@ -692,6 +729,7 @@ def build_group_by_data_response(
             depth=depth,
             offset=offset,
             limit=limit,
+            aggregations=aggregations,
         )
         pages = split_group_by_depth_page_by_parent(depth_page, group_by_fields)
         truncated = False
@@ -728,6 +766,13 @@ def build_group_by_data_response(
                     if include_descendants
                     else GROUP_BY_DATA_DESCENDANT_MAX_GROUPS
                 ),
+                aggregations=aggregations,
+                aggregations_only=aggregations_only,
             )
 
-    return serialize_group_by_data_pages(pages, group_by_fields, truncated=truncated)
+    response = serialize_group_by_data_pages(
+        pages, group_by_fields, truncated=truncated
+    )
+    if totals is not None:
+        response["aggregations"] = totals
+    return response
