@@ -1897,6 +1897,31 @@ describe('elementTypes tests', () => {
       ).toBeNull()
     })
 
+    test('drag-and-drop between fixed and normal headers is disallowed', () => {
+      const headerType = testApp.$registry.get('element', 'header')
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          element: {
+            id: 341,
+            type: 'header',
+            behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+          },
+          referenceElement: {
+            id: 340,
+            type: 'header',
+            behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+          },
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined) → D&D context
+          pagePlace: 'header',
+          referencePagePlace: 'header',
+        })
+      ).not.toBeNull()
+    })
+
     test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {
       // The empty content drop zone supplies referencePagePlace=content via
       // targetPagePlace, which must keep a header out of the content zone.
@@ -2126,6 +2151,31 @@ describe('elementTypes tests', () => {
           referencePagePlace: 'footer',
         })
       ).toBeNull()
+    })
+
+    test('drag-and-drop between fixed and normal footers is disallowed', () => {
+      const footerType = testApp.$registry.get('element', 'footer')
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          element: {
+            id: 441,
+            type: 'footer',
+            behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+          },
+          referenceElement: {
+            id: 440,
+            type: 'footer',
+            behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+          },
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined) → D&D context
+          pagePlace: 'footer',
+          referencePagePlace: 'footer',
+        })
+      ).not.toBeNull()
     })
 
     test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {

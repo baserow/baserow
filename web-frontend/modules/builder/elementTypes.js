@@ -2328,7 +2328,9 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
   isDisallowedReason({
     builder,
     page,
+    element,
     parentElement,
+    referenceElement,
     beforeElement,
     afterElement,
     pagePlace,
@@ -2344,6 +2346,12 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     if (afterElement === undefined) {
       if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
+      }
+      if (
+        referenceElement &&
+        element?.behaviour !== referenceElement.behaviour
+      ) {
+        return this.app.$i18n.t('elementType.notAllowedLocation')
       }
       return null
     }
@@ -2430,7 +2438,9 @@ export class FooterElementType extends HeaderElementType {
   isDisallowedReason({
     builder,
     page,
+    element,
     parentElement,
+    referenceElement,
     beforeElement,
     afterElement,
     pagePlace,
@@ -2446,6 +2456,12 @@ export class FooterElementType extends HeaderElementType {
     if (afterElement === undefined) {
       if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
+      }
+      if (
+        referenceElement &&
+        element?.behaviour !== referenceElement.behaviour
+      ) {
+        return this.app.$i18n.t('elementType.notAllowedLocation')
       }
       return null
     }
