@@ -620,6 +620,10 @@ function getGroupByRowStateById(state, rowId) {
   return state.groupBy.sectionRows[location.sectionKey]?.[location.position]
 }
 
+function isRowSelected(row) {
+  return row?._?.selected || (row?._?.selectedBy?.length ?? 0) > 0
+}
+
 /**
  * The group path whose tree count a buffered row contributes to. A row kept in
  * place with a move warning still occupies its pre-move section, so the located
@@ -4478,35 +4482,16 @@ export const actions = {
             })
           } else {
             // While the edited row stays selected or open in the row edit modal,
-            // keep it in place with a match warning rather than moving/removing it;
-            // the move/remove is deferred to deselect/modal close (selected-aware
+            // keep it in place with a match warning rather than moving/removing it.
+            // The move/remove is deferred to deselect/modal close (selected-aware
             // refreshRow) or backend confirmation, per the grid-view-test-plan
-            // contract (2.2.1a / 2.2.7a / 2.3.1a / 14.2.x). A changed group-by
-            // value is the exception: the row re-groups immediately so the banner
-            // above it always reflects its actual group.
+            // contract (2.2.1a / 2.2.7a / 2.3.1a / 14.2.x).
             commit('UPDATE_ROW_VALUES', {
               row,
               values: { ...values },
             })
             if (optimisticUpdate) {
               await dispatch('onRowChange', { view, row, fields })
-              const bufferRow = getters.getRow(row.id)
-              if (
-                getters.isGroupByMode &&
-                bufferRow &&
-                moveGroupByRowToValueGroup(
-                  { commit, getters, state },
-                  {
-                    row: bufferRow,
-                    view,
-                    fields,
-                    registry: $registry,
-                    onlyIfGroupChanged: true,
-                  }
-                )
-              ) {
-                await dispatch('onRowChange', { view, row: bufferRow, fields })
-              }
             }
           }
         } else {
@@ -4966,6 +4951,31 @@ export const actions = {
     })
     const oldRowExists = oldMatchesSearch && oldFlags.matchFilters
     const newRowExists = newMatchesSearch && newFlags.matchFilters
+    const groupByFields = getters.isGroupByMode
+      ? getGroupByFieldsFromActiveGroupBys(getters.getActiveGroupBys, fields)
+      : []
+    const oldGroupByPath =
+      groupByFields.length > 0
+        ? getGroupByRowTreePath(
+            state,
+            getters,
+            oldRow,
+            groupByFields,
+            $registry
+          )
+        : null
+    const newGroupByPath =
+      groupByFields.length > 0
+        ? groupPathFromRow(newRow, groupByFields, $registry)
+        : null
+    const groupByPathChanged =
+      groupByFields.length > 0 &&
+      pathKey(oldGroupByPath, groupByFields) !==
+        pathKey(newGroupByPath, groupByFields)
+    const keepSelectedGroupByRowInPlace =
+      getters.isGroupByMode &&
+      groupByPathChanged &&
+      isRowSelected(getters.getRow(newRow.id))
     const getFieldId = (key) => parseInt(key.split('_')[1])
     const clearPendingFieldOperations = () => {
       const fieldIdsToClearPendingOperationsFor = Object.entries(values)
@@ -4987,8 +4997,8 @@ export const actions = {
       // A row outside the view can still be materialized in the buffer when it's
       // kept in place with a match warning (selected or open in the row edit
       // modal). Keep applying value updates so the warned row and its modal stay
-      // in sync with realtime changes, and re-group it right away so the banner
-      // above it always reflects its actual group.
+      // in sync with realtime changes. If it is selected, keep its occupied group
+      // stable until refreshRow handles deselect/modal close.
       const materializedRow = getters.getRow(newRow.id)
       if (materializedRow) {
         commit('UPDATE_ROW_IN_BUFFER', {
@@ -4997,7 +5007,7 @@ export const actions = {
           metadata,
         })
         await dispatch('onRowChange', { view, row: materializedRow, fields })
-        if (getters.isGroupByMode) {
+        if (getters.isGroupByMode && !isRowSelected(materializedRow)) {
           moveGroupByRowToValueGroup(
             { commit, getters, state },
             {
@@ -5041,28 +5051,16 @@ export const actions = {
       return
     }
 
-    if (getters.isGroupByMode) {
-      const groupByFields = getGroupByFieldsFromActiveGroupBys(
-        getters.getActiveGroupBys,
-        fields
-      )
-      const oldPath = getGroupByRowTreePath(
-        state,
-        getters,
-        oldRow,
-        groupByFields,
-        $registry
-      )
-      const newPath = groupPathFromRow(newRow, groupByFields, $registry)
-      if (pathKey(oldPath, groupByFields) !== pathKey(newPath, groupByFields)) {
+    if (getters.isGroupByMode && groupByPathChanged) {
+      if (!keepSelectedGroupByRowInPlace) {
         commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-          path: oldPath,
+          path: oldGroupByPath,
           fields: groupByFields,
           delta: -1,
           registry: $registry,
         })
         commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-          path: newPath,
+          path: newGroupByPath,
           fields: groupByFields,
           delta: 1,
           registry: $registry,
@@ -5142,6 +5140,18 @@ export const actions = {
       { sortedIndex, isFirst, isLast }
     ) => {
       if (getters.isGroupByMode) {
+        if (keepSelectedGroupByRowInPlace) {
+          const materializedRow = getters.getRow(rowId)
+          if (materializedRow) {
+            commit('UPDATE_ROW_IN_BUFFER', {
+              row: materializedRow,
+              values,
+              metadata,
+            })
+          }
+          return
+        }
+
         const oldLocation = state.groupBy.rowLocations[rowId]
 
         if (oldLocation) {
@@ -5234,9 +5244,20 @@ export const actions = {
       }
 
       commit('SET_ROW_MATCH_FILTERS', { row: targetRow, value: matchFilters })
+      let nextMatchSortings = matchSortings
+      if (getters.isGroupByMode && groupByFields.length > 0) {
+        const location = state.groupBy.rowLocations[rowId]
+        const expectedSectionKey = pathKey(
+          groupPathFromRow(targetRow, groupByFields, $registry),
+          groupByFields
+        )
+        const rowOutsideExpectedSection =
+          location && location.sectionKey !== expectedSectionKey
+        nextMatchSortings = rowOutsideExpectedSection ? false : matchSortings
+      }
       commit('SET_ROW_MATCH_SORTINGS', {
         row: targetRow,
-        value: matchSortings,
+        value: nextMatchSortings,
       })
     }
 

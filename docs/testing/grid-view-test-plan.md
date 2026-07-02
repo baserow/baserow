@@ -511,25 +511,25 @@ These simple-field filter cases run in both flat and expanded group-by views.
 ### 2.2.7a Change single-select group-by value
 
 - New single-select value is visible immediately.
-- The row moves to the target group immediately, even while it stays selected,
-  so the banner above it always reflects its actual group.
-- No "Row has moved" warning is shown for a pure group change.
-- Source and target group counters update locally.
+- "Row has moved" is visible immediately.
+- Row remains in its original group while selected.
 - No grid rows GET request is made for the single row update.
-- Deselecting changes nothing further.
+- After deselect, the row moves to the target group.
+- Source and target group counters update locally.
 
 ### 2.2.7b Change single-select group-by value deselected before confirmation
 
-- New single-select value is visible immediately and the row moves to its new
-  group immediately.
-- Deselecting before confirmation changes nothing further.
+- New single-select value is visible immediately with a "Row has moved" warning.
+- Deselecting before confirmation moves the row to its new group immediately.
+- Source and target group counters update locally.
 - The move stays stable after the backend confirms.
 
 ### 2.2.7c Backend returns 500 on single-select group-by change
 
 - PATCH request returns 500.
 - The optimistic group-by value is rolled back to the original option.
-- The row returns to its original group and counters are restored.
+- The "Row has moved" warning clears and the row stays in its original group.
+- Group counters are unchanged.
 - Error toast is visible.
 
 ### 2.3.1a Edit sorted row so it should move and keep it selected
@@ -615,19 +615,19 @@ These simple-field sort cases run in both flat and expanded group-by views.
 - After scrolling to the row's sorted destination, the updated row is visible
   there.
 
-### 2.4.1 Change text group-by value while it stays selected
+### 2.4.1 Change text group-by value deselected before confirmation
 
-- New text value is visible immediately and the row moves to its new group
-  immediately, even while it stays selected.
+- New text value is visible immediately with a "Row has moved" warning.
+- Deselecting before confirmation moves the row to its new group immediately.
 - Source and target group counters update locally.
-- Deselecting changes nothing further.
 - The move stays stable after the backend confirms.
 
 ### 2.4.2 Backend returns 500 on text group-by change
 
 - PATCH request returns 500.
 - The optimistic group-by value is rolled back to the original text.
-- The row returns to its original group and counters are restored.
+- The "Row has moved" warning clears and the row stays in its original group.
+- Group counters are unchanged.
 - Error toast is visible.
 
 ### 2.4.3 Press Escape during text group-by-value edit
@@ -636,12 +636,12 @@ These simple-field sort cases run in both flat and expanded group-by views.
 - No "Row has moved" warning appears.
 - The row stays in its original group and group counters are unchanged.
 
-### 2.4.4a Formula-grouped edit re-groups when the backend responds
+### 2.4.4a Formula-grouped edit shows no warning until backend responds
 
 - Typed value is visible immediately, with the row loading and no warning while
   the request is pending (the formula group cannot be evaluated locally).
-- After the backend responds, the row re-groups immediately, even while it
-  stays selected, and counters update.
+- After the backend responds, the "Row has moved" warning appears.
+- After deselect, the row moves into its new group and counters update.
 
 ### 2.4.4b Formula-grouped edit deselected before confirmation
 

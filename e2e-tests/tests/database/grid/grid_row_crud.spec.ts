@@ -591,7 +591,7 @@ test.describe("2.2.7 Edit single-select group-by", () => {
     await grid.expectGroupByBanner("Development", 1);
   });
 
-  test("2.2.7a changing a selected row category moves it into the new group immediately", async ({
+  test("2.2.7a changing a selected row category warns, then moves it locally on deselect", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -604,20 +604,20 @@ test.describe("2.2.7 Edit single-select group-by", () => {
         await grid.selectSingleSelectOption(0, 0, "Development");
         await pausedUpdate.intercepted;
 
-        // The row re-groups immediately so the banner above it always reflects
-        // its actual group, even while it stays selected.
-        await grid.expectNoGroupByBanner("Design");
-        await grid.expectGroupByBanner("Development", 2);
-        await grid.expectRowCount(2);
         await grid.expectPrimaryText(0, "Rebranding website");
         await grid.expectSingleSelectFieldText(0, 0, "Development");
-        await grid.expectRowNoWarning(0);
+        await grid.expectRowHasWarning(0);
+        await grid.expectRowWarningVisible(0);
+        await grid.expectRowWarningText(0, "Row has moved");
+        await grid.expectGroupByBanner("Design", 1);
+        await grid.expectGroupByBanner("Development", 1);
 
         pausedUpdate.release();
-        await grid.expectNoGroupByBanner("Design");
-        await grid.expectGroupByBanner("Development", 2);
+        await grid.expectRowHasWarning(0);
+        await grid.expectRowWarningText(0, "Row has moved");
 
         await grid.clickAway();
+        await grid.expectNoGroupByBanner("Design");
         await grid.expectGroupByBanner("Development", 2);
         await grid.expectRowCount(2);
         await grid.expectPrimaryText(0, "Rebranding website");
@@ -629,7 +629,7 @@ test.describe("2.2.7 Edit single-select group-by", () => {
     expect(gridViewGets).toEqual([]);
   });
 
-  test("2.2.7b changing a grouped value moves the row before backend confirmation and stays stable after deselect", async ({
+  test("2.2.7b changing a grouped value deselected before confirmation moves the row immediately", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -638,12 +638,14 @@ test.describe("2.2.7 Edit single-select group-by", () => {
     await grid.selectSingleSelectOption(0, 0, "Development");
     await pausedUpdate.intercepted;
     await grid.expectSingleSelectFieldText(0, 0, "Development");
-    await grid.expectNoGroupByBanner("Design");
-    await grid.expectGroupByBanner("Development", 2);
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+    await grid.expectGroupByBanner("Design", 1);
+    await grid.expectGroupByBanner("Development", 1);
 
     await grid.clickAway();
-    // The move already happened at edit time; deselecting before the backend
-    // confirms changes nothing further.
+    // The "Row has moved" warning was visible, so deselecting before the backend
+    // confirms moves the row into its new group immediately.
     await grid.expectNoGroupByBanner("Design");
     await grid.expectGroupByBanner("Development", 2);
     await grid.expectRowCount(2);
@@ -666,13 +668,13 @@ test.describe("2.2.7 Edit single-select group-by", () => {
     await grid.selectSingleSelectOption(0, 0, "Development");
     await pausedUpdate.intercepted;
     await grid.expectSingleSelectFieldText(0, 0, "Development");
-    await grid.expectNoGroupByBanner("Design");
-    await grid.expectGroupByBanner("Development", 2);
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
 
     pausedUpdate.fail();
     await grid.expectErrorToast();
-    // The optimistic group-by value is rolled back and the row returns to its
-    // original group.
+    // The optimistic group-by value is rolled back, the warning clears, and the
+    // row stays in its original group.
     await grid.expectSingleSelectFieldText(0, 0, "Design");
     await grid.expectGroupByBanner("Design", 1);
     await grid.expectGroupByBanner("Development", 1);
@@ -712,7 +714,7 @@ test.describe("2.4 Edit a text group-by value", () => {
     await grid.expectGroupByBanner("B", 1);
   });
 
-  test("2.4.1 changing a text group-by value moves the row immediately while it stays selected", async ({
+  test("2.4.1 changing a text group-by value deselected before confirmation moves the row immediately", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -722,21 +724,17 @@ test.describe("2.4 Edit a text group-by value", () => {
     await grid.type("B");
     await grid.confirmWithTab();
     await pausedUpdate.intercepted;
-    // Alice re-groups from "A" into "B" immediately; visible order becomes
-    // Bob (A), Alice, Carol (B).
-    await grid.expectGroupByBanner("A", 1);
-    await grid.expectGroupByBanner("B", 2);
-    await grid.expectRowCount(3);
-    await grid.expectPrimaryText(0, "Bob");
-    await grid.expectPrimaryText(1, "Alice");
-    await grid.expectPrimaryText(2, "Carol");
-    await grid.expectFieldText(1, 0, "B");
-    await grid.expectRowNoWarning(1);
+    await grid.expectFieldText(0, 0, "B");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
 
     await grid.clickAway();
     await grid.expectGroupByBanner("A", 1);
     await grid.expectGroupByBanner("B", 2);
     await grid.expectRowCount(3);
+    await grid.expectRowNoWarning(0);
 
     pausedUpdate.release();
     await grid.expectNoRowsLoading();
@@ -754,13 +752,12 @@ test.describe("2.4 Edit a text group-by value", () => {
     await grid.type("B");
     await grid.confirmWithTab();
     await pausedUpdate.intercepted;
-    await grid.expectGroupByBanner("A", 1);
-    await grid.expectGroupByBanner("B", 2);
-    await grid.expectFieldText(1, 0, "B");
+    await grid.expectFieldText(0, 0, "B");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
 
     pausedUpdate.fail();
     await grid.expectErrorToast();
-    // The rollback returns the row to its original group.
     await grid.expectFieldText(0, 0, "A");
     await grid.expectGroupByBanner("A", 2);
     await grid.expectGroupByBanner("B", 1);
@@ -817,7 +814,7 @@ test.describe("2.4.4 Edit with formula-field group-by (deferred)", () => {
     await grid.expectGroupByBanner("Short", 1);
   });
 
-  test("2.4.4a paused formula-grouped edit shows typed value immediately and re-groups when the backend responds", async ({
+  test("2.4.4a paused formula-grouped edit shows typed value immediately but no move warning until backend responds", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -837,13 +834,11 @@ test.describe("2.4.4 Edit with formula-field group-by (deferred)", () => {
     await grid.expectGroupByBanner("Short", 1);
 
     pausedUpdate.release();
-    // The formula group arrives with the backend response and the row re-groups
-    // immediately, even while it stays selected.
+    // The "Row has moved" warning appears only after the backend computes the
+    // formula group.
+    await grid.expectRowHasWarning(1);
+    await grid.expectRowWarningText(1, "Row has moved");
     await grid.expectRowNotLoading(1);
-    await grid.expectGroupByBanner("Long", 2);
-    await grid.expectNoGroupByBanner("Short");
-    await grid.expectRowCount(2);
-    await grid.expectRowNoWarning(1);
 
     await grid.clickAway();
     await grid.expectGroupByBanner("Long", 2);

@@ -896,7 +896,117 @@ describe('Grid view store', () => {
     ])
   })
 
-  test('updateRowValue moves a selected single-select group-by edit into its new group immediately', async () => {
+  test('updatedExistingRow keeps a selected group-by change in place with a warning', async () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      count: 3,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        treeNodes: [
+          { path: { field_2: 'A' }, depth: 0, row_count: 2 },
+          { path: { field_2: 'B' }, depth: 0, row_count: 1 },
+        ],
+        truncated: false,
+        collapse: { mode: 'expand', paths: [] },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+
+    store.replaceState({ ...store.state, grid: state })
+
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'A'),
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: 'A',
+          _: {
+            ...rowMetadata,
+            persistentId: 'r10',
+            selected: true,
+            selectedFieldId: 2,
+            selectedBy: [2],
+          },
+        },
+        {
+          id: 11,
+          order: '2.00',
+          field_1: 'Bob',
+          field_2: 'A',
+          _: { ...rowMetadata, persistentId: 'r11' },
+        },
+      ],
+      startPosition: 0,
+    })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'B'),
+      rows: [
+        {
+          id: 12,
+          order: '3.00',
+          field_1: 'Carol',
+          field_2: 'B',
+          _: { ...rowMetadata, persistentId: 'r12' },
+        },
+      ],
+      startPosition: 0,
+    })
+
+    await store.dispatch('grid/updatedExistingRow', {
+      view: {
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      fields,
+      row: store.getters['grid/getRow'](10),
+      values: { field_2: 'B' },
+    })
+
+    const editedRow = store.getters['grid/getRow'](10)
+    expect(editedRow.field_2).toBe('B')
+    expect(editedRow._.matchSortings).toBe(false)
+    expect(
+      store.state.grid.groupBy.sectionRows[groupPathKey(2, 'A')].map(
+        (row) => row.id
+      )
+    ).toEqual([10, 11])
+    expect(
+      store.state.grid.groupBy.sectionRows[groupPathKey(2, 'B')].map(
+        (row) => row.id
+      )
+    ).toEqual([12])
+    expect(store.state.grid.groupBy.treeNodes).toEqual([
+      { path: { field_2: 'A' }, depth: 0, row_count: 2 },
+      { path: { field_2: 'B' }, depth: 0, row_count: 1 },
+    ])
+  })
+
+  test('updateRowValue keeps a selected single-select group-by edit in place', async () => {
     const optionA = { id: 101, value: 'A', color: 'blue' }
     const optionB = { id: 102, value: 'B', color: 'green' }
     const fields = [
@@ -995,33 +1105,30 @@ describe('Grid view store', () => {
       oldValue: optionA,
     })
 
-    // Editing a selected row's group-by value re-groups it immediately so the
-    // banner above it always reflects its actual group; the emptied old group is
-    // kept at row_count 0 for reconciliation and hides.
+    // Editing a selected row's group-by value keeps it in place with a move
+    // warning; the move and count transfer happen on deselect.
     const editedRow = store.getters['grid/getRow'](10)
     expect(editedRow.field_2).toEqual(optionB)
-    expect(editedRow._.matchSortings).toBe(true)
+    expect(editedRow._.matchSortings).toBe(false)
     expect(
-      store.state.grid.groupBy.sectionRows[groupPathKey(2, optionA.id)].filter(
-        (row) => row
+      store.state.grid.groupBy.sectionRows[groupPathKey(2, optionA.id)].map(
+        (row) => row.id
       )
-    ).toEqual([])
+    ).toEqual([10])
     expect(
       store.state.grid.groupBy.sectionRows[groupPathKey(2, optionB.id)].map(
         (row) => row.id
       )
-    ).toEqual([10, 11])
+    ).toEqual([11])
     const nodeA = store.state.grid.groupBy.treeNodes.find(
       (node) => node.path.field_2 === optionA.id
     )
     const nodeB = store.state.grid.groupBy.treeNodes.find(
       (node) => node.path.field_2 === optionB.id
     )
-    expect(nodeA.row_count).toBe(0)
-    expect(nodeB.row_count).toBe(2)
-    // The target node carries a display derived from the row, so the banner can
-    // render the select option without a server round trip.
-    expect(nodeB.display).toEqual({ field_2: optionB })
+    expect(nodeA.row_count).toBe(1)
+    expect(nodeB.row_count).toBe(1)
+    expect(nodeB.display).toBeUndefined()
     expect(mockServer.mock.history.get).toHaveLength(0)
   })
 
@@ -1112,7 +1219,7 @@ describe('Grid view store', () => {
     expect(store.state.grid.rows.map((row) => row.id)).toEqual([10, 11])
   })
 
-  test('updateRowValue re-groups a selected edit optimistically into a not-yet-loaded group', async () => {
+  test('updateRowValue keeps a selected edit in place when the target group is not loaded', async () => {
     const fields = [
       { id: 1, name: 'Name', type: 'text', primary: true },
       { id: 2, name: 'Team', type: 'text' },
@@ -1198,30 +1305,33 @@ describe('Grid view store', () => {
       oldValue: 'A',
     })
 
-    // Editing a selected row's group-by value re-groups it immediately: the new
-    // group's node/header is created optimistically and the emptied old group is
-    // kept at row_count 0 for reconciliation.
+    // Per the contract, the selected edited row stays in its loaded group with a
+    // move warning; no new group/header is created optimistically (that happens
+    // on deselect).
     const editedRow = store.getters['grid/getRow'](10)
     expect(editedRow.field_2).toBe('B')
-    expect(editedRow._.matchSortings).toBe(true)
+    expect(editedRow._.matchSortings).toBe(false)
     expect(
-      store.state.grid.groupBy.sectionRows[groupPathKey(2, 'A')].filter(
-        (row) => row
-      )
-    ).toEqual([])
-    expect(
-      store.state.grid.groupBy.sectionRows[groupPathKey(2, 'B')].map(
+      store.state.grid.groupBy.sectionRows[groupPathKey(2, 'A')].map(
         (row) => row.id
       )
     ).toEqual([10])
-    const nodeA = store.state.grid.groupBy.treeNodes.find(
-      (node) => node.path.field_2 === 'A'
-    )
-    const nodeB = store.state.grid.groupBy.treeNodes.find(
-      (node) => node.path.field_2 === 'B'
-    )
-    expect(nodeA.row_count).toBe(0)
-    expect(nodeB.row_count).toBe(1)
+    expect(
+      store.state.grid.groupBy.sectionRows[groupPathKey(2, 'B')]
+    ).toBeUndefined()
+    expect(store.state.grid.groupBy.treeNodes).toEqual([
+      { path: { field_2: 'A' }, depth: 0, row_count: 1 },
+    ])
+    expect(store.state.grid.groupBy.pages[''].totalSiblingCount).toBe(1)
+    expect(store.state.grid.groupBy.pages[''].nodes).toEqual({
+      0: {
+        path: { field_2: 'A' },
+        depth: 0,
+        row_count: 1,
+        sibling_index: 0,
+        row_offset: 0,
+      },
+    })
   })
 
   test('group-by count updates preserve the backend loaded group order', () => {
@@ -2225,7 +2335,7 @@ describe('Grid view store', () => {
     expect(groupByStore.state.grid.count).toBe(1)
   })
 
-  test('updateRowValue re-groups a filtered-out selected row across two levels', async () => {
+  test('updateRowValue keeps a filtered-out selected group-by edit in its occupied group', async () => {
     const optionB = { id: 102, value: 'B', color: 'green' }
     const fields = [
       {
@@ -2337,9 +2447,8 @@ describe('Grid view store', () => {
       oldValue: null,
     })
 
-    // The filtered-out row keeps its warning but re-groups across both levels;
-    // the emptied "(empty)" nodes stay at 0 and the new nodes carry the count
-    // and the select display.
+    // The filtered-out selected row keeps both warnings in its occupied group;
+    // deselect hides it from there instead of first moving it to a new group.
     const targetSectionKey = pathKey({ field_2: optionB.id, field_3: false }, [
       { id: 2 },
       { id: 3 },
@@ -2348,28 +2457,23 @@ describe('Grid view store', () => {
     expect(row).toBeDefined()
     expect(row._.selected).toBe(true)
     expect(row._.matchFilters).toBe(false)
+    expect(row._.matchSortings).toBe(false)
+    expect(row.field_2).toEqual(optionB)
     expect(
-      store.state.grid.groupBy.sectionRows[targetSectionKey].map((r) => r.id)
+      store.state.grid.groupBy.sectionRows[emptySectionKey].map((r) => r.id)
     ).toEqual([9])
+    expect(
+      store.state.grid.groupBy.sectionRows[targetSectionKey]
+    ).toBeUndefined()
     const nodes = store.state.grid.groupBy.treeNodes.map((node) => ({
       path: node.path,
       row_count: node.row_count,
       display: node.display,
     }))
     expect(nodes).toEqual([
-      { path: { field_2: null }, row_count: 0, display: undefined },
+      { path: { field_2: null }, row_count: 1, display: undefined },
       {
         path: { field_2: null, field_3: false },
-        row_count: 0,
-        display: undefined,
-      },
-      {
-        path: { field_2: optionB.id },
-        row_count: 1,
-        display: { field_2: optionB },
-      },
-      {
-        path: { field_2: optionB.id, field_3: false },
         row_count: 1,
         display: undefined,
       },
