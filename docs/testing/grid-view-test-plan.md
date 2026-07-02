@@ -816,6 +816,32 @@ flat/group-by runs, the same way filters and sorts do.
 - New nested group banners and their counters are visible after the refresh.
 - Total row count is unchanged.
 
+### 7.3.1 Group headers show per-column aggregation summaries
+
+Behind the `group_by_aggregations` feature flag.
+
+- When a column has a "Summarize" aggregation configured, each group header shows
+  that column's aggregation computed over that group's rows, column-aligned under
+  the field, at every group-by depth.
+- The summary is visible whether the group is collapsed or expanded.
+- It respects the view's filters and search, the same scope as the group row count.
+- A column set to the `distribution` aggregation shows no value in group headers;
+  its bottom-footer value is unaffected.
+- The bottom footer still shows the overall total for the column.
+
+### 7.3.2 Hovering a group header to pick or change an aggregation
+
+Behind the `group_by_aggregations` feature flag.
+
+- Hovering a group-by header reveals, per column, the aggregation value or a
+  `+ Summarize` affordance on the hovered column (only the hovered column).
+- Clicking it opens the aggregation menu; choosing a function sets it for the
+  column, so the bottom footer and every group's header show that function
+  together (shared column setting).
+- After choosing — and after editing a row — the affected group values show a
+  brief loading spinner and update in place. The group layout (rows, counts,
+  offsets) is not rebuilt; only the aggregation values change.
+
 ## Search
 
 ### 8.1.1 Search in highlight mode

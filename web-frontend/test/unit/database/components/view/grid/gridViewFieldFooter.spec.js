@@ -16,6 +16,7 @@ describe('Field footer component', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await testApp.afterEach()
   })
 
@@ -168,5 +169,45 @@ describe('Field footer component', () => {
     ).toEqual({ 3: { loading: false, value: 10 } })
 
     expect(wrapper.element).toMatchSnapshot()
+  })
+
+  const mountGroupedFooter = (flagEnabled) => {
+    store.commit('page/view/grid/SET_LAST_GRID_ID', 2)
+    store.commit('page/view/grid/SET_ACTIVE_GROUP_BYS', [{ field: 1 }])
+    return testApp.mount(GridViewFieldFooter, {
+      propsData: {
+        view: { id: 2 },
+        database: { id: 1, workspace: { id: 1 } },
+        field: { id: 3, type: 'text' },
+        storePrefix: 'page/',
+      },
+      global: { mocks: { $featureFlagIsEnabled: () => flagEnabled } },
+    })
+  }
+
+  test('changing the aggregation refreshes the group headers in grouped mode', async () => {
+    const wrapper = await mountGroupedFooter(true)
+    const dispatch = vi.spyOn(store, 'dispatch').mockResolvedValue(undefined)
+
+    await selectValue(wrapper, 2)
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith(
+      'page/view/grid/refreshGroupByAggregations',
+      expect.objectContaining({ fieldId: 3 })
+    )
+  })
+
+  test('changing the aggregation leaves group headers untouched when the flag is off', async () => {
+    const wrapper = await mountGroupedFooter(false)
+    const dispatch = vi.spyOn(store, 'dispatch').mockResolvedValue(undefined)
+
+    await selectValue(wrapper, 2)
+    await flushPromises()
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'page/view/grid/refreshGroupByAggregations',
+      expect.anything()
+    )
   })
 })

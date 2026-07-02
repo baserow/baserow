@@ -31,6 +31,484 @@ def _get_page_by_parent(response_json, parent):
 
 
 @pytest.mark.django_db
+def test_get_group_by_data_computes_per_group_aggregations(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    group_by = data_fixture.create_view_group_by(view=grid, field=color)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Blue", f"field_{amount.id}": 5})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 10})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 20})
+
+    result = ViewHandler().get_group_by_data(
+        model.objects.all(),
+        [group_by],
+        aggregations=[(amount, "sum")],
+    )
+
+    groups = {group["path"][f"field_{color.id}"]: group for group in result["groups"]}
+    assert groups["Blue"]["aggregations"] == {f"field_{amount.id}": 5}
+    assert groups["Green"]["aggregations"] == {f"field_{amount.id}": 30}
+
+
+@pytest.mark.django_db
+def test_get_group_by_data_for_depth_computes_per_group_aggregations(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    size = data_fixture.create_text_field(table=table, name="Size")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    color_group = data_fixture.create_view_group_by(view=grid, field=color)
+    size_group = data_fixture.create_view_group_by(view=grid, field=size)
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{color.id}": "Green",
+            f"field_{size.id}": "S",
+            f"field_{amount.id}": 10,
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{color.id}": "Green",
+            f"field_{size.id}": "S",
+            f"field_{amount.id}": 20,
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{color.id}": "Green",
+            f"field_{size.id}": "L",
+            f"field_{amount.id}": 100,
+        }
+    )
+
+    handler = ViewHandler()
+    aggregations = [(amount, "sum")]
+
+    top = handler.get_group_by_data_for_depth(
+        model.objects.all(),
+        [color_group, size_group],
+        depth=0,
+        aggregations=aggregations,
+    )
+    top_groups = {g["path"][f"field_{color.id}"]: g for g in top["groups"]}
+    assert top_groups["Green"]["aggregations"] == {f"field_{amount.id}": 130}
+
+    leaf = handler.get_group_by_data_for_depth(
+        model.objects.all(),
+        [color_group, size_group],
+        depth=1,
+        aggregations=aggregations,
+    )
+    leaf_groups = {g["path"][f"field_{size.id}"]: g for g in leaf["groups"]}
+    assert leaf_groups["S"]["aggregations"] == {f"field_{amount.id}": 30}
+    assert leaf_groups["L"]["aggregations"] == {f"field_{amount.id}": 100}
+
+
+@pytest.mark.django_db
+def test_group_by_data_endpoint_returns_per_group_aggregations(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {"aggregation_type": "sum", "aggregation_raw_type": "sum"}
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Blue", f"field_{amount.id}": 5})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 10})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 20})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    groups = {g["path"][f"field_{color.id}"]: g for g in page["groups"]}
+    assert groups["Blue"]["aggregations"] == {f"field_{amount.id}": 5}
+    assert groups["Green"]["aggregations"] == {f"field_{amount.id}": 30}
+
+
+@pytest.mark.django_db
+def test_group_by_data_omits_distribution_aggregation(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    label = data_fixture.create_text_field(table=table, name="Label")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {"aggregation_type": "sum", "aggregation_raw_type": "sum"},
+            label.id: {
+                "aggregation_type": "distribution",
+                "aggregation_raw_type": "distribution",
+            },
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{color.id}": "Green",
+            f"field_{amount.id}": 10,
+            f"field_{label.id}": "a",
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{color.id}": "Green",
+            f"field_{amount.id}": 20,
+            f"field_{label.id}": "b",
+        }
+    )
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    group = page["groups"][0]
+    # The distribution aggregation isn't a scalar, so it's omitted per group while
+    # the scalar sum is still returned.
+    assert group["aggregations"] == {f"field_{amount.id}": 30}
+
+
+@pytest.mark.django_db
+def test_group_by_data_computes_link_row_not_empty_count_aggregation(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    related_table = data_fixture.create_database_table(
+        user=user, database=table.database
+    )
+    color = data_fixture.create_text_field(table=table, name="Color")
+    link = data_fixture.create_link_row_field(
+        table=table, link_row_table=related_table, name="Link"
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            link.id: {
+                "aggregation_type": "not_empty_count",
+                "aggregation_raw_type": "not_empty_count",
+            }
+        },
+    )
+
+    related_model = related_table.get_model()
+    related_row = related_model.objects.create()
+    model = table.get_model()
+    linked = model.objects.create(**{f"field_{color.id}": "Green"})
+    getattr(linked, f"field_{link.id}").set([related_row.id])
+    model.objects.create(**{f"field_{color.id}": "Green"})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    group = page["groups"][0]
+    # 1 of the 2 "Green" rows has a linked relation (link-row uses the
+    # AnnotatedAggregation path).
+    assert group["aggregations"] == {f"field_{link.id}": 1}
+
+
+@pytest.mark.django_db
+def test_group_by_data_excludes_aggregations_for_hidden_fields(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    visible_amount = data_fixture.create_number_field(
+        table=table, name="Visible", number_decimal_places=0
+    )
+    hidden_amount = data_fixture.create_number_field(
+        table=table, name="Hidden", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            visible_amount.id: {
+                "aggregation_type": "sum",
+                "aggregation_raw_type": "sum",
+            },
+            hidden_amount.id: {
+                "hidden": True,
+                "aggregation_type": "sum",
+                "aggregation_raw_type": "sum",
+            },
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{color.id}": "Green",
+            f"field_{visible_amount.id}": 10,
+            f"field_{hidden_amount.id}": 99,
+        }
+    )
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    # The hidden field's aggregation is not exposed, matching the grid footer.
+    assert page["groups"][0]["aggregations"] == {f"field_{visible_amount.id}": 10}
+
+
+@pytest.mark.django_db
+def test_public_group_by_data_returns_per_group_aggregations(api_client, data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table, public=True)
+    data_fixture.create_view_group_by(view=grid, field=color)
+
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {"aggregation_type": "sum", "aggregation_raw_type": "sum"}
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 10})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 20})
+
+    url = reverse(
+        "api:database:views:grid:public-group-by-data", kwargs={"slug": grid.slug}
+    )
+    response = api_client.get(url)
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    assert page["groups"][0]["aggregations"] == {f"field_{amount.id}": 30}
+
+
+@pytest.mark.django_db
+def test_group_by_data_aggregations_respect_view_filters(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {"aggregation_type": "sum", "aggregation_raw_type": "sum"}
+        },
+    )
+    data_fixture.create_view_filter(
+        view=grid, field=amount, type="higher_than", value="15"
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 10})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 20})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 30})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    group = page["groups"][0]
+    # Only rows with amount > 15 are counted, matching row_count: 20 + 30 = 50.
+    assert group["row_count"] == 2
+    assert group["aggregations"] == {f"field_{amount.id}": 50}
+
+
+@pytest.mark.django_db
+def test_group_by_data_average_aggregation_returns_decimal(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=2
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {
+                "aggregation_type": "average",
+                "aggregation_raw_type": "average",
+            }
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 10})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 20})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 30})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    assert page["groups"][0]["aggregations"][f"field_{amount.id}"] == 20
+
+
+@pytest.mark.django_db
+def test_group_by_data_aggregations_only_skips_layout(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {"aggregation_type": "sum", "aggregation_raw_type": "sum"}
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 10})
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 20})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(
+        url, {"aggregations_only": "true"}, HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    group = page["groups"][0]
+    assert group["path"] == {f"field_{color.id}": "Green"}
+    assert group["aggregations"] == {f"field_{amount.id}": 30}
+    # The expensive window-function layout is skipped in lean mode.
+    assert "row_count" not in group
+    assert "sibling_index" not in group
+    assert "row_offset" not in group
+
+
+@pytest.mark.django_db
+def test_group_by_data_aggregations_only_with_descendants(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    size = data_fixture.create_number_field(
+        table=table, name="Size", number_decimal_places=0
+    )
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    data_fixture.create_view_group_by(view=grid, field=size)
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {"aggregation_type": "sum", "aggregation_raw_type": "sum"}
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(
+        **{f"field_{color.id}": "Blue", f"field_{size.id}": 1, f"field_{amount.id}": 10}
+    )
+    model.objects.create(
+        **{f"field_{color.id}": "Blue", f"field_{size.id}": 1, f"field_{amount.id}": 20}
+    )
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    # Lean mode skips the layout, so descendant fan-out must not rely on row_offset.
+    response = api_client.get(
+        url,
+        {"aggregations_only": "true", "include_descendants": "true"},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    root_page = _get_page_by_parent(response.json(), {})
+    assert root_page["groups"][0]["aggregations"] == {f"field_{amount.id}": 30}
+    blue_page = _get_page_by_parent(response.json(), {f"field_{color.id}": "Blue"})
+    assert blue_page["groups"][0]["aggregations"] == {f"field_{amount.id}": 30}
+
+
+@pytest.mark.django_db
+def test_group_by_data_include_totals_bundles_table_totals(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {"aggregation_type": "sum", "aggregation_raw_type": "sum"}
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 10})
+    model.objects.create(**{f"field_{color.id}": "Red", f"field_{amount.id}": 20})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(
+        url, {"include_totals": "true"}, HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_200_OK
+    # The cached table-level total is bundled top-level so the frontend updates the
+    # footer from the same request.
+    assert response.json()["aggregations"] == {f"field_{amount.id}": 30}
+
+
+@pytest.mark.django_db
 def test_returns_empty_group_by_data_when_view_has_no_group_by(
     api_client, data_fixture
 ):

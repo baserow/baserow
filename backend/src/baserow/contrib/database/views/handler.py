@@ -4034,6 +4034,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         offset: int = 0,
         limit: int = GROUP_BY_DATA_DEFAULT_LIMIT,
         parent_row_offset: Optional[int] = None,
+        aggregations: Optional[List[Tuple[Field, str]]] = None,
+        aggregations_only: bool = False,
     ) -> Dict[str, Any]:
         """
         Returns one paginated page of group-by sibling groups.
@@ -4050,6 +4052,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param limit: The maximum number of siblings to return.
         :param parent_row_offset: The optional precomputed absolute row offset of
             the parent group.
+        :param aggregations_only: When ``True`` only ``path`` + ``aggregations`` are
+            returned, skipping the window-function layout (row count, sibling index,
+            row offset). Used by the lean values-only refresh.
         :return: The paginated group-by data response.
         """
 
@@ -4074,15 +4079,25 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 "group_count": 0,
             }
 
+        grouped_queryset = self._get_group_by_data_level_queryset(
+            group_by_levels,
+            base_queryset,
+            parent_depth,
+            parent_path,
+            aggregations=aggregations,
+        )
+
+        if aggregations_only:
+            return self._build_aggregations_only_page(
+                grouped_queryset, fields, parent_depth, offset, limit, aggregations
+            )
+
         if parent_row_offset is None:
             parent_row_offset = self._get_group_by_path_row_offset(
                 group_by_levels,
                 base_queryset,
                 parent_path,
             )
-        grouped_queryset = self._get_group_by_data_level_queryset(
-            group_by_levels, base_queryset, parent_depth, parent_path
-        )
         page = self._execute_group_by_data_windowed_query(
             grouped_queryset, parent_row_offset, offset=offset, limit=limit
         )
@@ -4106,6 +4121,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             }
             if "children_count" in entry:
                 group["children_count"] = entry["children_count"]
+            if aggregations:
+                group["aggregations"] = self._extract_group_by_aggregations(
+                    entry, aggregations
+                )
             groups.append(group)
 
         return {
@@ -4122,6 +4141,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         depth: int,
         offset: int = 0,
         limit: int = GROUP_BY_DATA_DEFAULT_LIMIT,
+        aggregations: Optional[List[Tuple[Field, str]]] = None,
     ) -> Dict[str, Any]:
         """
         Returns one paginated page of group-by groups at a global depth.
@@ -4149,7 +4169,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             }
 
         grouped_queryset = self._get_group_by_data_level_queryset(
-            group_by_levels, base_queryset, depth, {}
+            group_by_levels, base_queryset, depth, {}, aggregations=aggregations
         )
         page = self._execute_group_by_data_depth_windowed_query(
             grouped_queryset, fields, depth, offset=offset, limit=limit
@@ -4178,6 +4198,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             }
             if "children_count" in entry:
                 group["children_count"] = entry["children_count"]
+            if aggregations:
+                group["aggregations"] = self._extract_group_by_aggregations(
+                    entry, aggregations
+                )
             groups.append(group)
 
         return {
@@ -4747,6 +4771,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         depth: int,
         offset: int = 0,
         per_parent_limit: int = GROUP_BY_DATA_DEFAULT_LIMIT,
+        aggregations: Optional[List[Tuple[Field, str]]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Returns the children of several parents at one depth in a single query.
@@ -4772,7 +4797,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             return []
 
         grouped_queryset = self._get_group_by_data_level_queryset(
-            group_by_levels, base_queryset, depth, {}, parent_paths=parents
+            group_by_levels,
+            base_queryset,
+            depth,
+            {},
+            parent_paths=parents,
+            aggregations=aggregations,
         )
         rows = self._execute_group_by_data_level_windowed_query(
             grouped_queryset, fields, depth, offset, per_parent_limit
@@ -4797,6 +4827,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             }
             if "children_count" in entry:
                 group["children_count"] = entry["children_count"]
+            if aggregations:
+                group["aggregations"] = self._extract_group_by_aggregations(
+                    entry, aggregations
+                )
             groups.append(group)
 
         return groups
@@ -4808,6 +4842,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         depth: int,
         parent_path: Dict[str, Any],
         parent_paths: Optional[List[Dict[str, Any]]] = None,
+        aggregations: Optional[List[Tuple[Field, str]]] = None,
     ) -> QuerySet:
         """
         Builds the grouped queryset for a single group-by level under one or more parents.
@@ -4889,6 +4924,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 output_field=IntegerField(),
             )
 
+        if aggregations:
+            queryset, aggregation_annotations = self._apply_group_by_data_aggregations(
+                queryset, aggregations, base_queryset.model
+            )
+            annotations.update(aggregation_annotations)
+
         queryset = (
             queryset.values(*field_names, *order_key_names)
             .annotate(**annotations)
@@ -4899,6 +4940,121 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             queryset = queryset.with_cte(cte_with)
 
         return queryset
+
+    @staticmethod
+    def _group_by_data_aggregation_alias(field: Field, raw_type: str) -> str:
+        """
+        Returns the query alias for a per-group aggregation annotation.
+
+        The alias is namespaced to avoid clashing with the group-by columns,
+        ``row_count``/``children_count``, and the order-key annotations.
+        """
+
+        return f"agg_{field.id}_{raw_type}"
+
+    def _apply_group_by_data_aggregations(
+        self,
+        queryset: QuerySet,
+        aggregations: List[Tuple[Field, str]],
+        model: Type[GeneratedTableModel],
+    ) -> Tuple[QuerySet, Dict[str, Any]]:
+        """
+        Builds the per-group aggregation annotations for the grouped level query.
+
+        Each configured aggregation that resolves to a single scalar aggregate is
+        computed once per group, in the same grouped query as ``row_count``.
+        ``AnnotatedAggregation`` aggregations (e.g. empty/not-empty count on
+        link-row fields) require a pre-annotation on the row queryset before the
+        grouping, mirroring the grid footer aggregation handling. Aggregations that
+        are not a single scalar value (``DistributionAggregation`` and the dict-based
+        ``range``) are skipped; they remain available as footer aggregations.
+
+        :param queryset: The row queryset that is about to be grouped.
+        :param aggregations: The configured ``(field, aggregation_raw_type)`` pairs.
+        :param model: The table model the aggregations are computed against.
+        :return: The (possibly pre-annotated) queryset and the mapping of
+            aggregation alias to its aggregate expression.
+        """
+
+        annotations: Dict[str, Any] = {}
+        for field, raw_type in aggregations:
+            aggregation_type = view_aggregation_type_registry.get(raw_type)
+            model_field = model._meta.get_field(field.db_column)
+            aggregation = aggregation_type.get_aggregation(
+                field.db_column, model_field, field
+            )
+            if isinstance(aggregation, (DistributionAggregation, dict)):
+                continue
+            if isinstance(aggregation, AnnotatedAggregation):
+                queryset = queryset.annotate(**aggregation.annotations)
+                aggregation = aggregation.aggregation
+            annotations[self._group_by_data_aggregation_alias(field, raw_type)] = (
+                aggregation
+            )
+        return queryset, annotations
+
+    def _extract_group_by_aggregations(
+        self,
+        entry: Dict[str, Any],
+        aggregations: List[Tuple[Field, str]],
+    ) -> Dict[str, Any]:
+        """
+        Extracts the per-group aggregation values from a grouped query row.
+
+        Only aggregations that were actually computed in the grouped query (and so
+        produced a column in ``entry``) are included, which transparently skips the
+        aggregations dropped by :meth:`_apply_group_by_data_aggregations`.
+
+        :param entry: A single grouped row returned by the windowed query.
+        :param aggregations: The configured ``(field, aggregation_raw_type)`` pairs.
+        :return: A mapping of field ``db_column`` to the group's aggregation value,
+            matching the shape of the grid view footer aggregations response.
+        """
+
+        result: Dict[str, Any] = {}
+        for field, raw_type in aggregations:
+            alias = self._group_by_data_aggregation_alias(field, raw_type)
+            if alias in entry:
+                result[field.db_column] = entry[alias]
+        return result
+
+    def _build_aggregations_only_page(
+        self,
+        grouped_queryset: QuerySet,
+        fields: List[Field],
+        depth: int,
+        offset: int,
+        limit: int,
+        aggregations: Optional[List[Tuple[Field, str]]],
+    ) -> Dict[str, Any]:
+        """
+        Builds a lean group page with only ``path`` (+ ``children_count``) and
+        ``aggregations``, skipping the window-function layout (row count, sibling
+        index, row offset). The grouped query runs without the windowed wrapper, so
+        the values-only refresh doesn't recompute layout it already has.
+        ``children_count`` is kept so the descendant fan-out can still recurse.
+        """
+
+        entries = list(grouped_queryset[offset : offset + limit])
+        groups = []
+        for entry in entries:
+            path = {
+                field.db_column: entry[field.db_column] for field in fields[: depth + 1]
+            }
+            group: Dict[str, Any] = {"path": path, "depth": depth}
+            if "children_count" in entry:
+                group["children_count"] = entry["children_count"]
+            if aggregations:
+                group["aggregations"] = self._extract_group_by_aggregations(
+                    entry, aggregations
+                )
+            groups.append(group)
+        return {
+            "groups": groups,
+            "offset": offset,
+            "limit": limit,
+            "group_count": len(groups),
+        }
 
     def _add_group_by_data_order_key_annotations(
         self, queryset: QuerySet, order_by_args: List[Any]

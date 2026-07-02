@@ -101,6 +101,14 @@ export default {
     return { pendingValueUpdate: false }
   },
   computed: {
+    // Group headers reuse this column's config, but only when the flag is on.
+    groupAggregationsEnabled() {
+      return (
+        typeof this.$featureFlagIsEnabled === 'function' &&
+        this.$featureFlagIsEnabled('group_by_aggregations') &&
+        this.$store.getters[this.storePrefix + 'view/grid/isGroupByMode']
+      )
+    },
     userCanMakeAggregations() {
       return this.$hasPermission(
         'database.table.view.update_field_options',
@@ -207,6 +215,15 @@ export default {
         values.aggregation_raw_type = selectedAggregation.getRawType()
       }
 
+      const syncGroups = this.groupAggregationsEnabled
+      if (syncGroups && values.aggregation_type) {
+        // Spin before the optimistic change so the new label never shows the old value.
+        this.$store.dispatch(
+          this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
+          { fieldId: this.field.id }
+        )
+      }
+
       // Prevent the watcher to trigger while value is not yet saved on server
       this.pendingValueUpdate = true
       try {
@@ -218,8 +235,27 @@ export default {
             readOnly: !this.userCanMakeAggregations,
           }
         )
+      } catch (error) {
+        if (syncGroups) {
+          this.$store.dispatch(
+            this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
+            { loading: false }
+          )
+        }
+        throw error
       } finally {
         this.pendingValueUpdate = false
+      }
+
+      if (syncGroups) {
+        this.$store.dispatch(
+          this.storePrefix + 'view/grid/refreshGroupByAggregations',
+          {
+            view: this.view,
+            fields: this.$store.getters['field/getAll'],
+            fieldId: this.field.id,
+          }
+        )
       }
     },
   },
