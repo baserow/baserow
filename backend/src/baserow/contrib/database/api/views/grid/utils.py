@@ -262,8 +262,8 @@ def hashable_group_by_data_value(value: Any) -> Any:
 
     if isinstance(value, dict):
         return tuple(
-            (key, hashable_group_by_data_value(value))
-            for key, value in sorted(value.items())
+            (key, hashable_group_by_data_value(item))
+            for key, item in sorted(value.items())
         )
     if isinstance(value, list):
         return tuple(hashable_group_by_data_value(item) for item in value)

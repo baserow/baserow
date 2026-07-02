@@ -287,10 +287,10 @@ export function groupByPathsHaveSameParent(leftPath, rightPath, fields, depth) {
 }
 
 /**
- * A node's row count, accepting either `row_count` or `rowCount`.
+ * A node's row count.
  */
 export function getGroupByNodeRowCount(node) {
-  return node.row_count ?? node.rowCount ?? 0
+  return node.row_count ?? 0
 }
 
 /**
@@ -355,30 +355,26 @@ function getGroupBysForNodeDepth(groupBys, fields, depth) {
 }
 
 /**
- * Orders two sibling nodes the way their rows would sort.
+ * Builds a comparator ordering sibling nodes at `depth` the way their rows would
+ * sort, or `null` when there is nothing to sort by. Create it once per loop so the
+ * underlying row sort function isn't rebuilt on every comparison.
  */
-function compareGroupByNodeSiblingOrder(
-  leftNode,
-  rightNode,
-  fields,
-  groupBys,
-  registry
-) {
+function makeGroupByNodeSiblingComparator(fields, groupBys, registry, depth) {
   if (!registry) {
-    return 0
+    return null
   }
 
-  const depth = leftNode.depth ?? 0
   const depthGroupBys = getGroupBysForNodeDepth(groupBys, fields, depth)
   if (depthGroupBys.length === 0) {
-    return 0
+    return null
   }
 
   const sortFunction = getRowSortFunction(registry, [], fields, depthGroupBys)
-  return sortFunction(
-    groupByNodeToSortRow(leftNode, fields, registry),
-    groupByNodeToSortRow(rightNode, fields, registry)
-  )
+  return (leftNode, rightNode) =>
+    sortFunction(
+      groupByNodeToSortRow(leftNode, fields, registry),
+      groupByNodeToSortRow(rightNode, fields, registry)
+    )
 }
 
 /**
@@ -405,6 +401,12 @@ export function findGroupByNodeInsertionIndex(
 ) {
   let insertionIndex = nodes.length
   const depth = node.depth ?? 0
+  const compareSiblings = makeGroupByNodeSiblingComparator(
+    fields,
+    groupBys,
+    registry,
+    depth
+  )
   for (let index = 0; index < nodes.length; index += 1) {
     const current = nodes[index]
     if ((current.depth ?? 0) !== depth) {
@@ -413,15 +415,7 @@ export function findGroupByNodeInsertionIndex(
     if (!groupByPathsHaveSameParent(current.path, node.path, fields, depth)) {
       continue
     }
-    if (
-      compareGroupByNodeSiblingOrder(
-        node,
-        current,
-        fields,
-        groupBys,
-        registry
-      ) < 0
-    ) {
+    if (compareSiblings && compareSiblings(node, current) < 0) {
       return index
     }
     insertionIndex = getAfterGroupByNodeSubtreeIndex(nodes, index)
@@ -431,19 +425,31 @@ export function findGroupByNodeInsertionIndex(
 
 /**
  * Recomputes every node's `sibling_index` and `row_offset` after the tree changes.
+ * Nodes are pre-indexed by parent so sibling lookup stays O(1) per parent instead
+ * of rescanning all nodes at every depth.
  */
 export function reindexGroupByTreeSiblingMetadata(nodes, fields) {
   const updated = nodes.map((node) => ({ ...node }))
+
+  const parentKeyOf = (path, depth) =>
+    `${depth}|${pathKey(path, fields.slice(0, depth))}`
+
+  const siblingsByParent = new Map()
+  for (const node of updated) {
+    const parentKey = parentKeyOf(node.path, node.depth ?? 0)
+    const siblings = siblingsByParent.get(parentKey)
+    if (siblings === undefined) {
+      siblingsByParent.set(parentKey, [node])
+    } else {
+      siblings.push(node)
+    }
+  }
 
   const assign = (parentPath, depth, baseRowOffset) => {
     if (depth >= fields.length) {
       return
     }
-    const siblings = updated.filter(
-      (node) =>
-        (node.depth ?? 0) === depth &&
-        groupByPathsHaveSameParent(node.path, parentPath, fields, depth)
-    )
+    const siblings = siblingsByParent.get(parentKeyOf(parentPath, depth)) || []
     let rowOffset = baseRowOffset
     siblings.forEach((node, index) => {
       node.sibling_index = index
@@ -623,16 +629,15 @@ export function updateGroupByDataPageForPath({
   // sibling index and keep every other node at its real key, so disjoint loaded windows
   // are not compacted (which would make the mid-scroll window read as unloaded).
   const ordered = getOrderedGroupByDataPageNodes(nodes)
-  const firstAfter = ordered.find(
-    ({ node }) =>
-      compareGroupByNodeSiblingOrder(
-        newNode,
-        node,
-        fields,
-        groupBys,
-        registry
-      ) < 0
+  const compareSiblings = makeGroupByNodeSiblingComparator(
+    fields,
+    groupBys,
+    registry,
+    depth
   )
+  const firstAfter = compareSiblings
+    ? ordered.find(({ node }) => compareSiblings(newNode, node) < 0)
+    : undefined
   const insertionSiblingIndex =
     firstAfter !== undefined
       ? (firstAfter.node.sibling_index ?? firstAfter.index)

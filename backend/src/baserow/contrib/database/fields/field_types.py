@@ -2556,11 +2556,18 @@ class LinkRowFieldType(
         )
         id_to_value = {}
         if ids and primary_field_object is not None:
-            for row in related_model.objects.filter(id__in=ids):
+            primary_field_name = primary_field_object["name"]
+            queryset = related_model.objects.filter(id__in=ids)
+            # The linked table's primary can be an m2m field (e.g. multiple
+            # select), and `.only()` raises on non-concrete fields, so only
+            # defer columns when the primary is a concrete column.
+            if related_model._meta.get_field(primary_field_name).concrete:
+                queryset = queryset.only("id", primary_field_name)
+            for row in queryset:
                 id_to_value[row.id] = primary_field_object[
                     "type"
                 ].get_human_readable_value(
-                    getattr(row, primary_field_object["name"]), primary_field_object
+                    getattr(row, primary_field_name), primary_field_object
                 )
         return [
             [

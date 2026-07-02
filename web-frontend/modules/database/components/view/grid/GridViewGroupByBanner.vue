@@ -126,7 +126,7 @@ export default {
       return this.$registry.get('field', this.groupByField.type)
     },
     fieldNameLabel() {
-      return (this.groupByField?.name || '').toUpperCase()
+      return this.groupByField?.name || ''
     },
     groupValue() {
       const field = this.groupByField

@@ -577,6 +577,30 @@ function reindexGroupBySectionPositions(state, sectionKey) {
 }
 
 /**
+ * Copy-splices one section's row array, reassigns `sectionRows` so the change is
+ * reactive, and reindexes the section's positions. Callers must sync `rowLocations`
+ * before calling (reindexing only updates existing entries): add the entry when
+ * inserting a row, delete it when removing one.
+ */
+function spliceGroupBySectionRows(
+  state,
+  sectionKey,
+  position,
+  deleteCount,
+  ...items
+) {
+  const current = state.groupBy.sectionRows[sectionKey]
+    ? [...state.groupBy.sectionRows[sectionKey]]
+    : []
+  current.splice(position, deleteCount, ...items)
+  state.groupBy.sectionRows = {
+    ...state.groupBy.sectionRows,
+    [sectionKey]: current,
+  }
+  reindexGroupBySectionPositions(state, sectionKey)
+}
+
+/**
  * Drops the absolute-offset row cache after an optimistic reposition. A move shifts the
  * absolute offsets of the moved row (and the rows it passed) but doesn't re-key
  * `absoluteRows`, so it would otherwise restore an evicted section at stale offsets.
@@ -876,31 +900,15 @@ export const mutations = {
     setGroupBySectionRowsInto(state.groupBy, state, payload)
   },
   INSERT_ROW_AT_LOCATION(state, { sectionKey, position, row }) {
-    const current = state.groupBy.sectionRows[sectionKey]
-      ? [...state.groupBy.sectionRows[sectionKey]]
-      : []
-    current.splice(position, 0, row)
-    state.groupBy.sectionRows = {
-      ...state.groupBy.sectionRows,
-      [sectionKey]: current,
-    }
     state.groupBy.rowLocations[row.id] = { sectionKey, position }
-    reindexGroupBySectionPositions(state, sectionKey)
+    spliceGroupBySectionRows(state, sectionKey, position, 0, row)
     invalidateGroupByAbsoluteRows(state)
   },
   REMOVE_ROW_AT_LOCATION(state, { sectionKey, position, rowId }) {
-    const current = state.groupBy.sectionRows[sectionKey]
-      ? [...state.groupBy.sectionRows[sectionKey]]
-      : []
-    current.splice(position, 1)
-    state.groupBy.sectionRows = {
-      ...state.groupBy.sectionRows,
-      [sectionKey]: current,
-    }
     if (rowId !== undefined) {
       delete state.groupBy.rowLocations[rowId]
     }
-    reindexGroupBySectionPositions(state, sectionKey)
+    spliceGroupBySectionRows(state, sectionKey, position, 1)
     invalidateGroupByAbsoluteRows(state)
   },
   CLEAR_GROUP_BY_SECTION_ROWS(state) {
@@ -1369,16 +1377,13 @@ export const mutations = {
     if (state.activeGroupBys.length > 0) {
       const location = state.groupBy.rowLocations[row.id]
       if (location) {
-        const current = [
-          ...(state.groupBy.sectionRows[location.sectionKey] || []),
-        ]
-        current.splice(location.position, 1)
-        state.groupBy.sectionRows = {
-          ...state.groupBy.sectionRows,
-          [location.sectionKey]: current,
-        }
         delete state.groupBy.rowLocations[row.id]
-        reindexGroupBySectionPositions(state, location.sectionKey)
+        spliceGroupBySectionRows(
+          state,
+          location.sectionKey,
+          location.position,
+          1
+        )
         state.count--
       }
       return
@@ -1397,16 +1402,13 @@ export const mutations = {
     if (state.activeGroupBys.length > 0) {
       const location = state.groupBy.rowLocations[row.id]
       if (location) {
-        const current = [
-          ...(state.groupBy.sectionRows[location.sectionKey] || []),
-        ]
-        current.splice(location.position, 1)
-        state.groupBy.sectionRows = {
-          ...state.groupBy.sectionRows,
-          [location.sectionKey]: current,
-        }
         delete state.groupBy.rowLocations[row.id]
-        reindexGroupBySectionPositions(state, location.sectionKey)
+        spliceGroupBySectionRows(
+          state,
+          location.sectionKey,
+          location.position,
+          1
+        )
       }
       return
     }

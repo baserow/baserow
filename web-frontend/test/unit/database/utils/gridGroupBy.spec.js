@@ -322,9 +322,8 @@ describe('gridGroupBy section rows', () => {
 })
 
 describe('gridGroupBy node helpers', () => {
-  test('getGroupByNodeRowCount reads row_count, then rowCount, then defaults to 0', () => {
+  test('getGroupByNodeRowCount reads row_count and defaults to 0', () => {
     expect(getGroupByNodeRowCount({ row_count: 4 })).toBe(4)
-    expect(getGroupByNodeRowCount({ rowCount: 7 })).toBe(7)
     expect(getGroupByNodeRowCount({ row_count: 0 })).toBe(0)
     expect(getGroupByNodeRowCount({})).toBe(0)
   })
