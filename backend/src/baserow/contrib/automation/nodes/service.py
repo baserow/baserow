@@ -37,7 +37,6 @@ from baserow.contrib.automation.nodes.types import (
 )
 from baserow.contrib.automation.workflows.constants import WORKFLOW_DIRTY_CACHE_KEY
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
-from baserow.contrib.integrations.core.models import CoreGotoService
 from baserow.core.cache import global_cache
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.graph.types import GraphPointPositionType
@@ -517,7 +516,9 @@ class AutomationNodeService:
         # link that targets - or originates from - the moved node (or one of its
         # descendants). Clear any such now-cross-level links so the editor and
         # the runtime agree on what the workflow does.
-        cleared_goto_links = self._clear_invalidated_goto_links(user, workflow)
+        cleared_goto_links = CoreGotoActionNodeType.clear_invalidated_links(
+            user, workflow
+        )
 
         cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
         global_cache.update(cache_key, lambda _: True)
@@ -531,91 +532,3 @@ class AutomationNodeService:
             previous_output=previous_output,
             cleared_goto_links=cleared_goto_links,
         )
-
-    def _clear_invalidated_goto_links(
-        self,
-        user: AbstractUser,
-        workflow: AutomationWorkflow,
-    ) -> list[tuple[int, int]]:
-        """
-        Nulls every "Go to node" destination in the workflow that is no longer at
-        the same level as its source node. Intended to be called after a move,
-        which can change a node's level. We simply re-validate every goto link in
-        the workflow: there are few of them, and this avoids depending on the
-        exact descendant semantics of the graph to work out which links the move
-        could have touched. A link survives when source and destination still
-        share a level (e.g. both moved together inside a container).
-
-        An `automation_node_updated` signal is sent for each cleared Go to node
-        so connected clients drop the stale link.
-
-        :return: A list of (goto_node_id, previous_destination_node_id) tuples
-            describing the links that were cleared, so the caller can restore
-            them when a move is undone.
-        """
-
-        goto_services = CoreGotoService.objects.filter(
-            automation_workflow_node__workflow=workflow,
-            destination_node__isnull=False,
-        ).select_related("automation_workflow_node", "destination_node")
-
-        cleared_goto_links: list[tuple[int, int]] = []
-        for service in goto_services:
-            source_node = service.automation_workflow_node
-            destination_node = service.destination_node
-            if (
-                CoreGotoActionNodeType.validate_goto_destination(
-                    source_node, destination_node
-                )
-                is None
-            ):
-                continue
-
-            previous_destination_id = service.destination_node_id
-            service.destination_node = None
-            service.save(update_fields=["destination_node"])
-            cleared_goto_links.append((source_node.id, previous_destination_id))
-
-            automation_node_updated.send(
-                self, user=user, node=self.handler.get_node(source_node.id)
-            )
-
-        return cleared_goto_links
-
-    def restore_goto_links(
-        self,
-        user: AbstractUser,
-        links: list[tuple[int, int]],
-    ) -> None:
-        """
-        Re-applies "Go to node" destinations that a move cleared, used when that
-        move is undone. Each link is re-validated against the (restored) graph
-        and skipped if it would still be invalid, so we never persist a
-        cross-level link.
-
-        :param links: (goto_node_id, destination_node_id) tuples to restore.
-        """
-
-        for goto_node_id, destination_node_id in links:
-            try:
-                goto_node = self.handler.get_node(goto_node_id)
-                destination_node = self.handler.get_node(destination_node_id)
-            except AutomationNodeDoesNotExist:
-                # An endpoint was deleted after the move was made; nothing to
-                # restore. (The link stays cleared, which is correct.)
-                continue
-            if (
-                CoreGotoActionNodeType.validate_goto_destination(
-                    goto_node, destination_node
-                )
-                is not None
-            ):
-                continue
-
-            service = goto_node.service.specific
-            service.destination_node = destination_node
-            service.save(update_fields=["destination_node"])
-
-            automation_node_updated.send(
-                self, user=user, node=self.handler.get_node(goto_node_id)
-            )

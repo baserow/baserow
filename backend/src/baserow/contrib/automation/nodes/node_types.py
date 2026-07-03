@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeDoesNotExist,
     AutomationNodeFirstNodeMustBeTrigger,
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
@@ -44,9 +45,11 @@ from baserow.contrib.automation.nodes.models import (
     SlackWriteMessageActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
+from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
+from baserow.contrib.integrations.core.models import CoreGotoService
 from baserow.contrib.integrations.core.service_types import (
     CoreCSVFileReaderServiceType,
     CoreGotoServiceType,
@@ -472,6 +475,93 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
                 raise AutomationNodeMisconfiguredService(error)
 
         return super().prepare_values(values, user, instance)
+
+    @classmethod
+    def clear_invalidated_links(
+        cls,
+        user: AbstractUser,
+        workflow: AutomationWorkflow,
+    ) -> list[tuple[int, int]]:
+        """
+        Nulls every "Go to node" destination in the workflow that is no longer
+        at the same level as its source node. Intended to be called after a
+        move, which can change a node's level. We simply re-validate every goto
+        link in the workflow: there are few of them, and this avoids depending
+        on the exact descendant semantics of the graph to work out which links
+        the move could have touched. A link survives when source and
+        destination still share a level (e.g. both moved together inside a
+        container).
+
+        An `automation_node_updated` signal is sent for each cleared Go to node
+        so connected clients drop the stale link.
+
+        :return: A list of (goto_node_id, previous_destination_node_id) tuples
+            describing the links that were cleared, so the caller can restore
+            them when a move is undone.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        handler = AutomationNodeHandler()
+        goto_services = CoreGotoService.objects.filter(
+            automation_workflow_node__workflow=workflow,
+            destination_node__isnull=False,
+        ).select_related("automation_workflow_node", "destination_node")
+
+        cleared_goto_links: list[tuple[int, int]] = []
+        for service in goto_services:
+            source_node = service.automation_workflow_node
+            destination_node = service.destination_node
+            if cls.validate_goto_destination(source_node, destination_node) is None:
+                continue
+
+            previous_destination_id = service.destination_node_id
+            service.destination_node = None
+            service.save(update_fields=["destination_node"])
+            cleared_goto_links.append((source_node.id, previous_destination_id))
+
+            automation_node_updated.send(
+                cls, user=user, node=handler.get_node(source_node.id)
+            )
+
+        return cleared_goto_links
+
+    @classmethod
+    def restore_links(
+        cls,
+        user: AbstractUser,
+        links: list[tuple[int, int]],
+    ) -> None:
+        """
+        Re-applies "Go to node" destinations that a move cleared, used when that
+        move is undone. Each link is re-validated against the (restored) graph
+        and skipped if it would still be invalid, so we never persist a
+        cross-level link.
+
+        :param links: (goto_node_id, destination_node_id) tuples to restore.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        handler = AutomationNodeHandler()
+        for goto_node_id, destination_node_id in links:
+            try:
+                goto_node = handler.get_node(goto_node_id)
+                destination_node = handler.get_node(destination_node_id)
+            except AutomationNodeDoesNotExist:
+                # An endpoint was deleted after the move was made; nothing to
+                # restore. (The link stays cleared, which is correct.)
+                continue
+            if cls.validate_goto_destination(goto_node, destination_node) is not None:
+                continue
+
+            service = goto_node.service.specific
+            service.destination_node = destination_node
+            service.save(update_fields=["destination_node"])
+
+            automation_node_updated.send(
+                cls, user=user, node=handler.get_node(goto_node_id)
+            )
 
 
 class AutomationNodeTriggerType(AutomationNodeType):

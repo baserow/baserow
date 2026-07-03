@@ -9,7 +9,10 @@ from baserow.contrib.automation.action_scopes import (
     WorkflowActionScopeType,
 )
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
-from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.nodes.node_types import (
+    AutomationNodeType,
+    CoreGotoActionNodeType,
+)
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
@@ -454,7 +457,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
         )
         # The node is back at its original level, so any Go to links the move
         # cleared are valid again - restore them.
-        AutomationNodeService().restore_goto_links(user, params.cleared_goto_links)
+        CoreGotoActionNodeType.restore_links(user, params.cleared_goto_links)
 
     @classmethod
     def redo(
