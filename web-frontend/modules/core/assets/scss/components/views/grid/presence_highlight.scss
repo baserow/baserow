@@ -8,6 +8,9 @@ $focus-fallback-rgb:
   &.grid-view__column--focus-editing {
     // Above cell content so focus border is visible
     z-index: 1;
+
+    // Covers any focus badge protruding from the cell in the row above
+    background-color: $white;
   }
 }
 

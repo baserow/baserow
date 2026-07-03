@@ -8,6 +8,7 @@
     <div
       v-if="overflowCount > 0"
       v-tooltip:[tooltipOptions]="overflowTooltip"
+      tooltip-position="bottom-left"
       class="avatar avatar--medium avatar--rounded presence-bar__overflow"
     >
       +{{ overflowCount }}
@@ -17,6 +18,7 @@
 
 <script>
 import PresenceBadge from '@baserow/modules/core/components/presence/PresenceBadge'
+import { escapeHtml } from '@baserow/modules/core/utils/string'
 
 const MAX_VISIBLE = 3
 
@@ -57,12 +59,14 @@ export default {
       return this.overflowUsers
         .map((u) => {
           const user = this.$store.getters['workspace/getUserById'](u.user_id)
-          return user ? user.name : 'Unknown'
+          const name = user ? user.name : 'Unknown'
+          return `<div class="presence-bar__tooltip-name">${escapeHtml(name)}</div>`
         })
-        .join('\n')
+        .join('')
     },
     tooltipOptions() {
       return {
+        contentIsHtml: true,
         contentClasses:
           'tooltip__content--expandable tooltip__content--expandable-plain-text',
       }

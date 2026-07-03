@@ -38,13 +38,13 @@
 .grid-view__row-focus-badge {
   position: absolute;
   bottom: -23px;
-  right: -1px;
-  display: flex;
+  left: 0;
+  display: none;
   z-index: 2;
   pointer-events: none;
 
   .grid-view__left & {
-    display: none;
+    display: flex;
   }
 }
 

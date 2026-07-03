@@ -1,18 +1,9 @@
 import { Mention as TiptapMention } from '@tiptap/extension-mention'
 import regexp from 'markdown-it-regexp'
 
-const USER_ID_REGEXP = /@(\d+)/
+import { escapeHtml } from '@baserow/modules/core/utils/string'
 
-// Escape user-controlled text before it's interpolated into the raw HTML
-// string below, which is rendered with v-html. Without this, a malicious
-// display name could inject markup and execute a stored XSS.
-const escapeHtml = (value) =>
-  String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+const USER_ID_REGEXP = /@(\d+)/
 
 export const parseMention = (users, loggedUserId = null) =>
   regexp(USER_ID_REGEXP, (match, utils) => {
