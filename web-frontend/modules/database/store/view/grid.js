@@ -1745,7 +1745,9 @@ const activeGroupByRowsRequests = new Map()
 
 // We want to cancel previous aggregation request before creating a new one.
 const lastAggregationRequest = { request: null, controller: null }
-const fireAggregation = { timeout: null, last: 0 }
+// Keyed by view id so concurrent grid views (e.g. main and public) don't share
+// one timer and cancel each other's pending aggregation refetch.
+const fireAggregationPerView = {}
 
 const lastGroupByAggregationRequest = { controller: null }
 
@@ -3386,14 +3388,17 @@ export const actions = {
   fetchAllFieldAggregationDataDebounced({ dispatch }, { view }) {
     // Realtime row events arrive in bursts of up to hundreds of rows; refetch
     // the aggregations at most once per window (leading + trailing).
+    const state =
+      fireAggregationPerView[view.id] ||
+      (fireAggregationPerView[view.id] = { timeout: null, last: 0 })
     const now = Date.now()
-    clearTimeout(fireAggregation.timeout)
-    if (now - fireAggregation.last > 500) {
-      fireAggregation.last = now
+    clearTimeout(state.timeout)
+    if (now - state.last > 500) {
+      state.last = now
       dispatch('fetchAllFieldAggregationData', { view })
     } else {
-      fireAggregation.timeout = setTimeout(() => {
-        fireAggregation.last = Date.now()
+      state.timeout = setTimeout(() => {
+        state.last = Date.now()
         dispatch('fetchAllFieldAggregationData', { view })
       }, 500)
     }

@@ -9,6 +9,7 @@ import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 import { getDefinedRowsFromSectionRows } from '@baserow/modules/database/utils/gridGroupBy'
 import flushPromises from 'flush-promises'
 
+import { vi } from 'vitest'
 import { createStore } from 'vuex'
 
 const groupPathKey = (fieldId, value) =>
@@ -7912,6 +7913,30 @@ describe('Grid view store', () => {
     })
     expect(store.getters['grid/getAllRows'].length).toBe(1)
     expect(store.getters['grid/getCount']).toBe(10)
+  })
+
+  test('fetchAllFieldAggregationDataDebounced debounces per view', () => {
+    // The debounce state used to be a single module-global object shared by
+    // every grid store instance, so a second view firing within the window
+    // cancelled the first view's refetch. Each view must debounce on its own
+    // key, so both fire their leading refetch immediately.
+    const dispatch = vi.fn()
+    gridStore.actions.fetchAllFieldAggregationDataDebounced(
+      { dispatch },
+      { view: { id: 90001 } }
+    )
+    gridStore.actions.fetchAllFieldAggregationDataDebounced(
+      { dispatch },
+      { view: { id: 90002 } }
+    )
+
+    expect(dispatch).toHaveBeenCalledTimes(2)
+    expect(dispatch).toHaveBeenCalledWith('fetchAllFieldAggregationData', {
+      view: { id: 90001 },
+    })
+    expect(dispatch).toHaveBeenCalledWith('fetchAllFieldAggregationData', {
+      view: { id: 90002 },
+    })
   })
 
   test('deletedExistingRow', async () => {

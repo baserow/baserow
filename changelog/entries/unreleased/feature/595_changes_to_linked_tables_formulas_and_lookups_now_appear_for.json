@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Changes to linked tables, formulas and lookups now appear for everyone without refreshing",
+    "message": "Changes to linked tables, formulas and lookups now appear without refreshing",
     "issue_origin": "github",
     "issue_number": 595,
     "domain": "database",

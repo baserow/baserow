@@ -24,10 +24,6 @@ from baserow.ws.registries import PageType, page_registry
 if TYPE_CHECKING:
     from baserow.contrib.database.rows.models import RowHistory
 
-# Tables beyond this per-action maximum fall back to a whole-table refresh so
-# the amount of serialization work stays bounded.
-MAX_EXACT_DEPENDANT_TABLE_BROADCASTS = 10
-
 
 @receiver(row_signals.before_rows_update)
 def serialize_rows_values(
@@ -140,8 +136,7 @@ def dependant_rows_updated(
     """
     Broadcasts realtime events for rows changed by a dependency cascade so the
     affected tables' subscribers see the new values without refreshing. Tables
-    with more affected rows than the limit, or beyond the per-action maximum,
-    receive a whole-table refresh instead.
+    with more affected rows than the limit receive a whole-table refresh instead.
     """
 
     if not send_realtime_update or not dependant_rows_updates:
@@ -149,17 +144,12 @@ def dependant_rows_updated(
     if settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT <= 0:
         return
 
-    exact_broadcasts = 0
     for update in dependant_rows_updates:
-        if (
-            update.requires_refresh
-            or exact_broadcasts >= MAX_EXACT_DEPENDANT_TABLE_BROADCASTS
-        ):
+        if update.requires_refresh:
             table_updated.send(
                 sender, table=update.table, user=None, force_table_refresh=True
             )
         else:
-            exact_broadcasts += 1
             transaction.on_commit(
                 partial(
                     broadcast_dependant_rows_updated.delay,

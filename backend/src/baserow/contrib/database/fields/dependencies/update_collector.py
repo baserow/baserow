@@ -330,24 +330,22 @@ class PathBasedUpdateStatementCollector:
             deleted_m2m_rels_per_link_field,
             include_starting_rows=False,
         )
-        # The m2m join yields one result per relation. DISTINCT would bait the
-        # planner into a full index scan for large id lists, so a generous raw
-        # cap is fetched instead and deduplicated here. Row sets with more
-        # duplicated relations than the raw cap fall back to a table refresh.
-        raw_cap = min(limit * 5, 1000) + 1
-        raw_ids: List[int] = []
+        # The m2m join emits one row per relation, so distinct ids are requested
+        # to keep duplicated relations from inflating the count. Fetching one id
+        # past the limit is enough to detect an overflow, which falls back to a
+        # table refresh.
+        row_ids: Set[int] = set()
         for row_filter in filters:
-            remaining = raw_cap - len(raw_ids)
-            if remaining <= 0:
-                break
             # Trashed rows need value updates but never realtime events.
-            raw_ids += list(
+            row_ids |= set(
                 model.objects.filter(row_filter)
                 .order_by()
-                .values_list("id", flat=True)[:remaining]
+                .distinct()
+                .values_list("id", flat=True)[: limit + 1]
             )
-        row_ids = set(raw_ids)
-        if len(raw_ids) >= raw_cap or len(row_ids) > limit:
+            if len(row_ids) > limit:
+                break
+        if len(row_ids) > limit:
             overflowed_table_ids.add(self.table.id)
         else:
             result[self.table.id].update(row_ids)

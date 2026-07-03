@@ -77,7 +77,7 @@ def test_requires_refresh_sends_a_force_table_refresh(
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.contrib.database.ws.table.signals.broadcast_to_permitted_users")
 @patch("baserow.contrib.database.ws.rows.signals.broadcast_dependant_rows_updated")
-def test_exact_broadcasts_are_bounded_per_action(
+def test_every_affected_table_under_the_limit_is_broadcast_exactly(
     mock_broadcast_task, mock_broadcast_to_permitted_users, data_fixture
 ):
     user = data_fixture.create_user()
@@ -98,8 +98,10 @@ def test_exact_broadcasts_are_bounded_per_action(
         send_realtime_update=True,
     )
 
-    assert mock_broadcast_task.delay.call_count == 10
-    assert mock_broadcast_to_permitted_users.delay.call_count == 2
+    # A wide fan-out sends an invisible exact broadcast per table and never a
+    # disruptive refresh; only the per-table row limit can force a refresh.
+    assert mock_broadcast_task.delay.call_count == 12
+    assert mock_broadcast_to_permitted_users.delay.call_count == 0
 
 
 @pytest.mark.django_db(transaction=True)
