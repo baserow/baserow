@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Import into an existing table is now available from the table context menu in the sidebar.",
+    "issue_origin": "github",
+    "issue_number": 5284,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-03"
+}
