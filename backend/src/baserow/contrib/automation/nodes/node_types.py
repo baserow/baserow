@@ -20,6 +20,7 @@ from baserow.contrib.automation.nodes.models import (
     AutomationNode,
     AutomationTriggerNode,
     CoreCSVFileReaderActionNode,
+    CoreGotoActionNode,
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
     CoreIteratorActionNode,
@@ -48,6 +49,7 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 from baserow.contrib.integrations.core.service_types import (
     CoreCSVFileReaderServiceType,
+    CoreGotoServiceType,
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
     CoreIteratorServiceType,
@@ -75,8 +77,58 @@ from baserow.contrib.integrations.slack.service_types import (
 )
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.registry import Instance
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
+
+
+def validate_goto_destination(
+    source_node: AutomationNode,
+    destination_node: Optional[AutomationNode],
+) -> Optional[str]:
+    """
+    Validates that destination_node is an eligible "Go to node" destination
+    for source_node.
+
+    A destination is eligible when it belongs to the same workflow, is at the
+    same level (i.e. has the same parent/container nodes), is not a trigger node
+    and runs before the Go to node (a backward jump). A node may not target
+    itself.
+    """
+
+    if destination_node is None:
+        return None
+
+    if destination_node.id == source_node.id:
+        return _("The destination node cannot be the Go to node itself.")
+
+    if destination_node.workflow_id != source_node.workflow_id:
+        return _("The destination node must belong to the same workflow.")
+
+    if destination_node.get_type().is_workflow_trigger:
+        return _("The destination node cannot be a trigger node.")
+
+    source_level = sorted(node.id for node in source_node.get_parent_points())
+    destination_level = sorted(node.id for node in destination_node.get_parent_points())
+    if source_level != destination_level:
+        return _("The destination node must be at the same level as the Go to node.")
+
+    # Only backward jumps are allowed: the destination must be one of the nodes
+    # that run before the Go to node. A forward jump would skip the nodes between
+    # the Go to node and its destination, leaving them unexecuted, so any later
+    # node that reads a skipped node's output via the previous-node data provider
+    # would fail.
+    previous_node_ids = {node.id for node in source_node.get_previous_points()}
+    if destination_node.id not in previous_node_ids:
+        return _(
+            "The destination node must run before the Go to node. "
+            "Jumping forward is not allowed."
+        )
+
+    return None
 
 
 class AutomationNodeActionNodeType(AutomationNodeType):
@@ -350,6 +402,72 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
                         "but they still point to output nodes. These nodes must be "
                         "trashed before the router can be updated."
                     )
+
+        return super().prepare_values(values, user, instance)
+
+
+class CoreGotoActionNodeType(AutomationNodeActionNodeType):
+    type = "goto_node"
+    model_class = CoreGotoActionNode
+    service_type = CoreGotoServiceType.type
+
+    def dispatch(self, automation_node, dispatch_context) -> DispatchResult:
+        """
+        Applies the automation-graph rules on top of the generic goto service
+        dispatch. The service only resolves the intent to jump (and to which
+        destination); this node type owns the graph-specific decisions:
+
+        - While simulating, the jump is never followed, to avoid looping the
+          simulated path. Execution then continues to the natural next node.
+        - Before a real jump is followed, the destination is re-validated
+          against the live graph, so a link that became invalid after the
+          service was configured (e.g. the destination was moved to another
+          level) raises a clean misconfigured error instead of jumping.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        dispatch_result = super().dispatch(automation_node, dispatch_context)
+
+        if dispatch_result.output_node_id is None:
+            return dispatch_result
+
+        if getattr(dispatch_context, "simulate_until_node", None) is not None:
+            dispatch_result.output_node_id = None
+            return dispatch_result
+
+        destination_node = AutomationNodeHandler().get_node(
+            dispatch_result.output_node_id
+        )
+        if error := validate_goto_destination(automation_node, destination_node):
+            raise ServiceImproperlyConfiguredDispatchException(error)
+
+        return dispatch_result
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """
+        Validates the configured destination node before the service is updated.
+
+        The destination must be a same-level, non-trigger node of the same
+        workflow, and cannot be the Go to node itself. We can only check this
+        when updating an existing node, as the source node must already exist
+        in the graph to determine its level.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        service_values = values.get("service", {})
+        if instance is not None and service_values.get("destination_node_id"):
+            destination_node = AutomationNodeHandler().get_node(
+                service_values["destination_node_id"]
+            )
+            if error := validate_goto_destination(instance, destination_node):
+                raise AutomationNodeMisconfiguredService(error)
 
         return super().prepare_values(values, user, instance)
 

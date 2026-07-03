@@ -323,6 +323,131 @@ def test_get_node_history_result(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_node_result_returns_latest_pass_when_node_loops(data_fixture):
+    """
+    When a node is dispatched multiple times in a single run (e.g. a "Go to node"
+    jump loops back to it), several results share the same iteration_path. Reading
+    the previous result should return the most recent pass rather than raising
+    MultipleObjectsReturned.
+    """
+
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+    workflow_history = data_fixture.create_automation_workflow_history(
+        user=user,
+        workflow=workflow,
+    )
+
+    earlier = timezone.now()
+    later = earlier + timezone.timedelta(seconds=10)
+
+    first_history = data_fixture.create_automation_node_history(
+        user=user,
+        workflow_history=workflow_history,
+        node=trigger,
+        started_on=earlier,
+    )
+    data_fixture.create_automation_node_result(
+        node_history=first_history,
+        iteration_path="",
+        result={"pass": 1},
+    )
+
+    latest_history = data_fixture.create_automation_node_history(
+        user=user,
+        workflow_history=workflow_history,
+        node=trigger,
+        started_on=later,
+    )
+    data_fixture.create_automation_node_result(
+        node_history=latest_history,
+        iteration_path="",
+        result={"pass": 2},
+    )
+
+    result = AutomationHistoryHandler().get_node_result(workflow_history, trigger, "")
+
+    assert result == {"pass": 2}
+
+
+@pytest.mark.django_db
+def test_get_goto_destination_labels(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+    destination = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, reference_node=trigger, label="destination node"
+    )
+    goto_node = data_fixture.create_core_goto_node(
+        workflow=workflow, reference_node=destination
+    )
+    goto_node.service.specific.destination_node = destination
+    goto_node.service.specific.save()
+
+    workflow_history = data_fixture.create_automation_workflow_history(
+        user=user, workflow=workflow
+    )
+    goto_history = data_fixture.create_automation_node_history(
+        user=user, workflow_history=workflow_history, node=goto_node
+    )
+    # A non-goto entry should be ignored.
+    trigger_history = data_fixture.create_automation_node_history(
+        user=user, workflow_history=workflow_history, node=trigger
+    )
+
+    labels = AutomationHistoryHandler().get_goto_destination_labels(
+        [goto_history, trigger_history]
+    )
+
+    assert labels == {
+        goto_history.id: {
+            "id": destination.id,
+            "type": destination.get_type().type,
+            "label": "destination node",
+        }
+    }
+
+
+@pytest.mark.django_db
+def test_get_goto_destination_labels_without_custom_label(data_fixture):
+    """
+    When the destination node has no custom label, the returned label is empty but
+    the node type is still provided so the frontend can show a generic name.
+    """
+
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+    destination = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, reference_node=trigger
+    )
+    goto_node = data_fixture.create_core_goto_node(
+        workflow=workflow, reference_node=destination
+    )
+    goto_node.service.specific.destination_node = destination
+    goto_node.service.specific.save()
+
+    workflow_history = data_fixture.create_automation_workflow_history(
+        user=user, workflow=workflow
+    )
+    goto_history = data_fixture.create_automation_node_history(
+        user=user, workflow_history=workflow_history, node=goto_node
+    )
+
+    labels = AutomationHistoryHandler().get_goto_destination_labels([goto_history])
+
+    assert destination.label == ""
+    assert labels == {
+        goto_history.id: {
+            "id": destination.id,
+            "type": destination.get_type().type,
+            "label": "",
+        }
+    }
+
+
+@pytest.mark.django_db
 def test_get_node_history_result_does_not_exist(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)

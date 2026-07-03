@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, NewType, TypedDict
 
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
@@ -28,6 +28,10 @@ class AutomationNodeMove:
     previous_reference_node: AutomationActionNode | None
     previous_position: GraphPointPositionType
     previous_output: str
+    # "Go to node" links the move invalidated and cleared, as a list of
+    # (goto_node_id, previous_destination_node_id) tuples. Captured so the move
+    # action can restore them on undo.
+    cleared_goto_links: list[tuple[int, int]] = field(default_factory=list)
 
 
 class AutomationNodeDict(TypedDict):

@@ -1,6 +1,7 @@
 <template>
   <div
     class="workflow-node-content"
+    :data-node-id="node.id"
     :class="{
       'workflow-node-content--selected': selected,
       'workflow-node-content--dragging': isDragging,
@@ -39,6 +40,29 @@
     >
       {{ $t('workflowNode.actionConfigure') }}
     </Badge>
+
+    <div v-if="gotoMarkers.length" class="workflow-node-content__goto-markers">
+      <span
+        v-for="(item, index) in gotoMarkers"
+        :key="`${item.direction}-${item.marker}-${index}`"
+        v-tooltip="
+          item.direction === 'out'
+            ? $t('workflowNode.gotoMarkerSource', { marker: item.marker })
+            : $t('workflowNode.gotoMarkerDestination', { marker: item.marker })
+        "
+        class="workflow-node-content__goto-marker"
+        :class="{
+          'workflow-node-content__goto-marker--active': item.active,
+        }"
+      >
+        <i
+          :class="
+            item.direction === 'out' ? 'iconoir-arrow-up' : 'iconoir-arrow-down'
+          "
+        ></i>
+        {{ item.marker }}
+      </span>
+    </div>
 
     <div
       v-if="isInteractionReady"
@@ -204,6 +228,12 @@ const workspace = inject('workspace')
 const nodeType = computed(() => {
   return app.$registry.get('node', props.node.type)
 })
+
+// Markers identifying this node's "Go to node" jumps (provided by the editor).
+// A jump's source and destination share the same marker so they can be paired
+// by eye instead of with a drawn line.
+const gotoMarkersMap = inject('gotoMarkers', null)
+const gotoMarkers = computed(() => gotoMarkersMap?.value?.[props.node.id] || [])
 
 const isDraggable = computed(() => {
   return !props.readOnly && !nodeType.value.isFixed

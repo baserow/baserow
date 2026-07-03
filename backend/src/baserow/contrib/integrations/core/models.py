@@ -264,6 +264,27 @@ class CoreRouterServiceEdge(models.Model):
         ordering = ("order",)
 
 
+class CoreGotoService(Service):
+    """
+    A service that, when its condition formula evaluates to true, redirects
+    execution to the configured destination instead of the natural next step.
+
+    This makes while loops, retries, and conditional jumps possible.
+    """
+
+    condition = FormulaField(
+        help_text="The formula that must evaluate to true for the jump to the "
+        "destination node to be followed.",
+    )
+    destination_node = models.ForeignKey(
+        "automation.AutomationNode",
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The node to jump to when the condition evaluates to true.",
+    )
+
+
 class CorePeriodicService(Service):
     last_periodic_run = models.DateTimeField(
         null=True,

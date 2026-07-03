@@ -25,6 +25,7 @@ import {
   CoreCSVFileReaderServiceType,
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
+  CoreGotoServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
@@ -32,6 +33,7 @@ import {
   CoreStartWorkflowServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
+import { isValidGotoDestination } from '@baserow/modules/automation/utils/gotoNode'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
@@ -71,6 +73,21 @@ export class NodeType extends Registerable {
    */
   getBeforeLabel({ workflow, node }) {
     return this.app.$i18n.t('workflowNode.beforeLabelAction')
+  }
+
+  /**
+   * The outgoing connectors this node draws to other nodes on the graph. By
+   * default a node links to nothing; types like the "Go to node" override this
+   * to point at another node, and any future node that references another node
+   * can do the same. The connector overlay renders whatever is returned here,
+   * so each entry must already be a node-to-node link that is valid to draw.
+   *
+   * @param {Object} workflow The workflow the node belongs to.
+   * @param {Object} node The node the connectors originate from.
+   * @returns {Array<{ destinationNodeId: number }>} The outgoing connectors.
+   */
+  getConnections({ workflow, node }) {
+    return []
   }
 
   /**
@@ -1080,6 +1097,102 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
 
   isDuplicable({ workflow, node }) {
     return false
+  }
+}
+
+export class CoreGotoNodeType extends ActionNodeTypeMixin(
+  UtilityNodeMixin(NodeType)
+) {
+  static getType() {
+    return 'goto_node'
+  }
+
+  getOrder() {
+    return 11
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.gotoNodeLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreGotoServiceType.getType())
+  }
+
+  /**
+   * Once a destination node is selected, append its label to the default
+   * label, e.g. "Go to node → List rows", so the jump target is visible at a
+   * glance without opening the node.
+   * @param automation - The automation the node belongs to.
+   * @param node - The Go to node for which the default label is generated.
+   * @returns {string} - The default label for the node.
+   */
+  getDefaultLabel({ automation, node }) {
+    const destinationId = node.service?.destination_node_id
+    if (!destinationId) {
+      return this.name
+    }
+
+    const workflow = this.app.$store.getters['automationWorkflow/getById'](
+      automation,
+      node.workflow
+    )
+    const destinationNode = this.app.$store.getters[
+      'automationWorkflowNode/findById'
+    ](workflow, destinationId)
+    if (!destinationNode) {
+      return this.name
+    }
+
+    const destinationNodeType = this.app.$registry.get(
+      'node',
+      destinationNode.type
+    )
+    return this.app.$i18n.t('nodeType.gotoNodeLabelWithDestination', {
+      destination: destinationNodeType.getLabel({
+        automation,
+        node: destinationNode,
+      }),
+    })
+  }
+
+  /**
+   * Draws a connector from this Go to node to its destination node, as long as
+   * the jump is still valid. Validity mirrors the backend
+   * `validate_goto_destination` (same level, backward jump, non-trigger); the
+   * store is reconciled after a move, but re-checking here also avoids drawing
+   * a stale link during the brief window before that reconciliation runs.
+   */
+  getConnections({ workflow, node }) {
+    const destinationId = node.service?.destination_node_id
+    if (destinationId == null) {
+      return []
+    }
+    const destinationNode = this.app.$store.getters[
+      'automationWorkflowNode/findById'
+    ](workflow, destinationId)
+    if (!destinationNode) {
+      return []
+    }
+    const isValid = isValidGotoDestination({
+      gotoNode: node,
+      destinationNode,
+      ancestorsOf: (n) =>
+        this.app.$store.getters['automationWorkflowNode/getAncestors'](
+          workflow,
+          n
+        ),
+      previousNodesOf: (n) =>
+        this.app.$store.getters['automationWorkflowNode/getPreviousNodes'](
+          workflow,
+          n
+        ),
+      isTrigger: (n) => this.app.$registry.get('node', n.type).isTrigger,
+    })
+    if (!isValid) {
+      return []
+    }
+    return [{ destinationNodeId: destinationId }]
   }
 }
 

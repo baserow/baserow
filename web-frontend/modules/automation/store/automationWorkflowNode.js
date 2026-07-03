@@ -5,6 +5,9 @@ import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSideP
 import { clone } from '@baserow/modules/core/utils/object'
 
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
+import { isValidGotoDestination } from '@baserow/modules/automation/utils/gotoNode'
+
+const GOTO_NODE_TYPE = 'goto_node'
 
 const state = () => ({
   selectedNodeId: null,
@@ -530,6 +533,14 @@ const actions = {
         position,
         output,
       })
+
+      // A move can turn a valid backward "Go to" jump into a forward or
+      // cross-level one, which the backend clears (see
+      // `_clear_invalidated_goto_links`). The acting client is excluded from
+      // its own realtime broadcast, so reconcile the store here — otherwise the
+      // stale destination id lingers and the link silently "reconnects" the
+      // next time a move makes it look valid again.
+      dispatch('clearInvalidatedGotoLinks', { workflow })
     } catch (error) {
       // We revert the operation
       dispatch('graphMove', {
@@ -541,6 +552,41 @@ const actions = {
       })
 
       throw error
+    }
+  },
+  /**
+   * Mirrors the backend `_clear_invalidated_goto_links`: nulls the destination
+   * of every "Go to node" whose stored destination is no longer a valid jump
+   * (e.g. it now runs after the goto node, or sits at a different level). Used
+   * after a move, which can change a node's level or ordering.
+   */
+  clearInvalidatedGotoLinks({ dispatch, getters }, { workflow }) {
+    const ancestorsOf = (node) => getters.getAncestors(workflow, node)
+    const previousNodesOf = (node) => getters.getPreviousNodes(workflow, node)
+    const isTrigger = (node) => this.$registry.get('node', node.type).isTrigger
+
+    for (const gotoNode of getters.getNodes(workflow)) {
+      const destinationId = gotoNode.service?.destination_node_id
+      if (gotoNode.type !== GOTO_NODE_TYPE || destinationId == null) {
+        continue
+      }
+      const destinationNode = getters.findById(workflow, destinationId)
+      const valid = isValidGotoDestination({
+        gotoNode,
+        destinationNode,
+        ancestorsOf,
+        previousNodesOf,
+        isTrigger,
+      })
+      if (!valid) {
+        dispatch('forceUpdate', {
+          workflow,
+          node: gotoNode,
+          values: {
+            service: { ...gotoNode.service, destination_node_id: null },
+          },
+        })
+      }
     }
   },
   async duplicate({ commit, dispatch, getters }, { workflow, nodeId }) {

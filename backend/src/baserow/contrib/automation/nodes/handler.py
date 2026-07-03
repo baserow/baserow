@@ -1,6 +1,8 @@
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
+from django.conf import settings
+from django.core.cache import cache
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 from django.utils import timezone
@@ -398,6 +400,40 @@ class AutomationNodeHandler:
             iteration_path=iteration_path,
         )
 
+    def _handle_workflow_error_without_node(
+        self,
+        workflow_history: AutomationWorkflowHistory,
+        error: str,
+    ) -> None:
+        """
+        Marks the workflow run as errored at the workflow level, without an
+        associated node history. Used when the run is aborted before a node
+        history exists, e.g. when the per-run dispatch limit is exceeded.
+        """
+
+        now = timezone.now()
+        workflow_history.completed_on = now
+        workflow_history.message = error
+        workflow_history.status = HistoryStatusChoices.ERROR
+        workflow_history.save()
+
+    def _node_dispatch_count_cache_key(self, history_id: int) -> str:
+        return f"automation_node_dispatch_count_{history_id}"
+
+    def _check_node_dispatch_limit(self, history_id: int) -> bool:
+        """
+        Increments and checks the per-run node dispatch counter. The counter
+        is keyed per workflow run and self-expires after the workflow timeout.
+
+        This is a safety backstop against infinite loops, e.g. a misconfigured
+        "Go to node".
+        """
+
+        key = self._node_dispatch_count_cache_key(history_id)
+        cache.add(key, 0, settings.AUTOMATION_WORKFLOW_TIMEOUT_HOURS * 60 * 60)
+        dispatch_count = cache.incr(key)
+        return dispatch_count > settings.AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN
+
     def _handle_simulation_notify(
         self, simulate_until_node: AutomationNode | None, node: AutomationNode
     ) -> bool:
@@ -469,6 +505,18 @@ class AutomationNodeHandler:
             )
         except AutomationWorkflowHistoryDoesNotExist as e:
             logger.error(str(e))
+            return None
+
+        # Stop the workflow run if it exceeds the max dispatches allowed. For
+        # simulations, this check is skipped.
+        if (
+            not workflow_history.simulate_until_node_id
+            and self._check_node_dispatch_limit(history_id)
+        ):
+            limit = settings.AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN
+            error = f"Workflow exceeded the maximum of {limit} node dispatches."
+            logger.warning(error)
+            self._handle_workflow_error_without_node(workflow_history, error)
             return None
 
         error = (
@@ -602,16 +650,24 @@ class AutomationNodeHandler:
                 canvas = chain(*groups_to_chain)
                 to_chain.append(canvas)
 
-        # Handle non-iterator nodes, including iterator children.
-        next_nodes = node.get_next_points(dispatch_result.output_uid)
-        if next_nodes:
+        if dispatch_result.output_node_id is not None:
+            # A node (e.g. "Go to node") requested a jump to a specific node
+            # rather than the natural next node.
+            next_node_ids = [dispatch_result.output_node_id]
+        else:
+            # Handle non-iterator nodes, including iterator children.
+            next_node_ids = [
+                n.id for n in node.get_next_points(dispatch_result.output_uid)
+            ]
+
+        if next_node_ids:
             to_chain.append(
                 group(
                     [
                         dispatch_node_celery_task.si(
-                            n.id, history_id, current_iterations
+                            next_id, history_id, current_iterations
                         )
-                        for n in next_nodes
+                        for next_id in next_node_ids
                     ]
                 ),
             )

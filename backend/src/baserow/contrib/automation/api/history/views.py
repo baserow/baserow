@@ -57,10 +57,16 @@ class AutomationNodeHistoriesView(APIView):
         service = AutomationHistoryService()
         node_histories = service.get_node_histories(request.user, workflow_history_id)
         edge_labels = service.get_edge_labels(request.user, node_histories)
+        goto_destinations = service.get_goto_destination_labels(
+            request.user, node_histories
+        )
         serializer = AutomationNodeHistorySerializer(
             node_histories,
             many=True,
-            context={"edge_labels": edge_labels},
+            context={
+                "edge_labels": edge_labels,
+                "goto_destinations": goto_destinations,
+            },
         )
         return Response(serializer.data)
 

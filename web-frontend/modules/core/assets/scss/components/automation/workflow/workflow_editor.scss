@@ -34,3 +34,9 @@ $connectorHeight: 32px;
 .workflow-connector {
   color: $palette-neutral-400;
 }
+
+// Positioning context for the goto-connector overlay, which is absolutely
+// sized to the node tree it sits behind.
+.workflow-editor__canvas {
+  position: relative;
+}

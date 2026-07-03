@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from django.db.models import Prefetch, QuerySet
 
@@ -16,6 +16,7 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.integrations.core.models import CoreGotoService
 from baserow.core.db import specific_iterator
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
@@ -126,15 +127,25 @@ class AutomationHistoryHandler:
     def get_node_result(self, history, node, iteration_path):
         """
         Returns the result for the given history/node/iteration_path.
+
+        A node can be dispatched several times within a single run when a jump
+        (e.g. the "Go to node" node) loops execution back to it. Each pass writes a
+        new result with the same iteration_path, so we return the most recent one
+        rather than assuming a single result exists.
         """
 
-        try:
-            node_result = AutomationNodeResult.objects.only("result").get(
+        node_result = (
+            AutomationNodeResult.objects.only("result")
+            .filter(
                 node_history__workflow_history_id=history.id,
                 node_history__node_id=node.id,
                 iteration_path=iteration_path,
             )
-        except AutomationNodeResult.DoesNotExist:
+            .order_by("-node_history__started_on", "-node_history_id")
+            .first()
+        )
+
+        if node_result is None:
             raise AutomationWorkflowHistoryNodeResultDoesNotExist()
 
         return node_result.result
@@ -271,3 +282,47 @@ class AutomationHistoryHandler:
             for nr in results
             if (label := nr.result.get("edge", {}).get("label"))
         }
+
+    def get_goto_destination_labels(
+        self, node_histories: List[AutomationNodeHistory]
+    ) -> Dict[int, Dict[str, Any]]:
+        """
+        For each "Go to node" history entry, return a mapping that describes
+        the node it jumps to, e.g.:
+            {
+                "id": <destination node id>,
+                "type": <destination node type>,
+                "label": <destination label>,
+            }`
+
+        The destination node belongs to the published workflow copy that
+        actually ran, so its id cannot be resolved against the editor workflow.
+        We therefore also return its type, allowing the frontend to display a
+        human-readable name from the node type registry when the node has no
+        custom label.
+        """
+
+        goto_histories = [
+            nh for nh in node_histories if nh.node.get_type().type == "goto_node"
+        ]
+        if not goto_histories:
+            return {}
+
+        services = {
+            service.id: service
+            for service in CoreGotoService.objects.filter(
+                id__in=[nh.node.service_id for nh in goto_histories]
+            ).select_related("destination_node")
+        }
+
+        labels = {}
+        for nh in goto_histories:
+            service = services.get(nh.node.service_id)
+            destination = service.destination_node if service else None
+            if destination is not None:
+                labels[nh.id] = {
+                    "id": destination.id,
+                    "type": destination.get_type().type,
+                    "label": destination.label,
+                }
+        return labels

@@ -3,6 +3,7 @@ from uuid import uuid4
 from baserow.contrib.integrations.ai.models import AIAgentService
 from baserow.contrib.integrations.core.models import (
     CoreCSVFileReaderService,
+    CoreGotoService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
@@ -172,6 +173,9 @@ class ServiceFixtures:
             )
 
         return edge
+
+    def create_core_goto_service(self, **kwargs) -> CoreGotoService:
+        return self.create_service(CoreGotoService, **kwargs)
 
     def create_core_http_trigger_service(self, **kwargs) -> CoreSMTPEmailService:
         if "uid" not in kwargs:

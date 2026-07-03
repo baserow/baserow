@@ -43,6 +43,7 @@ from baserow.contrib.integrations.core.exceptions import (
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
     CoreCSVFileReaderService,
+    CoreGotoService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
@@ -83,6 +84,7 @@ from baserow.core.services.registries import (
     TriggerServiceTypeMixin,
 )
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
+from baserow.core.utils import MirrorDict
 from baserow.version import VERSION as BASEROW_VERSION
 
 # Captures potential runtime formula function calls, e.g. `get(`, `concat(`, etc.
@@ -1260,6 +1262,201 @@ class CoreRouterServiceType(CoreServiceType):
         return {str(e.uid): {"label": e.label} for e in service.edges.all()} | {
             "": {"label": service.default_edge_label}
         }
+
+
+class CoreGotoServiceType(CoreServiceType):
+    type = "goto"
+    model_class = CoreGotoService
+    allowed_fields = ["condition", "destination_node_id"]
+    dispatch_types = [DispatchTypes.ACTION]
+    serializer_field_names = ["condition", "destination_node_id"]
+    simple_formula_fields = ["condition"]
+
+    class SerializedDict(ServiceDict):
+        condition: str
+        destination_node_id: int
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "condition": FormulaSerializerField(
+                help_text=CoreGotoService._meta.get_field("condition").help_text,
+                required=False,
+                default="",
+            ),
+            "destination_node_id": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                help_text=CoreGotoService._meta.get_field("destination_node").help_text,
+            ),
+        }
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        The destination_node is a cross-app reference to another automation
+        node which may not have been imported yet (e.g. a forward jump). We
+        therefore null it on this first pass and remap it during the second
+        pass in import_formulas(), once all the workflow's nodes have been
+        imported.
+        """
+
+        original_destination_id = serialized_values.pop("destination_node_id", None)
+
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        if original_destination_id is not None:
+            id_mapping.setdefault("goto_destination_nodes", {})[service.id] = (
+                original_destination_id
+            )
+
+        return service
+
+    def import_formulas(self, instance, id_mapping, import_formula, **kwargs):
+        """
+        Performs the second-pass remap of the destination_node reference,
+        alongside the formula migration.
+
+        By this point every node of the workflow has been imported, so
+        id_mapping["automation_workflow_nodes"] can resolve both backward and
+        forward jumps.
+
+        When the destination node was part of this import - e.g. a full
+        workflow duplicate - it is remapped to the newly imported node. For a
+        single-node duplicate, which copies just the Go to node and leaves the
+        destination node in place, the destination is carried over unchanged so
+        the duplicate jumps to the same place as the original. The link is only
+        reset when the destination node is genuinely absent from this import.
+        """
+
+        updated_models = super().import_formulas(
+            instance, id_mapping, import_formula, **kwargs
+        )
+
+        pending_destinations = id_mapping.get("goto_destination_nodes", {})
+        if instance.id in pending_destinations:
+            original_destination_id = pending_destinations[instance.id]
+            node_mapping = id_mapping.get("automation_workflow_nodes", {})
+            # `in keys()` tests genuine membership: a single-node duplicate seeds
+            # the node mapping with a MirrorDict whose catch-all __contains__
+            # would otherwise echo any id back as if it had been remapped.
+            if original_destination_id in node_mapping.keys():
+                instance.destination_node_id = node_mapping[original_destination_id]
+            elif isinstance(node_mapping, MirrorDict):
+                # A single-node duplicate doesn't remap the destination, so keep
+                # pointing at the original destination node.
+                instance.destination_node_id = original_destination_id
+            else:
+                instance.destination_node_id = None
+            updated_models.add(instance)
+
+        return updated_models
+
+    def get_schema_name(self, service: CoreGotoService) -> str:
+        return f"CoreGoto{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreGotoService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        properties = {}
+        if allowed_fields is None or "condition" in allowed_fields:
+            properties["condition"] = {
+                "type": "boolean",
+                "title": _("Condition"),
+                "description": _(
+                    "Whether the condition evaluated to true and the jump was followed."
+                ),
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def formulas_to_resolve(self, service: CoreGotoService) -> list[FormulaToResolve]:
+        return [
+            FormulaToResolve(
+                "condition",
+                service.condition,
+                lambda x: ensure_boolean(x, False),
+                'property "condition"',
+            )
+        ]
+
+    def _condition_is_set(self, service: CoreGotoService) -> bool:
+        """
+        Whether a condition formula has actually been configured. An unset
+        condition means the jump is unconditional, so it must be distinguished
+        from a configured condition that resolves to false (which suppresses
+        the jump). The resolved boolean alone can't tell these two apart, as
+        both arrive as `False`.
+        """
+
+        raw_condition = service.condition
+        if isinstance(raw_condition, dict):
+            raw_condition = raw_condition.get("formula", "")
+        return bool((raw_condition or "").strip())
+
+    def dispatch_data(
+        self,
+        service: CoreGotoService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        """
+        Decides whether to follow the jump to the configured destination. The
+        jump is followed when no condition has been configured (an unconditional
+        jump) or when the condition resolves to true. It is only skipped when a
+        condition is set and explicitly resolves to false.
+
+        This only resolves the intent to jump; how the jump is validated against
+        the graph, and whether it should be suppressed (e.g. while simulating),
+        is decided by the consumer that owns the graph. The returned
+        `output_node_id` is a plain reference to the configured destination.
+        """
+
+        # An empty condition means "always jump"; only a configured condition
+        # that resolves to false can prevent it.
+        should_jump = resolved_values["condition"] or not self._condition_is_set(
+            service
+        )
+        output_node_id = None
+        if should_jump:
+            if service.destination_node_id is None:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    _("No destination has been configured for this Go to node.")
+                )
+            output_node_id = service.destination_node_id
+
+        return {
+            "output_node_id": output_node_id,
+            "data": {"condition": bool(should_jump)},
+        }
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(output_node_id=data["output_node_id"], data=data["data"])
 
 
 class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):

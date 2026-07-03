@@ -32,22 +32,19 @@
           <div class="loading"></div>
         </div>
         <template v-else>
-          <div
-            v-if="!rootNodeHistories.length && item.message"
-            class="workflow-history__message"
-          >
-            {{ item.message }}
-          </div>
           <NodeHistory
             v-for="nh in rootNodeHistories"
-            v-else
-            :key="nh.node"
+            :key="nh.id"
             :workflow-history-id="item.id"
             :node-history="nh"
             :child-node-histories-by-parent="childNodeHistoriesByParent"
             :error-descendant-node-ids="errorDescendantNodeIds"
+            :pass-info-by-history-id="passInfoByHistoryId"
             :depth="0"
           />
+          <div v-if="workflowLevelMessage" class="workflow-history__message">
+            {{ workflowLevelMessage }}
+          </div>
         </template>
         <div class="workflow-history__run-time">
           {{ totalRunTimeMessage }}
@@ -205,6 +202,32 @@ const childNodeHistoriesByParent = computed(() => {
 })
 
 /**
+ * Maps each node history id to its pass number and the total number of passes
+ * for that node within this run. A node runs more than once when a "Go to node"
+ * jump loops execution back to it. Passes are scoped by (node, iteration_path)
+ * so iterator iterations aren't conflated with goto loop passes, and counted in
+ * chronological order (the histories are returned ordered by started_on, id).
+ */
+const passInfoByHistoryId = computed(() => {
+  const items = nodeHistoriesEntry.value ?? []
+
+  const totals = {}
+  for (const nh of items) {
+    const key = `${nh.node}|${nh.iteration_path}`
+    totals[key] = (totals[key] || 0) + 1
+  }
+
+  const counters = {}
+  const result = {}
+  for (const nh of items) {
+    const key = `${nh.node}|${nh.iteration_path}`
+    counters[key] = (counters[key] || 0) + 1
+    result[nh.id] = { pass: counters[key], total: totals[key] }
+  }
+  return result
+})
+
+/**
  * Precomputed set of parent node IDs that have at least one errored
  * node history in their descendant subtree.
  */
@@ -234,6 +257,21 @@ const errorDescendantNodeIds = computed(() => {
     }
   }
   return parentsWithErroredChild
+})
+
+/**
+ * The workflow run can fail at the workflow level without any individual node
+ * erroring — e.g. when the per-run node dispatch limit is exceeded by a "Go to
+ * node" loop. In that case the error lives only on the workflow history, so we
+ * surface its message here. When a node carries the error, NodeHistory already
+ * renders it and we avoid duplicating it at the workflow level.
+ */
+const workflowLevelMessage = computed(() => {
+  if (!props.item.message) return null
+  const hasErroredNode = (nodeHistoriesEntry.value ?? []).some(
+    (nh) => nh.status === 'error'
+  )
+  return hasErroredNode ? null : props.item.message
 })
 
 const historyIconPath = computed(() => {

@@ -22,6 +22,10 @@
               </div>
             </div>
 
+            <span v-if="passLabel" class="node-history__header-info-pass">{{
+              passLabel
+            }}</span>
+
             <div>
               <Icon
                 :icon="
@@ -91,6 +95,7 @@
                   :node-history="nh"
                   :child-node-histories-by-parent="childNodeHistoriesByParent"
                   :error-descendant-node-ids="errorDescendantNodeIds"
+                  :pass-info-by-history-id="passInfoByHistoryId"
                   :depth="depth + 1"
                 />
               </div>
@@ -114,6 +119,10 @@
         >
           {{ nodeTypeLabel }}
         </div>
+
+        <span v-if="passLabel" class="node-history__header-info-pass">{{
+          passLabel
+        }}</span>
 
         <div class="node-history__header-show-result">
           <a
@@ -220,6 +229,10 @@ const props = defineProps({
     type: Set,
     default: () => new Set(),
   },
+  passInfoByHistoryId: {
+    type: Object,
+    default: () => ({}),
+  },
   depth: {
     type: Number,
     default: 0,
@@ -240,6 +253,30 @@ const nodeIconClass = computed(() => {
   return nodeType.value.iconClass
 })
 
+/**
+ * For a "Go to node" entry, resolve the label of the node it jumps to so the
+ * history reads "Go to node → <destination>".
+ *
+ * We prefer the destination's stored label resolved by the backend (run-time
+ * accurate). When the destination has no custom label, we fall back to the
+ * generic name of its node type. We can't resolve the node from the editor
+ * workflow by id, because the history references the published workflow copy
+ * that ran, whose node ids differ from the editor's.
+ */
+const gotoDestinationLabel = computed(() => {
+  if (props.nodeHistory.node_type !== 'goto_node') return null
+
+  if (props.nodeHistory.goto_destination_label) {
+    return props.nodeHistory.goto_destination_label
+  }
+
+  const destinationType = props.nodeHistory.goto_destination_node_type
+  if (!destinationType) return null
+
+  if (!app.$registry.exists('node', destinationType)) return null
+  return app.$registry.get('node', destinationType).name
+})
+
 const nodeTypeLabel = computed(() => {
   const baseLabel = props.nodeHistory.node_label || nodeType.value.name
   if (props.nodeHistory.node_type === 'router') {
@@ -249,7 +286,24 @@ const nodeTypeLabel = computed(() => {
       app.$i18n.t('nodeType.defaultEdgeLabelFallback')
     return `${baseLabel} (${edgeLabel})`
   }
+  if (
+    props.nodeHistory.node_type === 'goto_node' &&
+    gotoDestinationLabel.value
+  ) {
+    // Show which node the workflow jumps to.
+    return `${baseLabel} → ${gotoDestinationLabel.value}`
+  }
   return baseLabel
+})
+
+/**
+ * When a node runs more than once within a single run (e.g. a "Go to node" jump
+ * loops back to it), show which pass this entry corresponds to, e.g. "Run 2".
+ */
+const passLabel = computed(() => {
+  const info = props.passInfoByHistoryId?.[props.nodeHistory.id]
+  if (!info || info.total <= 1) return null
+  return app.$i18n.t('historySidePanel.runNumber', { n: info.pass })
 })
 
 const iterationHasError = (group) => {

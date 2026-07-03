@@ -72,6 +72,40 @@ def test_get_node_histories_surfaces_router_edge_label(api_client, data_fixture)
 
 
 @pytest.mark.django_db
+def test_get_node_histories_surfaces_goto_destination(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+    destination = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, reference_node=trigger, label="destination node"
+    )
+    goto_node = data_fixture.create_core_goto_node(
+        workflow=workflow, reference_node=destination
+    )
+    goto_node.service.specific.destination_node = destination
+    goto_node.service.specific.save()
+
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+    )
+    goto_history = data_fixture.create_automation_node_history(
+        workflow_history=workflow_history, node=goto_node
+    )
+
+    url = reverse(
+        API_URL_NODE_HISTORIES, kwargs={"workflow_history_id": workflow_history.id}
+    )
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    rows = {row["id"]: row for row in response.json()}
+    row = rows[goto_history.id]
+    assert row["goto_destination_node_id"] == destination.id
+    assert row["goto_destination_node_type"] == destination.get_type().type
+    assert row["goto_destination_label"] == "destination node"
+
+
+@pytest.mark.django_db
 def test_get_node_histories_permission_error(api_client, data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)

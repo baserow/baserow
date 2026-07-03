@@ -34,6 +34,7 @@ def test_generate_schema(data_fixture):
         },
         "status": 200,
         "output_uid": "",
+        "output_node_id": None,
     }
     service.save()
 

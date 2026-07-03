@@ -17,20 +17,21 @@
     <Background pattern-color="#ededed" :size="3" :gap="15" />
 
     <template #node-workflow-node>
-      <WorkflowNode
-        v-if="trigger"
-        :key="updateKey"
-        :node="trigger"
-        :debug="workflowDebug"
-        :read-only="readOnly"
-        :selected-node-id="selectedNodeId"
-        @add-node="emit('add-node', $event)"
-        @remove-node="emit('remove-node', $event)"
-        @replace-node="emit('replace-node', $event)"
-        @select-node="emit('update:modelValue', $event.id)"
-        @move-node="emit('move-node', $event)"
-        @duplicate-node="emit('duplicate-node', $event)"
-      />
+      <div v-if="trigger" class="workflow-editor__canvas">
+        <WorkflowNode
+          :key="updateKey"
+          :node="trigger"
+          :debug="workflowDebug"
+          :read-only="readOnly"
+          :selected-node-id="selectedNodeId"
+          @add-node="emit('add-node', $event)"
+          @remove-node="emit('remove-node', $event)"
+          @replace-node="emit('replace-node', $event)"
+          @select-node="emit('update:modelValue', $event.id)"
+          @move-node="emit('move-node', $event)"
+          @duplicate-node="emit('duplicate-node', $event)"
+        />
+      </div>
       <template v-else>
         <div class="workflow-editor__trigger-selector" @scroll.stop>
           <h2 class="workflow-editor__trigger-selector-title">
@@ -50,12 +51,13 @@
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
-import { ref, computed, watch, toRef, inject, onMounted } from 'vue'
+import { ref, computed, watch, toRef, inject, provide, onMounted } from 'vue'
 import debounce from 'lodash/debounce'
 
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 import WorkflowAddNodeMenu from '@baserow/modules/automation/components/workflow/WorkflowAddNodeMenu'
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
+import { assignGotoMarkers } from '@baserow/modules/automation/utils/gotoMarkers'
 
 const props = defineProps({
   nodes: {
@@ -86,6 +88,7 @@ const emit = defineEmits([
 ])
 
 // Injected dependencies
+const app = useNuxtApp()
 const workflow = inject('workflow')
 const workflowDebug = inject('workflowDebug')
 
@@ -101,6 +104,46 @@ const updateKey = ref(1)
 
 // Computed properties
 const selectedNodeId = toRef(props, 'modelValue')
+
+// The goto connectors compare against numeric node ids, while `modelValue`
+// can arrive as a string from the editor.
+const selectedNodeIdNumber = computed(() =>
+  props.modelValue == null ? null : Number(props.modelValue)
+)
+
+// Every valid jump (e.g. a "Go to node" and its destination) gets a stable
+// marker letter. Rather than draw a line between the two ends, both node cards
+// show the same marker so the reader can pair them by eye.
+const gotoJumps = computed(() => {
+  if (!workflow.value) {
+    return []
+  }
+  return assignGotoMarkers({
+    nodes: props.nodes,
+    getConnectionsFor: (node) =>
+      app.$registry
+        .get('node', node.type)
+        .getConnections({ workflow: workflow.value, node }),
+  })
+})
+
+// Per-node lookup of the markers entering ("in") and leaving ("out") it,
+// provided to every node card. A marker is "active" while either end of its
+// jump is the selected node, so selecting one end highlights its pair.
+const gotoMarkers = computed(() => {
+  const selected = selectedNodeIdNumber.value
+  const byNode = {}
+  const push = (nodeId, entry) => {
+    ;(byNode[nodeId] = byNode[nodeId] || []).push(entry)
+  }
+  for (const { sourceId, destinationId, marker } of gotoJumps.value) {
+    const active = sourceId === selected || destinationId === selected
+    push(sourceId, { marker, direction: 'out', active })
+    push(destinationId, { marker, direction: 'in', active })
+  }
+  return byNode
+})
+provide('gotoMarkers', gotoMarkers)
 
 const trigger = computed(() => {
   if (!workflow.value?.graph) {

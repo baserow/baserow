@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
@@ -392,6 +392,8 @@ class MoveAutomationNodeActionType(UndoableActionType):
         destination_reference_node_id: int
         destination_position: GraphPointPositionType
         destination_output: str
+        # "Go to node" links this move invalidated and cleared, restored on undo.
+        cleared_goto_links: list = field(default_factory=list)
 
     @classmethod
     def do(
@@ -425,6 +427,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
                 reference_node_id,
                 position,
                 output,
+                move.cleared_goto_links,
             ),
             scope=cls.scope(workflow.id),
             workspace=workflow.automation.workspace,
@@ -449,6 +452,9 @@ class MoveAutomationNodeActionType(UndoableActionType):
             params.origin_position,
             params.origin_output,
         )
+        # The node is back at its original level, so any Go to links the move
+        # cleared are valid again - restore them.
+        AutomationNodeService().restore_goto_links(user, params.cleared_goto_links)
 
     @classmethod
     def redo(

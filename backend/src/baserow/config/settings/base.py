@@ -975,6 +975,11 @@ AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS = int(
 AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES", 60)
 )
+# The maximum number of node dispatches allowed in a single workflow run.
+# This protects against infinite dispatches due to a misconfigured node.
+AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN = int(
+    os.getenv("BASEROW_AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN", 10000)
+)
 
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
 

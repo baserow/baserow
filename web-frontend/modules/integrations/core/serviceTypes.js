@@ -8,6 +8,7 @@ import {
 import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPRequestServiceForm'
 import CoreSMTPEmailServiceForm from '@baserow/modules/integrations/core/components/services/CoreSMTPEmailServiceForm'
 import CoreRouterServiceForm from '@baserow/modules/integrations/core/components/services/CoreRouterServiceForm'
+import CoreGotoServiceForm from '@baserow/modules/automation/components/services/CoreGotoServiceForm'
 import CoreIteratorServiceForm from '@baserow/modules/integrations/core/components/services/CoreIteratorServiceForm'
 import CoreCSVFileReaderServiceForm from '@baserow/modules/integrations/core/components/services/CoreCSVFileReaderServiceForm'
 import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
@@ -174,6 +175,48 @@ export class CoreRouterServiceType extends WorkflowActionServiceTypeMixin(
 
   getOrder() {
     return 7
+  }
+}
+
+export class CoreGotoServiceType extends WorkflowActionServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'goto'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreGoto')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreGotoDescription')
+  }
+
+  get icon() {
+    return 'iconoir-long-arrow-up-right'
+  }
+
+  getErrorMessage({ service }) {
+    if (service === undefined) {
+      return null
+    }
+    if (!service.destination_node_id) {
+      return this.app.$i18n.t('serviceType.coreGotoDestinationRequired')
+    }
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  get formComponent() {
+    return CoreGotoServiceForm
+  }
+
+  getOrder() {
+    return 10
   }
 }
 

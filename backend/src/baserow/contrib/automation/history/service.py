@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
@@ -66,3 +66,15 @@ class AutomationHistoryService:
         workflow = node_histories[0].workflow_history.original_workflow
         self._check_workflow_permissions(user, workflow)
         return self.handler.get_edge_labels(node_histories)
+
+    def get_goto_destination_labels(
+        self,
+        user: AbstractUser,
+        node_histories: List[AutomationNodeHistory],
+    ) -> Dict[int, Dict[str, Any]]:
+        if not node_histories:
+            return {}
+
+        workflow = node_histories[0].workflow_history.original_workflow
+        self._check_workflow_permissions(user, workflow)
+        return self.handler.get_goto_destination_labels(node_histories)
