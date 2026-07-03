@@ -64,6 +64,7 @@
   },
   "sidebarItem": {
     "exportTable": "Export table",
+    "importFile": "Import file",
     "webhooks": "Webhooks",
     "lastSynced": "Last synced",
     "notSynced": "not synced",
