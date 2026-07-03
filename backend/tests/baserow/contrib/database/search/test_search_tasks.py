@@ -1,10 +1,19 @@
+from unittest.mock import patch
+
+from django.db import OperationalError
+
 import pytest
+from celery.exceptions import Retry
 from freezegun import freeze_time
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.search.models import PendingSearchValueUpdate
-from baserow.contrib.database.search.tasks import periodic_check_pending_search_data
+from baserow.contrib.database.search.tasks import (
+    periodic_check_pending_search_data,
+    schedule_update_search_data,
+)
+from baserow.contrib.database.table.handler import TableHandler
 
 pytestmark = pytest.mark.enable_signals(
     "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
@@ -87,3 +96,24 @@ def test_periodic_check_pending_search_data(data_fixture):
     # is created accordingly
     assert PendingSearchValueUpdate.objects_and_trash.count() == 0
     assert workspace_search_table.objects.count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_schedule_update_search_data_retries_on_transient_connection_error(
+    data_fixture,
+):
+    table = data_fixture.create_database_table()
+    field = data_fixture.create_text_field(table=table)
+
+    def failing_get_table(self, table_id, *args, **kwargs):
+        raise OperationalError("server closed the connection unexpectedly")
+
+    # A transient connection drop must be turned into a Celery retry instead of
+    # failing the task outright (which is what happened before autoretry_for).
+    with patch.object(TableHandler, "get_table", failing_get_table):
+        with pytest.raises(Retry) as exc_info:
+            schedule_update_search_data.apply(
+                args=[table.id], kwargs={"field_ids": [field.id]}
+            )
+
+    assert isinstance(exc_info.value.exc, OperationalError)
