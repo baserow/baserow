@@ -19,20 +19,14 @@ describe('tablePresenceSpaceName', () => {
 })
 
 describe('isUserPresenceEnabled', () => {
-  function mockVm({ featureFlag = true, visibleUsers = '3' } = {}) {
+  function mockVm({ visibleUsers = '3' } = {}) {
     return {
-      $featureFlagIsEnabled: vi.fn().mockReturnValue(featureFlag),
       $config: { public: { baserowPresenceVisibleUsers: visibleUsers } },
     }
   }
 
-  test('enabled when feature flag on and visible users > 0', () => {
+  test('enabled when visible users > 0', () => {
     expect(isUserPresenceEnabled(mockVm())).toBe(true)
-  })
-
-  test('requires the feature flag', () => {
-    expect(isUserPresenceEnabled(mockVm({ featureFlag: false }))).toBe(false)
-    expect(isUserPresenceEnabled({})).toBe(false)
   })
 
   test('disabled when visible users is 0', () => {
@@ -40,12 +34,7 @@ describe('isUserPresenceEnabled', () => {
   })
 
   test('disabled when visible users is missing', () => {
-    expect(
-      isUserPresenceEnabled({
-        $featureFlagIsEnabled: vi.fn().mockReturnValue(true),
-        $config: { public: {} },
-      })
-    ).toBe(false)
+    expect(isUserPresenceEnabled({ $config: { public: {} } })).toBe(false)
   })
 })
 
