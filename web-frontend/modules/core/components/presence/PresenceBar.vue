@@ -68,9 +68,9 @@ export default {
     },
     tooltipOptions() {
       return {
+        duration: 0.5,
         contentIsHtml: true,
-        contentClasses:
-          'tooltip__content--expandable tooltip__content--expandable-plain-text',
+        contentClasses: 'tooltip__content--expandable',
       }
     },
   },
