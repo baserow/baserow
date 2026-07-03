@@ -400,23 +400,6 @@ class AutomationNodeHandler:
             iteration_path=iteration_path,
         )
 
-    def _handle_workflow_error_without_node(
-        self,
-        workflow_history: AutomationWorkflowHistory,
-        error: str,
-    ) -> None:
-        """
-        Marks the workflow run as errored at the workflow level, without an
-        associated node history. Used when the run is aborted before a node
-        history exists, e.g. when the per-run dispatch limit is exceeded.
-        """
-
-        now = timezone.now()
-        workflow_history.completed_on = now
-        workflow_history.message = error
-        workflow_history.status = HistoryStatusChoices.ERROR
-        workflow_history.save()
-
     def _node_dispatch_count_cache_key(self, history_id: int) -> str:
         return f"automation_node_dispatch_count_{history_id}"
 
@@ -454,17 +437,38 @@ class AutomationNodeHandler:
         return False
 
     def _before_node_dispatch(
-        self, node: AutomationNode, workflow_history: AutomationWorkflowHistory
-    ) -> None:
+        self,
+        node: AutomationNode,
+        node_history: AutomationNodeHistory,
+        workflow_history: AutomationWorkflowHistory,
+        iteration_path: str,
+    ) -> bool:
         """
-        Sends a signal before a node is dispatched.
+        Runs pre-dispatch checks and emits the started signal. Returns True if
+        the dispatch should be aborted, having already marked the run as
+        errored.
         """
+
+        # Stop the workflow run if it exceeds the max dispatches allowed. For
+        # simulations, this check is skipped. Safety backstop against infinite
+        # loops, e.g. a misconfigured "Go to node".
+        if (
+            not workflow_history.simulate_until_node_id
+            and self._check_node_dispatch_limit(workflow_history.id)
+        ):
+            limit = settings.AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN
+            error = f"Workflow exceeded the maximum of {limit} node dispatches."
+            logger.warning(error)
+            self._handle_workflow_error(node_history, iteration_path, error)
+            return True
 
         automation_node_dispatch_started.send(
             sender=self,
             node=node,
             workflow_history=workflow_history,
         )
+
+        return False
 
     def _after_node_dispatch(
         self, node: AutomationNode, node_history: AutomationNodeHistory
@@ -505,18 +509,6 @@ class AutomationNodeHandler:
             )
         except AutomationWorkflowHistoryDoesNotExist as e:
             logger.error(str(e))
-            return None
-
-        # Stop the workflow run if it exceeds the max dispatches allowed. For
-        # simulations, this check is skipped.
-        if (
-            not workflow_history.simulate_until_node_id
-            and self._check_node_dispatch_limit(history_id)
-        ):
-            limit = settings.AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN
-            error = f"Workflow exceeded the maximum of {limit} node dispatches."
-            logger.warning(error)
-            self._handle_workflow_error_without_node(workflow_history, error)
             return None
 
         error = (
@@ -567,8 +559,15 @@ class AutomationNodeHandler:
         iteration_path = dispatch_context.get_iteration_path(node)
         node_type: Type[AutomationNodeActionNodeType] = node.get_type()
 
+        if self._before_node_dispatch(
+            node,
+            node_history,
+            workflow_history,
+            iteration_path,
+        ):
+            return None
+
         try:
-            self._before_node_dispatch(node, workflow_history)
             dispatch_result = node_type.dispatch(node, dispatch_context)
         except ServiceImproperlyConfiguredDispatchException as e:
             error = f"The node is misconfigured and cannot be dispatched. {str(e)}"

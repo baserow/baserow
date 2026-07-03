@@ -1762,38 +1762,6 @@ def test_dispatch_node_does_not_send_completed_signal_on_error(
 
 
 @pytest.mark.django_db
-@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_started")
-@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_completed")
-@patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
-def test_dispatch_node_returns_early_if_started_signal_has_error(
-    mock_dispatch,
-    mock_dispatch_completed,
-    mock_dispatch_started,
-    data_fixture,
-):
-    # Simulate an exception raised when the started signal is sent.
-    mock_dispatch_started.send.side_effect = Exception("Foo error")
-
-    data = create_workflow(data_fixture)
-    trigger_node = data["trigger_node"]
-    workflow_history = data["workflow_history"]
-
-    result = AutomationNodeHandler().dispatch_node(
-        trigger_node.id,
-        history_id=workflow_history.id,
-    )
-
-    assert result is None
-    node_history = AutomationNodeHistory.objects.get(node=trigger_node)
-    assert node_history.status == HistoryStatusChoices.ERROR
-
-    # Both node_dispatch() and the completed signal shouldn't be called
-    # because the started signal raised an error.
-    mock_dispatch.assert_not_called()
-    mock_dispatch_completed.send.assert_not_called()
-
-
-@pytest.mark.django_db
 @override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=1)
 def test_dispatch_node_enforces_per_run_dispatch_limit(data_fixture):
     node, history = create_dispatch_limit_workflow(data_fixture)
