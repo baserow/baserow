@@ -75,40 +75,6 @@ def test_requires_refresh_sends_a_force_table_refresh(
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.contrib.database.ws.rows.signals.send_trailing_force_table_refresh")
-@patch("baserow.contrib.database.ws.table.signals.broadcast_to_permitted_users")
-def test_force_table_refreshes_are_debounced(
-    mock_broadcast_to_permitted_users, mock_trailing_task, data_fixture
-):
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-
-    def send_refresh():
-        dependant_rows_updated.send(
-            None,
-            user=user,
-            table=table,
-            dependant_rows_updates=[
-                DependantRowsUpdate(
-                    table=table, row_ids=[], field_ids=[], requires_refresh=True
-                )
-            ],
-            send_realtime_update=True,
-        )
-
-    send_refresh()
-    assert mock_broadcast_to_permitted_users.delay.call_count == 1
-    mock_trailing_task.apply_async.assert_not_called()
-
-    # Within the debounce window only one trailing refresh is scheduled, no
-    # matter how many more events arrive.
-    send_refresh()
-    send_refresh()
-    assert mock_broadcast_to_permitted_users.delay.call_count == 1
-    assert mock_trailing_task.apply_async.call_count == 1
-
-
-@pytest.mark.django_db(transaction=True)
 @patch("baserow.contrib.database.ws.table.signals.broadcast_to_permitted_users")
 @patch("baserow.contrib.database.ws.rows.signals.broadcast_dependant_rows_updated")
 def test_exact_broadcasts_are_bounded_per_action(
@@ -210,9 +176,7 @@ def test_broadcast_task_sends_a_rows_updated_payload(mock_send, data_fixture):
     )
 
     mock_send.assert_called_once()
-    messages = mock_send.call_args[0][1]
-    assert len(messages) == 1
-    message = messages[0]
+    message = mock_send.call_args[0][1]
     assert message.channel_group_name == f"table-{table.id}"
     payload = message.message["payload"]
     assert payload["type"] == "rows_updated"
@@ -240,7 +204,7 @@ def test_broadcast_task_skips_trashed_rows_and_missing_tables(mock_send, data_fi
     broadcast_dependant_rows_updated(
         table_id=table.id, row_ids=[row_1.id, row_2.id], updated_field_ids=[field.id]
     )
-    payload = mock_send.call_args[0][1][0].message["payload"]
+    payload = mock_send.call_args[0][1].message["payload"]
     assert [row["id"] for row in payload["rows"]] == [row_1.id]
 
     mock_send.reset_mock()
@@ -253,58 +217,3 @@ def test_broadcast_task_skips_trashed_rows_and_missing_tables(mock_send, data_fi
         table_id=0, row_ids=[row_1.id], updated_field_ids=[field.id]
     )
     mock_send.assert_not_called()
-
-
-@pytest.mark.django_db
-@override_settings(BATCH_ROWS_SIZE_LIMIT=2)
-@patch(
-    "baserow.contrib.database.ws.rows.tasks.send_messages_to_channel_group",
-    new_callable=AsyncMock,
-)
-def test_broadcast_task_chunks_large_payloads(mock_send, data_fixture):
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    field = data_fixture.create_text_field(table=table)
-    model = table.get_model()
-    rows = [model.objects.create(**{field.db_column: str(i)}) for i in range(3)]
-
-    broadcast_dependant_rows_updated(
-        table_id=table.id,
-        row_ids=[row.id for row in rows],
-        updated_field_ids=[field.id],
-    )
-
-    messages = mock_send.call_args[0][1]
-    assert [len(m.message["payload"]["rows"]) for m in messages] == [2, 1]
-
-
-@pytest.mark.django_db(transaction=True)
-@patch("baserow.contrib.database.ws.rows.signals.send_trailing_force_table_refresh")
-@patch("baserow.contrib.database.ws.table.signals.broadcast_to_permitted_users")
-@patch("baserow.contrib.database.ws.rows.signals.broadcast_dependant_rows_updated")
-def test_exact_broadcasts_per_table_degrade_to_refresh_over_the_window(
-    mock_broadcast_task, mock_broadcast_to_permitted_users, mock_trailing, data_fixture
-):
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-
-    def send_exact():
-        dependant_rows_updated.send(
-            None,
-            user=user,
-            table=table,
-            dependant_rows_updates=[
-                DependantRowsUpdate(
-                    table=table, row_ids=[1], field_ids=[1], requires_refresh=False
-                )
-            ],
-            send_realtime_update=True,
-        )
-
-    for _ in range(7):
-        send_exact()
-
-    assert mock_broadcast_task.delay.call_count == 5
-    # The 6th and 7th events degrade to the debounced refresh: one leading
-    # refresh, the rest coalesced into the trailing task.
-    assert mock_broadcast_to_permitted_users.delay.call_count == 1

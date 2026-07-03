@@ -2,7 +2,6 @@ from functools import partial
 from typing import TYPE_CHECKING, List
 
 from django.conf import settings
-from django.core.cache import cache
 from django.db import transaction
 from django.dispatch import receiver
 
@@ -17,15 +16,9 @@ from baserow.contrib.database.fields.dependencies.update_collector import (
 )
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.rows.registries import row_metadata_registry
-from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.signals import table_updated
 from baserow.contrib.database.ws.rows.messages import RealtimeRowMessages
-from baserow.contrib.database.ws.rows.tasks import (
-    DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS,
-    broadcast_dependant_rows_updated,
-    dependant_rows_force_refresh_cache_key,
-    send_trailing_force_table_refresh,
-)
+from baserow.contrib.database.ws.rows.tasks import broadcast_dependant_rows_updated
 from baserow.ws.registries import PageType, page_registry
 
 if TYPE_CHECKING:
@@ -34,10 +27,6 @@ if TYPE_CHECKING:
 # Tables beyond this per-action maximum fall back to a whole-table refresh so
 # the amount of serialization work stays bounded.
 MAX_EXACT_DEPENDANT_TABLE_BROADCASTS = 10
-# Per table, exact broadcasts beyond this per-debounce-window maximum degrade
-# to the debounced refresh, so per-row driver loops (AI jobs, one-row-at-a-time
-# integrations) can't flood the celery queue with serialization tasks.
-MAX_EXACT_BROADCASTS_PER_TABLE_PER_WINDOW = 5
 
 
 @receiver(row_signals.before_rows_update)
@@ -139,58 +128,6 @@ def rows_updated(
     )
 
 
-def _send_force_table_refresh_debounced(sender, table: Table):
-    """
-    Coalesces bursts of expensive whole-table refreshes: the first refreshes
-    immediately, one trailing refresh delivers the final state.
-    """
-
-    def send_after_commit():
-        leading_key = dependant_rows_force_refresh_cache_key(table.id, trailing=False)
-        if cache.add(
-            leading_key, True, timeout=DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS
-        ):
-            table_updated.send(sender, table=table, user=None, force_table_refresh=True)
-            return
-
-        trailing_key = dependant_rows_force_refresh_cache_key(table.id, trailing=True)
-        if cache.add(
-            trailing_key,
-            True,
-            timeout=DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS * 2,
-        ):
-            send_trailing_force_table_refresh.apply_async(
-                args=[table.id],
-                countdown=DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS,
-            )
-
-    # Deciding post-commit stops rolled back transactions from consuming the
-    # keys and guarantees a trailing task covers every suppressed event.
-    transaction.on_commit(send_after_commit)
-
-
-def _exact_broadcast_slot_available(table_id: int) -> bool:
-    key = f"dependant_rows_exact_broadcasts:{table_id}"
-    if cache.add(key, 1, timeout=DEPENDANT_ROWS_FORCE_REFRESH_DEBOUNCE_SECONDS):
-        return True
-    try:
-        return cache.incr(key) <= MAX_EXACT_BROADCASTS_PER_TABLE_PER_WINDOW
-    except ValueError:
-        # The key expired between the add and the incr.
-        return True
-
-
-def _broadcast_exact_or_refresh_debounced(sender, update: DependantRowsUpdate):
-    if _exact_broadcast_slot_available(update.table.id):
-        broadcast_dependant_rows_updated.delay(
-            table_id=update.table.id,
-            row_ids=list(update.row_ids),
-            updated_field_ids=list(update.field_ids),
-        )
-    else:
-        _send_force_table_refresh_debounced(sender, update.table)
-
-
 @receiver(row_signals.dependant_rows_updated)
 def dependant_rows_updated(
     sender,
@@ -202,7 +139,9 @@ def dependant_rows_updated(
 ):
     """
     Broadcasts realtime events for rows changed by a dependency cascade so the
-    affected tables' subscribers see the new values without refreshing.
+    affected tables' subscribers see the new values without refreshing. Tables
+    with more affected rows than the limit, or beyond the per-action maximum,
+    receive a whole-table refresh instead.
     """
 
     if not send_realtime_update or not dependant_rows_updates:
@@ -216,11 +155,18 @@ def dependant_rows_updated(
             update.requires_refresh
             or exact_broadcasts >= MAX_EXACT_DEPENDANT_TABLE_BROADCASTS
         ):
-            _send_force_table_refresh_debounced(sender, update.table)
+            table_updated.send(
+                sender, table=update.table, user=None, force_table_refresh=True
+            )
         else:
             exact_broadcasts += 1
             transaction.on_commit(
-                partial(_broadcast_exact_or_refresh_debounced, sender, update)
+                partial(
+                    broadcast_dependant_rows_updated.delay,
+                    table_id=update.table.id,
+                    row_ids=list(update.row_ids),
+                    updated_field_ids=list(update.field_ids),
+                )
             )
 
 
