@@ -214,7 +214,14 @@ def periodic_check_pending_search_data():
         .distinct()
     )
     for table_id in table_ids_with_pending_updates:
-        schedule_update_search_data(table_id)
+        # A transient DB error on one table shouldn't skip the remaining tables;
+        # they'll be retried on the next periodic run anyway.
+        try:
+            schedule_update_search_data(table_id)
+        except (OperationalError, InterfaceError):
+            logger.warning(
+                "Transient DB error scheduling search update for table {}.", table_id
+            )
 
 
 @app.on_after_finalize.connect

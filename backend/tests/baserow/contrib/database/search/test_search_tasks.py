@@ -117,3 +117,35 @@ def test_schedule_update_search_data_retries_on_transient_connection_error(
             )
 
     assert isinstance(exc_info.value.exc, OperationalError)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_periodic_check_continues_after_transient_error_on_one_table(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table1 = data_fixture.create_database_table(database=database)
+    field1 = data_fixture.create_text_field(table=table1)
+    table2 = data_fixture.create_database_table(database=database)
+    field2 = data_fixture.create_text_field(table=table2)
+
+    PendingSearchValueUpdate.objects.create(field_id=field1.id, row_id=1)
+    PendingSearchValueUpdate.objects.create(field_id=field2.id, row_id=1)
+
+    scheduled = []
+
+    def flaky_schedule(table_id):
+        # The first table hits a transient connection error, the second succeeds.
+        scheduled.append(table_id)
+        if len(scheduled) == 1:
+            raise OperationalError("server closed the connection unexpectedly")
+
+    with patch(
+        "baserow.contrib.database.search.tasks.schedule_update_search_data",
+        side_effect=flaky_schedule,
+    ):
+        # Should not raise: the transient error on the first table is swallowed so
+        # the remaining tables are still processed.
+        periodic_check_pending_search_data()
+
+    assert len(scheduled) == 2
