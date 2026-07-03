@@ -16,10 +16,7 @@
       <div
         v-else-if="item.type === 'row' && shouldRenderRows"
         class="grid-view__group-by-rows-row"
-        :class="{
-          'grid-view__group-by-rows-row--warning': isWarningRow(item.row),
-          'grid-view__group-by-rows-row--selected': item.row._.selected,
-        }"
+        :class="rowClass(item.row)"
         :style="{
           top: item.y + 'px',
           transform: `translateX(${leftOffset || 0}px)`,
@@ -39,9 +36,12 @@
           :decorations-by-place="decorationsByPlace"
           :read-only="readOnly"
           :can-drag="false"
+          :focus-entries-by-cell="focusEntriesByCell"
+          :focus-entries-by-row="focusEntriesByRow"
           :store-prefix="storePrefix"
           :row-identifier-type="view.row_identifier_type"
           :count="item.globalRowOffset + 1"
+          @editing-changed="$emit('editing-changed', $event)"
           @update="$emit('update', $event)"
           @paste="$emit('paste', $event)"
           @edit="$emit('edit', $event)"
@@ -153,6 +153,14 @@ export default {
     readOnly: { type: Boolean, required: true },
     canAddRow: { type: Boolean, default: false },
     workspaceId: { type: Number, required: true },
+    focusEntriesByCell: {
+      type: Map,
+      default: () => new Map(),
+    },
+    focusEntriesByRow: {
+      type: Map,
+      default: () => new Map(),
+    },
   },
   emits: [
     'update',
@@ -175,6 +183,7 @@ export default {
     'row-dragging',
     'row-hover',
     'row-context',
+    'editing-changed',
   ],
   computed: {
     groupByFields() {
@@ -257,6 +266,21 @@ export default {
     },
   },
   methods: {
+    rowClass(row) {
+      return {
+        'grid-view__group-by-rows-row--warning': this.isWarningRow(row),
+        'grid-view__group-by-rows-row--selected': row._.selected,
+        'grid-view__group-by-rows-row--presence': this.rowHasPresence(row),
+      }
+    },
+    rowHasPresence(row) {
+      if (this.focusEntriesByRow.has(row.id)) return true
+      const prefix = `${row.id}:`
+      for (const key of this.focusEntriesByCell.keys()) {
+        if (key.startsWith(prefix)) return true
+      }
+      return false
+    },
     addRow(event, path) {
       event.preventFieldCellUnselect = true
       this.$emit('add-row', { groupPath: path })
