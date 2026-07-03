@@ -21,7 +21,10 @@ import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceType
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { ensureString } from '@baserow/modules/core/utils/validator'
-import { pathParametersInError } from '@baserow/modules/builder/utils/params'
+import {
+  pathParameterValuesInError,
+  pathParametersInError,
+} from '@baserow/modules/builder/utils/params'
 import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
@@ -92,13 +95,12 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
           'workflowActionTypes.errorNavigateToPageMissing'
         )
       }
+      const visiblePages = this.app.$store.getters['page/getVisiblePages'](
+        applicationContext.builder
+      )
       if (
-        pathParametersInError(
-          workflowAction,
-          this.app.$store.getters['page/getVisiblePages'](
-            applicationContext.builder
-          )
-        )
+        pathParametersInError(workflowAction, visiblePages) ||
+        pathParameterValuesInError(workflowAction, visiblePages)
       ) {
         return this.app.$i18n.t('workflowActionTypes.errorPageParameterInError')
       }

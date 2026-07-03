@@ -1155,6 +1155,45 @@ describe('elementTypes tests', () => {
         true
       )
     })
+
+    test('Returns true if Button Element open page action has a missing page parameter value.', () => {
+      const targetPage = {
+        id: 1,
+        shared: false,
+        order: 1,
+        path_params: [{ name: 'id', type: 'numeric' }],
+      }
+      const page = {
+        id: 2,
+        shared: false,
+        order: 2,
+        name: 'Foo Page',
+        workflowActions: [
+          {
+            type: 'open_page',
+            element_id: 50,
+            page_parameters: [{ name: 'id', value: {} }],
+            navigation_type: 'page',
+            navigate_to_page_id: targetPage.id,
+          },
+        ],
+      }
+      const element = {
+        id: 50,
+        value: { formula: "'Click me'" },
+        page_id: page.id,
+      }
+      const builder = {
+        id: 1,
+        pages: [targetPage, page],
+      }
+      const elementType = testApp.$registry.get('element', 'button')
+
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
+    })
+
     test('Returns true if Button Element has errors, false otherwise', () => {
       const page = {
         id: 1,

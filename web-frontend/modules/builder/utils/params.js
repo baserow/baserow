@@ -53,6 +53,50 @@ export function pathParametersInError(navigationObject, pages) {
   return false
 }
 
+function pathParameterHasValue(pageParam) {
+  const value = pageParam?.value
+  if (value === null || typeof value === 'undefined') {
+    return false
+  }
+  if (typeof value === 'object') {
+    return Boolean(value.formula)
+  }
+  return Boolean(value)
+}
+
+/**
+ * Responsible for detecting if a navigable record has missing path parameter
+ * values. This differs from pathParametersInError, which only detects whether
+ * the saved parameters match the destination page's path parameters.
+ *
+ * @param {Object} navigationObject - An `element` or `workflowAction` object
+ *  which points to navigation data.
+ * @param {Array} pages - An array of "visible" pages in the application.
+ * @returns {Boolean} Whether this navigable object has missing path parameter
+ *  values.
+ */
+export function pathParameterValuesInError(navigationObject, pages) {
+  if (
+    navigationObject.navigation_type === 'page' &&
+    !isNaN(navigationObject.navigate_to_page_id)
+  ) {
+    const destinationPage = pages.find(
+      ({ id }) => id === navigationObject.navigate_to_page_id
+    )
+
+    if (destinationPage) {
+      const destinationPageParams = destinationPage.path_params || []
+      const pageParams = navigationObject.page_parameters || []
+
+      return destinationPageParams.some(({ name }) => {
+        const pageParam = pageParams.find((param) => param.name === name)
+        return !pathParameterHasValue(pageParam)
+      })
+    }
+  }
+  return false
+}
+
 /**
  * Given dispatch refinement records, this function is responsible for generating
  * the URLSearchParams that data source and workflow action dispatches will use.

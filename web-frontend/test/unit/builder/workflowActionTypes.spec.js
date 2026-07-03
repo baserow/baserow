@@ -37,4 +37,86 @@ describe('Builder workflow action types', () => {
       'slack_write_message',
     ])
   })
+
+  test('open page action is in error when saved page parameters are outdated', () => {
+    const workflowActionType = testApp
+      .getRegistry()
+      .get('workflowAction', 'open_page')
+    const builder = {
+      id: 1,
+      pages: [
+        {
+          id: 1,
+          shared: false,
+          order: 1,
+          path: '/',
+          path_params: [],
+        },
+        {
+          id: 2,
+          shared: false,
+          order: 2,
+          path: '/details/:slug',
+          path_params: [{ name: 'slug', type: 'text' }],
+        },
+      ],
+    }
+    const workflowAction = {
+      type: 'open_page',
+      navigation_type: 'page',
+      navigate_to_page_id: 2,
+      page_parameters: [],
+    }
+
+    expect(
+      workflowActionType.isInError(workflowAction, {
+        builder,
+      })
+    ).toBe(true)
+  })
+
+  test('open page action is in error when a required page parameter is empty', () => {
+    const workflowActionType = testApp
+      .getRegistry()
+      .get('workflowAction', 'open_page')
+    const builder = {
+      id: 1,
+      pages: [
+        {
+          id: 1,
+          shared: false,
+          order: 1,
+          path: '/',
+          path_params: [],
+        },
+        {
+          id: 2,
+          shared: false,
+          order: 2,
+          path: '/details/:id',
+          path_params: [{ name: 'id', type: 'numeric' }],
+        },
+      ],
+    }
+    const workflowAction = {
+      type: 'open_page',
+      navigation_type: 'page',
+      navigate_to_page_id: 2,
+      page_parameters: [{ name: 'id', value: {} }],
+    }
+
+    expect(
+      workflowActionType.isInError(workflowAction, {
+        builder,
+      })
+    ).toBe(true)
+
+    workflowAction.page_parameters = [{ name: 'id', value: { formula: '' } }]
+
+    expect(
+      workflowActionType.isInError(workflowAction, {
+        builder,
+      })
+    ).toBe(true)
+  })
 })

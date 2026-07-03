@@ -1,4 +1,7 @@
-import { pathParametersInError } from '@baserow/modules/builder/utils/params'
+import {
+  pathParameterValuesInError,
+  pathParametersInError,
+} from '@baserow/modules/builder/utils/params'
 
 describe('Builder parameter util tests', () => {
   describe('pathParametersInError', () => {
@@ -88,6 +91,95 @@ describe('Builder parameter util tests', () => {
       ]
 
       const result = pathParametersInError(element, pages)
+      expect(result).toBe(true)
+    })
+  })
+
+  describe('pathParameterValuesInError', () => {
+    test('should return false when element is not a page navigation', () => {
+      const element = {
+        navigation_type: 'link',
+        navigate_to_page_id: 1,
+        page_parameters: [],
+      }
+      const pages = [{ id: 1, path_params: [{ name: 'id', type: 'text' }] }]
+
+      const result = pathParameterValuesInError(element, pages)
+      expect(result).toBe(false)
+    })
+
+    test('should return false when destinationPage is not found', () => {
+      const element = {
+        navigation_type: 'page',
+        navigate_to_page_id: 3,
+        page_parameters: [],
+      }
+      const pages = [{ id: 1, path_params: [{ name: 'id', type: 'text' }] }]
+
+      const result = pathParameterValuesInError(element, pages)
+      expect(result).toBe(false)
+    })
+
+    test('should return false when all path parameters have values', () => {
+      const element = {
+        navigation_type: 'page',
+        navigate_to_page_id: 1,
+        page_parameters: [
+          { name: 'param1', value: { formula: "'10'" } },
+          { name: 'param2', value: { formula: "'abc'" } },
+        ],
+      }
+      const pages = [
+        {
+          id: 1,
+          path_params: [
+            { name: 'param1', type: 'numeric' },
+            { name: 'param2', type: 'text' },
+          ],
+        },
+      ]
+
+      const result = pathParameterValuesInError(element, pages)
+      expect(result).toBe(false)
+    })
+
+    test('should return true when a path parameter value is missing', () => {
+      const element = {
+        navigation_type: 'page',
+        navigate_to_page_id: 1,
+        page_parameters: [
+          { name: 'param1', value: { formula: "'10'" } },
+          { name: 'param2', value: {} },
+        ],
+      }
+      const pages = [
+        {
+          id: 1,
+          path_params: [
+            { name: 'param1', type: 'numeric' },
+            { name: 'param2', type: 'text' },
+          ],
+        },
+      ]
+
+      const result = pathParameterValuesInError(element, pages)
+      expect(result).toBe(true)
+    })
+
+    test('should return true when a path parameter formula is empty', () => {
+      const element = {
+        navigation_type: 'page',
+        navigate_to_page_id: 1,
+        page_parameters: [{ name: 'param1', value: { formula: '' } }],
+      }
+      const pages = [
+        {
+          id: 1,
+          path_params: [{ name: 'param1', type: 'numeric' }],
+        },
+      ]
+
+      const result = pathParameterValuesInError(element, pages)
       expect(result).toBe(true)
     })
   })
