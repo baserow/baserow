@@ -15,9 +15,9 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
     iteration = serializers.SerializerMethodField()
     iteration_path = serializers.SerializerMethodField()
     edge_label = serializers.SerializerMethodField()
-    goto_destination_node_id = serializers.SerializerMethodField()
-    goto_destination_node_type = serializers.SerializerMethodField()
-    goto_destination_label = serializers.SerializerMethodField()
+    destination_node_id = serializers.SerializerMethodField()
+    destination_node_type = serializers.SerializerMethodField()
+    destination_label = serializers.SerializerMethodField()
 
     class Meta:
         model = AutomationNodeHistory
@@ -35,9 +35,9 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
             "iteration",
             "iteration_path",
             "edge_label",
-            "goto_destination_node_id",
-            "goto_destination_node_type",
-            "goto_destination_label",
+            "destination_node_id",
+            "destination_node_type",
+            "destination_label",
         )
 
     @extend_schema_field(OpenApiTypes.STR)
@@ -78,18 +78,16 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
         return self.context.get("edge_labels", {}).get(obj.id, "")
 
     @extend_schema_field(OpenApiTypes.INT)
-    def get_goto_destination_node_id(self, obj):
-        return self.context.get("goto_destinations", {}).get(obj.id, {}).get("id")
+    def get_destination_node_id(self, obj):
+        return self.context.get("destinations", {}).get(obj.id, {}).get("id")
 
     @extend_schema_field(OpenApiTypes.STR)
-    def get_goto_destination_node_type(self, obj):
-        return self.context.get("goto_destinations", {}).get(obj.id, {}).get("type", "")
+    def get_destination_node_type(self, obj):
+        return self.context.get("destinations", {}).get(obj.id, {}).get("type", "")
 
     @extend_schema_field(OpenApiTypes.STR)
-    def get_goto_destination_label(self, obj):
-        return (
-            self.context.get("goto_destinations", {}).get(obj.id, {}).get("label", "")
-        )
+    def get_destination_label(self, obj):
+        return self.context.get("destinations", {}).get(obj.id, {}).get("label", "")
 
 
 class AutomationNodeResultSerializer(serializers.ModelSerializer):

@@ -100,9 +100,9 @@ def test_get_node_histories_surfaces_goto_destination(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     rows = {row["id"]: row for row in response.json()}
     row = rows[goto_history.id]
-    assert row["goto_destination_node_id"] == destination.id
-    assert row["goto_destination_node_type"] == destination.get_type().type
-    assert row["goto_destination_label"] == "destination node"
+    assert row["destination_node_id"] == destination.id
+    assert row["destination_node_type"] == destination.get_type().type
+    assert row["destination_label"] == "destination node"
 
 
 @pytest.mark.django_db

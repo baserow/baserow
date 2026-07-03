@@ -263,14 +263,14 @@ const nodeIconClass = computed(() => {
  * workflow by id, because the history references the published workflow copy
  * that ran, whose node ids differ from the editor's.
  */
-const gotoDestinationLabel = computed(() => {
+const destinationLabel = computed(() => {
   if (props.nodeHistory.node_type !== 'goto_node') return null
 
-  if (props.nodeHistory.goto_destination_label) {
-    return props.nodeHistory.goto_destination_label
+  if (props.nodeHistory.destination_label) {
+    return props.nodeHistory.destination_label
   }
 
-  const destinationType = props.nodeHistory.goto_destination_node_type
+  const destinationType = props.nodeHistory.destination_node_type
   if (!destinationType) return null
 
   if (!app.$registry.exists('node', destinationType)) return null
@@ -286,12 +286,9 @@ const nodeTypeLabel = computed(() => {
       app.$i18n.t('nodeType.defaultEdgeLabelFallback')
     return `${baseLabel} (${edgeLabel})`
   }
-  if (
-    props.nodeHistory.node_type === 'goto_node' &&
-    gotoDestinationLabel.value
-  ) {
+  if (props.nodeHistory.node_type === 'goto_node' && destinationLabel.value) {
     // Show which node the workflow jumps to.
-    return `${baseLabel} → ${gotoDestinationLabel.value}`
+    return `${baseLabel} → ${destinationLabel.value}`
   }
   return baseLabel
 })
