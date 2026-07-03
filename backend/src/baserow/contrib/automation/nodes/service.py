@@ -11,7 +11,7 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
     AutomationNodeType,
-    validate_goto_destination,
+    CoreGotoActionNodeType,
 )
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
@@ -563,7 +563,12 @@ class AutomationNodeService:
         for service in goto_services:
             source_node = service.automation_workflow_node
             destination_node = service.destination_node
-            if validate_goto_destination(source_node, destination_node) is None:
+            if (
+                CoreGotoActionNodeType.validate_goto_destination(
+                    source_node, destination_node
+                )
+                is None
+            ):
                 continue
 
             previous_destination_id = service.destination_node_id
@@ -599,7 +604,12 @@ class AutomationNodeService:
                 # An endpoint was deleted after the move was made; nothing to
                 # restore. (The link stays cleared, which is correct.)
                 continue
-            if validate_goto_destination(goto_node, destination_node) is not None:
+            if (
+                CoreGotoActionNodeType.validate_goto_destination(
+                    goto_node, destination_node
+                )
+                is not None
+            ):
                 continue
 
             service = goto_node.service.specific

@@ -539,6 +539,7 @@ def test_dispatch_node_dispatches_iterator_children(data_fixture):
 
 
 @pytest.mark.django_db
+@override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=100)
 def test_dispatch_node_fully_dispatches_nested_iterator_workflow(data_fixture):
     data = data_fixture.nested_iterator_graph_fixture()
     trigger_node = data["trigger_node"]

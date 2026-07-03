@@ -4,7 +4,7 @@ import pytest
 
 from baserow.contrib.automation.action_scopes import WorkflowActionScopeType
 from baserow.contrib.automation.nodes.actions import MoveAutomationNodeActionType
-from baserow.contrib.automation.nodes.node_types import validate_goto_destination
+from baserow.contrib.automation.nodes.node_types import CoreGotoActionNodeType
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.integrations.core.models import CoreGotoService
 from baserow.core.action.handler import ActionHandler
@@ -33,7 +33,7 @@ def _root_goto_workflow(data_fixture, user=None):
     service.save()
 
     # Sanity check: same root level, so the link is valid to begin with.
-    assert validate_goto_destination(goto, destination) is None
+    assert CoreGotoActionNodeType.validate_goto_destination(goto, destination) is None
 
     return {
         "user": user,
@@ -126,7 +126,7 @@ def test_move_container_holding_both_endpoints_keeps_goto_link(data_fixture):
     service = goto.service.specific
     service.destination_node = destination
     service.save()
-    assert validate_goto_destination(goto, destination) is None
+    assert CoreGotoActionNodeType.validate_goto_destination(goto, destination) is None
 
     # Moving the whole container carries both endpoints together, so their
     # relative level is unchanged and the link must survive.

@@ -85,52 +85,6 @@ from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 
 
-def validate_goto_destination(
-    source_node: AutomationNode,
-    destination_node: Optional[AutomationNode],
-) -> Optional[str]:
-    """
-    Validates that destination_node is an eligible "Go to node" destination
-    for source_node.
-
-    A destination is eligible when it belongs to the same workflow, is at the
-    same level (i.e. has the same parent/container nodes), is not a trigger node
-    and runs before the Go to node (a backward jump). A node may not target
-    itself.
-    """
-
-    if destination_node is None:
-        return None
-
-    if destination_node.id == source_node.id:
-        return "The destination node cannot be the Go to node itself."
-
-    if destination_node.workflow_id != source_node.workflow_id:
-        return "The destination node must belong to the same workflow."
-
-    if destination_node.get_type().is_workflow_trigger:
-        return "The destination node cannot be a trigger node."
-
-    source_level = sorted(node.id for node in source_node.get_parent_points())
-    destination_level = sorted(node.id for node in destination_node.get_parent_points())
-    if source_level != destination_level:
-        return "The destination node must be at the same level as the Go to node."
-
-    # Only backward jumps are allowed: the destination must be one of the nodes
-    # that run before the Go to node. A forward jump would skip the nodes between
-    # the Go to node and its destination, leaving them unexecuted, so any later
-    # node that reads a skipped node's output via the previous-node data provider
-    # would fail.
-    previous_node_ids = {node.id for node in source_node.get_previous_points()}
-    if destination_node.id not in previous_node_ids:
-        return (
-            "The destination node must run before the Go to node. "
-            "Jumping forward is not allowed."
-        )
-
-    return None
-
-
 class AutomationNodeActionNodeType(AutomationNodeType):
     is_workflow_action = True
 
@@ -411,6 +365,54 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
     model_class = CoreGotoActionNode
     service_type = CoreGotoServiceType.type
 
+    @staticmethod
+    def validate_goto_destination(
+        source_node: AutomationNode,
+        destination_node: Optional[AutomationNode],
+    ) -> Optional[str]:
+        """
+        Validates that destination_node is an eligible "Go to node" destination
+        for source_node.
+
+        A destination is eligible when it belongs to the same workflow, is at
+        the same level (i.e. has the same parent/container nodes), is not a
+        trigger node and runs before the Go to node (a backward jump). A node
+        may not target itself.
+        """
+
+        if destination_node is None:
+            return None
+
+        if destination_node.id == source_node.id:
+            return "The destination node cannot be the Go to node itself."
+
+        if destination_node.workflow_id != source_node.workflow_id:
+            return "The destination node must belong to the same workflow."
+
+        if destination_node.get_type().is_workflow_trigger:
+            return "The destination node cannot be a trigger node."
+
+        source_level = sorted(node.id for node in source_node.get_parent_points())
+        destination_level = sorted(
+            node.id for node in destination_node.get_parent_points()
+        )
+        if source_level != destination_level:
+            return "The destination node must be at the same level as the Go to node."
+
+        # Only backward jumps are allowed: the destination must be one of the
+        # nodes that run before the Go to node. A forward jump would skip the
+        # nodes between the Go to node and its destination, leaving them
+        # unexecuted, so any later node that reads a skipped node's output via
+        # the previous-node data provider would fail.
+        previous_node_ids = {node.id for node in source_node.get_previous_points()}
+        if destination_node.id not in previous_node_ids:
+            return (
+                "The destination node must run before the Go to node. "
+                "Jumping forward is not allowed."
+            )
+
+        return None
+
     def dispatch(self, automation_node, dispatch_context) -> DispatchResult:
         """
         Applies the automation-graph rules on top of the generic goto service
@@ -439,7 +441,7 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
         destination_node = AutomationNodeHandler().get_node(
             dispatch_result.output_node_id
         )
-        if error := validate_goto_destination(automation_node, destination_node):
+        if error := self.validate_goto_destination(automation_node, destination_node):
             raise ServiceImproperlyConfiguredDispatchException(error)
 
         return dispatch_result
@@ -466,7 +468,7 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
             destination_node = AutomationNodeHandler().get_node(
                 service_values["destination_node_id"]
             )
-            if error := validate_goto_destination(instance, destination_node):
+            if error := self.validate_goto_destination(instance, destination_node):
                 raise AutomationNodeMisconfiguredService(error)
 
         return super().prepare_values(values, user, instance)
