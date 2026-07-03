@@ -206,7 +206,9 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
 
         self.scope["pages"] = SubscribedPages()
         web_socket_id = self.scope["web_socket_id"]
-        if settings.ENABLE_USER_PRESENCE and feature_flag_is_enabled(FF_USER_PRESENCE):
+        if settings.PRESENCE_VISIBLE_USERS > 0 and feature_flag_is_enabled(
+            FF_USER_PRESENCE
+        ):
             self.presence = PresenceHandler(
                 consumer=self,
                 web_socket_id=web_socket_id,

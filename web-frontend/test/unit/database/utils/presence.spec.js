@@ -2,6 +2,7 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import {
   createPresenceFocusSender,
+  getPresenceVisibleUsers,
   isUserPresenceEnabled,
   resolvePresencePageParams,
   tablePresenceSpaceName,
@@ -18,14 +19,14 @@ describe('tablePresenceSpaceName', () => {
 })
 
 describe('isUserPresenceEnabled', () => {
-  function mockVm({ featureFlag = true, configValue = 'true' } = {}) {
+  function mockVm({ featureFlag = true, visibleUsers = '3' } = {}) {
     return {
       $featureFlagIsEnabled: vi.fn().mockReturnValue(featureFlag),
-      $config: { public: { baserowEnableUserPresence: configValue } },
+      $config: { public: { baserowPresenceVisibleUsers: visibleUsers } },
     }
   }
 
-  test('enabled when feature flag and circuit breaker are both on', () => {
+  test('enabled when feature flag on and visible users > 0', () => {
     expect(isUserPresenceEnabled(mockVm())).toBe(true)
   })
 
@@ -34,14 +35,33 @@ describe('isUserPresenceEnabled', () => {
     expect(isUserPresenceEnabled({})).toBe(false)
   })
 
-  test('requires the runtime config circuit breaker', () => {
-    expect(isUserPresenceEnabled(mockVm({ configValue: 'false' }))).toBe(false)
+  test('disabled when visible users is 0', () => {
+    expect(isUserPresenceEnabled(mockVm({ visibleUsers: '0' }))).toBe(false)
+  })
+
+  test('disabled when visible users is missing', () => {
     expect(
       isUserPresenceEnabled({
         $featureFlagIsEnabled: vi.fn().mockReturnValue(true),
         $config: { public: {} },
       })
     ).toBe(false)
+  })
+})
+
+describe('getPresenceVisibleUsers', () => {
+  test('parses integer from config string', () => {
+    const vm = { $config: { public: { baserowPresenceVisibleUsers: '5' } } }
+    expect(getPresenceVisibleUsers(vm)).toBe(5)
+  })
+
+  test('returns 0 for missing config', () => {
+    expect(getPresenceVisibleUsers({ $config: { public: {} } })).toBe(0)
+  })
+
+  test('returns 0 for non-numeric string', () => {
+    const vm = { $config: { public: { baserowPresenceVisibleUsers: 'abc' } } }
+    expect(getPresenceVisibleUsers(vm)).toBe(0)
   })
 })
 

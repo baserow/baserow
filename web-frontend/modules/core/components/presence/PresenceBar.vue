@@ -19,8 +19,7 @@
 <script>
 import PresenceBadge from '@baserow/modules/core/components/presence/PresenceBadge'
 import { escapeHtml } from '@baserow/modules/core/utils/string'
-
-const MAX_VISIBLE = 3
+import { getPresenceVisibleUsers } from '@baserow/modules/database/utils/presence'
 
 export default {
   name: 'PresenceBar',
@@ -34,6 +33,9 @@ export default {
     },
   },
   computed: {
+    maxVisible() {
+      return getPresenceVisibleUsers(this)
+    },
     currentUserId() {
       return this.$store.getters['auth/getUserId']
     },
@@ -47,13 +49,13 @@ export default {
       return this.remoteUsers.filter((u) => u.user_id !== this.currentUserId)
     },
     visibleUsers() {
-      return this.otherUsers.slice(0, MAX_VISIBLE)
+      return this.otherUsers.slice(0, this.maxVisible)
     },
     overflowCount() {
-      return Math.max(0, this.otherUsers.length - MAX_VISIBLE)
+      return Math.max(0, this.otherUsers.length - this.maxVisible)
     },
     overflowUsers() {
-      return this.otherUsers.slice(MAX_VISIBLE)
+      return this.otherUsers.slice(this.maxVisible)
     },
     overflowTooltip() {
       return this.overflowUsers

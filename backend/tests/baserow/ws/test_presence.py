@@ -150,7 +150,7 @@ async def test_subscribe_broadcasts_join_and_returns_members(
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-@override_settings(ENABLE_USER_PRESENCE=False)
+@override_settings(PRESENCE_VISIBLE_USERS=0)
 async def test_circuit_breaker_setting_disables_presence(data_fixture, presence_types):
     user, token = data_fixture.create_user_and_token()
 

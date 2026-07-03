@@ -10,18 +10,25 @@ export function tablePresenceSpaceName(tableId) {
 
 /**
  * Whether user presence is active for this client. Requires both the
- * `user_presence` feature flag (rollout gate, removed at GA) and the
- * BASEROW_ENABLE_USER_PRESENCE runtime config circuit breaker (string
- * 'true'/'false', defaulted to 'true' in the core module). The backend
- * enforces the same pair authoritatively; this check only skips presence UI
- * and focus emitter setup. See docs/technical/realtime-presence.md.
+ * `user_presence` feature flag (rollout gate, removed at GA) and
+ * BASEROW_PRESENCE_VISIBLE_USERS > 0. The backend enforces the same pair
+ * authoritatively; this check only skips presence UI and focus emitter
+ * setup. See docs/technical/realtime-presence.md.
  */
 export function isUserPresenceEnabled(vm) {
   return (
     typeof vm.$featureFlagIsEnabled === 'function' &&
     vm.$featureFlagIsEnabled(FF_USER_PRESENCE) &&
-    vm.$config?.public?.baserowEnableUserPresence === 'true'
+    getPresenceVisibleUsers(vm) > 0
   )
+}
+
+/**
+ * Returns the configured maximum number of user badges to show in the
+ * presence bar. Sourced from BASEROW_PRESENCE_VISIBLE_USERS runtime config.
+ */
+export function getPresenceVisibleUsers(vm) {
+  return parseInt(vm.$config?.public?.baserowPresenceVisibleUsers, 10) || 0
 }
 
 /**
