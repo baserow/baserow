@@ -128,7 +128,7 @@ describe('GridViewGroupByBanner component', () => {
       .findAll('.grid-view__group-by-banner-separator')
       .map((separator) => separator.element.style.left)
 
-  test('renders separators after the row details lane and internal left fields', async () => {
+  test('renders separators on internal left fields but not the id/primary boundary', async () => {
     const fields = [
       { id: 1, type: 'text', name: 'Name' },
       { id: 2, type: 'text', name: 'Team' },
@@ -155,7 +155,8 @@ describe('GridViewGroupByBanner component', () => {
       },
     })
 
-    expect(separatorLefts(wrapper)).toEqual(['71px', '271px', '421px'])
+    // No separator at 71px: the row-details column is borderless on data rows.
+    expect(separatorLefts(wrapper)).toEqual(['271px', '421px'])
   })
 
   test('renders separators on internal right-section field boundaries', async () => {

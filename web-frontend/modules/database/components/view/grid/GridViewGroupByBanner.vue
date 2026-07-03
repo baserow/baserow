@@ -279,9 +279,10 @@ export default {
       const positions = []
       let x = 0
 
+      // Skip the id/primary boundary: data rows leave the row-details column
+      // borderless, so the banner must not draw a divider there either.
       if (this.includeRowDetails) {
         x += this.rowDetailsWidth
-        positions.push(x)
       }
 
       this.visibleFields.slice(0, -1).forEach((field) => {
