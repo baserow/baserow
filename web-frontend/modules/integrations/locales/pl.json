@@ -12,12 +12,12 @@
         "searchTabTitle": "Szukaj",
         "advancedConfig": "Zaawansowane",
         "defaultResultCount": "Domyślna liczba wyników",
-        "defaultResultCountHelp": "Domyślna liczba rekordów, które to źródło danych pobierze. Jeżeli wpiszesz 0 i wartość ta zostanie użyta w trakcie pobierania danych, to strona wczyta się szybciej, ponieważ rekordy zostaną pobrane dopiero w trakcie paginacji elementu.",
+        "defaultResultCountHelp": "Domyślna liczba rekordów pobranych przez to źródło. Jeśli wpiszesz 0 i wartość ta zostanie użyta w trakcie pobierania danych, to strona wczyta się szybciej, ponieważ rekordy zostaną pobrane dopiero w trakcie paginacji elementu.",
         "defaultResultCountPlaceholder": "Wartość domyślna..."
     },
     "localBaserowTableServiceSortForm": {
         "thenBy": "Następnie wg.",
-        "addSort": "Dodaj następne sortowanie",
+        "addSort": "Dodaj kolejne sortowanie",
         "noTableChosenForSorting": "Aby posortować źródło danych, najpierw wybierz tabelę.",
         "sortBy": "Posortuj wg.",
         "noSortTitle": "Nie utworzono jeszcze sortowania źródła danych",
@@ -29,9 +29,9 @@
         "filterTypeNotFound": "Niezgodny typ filtra.",
         "addFilter": "Dodaj dodatkowy filtr",
         "noFilterTitle": "Filtr źródła danych nie został jeszcze utworzony",
-        "noFilterText": "Filtry źródła danych umożliwiają wyświetlanie wierszy tabeli Baserow, które spełniają określone przez Ciebie warunki.",
+        "noFilterText": "Filtry źródła danych umożliwiają wyświetlanie wierszy, które spełniają określone przez Ciebie warunki.",
         "noCompatibleFilterTypesErrorTitle": "Brak kompatybilnych typów filtrów",
-        "noCompatibleFilterTypesErrorMessage": "Żadne z twoich pól nie ma kompatybilnych typów filtrów",
+        "noCompatibleFilterTypesErrorMessage": "Żadne z twoich pól nie posiada kompatybilnych typów filtrów",
         "formulaFilterInputPlaceholder": "Wprowadź formułę...",
         "useFormulaForValue": "Użyj formuły dla tego filtra",
         "useDefaultForValue": "Użyj domyślnego filtra dla tego pola",
@@ -188,12 +188,12 @@
         "modelLabel": "Model AI",
         "modelPlaceholder": "Wybierz model...",
         "outputTypeLabel": "Typ danych wyjściowych",
-        "outputTypeHelp": "Określ format odpowiedzi AI. Jeśli wybierzesz “opcje”, wymusisz na modelu odpowiedź w jednym z podanych formatów.",
+        "outputTypeHelp": "Określ format odpowiedzi AI. Jeśli określisz “opcje”, wymusisz na modelu odpowiedź w jednym z podanych formatów.",
         "outputTypeText": "Tekst",
-        "outputTypeChoice": "Opcje",
+        "outputTypeChoice": "Opcja",
         "temperatureLabel": "Temperatura",
-        "temperaturePlaceholder": "np. 0,7",
-        "temperatureHelp": "Określa poziom przypadkowości. Niższe wartości (0 – 0.3) zawężają odpowiedzi, które są bardziej deterministyczne. Gdy będą użyte wyższe wartości (0.7 – 2.0), odpowiedzi będą bardziej kreatywne i zróżnicowane.",
+        "temperaturePlaceholder": "np. 0.7",
+        "temperatureHelp": "Określa poziom przypadkowości. Niższe wartości (0-0.3) zawężają odpowiedzi, które są bardziej deterministyczne. W przypadku wyższych wartości (0.7-2.0), odpowiedzi będą bardziej kreatywne i zróżnicowane.",
         "promptLabel": "Prompt",
         "promptPlaceholder": "Wprowadź swój prompt...",
         "choicesLabel": "Opcje",
@@ -206,13 +206,13 @@
         "sortTabTitle": "0 Posortowań | 1 Posortowanie | {count} Posortowania/ń",
         "searchTabTitle": "0 Wyszukiwań | 1 Wyszukiwanie | {count} Wyszukiwania/ń",
         "searchFieldPlaceHolder": "Wprowadź frazę wyszukiwania...",
-        "noTableChosenForFiltering": "Wybierz tabelę, aby zacząć używać filtrów tego źródła danych.",
-        "noTableChosenForSorting": "Wybierz tabelę, aby zacząć używać sortowań tego źródła danych.",
-        "refinements": "Dopracowania"
+        "noTableChosenForFiltering": "Aby zacząć używać filtrów tego źródła danych, najpierw wybierz tabelę.",
+        "noTableChosenForSorting": "Aby zacząć używać sortowań tego źródła danych, najpierw wybierz tabelę.",
+        "refinements": "Poprawki"
     },
     "coreHTTPRequestServiceForm": {
         "httpMethod": "Metoda HTTP",
-        "url": "URL punktu końcowego (endpoint)",
+        "url": "URL endpointu",
         "queryParams": "Parametry zapytania",
         "name": "Nazwa",
         "value": "Wartość",
@@ -223,14 +223,14 @@
         "addHeader": "dodaj nagłówek",
         "formData": "Dane w formularzu",
         "addFormData": "dodaj dane w formularzu",
-        "bodyType": "Typ treści",
+        "bodyType": "Rodzaj treści",
         "bodyContent": "Zawartość treści",
-        "urlPlaceholder": "Wprowadź URL punktu końcowego (endpoint)…",
+        "urlPlaceholder": "Wprowadź URL endpointu…",
         "bodyPlaceholder": "Dodaj treść żądania...",
         "timeoutPlaceholder": "Wprowadź limit czasu...",
-        "nameFieldRequired": "Wymagana jest nazwa.",
+        "nameFieldRequired": "Wymagana jest nazwa atrybutu.",
         "seconds": "sekundy",
-        "nameFieldInvalid": "Nazwa może zawierać tylko znaki alfanumeryczne, myślniki lub podkreślenia i nie może zaczynać się od myślnika lub podkreślenia.",
+        "nameFieldInvalid": "Nazwa może zawierać tylko znaki alfanumeryczne, myślniki lub podkreślenia i nie może zaczynać się od myślnika ani podkreślenia.",
         "timeout": "Limit czasu"
     },
     "slackBotForm": {
@@ -238,21 +238,21 @@
         "tokenPlaceholder": "xoxb-1234-...",
         "tokenMustStartWith": "Token musi zaczynać się od \"xoxb-\"",
         "supportHeading": "Potrzebujesz pomocy?",
-        "supportDescription": "Jeśli potrzebujesz pomocy w trakcie parowania z aplikacją w Slacku, zapoznaj się z poniższymi krokami.",
+        "supportDescription": "Zapoznaj się z poniższymi krokami, jeśli potrzebujesz pomocy podczas parowania z aplikacją w Slacku.",
         "supportSetupHeading": "1. Konfiguracja aplikacji",
-        "supportSetupDescription": "W obszarze roboczym w Slacku utwórz nową aplikację. Jeśli nie masz takiej możliwości, zwróć się do swojego administratora. Jeśli korzystasz z istniejącej aplikacji, która może wysyłać wiadomości, przejdź do sekcji „Parowanie z aplikacją w Slacku”.",
-        "supportSetupStep1": "Przejdź do konfiguracji swojego obszaru roboczego klikając {link}.",
+        "supportSetupDescription": "W obszarze roboczym w Slacku utwórz nową aplikację. Jeśli nie masz takiej możliwości, zwróć się do swojego administratora. Jeśli korzystasz z istniejącej aplikacji, która może wysyłać wiadomości, przejdź do sekcji \"Parowanie z aplikacją w Slacku”.",
+        "supportSetupStep1": "Kliknij {link}, aby przejść do konfiguracji swojego obszaru roboczego.",
         "supportSetupStep1Link": "strona aplikacji",
         "supportSetupStep2": "Utwórz nową aplikację, wybierz \"Od podstaw\" i wprowadź nazwę. Wybierz obszar roboczy, w którym aplikacja ma działać, i kliknij \"Utwórz\".",
         "supportSetupStep3": "W lewym panelu bocznym przejdź do \"OAuth > Uprawnienia\", przewiń do sekcji “Zakresy” i pod nagłówkiem \"Zakresy tokena bota\" wybierz \"Dodaj zakres OAuth\".",
         "supportSetupStep4": "Aby umożliwić aplikacji publikowanie wiadomości, dodaj zakres {scope}.",
         "supportPairingHeading": "2. Parowanie z aplikacją w Slacku",
-        "supportPairingStep1": "Jeśli aplikacja jest nowa, przejdź do \"Ustawienia\" > \"Zainstaluj aplikację\". Następnie kliknij zielony przycisk, aby zainstalować aplikację w swoim obszarze roboczym.",
+        "supportPairingStep1": "Jeśli aplikacja jest nowo utworzona, przejdź do \"Ustawienia\" > \"Zainstaluj aplikację\". Następnie, aby zainstalować aplikację w swoim obszarze roboczym, kliknij zielony przycisk.",
         "supportPairingStep2": "Skopiuj swój \"Token OAuth bota\" i wklej go w polu \"Token bota\" w tym formularzu.",
-        "supportPairingStep3": "Na koniec, jeśli aplikacja w Slacku jest nowa, zaproś tę aplikację na wybrany kanał za pomocą polecenia {command}"
+        "supportPairingStep3": "Na koniec, i jeśli aplikacja w Slacku jest nowo utworzona, zaproś tę aplikację na wybrany kanał za pomocą polecenia {command}"
     },
     "slackWriteMessageServiceForm": {
-        "alertMessage": "Ta operacja musi być sparowana z aplikacją Slack. Aby rozpocząć, postępuj zgodnie z instrukcjami w oknie integracji.",
+        "alertMessage": "Ta operacja musi być sparowana z aplikacją w Slacku. Aby rozpocząć, postępuj zgodnie z instrukcjami w oknie integracji.",
         "integrationLabel": "Integracja",
         "channelLabel": "Kanał",
         "channelPlaceholder": "Wprowadź nazwę kanału",
@@ -290,7 +290,7 @@
         "bccEmailsPlaceholder": "udw1{'@'}example.com,udw2{'@'}example.com",
         "subject": "Temat",
         "subjectPlaceholder": "Temat Twojego e-maila",
-        "bodyType": "Typ treści",
+        "bodyType": "Rodzaj treści",
         "bodyTypePlain": "Zwykły tekst",
         "bodyTypeHtml": "HTML",
         "body": "Treść",
@@ -308,7 +308,7 @@
         "branchesDescription": "Rozgałęzienia uruchamiają węzły tylko wtedy, gdy spełniony jest warunek. Rozgałęzienia są wykonywane od lewej do prawej, aż warunek zostanie spełniony, w przeciwnym razie wykonane zostanie rozgałęzienie domyślne. ",
         "branchLabel": "Etykieta",
         "branchConditionLabel": "Warunek",
-        "branchConditionPlaceholder": "Jeśli prawda, wybieramy to rozgałęzienie.",
+        "branchConditionPlaceholder": "Jeśli prawda, zostanie wybrane to rozgałęzienie.",
         "addEdge": "Dodaj rozgałęzienie",
         "edgeDefaultName": "Rozgałęzienie",
         "noLabel": "Brak etykiety",
@@ -334,12 +334,12 @@
         "minuteFrequencyPlaceholder": "15",
         "dayOfMonthPlaceholder": "1-31",
         "minuteHelper": "Ten proces będzie uruchamiany co określoną liczbę minut",
-        "hourHelper": "Ten proces będzie uruchamiany co godzinę w określonej minucie Twojego czasu lokalnego, tj. ({timezone})",
-        "dayHelper": "Ten proces będzie uruchamiany codziennie o określonej godzinie Twojego czasu lokalnego tj. ({timezone})",
-        "weekHelper": "Ten proces będzie uruchamiany co tydzień w określonym dniu i godzinie Twojego czasu lokalnego tj. ({timezone})",
-        "monthHelper": "Ten proces będzie uruchamiany co miesiąc w określonym dniu i godzinie Twojego czasu lokalnego tj. ({timezone})",
+        "hourHelper": "Ten proces będzie uruchamiany co godzinę, o określonej minucie Twojego czasu lokalnego, tj. ({timezone})",
+        "dayHelper": "Ten proces będzie uruchamiany codziennie, o określonej godzinie Twojego czasu lokalnego tj. ({timezone})",
+        "weekHelper": "Ten proces będzie uruchamiany co tydzień, w określonym dniu i godzinie Twojego czasu lokalnego tj. ({timezone})",
+        "monthHelper": "Ten proces będzie uruchamiany co miesiąc, w określonym dniu i godzinie Twojego czasu lokalnego tj. ({timezone})",
         "deactivatedTitle": "Trigger okresowy został wyłączony",
-        "deactivatedText": "Ten trigger okresowy został automatycznie dezaktywowany z powodu powtarzających się nieudanych przebiegów."
+        "deactivatedText": "Ten trigger okresowy został automatycznie wyłączony z powodu powtarzających się błędów."
     },
     "localBaserowServiceForm": {
         "integrationDropdownLabel": "Integracja",
@@ -353,8 +353,8 @@
         "fieldMappingPlaceholderBoolean": "Wybierz wartość logiczną, np. true",
         "fieldMappingPlaceholderDate": "Wybierz wartość daty, np. 2025-07-25",
         "fieldMappingPlaceholderDecimal": "Wybierz wartość dziesiętną, np. 3,14",
-        "fieldMappingPlaceholderDuration": "Wybierz wartość czasu trwania, np. 1:23:40",
-        "noTableSelectedMessage": "Wybierz tabelę, aby rozpocząć konfigurację pól.",
+        "fieldMappingPlaceholderDuration": "Określ czas trwania, np. 1:23:40",
+        "noTableSelectedMessage": "Aby rozpocząć konfigurację pól, wybierz tabelę.",
         "noWritableFields": "Ta tabela nie zawiera pól z możliwością zapisu."
     },
     "localBaserowFieldsUpdatedForm": {
@@ -388,16 +388,16 @@
     "localBaserowDeleteRowServiceForm": {
         "rowIdLabel": "ID wiersza/y",
         "rowIdPlaceholder": "Wybierz ID wiersza lub szereg zawierający ID wierszy",
-        "rowIdHelper": "Choose a row ID or an array of row IDs. Jednorazowo można usunąć maksymalnie {limit} wierszy."
+        "rowIdHelper": "Wybierz ID wiersza lub szereg zawierający ID wierszy. Jednorazowo można usunąć maksymalnie {limit} wierszy."
     },
     "localBaserowCreateRowsServiceForm": {
         "rowsLabel": "Wiersze",
         "rowsPlaceholder": "Wybierz listę obiektów typu \"wiersz\"",
-        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który, po przetworzeniu, tworzy tablicę obiektów wierszy. Jako klucze obiektów należy użyć nazw pól lub ID pól. Jednorazowo można utworzyć maksymalnie {limit} wierszy."
+        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który po przetworzeniu tworzy tablicę obiektów wierszy. Jako klucze obiektów należy użyć nazw lub ID pól. Jednorazowo można utworzyć maksymalnie {limit} wierszy."
     },
     "localBaserowUpdateRowsServiceForm": {
         "rowsLabel": "Wiersze",
         "rowsPlaceholder": "Wybierz liste ID obiektów typu \"wiersz\"",
-        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który, po przetworzeniu, tworzy tablicę obiektów wierszy. Każdy obiekt musi zawierać atrybut identyfikacyjny. Jako klucz obiektu można użyć nazwy lub ID pola. Jednorazowo można zaktualizować maksymalnie {limit} wierszy."
+        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który po przetworzeniu utworzy tablicę obiektów wierszy. Każdy obiekt musi zawierać atrybut identyfikacyjny. Jako klucz obiektu można użyć nazwy lub ID pola. Jednorazowo można zaktualizować maksymalnie {limit} wierszy."
     }
 }
