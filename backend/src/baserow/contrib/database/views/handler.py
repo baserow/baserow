@@ -11,7 +11,11 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
-from django.core.exceptions import FieldDoesNotExist, ValidationError
+from django.core.exceptions import (
+    EmptyResultSet,
+    FieldDoesNotExist,
+    ValidationError,
+)
 from django.db import OperationalError, connection, transaction
 from django.db import models as django_models
 from django.db.models import (
@@ -4464,7 +4468,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
     def _prepare_group_by_data_window_query(
         self, queryset: QuerySet
-    ) -> Tuple[str, Tuple[Any, ...], sql.Composable, Tuple[Any, ...]]:
+    ) -> Optional[Tuple[str, Tuple[Any, ...], sql.Composable, Tuple[Any, ...]]]:
         """
         Compiles the inner grouped query and its window ``ORDER BY`` clause.
 
@@ -4472,13 +4476,17 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         same grouped query but project different window columns.
 
         :param queryset: The grouped queryset to wrap with window metadata.
-        :return: The inner query SQL, its params, the window ``ORDER BY`` clause,
-            and the params that clause expects on each use.
+        :return: The inner query SQL, its params, the window ``ORDER BY`` clause and
+            its params, or ``None`` when the queryset compiles to an empty result (a
+            filter reducing to an always-false ``WHERE``) and callers return no rows.
         """
 
-        query_sql, query_params = queryset.query.get_compiler(
-            connection=connection
-        ).as_sql()
+        try:
+            query_sql, query_params = queryset.query.get_compiler(
+                connection=connection
+            ).as_sql()
+        except EmptyResultSet:
+            return None
         order_by_sql, order_by_params = self._get_group_by_data_window_order_sql(
             queryset
         )
@@ -4526,12 +4534,15 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :return: A list of grouped rows with window metadata.
         """
 
+        prepared = self._prepare_group_by_data_window_query(queryset)
+        if prepared is None:
+            return []
         (
             query_sql,
             query_params,
             window_order_sql,
             order_by_params,
-        ) = self._prepare_group_by_data_window_query(queryset)
+        ) = prepared
         row_count_identifier = sql.Identifier("grouped_data", "row_count")
         where_clause = (
             sql.SQL("WHERE {}").format(where_sql) if where_sql else sql.SQL("")
@@ -4607,12 +4618,15 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :return: A list of grouped rows with global depth and sibling metadata.
         """
 
+        prepared = self._prepare_group_by_data_window_query(queryset)
+        if prepared is None:
+            return []
         (
             query_sql,
             query_params,
             window_order_sql,
             order_by_params,
-        ) = self._prepare_group_by_data_window_query(queryset)
+        ) = prepared
         parent_fields = fields[:depth]
         if parent_fields:
             parent_identifiers = [
@@ -4700,12 +4714,15 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :return: Grouped rows with per-parent sibling metadata.
         """
 
+        prepared = self._prepare_group_by_data_window_query(queryset)
+        if prepared is None:
+            return []
         (
             query_sql,
             query_params,
             window_order_sql,
             order_by_params,
-        ) = self._prepare_group_by_data_window_query(queryset)
+        ) = prepared
         parent_fields = fields[:depth]
         if parent_fields:
             parent_identifiers = [

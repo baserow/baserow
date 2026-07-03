@@ -13,6 +13,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.api.views.grid import utils as grid_view_utils
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler
 
 
@@ -55,6 +56,51 @@ def test_get_group_by_data_computes_per_group_aggregations(data_fixture):
     groups = {group["path"][f"field_{color.id}"]: group for group in result["groups"]}
     assert groups["Blue"]["aggregations"] == {f"field_{amount.id}": 5}
     assert groups["Green"]["aggregations"] == {f"field_{amount.id}": 30}
+
+
+@pytest.mark.django_db
+def test_get_group_by_data_empty_count_aggregation_on_array_field(data_fixture):
+    # empty_count on a lookup-of-file field filters by an AnnotatedQ; its annotation
+    # must be applied or Django can't resolve it as an aggregate filter (500).
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    related_table = data_fixture.create_database_table(user=user, database=database)
+    related_primary = data_fixture.create_text_field(
+        table=related_table, name="Name", primary=True
+    )
+    related_file = data_fixture.create_file_field(table=related_table, name="File")
+    related_row = related_table.get_model().objects.create(
+        **{f"field_{related_primary.id}": "r"}
+    )
+
+    table = data_fixture.create_database_table(user=user, database=database)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    link = data_fixture.create_link_row_field(
+        name="Link", table=table, link_row_table=related_table
+    )
+    lookup = data_fixture.create_lookup_field(
+        table=table,
+        through_field=link,
+        target_field=related_file,
+        through_field_name=link.name,
+        target_field_name=related_file.name,
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    group_by = data_fixture.create_view_group_by(view=grid, field=color)
+
+    RowHandler().create_row(
+        user, table, {f"field_{color.id}": "Blue", f"field_{link.id}": [related_row.id]}
+    )
+    RowHandler().create_row(user, table, {f"field_{color.id}": "Blue"})
+
+    result = ViewHandler().get_group_by_data(
+        table.get_model().objects.all(),
+        [group_by],
+        aggregations=[(lookup, "empty_count")],
+    )
+
+    groups = {group["path"][f"field_{color.id}"]: group for group in result["groups"]}
+    assert groups["Blue"]["aggregations"] == {f"field_{lookup.id}": 2}
 
 
 @pytest.mark.django_db
@@ -509,6 +555,40 @@ def test_group_by_data_include_totals_bundles_table_totals(api_client, data_fixt
 
 
 @pytest.mark.django_db
+def test_public_group_by_data_include_totals_bundles_table_totals(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    amount = data_fixture.create_number_field(
+        table=table, name="Amount", number_decimal_places=0
+    )
+    grid = data_fixture.create_grid_view(table=table, public=True)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    ViewHandler().update_field_options(
+        view=grid,
+        field_options={
+            amount.id: {"aggregation_type": "sum", "aggregation_raw_type": "sum"}
+        },
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{color.id}": "Green", f"field_{amount.id}": 10})
+    model.objects.create(**{f"field_{color.id}": "Red", f"field_{amount.id}": 20})
+
+    url = reverse(
+        "api:database:views:grid:public-group-by-data", kwargs={"slug": grid.slug}
+    )
+    response = api_client.get(url, {"include_totals": "true"})
+
+    assert response.status_code == HTTP_200_OK
+    # The publicly shared grouped view must bundle the footer totals the same way the
+    # private endpoint does, otherwise its footer aggregations stay empty.
+    assert response.json()["aggregations"] == {f"field_{amount.id}": 30}
+
+
+@pytest.mark.django_db
 def test_group_by_data_parents_chain_aggregations_only_with_totals(
     api_client, data_fixture
 ):
@@ -635,6 +715,42 @@ def test_returns_empty_root_page_with_descendants_when_no_rows_match(
     # The empty root page must still be reported, otherwise the client cannot
     # tell a loaded-empty tree apart from an unloaded one (and would render no
     # add-row line).
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    assert page["parent"] == {}
+    assert page["groups"] == []
+    assert page["group_count"] == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query_params",
+    [
+        {"include_descendants": "true"},
+        {"depth": "0"},
+        {},
+    ],
+)
+def test_returns_empty_page_when_filter_compiles_to_empty_result_set(
+    api_client, data_fixture, query_params
+):
+    # An unparseable `single_select_is_any_of` filter compiles to an always-false
+    # WHERE; the eager .as_sql() must catch EmptyResultSet instead of 500ing.
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    single_select = data_fixture.create_single_select_field(table=table, name="Status")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=single_select)
+    data_fixture.create_view_filter(
+        view=grid, field=single_select, type="single_select_is_any_of", value="abc"
+    )
+
+    model = table.get_model()
+    model.objects.create()
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, query_params, HTTP_AUTHORIZATION=f"JWT {token}")
+
     assert response.status_code == HTTP_200_OK
     page = _get_only_page(response)
     assert page["parent"] == {}

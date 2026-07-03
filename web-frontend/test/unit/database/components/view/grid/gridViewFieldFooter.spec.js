@@ -171,6 +171,31 @@ describe('Field footer component', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
+  test('ignores an unknown stored aggregation type instead of crashing', async () => {
+    // A stale/invalid aggregation_type must not crash the grid; the footer treats
+    // it as unconfigured.
+    await store.dispatch('page/view/grid/forceUpdateAllFieldOptions', {
+      2: {
+        aggregation_type: 'not_empty_count1',
+        aggregation_raw_type: 'not_empty_count',
+      },
+    })
+    store.commit('page/view/grid/SET_COUNT', 10)
+    store.commit('page/view/grid/SET_FIELD_AGGREGATION_DATA', {
+      fieldId: 2,
+      value: 5,
+    })
+
+    const wrapper = await mountComponent({
+      view: { id: 1 },
+      database: { id: 1, workspace: { id: 1 } },
+      field: { id: 2, type: 'text' },
+      storePrefix: 'page/',
+    })
+
+    expect(wrapper.find('.grid-view-aggregation__empty').exists()).toBe(true)
+  })
+
   const mountGroupedFooter = () => {
     store.commit('page/view/grid/SET_LAST_GRID_ID', 2)
     store.commit('page/view/grid/SET_ACTIVE_GROUP_BYS', [{ field: 1 }])

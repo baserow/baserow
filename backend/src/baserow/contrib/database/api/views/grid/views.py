@@ -953,6 +953,7 @@ class PublicGridViewGroupByDataView(APIView):
             GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM,
             GROUP_BY_DATA_AGGREGATIONS_ONLY_API_PARAM,
+            GROUP_BY_DATA_INCLUDE_TOTALS_API_PARAM,
             OpenApiParameter("offset", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter(
@@ -1036,6 +1037,24 @@ class PublicGridViewGroupByDataView(APIView):
         group_by_fields = view_handler.get_group_by_fields(queryset, view_group_bys)
         aggregations = get_grid_view_group_by_aggregations(view, view_type)
 
+        totals = None
+        if aggregations and str_to_bool(str(request.GET.get("include_totals"))):
+            # Public visitors can't change the view, so skip the perm check and
+            # combine ad hoc + view filters, like the public aggregations endpoint.
+            totals = view_handler.get_view_field_aggregations(
+                request.user,
+                view,
+                search=query_params.get("search"),
+                search_mode=query_params.get("search_mode"),
+                adhoc_filters=AdHocFilters.from_request(request),
+                combine_filters=True,
+                skip_perm_check=True,
+            )
+            totals = {
+                field: json_safe_aggregation_value(value)
+                for field, value in totals.items()
+            }
+
         response_data = build_group_by_data_response(
             view_handler,
             request,
@@ -1043,6 +1062,7 @@ class PublicGridViewGroupByDataView(APIView):
             view_group_bys,
             group_by_fields,
             aggregations,
+            totals=totals,
         )
 
         return Response(response_data)

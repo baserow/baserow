@@ -14,6 +14,9 @@ describe('GridViewGroupByAggregation', () => {
   })
 
   afterEach(async () => {
+    // Restore spies so a mocked `store.dispatch` from one test can't leak into the
+    // next and turn its setup dispatches into no-ops.
+    vi.restoreAllMocks()
     await testApp.afterEach()
   })
 
@@ -172,6 +175,40 @@ describe('GridViewGroupByAggregation', () => {
       expect.objectContaining({ field })
     )
     expect(wrapper.emitted('change')).toBeTruthy()
+  })
+
+  test('switching to a display type that shares the raw type re-renders without a refetch or spinner', async () => {
+    // not_empty_count and empty_count share the raw type, so switching between them
+    // only re-renders the existing value — no refetch, no spinner (like the footer).
+    await configureNotEmptyCount()
+    const wrapper = await mountCell()
+    const dispatch = vi.spyOn(store, 'dispatch').mockResolvedValue(undefined)
+
+    await wrapper.find('.grid-view-aggregation').trigger('click')
+    const context = wrapper.findComponent(Context)
+    const emptyCountItem = context.findAll('.select__item').find((item) => {
+      const name = item.find('.select__item-name-text')
+      return name.exists() && name.text() === 'viewAggregationType.emptyCount'
+    })
+    await emptyCountItem.find('.select__item-link').trigger('click')
+    await flushPromises()
+
+    // The new display type is still persisted.
+    expect(dispatch).toHaveBeenCalledWith(
+      'page/view/grid/updateFieldOptionsOfField',
+      expect.objectContaining({
+        values: expect.objectContaining({
+          aggregation_type: 'empty_count',
+          aggregation_raw_type: 'empty_count',
+        }),
+      })
+    )
+    // But it neither refetches the group tree nor spins the cell.
+    expect(wrapper.emitted('change')).toBeFalsy()
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'page/view/grid/setGroupByAggregationsLoading',
+      expect.objectContaining({ fieldId: field.id })
+    )
   })
 
   test('renders nothing instead of crashing on a table-only aggregation', async () => {

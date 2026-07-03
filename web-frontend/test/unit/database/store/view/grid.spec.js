@@ -1296,6 +1296,208 @@ describe('Grid view store', () => {
     expect(store.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
   })
 
+  test('refreshRow recomputes and clears group aggregation spinners after a deselect group move', async () => {
+    const optionA = { id: 101, value: 'A', color: 'blue' }
+    const optionB = { id: 102, value: 'B', color: 'green' }
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      {
+        id: 2,
+        name: 'Team',
+        type: 'single_select',
+        select_options: [optionA, optionB],
+      },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    store = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+          },
+        },
+        field: {
+          namespaced: true,
+          getters: { getAll: () => fields },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 2,
+      fieldOptions: {
+        1: {
+          hidden: false,
+          order: 0,
+          aggregation_type: 'not_empty_count',
+          aggregation_raw_type: 'empty_count',
+        },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [
+          {
+            path: { field_2: optionA.id },
+            depth: 0,
+            row_count: 1,
+            aggregations: { field_1: 1 },
+          },
+          {
+            path: { field_2: optionB.id },
+            depth: 0,
+            row_count: 1,
+            aggregations: { field_1: 0 },
+          },
+        ],
+        collapse: { mode: 'expand', paths: [] },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    // Row 10 still sits in group A's section, but while selected its value was
+    // edited to B, so it no longer matches the sort and must move to group B once
+    // it is deselected.
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, optionA.id),
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: optionB,
+          _: {
+            ...rowMetadata,
+            persistentId: 'r10',
+            selectedBy: [2],
+            matchSortings: false,
+          },
+        },
+      ],
+      startPosition: 0,
+    })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, optionB.id),
+      rows: [
+        {
+          id: 11,
+          order: '2.00',
+          field_1: 'Bob',
+          field_2: optionB,
+          _: { ...rowMetadata, persistentId: 'r11' },
+        },
+      ],
+      startPosition: 0,
+    })
+
+    let groupByDataRequests = 0
+    mockServer.mock.onGet('/database/views/grid/1/group-by-data/').reply(() => {
+      groupByDataRequests += 1
+      return [
+        200,
+        {
+          pages: [
+            {
+              parent: {},
+              groups: [
+                {
+                  path: { field_2: optionA.id },
+                  depth: 0,
+                  row_count: 0,
+                  aggregations: { field_1: 0 },
+                },
+                {
+                  path: { field_2: optionB.id },
+                  depth: 0,
+                  row_count: 2,
+                  aggregations: { field_1: 1 },
+                },
+              ],
+              offset: 0,
+              limit: 40,
+            },
+          ],
+          aggregations: { field_1: 1 },
+        },
+      ]
+    })
+
+    await store.dispatch('grid/removeRowSelectedBy', {
+      grid: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      row: store.getters['grid/getRow'](10),
+      field: fields[1],
+      fields,
+      getScrollTop: () => 0,
+    })
+    await flushPromises()
+
+    // The deselect move marks the affected groups' aggregations loading; the
+    // recompute request must land and clear the spinners instead of leaving them
+    // stuck forever.
+    expect(groupByDataRequests).toBe(1)
+    expect(store.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
+  })
+
+  test('updateFieldOptionsOfField clears the aggregation spinner when the save request fails', async () => {
+    const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
+    store = testApp.createStore({
+      modules: {
+        grid: gridStore,
+        field: {
+          namespaced: true,
+          getters: { getAll: () => fields },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      fieldOptions: { 1: { hidden: false, order: 0 } },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    mockServer.mock.onPatch('/database/views/1/field-options/').reply(500)
+
+    await expect(
+      store.dispatch('grid/updateFieldOptionsOfField', {
+        field: fields[0],
+        values: {
+          aggregation_type: 'empty_count',
+          aggregation_raw_type: 'empty_count',
+        },
+        oldValues: { aggregation_type: '', aggregation_raw_type: '' },
+        // Mirrors the grouped picker, which owns its own refresh.
+        skipAggregationRefresh: true,
+      })
+    ).rejects.toBeTruthy()
+    await flushPromises()
+
+    // A failed save must stop the spinner too; the picker showed it optimistically.
+    expect(store.state.grid.fieldAggregationData[1].loading).toBe(false)
+  })
+
   test('updateRowValue keeps a modal-open edit in place with a filter warning', async () => {
     const fields = [
       {
@@ -2868,7 +3070,7 @@ describe('Grid view store', () => {
     ])
   })
 
-  test('createNewRowInGroup spins the affected group aggregations until the backend confirms', async () => {
+  test('createNewRowInGroup spins the affected group and footer aggregations until the backend confirms', async () => {
     const fields = [
       {
         id: 1,
@@ -3022,11 +3224,172 @@ describe('Grid view store', () => {
       groupByStore.state.grid.groupBy.aggregationsLoadingPaths
     ).not.toContain(groupPathKey(2, 'A'))
 
+    // The table-level footer aggregation must spin too, otherwise it recomputes
+    // `rowCount - value` from the bumped count and flashes a wrong value.
+    expect(groupByStore.state.grid.fieldAggregationData[1].loading).toBe(true)
+
     finishCreate()
     await createPromise
 
     // The backend refresh delivered fresh values and cleared the spinner.
     expect(groupByStore.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
+    expect(groupByStore.state.grid.fieldAggregationData[1].loading).toBe(false)
+    expect(groupByStore.state.grid.fieldAggregationData[1].value).toBe(1)
+  })
+
+  test('deleteExistingRow spins the affected group and footer aggregations until the backend confirms', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+      {
+        id: 2,
+        name: 'Team',
+        type: 'text',
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const groupByStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+          },
+        },
+        field: {
+          namespaced: true,
+          getters: { getAll: () => fields },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 2,
+      fieldOptions: {
+        1: {
+          hidden: false,
+          order: 0,
+          aggregation_type: 'empty_count',
+          aggregation_raw_type: 'empty_count',
+        },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [
+          {
+            path: { field_2: 'B' },
+            depth: 0,
+            row_count: 2,
+            aggregations: { field_1: 0 },
+          },
+        ],
+        collapse: { mode: 'expand', paths: [] },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+    groupByStore.replaceState({ ...groupByStore.state, grid: state })
+    groupByStore.app = { $featureFlagIsEnabled: () => true }
+    groupByStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'B'),
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Existing',
+          field_2: 'B',
+          _: { ...rowMetadata, persistentId: 'r10' },
+        },
+      ],
+      startPosition: 0,
+    })
+
+    mockServer.mock.onDelete('/database/rows/table/1/10/').reply(200, {})
+    let finishRefresh
+    mockServer.mock.onGet('/database/views/grid/1/group-by-data/').reply(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = () =>
+            resolve([
+              200,
+              {
+                pages: [
+                  {
+                    parent: {},
+                    groups: [
+                      {
+                        path: { field_2: 'B' },
+                        depth: 0,
+                        aggregations: { field_1: 1 },
+                      },
+                    ],
+                    offset: 0,
+                    limit: 40,
+                  },
+                ],
+                aggregations: { field_1: 1 },
+              },
+            ])
+        })
+    )
+
+    await groupByStore.dispatch('grid/deleteExistingRow', {
+      table: { id: 1 },
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      row: {
+        id: 10,
+        order: '1.00',
+        field_1: 'Existing',
+        field_2: 'B',
+        _: { ...rowMetadata, persistentId: 'r10' },
+      },
+      fields,
+      getScrollTop: () => 0,
+    })
+    // Let the fire-and-forget aggregation refresh issue its request.
+    await new Promise((resolve) => setTimeout(resolve))
+
+    // The delete resolved but the aggregation refresh is still in flight, so the
+    // group banner and the footer aggregation must spin (not recompute from the
+    // decremented count) until it returns.
+    expect(groupByStore.state.grid.groupBy.aggregationsLoadingPaths).toContain(
+      groupPathKey(2, 'B')
+    )
+    expect(groupByStore.state.grid.fieldAggregationData[1].loading).toBe(true)
+
+    finishRefresh()
+    await new Promise((resolve) => setTimeout(resolve))
+
+    expect(groupByStore.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
+    expect(groupByStore.state.grid.fieldAggregationData[1].loading).toBe(false)
+    expect(groupByStore.state.grid.fieldAggregationData[1].value).toBe(1)
   })
 
   test('createNewRowInGroup does not duplicate a queued edited row when adding another row', async () => {
@@ -4022,6 +4385,82 @@ describe('Grid view store', () => {
       3: { loading: false, value: 99 },
     })
     expect(aggStore.getters['grid/getGroupByAggregationsLoading']()).toBe(false)
+  })
+
+  test('un-hiding an aggregated field in grouped mode refetches its stale value', async () => {
+    const baseState = gridStore.state()
+    const state = Object.assign(baseState, {
+      lastGridId: 1,
+      activeGroupBys: [{ field: 2, order: 'ASC', type: 'default' }],
+      fieldOptions: {
+        3: {
+          hidden: true,
+          aggregation_type: 'sum',
+          aggregation_raw_type: 'sum',
+        },
+      },
+      groupBy: {
+        ...baseState.groupBy,
+        // The field's value was dropped from the tree while it was hidden.
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, aggregations: {} }],
+      },
+    })
+    const aggStore = testApp.createStore({
+      modules: {
+        grid: gridStore,
+        field: {
+          namespaced: true,
+          getters: {
+            getAll: () => [
+              { id: 2, name: 'Team', type: 'text' },
+              { id: 3, name: 'Amount', type: 'number' },
+            ],
+          },
+        },
+      },
+    })
+    aggStore.replaceState({ ...aggStore.state, grid: state })
+    aggStore.app = { $featureFlagIsEnabled: () => true }
+
+    mockServer.mock.onPatch('/database/views/1/field-options/').reply(200, {})
+    let refreshed = false
+    mockServer.mock.onGet('/database/views/grid/1/group-by-data/').reply(() => {
+      refreshed = true
+      return [
+        200,
+        {
+          pages: [
+            {
+              parent: {},
+              groups: [
+                {
+                  path: { field_2: 'A' },
+                  depth: 0,
+                  row_count: 4,
+                  aggregations: { field_3: 99 },
+                },
+              ],
+              offset: 0,
+              limit: 40,
+            },
+          ],
+          aggregations: { field_3: 99 },
+        },
+      ]
+    })
+
+    await aggStore.dispatch('grid/updateFieldOptionsOfField', {
+      field: { id: 3, name: 'Amount', type: 'number' },
+      values: { hidden: false },
+      oldValues: { hidden: true },
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+    await new Promise((resolve) => setTimeout(resolve))
+
+    expect(refreshed).toBe(true)
+    expect(aggStore.state.grid.groupBy.treeNodes[0].aggregations).toEqual({
+      field_3: 99,
+    })
   })
 
   test('a targeted fieldId spins that column while a grouped row-edit refresh runs', async () => {

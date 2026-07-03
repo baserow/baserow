@@ -158,6 +158,14 @@ function hasConfiguredGroupAggregation(fieldOptions) {
   )
 }
 
+// Field ids that have a footer/group aggregation configured, used to spin their
+// cells while an optimistic row change is recalculated.
+function configuredAggregationFieldIds(fieldOptions) {
+  return Object.entries(fieldOptions || {})
+    .filter(([, options]) => options.aggregation_raw_type)
+    .map(([fieldId]) => parseInt(fieldId, 10))
+}
+
 function groupAggregationPathKeysForPaths(pathsWithFields) {
   const loadingPaths = []
   for (const { path, fields } of pathsWithFields) {
@@ -772,7 +780,9 @@ function moveGroupByRowToValueGroup(
       display: groupDisplayFromRow(row, groupByFields),
     })
   }
-  return true
+  // Whether the row crossed into a different group, which is exactly when the
+  // affected groups' aggregations were marked loading and now need a refresh.
+  return groupChanged
 }
 
 /**
@@ -3248,6 +3258,14 @@ export const actions = {
     const previousOptions = getters.getAllFieldOptions[field.id]
     let needAggregationValueUpdate = false
 
+    // Only visible fields' per-group aggregations are computed, so un-hiding an
+    // aggregated field in grouped mode must refetch its now-stale value.
+    const revealsAggregatedField =
+      getters.isGroupByMode &&
+      values.hidden === false &&
+      previousOptions?.hidden === true &&
+      !!previousOptions?.aggregation_raw_type
+
     /**
      * If the aggregation raw type has changed, we delete the corresponding the
      * aggregation value from the store.
@@ -3280,13 +3298,12 @@ export const actions = {
           values: updateValues,
           undoRedoActionGroupId,
         })
-      } catch (error) {
-        commit('UPDATE_FIELD_OPTIONS_OF_FIELD', {
-          fieldId: field.id,
-          values: oldValues,
-        })
-        throw error
-      } finally {
+        if (revealsAggregatedField) {
+          dispatch('fetchAllFieldAggregationData', {
+            view: { id: gridId },
+            fieldId: field.id,
+          })
+        }
         // Grouped pickers refresh aggregations themselves; skip the duplicate fetch.
         if (
           !skipAggregationRefresh &&
@@ -3295,6 +3312,20 @@ export const actions = {
         ) {
           dispatch('fetchAllFieldAggregationData', { view: { id: gridId } })
         }
+      } catch (error) {
+        commit('UPDATE_FIELD_OPTIONS_OF_FIELD', {
+          fieldId: field.id,
+          values: oldValues,
+        })
+        // The optimistic pick spun this field's aggregation; a failed save must
+        // stop that spinner since no refresh will run to clear it.
+        if (needAggregationValueUpdate) {
+          commit('SET_FIELD_AGGREGATION_DATA_LOADING', {
+            fieldId: field.id,
+            value: false,
+          })
+        }
+        throw error
       }
     }
   },
@@ -4324,6 +4355,16 @@ export const actions = {
         optimisticGroupByTreePaths.length > 0 &&
         hasConfiguredGroupAggregation(getters.getAllFieldOptions)
 
+      // Footer values derive from the bumped row count, so spin them until the
+      // refresh lands; otherwise `not empty` (rowCount - value) flashes wrong.
+      const footerAggregationFieldIds =
+        optimisticGroupByTreePaths.length > 0
+          ? configuredAggregationFieldIds(getters.getAllFieldOptions)
+          : []
+      footerAggregationFieldIds.forEach((fieldId) =>
+        commit('SET_FIELD_AGGREGATION_DATA_LOADING', { fieldId, value: true })
+      )
+
       dispatch('visibleByScrollTop')
 
       // Check if not all rows are visible.
@@ -4436,8 +4477,19 @@ export const actions = {
 
         await dispatch('fetchAllFieldAggregationData', {
           view,
+          fieldId:
+            footerAggregationFieldIds.length > 0
+              ? footerAggregationFieldIds
+              : null,
         })
       } catch (error) {
+        // The refresh never ran; stop the spinners here (on success it clears them).
+        footerAggregationFieldIds.forEach((fieldId) =>
+          commit('SET_FIELD_AGGREGATION_DATA_LOADING', {
+            fieldId,
+            value: false,
+          })
+        )
         if (isSingleRowInsertion) {
           const rowStillInBuffer = getters.getRow(rowsPopulated[0].id)
           if (rowStillInBuffer && optimisticGroupByTreePaths.length > 0) {
@@ -5593,6 +5645,14 @@ export const actions = {
     const { $registry, $client, $i18n, $config } = this
     commit('SET_ROW_LOADING', { row, value: true })
 
+    // Spin the footer aggregations while the delete is recalculated, mirroring insert.
+    const footerAggregationFieldIds = getters.isGroupByMode
+      ? configuredAggregationFieldIds(getters.getAllFieldOptions)
+      : []
+    footerAggregationFieldIds.forEach((fieldId) =>
+      commit('SET_FIELD_AGGREGATION_DATA_LOADING', { fieldId, value: true })
+    )
+
     try {
       await RowService($client).delete(table.id, row.id, getters.getLastGridId)
       await dispatch('deletedExistingRow', {
@@ -5600,14 +5660,24 @@ export const actions = {
         fields,
         row,
         getScrollTop,
+        spinGroupAggregations: true,
       })
       await dispatch('fetchByScrollTopDelayed', {
         scrollTop: getScrollTop(),
         fields,
       })
-      dispatch('fetchAllFieldAggregationData', { view })
+      dispatch('fetchAllFieldAggregationData', {
+        view,
+        fieldId: footerAggregationFieldIds.length
+          ? footerAggregationFieldIds
+          : null,
+        clearGroupByAggregationLoadingPaths: true,
+      })
     } catch (error) {
       commit('SET_ROW_LOADING', { row, value: false })
+      footerAggregationFieldIds.forEach((fieldId) =>
+        commit('SET_FIELD_AGGREGATION_DATA_LOADING', { fieldId, value: false })
+      )
       throw error
     }
   },
@@ -5615,7 +5685,7 @@ export const actions = {
    * Attempt to delete all multi-selected rows.
    */
   async deleteSelectedRows(
-    { dispatch, getters },
+    { commit, dispatch, getters },
     { table, view, fields, getScrollTop }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -5649,12 +5719,21 @@ export const actions = {
       getters.getLastGridId
     )
 
+    // Spin the footer aggregations while the delete is recalculated, mirroring insert.
+    const footerAggregationFieldIds = getters.isGroupByMode
+      ? configuredAggregationFieldIds(getters.getAllFieldOptions)
+      : []
+    footerAggregationFieldIds.forEach((fieldId) =>
+      commit('SET_FIELD_AGGREGATION_DATA_LOADING', { fieldId, value: true })
+    )
+
     for (const row of rowsToDelete) {
       await dispatch('deletedExistingRow', {
         view,
         fields,
         row,
         getScrollTop,
+        spinGroupAggregations: true,
       })
     }
     dispatch('clearAndDisableMultiSelect', { view })
@@ -5662,7 +5741,13 @@ export const actions = {
       scrollTop: getScrollTop(),
       fields,
     })
-    dispatch('fetchAllFieldAggregationData', { view })
+    dispatch('fetchAllFieldAggregationData', {
+      view,
+      fieldId: footerAggregationFieldIds.length
+        ? footerAggregationFieldIds
+        : null,
+      clearGroupByAggregationLoadingPaths: true,
+    })
   },
   /**
    * Called after an existing row has been deleted, which could be by the user or
@@ -5670,7 +5755,7 @@ export const actions = {
    */
   async deletedExistingRow(
     { commit, getters, dispatch, state },
-    { view, fields, row }
+    { view, fields, row, spinGroupAggregations = false }
   ) {
     const { $registry } = this
     row = clone(row)
@@ -5697,14 +5782,23 @@ export const actions = {
               getters.getActiveGroupBys,
               fields
             )
+            const treePath = getGroupByRowTreePath(
+              state,
+              getters,
+              row,
+              groupByFields,
+              $registry
+            )
+            // Spin the deleted row's group so its banner doesn't recompute from the
+            // decremented count. Only for user deletes: realtime deletes have no
+            // refresh that would clear the paths.
+            if (spinGroupAggregations) {
+              markGroupAggregationPathsLoading({ commit, getters }, [
+                { path: treePath, fields: groupByFields },
+              ])
+            }
             commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
-              path: getGroupByRowTreePath(
-                state,
-                getters,
-                row,
-                groupByFields,
-                $registry
-              ),
+              path: treePath,
               fields: groupByFields,
               delta: -1,
               registry: $registry,
@@ -5912,13 +6006,25 @@ export const actions = {
       commit('DELETE_ROW_IN_BUFFER', row)
     } else if (row._.selectedBy.length === 0 && !row._.matchSortings) {
       if (getters.isGroupByMode) {
-        moveGroupByRowToValueGroup(
+        const groupChanged = moveGroupByRowToValueGroup(
           { commit, getters, state },
           { row, view: grid, fields, registry: $registry }
         )
         commit('SET_ROW_MATCH_SORTINGS', { row, value: true })
         dispatch('correctMultiSelect')
         handledLocally = true
+        // The move marked the source and target groups' aggregations loading;
+        // recompute them from the server so those spinners resolve instead of
+        // spinning forever.
+        if (
+          groupChanged &&
+          hasConfiguredGroupAggregation(getters.getAllFieldOptions)
+        ) {
+          dispatch('fetchAllFieldAggregationData', {
+            view: grid,
+            clearGroupByAggregationLoadingPaths: true,
+          })
+        }
       } else {
         await dispatch('updatedExistingRow', {
           view: grid,

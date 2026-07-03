@@ -205,11 +205,19 @@ export default {
         values.aggregation_raw_type = selectedAggregation.getRawType()
       }
 
+      // Only the raw type is server-computed; a display-only change re-renders from
+      // the existing value, so skip the spinner and refetch (like the footer).
+      const rawTypeChanged =
+        values.aggregation_raw_type !==
+        (this.fieldOptions[this.field.id]?.aggregation_raw_type || '')
+
       // Spin before the optimistic change so the new label never shows the old value.
-      this.$store.dispatch(
-        this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
-        { fieldId: this.field.id }
-      )
+      if (rawTypeChanged) {
+        this.$store.dispatch(
+          this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
+          { fieldId: this.field.id }
+        )
+      }
       try {
         await this.$store.dispatch(
           this.storePrefix + 'view/grid/updateFieldOptionsOfField',
@@ -221,15 +229,18 @@ export default {
           }
         )
       } catch (error) {
-        this.$store.dispatch(
-          this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
-          { loading: false }
-        )
+        if (rawTypeChanged) {
+          this.$store.dispatch(
+            this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
+            { loading: false }
+          )
+        }
         throw error
       }
-      // The aggregation values are computed server-side, so the visible group tree
-      // must be refetched to reflect the new function.
-      this.$emit('change')
+      // Only a raw-type change needs the server-computed values refetched.
+      if (rawTypeChanged) {
+        this.$emit('change')
+      }
     },
   },
 }

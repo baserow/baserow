@@ -119,7 +119,10 @@ export default {
       return this.fieldOptions[this.field.id]?.aggregation_raw_type
     },
     value() {
-      if (this.fieldAggregationData[this.field.id] !== undefined) {
+      if (
+        this.viewAggregationType &&
+        this.fieldAggregationData[this.field.id] !== undefined
+      ) {
         const { value } = this.fieldAggregationData[this.field.id]
 
         return this.viewAggregationType.getValue(value, {
@@ -127,9 +130,8 @@ export default {
           field: this.field,
           fieldType: this.fieldType,
         })
-      } else {
-        return undefined
       }
+      return undefined
     },
     loading() {
       return this.fieldAggregationData[this.field.id]?.loading
@@ -138,7 +140,12 @@ export default {
       if (!this.aggregationType) {
         return null
       }
-      return this.$registry.get('viewAggregation', this.aggregationType)
+      try {
+        return this.$registry.get('viewAggregation', this.aggregationType)
+      } catch (_) {
+        // A stale/unknown aggregation type must not crash the grid.
+        return null
+      }
     },
     viewAggregationTypes() {
       return this.$registry
