@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Optional
 
+from django.conf import settings
+
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from loguru import logger
@@ -204,7 +206,7 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
 
         self.scope["pages"] = SubscribedPages()
         web_socket_id = self.scope["web_socket_id"]
-        if feature_flag_is_enabled(FF_USER_PRESENCE):
+        if settings.ENABLE_USER_PRESENCE and feature_flag_is_enabled(FF_USER_PRESENCE):
             self.presence = PresenceHandler(
                 consumer=self,
                 web_socket_id=web_socket_id,

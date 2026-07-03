@@ -143,9 +143,9 @@ import { mapGetters } from 'vuex'
 import modal from '@baserow/modules/core/mixins/modal'
 import {
   createPresenceFocusSender,
+  isUserPresenceEnabled,
   resolvePresencePageParams,
 } from '@baserow/modules/database/utils/presence'
-import { FF_USER_PRESENCE } from '@baserow/modules/core/plugins/featureFlags'
 import CreateFieldContext from '@baserow/modules/database/components/field/CreateFieldContext'
 import RowEditModalFieldsList from './RowEditModalFieldsList.vue'
 import RowEditModalHiddenFieldsSection from './RowEditModalHiddenFieldsSection.vue'
@@ -422,11 +422,7 @@ export default {
       this.$emit('hidden', { row })
     },
     _initPresenceFocus() {
-      if (
-        !this.presenceFocusEnabled ||
-        typeof this.$featureFlagIsEnabled !== 'function' ||
-        !this.$featureFlagIsEnabled(FF_USER_PRESENCE)
-      ) {
+      if (!this.presenceFocusEnabled || !isUserPresenceEnabled(this)) {
         return
       }
       const { page, params, spaceName, focusEnabled } =

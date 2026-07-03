@@ -337,9 +337,9 @@ import { clone } from '@baserow/modules/core/utils/object'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
 import {
   createPresenceFocusSender,
+  isUserPresenceEnabled,
   resolvePresencePageParams,
 } from '@baserow/modules/database/utils/presence'
-import { FF_USER_PRESENCE } from '@baserow/modules/core/plugins/featureFlags'
 import GridViewRowsAddContext from '@baserow/modules/database/components/view/grid/fields/GridViewRowsAddContext'
 import GridRowContextItems from '@baserow/modules/database/components/view/grid/GridRowContextItems'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
@@ -696,10 +696,7 @@ export default {
       this.populateAndEditRow(this.row)
     }
 
-    if (
-      typeof this.$featureFlagIsEnabled === 'function' &&
-      this.$featureFlagIsEnabled(FF_USER_PRESENCE)
-    ) {
+    if (isUserPresenceEnabled(this)) {
       const { page, params, spaceName, focusEnabled } =
         resolvePresencePageParams(
           this.$registry,

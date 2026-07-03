@@ -1,9 +1,27 @@
+import { FF_USER_PRESENCE } from '@baserow/modules/core/plugins/featureFlags'
+
 /**
  * Canonical frontend source for the table presence space name format.
  * Mirrors backend table_presence_space_name() in database/ws/pages.py.
  */
 export function tablePresenceSpaceName(tableId) {
   return `table-${tableId}`
+}
+
+/**
+ * Whether user presence is active for this client. Requires both the
+ * `user_presence` feature flag (rollout gate, removed at GA) and the
+ * BASEROW_ENABLE_USER_PRESENCE runtime config circuit breaker (string
+ * 'true'/'false', defaulted to 'true' in the core module). The backend
+ * enforces the same pair authoritatively; this check only skips presence UI
+ * and focus emitter setup. See docs/technical/realtime-presence.md.
+ */
+export function isUserPresenceEnabled(vm) {
+  return (
+    typeof vm.$featureFlagIsEnabled === 'function' &&
+    vm.$featureFlagIsEnabled(FF_USER_PRESENCE) &&
+    vm.$config?.public?.baserowEnableUserPresence === 'true'
+  )
 }
 
 /**

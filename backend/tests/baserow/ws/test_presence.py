@@ -2,6 +2,8 @@ import json
 import uuid
 from unittest.mock import AsyncMock, Mock, patch
 
+from django.test import override_settings
+
 import pytest
 from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
@@ -143,6 +145,24 @@ async def test_subscribe_broadcasts_join_and_returns_members(
 
     await comm_a.disconnect()
     await comm_b.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+@override_settings(ENABLE_USER_PRESENCE=False)
+async def test_circuit_breaker_setting_disables_presence(data_fixture, presence_types):
+    user, token = data_fixture.create_user_and_token()
+
+    comm, _ = await _connect(token)
+    page_add = await _subscribe(comm)
+    assert page_add["type"] == "page_add"
+
+    frames = await _drain(comm)
+    assert [f for f in frames if f["type"].startswith("presence.")] == []
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == set()
+
+    await comm.disconnect()
 
 
 @pytest.mark.asyncio

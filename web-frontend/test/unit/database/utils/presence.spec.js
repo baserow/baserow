@@ -2,6 +2,7 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import {
   createPresenceFocusSender,
+  isUserPresenceEnabled,
   resolvePresencePageParams,
   tablePresenceSpaceName,
 } from '@baserow/modules/database/utils/presence'
@@ -13,6 +14,34 @@ function mockRealtime() {
 describe('tablePresenceSpaceName', () => {
   test('formats table id into space name', () => {
     expect(tablePresenceSpaceName(42)).toBe('table-42')
+  })
+})
+
+describe('isUserPresenceEnabled', () => {
+  function mockVm({ featureFlag = true, configValue = 'true' } = {}) {
+    return {
+      $featureFlagIsEnabled: vi.fn().mockReturnValue(featureFlag),
+      $config: { public: { baserowEnableUserPresence: configValue } },
+    }
+  }
+
+  test('enabled when feature flag and circuit breaker are both on', () => {
+    expect(isUserPresenceEnabled(mockVm())).toBe(true)
+  })
+
+  test('requires the feature flag', () => {
+    expect(isUserPresenceEnabled(mockVm({ featureFlag: false }))).toBe(false)
+    expect(isUserPresenceEnabled({})).toBe(false)
+  })
+
+  test('requires the runtime config circuit breaker', () => {
+    expect(isUserPresenceEnabled(mockVm({ configValue: 'false' }))).toBe(false)
+    expect(
+      isUserPresenceEnabled({
+        $featureFlagIsEnabled: vi.fn().mockReturnValue(true),
+        $config: { public: {} },
+      })
+    ).toBe(false)
   })
 })
 
