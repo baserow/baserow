@@ -218,9 +218,11 @@ def periodic_check_pending_search_data():
         # they'll be retried on the next periodic run anyway.
         try:
             schedule_update_search_data(table_id)
-        except (OperationalError, InterfaceError):
+        except (OperationalError, InterfaceError) as exc:
             logger.warning(
-                "Transient DB error scheduling search update for table {}.", table_id
+                "Transient DB error scheduling search update for table {}: {}",
+                table_id,
+                exc,
             )
 
 
