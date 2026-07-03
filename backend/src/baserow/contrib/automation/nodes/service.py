@@ -1,4 +1,4 @@
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -9,10 +9,7 @@ from baserow.contrib.automation.nodes.exceptions import (
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.node_types import (
-    AutomationNodeType,
-    CoreGotoActionNodeType,
-)
+from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
     DeleteAutomationNodeOperationType,
@@ -512,13 +509,15 @@ class AutomationNodeService:
 
         workflow.get_graph().move(node_to_move, reference_node, position, output)
 
-        # A move can change a node's level, which may invalidate a "Go to node"
-        # link that targets - or originates from - the moved node (or one of its
-        # descendants). Clear any such now-cross-level links so the editor and
-        # the runtime agree on what the workflow does.
-        cleared_goto_links = CoreGotoActionNodeType.clear_invalidated_links(
-            user, workflow
-        )
+        # A move can change a node's level, which may invalidate cross-node
+        # references (e.g. a "Go to node" link that now points across levels).
+        # Let each node type reconcile the workflow and record any reversible
+        # changes it made, keyed by node type, so the move can be undone.
+        post_move_modifications: dict[str, Any] = {}
+        for node_type in automation_node_type_registry.get_all():
+            modifications = node_type.after_move_in_workflow(user, workflow)
+            if modifications is not None:
+                post_move_modifications[node_type.type] = modifications
 
         cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
         global_cache.update(cache_key, lambda _: True)
@@ -530,5 +529,5 @@ class AutomationNodeService:
             previous_reference_node=previous_reference_node,
             previous_position=previous_position,
             previous_output=previous_output,
-            cleared_goto_links=cleared_goto_links,
+            post_move_modifications=post_move_modifications,
         )

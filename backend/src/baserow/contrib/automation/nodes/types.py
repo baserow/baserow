@@ -28,10 +28,10 @@ class AutomationNodeMove:
     previous_reference_node: AutomationActionNode | None
     previous_position: GraphPointPositionType
     previous_output: str
-    # "Go to node" links the move invalidated and cleared, as a list of
-    # (goto_node_id, previous_destination_node_id) tuples. Captured so the move
-    # action can restore them on undo.
-    cleared_goto_links: list[tuple[int, int]] = field(default_factory=list)
+    # Reversible modifications node types made to reconcile the workflow after
+    # the move (e.g. clearing now-invalid "Go to node" links), keyed by node
+    # type. Captured so the move action can revert them on undo.
+    post_move_modifications: dict[str, Any] = field(default_factory=dict)
 
 
 class AutomationNodeDict(TypedDict):

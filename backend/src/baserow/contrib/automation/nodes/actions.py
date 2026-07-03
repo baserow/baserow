@@ -9,10 +9,8 @@ from baserow.contrib.automation.action_scopes import (
     WorkflowActionScopeType,
 )
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
-from baserow.contrib.automation.nodes.node_types import (
-    AutomationNodeType,
-    CoreGotoActionNodeType,
-)
+from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
@@ -395,8 +393,9 @@ class MoveAutomationNodeActionType(UndoableActionType):
         destination_reference_node_id: int
         destination_position: GraphPointPositionType
         destination_output: str
-        # "Go to node" links this move invalidated and cleared, restored on undo.
-        cleared_goto_links: list = field(default_factory=list)
+        # Reversible modifications node types made to reconcile the workflow
+        # after the move, keyed by node type. Reverted on undo.
+        post_move_modifications: dict = field(default_factory=dict)
 
     @classmethod
     def do(
@@ -430,7 +429,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
                 reference_node_id,
                 position,
                 output,
-                move.cleared_goto_links,
+                move.post_move_modifications,
             ),
             scope=cls.scope(workflow.id),
             workspace=workflow.automation.workspace,
@@ -455,9 +454,12 @@ class MoveAutomationNodeActionType(UndoableActionType):
             params.origin_position,
             params.origin_output,
         )
-        # The node is back at its original level, so any Go to links the move
-        # cleared are valid again - restore them.
-        CoreGotoActionNodeType.restore_links(user, params.cleared_goto_links)
+        # The node is back at its original level, so revert the reconciliations
+        # the move made (e.g. restore Go to links it cleared).
+        for node_type_str, modifications in params.post_move_modifications.items():
+            automation_node_type_registry.get(node_type_str).revert_move_in_workflow(
+                user, modifications
+            )
 
     @classmethod
     def redo(

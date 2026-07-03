@@ -132,6 +132,34 @@ class AutomationNodeType(
         :param node: The node instance that was just created.
         """
 
+    def after_move_in_workflow(
+        self, user: AbstractUser, workflow: AutomationWorkflow
+    ) -> Any | None:
+        """
+        A hook called after any node is moved within ``workflow``. A node type
+        can override this to reconcile state that the move may have invalidated
+        (for example cross-level references between nodes), returning an opaque,
+        JSON-serializable payload describing the modifications it made so
+        ``revert_move_in_workflow`` can undo them. Returns None (the default)
+        when the type made no changes.
+
+        :param user: The user that performed the move.
+        :param workflow: The workflow the moved node belongs to.
+        :return: A JSON-serializable payload describing the modifications made,
+            or None if nothing changed.
+        """
+
+        return None
+
+    def revert_move_in_workflow(self, user: AbstractUser, modifications: Any) -> None:
+        """
+        Reverses the modifications previously returned by
+        ``after_move_in_workflow``, used when a node move is undone.
+
+        :param user: The user undoing the move.
+        :param modifications: The payload returned by ``after_move_in_workflow``.
+        """
+
     def get_service_type(self) -> Optional[ServiceTypeSubClass]:
         return (
             service_type_registry.get(self.service_type) if self.service_type else None
