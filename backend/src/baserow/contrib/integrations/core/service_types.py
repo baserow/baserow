@@ -1443,7 +1443,7 @@ class CoreGotoServiceType(CoreServiceType):
         if should_jump:
             if service.destination_node_id is None:
                 raise ServiceImproperlyConfiguredDispatchException(
-                    _("No destination has been configured for this Go to node.")
+                    "No destination has been configured for this Go to node."
                 )
             output_node_id = service.destination_node_id
 

@@ -103,18 +103,18 @@ def validate_goto_destination(
         return None
 
     if destination_node.id == source_node.id:
-        return _("The destination node cannot be the Go to node itself.")
+        return "The destination node cannot be the Go to node itself."
 
     if destination_node.workflow_id != source_node.workflow_id:
-        return _("The destination node must belong to the same workflow.")
+        return "The destination node must belong to the same workflow."
 
     if destination_node.get_type().is_workflow_trigger:
-        return _("The destination node cannot be a trigger node.")
+        return "The destination node cannot be a trigger node."
 
     source_level = sorted(node.id for node in source_node.get_parent_points())
     destination_level = sorted(node.id for node in destination_node.get_parent_points())
     if source_level != destination_level:
-        return _("The destination node must be at the same level as the Go to node.")
+        return "The destination node must be at the same level as the Go to node."
 
     # Only backward jumps are allowed: the destination must be one of the nodes
     # that run before the Go to node. A forward jump would skip the nodes between
@@ -123,7 +123,7 @@ def validate_goto_destination(
     # would fail.
     previous_node_ids = {node.id for node in source_node.get_previous_points()}
     if destination_node.id not in previous_node_ids:
-        return _(
+        return (
             "The destination node must run before the Go to node. "
             "Jumping forward is not allowed."
         )
