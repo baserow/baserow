@@ -828,20 +828,13 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         )
 
         for collection_field in instance.fields.all():
-            # Only re-save fields whose formulas actually changed (returned by
-            # the field's own import_formulas). Unconditionally re-saving every
-            # field issues a redundant UPDATE; under django-silk (which compiles
-            # each UPDATE twice for query logging) that re-runs the in-place
-            # `JSONFormulaField.get_prep_value` minify on the already-minified
-            # config and blanks the formula. The fields were already correctly
-            # persisted by `bulk_create` (an INSERT, which silk does not double
-            # compile), so unchanged fields don't need re-saving.
             updated_models |= collection_field.get_type().import_formulas(
                 collection_field,
                 id_mapping,
                 import_formula,
                 **import_context,
             )
+            updated_models.add(collection_field)
 
         return updated_models
 

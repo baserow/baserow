@@ -1,4 +1,55 @@
-from baserow.core.formula.field import FormulaField
+from baserow.core.formula.field import FormulaField, JSONFormulaField
+
+
+def test_json_formula_field_get_prep_value_does_not_mutate_input():
+    """
+    Regression: `get_prep_value` minifies the formula paths in a config, but it
+    must NOT mutate the value it is given — that value is the model instance's
+    in-memory `config` attribute, and mutating it as a side effect of preparing
+    the DB value is unsafe.
+
+    Why it matters (the silk-driven bug): django-silk (enabled in the dev env)
+    wraps `SQLCompiler.execute_sql` and compiles each UPDATE twice — once to log
+    the query, once to actually run it — so `get_prep_value` runs twice on the
+    *same* config object within a single save. Before the deepcopy fix the first
+    call minified the config in place (`{"formula": ...}` -> `{"f": ...}`) and the
+    second call re-minified the already-minified form; `_transform_python_property`
+    reads the "formula" key (absent after minify), so it wrote back `{"f": ""}` and
+    the formula was silently blanked. This is what made table-element duplication
+    lose every field formula when silk was on. Keeping `get_prep_value` free of
+    side effects makes it idempotent regardless of how many times it runs.
+    """
+
+    field = JSONFormulaField(properties=["value"])
+    config = {
+        "value": {
+            "formula": "get('current_record.field_5')",
+            "mode": "simple",
+            "version": "0.1",
+        }
+    }
+
+    prepped = field.get_prep_value(config)
+
+    # 1. The input (the model's in-memory config) must be untouched — still full.
+    assert config == {
+        "value": {
+            "formula": "get('current_record.field_5')",
+            "mode": "simple",
+            "version": "0.1",
+        }
+    }
+    # 2. It returns the correct minified DB representation.
+    assert prepped == {
+        "value": {"f": "get('current_record.field_5')", "m": "simple", "v": "0.1"}
+    }
+
+    # 3. Running it again on the SAME object (silk's second compile) must still
+    #    produce the correct minified value, not a blanked one.
+    prepped_again = field.get_prep_value(config)
+    assert prepped_again == {
+        "value": {"f": "get('current_record.field_5')", "m": "simple", "v": "0.1"}
+    }
 
 
 def test_deserialize_baserow_object_valid():
