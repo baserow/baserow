@@ -134,7 +134,7 @@
             :read-only="adhocSorting"
             :disable-sort="disableSort"
             :store-prefix="storePrefix"
-            @changed="refresh()"
+            @changed="refresh($event)"
           ></ViewSort>
         </li>
         <li

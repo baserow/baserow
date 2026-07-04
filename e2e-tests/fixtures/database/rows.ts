@@ -46,9 +46,10 @@ export async function deleteRows(
 export async function listRows(
   user: User,
   table: Table,
+  size = 200,
 ): Promise<{ id: number; [k: string]: any }[]> {
   const response = await getClient(user).get(
-    `database/rows/table/${table.id}/?user_field_names=true&size=200`,
+    `database/rows/table/${table.id}/?user_field_names=true&size=${size}`,
   );
   return response.data.results;
 }

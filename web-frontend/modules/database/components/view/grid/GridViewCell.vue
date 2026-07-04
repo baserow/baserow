@@ -91,10 +91,6 @@ export default {
       type: Object,
       required: true,
     },
-    groupEnd: {
-      type: Boolean,
-      default: false,
-    },
     allFieldsInTable: {
       type: Array,
       required: true,
@@ -151,7 +147,6 @@ export default {
         'grid-view__column--multi-select-left': this.multiSelectPosition.left,
         'grid-view__column--multi-select-bottom':
           this.multiSelectPosition.bottom,
-        'grid-view__column--group-end': this.groupEnd,
       }
     },
     fieldValue() {

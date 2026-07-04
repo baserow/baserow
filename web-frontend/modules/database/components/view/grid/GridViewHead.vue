@@ -42,6 +42,7 @@
       :filters="view.filters"
       :read-only="readOnly"
       :store-prefix="storePrefix"
+      :show-group-by-field-background="showGroupByFieldBackground"
       @refresh="$emit('refresh', $event)"
       @dragging="$emit('dragging', $event)"
       @field-created="$emit('field-created', $event)"
@@ -142,6 +143,11 @@ export default {
     readOnly: {
       type: Boolean,
       required: true,
+    },
+    showGroupByFieldBackground: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   emits: ['dragging', 'field-created', 'refresh'],

@@ -187,6 +187,12 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.contains_query(field_name, value, model_field, field)
 
+    def starts_with_query(self, field_name, value, model_field, field):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.starts_with_query(
+            field_name, value, model_field, field
+        )
+
     def parse_filter_value(self, field, model_field, value):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.parse_filter_value(field, model_field, value)

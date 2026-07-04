@@ -380,8 +380,12 @@ export default {
           row_id: this.rowId,
         })
       }
+      // Capture the row before clearing the store: `this.row` resolves through the
+      // cleared entry afterwards, and the `hidden` listeners need the row id to
+      // refresh (e.g. hide a row that no longer matches the filters).
+      const row = this.row
       this.$store.dispatch('rowModal/clear', { componentId: this.$.uid })
-      this.$emit('hidden', { row: this.row })
+      this.$emit('hidden', { row })
     },
     /**
      * Because the modal can't update values by himself, an event will be called to

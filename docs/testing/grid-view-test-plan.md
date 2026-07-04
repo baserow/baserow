@@ -19,32 +19,35 @@ related variants, for example `1.2.1b`.
 
 The first number identifies the domain:
 
-| Bucket | Domain |
-|---|---|
-| 1 | Row creation |
-| 2 | Row updates |
-| 3 | Row deletion |
-| 4 | Clipboard and multi-cell edits |
-| 5 | Filters |
-| 6 | Sorts |
-| 7 | Search |
-| 8 | View display options |
-| 9 | Cell selection |
-| 10 | Keyboard navigation |
-| 11 | Row hover and context menus |
-| 12 | Checkbox selection and bulk actions |
-| 13 | Row expand modal |
-| 14 | Public shared grid |
-| 15 | Realtime row events |
-| 16 | Realtime metadata and presence |
-| 17 | Data-sync read-only mode |
+| Bucket | Domain                              |
+| ------ | ----------------------------------- |
+| 1      | Row creation                        |
+| 2      | Row updates                         |
+| 3      | Row deletion                        |
+| 4      | Clipboard and multi-cell edits      |
+| 5      | Filters                             |
+| 6      | Sorts                               |
+| 7      | Group-by                            |
+| 8      | Search                              |
+| 9      | View display options                |
+| 10     | Cell selection                      |
+| 11     | Keyboard navigation                 |
+| 12     | Row hover and context menus         |
+| 13     | Checkbox selection and bulk actions |
+| 14     | Row expand modal                    |
+| 15     | Public shared grid                  |
+| 16     | Realtime row events                 |
+| 17     | Realtime metadata and presence      |
+| 18     | Data-sync read-only mode            |
 
 Within each bucket, groups start at `.1` and increase by topic. In covered
 create, update, and clipboard sections, `.2` is filter-affecting behavior and
-`.3` is sort-affecting behavior. Specs may group setup-heavy blocks out of
-numeric order when that keeps related fixtures together. Uncovered group-by
-paths are listed in TODO coverage instead of reserving empty groups. Letter
-suffixes (`a`, `b`, `c`) are timing or selection variants of the same scenario.
+`.3` is sort-affecting behavior. Group-by has its own bucket (7) for standalone
+behavior (collapse/expand, refresh); its create, update, and paste interactions
+live in the operation buckets (e.g. 1.5, 2.2.7, 2.4, 4.7), the same way filters
+and sorts do. Specs may group setup-heavy blocks out of numeric order when that
+keeps related fixtures together. Letter suffixes (`a`, `b`, `c`) are timing or
+selection variants of the same scenario.
 
 ## Coverage Matrix
 
@@ -74,37 +77,43 @@ constraint fields are regular vs. formula; for combined rows "all regular" and
 field-type breakdown belongs in the scenario description when the test is
 written.
 
-| Operation | Constraint | Constraint field | Optimistic | Keep selected | Deselect after confirm | Deselect before confirm | Backend error | Escape |
-|---|---|---|:---:|---|---|---|---|---|
-| Create | — | — | ✓ | [1.1.1](#111-backend-confirmation-for-a-new-row) | — | — | [1.1.3](#113-failed-create-is-rolled-back-and-the-optimistic-row-disappears) | — |
-| Create | filter | regular | ✓ | [1.2.1a](#121a-add-row-that-does-not-match-an-active-simple-field-filter-and-keep-it-selected) | [1.2.1a](#121a-add-row-that-does-not-match-an-active-simple-field-filter-and-keep-it-selected) | [1.2.1b](#121b-deselect-newly-added-filter-mismatched-row-before-backend-confirmation) | [1.2.1d](#121d-backend-returns-500-on-filter-affected-create) | — |
-| Create | filter | formula | ✗ | [1.2.2a](#122a-create-row-with-formula-field-filter-active--no-warning-until-backend-responds) | [1.2.2a](#122a-create-row-with-formula-field-filter-active--no-warning-until-backend-responds) | [1.2.2b](#122b-deselect-newly-added-formula-filtered-row-before-backend-confirmation) | [1.2.2c](#122c-backend-returns-500-on-formula-filter-affected-create) | — |
-| Create | sort | regular | ✓ | [1.3.1a](#131a-add-row-with-simple-field-sort-asc-and-keep-it-selected) | [1.3.1a](#131a-add-row-with-simple-field-sort-asc-and-keep-it-selected) | [1.3.1b](#131b-add-row-with-simple-field-sort-asc-then-deselect-before-backend-confirmation) | [1.3.1c](#131c-backend-returns-500-on-sort-affected-create) | — |
-| Create | sort | formula | ✗ | [1.3.2a](#132a-add-row-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [1.3.2a](#132a-add-row-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [1.3.2b](#132b-add-row-with-formula-field-sort-active-then-deselect-before-backend-confirmation) | [1.3.2c](#132c-backend-returns-500-on-formula-sort-affected-create) | — |
-| Create | group-by | regular | ✓ | TODO | TODO | TODO | TODO | — |
-| Create | group-by | formula | ✗ | TODO | TODO | TODO | TODO | — |
-| Update | — | — | ✓ | [2.1.1](#211-edit-primary-field-and-press-enter) | — | — | [2.1.3](#213-backend-returns-500-on-update) | [2.1.4](#214-press-escape-while-editing) |
-| Update | filter | regular | ✓ | [2.2.1a](#221a-edit-filtered-row-to-non-matching-value-and-keep-it-selected) | [2.2.1a](#221a-edit-filtered-row-to-non-matching-value-and-keep-it-selected) | [2.2.1b](#221b-deselect-filter-mismatched-row-before-backend-confirmation) | [2.2.2](#222-backend-returns-500-on-filter-affecting-update) | [2.2.4](#224-press-escape-during-filter-mismatched-edit) |
-| Update | filter | formula | ✗ | [2.2.5a](#225a-edit-with-formula-field-filter-active--no-warning-until-backend-responds) | [2.2.5b](#225b-deselect-formula-filtered-row-after-backend-confirmation) | [2.2.5c](#225c-deselect-formula-filtered-row-before-backend-confirmation) | [2.2.5d](#225d-backend-returns-500-on-formula-filter-affecting-update) | — |
-| Update | sort | regular | ✓ | [2.3.1a](#231a-edit-sorted-row-so-it-should-move-and-keep-it-selected) | [2.3.1a](#231a-edit-sorted-row-so-it-should-move-and-keep-it-selected) | [2.3.1b](#231b-deselect-sort-mismatched-row-before-backend-confirmation) | [2.3.2](#232-backend-returns-500-on-sort-affecting-update) | [2.3.3](#233-press-escape-during-sort-mismatched-edit) |
-| Update | sort | formula | ✗ | [2.3.4a](#234a-edit-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [2.3.4a](#234a-edit-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [2.3.4b](#234b-deselect-formula-sorted-row-before-backend-confirmation) | [2.3.4c](#234c-backend-returns-500-on-formula-sort-affecting-update) | — |
-| Update | group-by | regular | ✓ | TODO | TODO | TODO | TODO | TODO |
-| Update | group-by | formula | ✗ | TODO | TODO | TODO | TODO | — |
-| Paste | — | — | ✓ | TODO | — | — | TODO | — |
-| Paste | filter | regular | ✓ | [4.2.1a](#421a-paste-value-that-breaks-active-filter-then-deselect) | [4.2.1a](#421a-paste-value-that-breaks-active-filter-then-deselect) | [4.2.1b](#421b-filter-breaking-paste-deselected-before-backend-confirmation) | TODO | — |
-| Paste | filter | formula | ✗ | TODO | TODO | TODO | TODO | — |
-| Paste | sort | regular | ✓ | [4.3.1a](#431a-sort-affecting-paste-shows-row-has-moved-warning-then-moves-row-on-deselect) | [4.3.1a](#431a-sort-affecting-paste-shows-row-has-moved-warning-then-moves-row-on-deselect) | [4.3.1b](#431b-sort-affecting-paste-deselected-before-backend-confirmation-moves-row-immediately) | TODO | — |
-| Paste | sort | formula | ✗ | TODO | TODO | TODO | TODO | — |
-| Paste | group-by | regular | ✓ | TODO | TODO | TODO | TODO | — |
-| Paste | group-by | formula | ✗ | TODO | TODO | TODO | TODO | — |
+| Operation | Constraint | Constraint field | Optimistic | Keep selected                                                                                  | Deselect after confirm                                                                         | Deselect before confirm                                                                           | Backend error                                                                | Escape                                                   |
+| --------- | ---------- | ---------------- | :--------: | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Create    | —          | —                |     ✓      | [1.1.1](#111-backend-confirmation-for-a-new-row)                                               | —                                                                                              | —                                                                                                 | [1.1.3](#113-failed-create-is-rolled-back-and-the-optimistic-row-disappears) | —                                                        |
+| Create    | filter     | regular          |     ✓      | [1.2.1a](#121a-add-row-that-does-not-match-an-active-simple-field-filter-and-keep-it-selected) | [1.2.1a](#121a-add-row-that-does-not-match-an-active-simple-field-filter-and-keep-it-selected) | [1.2.1b](#121b-deselect-newly-added-filter-mismatched-row-before-backend-confirmation)            | [1.2.1d](#121d-backend-returns-500-on-filter-affected-create)                | —                                                        |
+| Create    | filter     | formula          |     ✗      | [1.2.2a](#122a-create-row-with-formula-field-filter-active--no-warning-until-backend-responds) | [1.2.2a](#122a-create-row-with-formula-field-filter-active--no-warning-until-backend-responds) | [1.2.2b](#122b-deselect-newly-added-formula-filtered-row-before-backend-confirmation)             | [1.2.2c](#122c-backend-returns-500-on-formula-filter-affected-create)        | —                                                        |
+| Create    | sort       | regular          |     ✓      | [1.3.1a](#131a-add-row-with-simple-field-sort-asc-and-keep-it-selected)                        | [1.3.1a](#131a-add-row-with-simple-field-sort-asc-and-keep-it-selected)                        | [1.3.1b](#131b-add-row-with-simple-field-sort-asc-then-deselect-before-backend-confirmation)      | [1.3.1c](#131c-backend-returns-500-on-sort-affected-create)                  | —                                                        |
+| Create    | sort       | formula          |     ✗      | [1.3.2a](#132a-add-row-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [1.3.2a](#132a-add-row-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [1.3.2b](#132b-add-row-with-formula-field-sort-active-then-deselect-before-backend-confirmation)  | [1.3.2c](#132c-backend-returns-500-on-formula-sort-affected-create)          | —                                                        |
+| Create    | group-by   | regular          |     ✓      | [1.5.1](#151-add-row-from-a-group-add-row-line)                                                | [1.5.1b](#151b-add-in-group-row-deselected-after-confirmation)                                 | [1.5.1c](#151c-add-in-group-row-deselected-before-confirmation)                                   | [1.5.1d](#151d-backend-returns-500-on-add-in-group-create)                   | —                                                        |
+| Create    | group-by   | formula          |     ✗      | [1.5.3a](#153a-formula-grouped-create-shows-no-warning-until-backend-responds)                 | [1.5.3a](#153a-formula-grouped-create-shows-no-warning-until-backend-responds)                 | [1.5.3b](#153b-formula-grouped-create-deselected-before-confirmation)                             | [1.5.3c](#153c-backend-returns-500-on-formula-grouped-create)                | —                                                        |
+| Update    | —          | —                |     ✓      | [2.1.1](#211-edit-primary-field-and-press-enter)                                               | —                                                                                              | —                                                                                                 | [2.1.3](#213-backend-returns-500-on-update)                                  | [2.1.4](#214-press-escape-while-editing)                 |
+| Update    | filter     | regular          |     ✓      | [2.2.1a](#221a-edit-filtered-row-to-non-matching-value-and-keep-it-selected)                   | [2.2.1a](#221a-edit-filtered-row-to-non-matching-value-and-keep-it-selected)                   | [2.2.1b](#221b-deselect-filter-mismatched-row-before-backend-confirmation)                        | [2.2.2](#222-backend-returns-500-on-filter-affecting-update)                 | [2.2.4](#224-press-escape-during-filter-mismatched-edit) |
+| Update    | filter     | formula          |     ✗      | [2.2.5a](#225a-edit-with-formula-field-filter-active--no-warning-until-backend-responds)       | [2.2.5b](#225b-deselect-formula-filtered-row-after-backend-confirmation)                       | [2.2.5c](#225c-deselect-formula-filtered-row-before-backend-confirmation)                         | [2.2.5d](#225d-backend-returns-500-on-formula-filter-affecting-update)       | —                                                        |
+| Update    | sort       | regular          |     ✓      | [2.3.1a](#231a-edit-sorted-row-so-it-should-move-and-keep-it-selected)                         | [2.3.1a](#231a-edit-sorted-row-so-it-should-move-and-keep-it-selected)                         | [2.3.1b](#231b-deselect-sort-mismatched-row-before-backend-confirmation)                          | [2.3.2](#232-backend-returns-500-on-sort-affecting-update)                   | [2.3.3](#233-press-escape-during-sort-mismatched-edit)   |
+| Update    | sort       | formula          |     ✗      | [2.3.4a](#234a-edit-with-formula-field-sort-active--no-move-warning-until-backend-responds)    | [2.3.4a](#234a-edit-with-formula-field-sort-active--no-move-warning-until-backend-responds)    | [2.3.4b](#234b-deselect-formula-sorted-row-before-backend-confirmation)                           | [2.3.4c](#234c-backend-returns-500-on-formula-sort-affecting-update)         | —                                                        |
+| Update    | group-by   | regular          |     ✓      | [2.2.7a](#227a-change-single-select-group-by-value)                                            | [2.2.7a](#227a-change-single-select-group-by-value)                                            | [2.2.7b](#227b-change-single-select-group-by-value-deselected-before-confirmation)                | [2.2.7c](#227c-backend-returns-500-on-single-select-group-by-change)         | [2.4.3](#243-press-escape-during-text-group-by-value-edit) |
+| Update    | group-by   | formula          |     ✗      | [2.4.4a](#244a-formula-grouped-edit-shows-no-warning-until-backend-responds)                   | [2.4.4a](#244a-formula-grouped-edit-shows-no-warning-until-backend-responds)                   | [2.4.4b](#244b-formula-grouped-edit-deselected-before-confirmation)                               | [2.4.4c](#244c-backend-returns-500-on-formula-grouped-edit)                  | —                                                        |
+| Paste     | —          | —                |     ✓      | TODO                                                                                           | —                                                                                              | —                                                                                                 | TODO                                                                         | —                                                        |
+| Paste     | filter     | regular          |     ✓      | [4.2.1a](#421a-paste-value-that-breaks-active-filter-then-deselect)                            | [4.2.1a](#421a-paste-value-that-breaks-active-filter-then-deselect)                            | [4.2.1b](#421b-filter-breaking-paste-deselected-before-backend-confirmation)                      | TODO                                                                         | —                                                        |
+| Paste     | filter     | formula          |     ✗      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+| Paste     | sort       | regular          |     ✓      | [4.3.1a](#431a-sort-affecting-paste-shows-row-has-moved-warning-then-moves-row-on-deselect)    | [4.3.1a](#431a-sort-affecting-paste-shows-row-has-moved-warning-then-moves-row-on-deselect)    | [4.3.1b](#431b-sort-affecting-paste-deselected-before-backend-confirmation-moves-row-immediately) | TODO                                                                         | —                                                        |
+| Paste     | sort       | formula          |     ✗      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+| Paste     | group-by   | regular          |     ✓      | [4.7.1a](#471a-group-by-affecting-paste-kept-selected-then-deselected)                         | [4.7.1a](#471a-group-by-affecting-paste-kept-selected-then-deselected)                         | [4.7.1b](#471b-group-by-affecting-paste-deselected-before-backend-confirmation)                   | TODO                                                                         | —                                                        |
+| Paste     | group-by   | formula          |     ✗      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+
+Regular-field filter/sort create/update cases and saved filter/sort load cases
+are parametrized to run in both flat and expanded group-by views. Dedicated
+group-by rows above cover creating inside a group and changing a grouped value.
 
 ### Combined constraints (TODO)
 
-All combinations of two or more active constraints (filter + sort, filter +
-group-by, sort + group-by, filter + sort + group-by) are uncovered for every
-operation and timing variant. Each combination should be tested in both the
-all-regular (fully optimistic) and any-formula (deferred)
-configurations.
+Most combinations of two or more active constraints (filter + sort, filter +
+group-by, sort + group-by, filter + sort + group-by) still need deeper coverage.
+Covered group-by combinations are regular-field filter/sort create/update and
+saved filter/sort load via parametrized flat/group-by runs, plus
+[2.2.6a](#226a-edit-filtered-grouped-row-to-non-matching-value).
+Remaining combinations should be tested in both the all-regular (fully
+optimistic) and any-formula (deferred) configurations.
 
 ## Row Creation
 
@@ -133,6 +142,8 @@ configurations.
 - Error toast is visible.
 
 ### 1.2.1a Add row that does not match an active simple-field filter and keep it selected
+
+These simple-field filter cases run in both flat and expanded group-by views.
 
 - Empty row is appended at the bottom.
 - Empty primary and field cells are visible immediately.
@@ -216,6 +227,8 @@ configurations.
 
 ### 1.3.1a Add row with simple-field sort ASC and keep it selected
 
+These simple-field sort cases run in both flat and expanded group-by views.
+
 - Empty row is appended at the bottom.
 - Empty primary and field cells are visible immediately.
 - Row loading spinner is visible while the create request is pending.
@@ -289,25 +302,30 @@ configurations.
 
 ### 1.3.3 Add row with simple-field sort and destination outside current buffer
 
-- Grid is scrolled so the current buffer does not contain the row's correct
-  sorted destination.
+- The table has a large dataset (~200 rows) and the grid is scrolled to the
+  bottom (Row 200 is the last visible row) so the buffer does not contain the
+  row's correct sorted destination — an empty Name sorts to the top, above the
+  loaded window.
 - Empty row is appended to the visible bottom buffer.
 - Row loading spinner is visible while the create request is pending.
-- "Row has moved" is hidden while the create request is pending.
-- Row loading spinner is hidden after backend confirmation.
-- "Row has moved" is visible after backend confirmation while the row is
+- "Row has moved" is visible immediately while the create request is pending:
+  the sort is on a regular field, so the mismatch is detected locally — the same
+  optimistic path as the in-buffer case (1.3.1a), not deferred to the backend.
+- "Row has moved" remains visible after backend confirmation while the row is
   selected.
-- After deselect, the row leaves the current rendered buffer.
-- After deselect, "Row has moved" is hidden.
-- After scrolling to the row's sorted destination, the row is visible there.
+- After deselect, the kept row leaves the rendered buffer and its warning
+  clears; the bottom of the buffer shows Row 200 again.
+- After reload, the empty row is sorted to the top (index 0, with Row 001 below
+  it) and shows no warning.
 
 ### 1.4.1 Edit a field while create is pending
 
 - Empty row is appended at the bottom.
 - Row loading spinner is visible while the create request is pending.
 - Typed value in a field of the pending row is visible immediately.
-- After the create request completes, the queued PATCH fires and the value is
-  confirmed.
+- After the create request completes, the queued PATCH is applied against the
+  finalized (post-create) row id and the typed value remains visible — it is not
+  lost or reverted when the temporary id is replaced.
 - No error is shown.
 
 ### 1.4.2 PATCH is not sent to the network until the create request completes
@@ -317,6 +335,55 @@ configurations.
 - No PATCH request reaches the network while the POST is still in-flight.
 - After the POST completes, the queued PATCH fires with the real row ID.
 - Field value is saved correctly.
+
+### 1.5.1 Add row from a group add-row line
+
+- New row is inserted at the bottom of the selected group.
+- The group-by field is set to that group's value.
+- Other groups keep their rows and order.
+- The group counter increments while the create request is pending.
+- The new row remains selected after backend confirmation.
+- Backend confirmation does not issue a grid GET or reload grouped rows.
+
+### 1.5.1b Add-in-group row deselected after confirmation
+
+- New row is created in its group and the create request confirms.
+- After deselect, the row stays at the bottom of its group with the group's value.
+- No "Row has moved" warning appears (the row was created in the correct group).
+- Group counters keep the incremented count.
+
+### 1.5.1c Add-in-group row deselected before confirmation
+
+- New row is created in its group with the create request still pending.
+- Deselecting before confirmation leaves the row in place with no warning.
+- The row keeps its loading spinner until the create confirms.
+- After confirmation, the row finalizes in its group without moving.
+
+### 1.5.1d Backend returns 500 on add-in-group create
+
+- POST request returns 500.
+- The optimistic row is removed from its group after rollback.
+- Group counters revert to their original values.
+- Error toast is visible.
+
+### 1.5.3a Formula-grouped create shows no warning until backend responds
+
+- New row is created with no "Row has moved" warning while the request is pending
+  (the formula group cannot be evaluated locally).
+- After the backend responds, the "Row has moved" warning appears.
+- After deselect, the row moves into its computed group and counters update.
+
+### 1.5.3b Formula-grouped create deselected before confirmation
+
+- New row is created with no warning while the request is pending.
+- Deselecting before confirmation leaves the row in place with its loading spinner.
+- After the backend responds, the row moves into its computed group.
+
+### 1.5.3c Backend returns 500 on formula-grouped create
+
+- POST request returns 500.
+- The optimistic row is removed and group counters revert.
+- Error toast is visible.
 
 ## Row Updates
 
@@ -355,6 +422,8 @@ configurations.
 - Field validation error remains visible.
 
 ### 2.2.1a Edit filtered row to non-matching value and keep it selected
+
+These simple-field filter cases run in both flat and expanded group-by views.
 
 - Typed value is visible immediately.
 - No row loading spinner is shown for this optimistic text update.
@@ -431,7 +500,41 @@ configurations.
 - Row remains visible.
 - Error toast is visible.
 
+### 2.2.6a Edit filtered grouped row to non-matching value
+
+- Grouped filtered row shows "Row does not match filters" immediately.
+- The warning remains visible on the last row in a group.
+- Row remains visible while selected.
+- After deselect, the row is removed from the visible group.
+- Group counters update locally.
+
+### 2.2.7a Change single-select group-by value
+
+- New single-select value is visible immediately.
+- "Row has moved" is visible immediately.
+- Row remains in its original group while selected.
+- No grid rows GET request is made for the single row update.
+- After deselect, the row moves to the target group.
+- Source and target group counters update locally.
+
+### 2.2.7b Change single-select group-by value deselected before confirmation
+
+- New single-select value is visible immediately with a "Row has moved" warning.
+- Deselecting before confirmation moves the row to its new group immediately.
+- Source and target group counters update locally.
+- The move stays stable after the backend confirms.
+
+### 2.2.7c Backend returns 500 on single-select group-by change
+
+- PATCH request returns 500.
+- The optimistic group-by value is rolled back to the original option.
+- The "Row has moved" warning clears and the row stays in its original group.
+- Group counters are unchanged.
+- Error toast is visible.
+
 ### 2.3.1a Edit sorted row so it should move and keep it selected
+
+These simple-field sort cases run in both flat and expanded group-by views.
 
 - Typed value is visible immediately.
 - No row loading spinner is shown for this optimistic text update.
@@ -512,6 +615,47 @@ configurations.
 - After scrolling to the row's sorted destination, the updated row is visible
   there.
 
+### 2.4.1 Change text group-by value deselected before confirmation
+
+- New text value is visible immediately with a "Row has moved" warning.
+- Deselecting before confirmation moves the row to its new group immediately.
+- Source and target group counters update locally.
+- The move stays stable after the backend confirms.
+
+### 2.4.2 Backend returns 500 on text group-by change
+
+- PATCH request returns 500.
+- The optimistic group-by value is rolled back to the original text.
+- The "Row has moved" warning clears and the row stays in its original group.
+- Group counters are unchanged.
+- Error toast is visible.
+
+### 2.4.3 Press Escape during text group-by-value edit
+
+- Escape discards the typed group-by value and restores the original.
+- No "Row has moved" warning appears.
+- The row stays in its original group and group counters are unchanged.
+
+### 2.4.4a Formula-grouped edit shows no warning until backend responds
+
+- Typed value is visible immediately, with the row loading and no warning while
+  the request is pending (the formula group cannot be evaluated locally).
+- After the backend responds, the "Row has moved" warning appears.
+- After deselect, the row moves into its new group and counters update.
+
+### 2.4.4b Formula-grouped edit deselected before confirmation
+
+- Typed value is visible immediately with no warning while pending.
+- Deselecting before confirmation keeps the row in its current group.
+- After the backend responds, the row moves into its new group.
+
+### 2.4.4c Backend returns 500 on formula-grouped edit
+
+- PATCH request returns 500.
+- The optimistic value is rolled back and the row stays in its original group.
+- Group counters are unchanged.
+- Error toast is visible.
+
 ## Row Deletion
 
 ### 3.1.1 Right-click row and choose "Delete row"
@@ -529,6 +673,10 @@ configurations.
 - Error toast is visible.
 
 ## Clipboard And Multi-Cell Edits
+
+> Copy/paste cases run in Chromium only; they are skipped in Firefox because
+> Playwright cannot grant or deliver clipboard data there (`skipIfNoClipboard`).
+> The browser gap is intentional, not missing coverage.
 
 ### 4.1.1 Copy one cell and paste into another
 
@@ -582,6 +730,20 @@ configurations.
 - Row stays in its sorted position after backend confirmation.
 - No warning is visible after backend confirmation.
 
+### 4.7.1a Group-by-affecting paste kept selected then deselected
+
+- Pasted group-by value is visible immediately with a "Row has moved" warning.
+- Row remains in its original group while selected.
+- After deselect, the row moves to the target group.
+- Source and target group counters update locally.
+
+### 4.7.1b Group-by-affecting paste deselected before backend confirmation
+
+- Pasted group-by value is visible immediately with a "Row has moved" warning.
+- Deselecting before confirmation moves the row to its new group immediately.
+- Source and target group counters update locally.
+- The move stays stable after the backend confirms.
+
 ### 4.4.1 Delete clears selected cell range
 
 - Rectangular multi-select range is visible.
@@ -589,6 +751,8 @@ configurations.
 - Non-selected cells are unchanged.
 
 ## Filters
+
+These saved filter cases run in both flat and expanded group-by views.
 
 ### 5.1.1 Load view with API-created filter
 
@@ -607,6 +771,8 @@ configurations.
 
 ## Sorts
 
+These saved sort cases run in both flat and expanded group-by views.
+
 ### 6.1.1 Sort ASC
 
 - Grid opens with rows visible in ascending order.
@@ -620,9 +786,39 @@ configurations.
 - Grid opens with primary sort applied first.
 - Rows tied on Name are ordered by Score descending.
 
+## Group-by
+
+Standalone group-by behavior. Group-by also appears as a constraint within the
+operation buckets — create in a group (1.5.x), changing a group-by value (2.2.7,
+2.4.x), and group-by-affecting paste (4.7.x) — plus the parametrized
+flat/group-by runs, the same way filters and sorts do.
+
+### 7.1.1 Grouped views load expanded and collapse or expand all groups
+
+- Grouped views initially render group banners expanded with their rows visible.
+- Collapsing all groups hides every group's rows and leaves the banners visible.
+- Expanding all groups restores the rows in their groups and keeps group counters.
+- Rows fetched on the initial expanded load stay in the store while collapsed, so
+  re-expanding does not refetch them.
+
+### 7.1.2 Collapse and expand a group
+
+- Collapsing one group hides only that group's rows.
+- Other expanded groups stay visible.
+- Expanding the group restores its rows in place.
+
+### 7.2.1 Adding a group-by refreshes with one metadata request and one row request
+
+- A view already grouped by one field renders its group banners with counters.
+- Adding a second group-by field issues exactly one group-by-data metadata
+  request and exactly one grid rows request, not a request per group.
+- The group-by-data request includes `include_descendants=true`.
+- New nested group banners and their counters are visible after the refresh.
+- Total row count is unchanged.
+
 ## Search
 
-### 7.1.1 Search in highlight mode
+### 8.1.1 Search in highlight mode
 
 - Search panel is open.
 - Search is idle.
@@ -630,45 +826,59 @@ configurations.
 - Non-matching rows remain visible.
 - Non-matching cells are not highlighted.
 
-### 7.1.2 Search with no matches in highlight mode
+### 8.1.2 Search with no matches in highlight mode
 
 - Search panel is open.
 - Search is idle.
 - No cells are highlighted.
 - All rows remain visible.
 
-### 7.1.3 Clear search
+### 8.1.3 Clear search
 
 - Existing highlights are hidden.
 - All rows remain visible.
 
-### 7.1.4 Search matches a non-primary field
+### 8.1.4 Search matches a non-primary field
 
 - Matching non-primary cell is highlighted.
 - Primary plus non-primary multi-field highlight in the same row is TODO.
 
-### 7.2.1 Search in hide-not-matching mode
+### 8.2.1 Search in hide-not-matching mode
 
 - Typing search hides non-matching rows.
 - Matching rows remain visible.
 
-### 7.2.2 Toggle hide-not-matching mode off
+### 8.2.2 Toggle hide-not-matching mode off
 
 - Hidden rows become visible again.
 - Matching cells remain highlighted.
 
 ## View Display Options
 
-### 8.1.1 Row coloring from single-select color
+### 9.1.1 Row coloring from single-select color
 
 - Grid opens with all rows loaded.
 - Selected single-select values are visible.
 - Row background uses the selected option color in the frozen-left section.
 - Row background uses the selected option color in the scrollable-right section.
+- The row surface on top of the color wrapper stays transparent, so the
+  decoration color is actually painted.
 - No row loading spinner is shown because row coloring is loaded from the saved
   view decoration.
 
-### 8.2.1 Hide and show a non-primary field
+### 9.1.2 Row coloring with group-by
+
+- Grid opens with the saved group-by applied.
+- Group banners show each group value with its row count.
+- Row background uses the selected option color in the frozen-left section.
+- Row background uses the selected option color in the scrollable-right section.
+- The row surface on top of the color wrapper stays transparent, so the
+  decoration color is actually painted (grouped rows previously painted an
+  opaque background over it).
+- No row loading spinner is shown because row coloring is loaded from the saved
+  view decoration.
+
+### 9.2.1 Hide and show a non-primary field
 
 - Field header is initially visible.
 - Field cells are initially visible.
@@ -680,7 +890,7 @@ configurations.
 - Showing the field restores the field cells with their values.
 - Shown state persists after reload.
 
-### 8.3.1 Change row height
+### 9.3.1 Change row height
 
 - Grid opens at small row height.
 - Values are visible.
@@ -691,7 +901,7 @@ configurations.
 - Large row height persists after reload.
 - No row loading spinner is shown.
 
-### 8.4.1 Load view with frozen columns
+### 9.4.1 Load view with frozen columns
 
 - Saved frozen column count moves the first non-primary field into the frozen-left
   section.
@@ -699,14 +909,14 @@ configurations.
 - Next non-primary field remains visible in the scrollable-right section.
 - Frozen column layout persists after reload.
 
-### 8.5.1 Count mode shows sequential row positions
+### 9.5.1 Count mode shows sequential row positions
 
 - Row count column shows "1" for the first row, "2" for the second, and so on.
 - Note: the backend default for a new view is `row_identifier_type = "id"`. Tests
   that verify count mode must explicitly set the view to count mode via API before
   navigating.
 
-### 8.5.2 Switch to Row identifier and back to Count
+### 9.5.2 Switch to Row identifier and back to Count
 
 - Clicking the dropdown icon in the row count header opens the identifier picker.
 - Selecting "Row identifier" changes the count column to show actual backend row IDs.
@@ -718,31 +928,39 @@ configurations.
 
 ## Cell Selection
 
-### 9.1.1 Click a cell
+### 10.1.1 Click a cell
 
 - Clicked cell becomes selected.
 - No multi-select range is shown.
 
-### 9.1.2 Shift-click another cell
+### 10.1.2 Shift-click another cell
 
 - First selected cell remains the anchor.
 - Rectangular multi-select range is shown between the anchor cell and clicked
   cell.
 
-### 9.1.3 Drag across cells
+### 10.1.3 Drag across cells
 
 - Rectangular multi-select range is shown during drag.
 - Rectangular multi-select range remains visible after mouseup.
 
-### 9.1.4 Press Escape
+### 10.1.4 Press Escape
 
 - Existing multi-select range is hidden.
 
-### 9.1.5 Click outside the grid
+### 10.1.5 Click outside the grid
 
 - Existing multi-select range is hidden.
 
-### 9.2.1 Shift+Arrow expands selected range
+### 10.1.6 Group-by cell selection and shift range use visible row indexes
+
+- Grouped view loads with expanded group banners and its rows visible.
+- Selecting the first field cell selects that cell.
+- Shift-clicking a cell one row and one field away expands the selected range to
+  a 2x2 area, addressed by visible row index across group banners rather than
+  raw row position.
+
+### 10.2.1 Shift+Arrow expands selected range
 
 - Starting from one selected cell, Shift+ArrowRight expands the selected range
   to two cells.
@@ -750,42 +968,42 @@ configurations.
 
 ## Keyboard Navigation
 
-### 10.1.1 Press Tab
+### 11.1.1 Press Tab
 
 - Selection moves to the next cell.
 - Typing starts editing that cell.
 - Typed value is visible immediately.
 
-### 10.1.2 Press Enter on selected cell
+### 11.1.2 Press Enter on selected cell
 
 - The selected cell enters edit mode.
 
-### 10.1.3 Press Enter while editing
+### 11.1.3 Press Enter while editing
 
 - Typed value is visible immediately.
 - Selection moves down.
 - Typing starts editing the row below.
 - Second typed value is visible immediately.
 
-### 10.1.4 Press Escape while editing
+### 11.1.4 Press Escape while editing
 
 - Typed draft is discarded.
 - Original value is visible again.
 - Editor is closed.
 
-### 10.1.5 Use arrow keys
+### 11.1.5 Use arrow keys
 
 - Selection moves to the target cell.
 - No editor appears.
 
-### 10.1.6 Type while a cell is selected
+### 11.1.6 Type while a cell is selected
 
 - The selected cell enters edit mode.
 - The edit field contains the typed characters.
 
 ## Row Hover Actions
 
-### 11.1.1 Hover and unhover toggles checkbox and row count
+### 12.1.1 Hover and unhover toggles checkbox and row count
 
 - Row count is visible before hover.
 - Hovering the row reveals the checkbox.
@@ -794,19 +1012,19 @@ configurations.
 - Moving the mouse away hides the checkbox.
 - Row count is visible again after unhover.
 
-### 11.1.2 Drag handle present in unsorted view, absent when sort is active
+### 12.1.2 Drag handle present in unsorted view, absent when sort is active
 
 - Drag handle element is present in a view with no active sort.
 - Drag handle element is absent in a view where a sort controls row order.
 
-### 11.2.1 Insert row below from context menu
+### 12.2.1 Insert row below from context menu
 
 - Context menu opens for a row.
 - Selecting "Insert row below" creates an empty row directly below the selected
   row.
 - Existing rows keep their relative order.
 
-### 11.2.2 Duplicate row from context menu
+### 12.2.2 Duplicate row from context menu
 
 - Context menu opens for a row.
 - Selecting "Duplicate row" creates a copied row directly below the selected row.
@@ -814,25 +1032,46 @@ configurations.
 
 ## Checkbox Selection
 
-### 12.1.1 Checkbox selection clears active area selection
+### 13.1.1 Checkbox selection clears active area selection
 
 - Rectangular multi-select range is visible.
 - Hovering a row reveals its checkbox.
 - Clicking the row checkbox selects the row.
 - Existing multi-select range is hidden.
 
+### 13.1.2 Grouped row checkbox selection clears active area selection
+
+- Grouped view loads with expanded group banners and its rows visible.
+- Rectangular multi-select range is visible across the grouped rows.
+- Hovering a row reveals its checkbox.
+- Clicking the row checkbox selects the row.
+- Existing multi-select range is hidden.
+
 ## Row Expand Modal
 
-### 13.1.1 Open row expand modal from context menu
+### 14.1.1 Open row expand modal from context menu
 
 - Context menu opens for a row.
 - Selecting "Enlarge row" opens the row edit modal.
 - Modal contains the selected row value.
 - Closing the modal hides it.
 
+### 14.2.1 Modal edit that stops matching the filters
+
+- Editing a modal-open row so it stops matching the filters keeps the row
+  visible with a "Row does not match filters" warning.
+- Row count is unchanged while the modal stays open.
+- A follow-up edit in the modal does not hide any other row.
+- Closing the modal hides the row that no longer matches.
+
+### 14.2.2 Realtime updates into a non-matching modal row
+
+- After a modal edit makes the row stop matching the filters, an update from
+  another client is still reflected in the open modal.
+
 ## Public Shared Grid
 
-### 14.1.1 Public grid renders rows without edit controls
+### 15.1.1 Public grid renders rows without edit controls
 
 - Public shared grid route renders without an authenticated session.
 - Visible rows are loaded.
@@ -841,8 +1080,6 @@ configurations.
 
 ## TODO Coverage
 
-- 1.5.x: Create rows with active group-by constraints.
-- 2.4.x: Update rows with active group-by constraints.
 - 2.5.x: Editing source fields for visible formula fields that are not active
   filter/sort/group-by constraints; verify formula-cell loading, refresh, and
   rollback. Formula-backed filter/sort constraints are covered by 2.2.5 and
@@ -866,11 +1103,32 @@ configurations.
 - 4.4.x: Backspace clears all selected cell values while an area selection is active.
 - 4.5.x: Larger multi-cell paste matrix.
 - 4.6.x: Copy selected cells with column headers via the context menu option.
-- 4.7.x: Paste with active group-by constraints.
+- 4.7.x: Group-by-affecting paste backend-error rollback and formula group-by
+  constraints. Regular keep-selected and deselect-before-confirmation are covered
+  by 4.7.1a–4.7.1b.
 - 5.3.x: OR filter combinations and filter groups.
-- 8.1.x: Row coloring from a formula-based decoration (section 8.1 covers
+- 7.x: Group-by standalone behavior not yet automated — each group renders its
+  own add-row line and adding from a non-first group lands in that group; the
+  add-row line keeps the small row height at medium/large row heights (covered
+  by unit tests, not e2e); an empty grouped view keeps a top-level add-row line
+  and a row created from it lands in its value-derived group, selected and with
+  a filter warning when it does not match (covered by unit tests, not e2e);
+  group banners draw a vertical cell
+  separator at each field boundary in the scrollable-right section (covered by
+  unit tests, not e2e); collapse/expand state persists across reload and is
+  re-projected (kept on trailing-level add/remove, reset on reorder/replace);
+  nested multi-level group-by collapse/expand, counts, and add-row;
+  lazy-loading rows when scrolling deep into a large group (covered by unit
+  tests, not e2e).
+- 15.x: Ad-hoc grouping in the publicly shared grid — a visitor applying a
+  different group-by rebuilds the group tree and loads rows for the new groups
+  (covered by backend tests, not e2e).
+- 7.x: Ad-hoc grouping for users who cannot update the view (e.g. read-only
+  role) — the `group_by` parameter drives the group tree instead of the saved
+  view group-bys (covered by backend tests, not e2e).
+- 9.1.x: Row coloring from a formula-based decoration (section 9.1 covers
   single-select only).
-- 8.4.x: Freeze columns drag UI and limits.
+- 9.4.x: Freeze columns drag UI and limits.
     - Freeze handle is visible when there is enough horizontal space.
     - Freezing 3 columns moves 3 columns into the frozen-left section.
     - Freezing 4 columns moves 4 columns into the frozen-left section.
@@ -878,23 +1136,23 @@ configurations.
     - The UI does not allow freezing more than 4 columns.
     - The UI does not allow freezing more columns than can fit in the available
       width.
-- 8.6.x: Drag-and-drop rows when no sort is applied.
+- 9.6.x: Drag-and-drop rows when no sort is applied.
     - Drop target is visible while dragging.
     - Dropped row moves to the new visual position.
     - Row order persists after reload.
-- 8.7.x: Drag-and-drop fields.
+- 9.7.x: Drag-and-drop fields.
     - Field-drag preview is visible while dragging a field header.
     - Target position is visible while dragging a field header.
     - Dropping reorders field headers.
     - Dropping reorders row cells to match the field headers.
     - Field order persists after reload.
-- 11.2.x: Remaining single-row context menu actions beyond deletion, insert below,
+- 12.2.x: Remaining single-row context menu actions beyond deletion, insert below,
   and duplicate (insert above, copy row URL).
-- 12.2.x: Multi-row bulk actions on checkbox-selected rows.
-- 13.2.x: Row expand modal deeper coverage — open via double-click, navigate
+- 13.2.x: Multi-row bulk actions on checkbox-selected rows.
+- 14.2.x: Row expand modal deeper coverage — open via double-click, navigate
   prev/next rows, edit fields from inside the modal, filter re-check on modal
   close.
-- 15.x: Realtime multi-user row events.
-- 16.x: Realtime metadata and presence.
-- 17.x: Data-sync read-only mode — add row button and delete row option are hidden
+- 16.x: Realtime multi-user row events.
+- 17.x: Realtime metadata and presence.
+- 18.x: Data-sync read-only mode — add row button and delete row option are hidden
   when the table has a data sync without two-way sync enabled.

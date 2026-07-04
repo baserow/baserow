@@ -9,7 +9,6 @@
     <GridViewRow
       v-for="(row, index) in rows"
       :key="`row-${row._.persistentId}`"
-      :group-end="rowsAtEndOfGroups.has(row.id)"
       :view="view"
       :workspace-id="workspaceId"
       :row="row"
@@ -119,10 +118,6 @@ export default {
     workspaceId: {
       type: Number,
       required: true,
-    },
-    rowsAtEndOfGroups: {
-      type: Set,
-      default: () => new Set(),
     },
     canDrag: {
       type: Boolean,

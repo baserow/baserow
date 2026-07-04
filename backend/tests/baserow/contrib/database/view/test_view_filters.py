@@ -1004,6 +1004,164 @@ def test_contains_word_filter_type(data_fixture):
 
 
 @pytest.mark.django_db
+def test_starts_with_filter_type(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    text_field = data_fixture.create_text_field(table=table)
+    long_text_field = data_fixture.create_long_text_field(table=table)
+    url_field = data_fixture.create_url_field(table=table)
+    email_field = data_fixture.create_email_field(table=table)
+    phone_number_field = data_fixture.create_phone_number_field(table=table)
+    number_field = data_fixture.create_number_field(table=table)
+    autonumber_field = data_fixture.create_autonumber_field(table=table)
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    option_a = data_fixture.create_select_option(
+        field=single_select_field, value="Active", color="blue"
+    )
+    option_b = data_fixture.create_select_option(
+        field=single_select_field, value="Done", color="red"
+    )
+    formula_field = data_fixture.create_formula_field(
+        table=table,
+        name="formula",
+        formula=f"field('{text_field.name}')",
+        formula_type="text",
+    )
+    number_formula_field = data_fixture.create_formula_field(
+        table=table,
+        name="number formula",
+        formula=f"field('{number_field.name}')",
+    )
+
+    handler = ViewHandler()
+    model = table.get_model()
+
+    # The autonumber field is read only and is assigned sequentially, so the
+    # first created row gets 1 and the second gets 2.
+    row, row_2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{text_field.id}": "hello world",
+                    f"field_{long_text_field.id}": "hello long world",
+                    f"field_{url_field.id}": "https://www.example.com",
+                    f"field_{email_field.id}": "john.doe@example.com",
+                    f"field_{phone_number_field.id}": "+1-541-754-3010",
+                    f"field_{number_field.id}": 12345,
+                    f"field_{single_select_field.id}": option_a.id,
+                },
+                {
+                    f"field_{text_field.id}": "doesnt match",
+                    f"field_{long_text_field.id}": "another value",
+                    f"field_{url_field.id}": "http://baserow.io",
+                    f"field_{email_field.id}": "jane.doe@baserow.io",
+                    f"field_{phone_number_field.id}": "+44-20-7946-0000",
+                    f"field_{number_field.id}": 90000,
+                    f"field_{single_select_field.id}": option_b.id,
+                },
+            ],
+            model=model,
+        )
+        .created_rows
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view, field=text_field, type="starts_with", value="hello"
+    )
+    # Only the row starting with the value is kept.
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    # The match is case insensitive.
+    view_filter.value = "HELLO"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    # A value that is contained but not at the start does not match.
+    view_filter.value = "world"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 0
+
+    # An empty value does not filter at all.
+    view_filter.value = ""
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+
+    view_filter.field = long_text_field
+    view_filter.value = "hello"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    view_filter.field = url_field
+    view_filter.value = "https://"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    view_filter.field = email_field
+    view_filter.value = "john"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    view_filter.field = phone_number_field
+    view_filter.value = "+1"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    view_filter.field = number_field
+    view_filter.value = "123"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    view_filter.field = autonumber_field
+    view_filter.value = "1"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    view_filter.field = single_select_field
+    view_filter.value = "act"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    view_filter.field = formula_field
+    view_filter.value = "hello"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    # A non-text formula delegates to the underlying field type's query.
+    view_filter.field = number_formula_field
+    view_filter.value = "123"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+
+@pytest.mark.django_db
 def test_doesnt_contain_word_filter_type(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

@@ -51,6 +51,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
     ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+    ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED,
 )
 from baserow.contrib.database.api.views.grid.serializers import (
     GridViewFieldOptionsSerializer,
@@ -62,6 +63,7 @@ from baserow.contrib.database.api.views.utils import (
     get_public_view_filtered_queryset,
     get_view_filtered_queryset,
     paginate_and_serialize_queryset,
+    serialize_group_by_data_pages,
     serialize_group_by_fields_metadata,
     serialize_rows_metadata,
     serialize_view_field_options,
@@ -82,6 +84,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewDoesNotExist,
     ViewFilterTypeDoesNotExist,
     ViewFilterTypeNotAllowedForField,
+    ViewGroupByFieldNotSupported,
 )
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
@@ -101,11 +104,71 @@ from .schemas import (
     field_aggregation_response_schema,
     field_aggregations_response_schema,
 )
-from .serializers import GridViewFilterSerializer
+from .serializers import GridViewFilterSerializer, GridViewGroupByDataSerializer
+from .utils import (
+    build_group_by_data_response,
+    empty_group_by_data_page,
+    parse_adhoc_view_group_bys,
+)
 
 
 def get_available_aggregation_type():
     return [f.type for f in view_aggregation_type_registry.get_all()]
+
+
+GROUP_BY_DATA_PARENTS_API_PARAM = OpenApiParameter(
+    name="parents",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.STR,
+    required=False,
+    description=(
+        "Optional JSON array of parent page requests. Each item can be a group path "
+        "object, or an object with `parent`, `offset`, and `limit`. When omitted, "
+        "top-level groups are returned."
+    ),
+)
+GROUP_BY_DATA_DEPTH_API_PARAM = OpenApiParameter(
+    name="depth",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.INT,
+    required=False,
+    description=(
+        "Optional zero-based group-by depth. When provided, the endpoint returns "
+        "one global page of groups at that depth, capped by `limit`, and splits "
+        "the returned groups into their parent pages."
+    ),
+)
+GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM = OpenApiParameter(
+    name="include_descendants",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.BOOL,
+    required=False,
+    description=(
+        "When true, each returned group page also preloads bounded descendant "
+        "pages starting at offset 0. The walk is bounded by descendant page and "
+        "leaf-row budgets plus server-side caps."
+    ),
+)
+GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM = OpenApiParameter(
+    name="descendant_limit",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.INT,
+    required=False,
+    description=(
+        "Optional per-descendant-page group limit. Defaults to the request limit "
+        "and is capped by the row page size limit and the total group budget."
+    ),
+)
+GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM = OpenApiParameter(
+    name="descendant_row_budget",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.INT,
+    required=False,
+    description=(
+        "Optional total leaf-row budget for include_descendants. Defaults to the "
+        "request limit and is capped by the total group budget."
+    ),
+)
 
 
 class GridViewView(APIView):
@@ -210,9 +273,17 @@ class GridViewView(APIView):
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
         }
     )
-    @allowed_includes("field_options", "row_metadata")
+    @allowed_includes("field_options", "row_metadata", "group_by_metadata")
     @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
-    def get(self, request, view_id, field_options, row_metadata, query_params):
+    def get(
+        self,
+        request,
+        view_id,
+        field_options,
+        row_metadata,
+        group_by_metadata,
+        query_params,
+    ):
         """
         Lists all the rows of a grid view, paginated either by a page or offset/limit.
         If the limit get parameter is provided the limit/offset pagination will be used
@@ -268,7 +339,7 @@ class GridViewView(APIView):
             queryset, request, field_ids, exclude_field_ids=hidden_field_ids
         )
 
-        if view_type.can_group_by and view.viewgroupby_set.all():
+        if group_by_metadata and view_type.can_group_by and view.viewgroupby_set.all():
             group_by_fields = [
                 model._field_objects[group_by.field_id]["field"]
                 for group_by in view.viewgroupby_set.all()
@@ -369,6 +440,129 @@ class GridViewView(APIView):
         )
         serializer = serializer_class(results, many=True)
         return Response(serializer.data)
+
+
+class GridViewGroupByDataView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return super().get_permissions()
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the grid view to fetch group-by data for.",
+            ),
+            GROUP_BY_DATA_PARENTS_API_PARAM,
+            GROUP_BY_DATA_DEPTH_API_PARAM,
+            GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
+            GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM,
+            GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM,
+            OpenApiParameter("offset", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            OpenApiParameter(
+                name="group_by",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="Optionally the groups can be built from the provided "
+                "field ids separated by comma instead of the view's own group-bys. "
+                "This allows users without permission to update the view (e.g. "
+                "viewers) to group ad hoc.",
+            ),
+            *ADHOC_FILTERS_API_PARAMS,
+            SEARCH_VALUE_API_PARAM,
+            SEARCH_MODE_API_PARAM,
+        ],
+        tags=["Database table grid view"],
+        operation_id="get_database_table_grid_view_group_by_data",
+        responses={
+            200: GridViewGroupByDataSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_ORDER_BY_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED",
+                ]
+            ),
+            404: get_error_schema(["ERROR_GRID_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ViewDoesNotExist: ERROR_GRID_DOES_NOT_EXIST,
+            FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+            ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+            OrderByFieldNotFound: ERROR_ORDER_BY_FIELD_NOT_FOUND,
+            ViewGroupByFieldNotSupported: ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED,
+        }
+    )
+    @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
+    def get(self, request, view_id, query_params):
+        adhoc_filters = AdHocFilters.from_request(request)
+        view_handler = ViewHandler()
+        view = view_handler.get_view_as_user(
+            request.user,
+            view_id,
+            GridView,
+            base_queryset=GridView.objects.prefetch_related(
+                "viewsort_set", "viewgroupby_set"
+            ),
+        )
+        view_type = view_type_registry.get_by_model(view)
+
+        check_permissions_with_view_fallback(
+            ListRowsDatabaseTableOperationType.type,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
+        )
+
+        if not view_type.can_group_by:
+            return Response(
+                serialize_group_by_data_pages([empty_group_by_data_page()], [])
+            )
+
+        queryset = get_view_filtered_queryset(
+            request.user,
+            view,
+            adhoc_filters,
+            order_by=None,
+            query_params=query_params,
+        )
+        # Users who can list but not update the view's group-bys (e.g. viewers)
+        # group ad hoc, so an explicit `group_by` parameter takes precedence over
+        # the saved configuration.
+        view_group_bys = parse_adhoc_view_group_bys(
+            request.GET.get("group_by"), queryset.model
+        )
+        if view_group_bys is None:
+            view_group_bys = list(view.viewgroupby_set.all())
+
+        if not view_group_bys:
+            return Response(
+                serialize_group_by_data_pages([empty_group_by_data_page()], [])
+            )
+
+        group_by_fields = view_handler.get_group_by_fields(queryset, view_group_bys)
+
+        response_data = build_group_by_data_response(
+            view_handler, request, queryset, view_group_bys, group_by_fields
+        )
+
+        return Response(response_data)
 
 
 class GridViewFieldAggregationsView(APIView):
@@ -701,6 +895,111 @@ class GridViewFieldAggregationView(APIView):
         return Response(result)
 
 
+class PublicGridViewGroupByDataView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="slug",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                description="The public grid view slug.",
+            ),
+            GROUP_BY_DATA_PARENTS_API_PARAM,
+            GROUP_BY_DATA_DEPTH_API_PARAM,
+            GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
+            GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM,
+            GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM,
+            OpenApiParameter("offset", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            OpenApiParameter(
+                name="group_by",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="Optionally the groups can be built from the provided "
+                "field ids separated by comma instead of the view's own group-bys. "
+                "This allows visitors of the publicly shared view to group ad hoc.",
+            ),
+            *ADHOC_FILTERS_API_PARAMS,
+            SEARCH_VALUE_API_PARAM,
+            SEARCH_MODE_API_PARAM,
+        ],
+        tags=["Database table grid view"],
+        operation_id="get_database_table_public_grid_view_group_by_data",
+        responses={
+            200: GridViewGroupByDataSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_ORDER_BY_FIELD_NOT_FOUND",
+                    "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
+                    "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED",
+                ]
+            ),
+            401: get_error_schema(["ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW"]),
+            404: get_error_schema(["ERROR_GRID_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_GRID_DOES_NOT_EXIST,
+            FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+            ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+            NoAuthorizationToPubliclySharedView: ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
+            OrderByFieldNotFound: ERROR_ORDER_BY_FIELD_NOT_FOUND,
+            OrderByFieldNotPossible: ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
+            ViewGroupByFieldNotSupported: ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED,
+        }
+    )
+    @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
+    def get(self, request, slug, query_params):
+        view_handler = ViewHandler()
+        view = view_handler.get_public_view_by_slug(
+            request.user,
+            slug,
+            GridView,
+            authorization_token=get_public_view_authorization_token(request),
+        )
+        view_type = view_type_registry.get_by_model(view)
+
+        if not view_type.can_group_by:
+            return Response(
+                serialize_group_by_data_pages([empty_group_by_data_page()], [])
+            )
+
+        queryset, visible_field_ids, _field_options = get_public_view_filtered_queryset(
+            view, request, query_params
+        )
+        # Visitors of a publicly shared view can group ad hoc without being able
+        # to change the view, so an explicit `group_by` parameter takes precedence
+        # over the saved configuration (mirroring the public rows endpoint).
+        view_group_bys = parse_adhoc_view_group_bys(
+            request.GET.get("group_by"),
+            queryset.model,
+            allowed_field_ids=visible_field_ids,
+        )
+        if view_group_bys is None:
+            view_group_bys = list(view.viewgroupby_set.all())
+
+        if not view_group_bys:
+            return Response(
+                serialize_group_by_data_pages([empty_group_by_data_page()], [])
+            )
+
+        group_by_fields = view_handler.get_group_by_fields(queryset, view_group_bys)
+
+        response_data = build_group_by_data_response(
+            view_handler, request, queryset, view_group_bys, group_by_fields
+        )
+
+        return Response(response_data)
+
+
 class PublicGridViewRowsView(APIView):
     permission_classes = (AllowAny,)
 
@@ -802,10 +1101,15 @@ class PublicGridViewRowsView(APIView):
             NoAuthorizationToPubliclySharedView: ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
         }
     )
-    @allowed_includes("field_options")
+    @allowed_includes("field_options", "group_by_metadata")
     @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
     def get(
-        self, request: Request, slug: str, field_options: bool, query_params
+        self,
+        request: Request,
+        slug: str,
+        field_options: bool,
+        group_by_metadata: bool,
+        query_params,
     ) -> Response:
         """
         Lists all the rows of a grid view, paginated either by a page or offset/limit.
@@ -830,6 +1134,7 @@ class PublicGridViewRowsView(APIView):
             publicly_visible_field_options,
         ) = get_public_view_filtered_queryset(view, request, query_params)
         model = queryset.model
+        group_by = request.GET.get("group_by")
 
         if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
@@ -845,8 +1150,7 @@ class PublicGridViewRowsView(APIView):
             )
             response.data.update(**public_view_field_options)
 
-        group_by = request.GET.get("group_by")
-        if group_by:
+        if group_by_metadata and group_by:
             group_by_fields = [
                 # We can safely do this without having to check whether the
                 # `group_by` input is valid because this has already been validated

@@ -1676,6 +1676,12 @@ async def test_replay_events_cant_replay_when_last_seen_expired(data_fixture):
     user, token = await sync_to_async(data_fixture.create_user_and_token)()
     await sync_to_async(data_fixture.create_workspace)(user=user)
 
+    # The client's last seen event was cleaned up by retention.
+    expired_id = await sync_to_async(_record_user_broadcast)(
+        user.id, {"type": "expired"}
+    )
+    await sync_to_async(RealtimeEvent.objects.filter(id=expired_id).delete)()
+
     await sync_to_async(_record_event)(
         "users",
         {
@@ -1696,12 +1702,12 @@ async def test_replay_events_cant_replay_when_last_seen_expired(data_fixture):
     assert connected is True
     await communicator.receive_json_from()
 
-    # last_seen_id=1 does not exist — retention cleaned it (simulated by
-    # never having created id=1). Replay can't proceed — client must refresh.
+    # The expired id no longer exists, so replay can't anchor against it —
+    # the client must refresh.
     await communicator.send_json_to(
         {
             "type": "replay_events",
-            "last_seen_id": 1,
+            "last_seen_id": expired_id,
         }
     )
 

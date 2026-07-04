@@ -38,6 +38,23 @@ export function genericContainsFilter(
   return humanReadableRowValue.includes(filterValue)
 }
 
+export function genericStartsWithFilter(
+  rowValue,
+  searchableRowValue,
+  filterValue
+) {
+  if (searchableRowValue == null) {
+    return false
+  }
+  // The backend runs `__istartswith` on the raw cell value and only strips the
+  // filter value, so we must not trim the row value here or leading whitespace
+  // would make the real-time match disagree with the backend query.
+  searchableRowValue = String(searchableRowValue).toLowerCase()
+  filterValue = String(filterValue).toLowerCase().trim()
+
+  return searchableRowValue.startsWith(filterValue)
+}
+
 export function genericContainsWordFilter(
   rowValue,
   humanReadableRowValue,

@@ -14,7 +14,18 @@ from django.core.cache import cache
 from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import OperationalError, connection, transaction
 from django.db import models as django_models
-from django.db.models import Count, Q, prefetch_related_objects
+from django.db.models import (
+    Case,
+    Count,
+    ExpressionWrapper,
+    F,
+    IntegerField,
+    Max,
+    Q,
+    Value,
+    When,
+    prefetch_related_objects,
+)
 from django.db.models.expressions import OrderBy
 from django.db.models.query import QuerySet
 
@@ -111,6 +122,7 @@ from baserow.core.utils import (
     split_attrs_and_m2m_fields,
 )
 
+from .constants import GROUP_BY_DATA_DEFAULT_LIMIT
 from .exceptions import (
     CannotShareViewTypeError,
     DecoratorValueProviderTypeNotCompatible,
@@ -198,6 +210,8 @@ ending_number_regex = re.compile(r"(.+) (\d+)$")
 
 tracer = trace.get_tracer(__name__)
 
+GROUP_BY_DATA_ORDER_KEY_PREFIX = "_group_by_data_order_"
+
 
 PerViewTableIndexUpdate = namedtuple(
     "PerViewTableIndexUpdate", "all_indexes added removed"
@@ -209,6 +223,17 @@ class UpdatedViewWithChangedAttributes:
     updated_view_instance: View
     original_view_attributes: Dict[str, Any]
     new_view_attributes: Dict[str, Any]
+
+
+@dataclasses.dataclass(frozen=True)
+class GroupByLevel:
+    """
+    A view group-by paired with its ``field`` resolved from the queryset's model
+    (already specific). Built and explained by ``_resolve_view_group_bys``.
+    """
+
+    field: Field
+    view_group_by: ViewGroupBy
 
 
 class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
@@ -3981,6 +4006,1026 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             by_level[fields[level]] = queryset
 
         return by_level
+
+    def get_group_by_fields(
+        self,
+        base_queryset: QuerySet,
+        view_group_bys: Iterable[ViewGroupBy],
+    ) -> List[Field]:
+        """
+        Resolves group-by fields from the generated table model used by a queryset.
+
+        :param base_queryset: The queryset whose generated model contains the field
+            metadata.
+        :param view_group_bys: The view group-by configuration rows.
+        :return: The resolved fields in view group-by order.
+        """
+
+        return [
+            group_by.field
+            for group_by in self._resolve_view_group_bys(base_queryset, view_group_bys)
+        ]
+
+    def get_group_by_data(
+        self,
+        base_queryset: QuerySet,
+        view_group_bys: Iterable[ViewGroupBy],
+        parent_path: Optional[Dict[str, Any]] = None,
+        offset: int = 0,
+        limit: int = GROUP_BY_DATA_DEFAULT_LIMIT,
+        parent_row_offset: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Returns one paginated page of group-by sibling groups.
+
+        The returned ``row_offset`` values are absolute offsets in the full grouped
+        row order. They let clients fetch row pages from the normal rows endpoint
+        without applying collapsed/expanded group filters.
+
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :param view_group_bys: The view group-by configuration rows.
+        :param parent_path: The optional parent group path whose children should be
+            returned.
+        :param offset: The sibling offset where the page should start.
+        :param limit: The maximum number of siblings to return.
+        :param parent_row_offset: The optional precomputed absolute row offset of
+            the parent group.
+        :return: The paginated group-by data response.
+        """
+
+        group_by_levels = self._resolve_view_group_bys(base_queryset, view_group_bys)
+        fields = self._get_fields_from_group_by_levels(group_by_levels)
+        n_fields = len(fields)
+        if n_fields == 0:
+            return {
+                "groups": [],
+                "offset": offset,
+                "limit": limit,
+                "group_count": 0,
+            }
+
+        parent_path = parent_path or {}
+        parent_depth = self._get_group_by_path_depth(fields, parent_path)
+        if parent_depth >= n_fields:
+            return {
+                "groups": [],
+                "offset": offset,
+                "limit": limit,
+                "group_count": 0,
+            }
+
+        if parent_row_offset is None:
+            parent_row_offset = self._get_group_by_path_row_offset(
+                group_by_levels,
+                base_queryset,
+                parent_path,
+            )
+        grouped_queryset = self._get_group_by_data_level_queryset(
+            group_by_levels, base_queryset, parent_depth, parent_path
+        )
+        page = self._execute_group_by_data_windowed_query(
+            grouped_queryset, parent_row_offset, offset=offset, limit=limit
+        )
+        # Total is free from COUNT() OVER() on each row; query it only when empty.
+        group_count = (
+            page[0]["total_sibling_count"] if page else grouped_queryset.count()
+        )
+
+        groups = []
+        for entry in page:
+            path = {
+                field.db_column: entry[field.db_column]
+                for field in fields[: parent_depth + 1]
+            }
+            group = {
+                "path": path,
+                "depth": parent_depth,
+                "row_count": entry["row_count"],
+                "sibling_index": entry["sibling_index"],
+                "row_offset": entry["row_offset"],
+            }
+            if "children_count" in entry:
+                group["children_count"] = entry["children_count"]
+            groups.append(group)
+
+        return {
+            "groups": groups,
+            "offset": offset,
+            "limit": limit,
+            "group_count": group_count,
+        }
+
+    def get_group_by_data_for_depth(
+        self,
+        base_queryset: QuerySet,
+        view_group_bys: Iterable[ViewGroupBy],
+        depth: int,
+        offset: int = 0,
+        limit: int = GROUP_BY_DATA_DEFAULT_LIMIT,
+    ) -> Dict[str, Any]:
+        """
+        Returns one paginated page of group-by groups at a global depth.
+
+        The page is ordered in the full expanded group tree order for the requested
+        depth, and contains at most ``limit`` groups total, not ``limit`` groups per
+        parent.
+
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :param view_group_bys: The view group-by configuration rows.
+        :param depth: The zero-based group-by depth to return.
+        :param offset: The global offset among all groups at the requested depth.
+        :param limit: The maximum number of groups to return.
+        :return: The paginated group-by depth data response.
+        """
+
+        group_by_levels = self._resolve_view_group_bys(base_queryset, view_group_bys)
+        fields = self._get_fields_from_group_by_levels(group_by_levels)
+        if not fields or depth < 0 or depth >= len(fields):
+            return {
+                "groups": [],
+                "offset": offset,
+                "limit": limit,
+                "group_count": 0,
+            }
+
+        grouped_queryset = self._get_group_by_data_level_queryset(
+            group_by_levels, base_queryset, depth, {}
+        )
+        page = self._execute_group_by_data_depth_windowed_query(
+            grouped_queryset, fields, depth, offset=offset, limit=limit
+        )
+        # Total is free from COUNT() OVER() on each row; query it only when empty.
+        group_count = (
+            page[0]["total_depth_group_count"] if page else grouped_queryset.count()
+        )
+
+        groups = []
+        for entry in page:
+            path = {
+                field.db_column: entry[field.db_column] for field in fields[: depth + 1]
+            }
+            parent_path = {
+                field.db_column: entry[field.db_column] for field in fields[:depth]
+            }
+            group = {
+                "path": path,
+                "depth": depth,
+                "row_count": entry["row_count"],
+                "sibling_index": entry["sibling_index"],
+                "row_offset": entry["row_offset"],
+                "_parent_path": parent_path,
+                "_parent_group_count": entry["total_sibling_count"],
+            }
+            if "children_count" in entry:
+                group["children_count"] = entry["children_count"]
+            groups.append(group)
+
+        return {
+            "groups": groups,
+            "offset": offset,
+            "limit": limit,
+            "group_count": group_count,
+        }
+
+    def _resolve_view_group_bys(
+        self,
+        base_queryset: QuerySet,
+        view_group_bys: Iterable[ViewGroupBy],
+    ) -> List[GroupByLevel]:
+        """
+        Resolves a view's group-bys into the levels that apply to ``base_queryset``.
+
+        Each level's ``field`` is taken from the model's ``_field_objects`` (the
+        already-specific instance the model was generated with) instead of the
+        ``ViewGroupBy.field`` FK, which is the base field and would cost a
+        base->specific query per group-by. Group-bys whose field is not on the
+        model are skipped, since the model may have been generated with a subset of
+        fields.
+
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :param view_group_bys: The view group-by configuration rows.
+        :return: The group-by levels whose field is present on the model, in order.
+        """
+
+        field_objects = base_queryset.model._field_objects
+        return [
+            GroupByLevel(field_objects[group_by.field_id]["field"], group_by)
+            for group_by in view_group_bys
+            if group_by.field_id in field_objects
+        ]
+
+    def _get_fields_from_group_by_levels(
+        self, group_by_levels: List[GroupByLevel]
+    ) -> List[Field]:
+        """
+        Extracts the ordered fields from the group-by levels.
+
+        :param group_by_levels: The group-by levels.
+        :return: The group-by fields in configuration order.
+        """
+
+        return [group_by_level.field for group_by_level in group_by_levels]
+
+    def _get_group_by_path_depth(
+        self, fields: List[Field], path: Dict[str, Any]
+    ) -> int:
+        """
+        Returns how many leading group-by fields the path specifies.
+
+        :param fields: The ordered group-by fields.
+        :param path: The group path mapping field db columns to values.
+        :return: The number of consecutive leading fields present in the path.
+        """
+
+        depth = 0
+        for field in fields:
+            if field.db_column not in path:
+                break
+            depth += 1
+        return depth
+
+    def get_group_by_path_row_offset(
+        self,
+        base_queryset: QuerySet,
+        view_group_bys: Iterable[ViewGroupBy],
+        path: Dict[str, Any],
+    ) -> int:
+        """
+        Public wrapper computing the absolute row offset of a group path.
+
+        Used by the per-level descent to resolve a requested parent's absolute offset
+        when the client did not thread it in.
+
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :param view_group_bys: The view group-by configuration rows.
+        :param path: The group path mapping field db columns to values.
+        :return: The absolute row offset of the group.
+        """
+
+        group_by_levels = self._resolve_view_group_bys(base_queryset, view_group_bys)
+        return self._get_group_by_path_row_offset(group_by_levels, base_queryset, path)
+
+    def _get_group_by_path_row_offset(
+        self,
+        group_by_levels: List[GroupByLevel],
+        base_queryset: QuerySet,
+        path: Dict[str, Any],
+    ) -> int:
+        """
+        Computes the absolute row offset of the group identified by the path.
+
+        Walks the path one level at a time, resolving each ancestor's offset so the
+        final group's absolute offset in the full grouped row order is known.
+
+        :param group_by_levels: The group-by levels.
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :param path: The group path mapping field db columns to values.
+        :return: The absolute row offset of the group, or 0 if the path does not
+            match a group (see the not-found fallback note below).
+        """
+
+        if not path:
+            return 0
+
+        fields = self._get_fields_from_group_by_levels(group_by_levels)
+        parent_depth = self._get_group_by_path_depth(fields, path)
+        if parent_depth == 0:
+            return 0
+
+        target_depth = parent_depth - 1
+        parent_path = {
+            field.db_column: path[field.db_column] for field in fields[:target_depth]
+        }
+        parent_row_offset = self._get_group_by_path_row_offset(
+            group_by_levels,
+            base_queryset,
+            parent_path,
+        )
+        queryset = self._get_group_by_data_level_queryset(
+            group_by_levels, base_queryset, target_depth, parent_path
+        )
+        field_name = fields[target_depth].db_column
+        matching_entry = self._get_group_by_data_windowed_entry_for_path(
+            queryset, parent_row_offset, field_name, path[field_name]
+        )
+        # Return 0 (not None) for a missing segment so callers keep a plain int
+        # offset; the trade-off is that a stale path quietly points at the first page.
+        return matching_entry["row_offset"] if matching_entry else 0
+
+    def _get_group_by_data_windowed_entry_for_path(
+        self, queryset: QuerySet, parent_row_offset: int, field_name: str, value: Any
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Finds a group entry after window metadata has been computed.
+
+        Filtering directly on the grouped Django queryset would be applied before
+        the window metadata is computed. This lookup wraps the grouped query first,
+        then filters the windowed rows.
+
+        :param queryset: The grouped queryset for one level of group-by data.
+        :param parent_row_offset: The absolute row offset of the parent group.
+        :param field_name: The grouped field name to match.
+        :param value: The grouped field value to match.
+        :return: The matching grouped entry, if it exists.
+        """
+
+        field_identifier = sql.Identifier("windowed_grouped_data", field_name)
+        if value is None:
+            where_sql = sql.SQL("{} IS NULL").format(field_identifier)
+            where_params = ()
+        else:
+            where_sql = sql.SQL("{} = %s").format(field_identifier)
+            where_params = (value,)
+
+        rows = self._execute_group_by_data_windowed_query(
+            queryset,
+            parent_row_offset,
+            where_sql=where_sql,
+            where_params=where_params,
+            limit=1,
+        )
+        return rows[0] if rows else None
+
+    def _get_group_by_data_window_order_sql(
+        self, queryset: QuerySet
+    ) -> Tuple[str, Tuple[Any, ...]]:
+        """
+        Compiles the grouped queryset ordering for use in window expressions.
+
+        :param queryset: The grouped queryset whose ordering must be reused.
+        :return: A tuple containing the SQL order by clause and its parameters.
+        """
+
+        order_key_sql = self._get_group_by_data_order_key_window_order_sql(
+            queryset.query.order_by
+        )
+        if order_key_sql is not None:
+            return order_key_sql, ()
+
+        # Fallback for orderings not projected into order-key aliases (a field type
+        # whose get_order yields a non-OrderBy). The compiler emits SQL against the
+        # inner table alias, so rewrite it to the outer "grouped_data" alias for the
+        # window's ORDER BY.
+        compiler = queryset.query.get_compiler(connection=connection)
+        order_by_parts = []
+        params = []
+        outer_alias = connection.ops.quote_name("grouped_data")
+        table_references = self._get_group_by_data_table_references(queryset)
+
+        for _expr, (order_sql, order_params, _is_ref) in compiler.get_order_by():
+            for table_reference in table_references:
+                order_sql = order_sql.replace(f"{table_reference}.", f"{outer_alias}.")
+            order_by_parts.append(order_sql)
+            params.extend(order_params)
+
+        return ", ".join(order_by_parts), tuple(params)
+
+    def _get_group_by_data_order_key_window_order_sql(
+        self, order_by_args: Iterable[Any]
+    ) -> Optional[str]:
+        """
+        Builds window ordering from projected group-by order key aliases.
+
+        :param order_by_args: The grouped queryset ordering expressions.
+        :return: SQL for the window ``ORDER BY`` clause, or None if the ordering
+            cannot be compiled from projected order keys.
+        """
+
+        order_by_args = list(order_by_args)
+        if not order_by_args:
+            return ""
+
+        if not all(self._is_group_by_data_order_key_order_by(o) for o in order_by_args):
+            return None
+
+        quote_name = connection.ops.quote_name
+        outer_alias = quote_name("grouped_data")
+        order_by_parts = []
+
+        for order_by in order_by_args:
+            order_key = order_by.expression.name
+            order_by_sql = (
+                f"{outer_alias}.{quote_name(order_key)} "
+                f"{'DESC' if order_by.descending else 'ASC'}"
+            )
+            if order_by.nulls_first:
+                order_by_sql += " NULLS FIRST"
+            elif order_by.nulls_last:
+                order_by_sql += " NULLS LAST"
+            order_by_parts.append(order_by_sql)
+
+        return ", ".join(order_by_parts)
+
+    def _is_group_by_data_order_key_order_by(self, order_by: Any) -> bool:
+        return (
+            isinstance(order_by, OrderBy)
+            and isinstance(order_by.expression, F)
+            and order_by.expression.name.startswith(GROUP_BY_DATA_ORDER_KEY_PREFIX)
+        )
+
+    def _get_group_by_data_table_references(self, queryset: QuerySet) -> Set[str]:
+        """
+        Returns quoted SQL table references used by the grouped queryset ordering.
+
+        :param queryset: The grouped queryset whose ordering is being compiled.
+        :return: The quoted table references that should be replaced by the outer
+            grouped data alias.
+        """
+
+        quote_name = connection.ops.quote_name
+        references = {quote_name(queryset.model._meta.db_table)}
+        if queryset.query.base_table:
+            references.add(quote_name(queryset.query.base_table))
+        return references
+
+    def _prepare_group_by_data_window_query(
+        self, queryset: QuerySet
+    ) -> Tuple[str, Tuple[Any, ...], sql.Composable, Tuple[Any, ...]]:
+        """
+        Compiles the inner grouped query and its window ``ORDER BY`` clause.
+
+        Shared by the per-parent and global-depth windowed queries, which wrap the
+        same grouped query but project different window columns.
+
+        :param queryset: The grouped queryset to wrap with window metadata.
+        :return: The inner query SQL, its params, the window ``ORDER BY`` clause,
+            and the params that clause expects on each use.
+        """
+
+        query_sql, query_params = queryset.query.get_compiler(
+            connection=connection
+        ).as_sql()
+        order_by_sql, order_by_params = self._get_group_by_data_window_order_sql(
+            queryset
+        )
+        window_order_sql = (
+            sql.SQL("ORDER BY {}").format(sql.SQL(order_by_sql))
+            if order_by_sql
+            else sql.SQL("")
+        )
+        return query_sql, query_params, window_order_sql, order_by_params
+
+    def _fetch_group_by_data_rows(
+        self, outer_sql: sql.Composable, params: Tuple[Any, ...]
+    ) -> List[Dict[str, Any]]:
+        """
+        Runs a windowed group-by statement and returns its rows as dicts.
+
+        :param outer_sql: The composed windowed SQL statement.
+        :param params: The statement parameters.
+        :return: The result rows keyed by column name.
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(outer_sql, params)
+            columns = [column[0] for column in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    def _execute_group_by_data_windowed_query(
+        self,
+        queryset: QuerySet,
+        parent_row_offset: int,
+        where_sql: Optional[sql.Composable] = None,
+        where_params: Tuple[Any, ...] = (),
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Executes the grouped queryset wrapped with window metadata.
+
+        :param queryset: The grouped queryset for one level of group-by data.
+        :param parent_row_offset: The absolute row offset of the parent group.
+        :param where_sql: An optional SQL predicate applied after window metadata.
+        :param where_params: The parameters for the optional SQL predicate.
+        :param offset: The optional sibling offset where the page should start.
+        :param limit: The optional maximum number of siblings to return.
+        :return: A list of grouped rows with window metadata.
+        """
+
+        (
+            query_sql,
+            query_params,
+            window_order_sql,
+            order_by_params,
+        ) = self._prepare_group_by_data_window_query(queryset)
+        row_count_identifier = sql.Identifier("grouped_data", "row_count")
+        where_clause = (
+            sql.SQL("WHERE {}").format(where_sql) if where_sql else sql.SQL("")
+        )
+        limit_offset_sql = []
+        limit_offset_params = []
+
+        if limit is not None:
+            limit_offset_sql.append(sql.SQL("LIMIT %s"))
+            limit_offset_params.append(limit)
+        if offset is not None:
+            limit_offset_sql.append(sql.SQL("OFFSET %s"))
+            limit_offset_params.append(offset)
+
+        outer_sql = sql.SQL(
+            """
+            SELECT *
+            FROM (
+                SELECT
+                    grouped_data.*,
+                    ROW_NUMBER() OVER ({window_order}) - 1 AS sibling_index,
+                    (
+                        %s::bigint + COALESCE(
+                        SUM({row_count}) OVER (
+                            {window_order}
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+                        ),
+                        0
+                        )
+                    )::bigint AS row_offset,
+                    COUNT(*) OVER () AS total_sibling_count
+                FROM ({query}) AS grouped_data
+            ) AS windowed_grouped_data
+            {where}
+            ORDER BY sibling_index
+            {limit_offset}
+            """
+        ).format(
+            query=sql.SQL(query_sql),
+            window_order=window_order_sql,
+            row_count=row_count_identifier,
+            where=where_clause,
+            limit_offset=sql.SQL(" ").join(limit_offset_sql),
+        )
+
+        params = (
+            *order_by_params,
+            parent_row_offset,
+            *order_by_params,
+            *query_params,
+            *where_params,
+            *limit_offset_params,
+        )
+
+        return self._fetch_group_by_data_rows(outer_sql, params)
+
+    def _execute_group_by_data_depth_windowed_query(
+        self,
+        queryset: QuerySet,
+        fields: List[Field],
+        depth: int,
+        offset: int,
+        limit: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        Executes the grouped queryset wrapped with global depth metadata.
+
+        :param queryset: The grouped queryset for one level of group-by data.
+        :param fields: The ordered group-by fields.
+        :param depth: The zero-based group-by depth being paginated.
+        :param offset: The global group offset at the requested depth.
+        :param limit: The maximum number of groups to return.
+        :return: A list of grouped rows with global depth and sibling metadata.
+        """
+
+        (
+            query_sql,
+            query_params,
+            window_order_sql,
+            order_by_params,
+        ) = self._prepare_group_by_data_window_query(queryset)
+        parent_fields = fields[:depth]
+        if parent_fields:
+            parent_identifiers = [
+                sql.Identifier("grouped_data", field.db_column)
+                for field in parent_fields
+            ]
+            partition_sql = sql.SQL("PARTITION BY {}").format(
+                sql.SQL(", ").join(parent_identifiers)
+            )
+            partition_window_sql = sql.SQL("{} {}").format(
+                partition_sql, window_order_sql
+            )
+            sibling_count_sql = sql.SQL("COUNT(*) OVER ({})").format(partition_sql)
+        else:
+            partition_window_sql = window_order_sql
+            sibling_count_sql = sql.SQL("COUNT(*) OVER ()")
+
+        row_count_identifier = sql.Identifier("grouped_data", "row_count")
+        outer_sql = sql.SQL(
+            """
+            SELECT *
+            FROM (
+                SELECT
+                    grouped_data.*,
+                    ROW_NUMBER() OVER ({window_order}) - 1 AS depth_index,
+                    ROW_NUMBER() OVER ({partition_window}) - 1 AS sibling_index,
+                    (
+                        COALESCE(
+                        SUM({row_count}) OVER (
+                            {window_order}
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+                        ),
+                        0
+                        )
+                    )::bigint AS row_offset,
+                    COUNT(*) OVER () AS total_depth_group_count,
+                    {sibling_count} AS total_sibling_count
+                FROM ({query}) AS grouped_data
+            ) AS windowed_grouped_data
+            ORDER BY depth_index
+            LIMIT %s
+            OFFSET %s
+            """
+        ).format(
+            query=sql.SQL(query_sql),
+            window_order=window_order_sql,
+            partition_window=partition_window_sql,
+            row_count=row_count_identifier,
+            sibling_count=sibling_count_sql,
+        )
+
+        params = (
+            *order_by_params,
+            *order_by_params,
+            *order_by_params,
+            *query_params,
+            limit,
+            offset,
+        )
+
+        return self._fetch_group_by_data_rows(outer_sql, params)
+
+    def _execute_group_by_data_level_windowed_query(
+        self,
+        queryset: QuerySet,
+        fields: List[Field],
+        depth: int,
+        offset: int,
+        per_parent_limit: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        Executes the grouped queryset wrapped with per-parent sibling metadata.
+
+        Like the depth windowed query but partitions every window by the parent path,
+        so ``sibling_index``, ``row_offset`` and ``total_sibling_count`` are computed
+        per parent, and keeps the ``[offset, offset + per_parent_limit)`` sibling slice
+        of each parent. ``row_offset`` is therefore relative to the parent; the caller
+        adds the parent's absolute offset.
+
+        :param queryset: The grouped queryset for one level under several parents.
+        :param fields: The ordered group-by fields.
+        :param depth: The zero-based group-by depth being grouped.
+        :param offset: The sibling offset within each parent.
+        :param per_parent_limit: The maximum number of children to return per parent.
+        :return: Grouped rows with per-parent sibling metadata.
+        """
+
+        (
+            query_sql,
+            query_params,
+            window_order_sql,
+            order_by_params,
+        ) = self._prepare_group_by_data_window_query(queryset)
+        parent_fields = fields[:depth]
+        if parent_fields:
+            parent_identifiers = [
+                sql.Identifier("grouped_data", field.db_column)
+                for field in parent_fields
+            ]
+            partition_sql = sql.SQL("PARTITION BY {}").format(
+                sql.SQL(", ").join(parent_identifiers)
+            )
+            partition_window_sql = sql.SQL("{} {}").format(
+                partition_sql, window_order_sql
+            )
+            sibling_count_sql = sql.SQL("COUNT(*) OVER ({})").format(partition_sql)
+        else:
+            partition_window_sql = window_order_sql
+            sibling_count_sql = sql.SQL("COUNT(*) OVER ()")
+
+        row_count_identifier = sql.Identifier("grouped_data", "row_count")
+        outer_sql = sql.SQL(
+            """
+            SELECT *
+            FROM (
+                SELECT
+                    grouped_data.*,
+                    ROW_NUMBER() OVER ({partition_window}) - 1 AS sibling_index,
+                    (
+                        COALESCE(
+                        SUM({row_count}) OVER (
+                            {partition_window}
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+                        ),
+                        0
+                        )
+                    )::bigint AS row_offset,
+                    {sibling_count} AS total_sibling_count
+                FROM ({query}) AS grouped_data
+            ) AS windowed_grouped_data
+            WHERE sibling_index >= %s AND sibling_index < %s
+            ORDER BY sibling_index
+            """
+        ).format(
+            query=sql.SQL(query_sql),
+            partition_window=partition_window_sql,
+            row_count=row_count_identifier,
+            sibling_count=sibling_count_sql,
+        )
+
+        params = (
+            *order_by_params,
+            *order_by_params,
+            *query_params,
+            offset,
+            offset + per_parent_limit,
+        )
+
+        return self._fetch_group_by_data_rows(outer_sql, params)
+
+    def get_group_by_data_for_parents(
+        self,
+        base_queryset: QuerySet,
+        view_group_bys: Iterable[ViewGroupBy],
+        parents: List[Dict[str, Any]],
+        depth: int,
+        offset: int = 0,
+        per_parent_limit: int = GROUP_BY_DATA_DEFAULT_LIMIT,
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns the children of several parents at one depth in a single query.
+
+        This batches what would otherwise be one windowed ``GROUP BY`` per parent into
+        a single query covering every requested parent, returning the
+        ``[offset, offset + per_parent_limit)`` sibling slice of each. The returned
+        ``row_offset`` is relative to each group's parent; the caller adds the parent's
+        absolute row offset.
+
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :param view_group_bys: The view group-by configuration rows.
+        :param parents: The parent paths whose children should be returned.
+        :param depth: The zero-based depth of the returned children.
+        :param offset: The sibling offset within each parent.
+        :param per_parent_limit: The maximum number of children per parent.
+        :return: The children groups with per-parent sibling metadata.
+        """
+
+        group_by_levels = self._resolve_view_group_bys(base_queryset, view_group_bys)
+        fields = self._get_fields_from_group_by_levels(group_by_levels)
+        if not fields or depth < 0 or depth >= len(fields) or not parents:
+            return []
+
+        grouped_queryset = self._get_group_by_data_level_queryset(
+            group_by_levels, base_queryset, depth, {}, parent_paths=parents
+        )
+        rows = self._execute_group_by_data_level_windowed_query(
+            grouped_queryset, fields, depth, offset, per_parent_limit
+        )
+
+        groups = []
+        for entry in rows:
+            path = {
+                field.db_column: entry[field.db_column] for field in fields[: depth + 1]
+            }
+            parent_path = {
+                field.db_column: entry[field.db_column] for field in fields[:depth]
+            }
+            group = {
+                "path": path,
+                "depth": depth,
+                "row_count": entry["row_count"],
+                "sibling_index": entry["sibling_index"],
+                "row_offset": entry["row_offset"],
+                "_parent_path": parent_path,
+                "_parent_group_count": entry["total_sibling_count"],
+            }
+            if "children_count" in entry:
+                group["children_count"] = entry["children_count"]
+            groups.append(group)
+
+        return groups
+
+    def _get_group_by_data_level_queryset(
+        self,
+        group_by_levels: List[GroupByLevel],
+        base_queryset: QuerySet,
+        depth: int,
+        parent_path: Dict[str, Any],
+        parent_paths: Optional[List[Dict[str, Any]]] = None,
+    ) -> QuerySet:
+        """
+        Builds the grouped queryset for a single group-by level under one or more parents.
+
+        Groups the parents' rows by the fields up to ``depth``, annotating row and
+        child counts and applying the configured ordering for the level.
+
+        :param group_by_levels: The group-by levels.
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :param depth: The zero-based group-by depth to build the level for.
+        :param parent_path: The parent group path whose children should be grouped.
+            Ignored when ``parent_paths`` is given.
+        :param parent_paths: Optional list of parent paths to group together (their
+            children are unioned). An empty list, or a list containing the empty root
+            path, groups the level globally (no parent filter).
+        :return: The grouped queryset for the requested level.
+        """
+
+        fields = self._get_fields_from_group_by_levels(group_by_levels)
+        level_fields = fields[: depth + 1]
+        field_names = [f.db_column for f in level_fields]
+        is_leaf = depth == len(fields) - 1
+        child_field = None if is_leaf else fields[depth + 1]
+
+        cte: Dict[str, Any] = {}
+        all_annotations: Dict[str, Any] = {}
+        for field in fields:
+            field_type = field_type_registry.get_by_model(field.specific_class)
+            if not field_type.check_can_group_by(field, DEFAULT_SORT_TYPE_KEY):
+                raise ValueError(f"Can't group by {field.db_column}.")
+            _, annotations = field_type.get_group_by_field_filters_and_annotations(
+                field, field.db_column, base_queryset, None, cte, []
+            )
+            all_annotations.update(**annotations)
+
+        queryset = base_queryset.model.objects.filter(
+            id__in=base_queryset.clear_multi_field_prefetch().values("id")
+        ).values()
+
+        if all_annotations:
+            queryset = queryset.annotate(**all_annotations)
+
+        paths = parent_paths if parent_paths is not None else [parent_path]
+        combined_parent_q = Q()
+        narrows = bool(paths)
+        for path in paths:
+            path_q = self._build_group_by_data_path_filter_q(
+                fields, path, base_queryset
+            )
+            if path_q == Q():
+                # An empty (root) path matches every row, so the level stays global.
+                narrows = False
+                break
+            combined_parent_q |= path_q
+        if narrows:
+            queryset = queryset.filter(combined_parent_q)
+
+        order_by_args, queryset = self._build_group_by_tree_order_by(
+            group_by_levels[: depth + 1], queryset
+        )
+        (
+            queryset,
+            order_key_names,
+            order_by_args,
+        ) = self._add_group_by_data_order_key_annotations(queryset, order_by_args)
+
+        annotations = {"row_count": Count("id")}
+        if child_field is not None:
+            child_column = child_field.db_column
+            annotations["children_count"] = ExpressionWrapper(
+                Count(child_column, distinct=True)
+                + Max(
+                    Case(
+                        When(**{f"{child_column}__isnull": True}, then=Value(1)),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    )
+                ),
+                output_field=IntegerField(),
+            )
+
+        queryset = (
+            queryset.values(*field_names, *order_key_names)
+            .annotate(**annotations)
+            .order_by(*order_by_args)
+        )
+
+        for cte_with in cte.values():
+            queryset = queryset.with_cte(cte_with)
+
+        return queryset
+
+    def _add_group_by_data_order_key_annotations(
+        self, queryset: QuerySet, order_by_args: List[Any]
+    ) -> Tuple[QuerySet, List[str], List[Any]]:
+        """
+        Projects grouped ordering expressions into the grouped query.
+
+        :param queryset: The queryset that is about to be grouped.
+        :param order_by_args: The ordering expressions for the grouped level.
+        :return: The queryset, projected order key names, and rewritten ordering.
+        """
+
+        if not order_by_args or not all(
+            isinstance(order_by, OrderBy) for order_by in order_by_args
+        ):
+            return queryset, [], order_by_args
+
+        annotations = {}
+        order_key_names = []
+        rewritten_order_by_args = []
+
+        for index, order_by in enumerate(order_by_args):
+            order_key = f"{GROUP_BY_DATA_ORDER_KEY_PREFIX}{index}"
+            annotations[order_key] = order_by.expression
+            order_key_names.append(order_key)
+            rewritten_order_by_args.append(
+                self._get_group_by_data_order_key_order_by(order_key, order_by)
+            )
+
+        return (
+            queryset.annotate(**annotations),
+            order_key_names,
+            rewritten_order_by_args,
+        )
+
+    def _get_group_by_data_order_key_order_by(
+        self, order_key: str, order_by: OrderBy
+    ) -> OrderBy:
+        """
+        Rebuilds an ordering against a projected order key alias.
+
+        :param order_key: The projected order key annotation name.
+        :param order_by: The original ordering whose direction and nulls handling
+            should be preserved.
+        :return: An ordering on the projected order key matching the original.
+        """
+
+        order_expression = F(order_key)
+        order_kwargs = {
+            "nulls_first": True if order_by.nulls_first else None,
+            "nulls_last": True if order_by.nulls_last else None,
+        }
+
+        if order_by.descending:
+            return order_expression.desc(**order_kwargs)
+        return order_expression.asc(**order_kwargs)
+
+    def _build_group_by_data_path_filter_q(
+        self,
+        fields: List[Field],
+        path: Dict[str, Any],
+        base_queryset: QuerySet,
+    ) -> Q:
+        """
+        Builds the filter selecting rows belonging to a group path.
+
+        :param fields: The ordered group-by fields.
+        :param path: The group path mapping field db columns to values.
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :return: A ``Q`` filter matching rows under the path, empty if the path is
+            empty.
+        """
+
+        path_q = Q()
+
+        for field in fields:
+            field_name = field.db_column
+            if field_name not in path:
+                break
+
+            field_type = field_type_registry.get_by_model(field.specific_class)
+            unique_value = field_type.get_group_by_field_unique_value(
+                field, field_name, path[field_name]
+            )
+            filters, _ = field_type.get_group_by_field_filters_and_annotations(
+                field, field_name, base_queryset, unique_value, {}, []
+            )
+            path_q &= Q(**filters)
+
+        return path_q
+
+    def _build_group_by_tree_order_by(
+        self,
+        group_by_levels: List[GroupByLevel],
+        queryset: QuerySet,
+    ) -> Tuple[List[Any], QuerySet]:
+        """
+        Builds the ordering expressions for a chain of group-by levels.
+
+        Collects each field type's configured ordering and applies any required
+        annotations to the queryset.
+
+        :param group_by_levels: The group-by levels to order by.
+        :param queryset: The queryset that the orderings annotate.
+        :return: The ordering expressions and the annotated queryset.
+        """
+
+        if not group_by_levels:
+            return [], queryset
+
+        order_by = []
+        for group_by_level in group_by_levels:
+            field = group_by_level.field
+            view_group_by = group_by_level.view_group_by
+            field_type = field_type_registry.get_by_model(field.specific_class)
+            annotated_order_by = field_type.get_group_by_order(
+                field,
+                field.db_column,
+                view_group_by.order,
+                view_group_by.type,
+                table_model=queryset.model,
+            )
+            if annotated_order_by.annotation is not None:
+                queryset = queryset.annotate(**annotated_order_by.annotation)
+            order_by.extend(annotated_order_by.order_bys)
+
+        return order_by, queryset
 
     def _get_prepared_values_for_data(
         self, view_type: ViewType, view: View, changed_allowed_keys: Iterable[str]

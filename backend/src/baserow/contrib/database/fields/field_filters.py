@@ -207,6 +207,18 @@ def contains_filter(
     return Q(**{f"{field_name}__icontains": value})
 
 
+def starts_with_filter(
+    field_name, value, model_field, _, validate=True
+) -> OptionallyAnnotatedQ:
+    value = value.strip()
+    # If an empty value has been provided we do not want to filter at all.
+    if value == "":
+        return Q()
+    if validate:
+        model_field.get_prep_value(value)
+    return Q(**{f"{field_name}__istartswith": value})
+
+
 def contains_word_filter(field_name, value, model_field, _) -> OptionallyAnnotatedQ:
     value = value.strip()
     # If an empty value has been provided we do not want to filter at all.

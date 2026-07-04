@@ -3,8 +3,10 @@ from django.urls import re_path
 from .views import (
     GridViewFieldAggregationsView,
     GridViewFieldAggregationView,
+    GridViewGroupByDataView,
     GridViewView,
     PublicGridViewFieldAggregationsView,
+    PublicGridViewGroupByDataView,
     PublicGridViewRowsView,
 )
 
@@ -22,9 +24,19 @@ urlpatterns = [
         name="field-aggregations",
     ),
     re_path(
+        r"(?P<view_id>[0-9]+)/group-by-data/$",
+        GridViewGroupByDataView.as_view(),
+        name="group-by-data",
+    ),
+    re_path(
         r"(?P<slug>[-\w]+)/public/aggregations/$",
         PublicGridViewFieldAggregationsView.as_view(),
         name="public-field-aggregations",
+    ),
+    re_path(
+        r"(?P<slug>[-\w]+)/public/group-by-data/$",
+        PublicGridViewGroupByDataView.as_view(),
+        name="public-group-by-data",
     ),
     re_path(r"(?P<view_id>[0-9]+)/$", GridViewView.as_view(), name="list"),
     re_path(

@@ -18,6 +18,10 @@ export const GRID_VIEW_MULTI_SELECT_CHECKBOX = 'checkbox'
 export const LINKED_ITEMS_DEFAULT_LOAD_COUNT = 20
 export const LINKED_ITEMS_LOAD_ALL = -1
 
+// Soft UI cap on the number of group-bys a view can add. Views created with more
+// (e.g. via the API) keep working; the UI just stops offering to add new ones.
+export const MAX_GROUP_BYS = 5
+
 export const UNIQUE_WITH_EMPTY_CONSTRAINT_NAME = 'unique_with_empty'
 
 export const FIELD_CONSTRAINT_ERROR_CODES = [

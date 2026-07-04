@@ -53,3 +53,61 @@ class GridViewFilterSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text="Only rows related to the provided ids are added to the response.",
     )
+
+
+class GridViewGroupByDataGroupSerializer(serializers.Serializer):
+    path = serializers.DictField(
+        help_text=(
+            "Mapping of group-by field db_column names to the serialized group "
+            "value at every depth from 0 up to this group's depth."
+        )
+    )
+    display = serializers.DictField(
+        required=False,
+        help_text=(
+            "Mapping of group-by field db_column names to the renderable display "
+            "value for reference fields (for example collaborator names or the "
+            "linked row's primary value). Only present for fields whose group value "
+            "is an id or list of ids that the client cannot render on its own."
+        ),
+    )
+    depth = serializers.IntegerField(
+        help_text="Zero-based depth of this group in the group-by hierarchy."
+    )
+    row_count = serializers.IntegerField(
+        help_text="Number of leaf rows descending from this group."
+    )
+    children_count = serializers.IntegerField(
+        required=False,
+        help_text="Number of immediate sub-groups. Omitted at leaf depth.",
+    )
+    sibling_index = serializers.IntegerField(
+        help_text="Zero-based index of this group among its siblings."
+    )
+    row_offset = serializers.IntegerField(
+        help_text=(
+            "Absolute offset of this group's first descendant row in the full "
+            "grouped row order."
+        )
+    )
+
+
+class GridViewGroupByDataPageSerializer(serializers.Serializer):
+    parent = serializers.DictField(
+        help_text="The serialized parent group path requested for this page."
+    )
+    groups = GridViewGroupByDataGroupSerializer(many=True)
+    offset = serializers.IntegerField()
+    limit = serializers.IntegerField()
+    group_count = serializers.IntegerField()
+
+
+class GridViewGroupByDataSerializer(serializers.Serializer):
+    pages = GridViewGroupByDataPageSerializer(many=True)
+    truncated = serializers.BooleanField(
+        required=False,
+        help_text=(
+            "Whether descendant loading stopped early because the response page or "
+            "group cap was reached."
+        ),
+    )

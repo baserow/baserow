@@ -432,7 +432,6 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                     
                     
                   </div>
-                  <!--v-if-->
                   <div
                     class="grid-view__rows"
                     style="transform: translateY(NaNpx) translateX(0px); left: 0px;"
@@ -640,7 +639,6 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                     />
                     
                   </div>
-                  <!--v-if-->
                   <div
                     class="grid-view__rows"
                     style="transform: translateY(NaNpx) translateX(0px); left: 0px;"

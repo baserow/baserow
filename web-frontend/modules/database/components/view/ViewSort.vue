@@ -23,7 +23,7 @@
       :read-only="readOnly"
       :disable-sort="disableSort"
       :store-prefix="storePrefix"
-      @changed="$emit('changed')"
+      @changed="$emit('changed', { sourceEvent: 'sort' })"
     ></ViewSortContext>
   </div>
 </template>
