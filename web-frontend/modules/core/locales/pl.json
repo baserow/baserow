@@ -817,7 +817,7 @@
         "AIModel": "Model AI",
         "fileField": "Pole pliku",
         "temperatureLabel": "Temperatura",
-        "temperatureDescription": "Temperatura LLM, parametr pomiędzy 0 a {max}, kontrolujący losowość odpowiedzi: niższa wartość zwróci odpowiedzi bardziej konkretne, wyższa bardziej kreatywne."
+        "temperatureDescription": "Temperatura LLM to parametr pomiędzy 0 a {max}, kontrolujący losowość odpowiedzi: niższa wartość zwróci odpowiedzi bardziej konkretne, wyższa bardziej kreatywne."
     },
     "onboarding": {
         "title": "Wprowadzenie",
@@ -832,7 +832,7 @@
     },
     "moreStep": {
         "people": "Ile osób liczy twój zespół?",
-        "share": "Nie mam nic przeciwko podzieleniu się szczególami z zespołem Baserow",
+        "share": "Nie mam nic przeciwko podzieleniu się szczegółami z zespołem Baserow",
         "roleOrJob": "Rola lub stanowisko...",
         "title": "Powiedz nam coś więcej",
         "country": "Kraj",
@@ -883,7 +883,7 @@
         "default": "Domyślny"
     },
     "imageInput": {
-        "labelDescription": "Wybierz obraz do przesłania...",
+        "labelDescription": "Wybierz plik graficzny do przesłania...",
         "labelButton": "Prześlij"
     },
     "dataExplorerNode": {
@@ -891,7 +891,7 @@
         "selectNode": "Wybierz"
     },
     "user": {
-        "isStaff": "Jest administratorem",
+        "isStaff": "Należy do zespołu",
         "isWorkspaceAdmin": "Jest administratorem obszaru roboczego",
         "active": "Aktywny",
         "deactivated": "Wyłączony"
@@ -907,15 +907,15 @@
         "name": "Nazwa",
         "members": "Członkowie zespołu",
         "applications": "Aplikacje",
-        "created": "Utworzona",
+        "created": "Utworzono",
         "seatsTaken": "Zajęte miejsca",
         "storageUsage": "Wykorzystana pamięć (MB)",
         "freeUsers": "Użytkownicy z bezpłatnym dostępem",
         "rowCount": "Liczba wierszy",
-        "usageHelpText": "Obliczane co noc, gdy włączone jest ustawienie śledzenia wykorzystania obszaru roboczego"
+        "usageHelpText": "Jeśli włączona jest opcja śledzenia, wykorzystanie obszaru roboczego obliczane jest co noc"
     },
     "editWorkspaceContext": {
-        "delete": "Usuń na stałe"
+        "delete": "Usuń trwale"
     },
     "deleteWorkspaceModal": {
         "title": "Usuń {name}",
@@ -973,8 +973,8 @@
     "deleteUserModal": {
         "title": "Usuń użytkownika: {username}",
         "confirmation": "Czy na pewno chcesz usunąć użytkownika: {name}?",
-        "comment1": "Konto użytkownika zostanie usunięte, jednak obszary robocze, których jest on członkiem, pozostaną aktywne. Obszar roboczy użytkownika nie zostanie usunięty, nawet jeśli jest on ostatnim użytkownikiem w tym obszarze. Usunięcie ostatniego użytkownika z obszaru roboczego uniemożliwia komukolwiek dostęp do tego obszaru.",
-        "comment2": "Po usunięciu użytkownika istnieje możliwość, że nowa osoba zarejestruje się ponownie, używając adresu e-mail usuniętego użytkownika. Aby zapobiec ponownej rejestracji, należy zamiast usuwania użytkownika dezaktywować jego konto.",
+        "comment1": "Konto użytkownika zostanie usunięte, jednak obszary robocze, których jest on członkiem, pozostaną aktywne. Obszary te nie zostaną usunięte, nawet jeśli wspomniany użytkownik jest ostatnim użytkownikiem w tym obszarze. Usunięcie ostatniego użytkownika spowoduje jedynie, że nikt nie będzie miał dostępu do tych obszarów.",
+        "comment2": "Po usunięciu użytkownika istnieje możliwość, że nowa osoba zarejestruje się, używając adresu e-mail usuniętego użytkownika. Aby zapobiec ponownej rejestracji, zamiast usunięcia użytkownika należy zdezaktywować jego konto.",
         "delete": "Usuń użytkownika: {username}"
     },
     "editUserModal": {
@@ -995,7 +995,7 @@
         "activeUsers24h": "Aktywni użytkownicy w ciągu ostatnich 24 godzin",
         "activeUsers7days": "Aktywni użytkownicy w ciągu ostatnich 7 dni",
         "activeUsers30days": "Aktywni użytkownicy w ciągu ostatnich 30 dni",
-        "viewAll": "Zobacz wszystkie"
+        "viewAll": "Wyświetl wszystko"
     },
     "guidedTourStep": {
         "step": "{step} z {totalSteps}",
@@ -1071,17 +1071,17 @@
         "deselectAll": "Anuluj zanaczenia"
     },
     "colorPickerContext": {
-        "pickColorPlaceholder": "albo wybierz kolor z palety"
+        "pickColorPlaceholder": "Albo wybierz kolor z palety"
     },
     "userSourceType": {
         "userCountSummary": "{count} użytkowników ({lastUpdated})"
     },
     "mcpEndpointSettings": {
         "title": "Serwer MCP",
-        "createEndpoint": "Utwórz punkt końcowy",
+        "createEndpoint": "Utwórz endpoint",
         "backToOverview": "Powrót",
-        "createNewTitle": "Utwórz punkt końcowy serwera MCP",
-        "noEndpointsMessage": "Endpoint serwera MCP (Model Context Protocol) nie został podany. Serwery MCP służą do bezpośredniej integracji z modelami LLM, np. Claude, umożliwiając im wykonywanie operacji w Baserow. Aby uruchomić serwer MCP, najpierw utwórz endpoint."
+        "createNewTitle": "Utwórz endpoint serwera MCP",
+        "noEndpointsMessage": "Endpoint serwera MCP (Model Context Protocol) nie został podany. Serwery MCP służą do bezpośredniej integracji z modelami LLM, np. Claude umożliwiając im wykonywanie operacji w Baserow. Aby uruchomić serwer MCP, najpierw utwórz endpoint."
     },
     "workspaceSearch": {
         "types": {
@@ -1221,7 +1221,7 @@
         "detailLabel": "Więcej szczegółów",
         "endpointURLIntro": "Adres URL serwera MCP (Model Context Protocol) można dodać do dowolnego klienta obsługującego serwery MCP. To unikalny endpoint, który umożliwia modelowi LLM wykonywanie operacji w obszarze roboczym w Twoim imieniu.",
         "reveal": "Pokaż pełny adres URL",
-        "warning": "Traktuj adres URL MCP jak hasło — umożliwia modyfikowanie danych w Baserow.",
+        "warning": "Traktuj adres URL MCP jak hasło, ponieważ dostęp do tego adresu daje możliwość modyfikowania danych w Baserow.",
         "claudeInstructions": "Skonfiguruj Claude Desktop i Baserow MCP w trzech prostych krokach.\n\n1. Otwórz ustawienia aplikacji Claude Desktop. (⌘+,)\n1. Przejdź do zakładki “Develop\" i kliknij “Edit Config\".\n1. Dodaj poniższą konfigurację JSON do pliku `claude_desktop_config.json`.",
         "cursorInstructions": "Skonfiguruj Cursor i Baserow MCP w trzech prostych krokach.\n\n1. Otwórz ustawienia aplikacji Cursor (⇧+⌘+J)\n1. Przejdź do zakładki “MCP\" i kliknij “Add MCP Server\"\n1. Dodaj poniższą konfigurację JSON.",
         "windsurfInstructions": "Skonfiguruj MCP z Cascade w Windsurf w dwóch prostych krokach.\n\n1. Przejdź do Windsurf — Settings -> Advanced Settings lub Command Palette -> Open Windsurf settings page.\n1. Przewiń do sekcji Cascade, gdzie znajdziesz opcję umożliwiającą dodanie nowego serwera, przeglądanie istniejących oraz przycisk do podglądu pliku konfiguracji `mcp_config.json`. W pliku dodaj co następuje:"
@@ -1231,7 +1231,7 @@
         "urlVersion": "Wersja",
         "urlVersionPublished": "Opublikowana",
         "urlVersionTest": "Testowa",
-        "copyUrl": "Kopiuj adres URL webhooka",
+        "copyUrl": "Skopiuj adres URL webhooka",
         "urlCopied": "Adres URL webhooka został skopiowany do schowka",
         "description": "Ten webhook odbiera żądania HTTP i uruchamia proces, przekazując dane żądania jako payload.",
         "methodsOptionLabel": "Dozwolone metody HTTP",
@@ -1241,7 +1241,7 @@
     },
     "twoFactorAuthEmpty": {
         "title": "2FA nie jest jeszcze włączone",
-        "description": "Dodaj dodatkową warstwę zabezpieczeń do swojego konta.",
+        "description": "Włącz dodatkową warstwę zabezpieczeń swojego konta.",
         "enable": "Włącz 2FA",
         "notAllowedTitle": "2FA nie jest aktywne",
         "notAllowedDescription": "2FA jest dostępne tylko dla kont z hasłem."
