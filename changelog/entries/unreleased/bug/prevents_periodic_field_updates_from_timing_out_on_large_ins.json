@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Prevents periodic field updates from timing out on large instances",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-06"
+}
