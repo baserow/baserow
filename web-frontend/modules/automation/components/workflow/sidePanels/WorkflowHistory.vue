@@ -260,11 +260,15 @@ const errorDescendantNodeIds = computed(() => {
 })
 
 /**
- * The workflow run can fail at the workflow level without any individual node
- * erroring — e.g. when the per-run node dispatch limit is exceeded by a "Go to
- * node" loop. In that case the error lives only on the workflow history, so we
- * surface its message here. When a node carries the error, NodeHistory already
- * renders it and we avoid duplicating it at the workflow level.
+ * Surfaces a workflow-history message that isn't reflected on any node history.
+ *
+ * Today every workflow-level error raised after dispatch begins is also written
+ * to the corresponding node history (so NodeHistory renders it and this returns
+ * null to avoid duplication). The remaining messages are pre-dispatch failures
+ * (e.g. rate limited, disabled after too many errors, before-run errors) which
+ * have no node histories at all. This computed is therefore also a forward-safe
+ * guard: should we ever log a workflow-level error after dispatch that no node
+ * carries, its message still gets surfaced here instead of being swallowed.
  */
 const workflowLevelMessage = computed(() => {
   if (!props.item.message) return null
