@@ -75,6 +75,7 @@
           <SidebarImportTableContextItem
             :database="database"
             :table="table"
+            :disabled="deleteLoading"
             @click="$refs.context.hide()"
           ></SidebarImportTableContextItem>
         </li>

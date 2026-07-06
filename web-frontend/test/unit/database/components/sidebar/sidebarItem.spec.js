@@ -24,6 +24,8 @@ describe('SidebarItem import permission gating', () => {
         },
         stubs: {
           SidebarImportTableContextItem: {
+            name: 'SidebarImportTableContextItem',
+            props: ['disabled'],
             template: '<a class="import-item-stub" />',
           },
           SidebarDuplicateTableContextItem: true,
@@ -48,5 +50,18 @@ describe('SidebarItem import permission gating', () => {
     const wrapper = await mountSidebar(['database.table.run_export'])
     expect(wrapper.find('.tree__options').exists()).toBe(true)
     expect(wrapper.find('.import-item-stub').exists()).toBe(false)
+  })
+
+  test('disables the import item while a table delete is in progress', async () => {
+    const wrapper = await mountSidebar(['database.table.import_rows'])
+    const item = wrapper.findComponent({
+      name: 'SidebarImportTableContextItem',
+    })
+    expect(item.props('disabled')).toBe(false)
+
+    wrapper.vm.deleteLoading = true
+    await wrapper.vm.$nextTick()
+
+    expect(item.props('disabled')).toBe(true)
   })
 })
