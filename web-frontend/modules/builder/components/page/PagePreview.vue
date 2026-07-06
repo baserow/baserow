@@ -187,7 +187,7 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
-import { getElementsPerPlace } from '@baserow/modules/builder/utils/pagePlaceElements'
+import pagePlaceElementsMixin from '@baserow/modules/builder/mixins/pagePlaceElements'
 
 export default {
   name: 'PagePreview',
@@ -199,6 +199,7 @@ export default {
     BuilderToasts,
     AddElementZone,
   },
+  mixins: [pagePlaceElementsMixin],
   inject: ['builder', 'currentPage', 'workspace'],
   provide() {
     return {
@@ -257,31 +258,6 @@ export default {
     },
     sharedElements() {
       return this.$store.getters['element/getRootElements'](this.sharedPage)
-    },
-    elementsPerPlace() {
-      return getElementsPerPlace(this.sharedElements, this.$registry)
-    },
-    headerElementsSection() {
-      return this.elementsPerPlace.find(
-        (section) => section.place === PAGE_PLACES.HEADER
-      )
-    },
-    footerElementsSection() {
-      return this.elementsPerPlace.find(
-        (section) => section.place === PAGE_PLACES.FOOTER
-      )
-    },
-    fixedHeaderElements() {
-      return this.getElementsForBehaviour(this.headerElementsSection, true)
-    },
-    normalHeaderElements() {
-      return this.getElementsForBehaviour(this.headerElementsSection, false)
-    },
-    fixedFooterElements() {
-      return this.getElementsForBehaviour(this.footerElementsSection, true)
-    },
-    normalFooterElements() {
-      return this.getElementsForBehaviour(this.footerElementsSection, false)
     },
     firstPreviewElementId() {
       return (
@@ -423,11 +399,6 @@ export default {
       actionSelectElement: 'element/select',
       actionMoveElement: 'element/move',
     }),
-    getElementsForBehaviour(section, isFixed) {
-      return section.elements
-        .filter((elementEntry) => elementEntry.isFixed === isFixed)
-        .map((elementEntry) => elementEntry.element)
-    },
     preventScrollIfFocused(e) {
       if (this.$refs.previewScaled === document.activeElement) {
         switch (e.key) {

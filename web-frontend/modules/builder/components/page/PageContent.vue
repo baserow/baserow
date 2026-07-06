@@ -73,12 +73,11 @@
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import _ from 'lodash'
-import { PAGE_PLACES } from '@baserow/modules/builder/enums'
-import { getElementsPerPlace } from '@baserow/modules/builder/utils/pagePlaceElements'
+import pagePlaceElementsMixin from '@baserow/modules/builder/mixins/pagePlaceElements'
 
 export default {
   components: { PageElement },
-  mixins: [dimensionMixin],
+  mixins: [dimensionMixin, pagePlaceElementsMixin],
   inject: ['builder', 'mode', 'currentPage'],
   props: {
     path: {
@@ -98,33 +97,6 @@ export default {
       required: true,
     },
   },
-  computed: {
-    elementsPerPlace() {
-      return getElementsPerPlace(this.sharedElements, this.$registry)
-    },
-    headerElementsSection() {
-      return this.elementsPerPlace.find(
-        (section) => section.place === PAGE_PLACES.HEADER
-      )
-    },
-    footerElementsSection() {
-      return this.elementsPerPlace.find(
-        (section) => section.place === PAGE_PLACES.FOOTER
-      )
-    },
-    fixedHeaderElements() {
-      return this.getElementsForBehaviour(this.headerElementsSection, true)
-    },
-    normalHeaderElements() {
-      return this.getElementsForBehaviour(this.headerElementsSection, false)
-    },
-    fixedFooterElements() {
-      return this.getElementsForBehaviour(this.footerElementsSection, true)
-    },
-    normalFooterElements() {
-      return this.getElementsForBehaviour(this.footerElementsSection, false)
-    },
-  },
   watch: {
     'dimensions.width': {
       handler(newValue) {
@@ -138,11 +110,6 @@ export default {
     this.dimensions.targetElement = document.documentElement
   },
   methods: {
-    getElementsForBehaviour(section, isFixed) {
-      return section.elements
-        .filter((elementEntry) => elementEntry.isFixed === isFixed)
-        .map((elementEntry) => elementEntry.element)
-    },
     /**
      * Returns the device type that is the closest to the given observer width.
      * It does this by sorting the device types by order ASC (as we want to start
