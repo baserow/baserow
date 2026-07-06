@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Shared and restricted views now update formula, lookup and link cells when related rows change",
+    "issue_origin": "github",
+    "issue_number": 5657,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-06"
+}

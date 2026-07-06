@@ -14,6 +14,7 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.ws.rows.messages import RealtimeRowMessages
+from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
 from baserow.ws.registries import page_registry
 from baserow.ws.tasks import ChannelGroupMessage, send_messages_to_channel_group
 
@@ -60,15 +61,16 @@ def broadcast_dependant_rows_updated(
     table_page_type = page_registry.get("table")
     channel_layer = get_channel_layer()
     before_by_id = {row["id"]: row for row in (serialized_rows_before or [])}
+    serialized_rows = get_row_serializer_class(model, RowSerializer, is_response=True)(
+        rows, many=True
+    ).data
     payload = RealtimeRowMessages.rows_updated(
         table_id=table_id,
         # Rows without a snapshot fall back to an id-only skeleton.
         serialized_rows_before_update=[
             before_by_id.get(row.id, {"id": row.id}) for row in rows
         ],
-        serialized_rows=get_row_serializer_class(
-            model, RowSerializer, is_response=True
-        )(rows, many=True).data,
+        serialized_rows=serialized_rows,
         metadata=row_metadata_registry.generate_and_merge_metadata_for_rows(
             None, table, [row.id for row in rows]
         ),
@@ -85,4 +87,11 @@ def broadcast_dependant_rows_updated(
                 "exclude_user_ids": None,
             },
         ),
+    )
+
+    # The table page broadcast above doesn't reach publicly shared or restricted
+    # views: those filter rows against the view's filters and live on their own
+    # page groups.
+    ViewRealtimeRowsHandler().broadcast_dependant_rows_updated_to_views(
+        table, model, rows, serialized_rows, updated_field_ids
     )
