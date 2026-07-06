@@ -190,7 +190,8 @@
         "moveDown": "Перемістити вниз",
         "moveLeft": "Перемістити ліворуч",
         "moveRight": "Перемістити праворуч",
-        "selectParent": "Вибрати батьківський"
+        "selectParent": "Вибрати батьківський",
+        "drag": "Перетягніть, щоб змінити порядок"
     },
     "duplicatePageJobType": {
         "name": "Дублювати сторінку",
@@ -274,7 +275,14 @@
         "menuItemAddSeparator": "Роздільник",
         "menuItemAddSpacer": "Відступ",
         "eventDescription": "Щоб налаштувати дії для цієї кнопки, відкрийте вкладку \"Події\" цього елемента.",
-        "noMenuItemsMessage": "Клацніть \"Додати\", щоб додати перший елемент меню."
+        "noMenuItemsMessage": "Клацніть \"Додати\", щоб додати перший елемент меню.",
+        "variant": "Варіант для кожного типу пристрою",
+        "expanded": "Розгорнуто",
+        "compact": "Компактний",
+        "previewCompactMenuLabel": "Попередній перегляд компактного меню",
+        "previewCompactMenuHelper": "Показати або приховати попередній перегляд компактного меню.",
+        "openEditorCompactMenu": "Відкрити меню",
+        "closeEditorCompactMenu": "Закрити меню"
     },
     "simpleContainerElementForm": {
         "noConfigurationOptions": "Елемент контейнера не має жодних параметрів конфігурації."
@@ -341,7 +349,14 @@
         "verticalAlignment": "Вертикальне вирівнювання",
         "columnAmountName": "немає колонок | 1 колонка | {columnAmount} колонок",
         "columnGapTitle": "Відстань між колонками",
-        "columnGapPlaceholder": "Введіть відстань між колонками..."
+        "columnGapPlaceholder": "Введіть відстань між колонками...",
+        "customWeightsTitle": "Налаштовані пропорції стовпців",
+        "customWeightsHelper": "Використовуйте 0, якщо ширина стовпця має відповідати лише його вмісту. Решта стовпців поділять між собою доступний простір.",
+        "errorCustomWeightsMinimum": "Значення пропорцій стовпців мають бути не меншими за 0",
+        "columnStackingTitle": "Розташування стовпців за типом пристрою",
+        "columnStackingHorizontal": "Поруч",
+        "columnStackingStacked": "Один під одним",
+        "customLayout": "Довільний"
     },
     "domainSettings": {
         "titleOverview": "Домени",
@@ -1082,5 +1097,10 @@
     "previewPublishGuidedTourStep": {
         "title": "Попередній перегляд та публікація застосунку",
         "content": "Натисніть **Попередній перегляд**, щоб протестувати застосунок приватно. Коли все готово, натисніть **Опублікувати**, щоб поділитися ним публічно через домен."
+    },
+    "workflowAction": {
+        "sampleDataModalTitle": "Дані для {actionLabel}",
+        "sampleDataModalSubTitle": "JSON-дані",
+        "testActionDescription": "Запустіть цю дію в режимі попереднього перегляду, щоб отримати її вихідні дані й зробити їх доступними для наступних дій."
     }
 }
