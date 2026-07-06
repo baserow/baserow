@@ -281,7 +281,10 @@
         "errorLinkExpiredMessage": "Le lien de réinitialisation de mot de passe a expiré, Veuillez en demander un nouveau.",
         "disabled": "La réinitialisation du mot de passe est désactivée",
         "disabledMessage": "Il n’est pas possible de réinitialiser le mot de passe car cette fonctionnalité a été désactivé.",
-        "message": "Vous pouvez maintenant vous connecter à Baserow en utilisant votre nouveau mot de passe."
+        "message": "Vous pouvez maintenant vous connecter à Baserow en utilisant votre nouveau mot de passe.",
+        "repeatPasswordPlaceholder": "Confirmez votre nouveau mot de passe",
+        "errorLinkAlreadyUsedTitle": "Lien déjà utilisé",
+        "errorLinkAlreadyUsedMessage": "Ce lien de réinitialisation du mot de passe a déjà été utilisé. Veuillez en demander un nouveau."
     },
     "signup": {
         "headTitle": "Créer un compte",
@@ -987,7 +990,8 @@
         "workspaces": "Projets",
         "lastLogin": "Dernière connexion",
         "dateJoined": "Date d'inscription",
-        "active": "Actif"
+        "active": "Actif",
+        "twoFactorAuth": "Authentification à deux facteurs (2FA)"
     },
     "editUserContext": {
         "changePassword": "Modifier le mot de passe",
@@ -1014,7 +1018,9 @@
         "error": {
             "invalidName": "Veuillez saisir un nom valide, il doit être composé de plus de 2 caractères et moins de 150.",
             "invalidEmail": "Veuillez saisir une adresse électronique valide."
-        }
+        },
+        "twoFactorAuth": "Authentification à deux facteurs",
+        "removeTwoFactorAuth": "Désactiver l'authentification à deux facteurs"
     },
     "changeUserPasswordModal": {
         "changePassword": "Changer le mot de passe pour {username}"
@@ -1278,6 +1284,28 @@
     "formulaParserErrors": {
         "invalidArgCountMin": "La fonction « {funcType} » nécessite au moins {minArgs} arguments.",
         "invalidArgCountExact": "La fonction « {funcType} » attend exactement {minArgs} arguments.",
-        "invalidArgCountRange": "La fonction « {funcType} » attend entre {minArgs} et {maxArgs} arguments."
+        "invalidArgCountRange": "La fonction « {funcType} » attend entre {minArgs} et {maxArgs} arguments.",
+        "invalidArgumentType": "« {value} » n'est pas un argument valide pour la fonction « {funcType} »."
+    },
+    "sampleDataViewer": {
+        "payloadLabel": "Résultat",
+        "errorLabel": "Une erreur s'est produite...",
+        "showPayloadLabel": "Afficher la donnée",
+        "showErrorLabel": "Afficher l'erreur",
+        "downloadFullPayload": "Télécharger la donnée complète",
+        "truncatedLabel": "[Sortie tronquée]",
+        "truncatedPayloadWarning": "Seuls les {size} premiers caractères sont affichés. Téléchargez l'intégralité de la donnée pour l'examiner sur votre ordinateur."
+    },
+    "workspaceOutdatedToast": {
+        "title": "Trop de changements",
+        "content": "Trop de modifications ont été effectuées pendant votre absence. Actualisez la page pour afficher les données les plus récentes.",
+        "action": "Actualiser les données",
+        "dismiss": "Ignorer"
+    },
+    "disableTwoFactorAuthModal": {
+        "title": "Désactiver l'authentification à deux facteurs",
+        "confirmation": "Êtes-vous sûr de vouloir désactiver l'authentification à deux facteurs pour {name} ?",
+        "comment": "Ils pourront se connecter en utilisant uniquement leur mot de passe, puis réactiver l'authentification à deux facteurs par la suite.",
+        "remove": "Désactiver l'authentification à deux facteurs"
     }
 }
