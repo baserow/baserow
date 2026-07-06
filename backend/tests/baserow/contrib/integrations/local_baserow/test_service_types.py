@@ -1316,10 +1316,19 @@ def test_local_baserow_view_service_type_prepare_values(data_fixture):
         table=table_a, view=view_a
     )
 
-    # Providing a `view_id` that does not exist.
+    # Providing a `view_id` that does not exist. Compute an ID guaranteed to be
+    # free (higher than any view created here) instead of hardcoding one, which
+    # can collide with a real view ID when DB sequences are high (e.g. parallel
+    # CI runs), sending us down a different validation branch.
+    nonexistent_view_id = view_b.id + 1
     with pytest.raises(DRFValidationError) as exc:
-        service_type().prepare_values({"view_id": "123"}, user, instance)
-    assert str(exc.value.detail["detail"]) == "The view with ID 123 does not exist."
+        service_type().prepare_values(
+            {"view_id": str(nonexistent_view_id)}, user, instance
+        )
+    assert (
+        str(exc.value.detail["detail"])
+        == f"The view with ID {nonexistent_view_id} does not exist."
+    )
 
     # Providing a `table`, no `view_id`, when the instance already
     # points to a view, will cause the `view` values to be `None`.
