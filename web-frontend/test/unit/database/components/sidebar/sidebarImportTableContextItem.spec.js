@@ -70,17 +70,23 @@ describe('SidebarImportTableContextItem', () => {
   })
 
   test('still hides the context menu when fetching fields fails', async () => {
-    const fetchAll = vi.fn().mockRejectedValue(new Error('boom'))
+    // Mimic a real API error: it carries a `handler` so notifyIf reports it
+    // instead of re-throwing.
+    const notifyIfHandler = vi.fn()
+    const apiError = Object.assign(new Error('boom'), {
+      handler: { notifyIf: notifyIfHandler },
+    })
+    const fetchAll = vi.fn(() => Promise.reject(apiError))
     FieldService.mockReturnValue({ fetchAll })
-    testApp.dontFailOnErrorResponses()
     const { wrapper, show } = await mountItem()
 
     await wrapper.find('a').trigger('click')
     await flushPromises()
 
-    // The menu must close (click emitted) even though the modal never opens.
-    expect(wrapper.emitted('click')).toBeTruthy()
+    // The error is surfaced, the modal never opens, but the menu still closes.
+    expect(notifyIfHandler).toHaveBeenCalled()
     expect(show).not.toHaveBeenCalled()
+    expect(wrapper.emitted('click')).toBeTruthy()
   })
 
   test('does nothing when disabled', async () => {
