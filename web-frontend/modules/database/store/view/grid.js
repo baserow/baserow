@@ -35,7 +35,7 @@ import {
   buildNewRowDefaults,
   computeRowMatchFlags,
   computeRowInsertPosition,
-  isSkeletonRow,
+  resolveBeforeRow,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import {
@@ -5285,18 +5285,12 @@ export const actions = {
     }
   ) {
     const { $registry } = this
-    // The before row can be a bare `{ id }` skeleton (e.g. dependency cascade
-    // events); the buffered row holds the truthful previous state.
-    const bufferedRow = getters.getRow(row.id)
-    if (bufferedRow === undefined && isSkeletonRow(row)) {
-      // The old state is unknowable, so no filter/sort/group transition can
-      // be computed safely; the buffer fetch picks the row up instead.
+    // An unbuffered skeleton before row has no usable old state; the buffer
+    // fetch picks the row up instead.
+    const baseRow = resolveBeforeRow(row, getters.getRow)
+    if (baseRow === null) {
       return
     }
-    const baseRow =
-      bufferedRow !== undefined
-        ? Object.assign(clone(bufferedRow), clone(row))
-        : clone(row)
     const oldRow = clone(baseRow)
     const newRow = Object.assign(clone(baseRow), values)
     populateRow(oldRow, metadata)

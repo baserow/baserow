@@ -17,7 +17,7 @@ import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/
 import {
   extractChangedFields,
   getRowMetadata,
-  isSkeletonRow,
+  resolveBeforeRow,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
@@ -608,18 +608,15 @@ export const actions = {
     const singleSelectFieldId = getters.getSingleSelectFieldId
     const fieldName = `field_${singleSelectFieldId}`
 
-    // The before row can be a bare `{ id }` skeleton (e.g. dependency cascade
-    // events); the buffered row holds the truthful previous state.
-    const found = getters.findStackIdAndIndex(row.id)
-    const bufferedRow = found !== undefined ? found[2] : undefined
-    if (bufferedRow === undefined && isSkeletonRow(row)) {
-      // The old stack is unknowable, so no move can be computed safely.
+    // An unbuffered skeleton before row has no usable old stack, so no move
+    // can be computed safely.
+    const baseRow = resolveBeforeRow(row, (id) => {
+      const found = getters.findStackIdAndIndex(id)
+      return found !== undefined ? found[2] : undefined
+    })
+    if (baseRow === null) {
       return
     }
-    const baseRow =
-      bufferedRow !== undefined
-        ? Object.assign(clone(bufferedRow), clone(row))
-        : clone(row)
 
     // First, we virtually need to figure out if the row was in the old stack.
     const oldRow = populateRow(clone(baseRow))

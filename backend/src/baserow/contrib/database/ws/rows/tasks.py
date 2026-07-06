@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.db import DEFAULT_DB_ALIAS
 
@@ -31,6 +31,7 @@ def broadcast_dependant_rows_updated(
     table_id: int,
     row_ids: List[int],
     updated_field_ids: List[int],
+    serialized_rows_before: Optional[List[Dict[str, Any]]] = None,
 ):
     """
     Serializes the current values of the provided rows and broadcasts them as a
@@ -39,6 +40,8 @@ def broadcast_dependant_rows_updated(
     :param table_id: The id of the table the rows belong to.
     :param row_ids: The ids of the rows whose values changed.
     :param updated_field_ids: The ids of the fields whose values changed.
+    :param serialized_rows_before: Serialized pre-cascade state per row; rows
+        without a snapshot fall back to an id-only skeleton before row.
     """
 
     # Replicas can lag behind the commit that queued this task, in which case
@@ -56,11 +59,13 @@ def broadcast_dependant_rows_updated(
 
     table_page_type = page_registry.get("table")
     channel_layer = get_channel_layer()
+    before_by_id = {row["id"]: row for row in (serialized_rows_before or [])}
     payload = RealtimeRowMessages.rows_updated(
         table_id=table_id,
-        # The values before the cascade are unknown here; the frontend falls
-        # back to its own buffered state for id-only before rows.
-        serialized_rows_before_update=[{"id": row.id} for row in rows],
+        # Rows without a snapshot fall back to an id-only skeleton.
+        serialized_rows_before_update=[
+            before_by_id.get(row.id, {"id": row.id}) for row in rows
+        ],
         serialized_rows=get_row_serializer_class(
             model, RowSerializer, is_response=True
         )(rows, many=True).data,

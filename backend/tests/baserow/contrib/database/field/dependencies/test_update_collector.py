@@ -128,7 +128,10 @@ def test_can_only_trigger_update_for_rows_joined_to_a_starting_row_across_a_m2m(
         "baserow.contrib.database.fields.signals.field_updated.send"
     ) as send_mock:
         update_collector = FieldUpdateCollector(
-            second_table, starting_row_ids=[second_table_a_row.id]
+            second_table,
+            starting_row_ids=[second_table_a_row.id],
+            # Isolate update-statement queries from the before row snapshot.
+            collect_dependant_rows=False,
         )
         update_collector.add_field_with_pending_update_statement(
             first_table_primary_field,
@@ -203,7 +206,10 @@ def test_can_trigger_update_for_rows_joined_to_a_starting_row_across_a_m2m_and_b
     ) as send_mock:
         field_cache = FieldCache()
         update_collector = FieldUpdateCollector(
-            second_table, starting_row_ids=[second_table_a_row.id]
+            second_table,
+            starting_row_ids=[second_table_a_row.id],
+            # Isolate update-statement queries from the before row snapshot.
+            collect_dependant_rows=False,
         )
         update_collector.add_field_with_pending_update_statement(
             first_table_primary_field,
@@ -294,7 +300,10 @@ def test_update_statements_at_the_same_path_node_are_grouped_into_one(
     ) as send_mock:
         field_cache = FieldCache()
         update_collector = FieldUpdateCollector(
-            second_table, starting_row_ids=[second_table_a_row.id]
+            second_table,
+            starting_row_ids=[second_table_a_row.id],
+            # Isolate update-statement queries from the before row snapshot.
+            collect_dependant_rows=False,
         )
         update_collector.add_field_with_pending_update_statement(
             first_table_primary_field,

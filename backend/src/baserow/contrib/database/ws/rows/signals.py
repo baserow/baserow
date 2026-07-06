@@ -156,6 +156,7 @@ def dependant_rows_updated(
                     table_id=update.table.id,
                     row_ids=list(update.row_ids),
                     updated_field_ids=list(update.field_ids),
+                    serialized_rows_before=list(update.before_rows.values()),
                 )
             )
 

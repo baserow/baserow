@@ -1,6 +1,6 @@
 import dataclasses
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple, cast
+from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
 from django.conf import settings
 from django.db.models import Expression, Q, Value
@@ -46,6 +46,8 @@ class DependantRowsUpdate:
     field_ids: List[int]
     # True when the rows are unknown or over the limit: refresh the whole table.
     requires_refresh: bool
+    # Serialized pre-cascade state for realtime updates. Empty if requires_refresh=True.
+    before_rows: Dict[int, Dict[str, Any]] = dataclasses.field(default_factory=dict)
 
 
 def merge_dependant_rows_updates(
@@ -66,6 +68,7 @@ def merge_dependant_rows_updates(
     tables: Dict[int, Table] = {}
     row_ids_per_table: Dict[int, Set[int]] = defaultdict(set)
     field_ids_per_table: Dict[int, Set[int]] = defaultdict(set)
+    before_rows_per_table: Dict[int, Dict[int, Dict[str, Any]]] = defaultdict(dict)
     tables_requiring_refresh: Set[int] = set()
 
     for updates in updates_lists:
@@ -77,10 +80,15 @@ def merge_dependant_rows_updates(
                 continue
             row_ids = row_ids_per_table[table_id]
             row_ids.update(update.row_ids)
+            # Earliest snapshot wins.
+            before_rows = before_rows_per_table[table_id]
+            for row_id, serialized in update.before_rows.items():
+                before_rows.setdefault(row_id, serialized)
             if update.requires_refresh or len(row_ids) > limit:
                 # Past the limit only the refresh flag matters; free the ids.
                 tables_requiring_refresh.add(table_id)
                 row_ids.clear()
+                before_rows.clear()
 
     return [
         DependantRowsUpdate(
@@ -88,6 +96,11 @@ def merge_dependant_rows_updates(
             row_ids=sorted(row_ids_per_table[table_id]),
             field_ids=sorted(field_ids_per_table[table_id]),
             requires_refresh=table_id in tables_requiring_refresh,
+            before_rows={
+                row_id: before_rows_per_table[table_id][row_id]
+                for row_id in row_ids_per_table[table_id]
+                if row_id in before_rows_per_table[table_id]
+            },
         )
         for table_id, table in tables.items()
         if row_ids_per_table[table_id] or table_id in tables_requiring_refresh
@@ -211,6 +224,7 @@ class PathBasedUpdateStatementCollector:
         result: Optional[Dict[int, Set[int]]] = None,
         overflowed_table_ids: Optional[Set[int]] = None,
         collect_dependant_rows: bool = True,
+        before_rows_result: Optional[Dict[int, Dict[int, Dict[str, Any]]]] = None,
     ) -> Dict[int, Set[int]]:
         """
         Executes all the pending update statements in the correct order and returns
@@ -244,10 +258,23 @@ class PathBasedUpdateStatementCollector:
             result = defaultdict(set)
         if overflowed_table_ids is None:
             overflowed_table_ids = set()
+        if before_rows_result is None:
+            before_rows_result = defaultdict(dict)
 
         path_to_starting_table = path_to_starting_table or []
         if self.connection_here is not None:
             path_to_starting_table = [self.connection_here] + path_to_starting_table
+
+        if collect_dependant_rows:
+            # Old cell values are gone once the update statements run.
+            self._snapshot_before_rows(
+                field_cache,
+                path_to_starting_table,
+                starting_row_ids,
+                deleted_m2m_rels_per_link_field,
+                before_rows_result,
+            )
+
         updated_row_ids = self._execute_pending_update_statements(
             field_cache,
             path_to_starting_table,
@@ -275,8 +302,77 @@ class PathBasedUpdateStatementCollector:
                 result=result,
                 overflowed_table_ids=overflowed_table_ids,
                 collect_dependant_rows=collect_dependant_rows,
+                before_rows_result=before_rows_result,
             )
         return result
+
+    def _snapshot_before_rows(
+        self,
+        field_cache: FieldCache,
+        path_to_starting_table: List[LinkRowField],
+        starting_row_ids: StartingRowIdsType,
+        deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
+        before_rows_result: Dict[int, Dict[int, Dict[str, Any]]],
+    ) -> None:
+        """
+        Serializes the pre-update state of the rows this collector is about to
+        update, so realtime listeners get a truthful `rows_before_update`.
+
+        Only rows updated via a SQL statement are captured; a link row field
+        display resolves at serialization time and its upstream value has already
+        changed, so it keeps the skeleton and the client uses its buffered state.
+
+        :param field_cache: The field cache to use to get the table model.
+        :param path_to_starting_table: A list of link row fields which lead from
+            self.table to the table containing the starting row ids.
+        :param starting_row_ids: The ids of the rows in the starting table the
+            update originated from.
+        :param deleted_m2m_rels_per_link_field: A dictionary per link field of
+            rows in the table it links to which have had their connections
+            removed.
+        :param before_rows_result: Output dict of serialized before rows per row
+            id per table id, added to with the earliest snapshot winning.
+        :return: None, the outcome is recorded in `before_rows_result`.
+        """
+
+        from baserow.contrib.database.api.rows.serializers import (
+            RowSerializer,
+            get_row_serializer_class,
+        )
+
+        limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
+        if limit <= 0 or not self.update_statements or self.connection_is_broken:
+            # No SQL update, whole-column or broken connection: not an exact snapshot.
+            return
+        if starting_row_ids is None or not path_to_starting_table:
+            # Starting rows and whole-column updates are broadcast elsewhere.
+            return
+
+        model = field_cache.get_model(self.table)
+        before = before_rows_result[self.table.id]
+        serializer_class = get_row_serializer_class(
+            model, RowSerializer, is_response=True
+        )
+        for row_filter in self._filters_for_rows_connected_to_starting_rows(
+            path_to_starting_table,
+            starting_row_ids,
+            deleted_m2m_rels_per_link_field,
+            include_starting_rows=False,
+        ):
+            # One past the limit is enough to detect the overflow that drops it.
+            cap = limit + 1 - len(before)
+            if cap <= 0:
+                break
+            rows = [
+                row
+                for row in model.objects.filter(row_filter)
+                .enhance_by_fields()
+                .order_by()
+                .distinct()[:cap]
+                if row.id not in before
+            ]
+            for row, serialized in zip(rows, serializer_class(rows, many=True).data):
+                before[row.id] = serialized
 
     def _collect_changed_only_row_ids(
         self,
@@ -571,6 +667,12 @@ class FieldUpdateCollector:
         self._updated_rows_per_table: Dict[int, Set[int]] = defaultdict(set)
         self._overflowed_table_ids: Set[int] = set()
 
+        # Serialized pre-cascade state per row id per table, captured before each
+        # update statement runs and accumulated across apply_updates calls.
+        self._before_rows_per_table: Dict[int, Dict[int, Dict[str, Any]]] = defaultdict(
+            dict
+        )
+
         self._starting_row_ids = starting_row_ids
         self._starting_table = starting_table
         self._deleted_m2m_rels_per_link_field = deleted_m2m_rels_per_link_field
@@ -667,6 +769,7 @@ class FieldUpdateCollector:
             deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
             overflowed_table_ids=self._overflowed_table_ids,
             collect_dependant_rows=self.collect_dependant_rows,
+            before_rows_result=self._before_rows_per_table,
         )
         self._accumulate_updated_rows(updated_rows_per_table)
         return updated_rows_per_table
@@ -717,6 +820,7 @@ class FieldUpdateCollector:
             requires_refresh = table.id in self._overflowed_table_ids
             if not row_ids and not requires_refresh:
                 continue
+            table_before_rows = self._before_rows_per_table.get(table.id, {})
             updates.append(
                 DependantRowsUpdate(
                     table=table,
@@ -725,6 +829,13 @@ class FieldUpdateCollector:
                         field.id for field in self._all_field_updates.fields(table)
                     ],
                     requires_refresh=requires_refresh,
+                    before_rows={}
+                    if requires_refresh
+                    else {
+                        row_id: table_before_rows[row_id]
+                        for row_id in row_ids
+                        if row_id in table_before_rows
+                    },
                 )
             )
         return updates

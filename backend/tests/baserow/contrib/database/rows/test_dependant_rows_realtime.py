@@ -80,6 +80,75 @@ def test_updating_a_row_sends_dependant_rows_updates_for_the_linked_table(
 
 
 @pytest.mark.django_db
+def test_dependant_rows_updates_include_before_rows_for_formula_dependants(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_b = data_fixture.create_two_linked_tables(user=user)
+    primary_b = table_b.field_set.get(primary=True).specific
+    lookup_a = data_fixture.create_formula_field(
+        table=table_a, formula="join(lookup('link', 'primary'), '')"
+    )
+
+    row_b1 = (
+        RowHandler()
+        .create_rows(user, table_b, [{primary_b.db_column: "b1"}])
+        .created_rows[0]
+    )
+    row_a1 = (
+        RowHandler()
+        .create_rows(user, table_a, [{link_a_b.db_column: [row_b1.id]}])
+        .created_rows[0]
+    )
+
+    with capture_dependant_rows_updates() as calls:
+        RowHandler().force_update_rows(
+            user=user,
+            table=table_b,
+            rows_values=[{"id": row_b1.id, primary_b.db_column: "renamed"}],
+        )
+
+    update = _updates_by_table(calls)[table_a.id]
+    # The before row carries the pre-cascade lookup value.
+    assert set(update.before_rows.keys()) == {row_a1.id}
+    assert update.before_rows[row_a1.id][lookup_a.db_column] == "b1"
+    row_a1.refresh_from_db()
+    assert getattr(row_a1, lookup_a.db_column) == "renamed"
+
+
+@pytest.mark.django_db
+def test_dependant_rows_updates_have_no_before_rows_for_link_display_dependants(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_b = data_fixture.create_two_linked_tables(user=user)
+    primary_b = table_b.field_set.get(primary=True).specific
+
+    row_b1 = (
+        RowHandler()
+        .create_rows(user, table_b, [{primary_b.db_column: "b1"}])
+        .created_rows[0]
+    )
+    row_a1 = (
+        RowHandler()
+        .create_rows(user, table_a, [{link_a_b.db_column: [row_b1.id]}])
+        .created_rows[0]
+    )
+
+    with capture_dependant_rows_updates() as calls:
+        RowHandler().force_update_rows(
+            user=user,
+            table=table_b,
+            rows_values=[{"id": row_b1.id, primary_b.db_column: "renamed"}],
+        )
+
+    update = _updates_by_table(calls)[table_a.id]
+    assert update.row_ids == [row_a1.id]
+    # A link row field display has no truthful before row to snapshot.
+    assert update.before_rows == {}
+
+
+@pytest.mark.django_db
 def test_updating_a_row_sends_dependant_rows_updates_without_any_formula_field(
     data_fixture,
 ):

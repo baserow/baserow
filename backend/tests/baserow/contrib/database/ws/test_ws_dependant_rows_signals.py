@@ -43,7 +43,45 @@ def test_updating_a_row_broadcasts_dependant_rows_to_the_linked_table(
         table_id=table_a.id,
         row_ids=[row_a1.id],
         updated_field_ids=[link_a_b.id],
+        # A link row field display has no truthful before state to snapshot.
+        serialized_rows_before=[],
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.database.ws.rows.signals.broadcast_dependant_rows_updated")
+def test_updating_a_row_forwards_before_rows_for_formula_dependants(
+    mock_broadcast_task, data_fixture
+):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_b = data_fixture.create_two_linked_tables(user=user)
+    primary_b = table_b.field_set.get(primary=True).specific
+    lookup_a = data_fixture.create_formula_field(
+        table=table_a, formula="join(lookup('link', 'primary'), '')"
+    )
+
+    row_b1 = (
+        RowHandler()
+        .create_rows(user, table_b, [{primary_b.db_column: "b1"}])
+        .created_rows[0]
+    )
+    row_a1 = (
+        RowHandler()
+        .create_rows(user, table_a, [{link_a_b.db_column: [row_b1.id]}])
+        .created_rows[0]
+    )
+    mock_broadcast_task.reset_mock()
+
+    with transaction.atomic():
+        RowHandler().update_rows(
+            user, table_b, [{"id": row_b1.id, primary_b.db_column: "renamed"}]
+        )
+
+    serialized_rows_before = mock_broadcast_task.delay.call_args[1][
+        "serialized_rows_before"
+    ]
+    assert [row["id"] for row in serialized_rows_before] == [row_a1.id]
+    assert serialized_rows_before[0][lookup_a.db_column] == "b1"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -188,6 +226,34 @@ def test_broadcast_task_sends_a_rows_updated_payload(mock_send, data_fixture):
     assert payload["rows"][0][field.db_column] == "a"
     assert payload["rows_before_update"] == [{"id": row_1.id}, {"id": row_2.id}]
     assert message.message["ignore_web_socket_id"] is None
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow.contrib.database.ws.rows.tasks.send_messages_to_channel_group",
+    new_callable=AsyncMock,
+)
+def test_broadcast_task_uses_provided_before_rows(mock_send, data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    model = table.get_model()
+    row_1 = model.objects.create(**{field.db_column: "a"})
+    row_2 = model.objects.create(**{field.db_column: "b"})
+
+    broadcast_dependant_rows_updated(
+        table_id=table.id,
+        row_ids=[row_1.id, row_2.id],
+        updated_field_ids=[field.id],
+        # Only row_1 has a snapshot; row_2 falls back to an id-only skeleton.
+        serialized_rows_before=[{"id": row_1.id, field.db_column: "old"}],
+    )
+
+    payload = mock_send.call_args[0][1].message["payload"]
+    assert payload["rows_before_update"] == [
+        {"id": row_1.id, field.db_column: "old"},
+        {"id": row_2.id},
+    ]
 
 
 @pytest.mark.django_db
