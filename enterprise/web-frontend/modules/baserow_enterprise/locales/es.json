@@ -1,12 +1,13 @@
 {
     "enterprise": {
-        "license": "Empresa",
-        "sidebarTooltip": "Su cuenta tiene acceso a las funciones de empresa a nivel mundial",
+        "license": "Corporativo",
+        "sidebarTooltip": "Su cuenta tiene acceso a las funciones corporativas a nivel mundial",
         "rbac": "RBAC",
         "sso": "SSO",
-        "deactivated": "Disponible en los planes Avanzado y Empresa",
-        "overflowWarning": "Tienes demasiados usuarios no espectadores y has agotado todas tus plazas de pago. Cambia los usuarios a espectadores en la página de miembros de cada espacio de trabajo.",
-        "licenseDescription": "Los visores son gratuitos con Baserow Enterprise. Si un usuario tiene cualquier otro rol, en cualquier otro espacio de trabajo, entonces utilizará un asiento de pago automáticamente."
+        "deactivated": "Disponible en los planes Avanzado/Corporativo",
+        "overflowWarning": "Tienes demasiados usuarios que no son espectadores/comentaristas y has agotado todos tus asientos de pago. Cambia los usuarios a espectadores en la página de miembros de cada espacio de trabajo.",
+        "licenseDescription": "Los espectadores y comentaristas son gratuitos en este plan. Si un usuario tiene cualquier otro rol, en cualquier espacio de trabajo, entonces usará un asiento pago automáticamente.",
+        "enterpriseOnlyDeactivated": "Disponible en el plan Corporativo"
     },
     "clientHandler": {
         "cannotDisableAllAuthProvidersTitle": "Último proveedor habilitado",
