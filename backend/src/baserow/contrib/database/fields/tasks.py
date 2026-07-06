@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Type
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import OuterRef, Q, QuerySet, Subquery
 
@@ -37,15 +38,28 @@ periodic_field_update_workspace_duration = meter.create_histogram(
     unit="s",
 )
 # Total wall-clock of a whole run, to watch headroom against the hard time limit.
+# TODO: unused once Task 2 converts the dispatcher into a fan-out; remove then.
 periodic_field_update_run_duration = meter.create_histogram(
     name="baserow.periodic_field_update.run.duration",
     description="Seconds spent in a full run_periodic_fields_updates run",
     unit="s",
 )
+# Wall-clock the dispatcher spends collecting and enqueuing workspace update tasks.
+periodic_field_update_dispatch_duration = meter.create_histogram(
+    name="baserow.periodic_field_update.dispatch.duration",
+    description="Seconds spent dispatching periodic field update tasks",
+    unit="s",
+)
 
-# A workspace slower than this is logged by id so it can be investigated. Kept as a
-# constant rather than a setting because it is a diagnostic aid, not a tuning knob.
+# A workspace slower than this is logged by id so it can be investigated.
 SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS = 60
+
+# Per-workspace update budget. Now that each workspace is its own task this is no longer
+# bounded by the run interval, so a slow workspace can't starve the others.
+WORKSPACE_UPDATE_SOFT_TIME_LIMIT = settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60
+WORKSPACE_UPDATE_HARD_TIME_LIMIT = WORKSPACE_UPDATE_SOFT_TIME_LIMIT + 30
+
+WORKSPACE_UPDATE_LOCK_KEY = "periodic_field_update_lock:{workspace_id}"
 
 
 def filter_distinct_workspace_ids_per_fields(
@@ -241,6 +255,70 @@ def _run_periodic_field_type_update_per_workspace(
                 {field.table_id for field in database_updated_fields}
             )
             notify_table_views_updates.delay(updated_table_ids)
+
+
+@app.task(
+    bind=True,
+    queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME,
+    soft_time_limit=WORKSPACE_UPDATE_SOFT_TIME_LIMIT,
+    time_limit=WORKSPACE_UPDATE_HARD_TIME_LIMIT,
+)
+def update_workspace_periodic_fields(self, workspace_id: int, update_now: bool = True):
+    """Updates all periodic fields for a single workspace."""
+
+    _update_workspace_periodic_fields(workspace_id, update_now)
+
+
+def _update_workspace_periodic_fields(workspace_id: int, update_now: bool = True):
+    # Skip if another task is already updating this workspace so cycles can't stack and
+    # double-process it. The lock expires at the hard time limit so a killed task can't
+    # wedge it.
+    lock = cache.lock(
+        WORKSPACE_UPDATE_LOCK_KEY.format(workspace_id=workspace_id),
+        timeout=WORKSPACE_UPDATE_HARD_TIME_LIMIT,
+    )
+    if not lock.acquire(blocking=False):
+        logger.debug(
+            "Skipping periodic field update for workspace {workspace_id}: "
+            "already running.",
+            workspace_id=workspace_id,
+        )
+        return
+
+    try:
+        workspace = Workspace.objects.filter(id=workspace_id, trashed=False).first()
+        if workspace is None:
+            return
+
+        started_at = time.monotonic()
+        for field_type_instance in field_type_registry.get_all():
+            field_qs = field_type_instance.get_fields_needing_periodic_update()
+            if field_qs is None:
+                continue
+            # only work if this workspace actually has a due field of this type, so we
+            # keep the exact selection the monolithic loop had.
+            has_due_fields = field_qs.filter(
+                table__database__workspace_id=workspace_id,
+                table__database__trashed=False,
+                table__trashed=False,
+            ).exists()
+            if not has_due_fields:
+                continue
+            _run_periodic_field_type_update_per_workspace(
+                field_type_instance, workspace, update_now
+            )
+
+        elapsed = time.monotonic() - started_at
+        periodic_field_update_workspace_duration.record(elapsed)
+        if elapsed >= SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS:
+            logger.warning(
+                "Periodic field update for workspace {workspace_id} took "
+                "{elapsed:.1f}s.",
+                workspace_id=workspace_id,
+                elapsed=elapsed,
+            )
+    finally:
+        lock.release()
 
 
 @app.task(bind=True)

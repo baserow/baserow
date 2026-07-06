@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.test import override_settings
 
 import pytest
@@ -12,6 +13,7 @@ from baserow.contrib.database.fields.periodic_field_update_handler import (
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.tasks import (
+    _update_workspace_periodic_fields,
     delete_mentions_marked_for_deletion,
     run_periodic_fields_updates,
 )
@@ -214,6 +216,61 @@ def _workspace_with_now_formula(data_fixture):
         )
     RowHandler().create_row(user=user, table=table)
     return workspace
+
+
+@pytest.mark.django_db
+def test_update_workspace_periodic_fields_updates_now_fields(data_fixture, settings):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    with freeze_time("2023-02-27 10:00"):
+        field = data_fixture.create_formula_field(
+            table=table, formula="now()", date_include_time=True
+        )
+    row = RowHandler().create_row(user=user, table=table)
+
+    with freeze_time("2023-02-27 10:30"), local_cache.context():
+        _update_workspace_periodic_fields(workspace.id)
+
+    row.refresh_from_db()
+    assert getattr(row, f"field_{field.id}") == datetime(
+        2023, 2, 27, 10, 30, 0, tzinfo=timezone.utc
+    )
+
+
+@pytest.mark.django_db
+def test_update_workspace_periodic_fields_skips_when_locked(data_fixture, settings):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    # hold the lock so the update should skip without touching the field types
+    held = cache.lock(f"periodic_field_update_lock:{workspace.id}", timeout=60)
+    assert held.acquire(blocking=False) is True
+    try:
+        with patch(
+            "baserow.contrib.database.fields.tasks."
+            "_run_periodic_field_type_update_per_workspace"
+        ) as inner:
+            _update_workspace_periodic_fields(workspace.id)
+        inner.assert_not_called()
+    finally:
+        held.release()
+
+
+@pytest.mark.django_db
+def test_update_workspace_periodic_fields_records_histogram(data_fixture, settings):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    with patch(
+        "baserow.contrib.database.fields.tasks.periodic_field_update_workspace_duration"
+    ) as hist:
+        with freeze_time("2023-02-27 10:30"), local_cache.context():
+            _update_workspace_periodic_fields(workspace.id)
+
+    hist.record.assert_called_once()
 
 
 @pytest.mark.django_db
