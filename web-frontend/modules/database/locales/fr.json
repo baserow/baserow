@@ -118,7 +118,7 @@
         "rowId": "L'identifiant unique de la ligne demandée."
     },
     "apiDocsErrors": {
-        "errorCode": "Code",
+        "errorCode": "Code d'erreur",
         "name": "Nom",
         "description": "Description",
         "okDescription": "La requête a été executée avec succès.",
@@ -278,7 +278,8 @@
         "dbIndexError": "Ce type de champ ne peut pas avoir d'index. Veuillez le supprimer avant d'enregistrer ou de modifier le type de champ.",
         "dbIndexDescription": "L'indexation peut améliorer considérablement les performances de filtrage, mais ralentit les opérations de création, de mise à jour et de suppression.",
         "defaultValueDisabledByConstraint": "Impossible de définir une valeur par défaut avec une contrainte d'unicité",
-        "dbIndexDisabledTooltip": "L'indexation n'est pas disponible pour ce type de champ."
+        "dbIndexDisabledTooltip": "L'indexation n'est pas disponible pour ce type de champ.",
+        "defaultValueOverriddenByView": "Une valeur par défaut au niveau de la vue est définie pour ce champ ; elle prévaudra sur cette valeur par défaut."
     },
     "fieldLookupSubForm": {
         "noTable": "Vous devez créer au moins une autre table dans la même base de données pour pouvoir créer un lien.",
@@ -396,7 +397,8 @@
         "changeImporterType": "Modifier le type d'importation",
         "defaultName": "Table",
         "useUpsertField": "Mettre à jour les lignes si elles existent déjà",
-        "upsertTooltip": "Faire correspondre les lignes existantes à l'aide d'un champ unique pour remplacer les données par les valeurs importées."
+        "upsertTooltip": "Faire correspondre les lignes existantes à l'aide d'un champ unique pour remplacer les données par les valeurs importées.",
+        "restoredFile": "Importation du fichier « {name} »..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Cliquez pour éditer la formule",
@@ -591,7 +593,9 @@
     },
     "exportTableForm": {
         "viewLabel": "Sélectionnez la vue à exporter :",
-        "typeError": "Aucun export disponible, veuillez sélectionner une autre vue ou la table complète."
+        "typeError": "Aucun export disponible, veuillez sélectionner une autre vue ou la table complète.",
+        "includeRowId": "Inclure l'ID de ligne",
+        "includePrimaryField": "Inclure le champ primaire"
     },
     "exportTableLoadingBar": {
         "export": "Exporter",
@@ -912,7 +916,10 @@
         "addGroupBy": "choisissez un champ de regroupement",
         "noGroupByTitle": "Vous n'avez créé aucun groupe",
         "noGroupByText": "Regroupez les lignes par un champ.",
-        "hiddenFieldWarning": "Un ou plusieurs regroupements font référence à des champs masqués qui ne seront pas visibles pour les Éditeurs et les utilisateurs ayant des rôles inférieurs."
+        "hiddenFieldWarning": "Un ou plusieurs regroupements font référence à des champs masqués qui ne seront pas visibles pour les Éditeurs et les utilisateurs ayant des rôles inférieurs.",
+        "maxGroupBysReached": "Vous pouvez regrouper les données selon un maximum de {count} colonnes.",
+        "collapseAllGroups": "Replier tout",
+        "expandAllGroups": "Déplier tout"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} vous a assigné à {fieldName} dans la ligne {rowId} de la table {tableName}",
@@ -1077,7 +1084,8 @@
         "statePreValidation": "Validation des données...",
         "stateCreateTable": "Création d'une table...",
         "addButton": "Ajouter une table",
-        "importError": "Un problème est survenu lors de l'import du fichier"
+        "importError": "Un problème est survenu lors de l'import du fichier",
+        "importingTable": "Importation de la table « {name} »..."
     },
     "importErrorReport": {
         "reportTitleFailure": "Lignes en erreur",
@@ -1096,7 +1104,10 @@
         "error": "Un problème s'est produit lors de la synchronisation",
         "autoAddLabel": "Ajout automatique de nouvelles propriétés",
         "autoAddHelper": "Ajoute et synchronise automatiquement les propriétés nouvellement disponibles de la source de données dans la table Baserow. Notez que pour que cela fonctionne, toutes les propriétés doivent être synchronisées.",
-        "twoWaySyncLabel": "Synchronisation bidirectionnelle"
+        "twoWaySyncLabel": "Synchronisation bidirectionnelle",
+        "deleteUnmatchedRowsLabel": "Supprimer les lignes lorsqu'elles sont supprimées ou masquées dans la source",
+        "deleteUnmatchedRowsHelper": "Lorsque cette option est activée, les lignes supprimées ou qui ne sont plus visibles dans la source sont également supprimées de ce tableau à chaque synchronisation. Lorsqu'elle est désactivée, ces lignes sont conservées et réutilisées si la ligne source réapparaît.",
+        "syncing": "Synchronisation des données..."
     },
     "syncTableModal": {
         "sync": "Synchroniser la table",
@@ -1218,5 +1229,29 @@
     "rowEditFieldFormViewEditRow": {
         "copyLink": "Copier le lien",
         "noFormView": "Aucun formulaire n'est configuré"
+    },
+    "tableExcelImporter": {
+        "chooseFileLabel": "Sélectionnez un fichier Excel",
+        "chooseFileDescription": "Vous pouvez importer une feuille de calcul existante en téléversant un fichier au format .xlsx, .xls ou .ods. Si le fichier contient plusieurs feuilles, vous pouvez choisir celle que vous souhaitez importer.",
+        "chooseFile": "Sélectionnez un fichier Excel",
+        "sheet": "Feuille",
+        "firstRowHeader": "La première ligne est l'en-tête",
+        "limitFileSize": "La taille maximum de fichier est de {limit}Mo.",
+        "limitError": "Il n'est pas possible d'importer plus que {limit} lignes.",
+        "processingError": "Une erreur s'est produite lors du traitement du fichier Excel : {error}",
+        "emptyError": "Ce fichier Excel ne contient aucune feuille.",
+        "emptySheetError": "La feuille sélectionnée est vide."
+    },
+    "viewSearch": {
+        "clearSearch": "Effacer la recherche"
+    },
+    "gridViewGroupByBanner": {
+        "emptyValue": "(Vide)",
+        "expandGroup": "Déplier le groupe",
+        "collapseGroup": "Replier le groupe"
+    },
+    "gridViewFreezeHandle": {
+        "freeze": "Figer 0 colonne | Figer 1 colonne | Figer {nombre} colonnes",
+        "hoverHint": "Faites glisser pour verrouiller des colonnes"
     }
 }
