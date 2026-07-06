@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-12 08:35+0000\n"
+"POT-Creation-Date: 2026-07-06 19:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -79,7 +79,7 @@ msgstr ""
 msgid "The data sync synchronized"
 msgstr ""
 
-#: src/baserow/contrib/database/data_sync/handler.py:257
+#: src/baserow/contrib/database/data_sync/handler.py:255
 #: src/baserow/contrib/database/table/handler.py:478
 msgid "Grid"
 msgstr ""
@@ -254,74 +254,74 @@ msgstr ""
 msgid "Cellular Automata"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:83
+#: src/baserow/contrib/database/rows/actions.py:84
 msgid "Create row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:83
+#: src/baserow/contrib/database/rows/actions.py:84
 #, python-format
 msgid "Row (%(row_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:204
+#: src/baserow/contrib/database/rows/actions.py:209
 msgid "Create rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:204
+#: src/baserow/contrib/database/rows/actions.py:209
 #, python-format
 msgid "Rows (%(row_ids)s) created"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:329
+#: src/baserow/contrib/database/rows/actions.py:341
 msgid "Import rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:329
+#: src/baserow/contrib/database/rows/actions.py:341
 #, python-format
 msgid "Rows (%(row_ids)s) imported"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:420
+#: src/baserow/contrib/database/rows/actions.py:432
 msgid "Delete row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:420
+#: src/baserow/contrib/database/rows/actions.py:432
 #, python-format
 msgid "Row (%(row_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:526
+#: src/baserow/contrib/database/rows/actions.py:542
 msgid "Delete rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:526
+#: src/baserow/contrib/database/rows/actions.py:542
 #, python-format
 msgid "Rows (%(row_ids)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:708
+#: src/baserow/contrib/database/rows/actions.py:731
 msgid "Move row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:708
+#: src/baserow/contrib/database/rows/actions.py:731
 #, python-format
 msgid "Row (%(row_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:826
+#: src/baserow/contrib/database/rows/actions.py:867
 msgid "Update row"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:826
+#: src/baserow/contrib/database/rows/actions.py:867
 #, python-format
 msgid "Row (%(row_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:940
+#: src/baserow/contrib/database/rows/actions.py:996
 msgid "Update rows"
 msgstr ""
 
-#: src/baserow/contrib/database/rows/actions.py:940
+#: src/baserow/contrib/database/rows/actions.py:996
 #, python-format
 msgid "Rows (%(row_ids)s) updated"
 msgstr ""
