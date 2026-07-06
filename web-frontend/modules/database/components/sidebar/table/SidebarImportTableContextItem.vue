@@ -62,11 +62,12 @@ export default {
           this.table.id
         )
         this.fields = data.map((field) => populateField(field, this.$registry))
-        this.$emit('click')
         this.$refs.importFileModal.show()
       } catch (error) {
         notifyIf(error, 'table')
       } finally {
+        // Always hide the context menu, even on error, like the duplicate item.
+        this.$emit('click')
         this.loading = false
       }
     },

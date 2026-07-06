@@ -69,6 +69,20 @@ describe('SidebarImportTableContextItem', () => {
     expect(show).toHaveBeenCalled()
   })
 
+  test('still hides the context menu when fetching fields fails', async () => {
+    const fetchAll = vi.fn().mockRejectedValue(new Error('boom'))
+    FieldService.mockReturnValue({ fetchAll })
+    testApp.dontFailOnErrorResponses()
+    const { wrapper, show } = await mountItem()
+
+    await wrapper.find('a').trigger('click')
+    await flushPromises()
+
+    // The menu must close (click emitted) even though the modal never opens.
+    expect(wrapper.emitted('click')).toBeTruthy()
+    expect(show).not.toHaveBeenCalled()
+  })
+
   test('does nothing when disabled', async () => {
     const fetchAll = mockFetchAll()
     const { wrapper, show } = await mountItem({ disabled: true })

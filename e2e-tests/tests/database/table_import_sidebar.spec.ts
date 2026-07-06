@@ -23,13 +23,17 @@ test.describe("Import into existing table from the sidebar context menu", () => 
 
     await workspacePage.goto();
     await page.getByTitle("SidebarImportDb").click();
-    await page.getByText("Target").click();
 
-    // Open the table's sidebar three-dots menu. The Context self-hides if it
-    // doesn't fit the viewport and the first click can land before hydration
-    // settles, so retry until the "Import file" item is actually visible.
-    await page.getByText("Target").first().hover();
-    const optsBtn = page.locator(".tree__sub > .tree__options").first();
+    // Scope interactions to this table's sidebar row so the selectors can't
+    // match the table name rendered elsewhere (e.g. the page header).
+    const sidebarRow = page.locator("li.tree__sub", { hasText: "Target" });
+    await sidebarRow.locator("a.tree__sub-link").click();
+
+    // Open the table's three-dots menu. The Context self-hides if it doesn't
+    // fit the viewport and the first click can land before hydration settles,
+    // so retry until the "Import file" item is actually visible.
+    await sidebarRow.hover();
+    const optsBtn = sidebarRow.locator(".tree__options");
     const importItem = page.locator(
       '.context__menu-item-link:visible:has-text("Import file")'
     );
