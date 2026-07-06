@@ -13,6 +13,7 @@ from baserow.contrib.database.fields.periodic_field_update_handler import (
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.tasks import (
+    WORKSPACE_UPDATE_LOCK_KEY,
     _update_workspace_periodic_fields,
     delete_mentions_marked_for_deletion,
     run_periodic_fields_updates,
@@ -246,7 +247,9 @@ def test_update_workspace_periodic_fields_skips_when_locked(data_fixture, settin
     workspace = _workspace_with_now_formula(data_fixture)
 
     # hold the lock so the update should skip without touching the field types
-    held = cache.lock(f"periodic_field_update_lock:{workspace.id}", timeout=60)
+    held = cache.lock(
+        WORKSPACE_UPDATE_LOCK_KEY.format(workspace_id=workspace.id), timeout=60
+    )
     assert held.acquire(blocking=False) is True
     try:
         with patch(
@@ -257,6 +260,16 @@ def test_update_workspace_periodic_fields_skips_when_locked(data_fixture, settin
         inner.assert_not_called()
     finally:
         held.release()
+
+
+@pytest.mark.django_db
+def test_update_workspace_periodic_fields_skips_missing_workspace():
+    with patch(
+        "baserow.contrib.database.fields.tasks."
+        "_run_periodic_field_type_update_per_workspace"
+    ) as inner:
+        _update_workspace_periodic_fields(9999999)
+    inner.assert_not_called()
 
 
 @pytest.mark.django_db

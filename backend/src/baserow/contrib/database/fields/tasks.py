@@ -12,6 +12,7 @@ from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from loguru import logger
 from opentelemetry import metrics, trace
+from redis.exceptions import LockNotOwnedError
 
 from baserow.config.celery import app
 from baserow.contrib.database.fields.periodic_field_update_handler import (
@@ -269,7 +270,9 @@ def update_workspace_periodic_fields(self, workspace_id: int, update_now: bool =
     _update_workspace_periodic_fields(workspace_id, update_now)
 
 
-def _update_workspace_periodic_fields(workspace_id: int, update_now: bool = True):
+def _update_workspace_periodic_fields(
+    workspace_id: int, update_now: bool = True
+) -> None:
     # Skip if another task is already updating this workspace so cycles can't stack and
     # double-process it. The lock expires at the hard time limit so a killed task can't
     # wedge it.
@@ -318,7 +321,11 @@ def _update_workspace_periodic_fields(workspace_id: int, update_now: bool = True
                 elapsed=elapsed,
             )
     finally:
-        lock.release()
+        try:
+            lock.release()
+        except LockNotOwnedError:
+            # the lock may have expired and been stolen; nothing to release
+            pass
 
 
 @app.task(bind=True)
