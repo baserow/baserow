@@ -805,9 +805,12 @@ export class GridViewType extends ViewType {
   // fetchAllFieldAggregationData refreshes the footer in flat mode and the per-group
   // values + footer totals (one request) in grouped mode, so this works for both.
   refreshAggregationsAfterRowChange(store, fields, storePrefix) {
-    store.dispatch(storePrefix + 'view/grid/fetchAllFieldAggregationData', {
-      view: store.getters['view/getSelected'],
-    })
+    store.dispatch(
+      storePrefix + 'view/grid/fetchAllFieldAggregationDataDebounced',
+      {
+        view: store.getters['view/getSelected'],
+      }
+    )
   }
 
   async rowCreated(

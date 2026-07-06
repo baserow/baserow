@@ -7,7 +7,7 @@ import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.rows.signals import dependant_rows_updated
+from baserow.contrib.database.rows.signals import dependant_rows_updated, rows_updated
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -356,6 +356,43 @@ def test_no_dependant_rows_updates_sent_without_dependants(data_fixture):
         )
 
     assert calls == []
+
+
+@pytest.mark.django_db
+def test_updating_a_row_reports_self_link_display_in_updated_field_ids(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name = data_fixture.create_text_field(table=table, primary=True, name="name")
+    self_link = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="link_row",
+        link_row_table=table,
+        name="depends on",
+    )
+    row = RowHandler().create_row(
+        user=user, table=table, values={name.db_column: "old"}
+    )
+    RowHandler().update_rows(
+        user, table, [{"id": row.id, self_link.db_column: [row.id]}]
+    )
+
+    captured = {}
+
+    def receiver(sender, **kwargs):
+        captured["updated_field_ids"] = set(kwargs["updated_field_ids"])
+
+    rows_updated.connect(receiver)
+    try:
+        RowHandler().force_update_rows(
+            user=user, table=table, rows_values=[{"id": row.id, name.db_column: "new"}]
+        )
+    finally:
+        rows_updated.disconnect(receiver)
+
+    # The self-link display recalculated on the same row, so the response, realtime
+    # echo and webhooks must report it as changed.
+    assert {name.id, self_link.id} <= captured["updated_field_ids"]
 
 
 @pytest.mark.django_db

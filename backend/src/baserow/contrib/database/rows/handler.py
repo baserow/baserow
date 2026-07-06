@@ -2687,6 +2687,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
         )
 
+        # The cascade also changed fields on the updated rows themselves (e.g. a
+        # self-link display), so report them alongside the directly edited fields.
+        updated_field_ids.update(
+            field.id for field in dependant_fields if field.table_id == table.id
+        )
+
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
