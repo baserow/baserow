@@ -22,7 +22,7 @@ describe('SidebarImportTableContextItem', () => {
 
   const database = { id: 1, workspace: { id: 10 } }
   const table = { id: 5, name: 'Cars' }
-  const fields = [{ id: 100, name: 'Name' }]
+  const fields = [{ id: 100, name: 'Name', type: 'text' }]
 
   const mockFetchAll = () => {
     const fetchAll = vi.fn().mockResolvedValue({ data: fields })
@@ -59,7 +59,12 @@ describe('SidebarImportTableContextItem', () => {
     await flushPromises()
 
     expect(fetchAll).toHaveBeenCalledWith(table.id)
-    expect(importModal(wrapper).props('fields')).toEqual(fields)
+    // The modal reads `field._.type.iconClass`, so the fetched fields must be
+    // populated with the store's internal metadata before being passed in.
+    const passedFields = importModal(wrapper).props('fields')
+    expect(passedFields).toHaveLength(1)
+    expect(passedFields[0].id).toBe(100)
+    expect(passedFields[0]._?.type).toBeDefined()
     expect(wrapper.emitted('click')).toBeTruthy()
     expect(show).toHaveBeenCalled()
   })

@@ -21,6 +21,7 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import FieldService from '@baserow/modules/database/services/field'
+import { populateField } from '@baserow/modules/database/store/field'
 import ImportFileModal from '@baserow/modules/database/components/table/ImportFileModal'
 
 export default {
@@ -49,7 +50,8 @@ export default {
     }
   },
   methods: {
-    // Sidebar has no fields in the store, so fetch them before opening.
+    // Sidebar has no fields in the store, so fetch them before opening. The
+    // modal reads `field._.type`, so the raw fields must be populated first.
     async importFile() {
       if (this.loading || this.disabled) {
         return
@@ -59,7 +61,7 @@ export default {
         const { data } = await FieldService(this.$client).fetchAll(
           this.table.id
         )
-        this.fields = data
+        this.fields = data.map((field) => populateField(field, this.$registry))
         this.$emit('click')
         this.$refs.importFileModal.show()
       } catch (error) {
