@@ -1,7 +1,6 @@
 import itertools
 import time
 import traceback
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Type
 
@@ -36,13 +35,6 @@ meter = metrics.get_meter(__name__)
 periodic_field_update_workspace_duration = meter.create_histogram(
     name="baserow.periodic_field_update.workspace.duration",
     description="Seconds spent updating periodic fields for a single workspace",
-    unit="s",
-)
-# Total wall-clock of a whole run, to watch headroom against the hard time limit.
-# TODO: unused once Task 2 converts the dispatcher into a fan-out; remove then.
-periodic_field_update_run_duration = meter.create_histogram(
-    name="baserow.periodic_field_update.run.duration",
-    description="Seconds spent in a full run_periodic_fields_updates run",
     unit="s",
 )
 # Wall-clock the dispatcher spends collecting and enqueuing workspace update tasks.
@@ -86,26 +78,52 @@ def filter_distinct_workspace_ids_per_fields(
 @app.task(
     bind=True,
     queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME,
-    soft_time_limit=settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60,
-    # Keep the hard limit above this task's soft_time_limit, otherwise a shorter
-    # global/default CELERY_TASK_TIME_LIMIT could kill the task before the soft limit
-    # fires. The 30s margin stays under the task's run interval to avoid overlapping
-    # with the next run.
-    time_limit=settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60 + 30,
+    soft_time_limit=5 * 60,
+    time_limit=5 * 60 + 30,
 )
 def run_periodic_fields_updates(
-    self, workspace_id: Optional[int] = None, update_now: bool = True
+    self,
+    workspace_id: Optional[int] = None,
+    update_now: bool = True,
+    dispatch: bool = True,
 ):
     """
-    Refreshes all the fields that need to be updated periodically for all
-    workspaces.
+    Collects the workspaces whose periodic fields are due and runs a separate update
+    task per workspace, so no single task is bounded by the whole instance's workload.
+    When ``dispatch`` is False the per-workspace updates run inline, which the
+    management command relies on for synchronous execution.
     """
 
     started_at = time.monotonic()
-    # Accumulate wall-clock time spent per workspace so we can log the run's load
-    # shape and decide how to fan the work out. See BASEROW-SAAS-BACKEND-3Z.
-    per_workspace_seconds: dict[int, float] = defaultdict(float)
+    workspace_ids = _collect_workspace_ids_needing_update(workspace_id)
+    # Dispatch staler workspaces (lowest `now`) first, same priority the old
+    # monolithic loop used, so a backlog still drains the most overdue first.
+    ordered_ids = (
+        Workspace.objects.filter(id__in=workspace_ids)
+        .order_by("now")
+        .values_list("id", flat=True)
+    )
+    for wid in ordered_ids:
+        if dispatch:
+            update_workspace_periodic_fields.delay(wid, update_now)
+        else:
+            _update_workspace_periodic_fields(wid, update_now)
 
+    elapsed = time.monotonic() - started_at
+    periodic_field_update_dispatch_duration.record(elapsed)
+    logger.info(
+        "run_periodic_fields_updates dispatched {count} workspace(s) in {elapsed:.1f}s.",
+        count=len(workspace_ids),
+        elapsed=elapsed,
+    )
+
+
+def _collect_workspace_ids_needing_update(
+    workspace_id: Optional[int] = None,
+) -> set[int]:
+    """Returns the ids of workspaces that have at least one periodic field due."""
+
+    workspace_ids: set[int] = set()
     for field_type_instance in field_type_registry.get_all():
         field_qs = field_type_instance.get_fields_needing_periodic_update()
         if field_qs is None:
@@ -125,82 +143,8 @@ def run_periodic_fields_updates(
             | Q(now__lte=threshold)
             | Q(now__isnull=True)
         )
-        for workspace in workspaces:
-            workspace_started_at = time.monotonic()
-            _run_periodic_field_type_update_per_workspace(
-                field_type_instance, workspace, update_now
-            )
-            per_workspace_seconds[workspace.id] += (
-                time.monotonic() - workspace_started_at
-            )
-
-    _record_periodic_fields_updates_load(
-        time.monotonic() - started_at, per_workspace_seconds
-    )
-
-
-def _percentile(sorted_values: list[float], q: float) -> float:
-    """Nearest-rank percentile of an already-sorted list."""
-
-    if not sorted_values:
-        return 0.0
-    index = min(len(sorted_values) - 1, int(q * len(sorted_values)))
-    return sorted_values[index]
-
-
-def _record_periodic_fields_updates_load(
-    total_seconds: float, per_workspace_seconds: dict[int, float]
-):
-    """
-    Emits the run's load shape as metrics (durable, distribution) plus logs (naming
-    the heavy workspaces). Histograms give the per-workspace distribution and total
-    run duration; a warning names any workspace slow enough to be worth investigating.
-    """
-
-    periodic_field_update_run_duration.record(total_seconds)
-    for seconds in per_workspace_seconds.values():
-        periodic_field_update_workspace_duration.record(seconds)
-
-    workspace_count = len(per_workspace_seconds)
-    if workspace_count == 0:
-        logger.info(
-            "run_periodic_fields_updates finished in {total:.1f}s, "
-            "no workspaces needed updating.",
-            total=total_seconds,
-        )
-        return
-
-    durations = sorted(per_workspace_seconds.values())
-    logger.info(
-        "run_periodic_fields_updates finished in {total:.1f}s across {count} "
-        "workspaces (busy={busy:.1f}s, max={max:.1f}s, p50={p50:.1f}s, "
-        "p90={p90:.1f}s, p99={p99:.1f}s).",
-        total=total_seconds,
-        count=workspace_count,
-        busy=sum(durations),
-        max=durations[-1],
-        p50=_percentile(durations, 0.5),
-        p90=_percentile(durations, 0.9),
-        p99=_percentile(durations, 0.99),
-    )
-
-    slow_workspaces = sorted(
-        (
-            (ws_id, seconds)
-            for ws_id, seconds in per_workspace_seconds.items()
-            if seconds >= SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS
-        ),
-        key=lambda item: item[1],
-        reverse=True,
-    )
-    if slow_workspaces:
-        logger.warning(
-            "run_periodic_fields_updates spent over {threshold}s on {count} "
-            "workspace(s) (id, seconds): {slow}.",
-            threshold=SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS,
-            count=len(slow_workspaces),
-            slow=[(ws_id, round(seconds, 1)) for ws_id, seconds in slow_workspaces],
-        )
+        workspace_ids.update(workspaces.values_list("id", flat=True))
+    return workspace_ids
 
 
 @baserow_trace(tracer)
