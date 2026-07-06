@@ -25,7 +25,8 @@
         "friday": "Vendredi",
         "saturday": "Samedi",
         "sunday": "Dimanche",
-        "value": "valeur"
+        "value": "valeur",
+        "workspace": "projet"
     },
     "action": {
         "upload": "Envoyer",
@@ -61,7 +62,8 @@
         "close": "Fermer",
         "hide": "Cacher",
         "getStarted": "Commencer",
-        "next": "Suivant"
+        "next": "Suivant",
+        "select": "Sélectionner"
     },
     "adminType": {
         "settings": "Paramètres",
@@ -315,7 +317,8 @@
         "hasDateWithin": "a une date entre",
         "hasNotDateWithin": "n'a pas de date entre",
         "hasAnyOf": "a l'un des",
-        "hasNotAnyOf": "n'a aucun des"
+        "hasNotAnyOf": "n'a aucun des",
+        "startsWith": "commence avec"
     },
     "viewType": {
         "grid": "Tableau",
@@ -338,7 +341,9 @@
         "view": "vue",
         "rows": "lignes",
         "automation_workflow": "scénario",
-        "automation_node": "nœud de scénario"
+        "automation_node": "nœud de scénario",
+        "builder_page": "Page d'application",
+        "builder_element": "Élément"
     },
     "webhook": {
         "request": "Requête",
@@ -466,7 +471,8 @@
         "csv": "Importer un fichier CSV",
         "paste": "Coller des données tabulaires",
         "xml": "Importer un fichier XML",
-        "json": "Importer un fichier JSON"
+        "json": "Importer un fichier JSON",
+        "excel": "Importer un fichier Excel"
     },
     "apiDocs": {
         "intro": "Introduction",
@@ -713,7 +719,17 @@
         "sumDescription": "Calcule la somme des nombres en argument.",
         "avgDescription": "Calcule la moyenne des nombres en argument.",
         "atDescription": "Retourne l'élément du premier argument à l'index spécifié par le deuxième argument.",
-        "toArrayDescription": "Convertit une chaîne délimitée par virgule en une liste de valeurs."
+        "toArrayDescription": "Convertit une chaîne délimitée par virgule en une liste de valeurs.",
+        "absDescription": "Renvoie la valeur absolue de l'argument.",
+        "rangeDescription": "Renvoie un tableau de nombres. Utilisez range(stop), range(start, stop) ou range(start, stop, step).",
+        "toJsonDescription": "Sérialise une valeur en une chaîne encodée au format JSON, en protégeant les guillemets, les barres obliques inversées et les caractères de contrôle afin qu'elle puisse être intégrée en toute sécurité dans un document JSON.",
+        "fromJsonDescription": "Analyse une chaîne codée au format JSON pour en extraire une valeur, telle qu'un objet, un tableau ou un nombre. Renvoie `null` si la chaîne n'est pas au format JSON valide.",
+        "nullDescription": "Renvoie la valeur null, qui peut être utilisée comme valeur ou à des fins de comparaison",
+        "numberFormatDescription": "Formate un nombre sous forme de chaîne de caractères avec un nombre de décimales, un séparateur de milliers et un séparateur décimal configurables.",
+        "toDatetimeDescription": "Convertit une chaîne de caractères en un objet « datetime ». Un deuxième argument facultatif permet de spécifier le format (par exemple « DD/MM/AAAA »). S'il est omis, le format ISO 8601 est utilisé par défaut.",
+        "toDurationDescription": "Renvoie la durée correspondant à l'argument fourni.",
+        "durationFormatDescription": "Formate une durée sous forme de texte à l'aide d'une chaîne de format contenant les indicateurs « d » (jours), « h » (heures), « m » (minutes) et « s » (secondes), par exemple « h:mm » ou « d h:mm:ss ».",
+        "categoryUtility": "Utilitaire"
     },
     "formulaInputContext": {
         "useRegularInput": "Utiliser une formule simple",
@@ -731,5 +747,15 @@
         "missingProvider": "Le préfixe du fournisseur de données est manquant dans l'argument « {path} » de « get ».",
         "unknownProvider": "Le fournisseur de données « {providerName} » n'existe pas.",
         "invalidProviderPath": "Le fournisseur de données « {providerName} » a détecté que le chemin « {path} » n'était pas valide."
+    },
+    "runtimeFormulaTypeErrors": {
+        "invalidNumber": "« {value} » n'est pas un nombre valide.",
+        "invalidTimezone": "« {value} » n'est pas un fuseau horaire valide. Utilisez un fuseau horaire IANA valide (par exemple « Europe/Amsterdam »).",
+        "invalidThousandSeparator": "« {value} » n'est pas un séparateur de milliers valide. Les options valides sont : « , », « . » ou « » (chaîne vide).",
+        "invalidDecimalSeparator": "« {value} » n'est pas un séparateur décimal valide. Les options valides sont : « , » ou « . ».",
+        "sameSeparators": "Le séparateur des milliers et le séparateur décimal ne peuvent pas être identiques.",
+        "invalidDuration": "« {value} » n'est pas une durée valide. Les options valides sont : « 1 day », « 2 hours », etc.",
+        "invalidDatetimeFormat": "« {value} » n'est pas un format de date et d'heure valide. Les options valides sont : « YYYY-MM-DD », « DD/MM/YYYY HH:mm:ss », etc.",
+        "invalidDurationFormat": "« {value} » n'est pas un format de durée valide. Utilisez « d » (jours), « h » (heures), « m » (minutes) ou « s » (secondes), par exemple « d:h » ou « d h:mm:ss »."
     }
 }
