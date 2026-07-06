@@ -92,6 +92,7 @@
           width: sectionWidth + 'px',
         }"
         @click="addRow($event, item.path)"
+        @click.right.prevent="addRows($event, item.path)"
         @mouseover="setAddRowHover(item.path)"
         @mouseleave="setAddRowHover(null)"
       >
@@ -180,6 +181,7 @@ export default {
     'unselect',
     'select-next',
     'add-row',
+    'add-rows',
     'add-row-after',
     'edit-modal',
     'refresh-row',
@@ -263,6 +265,10 @@ export default {
     addRow(event, path) {
       event.preventFieldCellUnselect = true
       this.$emit('add-row', { groupPath: path })
+    },
+    addRows(event, path) {
+      event.preventFieldCellUnselect = true
+      this.$emit('add-rows', { event, groupPath: path })
     },
     setAddRowHover(path) {
       this.$store.dispatch(

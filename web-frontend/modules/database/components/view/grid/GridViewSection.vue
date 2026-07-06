@@ -102,6 +102,7 @@
             @unselect="$emit('unselect', $event)"
             @select-next="$emit('select-next', $event)"
             @add-row="$emit('add-row', $event)"
+            @add-rows="$emit('add-rows', $event)"
             @add-row-after="$emit('add-row-after', $event)"
             @edit-modal="$emit('edit-modal', $event)"
             @refresh-row="$emit('refresh-row', $event)"

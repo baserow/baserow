@@ -941,6 +941,9 @@ export const state = () => ({
   // Keep the original row and field index to remember where the selection began
   multiSelectStartRowIndex: -1,
   multiSelectStartFieldIndex: -1,
+  // Row holding the single cell selection (-1 if none). Lets grouped
+  // SET_SELECTED_CELL clear it O(1) via rowLocations, no full scan.
+  selectedRowId: -1,
   // The last used grid id.
   lastGridId: -1,
   // If true, ad hoc filtering is used instead of persistent one
@@ -1376,21 +1379,31 @@ export const mutations = {
     }
   },
   SET_SELECTED_CELL(state, { rowId, fieldId }) {
-    const visitRow = (row) => {
-      if (row._.selected) {
-        row._.selected = false
-        row._.selectedFieldId = -1
-      }
-      if (row.id === rowId) {
-        row._.selected = true
-        row._.selectedFieldId = fieldId
-      }
-    }
-
     if (state.activeGroupBys.length > 0) {
-      forEachGroupByRow(state.groupBy.sectionRows, visitRow)
+      // Only selectedRowId can carry _.selected, so clear it directly via
+      // rowLocations instead of scanning every loaded row.
+      const previousRow = getGroupByRowStateById(state, state.selectedRowId)
+      if (previousRow?._.selected) {
+        previousRow._.selected = false
+        previousRow._.selectedFieldId = -1
+      }
+      const newRow = getGroupByRowStateById(state, rowId)
+      if (newRow) {
+        newRow._.selected = true
+        newRow._.selectedFieldId = fieldId
+      }
+      state.selectedRowId = newRow ? rowId : -1
     } else {
-      state.rows.forEach(visitRow)
+      state.rows.forEach((row) => {
+        if (row._.selected) {
+          row._.selected = false
+          row._.selectedFieldId = -1
+        }
+        if (row.id === rowId) {
+          row._.selected = true
+          row._.selectedFieldId = fieldId
+        }
+      })
     }
   },
   SET_MULTISELECT_START_ROW_INDEX(state, value) {
@@ -1536,6 +1549,12 @@ export const mutations = {
         const selectedIndex = state.checkboxSelectedRows.indexOf(oldRow.id)
         if (selectedIndex !== -1) {
           state.checkboxSelectedRows[selectedIndex] = newRow.id
+        }
+
+        // The cell-selection pointer is keyed by id, so it must follow the
+        // temp -> backend id swap or a later deselect can't find the row.
+        if (state.selectedRowId === oldRowId) {
+          state.selectedRowId = newRow.id
         }
 
         const existingRowState =
@@ -2793,14 +2812,6 @@ export const actions = {
     }
   ) {
     const { $client, $config } = this
-    const previousGroupByMode = getters.isGroupByMode
-    const previousGroupByCollapse = clone(getters.getGroupByCollapse)
-    const previousGroupByCollapseInitialized =
-      state.groupBy.collapseInitialized === true
-    const previousGroupByFields = getGroupByFieldsFromActiveGroupBys(
-      state.activeGroupBys,
-      fields
-    )
     const nextGroupBys = clone(view.group_bys || [])
     const groupBysChanged = !_.isEqual(state.activeGroupBys || [], nextGroupBys)
     commit('SET_ADHOC_FILTERING', adhocFiltering)
@@ -2859,40 +2870,16 @@ export const actions = {
     }
 
     if (getters.isGroupByMode) {
-      const groupByFields = getGroupByFieldsFromActiveGroupBys(
-        nextGroupBys,
-        fields
-      )
-      const groupByCollapse =
-        previousGroupByMode || previousGroupByCollapseInitialized
-          ? projectGroupByCollapseState(
-              previousGroupByCollapse,
-              previousGroupByFields,
-              groupByFields
-            )
-          : getGroupByCollapseAllState(false)
+      // Snapshot-and-swap instead of clearing the grid before the fetch, so
+      // a plain refresh never blanks. preserveScroll keeps scroll/collapse.
       const refresh = Promise.resolve()
         .then(async () => {
-          commit('SET_GROUP_BY_COLLAPSE', groupByCollapse)
-          commit('RESET_GROUP_BY_DATA')
-          // Per-group values + footer totals come bundled in this one request, so the
-          // standalone /aggregations/ fetch is not needed in grouped mode.
-          await dispatch('fetchGroupByData', {
-            gridId,
-            view,
-            fields,
-            adhocFiltering,
-            includeDescendants: groupByCollapse.mode === 'expand',
-            descendantLimit: getters.getBufferRequestSize,
-            descendantRowBudget: getGroupByDescendantRowBudget(getters),
-            includeTotals: true,
-          })
-          await dispatch('fetchGroupByRowsByScrollTop', {
-            gridId,
+          await dispatch('refreshActiveGroupBys', {
             view,
             fields,
             scrollTop: getters.getScrollTop,
             includeFieldOptions,
+            preserveScroll: true,
           })
           dispatch('correctMultiSelect')
         })
@@ -3004,12 +2991,20 @@ export const actions = {
   },
   async refreshActiveGroupBys(
     { commit, getters, rootGetters, state },
-    { view, fields, scrollTop, includeFieldOptions = false }
+    {
+      view,
+      fields,
+      scrollTop,
+      includeFieldOptions = false,
+      preserveScroll = false,
+    }
   ) {
+    // preserveScroll reuses this atomic fetch-then-swap for a plain refresh
+    // (unchanged group-bys): keep current scroll and collapse, no reset.
     const { $client, $config, $registry } = this
     const nextGroupBys = clone(view.group_bys || [])
     const previousGroupBys = state.activeGroupBys || []
-    if (_.isEqual(previousGroupBys, nextGroupBys)) {
+    if (!preserveScroll && _.isEqual(previousGroupBys, nextGroupBys)) {
       return false
     }
     if (nextGroupBys.length === 0) {
@@ -3025,13 +3020,15 @@ export const actions = {
       return false
     }
 
-    // New group-by fields rebuild the layout, so the old scroll offset points at an
-    // unloaded region of the new tree. Restart at the top, which this refresh fetches.
-    scrollTop = 0
-    commit('SET_SCROLL_TOP', 0)
-    fireScrollTop.distance = 0
-    fireScrollTop.last = Date.now()
-    fireScrollTop.processing = false
+    // Changed group-by fields rebuild the layout, so restart at the top; an
+    // unchanged-group-bys refresh keeps the layout and its scroll position.
+    if (!preserveScroll) {
+      scrollTop = 0
+      commit('SET_SCROLL_TOP', 0)
+      fireScrollTop.distance = 0
+      fireScrollTop.last = Date.now()
+      fireScrollTop.processing = false
+    }
 
     const previousGroupByFields = getGroupByFieldsFromActiveGroupBys(
       previousGroupBys,
@@ -3054,7 +3051,11 @@ export const actions = {
     // express a mixed collapse, so an expanded branch's deeper nodes go unfetched and
     // render empty. Force expand-all to fetch the whole visible tree. Single-level views
     // fetch their rows separately, so they're unaffected.
-    if (groupByFields.length > 1 && groupByCollapse.paths.length > 0) {
+    if (
+      !preserveScroll &&
+      groupByFields.length > 1 &&
+      groupByCollapse.paths.length > 0
+    ) {
       groupByCollapse = getGroupByCollapseAllState(false)
     }
 
@@ -3071,7 +3072,9 @@ export const actions = {
     // first page is independent of the new tree and can be fetched in parallel with the
     // skeleton. Mixed/collapsed states tie their offsets to the tree, so they can't.
     const parallelExpandRows =
-      groupByCollapse.mode === 'expand' && groupByCollapse.paths.length === 0
+      scrollTop === 0 &&
+      groupByCollapse.mode === 'expand' &&
+      groupByCollapse.paths.length === 0
         ? GridService($client).fetchRows({
             gridId,
             offset: 0,
@@ -4179,6 +4182,41 @@ export const actions = {
       groupPath: path,
       selectPrimaryCell,
       isRowOpenedInModal,
+    })
+  },
+  async createNewRowsInGroup(
+    { dispatch, getters },
+    {
+      view,
+      table,
+      fields,
+      path,
+      rows,
+      before = null,
+      selectPrimaryCell = false,
+      isRowOpenedInModal = undefined,
+      undoRedoActionGroupId = null,
+      skipFetchByScrollTop = false,
+    }
+  ) {
+    const groupByFields = getGroupByFieldsFromActiveGroupBys(
+      getters.getActiveGroupBys,
+      fields
+    )
+    const groupValues = groupPathDefaults(path, groupByFields, this.$registry)
+    // Seed the group values into every row so the batch keeps them together
+    // in this group instead of scattering them by their own values.
+    await dispatch('createNewRows', {
+      view,
+      table,
+      fields,
+      rows: rows.map((values) => ({ ...values, ...groupValues })),
+      before,
+      groupPath: path,
+      selectPrimaryCell,
+      isRowOpenedInModal,
+      undoRedoActionGroupId,
+      skipFetchByScrollTop,
     })
   },
   async createNewRows(

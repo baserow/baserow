@@ -61,7 +61,7 @@
       @cell-mouseup-left="multiSelectStop"
       @cell-shift-click="multiSelectShiftClick"
       @add-row="addRow($event)"
-      @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
+      @add-rows="openAddRowsContext($event)"
       @add-row-after="addRowAfter($event)"
       @update="updateValue"
       @paste="multiplePasteFromCell"
@@ -137,7 +137,7 @@
       @row-hover="setRowHover($event.row, $event.value)"
       @row-context="showRowContext($event.event, $event.row)"
       @add-row="addRow($event)"
-      @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
+      @add-rows="openAddRowsContext($event)"
       @add-row-after="addRowAfter($event)"
       @update="updateValue"
       @paste="multiplePasteFromCell"
@@ -408,6 +408,8 @@ export default {
       refreshingRow: false,
       resizeObserver: null,
       presenceSpaceName: null,
+      // Group path for the "add N rows" menu, or null for the flat button.
+      addRowsGroupPath: null,
     }
   },
   computed: {
@@ -1153,21 +1155,43 @@ export default {
         notifyIf(error, 'row')
       }
     },
+    openAddRowsContext(payload) {
+      // Grouped button sends { event, groupPath }; flat sends the raw event.
+      // Stash the path so addRows seeds the batch into the right group.
+      const isGroupedPayload =
+        payload !== null &&
+        typeof payload === 'object' &&
+        'groupPath' in payload
+      this.addRowsGroupPath = isGroupedPayload ? payload.groupPath : null
+      this.$refs.rowsAddContext.toggleNextToMouse(
+        isGroupedPayload ? payload.event : payload
+      )
+    },
     async addRows(rowsAmount) {
       this.$refs.rowsAddContext.hide()
+      const groupPath = this.addRowsGroupPath
+      this.addRowsGroupPath = null
+      // We need a list of all fields including the primary one here.
+      const params = {
+        view: this.view,
+        table: this.table,
+        fields: this.fields,
+        rows: Array.from(Array(rowsAmount)).map(() => ({})),
+        selectPrimaryCell: true,
+        isRowOpenedInModal: this.isRowOpenedInModal,
+      }
       try {
-        await this.$store.dispatch(
-          this.storePrefix + 'view/grid/createNewRows',
-          {
-            view: this.view,
-            table: this.table,
-            // We need a list of all fields including the primary one here.
-            fields: this.fields,
-            rows: Array.from(Array(rowsAmount)).map(() => ({})),
-            selectPrimaryCell: true,
-            isRowOpenedInModal: this.isRowOpenedInModal,
-          }
-        )
+        if (groupPath !== null) {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/grid/createNewRowsInGroup',
+            { ...params, path: groupPath }
+          )
+        } else {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/grid/createNewRows',
+            params
+          )
+        }
       } catch (error) {
         notifyIf(error, 'row')
       }
