@@ -101,7 +101,16 @@
         "completedInLessThanSecond": "Complété en moins d'une seconde.",
         "testRun": "Essai",
         "statusStarted": "En cours…",
-        "running": "S'exécute depuis {at}s"
+        "running": "S'exécute depuis {at}s",
+        "statusSuccessBadge": "Complété",
+        "statusErrorBadge": "Échoué",
+        "successfulRuns": "Succès",
+        "failedRuns": "Échecs",
+        "errorHideDetails": "Masquer les détails",
+        "errorShowDetails": "Afficher les détails",
+        "runNumber": "Exécution {n}",
+        "runCount": "{n} exécutions",
+        "showResult": "Afficher le résultat"
     },
     "nodeType": {
         "triggerDeletionError": "Les déclencheurs ne peuvent être supprimés, seulement remplacés.",
@@ -110,7 +119,7 @@
         "localBaserowRowsDeletedLabel": "Des lignes sont supprimées dans {tableName}",
         "localBaserowCreateRowLabel": "Créer une ligne dans {tableName}",
         "localBaserowUpdateRowLabel": "Modifier une ligne dans {tableName}",
-        "localBaserowDeleteRowLabel": "Supprimer une ligne dans {tableName}",
+        "localBaserowDeleteRowLabel": "Supprimer des lignes dans {tableName}",
         "localBaserowGetRowLabel": "Lire une ligne dans {tableName}",
         "localBaserowListRowsLabel": "Lister les lignes de {tableName}",
         "localBaserowAggregateRowsLabel": "Résumer les lignes dans {tableName}",
@@ -126,7 +135,15 @@
         "periodicTriggerLabel": "Déclencheur périodique",
         "aiAgent": "Prompt IA",
         "slackWriteMessageName": "Envoyer un message Slack",
-        "slackWriteMessageLabel": "Envoyer un message à #{channel}"
+        "slackWriteMessageLabel": "Envoyer un message à #{channel}",
+        "localBaserowFieldsUpdatedLabel": "{fieldName} est mis à jour dans {tableName}",
+        "localBaserowFieldsUpdatedMultipleLabel": "Les valeurs de {count} colonnes sont mises à jour dans {tableName}",
+        "localBaserowFieldsUpdatedNoFieldLabel": "Les valeurs de certaines colonnes sont mises à jour dans une table",
+        "localBaserowCreateRowsLabel": "Créer des lignes par lots dans {tableName}",
+        "localBaserowUpdateRowsLabel": "Mise à jour par lots des lignes dans {tableName}",
+        "csvFileReaderLabel": "Lire un fichier CSV",
+        "startWorkflowLabel": "Lancer {workflowName}",
+        "defaultEdgeLabelFallback": "Défaut"
     },
     "workflowNode": {
         "actionDelete": "Supprimer",
@@ -158,7 +175,9 @@
         "periodicTriggerTriggeredAt": "Déclenché à",
         "errorIntervalMissing": "Un intervalle est requis.",
         "coreHTTPTrigger": "Déclencheur HTTP",
-        "coreHTTPTriggerDescription": "Déclenche un scénario quand une requête HTTP est reçue"
+        "coreHTTPTriggerDescription": "Déclenche un scénario quand une requête HTTP est reçue",
+        "coreManualTrigger": "Déclencheur manuel",
+        "coreManualTriggerDescription": "Ne démarre que lorsqu'une autre action déclenche ce scénario"
     },
     "periodicTriggerServiceForm": {
         "intervalLabel": "Intervale",
@@ -193,9 +212,9 @@
         "errorNodeNotConfigured": "Le nœud doit être configuré avant qu'il puisse être testé.",
         "errorPreviousNodeNotConfigured": "Le nœud précédent « {node} » doit être configuré.",
         "errorPreviousNodesNotTested": "Le nœud précédent « {node} » doit être testé préallablement.",
-        "buttonLabelTest": "Tester le déclencheur",
-        "buttonLabelTestAgain": "Tester de nouveau",
-        "testNodeDescription": "Tester ce déclencheur pour confirmer que la configuration est correcte. Les données de ce test peuvent être utilisées par les nœuds suivants.",
+        "buttonLabelTest": "Nœud de test",
+        "buttonLabelTestAgain": "Nouveau test du nœud",
+        "testNodeDescription": "Tester ce déclencheur pour confirmer que la configuration est correcte. Les données de ce test peuvent être utilisées par les actions suivantes.",
         "buttonLabelShowPayload": "Voir le résultat",
         "buttonLabelShowError": "Voir l'erreur",
         "sampleDataModalTitle": "Résultat de {nodeLabel}",
@@ -203,5 +222,18 @@
         "sampleDataCopy": "Copier",
         "errorOccurred": "Une erreur s'est produite...",
         "sampleDataCopied": "Résultat copié"
+    },
+    "workflowGeneralSettings": {
+        "titleOverview": "Paramètres du scénario",
+        "nameLabel": "Nom du scénario",
+        "workflowDisabledRecipientsLabel": "Destinataires de la notification",
+        "workflowDisabledRecipientsHelp": "Les membres de ce projet recevront une notification si ce scénario est automatiquement désactivé.",
+        "selectWorkflowDisabledRecipients": "Sélectionnez les destinataires",
+        "noWorkflowDisabledRecipients": "Aucun destinataire n'a été sélectionné.",
+        "cantUpdateWorkflowTitle": "Impossible de mettre à jour le scénario",
+        "cantUpdateWorkflowDescription": "Désolé, impossible de mettre à jour le scénario."
+    },
+    "workflowDisabledNotification": {
+        "body": "Le scénario {name} a été désactivé."
     }
 }
