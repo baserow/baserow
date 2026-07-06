@@ -225,20 +225,20 @@ msgid ""
 "user \"%(disabled_user_email)s\" (%(disabled_user_id)s)."
 msgstr ""
 
-#: src/baserow/core/emails.py:97
+#: src/baserow/core/emails.py:108
 #: src/baserow/core/templates/baserow/core/user/email_pending_verification.html:173
 msgid "Please confirm email"
 msgstr ""
 
-#: src/baserow/core/emails.py:117
+#: src/baserow/core/emails.py:128
 msgid "You've been invited to collaborate on Baserow"
 msgstr ""
 
-#: src/baserow/core/emails.py:146
+#: src/baserow/core/emails.py:168
 msgid "You have 1 new notification - Baserow"
 msgstr ""
 
-#: src/baserow/core/emails.py:148
+#: src/baserow/core/emails.py:170
 #, python-format
 msgid "You have %(count)d new notifications - Baserow"
 msgstr ""

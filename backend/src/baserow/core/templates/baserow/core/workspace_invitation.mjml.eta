@@ -4,7 +4,7 @@
   <mj-column>
     <mj-text mj-class="title">{% trans "Invitation" %}</mj-text>
     <mj-text mj-class="text">
-      {% blocktrans trimmed with invitation.invited_by.first_name|truncatechars:60 as first_name and invitation.invited_by.email as invited_by_email and invitation.workspace.name|truncatechars:60 as workspace_name %}
+      {% blocktrans trimmed with invited_by_name as first_name %}
         <strong>{{ first_name }}</strong> ({{ invited_by_email }}) has invited you
         to collaborate on <strong>{{ workspace_name }}</strong>.
       {% endblocktrans %}
