@@ -204,16 +204,13 @@ class DjangoChannelsSseServerTransport:
             session_message = SessionMessage(message)
             logger.debug(f"Validated client message: {session_message}")
         except ValidationError as err:
-            logger.error(f"Failed to parse message: {err}")
+            # Client error: answer 400 and log it. Don't relay the error into the
+            # SSE stream — group_listener would re-parse the error text as a message,
+            # fail again, and push a misleading exception to the server's read stream
+            # (Sentry BASEROW-SAAS-BACKEND-12K).
+            logger.warning(f"Failed to parse message: {err}")
             response = Response("Could not parse message", status_code=400)
             await response(scope, receive, send)
-            await channel_layer.group_send(
-                f"mcp_sse_{session_id.hex}",
-                {
-                    "type": "sse.message",
-                    "data": str(err),
-                },
-            )
             return
 
         logger.debug(f"Sending message to group for session: {session_id}")

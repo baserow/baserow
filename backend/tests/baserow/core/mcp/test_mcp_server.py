@@ -204,6 +204,98 @@ def test_sse_listener_is_closed_when_connection_is_closed():
     async_to_sync(inner)()
 
 
+def test_malformed_post_message_is_not_relayed_to_the_server():
+    """
+    Regression for BASEROW-SAAS-BACKEND-12K: a POST whose body fails JSON-RPC
+    validation must be answered with 400 and must NOT be relayed into the SSE
+    stream. The old code sent the error text back through the channel, where the
+    listener re-parsed it as a message, failed again, and pushed a misleading
+    exception to the server's read stream (logged as a server error).
+    """
+
+    async def inner():
+        sse = DjangoChannelsSseServerTransport("/mcp/messages/")
+        channel_layer = get_channel_layer()
+
+        sse_scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/mcp/key/sse",
+            "headers": [],
+            "query_string": b"",
+        }
+
+        client_disconnected = anyio.Event()
+
+        async def sse_receive():
+            await client_disconnected.wait()
+            return {"type": "http.disconnect"}
+
+        async def sse_send(message):
+            pass
+
+        def listener_group():
+            return next(
+                (g for g in channel_layer.groups if g.startswith("mcp_sse_")), None
+            )
+
+        with anyio.fail_after(10):
+            async with sse.connect_sse(sse_scope, sse_receive, sse_send) as (
+                read_stream,
+                _write_stream,
+            ):
+                # Wait until the listener has joined its group and can receive POSTs.
+                while listener_group() is None:
+                    await anyio.sleep(0.01)
+                session_hex = listener_group()[len("mcp_sse_") :]
+
+                # Valid JSON, but not a valid JSON-RPC message (missing fields).
+                body = b'{"not": "a valid json-rpc message"}'
+                post_scope = {
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/mcp/messages/",
+                    "headers": [(b"content-type", b"application/json")],
+                    "query_string": f"session_id={session_hex}".encode(),
+                }
+
+                async def post_receive():
+                    return {
+                        "type": "http.request",
+                        "body": body,
+                        "more_body": False,
+                    }
+
+                status = {}
+
+                async def post_send(message):
+                    if message["type"] == "http.response.start":
+                        status["code"] = message["status"]
+
+                await sse.handle_post_message(post_scope, post_receive, post_send)
+
+                # The client gets a 400 directly on the POST.
+                assert status["code"] == 400
+
+                # Nothing must reach the server's read stream. On the pre-fix code
+                # a re-parsed ValidationError arrives here and the MCP server logs
+                # it as "Received exception from stream".
+                received = None
+                with anyio.move_on_after(0.5):
+                    received = await read_stream.receive()
+                assert received is None, (
+                    "a malformed POST must not be forwarded to the MCP server, "
+                    f"got {received!r}"
+                )
+
+                # Tear the connection down cleanly.
+                client_disconnected.set()
+                async for _ in read_stream:
+                    pass
+
+    async_to_sync(inner)()
+
+
 @pytest.mark.django_db(transaction=True)
 def test_handle_sse_sends_a_single_http_response_start(data_fixture):
     """
