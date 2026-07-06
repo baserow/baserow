@@ -558,6 +558,74 @@ def test_admin_can_create_user(api_client, data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_admin_user_name_validation(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl",
+        password="password",
+        first_name="Test1",
+        is_staff=True,
+    )
+    list_url = reverse("api:admin:users:list")
+    edit_url = reverse("api:admin:users:edit", kwargs={"user_id": user.id})
+
+    response = api_client.post(
+        list_url,
+        {
+            "username": "test2@test.nl",
+            "password": "Test1234",
+            "name": "Blocked! Verify at poshmark-helps.com",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["name"][0]["code"] == "invalid_name"
+
+    response = api_client.patch(
+        edit_url,
+        {"name": "Blocked! Verify at poshmark-helps.com"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["detail"]["name"][0]["code"] == "invalid_name"
+
+    response = api_client.patch(
+        edit_url,
+        {"name": "test@test.nl"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["detail"]["name"][0]["code"] == "name_is_email"
+
+    response = api_client.patch(
+        edit_url,
+        {"name": "x" * 61},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["detail"]["name"][0]["code"] == "max_length"
+
+    response = api_client.patch(
+        edit_url,
+        {"name": "J.Smith"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    user.refresh_from_db()
+    assert user.first_name == "J.Smith"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_admin_can_patch_user(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl",

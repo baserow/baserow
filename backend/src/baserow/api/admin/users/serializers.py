@@ -7,7 +7,7 @@ from rest_framework.serializers import ModelSerializer
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.two_factor_auth.serializers import TwoFactorAuthSerializer
-from baserow.api.user.validators import password_validation
+from baserow.api.user.validators import name_validation, password_validation
 from baserow.core.models import WorkspaceUser
 
 User = get_user_model()
@@ -106,8 +106,13 @@ class UserAdminCreateSerializer(
     data as the password will be returned also.
     """
 
-    # Max length set to match django user models first_name fields max length
-    name = CharField(source="first_name", max_length=150, required=True)
+    name = CharField(
+        source="first_name",
+        min_length=2,
+        max_length=60,
+        required=True,
+        validators=[name_validation],
+    )
     username = EmailField(required=True)
     password = CharField(validators=[password_validation], required=True)
 
@@ -127,8 +132,13 @@ class UserAdminUpdateSerializer(
     data as the password will be returned also.
     """
 
-    # Max length set to match django user models first_name fields max length
-    name = CharField(source="first_name", max_length=150, required=False)
+    name = CharField(
+        source="first_name",
+        min_length=2,
+        max_length=60,
+        required=False,
+        validators=[name_validation],
+    )
     username = EmailField(required=False)
     password = CharField(validators=[password_validation], required=False)
 

@@ -24,7 +24,13 @@
           {{ $t('error.minLength', { min: 2 }) }}
         </span>
         <span v-else-if="v$.values.name.maxLength.$invalid">
-          {{ $t('error.maxLength', { max: 150 }) }}
+          {{ $t('error.maxLength', { max: 60 }) }}
+        </span>
+        <span v-else-if="v$.values.name.nameIsNotEmail.$invalid">
+          {{ $t('error.nameCantBeEmail') }}
+        </span>
+        <span v-else-if="v$.values.name.nameContainsNoUrl.$invalid">
+          {{ $t('error.nameContainsUrl') }}
         </span>
       </template>
     </FormGroup>
@@ -144,6 +150,10 @@ import { reactive } from 'vue'
 import { email, maxLength, minLength, required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
+import {
+  nameContainsNoUrl,
+  nameIsNotEmail,
+} from '@baserow/modules/core/validators'
 
 export default {
   name: 'UserForm',
@@ -174,7 +184,9 @@ export default {
         name: {
           required,
           minLength: minLength(2),
-          maxLength: maxLength(150),
+          maxLength: maxLength(60),
+          nameIsNotEmail,
+          nameContainsNoUrl,
         },
         username: {
           required,
