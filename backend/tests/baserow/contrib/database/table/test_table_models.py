@@ -1325,3 +1325,19 @@ def test_update_returning_ids(data_fixture):
         **{name_field.db_column: "Falcon 1", price_field.db_column: 100}
     )
     assert set(updated_row_ids) == {row_1.id, row_2.id}
+
+
+@pytest.mark.django_db
+def test_update_returning_ids_with_provably_empty_filter(data_fixture):
+    table = data_fixture.create_database_table(name="Rockets")
+    name_field = data_fixture.create_text_field(table=table, order=0, name="Name")
+
+    model = table.get_model()
+    model.objects.create(**{name_field.db_column: "Falcon Heavy"})
+
+    # An empty `id__in` list makes Django skip executing the query entirely,
+    # which must result in an empty list of ids instead of an error.
+    updated_row_ids = model.objects.filter(id__in=[]).update_returning_ids(
+        **{name_field.db_column: "Falcon 1"}
+    )
+    assert updated_row_ids == []

@@ -65,6 +65,23 @@
         <li
           v-if="
             $hasPermission(
+              'database.table.import_rows',
+              table,
+              database.workspace.id
+            )
+          "
+          class="context__menu-item"
+        >
+          <SidebarImportTableContextItem
+            :database="database"
+            :table="table"
+            :disabled="deleteLoading"
+            @click="$refs.context.hide()"
+          ></SidebarImportTableContextItem>
+        </li>
+        <li
+          v-if="
+            $hasPermission(
               'database.table.create_webhook',
               table,
               database.workspace.id
@@ -205,6 +222,7 @@ import { getHumanPeriodAgoCount } from '@baserow/modules/core/utils/date'
 import ExportTableModal from '@baserow/modules/database/components/export/ExportTableModal'
 import WebhookModal from '@baserow/modules/database/components/webhook/WebhookModal'
 import SidebarDuplicateTableContextItem from '@baserow/modules/database/components/sidebar/table/SidebarDuplicateTableContextItem'
+import SidebarImportTableContextItem from '@baserow/modules/database/components/sidebar/table/SidebarImportTableContextItem'
 import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTableModal'
 import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
@@ -218,6 +236,7 @@ export default {
     WebhookModal,
     SyncTableModal,
     SidebarDuplicateTableContextItem,
+    SidebarImportTableContextItem,
   },
   props: {
     database: {
@@ -244,6 +263,11 @@ export default {
         this.additionalContextComponents.length > 0 ||
         this.$hasPermission(
           'database.table.run_export',
+          this.table,
+          this.database.workspace.id
+        ) ||
+        this.$hasPermission(
+          'database.table.import_rows',
           this.table,
           this.database.workspace.id
         ) ||

@@ -9,6 +9,7 @@ import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 import { getDefinedRowsFromSectionRows } from '@baserow/modules/database/utils/gridGroupBy'
 import flushPromises from 'flush-promises'
 
+import { vi } from 'vitest'
 import { createStore } from 'vuex'
 
 const groupPathKey = (fieldId, value) =>
@@ -7829,6 +7830,113 @@ describe('Grid view store', () => {
     expect(store.getters['grid/getBufferStartIndex']).toBe(9)
     expect(store.getters['grid/getBufferLimit']).toBe(6)
     expect(store.getters['grid/getCount']).toBe(100)
+  })
+
+  test('updatedExistingRow with a skeleton before row in a filtered view', async () => {
+    // Realtime events for rows changed by a dependency cascade only carry the
+    // row id as the before state; the buffered values must be used instead.
+    const state = Object.assign(gridStore.state(), {
+      bufferStartIndex: 0,
+      bufferLimit: 2,
+      rows: [
+        { id: 1, order: '1.00000000000000000000', field_1: 'Value 1' },
+        { id: 2, order: '2.00000000000000000000', field_1: 'Value 2' },
+      ],
+      count: 2,
+    })
+
+    store.replaceState({ ...store.state, grid: state })
+
+    const view = {
+      id: 1,
+      filters_disabled: false,
+      filter_type: 'AND',
+      filters: [
+        {
+          id: 1,
+          view: 1,
+          field: 1,
+          type: ContainsViewFilterType.getType(),
+          value: 'value',
+        },
+      ],
+      sortings: [],
+      group_bys: [],
+      ownership_type: 'collaborative',
+    }
+    const fields = [
+      {
+        id: 1,
+        name: 'Test 1',
+        type: 'text',
+        primary: true,
+      },
+    ]
+    const getScrollTop = () => 0
+
+    // The row still matches the filters, so it must be updated in place
+    // instead of being dropped because the skeleton evaluates as empty.
+    await store.dispatch('grid/updatedExistingRow', {
+      view,
+      fields,
+      row: { id: 2 },
+      values: { field_1: 'Value 2 updated' },
+      getScrollTop,
+    })
+    expect(store.getters['grid/getAllRows'].length).toBe(2)
+    expect(store.getters['grid/getAllRows'][1].id).toBe(2)
+    expect(store.getters['grid/getAllRows'][1].field_1).toBe('Value 2 updated')
+    expect(store.getters['grid/getCount']).toBe(2)
+
+    // The new values stop matching the filters, so the row must be removed
+    // from the buffer.
+    await store.dispatch('grid/updatedExistingRow', {
+      view,
+      fields,
+      row: { id: 2 },
+      values: { field_1: 'nope' },
+      getScrollTop,
+    })
+    expect(store.getters['grid/getAllRows'].length).toBe(1)
+    expect(store.getters['grid/getAllRows'][0].id).toBe(1)
+    expect(store.getters['grid/getCount']).toBe(1)
+
+    // A skeleton before row for a row outside the buffer has no usable old
+    // state, so the event must be ignored instead of drifting the count.
+    store.state.grid.count = 10
+    await store.dispatch('grid/updatedExistingRow', {
+      view,
+      fields,
+      row: { id: 99 },
+      values: { field_1: 'Value 99' },
+      getScrollTop,
+    })
+    expect(store.getters['grid/getAllRows'].length).toBe(1)
+    expect(store.getters['grid/getCount']).toBe(10)
+  })
+
+  test('fetchAllFieldAggregationDataDebounced debounces per view', () => {
+    // The debounce state used to be a single module-global object shared by
+    // every grid store instance, so a second view firing within the window
+    // cancelled the first view's refetch. Each view must debounce on its own
+    // key, so both fire their leading refetch immediately.
+    const dispatch = vi.fn()
+    gridStore.actions.fetchAllFieldAggregationDataDebounced(
+      { dispatch },
+      { view: { id: 90001 } }
+    )
+    gridStore.actions.fetchAllFieldAggregationDataDebounced(
+      { dispatch },
+      { view: { id: 90002 } }
+    )
+
+    expect(dispatch).toHaveBeenCalledTimes(2)
+    expect(dispatch).toHaveBeenCalledWith('fetchAllFieldAggregationData', {
+      view: { id: 90001 },
+    })
+    expect(dispatch).toHaveBeenCalledWith('fetchAllFieldAggregationData', {
+      view: { id: 90002 },
+    })
   })
 
   test('deletedExistingRow', async () => {

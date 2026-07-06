@@ -35,6 +35,7 @@ import {
   buildNewRowDefaults,
   computeRowMatchFlags,
   computeRowInsertPosition,
+  resolveBeforeRow,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import {
@@ -1744,6 +1745,9 @@ const activeGroupByRowsRequests = new Map()
 
 // We want to cancel previous aggregation request before creating a new one.
 const lastAggregationRequest = { request: null, controller: null }
+// Keyed by view id so concurrent grid views (e.g. main and public) don't share
+// one timer and cancel each other's pending aggregation refetch.
+const fireAggregationPerView = {}
 
 const lastGroupByAggregationRequest = { controller: null }
 
@@ -3380,6 +3384,24 @@ export const actions = {
   forceUpdateAllFieldOptions({ commit, dispatch }, fieldOptions) {
     commit('UPDATE_ALL_FIELD_OPTIONS', fieldOptions)
     dispatch('correctMultiSelect')
+  },
+  fetchAllFieldAggregationDataDebounced({ dispatch }, { view }) {
+    // Realtime row events arrive in bursts of up to hundreds of rows; refetch
+    // the aggregations at most once per window (leading + trailing).
+    const state =
+      fireAggregationPerView[view.id] ||
+      (fireAggregationPerView[view.id] = { timeout: null, last: 0 })
+    const now = Date.now()
+    clearTimeout(state.timeout)
+    if (now - state.last > 500) {
+      state.last = now
+      dispatch('fetchAllFieldAggregationData', { view })
+    } else {
+      state.timeout = setTimeout(() => {
+        state.last = Date.now()
+        dispatch('fetchAllFieldAggregationData', { view })
+      }, 500)
+    }
   },
   /**
    * Fetch all field aggregation data from the server for this view. Set loading state
@@ -5263,8 +5285,14 @@ export const actions = {
     }
   ) {
     const { $registry } = this
-    const oldRow = clone(row)
-    const newRow = Object.assign(clone(row), values)
+    // An unbuffered skeleton before row has no usable old state; the buffer
+    // fetch picks the row up instead.
+    const baseRow = resolveBeforeRow(row, getters.getRow)
+    if (baseRow === null) {
+      return
+    }
+    const oldRow = clone(baseRow)
+    const newRow = Object.assign(clone(baseRow), values)
     populateRow(oldRow, metadata)
     populateRow(newRow, metadata)
 
@@ -5370,10 +5398,10 @@ export const actions = {
       return
     }
 
-    // When the row crosses the view boundary, delegate to the create/delete paths
-    // so filter/search checks and group-by metadata updates stay aligned.
+    // When the row crosses the view boundary, delegate to the create/delete
+    // paths; the delete path re-evaluates search/group-by from the old row.
     if (oldRowExists && !newRowExists) {
-      await dispatch('deletedExistingRow', { view, fields, row })
+      await dispatch('deletedExistingRow', { view, fields, row: oldRow })
       return
     }
     if (!oldRowExists && newRowExists) {

@@ -91,6 +91,7 @@ x-backend-variables:
   # Misc settings see https://baserow.io/docs/installation%2Fconfiguration for info
   BASEROW_AMOUNT_OF_WORKERS:
   BASEROW_ROW_PAGE_SIZE_LIMIT:
+  BASEROW_DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT:
   BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT:
   BASEROW_FORMULA_RANGE_MAX_ITEMS:
   BASEROW_INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT:
@@ -278,7 +279,7 @@ services:
   # requests to either the backend or web-frontend and also serving user uploaded files
   # from the media volume.
   caddy:
-    image: caddy:2.11.1
+    image: caddy:2.11.4
     restart: unless-stopped
     environment:
       # Controls what port the Caddy server binds to inside its container.
@@ -345,6 +346,7 @@ services:
       POSTHOG_HOST:
       BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT:
       BASEROW_ROW_PAGE_SIZE_LIMIT:
+      BASEROW_DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT:
       BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT:
       BASEROW_REALTIME_REPLAY_MAX_EVENTS:
       BASEROW_FORMULA_RANGE_MAX_ITEMS:

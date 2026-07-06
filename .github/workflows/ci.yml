@@ -1487,6 +1487,33 @@ jobs:
           git add baserow
           echo "✅ Submodule updated."
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "yarn"
+          cache-dependency-path: saas/yarn.lock
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          # Keep in sync with the uv pin in baserow-saas backend Dockerfiles,
+          # which consume the uv.lock this job generates with `uv sync --frozen`.
+          version: "0.9.26"
+          python-version: "3.14"
+          cache-python: true
+
+      - name: Install just and yarn
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf --retry 3 https://just.systems/install.sh | bash -s -- --to /usr/local/bin --tag 1.55.1
+          npm install -g yarn@1.22.22
+
+      - name: Sync dependencies from updated submodule
+        working-directory: saas
+        run: |
+          UV_NO_SYNC=true just sync-deps
+          yarn install --ignore-scripts --no-bin-links
+
       - name: Commit and push changes to GitLab
         working-directory: saas
         run: |
@@ -1494,6 +1521,8 @@ jobs:
 
           git config user.name "${GIT_USER_NAME}"
           git config user.email "${GIT_USER_EMAIL}"
+
+          git add baserow pyproject.toml uv.lock package.json yarn.lock
 
           if git diff-index --quiet HEAD --; then
             echo "No changes detected — skipping commit."

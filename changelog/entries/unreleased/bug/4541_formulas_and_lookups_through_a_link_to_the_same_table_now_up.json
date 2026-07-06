@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Formulas and lookups through a link to the same table now update when the linked row changes",
+    "issue_origin": "github",
+    "issue_number": 4541,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-02"
+}

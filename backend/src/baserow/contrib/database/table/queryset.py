@@ -24,6 +24,12 @@ class CTEUpdateReturningIdsQueryCompiler(SQLUpdateCompiler):
     def execute_sql(self, result_type):
         cursor = super().execute_sql(CURSOR)
 
+        # A provably empty WHERE clause (e.g. an empty `id__in` list) makes
+        # Django skip executing any query and return a row count of 0 instead
+        # of a cursor, meaning no rows were updated.
+        if isinstance(cursor, int) and result_type == ROW_COUNT:
+            return []
+
         if cursor is not None and result_type == ROW_COUNT:
             results = [res[0] for res in cursor.fetchall()]
             cursor.close()

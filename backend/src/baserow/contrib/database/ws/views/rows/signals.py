@@ -10,10 +10,8 @@ from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.row_checker import FilteredViewRows, ViewHandler
-from baserow.contrib.database.ws.rows.signals import (
-    RealtimeRowMessages,
-    serialize_rows_values,
-)
+from baserow.contrib.database.ws.rows.messages import RealtimeRowMessages
+from baserow.contrib.database.ws.rows.signals import serialize_rows_values
 from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
 from baserow.core.telemetry.utils import baserow_trace
 
