@@ -277,7 +277,7 @@ services:
   # requests to either the backend or web-frontend and also serving user uploaded files
   # from the media volume.
   caddy:
-    image: caddy:2.11.1
+    image: caddy:2.11.4
     restart: unless-stopped
     environment:
       # Controls what port the Caddy server binds to inside its container.
