@@ -264,7 +264,7 @@ const nodeIconClass = computed(() => {
  * that ran, whose node ids differ from the editor's.
  */
 const destinationLabel = computed(() => {
-  if (props.nodeHistory.node_type !== 'goto_node') return null
+  if (props.nodeHistory.node_type !== 'goto') return null
 
   if (props.nodeHistory.destination_label) {
     return props.nodeHistory.destination_label
@@ -286,7 +286,7 @@ const nodeTypeLabel = computed(() => {
       app.$i18n.t('nodeType.defaultEdgeLabelFallback')
     return `${baseLabel} (${edgeLabel})`
   }
-  if (props.nodeHistory.node_type === 'goto_node' && destinationLabel.value) {
+  if (props.nodeHistory.node_type === 'goto' && destinationLabel.value) {
     // Show which node the workflow jumps to.
     return `${baseLabel} → ${destinationLabel.value}`
   }

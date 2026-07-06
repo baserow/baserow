@@ -4,7 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 
 describe('CoreGotoNodeType', () => {
   test('getType is goto_node', () => {
-    expect(CoreGotoNodeType.getType()).toBe('goto_node')
+    expect(CoreGotoNodeType.getType()).toBe('goto')
   })
 
   test('name comes from the i18n label', () => {
@@ -73,7 +73,7 @@ describe('CoreGotoNodeType', () => {
 
   describe('getConnections', () => {
     const workflow = { id: 10 }
-    const goto = { id: 3, type: 'goto_node' }
+    const goto = { id: 3, type: 'goto' }
 
     // An app stub for a linear workflow trigger(1) -> before(2) -> goto(3) ->
     // after(4), where `before` is a valid backward jump and `after` a valid
@@ -158,8 +158,8 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('the goto node type is registered', () => {
-      const nodeType = testApp.store.$registry.get('node', 'goto_node')
-      expect(nodeType.constructor.getType()).toBe('goto_node')
+      const nodeType = testApp.store.$registry.get('node', 'goto')
+      expect(nodeType.constructor.getType()).toBe('goto')
     })
 
     test('the goto service type is registered', () => {

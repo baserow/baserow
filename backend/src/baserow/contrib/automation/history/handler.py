@@ -303,7 +303,7 @@ class AutomationHistoryHandler:
         """
 
         goto_histories = [
-            nh for nh in node_histories if nh.node.get_type().type == "goto_node"
+            nh for nh in node_histories if nh.node.get_type().type == "goto"
         ]
         if not goto_histories:
             return {}

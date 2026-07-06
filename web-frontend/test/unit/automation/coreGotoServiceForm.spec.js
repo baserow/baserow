@@ -6,7 +6,7 @@ describe('CoreGotoServiceForm destinationNodes', () => {
   // service (what `destination_service_id` points at) has landed.
   const trigger = { id: 1, type: 'trigger', service: { id: 11 } }
   const before = { id: 2, type: 'create_row', service: { id: 12 } }
-  const current = { id: 3, type: 'goto_node', service: { id: 13 } }
+  const current = { id: 3, type: 'goto', service: { id: 13 } }
   const after = { id: 4, type: 'create_row', service: { id: 14 } }
   const allNodes = [trigger, before, current, after]
 
@@ -92,7 +92,7 @@ describe('CoreGotoServiceForm getNodeName', () => {
       automation,
       $registry: { get: () => ({ getDefaultLabel }) },
     }
-    const node = { type: 'goto_node' }
+    const node = { type: 'goto' }
     expect(getNodeName.call(ctx, node)).toBe('Go to node')
     expect(getDefaultLabel).toHaveBeenCalledWith({ automation, node })
   })

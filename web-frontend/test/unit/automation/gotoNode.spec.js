@@ -7,7 +7,7 @@ describe('isValidGotoDestination', () => {
   // A linear workflow: trigger -> before -> goto -> after, all at root level.
   const trigger = { id: 1, type: 'trigger' }
   const before = { id: 2, type: 'create_row' }
-  const goto = { id: 3, type: 'goto_node' }
+  const goto = { id: 3, type: 'goto' }
   const after = { id: 4, type: 'create_row' }
 
   const isTrigger = (node) => node.type === 'trigger'

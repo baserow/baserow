@@ -9,7 +9,7 @@ describe('clearInvalidatedGotoLinks', () => {
 
   const makeGoto = () => ({
     id: 3,
-    type: 'goto_node',
+    type: 'goto',
     service: { condition: {}, destination_service_id: destination.service.id },
   })
 

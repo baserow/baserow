@@ -36,7 +36,7 @@ describe('Automation node types', () => {
       'router',
       'csv_file_reader',
       'xls_file_reader',
-      'goto_node',
+      'goto',
       'slack_write_message',
     ])
   })

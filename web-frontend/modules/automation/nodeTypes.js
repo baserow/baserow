@@ -1104,7 +1104,7 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
   UtilityNodeMixin(NodeType)
 ) {
   static getType() {
-    return 'goto_node'
+    return 'goto'
   }
 
   getOrder() {

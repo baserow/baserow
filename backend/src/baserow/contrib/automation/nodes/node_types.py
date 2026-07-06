@@ -364,7 +364,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 
 
 class CoreGotoActionNodeType(AutomationNodeActionNodeType):
-    type = "goto_node"
+    type = "goto"
     model_class = CoreGotoActionNode
     service_type = CoreGotoServiceType.type
 

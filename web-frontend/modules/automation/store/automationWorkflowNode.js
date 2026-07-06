@@ -7,7 +7,7 @@ import { clone } from '@baserow/modules/core/utils/object'
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 import { isValidGotoDestination } from '@baserow/modules/automation/utils/gotoNode'
 
-const GOTO_NODE_TYPE = 'goto_node'
+const GOTO_NODE_TYPE = 'goto'
 
 const state = () => ({
   selectedNodeId: null,
