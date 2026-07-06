@@ -228,8 +228,14 @@ export default {
         values.aggregation_raw_type = selectedAggregation.getRawType()
       }
 
+      // Only the raw type is server-computed; a display-only change re-renders from
+      // the existing value, so skip the spinner and refetch (like the context menu).
+      const rawTypeChanged =
+        values.aggregation_raw_type !==
+        (this.fieldOptions[this.field.id]?.aggregation_raw_type || '')
+
       const syncGroups = this.groupAggregationsEnabled
-      if (syncGroups && values.aggregation_type) {
+      if (syncGroups && rawTypeChanged) {
         // Spin before the optimistic change so the new label never shows the old value.
         this.$store.dispatch(
           this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
@@ -250,7 +256,7 @@ export default {
           }
         )
       } catch (error) {
-        if (syncGroups) {
+        if (syncGroups && rawTypeChanged) {
           this.$store.dispatch(
             this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
             { loading: false }
@@ -261,7 +267,7 @@ export default {
         this.pendingValueUpdate = false
       }
 
-      if (syncGroups) {
+      if (syncGroups && rawTypeChanged) {
         this.$store.dispatch(
           this.storePrefix + 'view/grid/refreshGroupByAggregations',
           {

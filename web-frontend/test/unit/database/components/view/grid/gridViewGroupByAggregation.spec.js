@@ -7,10 +7,12 @@ import flushPromises from 'flush-promises'
 describe('GridViewGroupByAggregation', () => {
   let testApp = null
   let store = null
+  let mockServer = null
 
   beforeEach(() => {
     testApp = new TestApp()
     store = testApp.store
+    mockServer = testApp.mockServer
   })
 
   afterEach(async () => {
@@ -179,10 +181,23 @@ describe('GridViewGroupByAggregation', () => {
 
   test('switching to a display type that shares the raw type re-renders without a refetch or spinner', async () => {
     // not_empty_count and empty_count share the raw type, so switching between them
-    // only re-renders the existing value — no refetch, no spinner (like the footer).
+    // only re-renders the existing value — the choice is persisted but no group-by-data
+    // request goes out and the cell never spins (like the footer). The cell emits
+    // `change` to trigger the refetch, so "no change emitted" is the no-request proof.
+    store.commit('page/view/grid/SET_LAST_GRID_ID', 1)
     await configureNotEmptyCount()
+    mockServer.updateFieldOptions(1, {
+      2: {
+        aggregation_type: 'empty_count',
+        aggregation_raw_type: 'empty_count',
+      },
+    })
     const wrapper = await mountCell()
-    const dispatch = vi.spyOn(store, 'dispatch').mockResolvedValue(undefined)
+    // Run the real dispatch chain so the HTTP layer sees exactly what goes out.
+    const realDispatch = store.dispatch.bind(store)
+    const dispatch = vi
+      .spyOn(store, 'dispatch')
+      .mockImplementation((action, payload) => realDispatch(action, payload))
 
     await wrapper.find('.grid-view-aggregation').trigger('click')
     const context = wrapper.findComponent(Context)
@@ -193,7 +208,7 @@ describe('GridViewGroupByAggregation', () => {
     await emptyCountItem.find('.select__item-link').trigger('click')
     await flushPromises()
 
-    // The new display type is still persisted.
+    // The new display type is still persisted (one PATCH to field-options)...
     expect(dispatch).toHaveBeenCalledWith(
       'page/view/grid/updateFieldOptionsOfField',
       expect.objectContaining({
@@ -203,12 +218,14 @@ describe('GridViewGroupByAggregation', () => {
         }),
       })
     )
-    // But it neither refetches the group tree nor spins the cell.
+    expect(mockServer.mock.history.patch).toHaveLength(1)
+    // ...but it neither triggers the refetch, spins the cell, nor issues a GET.
     expect(wrapper.emitted('change')).toBeFalsy()
     expect(dispatch).not.toHaveBeenCalledWith(
       'page/view/grid/setGroupByAggregationsLoading',
       expect.objectContaining({ fieldId: field.id })
     )
+    expect(mockServer.mock.history.get).toHaveLength(0)
   })
 
   test('renders nothing instead of crashing on a table-only aggregation', async () => {

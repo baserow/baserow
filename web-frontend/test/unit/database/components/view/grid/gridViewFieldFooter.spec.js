@@ -34,6 +34,16 @@ describe('Field footer component', () => {
       .trigger('click')
   }
 
+  const selectAggregationByName = async (wrapper, name) => {
+    await wrapper.find(`.grid-view-aggregation`).trigger('click')
+    const context = wrapper.findComponent(Context)
+
+    const link = context
+      .findAll('.select__item-link')
+      .find((l) => l.find('.select__item-name-text').text() === name)
+    await link.trigger('click')
+  }
+
   test('Default component', async () => {
     await store.dispatch('page/view/grid/forceUpdateAllFieldOptions', {
       2: {
@@ -220,5 +230,53 @@ describe('Field footer component', () => {
       'page/view/grid/refreshGroupByAggregations',
       expect.objectContaining({ fieldId: 3 })
     )
+  })
+
+  test('a display-only aggregation change in grouped mode persists without refetching the group tree', async () => {
+    // "Empty" and "Filled" are display variants of the same raw type
+    // (`empty_count`), so switching between them persists the new label but must NOT
+    // spin or issue a group-by-data request — the value re-renders client-side.
+    await store.dispatch('page/view/grid/forceUpdateAllFieldOptions', {
+      3: {
+        aggregation_type: 'empty_count',
+        aggregation_raw_type: 'empty_count',
+      },
+    })
+    mockServer.updateFieldOptions(2, {
+      3: {
+        aggregation_type: 'not_empty_count',
+        aggregation_raw_type: 'empty_count',
+      },
+    })
+    const wrapper = await mountGroupedFooter()
+    // Run the real dispatch chain so the HTTP layer sees exactly what goes out.
+    const realDispatch = store.dispatch.bind(store)
+    const dispatch = vi
+      .spyOn(store, 'dispatch')
+      .mockImplementation((action, payload) => realDispatch(action, payload))
+
+    await selectAggregationByName(wrapper, 'viewAggregationType.notEmptyCount')
+    await flushPromises()
+
+    // The new display type is still persisted (one PATCH to field-options)...
+    expect(dispatch).toHaveBeenCalledWith(
+      'page/view/grid/updateFieldOptionsOfField',
+      expect.objectContaining({
+        values: expect.objectContaining({
+          aggregation_type: 'not_empty_count',
+        }),
+      })
+    )
+    expect(mockServer.mock.history.patch).toHaveLength(1)
+    // ...but nothing spins and no group-by-data request goes out.
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'page/view/grid/setGroupByAggregationsLoading',
+      expect.anything()
+    )
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'page/view/grid/refreshGroupByAggregations',
+      expect.anything()
+    )
+    expect(mockServer.mock.history.get).toHaveLength(0)
   })
 })
