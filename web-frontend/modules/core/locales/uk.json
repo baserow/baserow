@@ -355,7 +355,10 @@
         "errorLinkExpiredMessage": "Термін дії посилання для скидання пароля минув. Будь ласка, запросіть нове.",
         "disabled": "Скидання пароля вимкнено",
         "disabledMessage": "Скинути пароль неможливо, оскільки цю функцію вимкнено.",
-        "message": "Тепер ви можете увійти в Baserow, використовуючи новий пароль."
+        "message": "Тепер ви можете увійти в Baserow, використовуючи новий пароль.",
+        "repeatPasswordPlaceholder": "Повторіть новий пароль",
+        "errorLinkAlreadyUsedTitle": "Посилання вже використано",
+        "errorLinkAlreadyUsedMessage": "Це посилання для скидання пароля вже було використано. Будь ласка, запросіть нове."
     },
     "signup": {
         "headTitle": "Створити обліковий запис",
@@ -1078,7 +1081,8 @@
         "workspaces": "Робочі простори",
         "lastLogin": "Останній вхід",
         "dateJoined": "Зареєстрований",
-        "active": "Активний"
+        "active": "Активний",
+        "twoFactorAuth": "2FA"
     },
     "editUserContext": {
         "changePassword": "Змінити пароль",
@@ -1105,7 +1109,9 @@
         "error": {
             "invalidName": "Будь ласка, введіть коректне повне ім’я: воно має містити більше ніж 2 символи і менше ніж 150.",
             "invalidEmail": "Будь ласка, введіть дійсну адресу електронної пошти."
-        }
+        },
+        "twoFactorAuth": "Двофакторна автентифікація",
+        "removeTwoFactorAuth": "Видалити двофакторну автентифікацію"
     },
     "changeUserPasswordModal": {
         "changePassword": "Змінити пароль для {username}"
@@ -1248,6 +1254,28 @@
     "formulaParserErrors": {
         "invalidArgCountMin": "Функція «{funcType}» очікує щонайменше {minArgs} аргументів.",
         "invalidArgCountExact": "Функція «{funcType}» очікує рівно {minArgs} аргументів.",
-        "invalidArgCountRange": "Функція «{funcType}» очікує від {minArgs} до {maxArgs} аргументів."
+        "invalidArgCountRange": "Функція «{funcType}» очікує від {minArgs} до {maxArgs} аргументів.",
+        "invalidArgumentType": "'{value}' не є коректним аргументом для функції '{funcType}'."
+    },
+    "sampleDataViewer": {
+        "payloadLabel": "Вихідні дані",
+        "errorLabel": "Сталася помилка...",
+        "showPayloadLabel": "Показати дані",
+        "showErrorLabel": "Показати помилку",
+        "downloadFullPayload": "Завантажити повні дані",
+        "truncatedLabel": "[Вихідні дані скорочено]",
+        "truncatedPayloadWarning": "Показано лише перші {size} символів. Завантажте повні дані, щоб переглянути їх на своєму комп’ютері."
+    },
+    "workspaceOutdatedToast": {
+        "title": "Забагато змін",
+        "content": "Поки вас не було, відбулося забагато змін. Оновіть сторінку, щоб переглянути найновіші дані.",
+        "action": "Оновити дані",
+        "dismiss": "Пропустити"
+    },
+    "disableTwoFactorAuthModal": {
+        "title": "Скинути двофакторну автентифікацію",
+        "confirmation": "Ви впевнені, що хочете видалити двофакторну автентифікацію для користувача {name}?",
+        "comment": "Після цього користувач зможе входити лише за допомогою пароля, а потім знову налаштувати двофакторну автентифікацію.",
+        "remove": "Скинути двофакторну автентифікацію"
     }
 }
