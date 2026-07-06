@@ -1,8 +1,32 @@
+import re
+
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
 from rest_framework import serializers
+
+# Matches URL-like content: an explicit protocol, a `www.` prefix, or a
+# domain-like token (a non-space character followed by a dot and two or more
+# letters, e.g. `evil.com`). A dot followed by a space or a single letter, as
+# in `Dr. Smith` or `J.R.R. Tolkien`, does not match.
+URL_LIKE_NAME_REGEX = re.compile(r"https?://|www\.|\S\.[a-zA-Z]{2,}", re.IGNORECASE)
+CONTROL_CHARS_REGEX = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def name_validation(value):
+    """
+    Rejects names containing URL-like content or control characters to prevent
+    abuse of transactional emails for phishing.
+    """
+
+    if CONTROL_CHARS_REGEX.search(value) or URL_LIKE_NAME_REGEX.search(value):
+        raise serializers.ValidationError(
+            "Names can't contain URLs, domains or control characters.",
+            code="invalid_name",
+        )
+
+    return value
 
 
 def password_validation(value):

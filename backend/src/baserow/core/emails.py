@@ -111,12 +111,10 @@ class WorkspaceInvitationEmail(BaseEmailMessage):
         super().__init__(*args, **kwargs)
 
     def get_subject(self):
-        return _(
-            "%(by)s invited you to %(workspace_name)s - Baserow",
-        ) % {
-            "by": self.invitation.invited_by.first_name,
-            "workspace_name": self.invitation.workspace.name,
-        }
+        # The subject must never contain user-controlled content like the inviter
+        # name or the workspace name because that can be abused to send phishing
+        # emails to anyone via workspace invitations.
+        return _("You've been invited to collaborate on Baserow")
 
     def get_context(self):
         context = super().get_context()

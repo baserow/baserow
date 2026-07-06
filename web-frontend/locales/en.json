@@ -115,6 +115,7 @@
     "minLength": "A minimum of {min} characters is required here.",
     "maxLength": "A maximum of {max} characters is allowed here.",
     "minMaxLength": "A minimum of {min} and a maximum of {max} characters is allowed here.",
+    "nameContainsUrl": "Names can't contain links, domains or web addresses.",
     "invalidCharacters": "This field contains invalid characters.",
     "requiredField": "This field is required.",
     "integerField": "The field must be an integer.",

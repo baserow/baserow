@@ -83,7 +83,7 @@ def test_create_user(client, data_fixture):
     assert response_failed.status_code == 400
     assert response_failed.json()["error"] == "ERROR_EMAIL_ALREADY_EXISTS"
 
-    too_long_name = "x" * 151
+    too_long_name = "x" * 61
     response_failed = client.post(
         reverse("api:user:index"),
         {
@@ -99,7 +99,7 @@ def test_create_user(client, data_fixture):
         "name": [
             {
                 "code": "max_length",
-                "error": "Ensure this field has no more than 150 characters.",
+                "error": "Ensure this field has no more than 60 characters.",
             }
         ]
     }
@@ -183,7 +183,7 @@ def test_create_user(client, data_fixture):
     )
 
     # Test username with maximum length
-    long_username = "x" * 150
+    long_username = "x" * 60
     response = client.post(
         reverse("api:user:index"),
         {
@@ -199,7 +199,7 @@ def test_create_user(client, data_fixture):
     assert user.first_name == long_username
 
     # Test username with length exceeding the maximum
-    even_longer_username = "x" * 200
+    even_longer_username = "x" * 61
     response = client.post(
         reverse("api:user:index"),
         {
@@ -209,8 +209,94 @@ def test_create_user(client, data_fixture):
         },
         format="json",
     )
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_create_user_with_url_in_name_is_rejected(client, data_fixture):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+
+    invalid_names = [
+        "POSHMARK! Your account has been blocked: poshmark-helps.com",
+        "Your account has been blocked: x.gd/2Bqbt",
+        "www.evil.com",
+        "http://x",
+        "https://evil.com",
+        "bad\nname",
+    ]
+    for invalid_name in invalid_names:
+        response = client.post(
+            reverse("api:user:index"),
+            {
+                "name": invalid_name,
+                "email": "spammer@test.nl",
+                "password": valid_password,
+            },
+            format="json",
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_400_BAD_REQUEST, invalid_name
+        assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+        assert response_json["detail"]["name"][0]["code"] == "invalid_name"
+
+    valid_names = [
+        "Dr. Smith",
+        "St. John",
+        "J.R.R. Tolkien",
+        "Mary-Jane O'Neil",
+    ]
+    for index, valid_name in enumerate(valid_names):
+        response = client.post(
+            reverse("api:user:index"),
+            {
+                "name": valid_name,
+                "email": f"user{index}@test.nl",
+                "password": valid_password,
+            },
+            format="json",
+        )
+        assert response.status_code == HTTP_200_OK, valid_name
+        user = User.objects.get(email=f"user{index}@test.nl")
+        assert user.first_name == valid_name
+
+
+@pytest.mark.django_db
+def test_user_account_name_validation(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token(
+        email="test@localhost.nl", first_name="Nikolas"
+    )
+
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {"first_name": "Account blocked, verify at poshmark-helps.com"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
     response_json = response.json()
-    assert response_failed.status_code == 400
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["first_name"][0]["code"] == "invalid_name"
+
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {"first_name": "x" * 61},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["detail"]["first_name"][0]["code"] == "max_length"
+
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {"first_name": "x" * 60},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    user.refresh_from_db()
+    assert user.first_name == "x" * 60
 
 
 @pytest.mark.django_db

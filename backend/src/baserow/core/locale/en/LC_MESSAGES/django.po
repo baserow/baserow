@@ -230,16 +230,15 @@ msgstr ""
 msgid "Please confirm email"
 msgstr ""
 
-#: src/baserow/core/emails.py:115
-#, python-format
-msgid "%(by)s invited you to %(workspace_name)s - Baserow"
+#: src/baserow/core/emails.py:117
+msgid "You've been invited to collaborate on Baserow"
 msgstr ""
 
-#: src/baserow/core/emails.py:148
+#: src/baserow/core/emails.py:146
 msgid "You have 1 new notification - Baserow"
 msgstr ""
 
-#: src/baserow/core/emails.py:150
+#: src/baserow/core/emails.py:148
 #, python-format
 msgid "You have %(count)d new notifications - Baserow"
 msgstr ""
@@ -359,7 +358,7 @@ msgstr[1] ""
 #: src/baserow/core/templates/baserow/core/user/change_email_confirmation.html:207
 #: src/baserow/core/templates/baserow/core/user/password_changed.html:189
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:207
-#: src/baserow/core/templates/baserow/core/workspace_invitation.html:202
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:207
 msgid ""
 "Baserow is an open source no-code database tool which allows you to "
 "collaborate on projects, customers and more. It gives you the powers of a "
@@ -490,11 +489,15 @@ msgstr ""
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:178
 #, python-format
 msgid ""
-"<strong>%(first_name)s</strong> has invited you to collaborate on "
-"<strong>%(workspace_name)s</strong>."
+"<strong>%(first_name)s</strong> (%(invited_by_email)s) has invited you to "
+"collaborate on <strong>%(workspace_name)s</strong>."
 msgstr ""
 
-#: src/baserow/core/templates/baserow/core/workspace_invitation.html:187
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:183
+msgid "If you don't recognize this sender, you can safely ignore this email."
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:192
 msgid "Accept invitation"
 msgstr ""
 

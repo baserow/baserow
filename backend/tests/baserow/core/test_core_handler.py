@@ -551,14 +551,19 @@ def test_send_workspace_invitation_email(data_fixture, mailoutbox):
     assert len(mailoutbox) == 1
     email = mailoutbox[0]
 
-    assert (
-        email.subject == f"{workspace_invitation.invited_by.first_name} invited you "
-        f"to {workspace_invitation.workspace.name} - Baserow"
-    )
+    assert email.subject == "You've been invited to collaborate on Baserow"
     assert email.from_email == "no-reply@localhost"
     assert workspace_invitation.email in email.to
 
     html_body = email.alternatives[0][0]
+    assert workspace_invitation.invited_by.first_name in html_body
+    assert f"({workspace_invitation.invited_by.email})" in html_body
+    assert (
+        "If you don't recognize this sender, you can safely ignore this email."
+        in html_body
+    )
+    assert workspace_invitation.invited_by.first_name in email.body
+    assert f"({workspace_invitation.invited_by.email})" in email.body
     search_url = "http://localhost:3000/workspace-invite/"
     start_url_index = html_body.index(search_url)
 
@@ -585,11 +590,28 @@ def test_send_workspace_invitation_email_in_different_language(
     )
 
     assert len(mailoutbox) == 1
-    assert (
-        mailoutbox[0].subject
-        == f"{workspace_invitation.invited_by.first_name} vous a invité à "
-        f"{workspace_invitation.workspace.name} - Baserow"
+    assert mailoutbox[0].subject == "You've been invited to collaborate on Baserow"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_workspace_invitation_email_truncates_long_names(data_fixture, mailoutbox):
+    user = data_fixture.create_user(first_name="x" * 150)
+    workspace = data_fixture.create_workspace(user=user, name="y" * 150)
+    workspace_invitation = data_fixture.create_workspace_invitation(
+        invited_by=user, workspace=workspace
     )
+
+    CoreHandler().send_workspace_invitation_email(
+        invitation=workspace_invitation,
+        base_url="http://localhost:3000/workspace-invite",
+    )
+
+    assert len(mailoutbox) == 1
+    html_body = mailoutbox[0].alternatives[0][0]
+    assert "x" * 59 + "…" in html_body
+    assert "x" * 150 not in html_body
+    assert "y" * 59 + "…" in html_body
+    assert "y" * 150 not in html_body
 
 
 @pytest.mark.django_db

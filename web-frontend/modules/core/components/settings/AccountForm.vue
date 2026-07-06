@@ -45,6 +45,7 @@ import { required, maxLength, minLength, helpers } from '@vuelidate/validators'
 import { useI18n } from 'vue-i18n'
 
 import form from '@baserow/modules/core/mixins/form'
+import { nameContainsNoUrl } from '@baserow/modules/core/validators'
 
 export default {
   name: 'AccountForm',
@@ -77,17 +78,21 @@ export default {
           ),
           minLength: helpers.withMessage(
             this.$t('error.minMaxLength', {
-              max: 150,
+              max: 60,
               min: 2,
             }),
             minLength(2)
           ),
           maxLength: helpers.withMessage(
             this.$t('error.minMaxLength', {
-              max: 150,
+              max: 60,
               min: 2,
             }),
-            maxLength(150)
+            maxLength(60)
+          ),
+          nameContainsNoUrl: helpers.withMessage(
+            this.$t('error.nameContainsUrl'),
+            nameContainsNoUrl
           ),
         },
       },

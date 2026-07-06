@@ -20,7 +20,11 @@ from baserow.api.sessions import set_user_session_data_from_request
 from baserow.api.two_factor_auth.tokens import TwoFactorAccessToken
 from baserow.api.user.jwt import get_user_from_token
 from baserow.api.user.registries import user_data_registry
-from baserow.api.user.validators import language_validation, password_validation
+from baserow.api.user.validators import (
+    language_validation,
+    name_validation,
+    password_validation,
+)
 from baserow.api.workspaces.invitations.serializers import (
     UserWorkspaceInvitationSerializer,
 )
@@ -136,7 +140,9 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.Serializer):
-    name = serializers.CharField(min_length=2, max_length=150)
+    name = serializers.CharField(
+        min_length=2, max_length=60, validators=[name_validation]
+    )
     email = serializers.EmailField(
         help_text="The email address is also going to be the username."
     )
@@ -182,7 +188,9 @@ class AccountSerializer(serializers.Serializer):
     This serializer must be kept in sync with `UserSerializer`.
     """
 
-    first_name = serializers.CharField(min_length=2, max_length=150, required=False)
+    first_name = serializers.CharField(
+        min_length=2, max_length=60, required=False, validators=[name_validation]
+    )
     language = serializers.CharField(
         source="profile.language",
         required=False,

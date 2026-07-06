@@ -67,7 +67,17 @@
 
         <template #error>
           <i class="iconoir-warning-triangle"></i>
-          {{ $t('error.minMaxLength', { min: 2, max: 150 }) }}
+          <span
+            v-if="
+              v$.account.name.nameContainsNoUrl &&
+              v$.account.name.nameContainsNoUrl.$invalid
+            "
+          >
+            {{ $t('error.nameContainsUrl') }}
+          </span>
+          <span v-else>
+            {{ $t('error.minMaxLength', { min: 2, max: 60 }) }}
+          </span>
         </template>
       </FormGroup>
 
@@ -124,7 +134,10 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 import error from '@baserow/modules/core/mixins/error'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
-import { passwordValidation } from '@baserow/modules/core/validators'
+import {
+  nameContainsNoUrl,
+  passwordValidation,
+} from '@baserow/modules/core/validators'
 
 export default {
   name: 'PasswordRegister',
@@ -158,7 +171,8 @@ export default {
         name: {
           required,
           minLength: minLength(2),
-          maxLength: maxLength(150),
+          maxLength: maxLength(60),
+          nameContainsNoUrl,
         },
         password: passwordValidation,
       },
