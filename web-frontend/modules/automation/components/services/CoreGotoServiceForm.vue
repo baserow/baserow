@@ -74,31 +74,38 @@ export default {
       return this.applicationContext.workflow
     },
     /**
-     * The eligible destination nodes are the valid backward-jump targets for
-     * the current "Go to node": non-trigger, same-level nodes of the workflow
-     * that run before it (see `isValidGotoDestination`, which mirrors the
-     * backend `validate_goto_destination`).
+     * The eligible destination nodes are the valid jump targets for the current
+     * "Go to node": non-trigger, same-level nodes on its path, whether they run
+     * before it (a backward jump) or after it (a forward jump that skips the
+     * nodes in between). See `isValidGotoDestination`, which mirrors the backend
+     * `validate_goto_destination`.
      */
     destinationNodes() {
       const nodes = this.$store.getters['automationWorkflowNode/getNodes'](
         this.workflow
       )
-      return nodes.filter((node) =>
-        isValidGotoDestination({
-          gotoNode: this.currentNode,
-          destinationNode: node,
-          ancestorsOf: (n) =>
-            this.$store.getters['automationWorkflowNode/getAncestors'](
-              this.workflow,
-              n
-            ),
-          previousNodesOf: (n) =>
-            this.$store.getters['automationWorkflowNode/getPreviousNodes'](
-              this.workflow,
-              n
-            ),
-          isTrigger: (n) => this.$registry.get('node', n.type).isTrigger,
-        })
+      return nodes.filter(
+        (node) =>
+          // A node is only a selectable destination once it has a service (its
+          // id is what `destination_service_id` points at). Optimistically
+          // created nodes have no service yet, so they're skipped until the real
+          // node lands.
+          Boolean(node.service?.id) &&
+          isValidGotoDestination({
+            gotoNode: this.currentNode,
+            destinationNode: node,
+            ancestorsOf: (n) =>
+              this.$store.getters['automationWorkflowNode/getAncestors'](
+                this.workflow,
+                n
+              ),
+            previousNodesOf: (n) =>
+              this.$store.getters['automationWorkflowNode/getPreviousNodes'](
+                this.workflow,
+                n
+              ),
+            isTrigger: (n) => this.$registry.get('node', n.type).isTrigger,
+          })
       )
     },
   },
@@ -106,8 +113,8 @@ export default {
     /**
      * The `form` mixin seeds `values` from `defaultValues` only once, so an
      * external change to the destination (e.g. a move clears the link because
-     * it became a forward jump) wouldn't otherwise reach the dropdown. Adopt
-     * such changes here.
+     * it took the destination off the goto node's path) wouldn't otherwise
+     * reach the dropdown. Adopt such changes here.
      */
     service(service) {
       const destinationServiceId = service?.destination_service_id ?? null

@@ -107,7 +107,7 @@ def test_goto_node_prepare_values_allows_same_level_destination(data_fixture):
 
 
 @pytest.mark.django_db
-def test_goto_node_prepare_values_rejects_forward_jump(data_fixture):
+def test_goto_node_prepare_values_allows_forward_jump(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
     trigger = workflow.get_trigger()
@@ -115,27 +115,26 @@ def test_goto_node_prepare_values_rejects_forward_jump(data_fixture):
     goto_node = data_fixture.create_core_goto_node(
         workflow=workflow, reference_node=trigger, position="south", output=""
     )
-    # A node placed after the Go to node would be a forward jump: it has not run
-    # yet when the Go to node is reached, so jumping to it would skip nothing but
-    # would leave the nodes between unexecuted.
+    # A node placed after the Go to node is a forward jump: reaching it skips the
+    # nodes in between. This is allowed - the skipped nodes simply don't run.
     forward_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=goto_node, label="forward", position="south"
     )
 
-    with pytest.raises(AutomationNodeMisconfiguredService):
-        goto_node.get_type().prepare_values(
-            {"service": {"destination_service_id": forward_node.service_id}},
-            user,
-            instance=goto_node,
-        )
+    values = goto_node.get_type().prepare_values(
+        {"service": {"destination_service_id": forward_node.service_id}},
+        user,
+        instance=goto_node,
+    )
+    assert values["service"].destination_service_id == forward_node.service_id
 
 
 @pytest.mark.django_db
 def test_goto_node_prepare_values_rejects_cross_branch_destination(data_fixture):
     # A node in one router branch cannot jump to a node in a sibling branch:
-    # that node never runs before the Go to node, so it's a forward jump. The
-    # two branches share the same level, so the same-level rule alone wouldn't
-    # catch this - the backward-jump rule does.
+    # that node is on neither the backward nor the forward path of the Go to
+    # node. The two branches share the same level, so the same-level rule alone
+    # wouldn't catch this - the same-path rule does.
     user = data_fixture.create_user()
     router_data = data_fixture.create_core_router_action_node_with_edges(user=user)
     workflow = router_data.router.workflow

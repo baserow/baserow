@@ -57,7 +57,7 @@
       >
         <i
           :class="
-            item.direction === 'out' ? 'iconoir-arrow-up' : 'iconoir-arrow-down'
+            item.arrow === 'up' ? 'iconoir-arrow-up' : 'iconoir-arrow-down'
           "
         ></i>
         {{ item.marker }}

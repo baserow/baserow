@@ -73,18 +73,18 @@ def test_move_goto_into_container_clears_goto_link(data_fixture):
 
 
 @pytest.mark.django_db
-def test_move_goto_before_destination_clears_goto_link(data_fixture):
+def test_move_goto_before_destination_keeps_goto_link(data_fixture):
     data = _root_goto_workflow(data_fixture)
 
     # Moving the goto node before its destination turns the backward jump into a
-    # forward jump (trigger -> goto -> destination -> iterator), which is no longer
-    # allowed, so the now-invalid link is cleared.
+    # forward jump (trigger -> goto -> destination -> iterator). Forward jumps are
+    # valid - the destination is still on the goto's path - so the link survives.
     AutomationNodeService().move_node(
         data["user"], data["goto"].id, data["trigger"].id, "south", ""
     )
 
     data["service"].refresh_from_db()
-    assert data["service"].destination_service_id is None
+    assert data["service"].destination_service_id == data["destination"].service_id
 
 
 @pytest.mark.django_db

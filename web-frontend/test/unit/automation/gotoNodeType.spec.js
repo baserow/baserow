@@ -75,16 +75,27 @@ describe('CoreGotoNodeType', () => {
     const workflow = { id: 10 }
     const goto = { id: 3, type: 'goto_node' }
 
-    // An app stub for a linear workflow trigger(1) -> before(2) -> goto(3),
-    // where `before` runs before the goto node and is a valid backward jump.
-    const before = { id: 2, type: 'create_row' }
+    // An app stub for a linear workflow trigger(1) -> before(2) -> goto(3) ->
+    // after(4), where `before` is a valid backward jump and `after` a valid
+    // forward jump. `sibling` sits at the same level but off the goto's path.
     const trigger = { id: 1, type: 'trigger' }
+    const before = { id: 2, type: 'create_row' }
+    const after = { id: 4, type: 'create_row' }
+    const sibling = { id: 5, type: 'create_row' }
+    const previousByNodeId = {
+      [trigger.id]: [],
+      [before.id]: [trigger],
+      [goto.id]: [trigger, before],
+      [after.id]: [trigger, before, goto],
+      [sibling.id]: [],
+    }
     const makeApp = ({ destinationNode = before } = {}) => ({
       $store: {
         getters: {
           'automationWorkflowNode/findByServiceId': () => destinationNode,
           'automationWorkflowNode/getAncestors': () => [],
-          'automationWorkflowNode/getPreviousNodes': () => [trigger, before],
+          'automationWorkflowNode/getPreviousNodes': (workflow, node) =>
+            previousByNodeId[node.id] ?? [],
         },
       },
       $registry: {
@@ -107,20 +118,30 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('returns no connection when the jump is invalid', () => {
-      // The destination runs after the goto node, so it is a forward jump.
-      const after = { id: 4, type: 'create_row' }
+      // `sibling` shares the goto's level but is on neither its backward nor its
+      // forward path, so it is not a valid jump.
       const nodeType = new CoreGotoNodeType({
-        app: makeApp({ destinationNode: after }),
+        app: makeApp({ destinationNode: sibling }),
       })
-      const node = { ...goto, service: { destination_service_id: 4 } }
+      const node = { ...goto, service: { destination_service_id: 5 } }
       expect(nodeType.getConnections({ workflow, node })).toEqual([])
     })
 
-    test('returns the destination connection when the jump is valid', () => {
+    test('returns the destination connection for a backward jump', () => {
       const nodeType = new CoreGotoNodeType({ app: makeApp() })
       const node = { ...goto, service: { destination_service_id: 2 } }
       expect(nodeType.getConnections({ workflow, node })).toEqual([
         { destinationNodeId: 2 },
+      ])
+    })
+
+    test('returns the destination connection for a forward jump', () => {
+      const nodeType = new CoreGotoNodeType({
+        app: makeApp({ destinationNode: after }),
+      })
+      const node = { ...goto, service: { destination_service_id: 4 } }
+      expect(nodeType.getConnections({ workflow, node })).toEqual([
+        { destinationNodeId: 4 },
       ])
     })
   })

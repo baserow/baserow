@@ -58,6 +58,7 @@ import WorkflowNode from '@baserow/modules/automation/components/workflow/Workfl
 import WorkflowAddNodeMenu from '@baserow/modules/automation/components/workflow/WorkflowAddNodeMenu'
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 import { assignGotoMarkers } from '@baserow/modules/automation/utils/gotoMarkers'
+import { isBackwardGotoJump } from '@baserow/modules/automation/utils/gotoNode'
 
 const props = defineProps({
   nodes: {
@@ -132,14 +133,48 @@ const gotoJumps = computed(() => {
 // jump is the selected node, so selecting one end highlights its pair.
 const gotoMarkers = computed(() => {
   const selected = selectedNodeIdNumber.value
+  const handler = workflow.value ? new NodeGraphHandler(workflow.value) : null
+  const previousNodesOf = (node) =>
+    handler
+      ? handler
+          .getPreviousPositions(node)
+          .map(([prevNode]) => prevNode)
+          .filter(Boolean)
+      : []
   const byNode = {}
   const push = (nodeId, entry) => {
     ;(byNode[nodeId] = byNode[nodeId] || []).push(entry)
   }
+  // Backward jumps (destination runs before the Go to node) sit above it in the
+  // editor, forward jumps below. Default to backward if the graph can't be read.
+  const isBackwardJump = (sourceId, destinationId) => {
+    const source = handler?.getNode(sourceId)
+    if (!source) return true
+    return isBackwardGotoJump({
+      gotoNode: source,
+      destinationNode: { id: destinationId },
+      previousNodesOf,
+    })
+  }
   for (const { sourceId, destinationId, marker } of gotoJumps.value) {
     const active = sourceId === selected || destinationId === selected
-    push(sourceId, { marker, direction: 'out', active })
-    push(destinationId, { marker, direction: 'in', active })
+    // Each end's arrow points toward its pair. The two ends always point in
+    // opposite vertical directions: for a backward jump the Go to node points up
+    // to its destination and the destination points down; a forward jump flips
+    // both.
+    const backward = isBackwardJump(sourceId, destinationId)
+    push(sourceId, {
+      marker,
+      direction: 'out',
+      arrow: backward ? 'up' : 'down',
+      active,
+    })
+    push(destinationId, {
+      marker,
+      direction: 'in',
+      arrow: backward ? 'down' : 'up',
+      active,
+    })
   }
   return byNode
 })

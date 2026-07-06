@@ -534,12 +534,12 @@ const actions = {
         output,
       })
 
-      // A move can turn a valid backward "Go to" jump into a forward or
-      // cross-level one, which the backend clears (see
-      // `_clear_invalidated_goto_links`). The acting client is excluded from
-      // its own realtime broadcast, so reconcile the store here — otherwise the
-      // stale destination id lingers and the link silently "reconnects" the
-      // next time a move makes it look valid again.
+      // A move can take a "Go to" destination off the source's path or to a
+      // different level, invalidating the jump, which the backend clears (see
+      // `clear_invalidated_links`). The acting client is excluded from its own
+      // realtime broadcast, so reconcile the store here — otherwise the stale
+      // destination id lingers and the link silently "reconnects" the next time
+      // a move makes it look valid again.
       dispatch('clearInvalidatedGotoLinks', { workflow })
     } catch (error) {
       // We revert the operation
@@ -555,10 +555,10 @@ const actions = {
     }
   },
   /**
-   * Mirrors the backend `_clear_invalidated_goto_links`: nulls the destination
-   * of every "Go to node" whose stored destination is no longer a valid jump
-   * (e.g. it now runs after the goto node, or sits at a different level). Used
-   * after a move, which can change a node's level or ordering.
+   * Mirrors the backend `clear_invalidated_links`: nulls the destination of
+   * every "Go to node" whose stored destination is no longer a valid jump (e.g.
+   * it now sits on a different branch or at a different level). Used after a
+   * move, which can change a node's level or path.
    */
   clearInvalidatedGotoLinks({ dispatch, getters }, { workflow }) {
     const ancestorsOf = (node) => getters.getAncestors(workflow, node)
