@@ -190,6 +190,94 @@ def test_run_periodic_field_type_update_per_workspace(data_fixture, settings):
         assert workspace.now == datetime(2023, 2, 27, 10, 30, tzinfo=timezone.utc)
 
 
+def _run_updates_capturing_logs(workspace_id, level="INFO"):
+    from loguru import logger
+
+    messages = []
+    sink_id = logger.add(messages.append, level=level)
+    try:
+        with freeze_time("2023-02-27 10:30"), local_cache.context():
+            run_periodic_fields_updates(workspace_id=workspace_id)
+    finally:
+        logger.remove(sink_id)
+    return [str(m) for m in messages]
+
+
+def _workspace_with_now_formula(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    with freeze_time("2023-02-27 10:00"):
+        data_fixture.create_formula_field(
+            table=table, formula="now()", date_include_time=True
+        )
+    RowHandler().create_row(user=user, table=table)
+    return workspace
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_logs_load_summary(data_fixture, settings):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    messages = _run_updates_capturing_logs(workspace.id)
+
+    summaries = [m for m in messages if "run_periodic_fields_updates finished" in m]
+    assert len(summaries) == 1
+    summary = summaries[0]
+    assert "across 1 workspaces" in summary
+    # the load-shape percentiles are present so the distribution is visible
+    assert "p99=" in summary
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_warns_about_slow_workspaces(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    # force the threshold to 0 so the (fast) test workspace counts as slow
+    with patch(
+        "baserow.contrib.database.fields.tasks.SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS",
+        0,
+    ):
+        messages = _run_updates_capturing_logs(workspace.id, level="WARNING")
+
+    warnings = [m for m in messages if "spent over" in m]
+    assert len(warnings) == 1
+    # the concrete workspace id is named so it can be investigated
+    assert f"({workspace.id}, " in warnings[0]
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_records_duration_metrics(data_fixture, settings):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks.periodic_field_update_run_duration"
+        ) as run_hist,
+        patch(
+            "baserow.contrib.database.fields.tasks."
+            "periodic_field_update_workspace_duration"
+        ) as workspace_hist,
+    ):
+        _run_updates_capturing_logs(workspace.id)
+
+    run_hist.record.assert_called_once()
+    workspace_hist.record.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_logs_when_no_workspaces_need_updating():
+    messages = _run_updates_capturing_logs(9999)
+
+    assert any("no workspaces needed updating" in m for m in messages)
+
+
 @pytest.mark.django_db
 def test_run_field_type_updates_dependant_fields(data_fixture, settings):
     settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5

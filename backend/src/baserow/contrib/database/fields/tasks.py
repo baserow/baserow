@@ -1,5 +1,7 @@
 import itertools
+import time
 import traceback
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Type
 
@@ -8,7 +10,7 @@ from django.db import transaction
 from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from loguru import logger
-from opentelemetry import trace
+from opentelemetry import metrics, trace
 
 from baserow.config.celery import app
 from baserow.contrib.database.fields.periodic_field_update_handler import (
@@ -23,6 +25,27 @@ from baserow.core.models import Workspace
 from baserow.core.telemetry.utils import add_baserow_trace_attrs, baserow_trace
 
 tracer = trace.get_tracer(__name__)
+meter = metrics.get_meter(__name__)
+
+# Distribution of how long a single workspace takes to update. This is the unit of
+# work we intend to fan out, so its shape tells us whether the time limit is blown by
+# one heavy workspace or by many adding up. workspace_id is deliberately not a metric
+# attribute to keep cardinality bounded; heavy workspaces are named in the logs below.
+periodic_field_update_workspace_duration = meter.create_histogram(
+    name="baserow.periodic_field_update.workspace.duration",
+    description="Seconds spent updating periodic fields for a single workspace",
+    unit="s",
+)
+# Total wall-clock of a whole run, to watch headroom against the hard time limit.
+periodic_field_update_run_duration = meter.create_histogram(
+    name="baserow.periodic_field_update.run.duration",
+    description="Seconds spent in a full run_periodic_fields_updates run",
+    unit="s",
+)
+
+# A workspace slower than this is logged by id so it can be investigated. Kept as a
+# constant rather than a setting because it is a diagnostic aid, not a tuning knob.
+SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS = 60
 
 
 def filter_distinct_workspace_ids_per_fields(
@@ -63,6 +86,11 @@ def run_periodic_fields_updates(
     workspaces.
     """
 
+    started_at = time.monotonic()
+    # Accumulate wall-clock time spent per workspace so we can log the run's load
+    # shape and decide how to fan the work out. See BASEROW-SAAS-BACKEND-3Z.
+    per_workspace_seconds: dict[int, float] = defaultdict(float)
+
     for field_type_instance in field_type_registry.get_all():
         field_qs = field_type_instance.get_fields_needing_periodic_update()
         if field_qs is None:
@@ -83,9 +111,81 @@ def run_periodic_fields_updates(
             | Q(now__isnull=True)
         )
         for workspace in workspaces:
+            workspace_started_at = time.monotonic()
             _run_periodic_field_type_update_per_workspace(
                 field_type_instance, workspace, update_now
             )
+            per_workspace_seconds[workspace.id] += (
+                time.monotonic() - workspace_started_at
+            )
+
+    _record_periodic_fields_updates_load(
+        time.monotonic() - started_at, per_workspace_seconds
+    )
+
+
+def _percentile(sorted_values: list[float], q: float) -> float:
+    """Nearest-rank percentile of an already-sorted list."""
+
+    if not sorted_values:
+        return 0.0
+    index = min(len(sorted_values) - 1, int(q * len(sorted_values)))
+    return sorted_values[index]
+
+
+def _record_periodic_fields_updates_load(
+    total_seconds: float, per_workspace_seconds: dict[int, float]
+):
+    """
+    Emits the run's load shape as metrics (durable, distribution) plus logs (naming
+    the heavy workspaces). Histograms give the per-workspace distribution and total
+    run duration; a warning names any workspace slow enough to be worth investigating.
+    """
+
+    periodic_field_update_run_duration.record(total_seconds)
+    for seconds in per_workspace_seconds.values():
+        periodic_field_update_workspace_duration.record(seconds)
+
+    workspace_count = len(per_workspace_seconds)
+    if workspace_count == 0:
+        logger.info(
+            "run_periodic_fields_updates finished in {total:.1f}s, "
+            "no workspaces needed updating.",
+            total=total_seconds,
+        )
+        return
+
+    durations = sorted(per_workspace_seconds.values())
+    logger.info(
+        "run_periodic_fields_updates finished in {total:.1f}s across {count} "
+        "workspaces (busy={busy:.1f}s, max={max:.1f}s, p50={p50:.1f}s, "
+        "p90={p90:.1f}s, p99={p99:.1f}s).",
+        total=total_seconds,
+        count=workspace_count,
+        busy=sum(durations),
+        max=durations[-1],
+        p50=_percentile(durations, 0.5),
+        p90=_percentile(durations, 0.9),
+        p99=_percentile(durations, 0.99),
+    )
+
+    slow_workspaces = sorted(
+        (
+            (ws_id, seconds)
+            for ws_id, seconds in per_workspace_seconds.items()
+            if seconds >= SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS
+        ),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    if slow_workspaces:
+        logger.warning(
+            "run_periodic_fields_updates spent over {threshold}s on {count} "
+            "workspace(s) (id, seconds): {slow}.",
+            threshold=SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS,
+            count=len(slow_workspaces),
+            slow=[(ws_id, round(seconds, 1)) for ws_id, seconds in slow_workspaces],
+        )
 
 
 @baserow_trace(tracer)
