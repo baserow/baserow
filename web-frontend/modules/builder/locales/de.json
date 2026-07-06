@@ -275,7 +275,14 @@
         "menuItemAddSeparator": "Trenner",
         "menuItemAddSpacer": "Abstandshalter",
         "eventDescription": "Um Aktionen für diesen Button zu konfigurieren, öffnen Sie die Registerkarte „Ereignisse“ dieses Elements.",
-        "noMenuItemsMessage": "Klicken Sie auf 'Hinzufügen', um Ihren ersten Menüpunkt hinzuzufügen."
+        "noMenuItemsMessage": "Klicken Sie auf 'Hinzufügen', um Ihren ersten Menüpunkt hinzuzufügen.",
+        "variant": "Variante pro Gerätetyp",
+        "expanded": "Ausgeklappt",
+        "compact": "Kompakt",
+        "previewCompactMenuLabel": "Vorschau des kompakten Menüs",
+        "previewCompactMenuHelper": "Vorschau des kompakten Menüs ein-/ausblenden.",
+        "openEditorCompactMenu": "Menü öffnen",
+        "closeEditorCompactMenu": "Menü schließen"
     },
     "simpleContainerElementForm": {
         "noConfigurationOptions": "Das Container-Element verfügt über keine Konfigurationsoptionen."
@@ -342,7 +349,14 @@
         "verticalAlignment": "Vertikale Ausrichtung",
         "columnAmountName": "keine Spalten | 1 Spalte | {columnAmount} Spalten",
         "columnGapTitle": "Abstand zwischen den Spalten",
-        "columnGapPlaceholder": "Geben Sie den Abstand zwischen den Spalten ein..."
+        "columnGapPlaceholder": "Geben Sie den Abstand zwischen den Spalten ein...",
+        "customLayout": "Benutzerdefiniert",
+        "customWeightsTitle": "Benutzerdefinierte Spaltengewichte",
+        "customWeightsHelper": "Verwenden Sie 0, wenn eine Spalte nur so breit wie ihr Inhalt sein soll. Die anderen Spalten teilen sich den verbleibenden Platz.",
+        "errorCustomWeightsMinimum": "Spaltengewichte müssen 0 oder größer sein",
+        "columnStackingTitle": "Spalten pro Gerätetyp stapeln",
+        "columnStackingHorizontal": "Nebeneinander",
+        "columnStackingStacked": "Gestapelt"
     },
     "domainSettings": {
         "titleOverview": "Domänen",
@@ -1073,5 +1087,10 @@
     "previewPublishGuidedTourStep": {
         "title": "Vorschau & Veröffentlichung Ihrer Anwendung",
         "content": "Klicken Sie auf **Vorschau**, um Ihre Anwendung privat zu testen. Wenn Sie bereit sind, klicken Sie auf **Veröffentlichen**, um sie über eine Domäne mit der Öffentlichkeit zu teilen."
+    },
+    "workflowAction": {
+        "sampleDataModalTitle": "Payload für {actionLabel}",
+        "sampleDataModalSubTitle": "JSON-Payload",
+        "testActionDescription": "Führen Sie diese Aktion in der Vorschau aus, um ihre Ausgabe zu erfassen und für nachfolgende Aktionen verfügbar zu machen."
     }
 }

@@ -652,3 +652,168 @@ msgid ""
 msgstr ""
 "Webhook \"%(webhook_name)s\" (%(webhook_id)s) als %(webhook_request_method)s "
 "naar %(webhook_url)s\" bijgewerkt"
+
+#: src/baserow/contrib/database/data_sync/actions.py:32
+msgid "Create data sync table"
+msgstr "Datasynchronisatietabel maken"
+
+#: src/baserow/contrib/database/data_sync/actions.py:33
+#, python-format
+msgid "Data sync table \"%(table_name)s\" (%(table_id)s) created"
+msgstr "Datasynchronisatietabel \"%(table_name)s\" (%(table_id)s) aangemaakt"
+
+#: src/baserow/contrib/database/data_sync/actions.py:105
+msgid "Update data sync table"
+msgstr "Datasynchronisatietabel bijwerken"
+
+#: src/baserow/contrib/database/data_sync/actions.py:106
+#, python-format
+msgid "Data sync table \"%(table_name)s\" (%(table_id)s) updated"
+msgstr "Datasynchronisatietabel \"%(table_name)s\" (%(table_id)s) bijgewerkt"
+
+#: src/baserow/contrib/database/data_sync/actions.py:167
+msgid "Sync data sync table"
+msgstr "Datasynchronisatietabel synchroniseren"
+
+#: src/baserow/contrib/database/data_sync/actions.py:168
+msgid "The data sync synchronized"
+msgstr "De datasynchronisatie is gesynchroniseerd"
+
+#: src/baserow/contrib/database/field_rules/actions.py:26
+msgid "Create Field Rule"
+msgstr "Veldregel maken"
+
+#: src/baserow/contrib/database/field_rules/actions.py:27
+#, python-format
+msgid "Table \"%(table_name)s\": created \"%(rule_type)s\" field rule"
+msgstr "Tabel \"%(table_name)s\": veldregel \"%(rule_type)s\" aangemaakt"
+
+#: src/baserow/contrib/database/field_rules/actions.py:110
+msgid "Update field rule"
+msgstr "Veldregel bijwerken"
+
+#: src/baserow/contrib/database/field_rules/actions.py:111
+#, python-format
+msgid "Table \"%(table_name)s\": updated \"%(rule_type)s\" field rule [%(rule_id)s]"
+msgstr ""
+"Tabel \"%(table_name)s\": veldregel \"%(rule_type)s\" [%(rule_id)s] "
+"bijgewerkt"
+
+#: src/baserow/contrib/database/field_rules/actions.py:188
+msgid "Delete Field rule"
+msgstr "Veldregel verwijderen"
+
+#: src/baserow/contrib/database/field_rules/actions.py:189
+#, python-format
+msgid "Table \"%(table_name)s\": deleted \"%(rule_type)s\" field rule [%(rule_id)s]"
+msgstr ""
+"Tabel \"%(table_name)s\": veldregel \"%(rule_type)s\" [%(rule_id)s] "
+"verwijderd"
+
+#: src/baserow/contrib/database/fields/actions.py:618
+msgid "Change primary field"
+msgstr "Primair veld wijzigen"
+
+#: src/baserow/contrib/database/fields/actions.py:620
+#, python-format
+msgid ""
+"Primary field of table %(table_name)s was changed to "
+"%(new_primary_field_name)s"
+msgstr ""
+"Primair veld van tabel %(table_name)s is gewijzigd naar "
+"%(new_primary_field_name)s"
+
+#: src/baserow/contrib/database/fields/notification_types.py:53
+#, python-format
+msgid ""
+"%(sender)s assigned you to %(field_name)s in row %(row_name)s in "
+"%(table_name)s."
+msgstr ""
+"%(sender)s heeft je toegewezen aan %(field_name)s in rij %(row_name)s in "
+"%(table_name)s."
+
+#: src/baserow/contrib/database/fields/notification_types.py:57
+msgid "An unknown user"
+msgstr "Een onbekende gebruiker"
+
+#: src/baserow/contrib/database/fields/notification_types.py:183
+#, python-format
+msgid ""
+"%(sender)s mentioned you in %(field_name)s in row %(row_name)s in "
+"%(table_name)s."
+msgstr ""
+"%(sender)s heeft je genoemd in %(field_name)s in rij %(row_name)s in "
+"%(table_name)s."
+
+#: src/baserow/contrib/database/views/actions.py:1087
+msgid "Prioritize view sortings"
+msgstr "Weergavesorteringen prioriteren"
+
+#: src/baserow/contrib/database/views/actions.py:1088
+msgid "View sortings priority changed"
+msgstr "Prioriteit van weergavesorteringen gewijzigd"
+
+#: src/baserow/contrib/database/views/actions.py:2396
+msgid "Prioritize view group bys"
+msgstr "Weergavegroeperingen prioriteren"
+
+#: src/baserow/contrib/database/views/actions.py:2397
+msgid "View group bys priority changed"
+msgstr "Prioriteit van weergavegroeperingen gewijzigd"
+
+#: src/baserow/contrib/database/views/actions.py:2472
+msgid "Submit form"
+msgstr "Formulier verzenden"
+
+#: src/baserow/contrib/database/views/actions.py:2473
+#, python-format
+msgid "Row (%(row_id)s) created via form submission"
+msgstr "Rij (%(row_id)s) aangemaakt via formulierinzending"
+
+#: src/baserow/contrib/database/views/actions.py:2630
+msgid "Edit form row"
+msgstr "Formulierrij bewerken"
+
+#: src/baserow/contrib/database/views/actions.py:2631
+#, python-format
+msgid "Row (%(row_id)s) updated via form edit"
+msgstr "Rij (%(row_id)s) bijgewerkt via formulierbewerking"
+
+#: src/baserow/contrib/database/views/actions.py:2710
+msgid "Update view default values"
+msgstr "Standaardwaarden van weergave bijwerken"
+
+#: src/baserow/contrib/database/views/actions.py:2711
+#, python-format
+msgid "Default row values updated for view (%(view_name)s)"
+msgstr "Standaard rijwaarden bijgewerkt voor weergave (%(view_name)s)"
+
+#: src/baserow/contrib/database/webhooks/notification_types.py:57
+#, python-format
+msgid "%(name)s webhook has been deactivated."
+msgstr "Webhook %(name)s is gedeactiveerd."
+
+#: src/baserow/contrib/database/webhooks/notification_types.py:64
+#, python-format
+msgid ""
+"The webhook failed more than %(max_failures)s consecutive times and was "
+"therefore deactivated."
+msgstr ""
+"De webhook is meer dan %(max_failures)s keer achter elkaar mislukt en is "
+"daarom gedeactiveerd."
+
+#: src/baserow/contrib/database/webhooks/notification_types.py:120
+#, python-format
+msgid "%(name)s webhook payload too large."
+msgstr "Payload van webhook %(name)s is te groot."
+
+#: src/baserow/contrib/database/webhooks/notification_types.py:127
+#, python-format
+msgid ""
+"The payload for the %(name)s webhook with event ID %(event_id)s was too "
+"large. The content has been split into multiple batches, but data above the"
+" batch limit of %(batch_limit)s was discarded."
+msgstr ""
+"De payload voor de webhook %(name)s met gebeurtenis-ID %(event_id)s was te "
+"groot. De inhoud is opgesplitst in meerdere batches, maar gegevens boven de"
+" batchlimiet van %(batch_limit)s zijn verwijderd."

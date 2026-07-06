@@ -414,3 +414,185 @@ msgstr "Teambetreff löschen"
 #, python-format
 msgid "Subject (%(subject_id)s) deleted"
 msgstr "Betreff (%(subject_id)s) gelöscht"
+
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:272
+#, python-format
+msgid "Updating node '%(label)s'..."
+msgstr "Knoten '%(label)s' wird aktualisiert..."
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:72
+msgid "Listing nodes..."
+msgstr "Knoten werden aufgelistet..."
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:112
+msgid "Adding nodes to workflow..."
+msgstr "Knoten werden zum Workflow hinzugefügt..."
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:342
+#, python-format
+msgid "Deleting node %(node_id)s..."
+msgstr "Knoten %(node_id)s wird gelöscht..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:401
+#, python-format
+msgid "Generating formulas for element '%(ref)s'..."
+msgstr "Formeln für Element '%(ref)s' werden generiert..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:447
+#, python-format
+msgid "Generating formulas for data source '%(name)s'..."
+msgstr "Formeln für Datenquelle '%(name)s' werden generiert..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:495
+#, python-format
+msgid "Generating formulas for data source %(id)d..."
+msgstr "Formeln für Datenquelle %(id)d werden generiert..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:575
+#, python-format
+msgid "Generating formulas for element %(id)d..."
+msgstr "Formeln für Element %(id)d werden generiert..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:644
+#, python-format
+msgid "Generating formulas for action on '%(ref)s'..."
+msgstr "Formeln für Aktion auf '%(ref)s' werden generiert..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:106
+#, python-format
+msgid "Listing pages in %(app_name)s..."
+msgstr "Seiten in %(app_name)s werden aufgelistet..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:175
+#, python-format
+msgid "Creating page %(name)s..."
+msgstr "Seite %(name)s wird erstellt..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:235
+#, python-format
+msgid "Updating page %(id)d..."
+msgstr "Seite %(id)d wird aktualisiert..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:272
+#, python-format
+msgid "Listing data sources on %(name)s..."
+msgstr "Datenquellen auf %(name)s werden aufgelistet..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:339
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1131
+#, python-format
+msgid "Creating data source '%(name)s'..."
+msgstr "Datenquelle '%(name)s' wird erstellt..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:409
+#, python-format
+msgid "Updating data source %(id)d..."
+msgstr "Datenquelle %(id)d wird aktualisiert..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:459
+#, python-format
+msgid "Listing elements on %(name)s..."
+msgstr "Elemente auf %(name)s werden aufgelistet..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:484
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1179
+#, python-format
+msgid "Creating %(count)d elements on %(name)s..."
+msgstr "%(count)d Elemente werden auf %(name)s erstellt..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:776
+#, python-format
+msgid "Updating element %(id)d..."
+msgstr "Element %(id)d wird aktualisiert..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:845
+#, python-format
+msgid "Styling element %(id)d..."
+msgstr "Element %(id)d wird gestaltet..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:912
+#, python-format
+msgid "Moving %(count)d elements on %(name)s..."
+msgstr "%(count)d Elemente werden auf %(name)s verschoben..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:966
+#, python-format
+msgid "Listing actions on %(name)s..."
+msgstr "Aktionen auf %(name)s werden aufgelistet..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1029
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1241
+#, python-format
+msgid "Creating %(type)s action..."
+msgstr "%(type)s-Aktion wird erstellt..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1083
+#, python-format
+msgid "Adding field mapping to action %(id)d..."
+msgstr "Feldzuordnung wird zu Aktion %(id)d hinzugefügt..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1450
+msgid "Setting up user source..."
+msgstr "Benutzerquelle wird eingerichtet..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1456
+msgid "Validating existing table..."
+msgstr "Bestehende Tabelle wird validiert..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1461
+msgid "Creating users table..."
+msgstr "Benutzertabelle wird erstellt..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1466
+msgid "Creating user source..."
+msgstr "Benutzerquelle wird erstellt..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1476
+msgid "Creating login page..."
+msgstr "Anmeldeseite wird erstellt..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1526
+#, python-format
+msgid "Applying %(theme)s theme to %(app)s..."
+msgstr "Theme %(theme)s wird auf %(app)s angewendet..."
+
+#: src/baserow_enterprise/assistant/tools/core/tools.py:197
+#, python-format
+msgid "Updating %(app_name)s..."
+msgstr "%(app_name)s wird aktualisiert..."
+
+#: src/baserow_enterprise/assistant/tools/database/agents.py:126
+#, python-format
+msgid "Fixing formula for %(name)s..."
+msgstr "Formel für %(name)s wird korrigiert..."
+
+#: src/baserow_enterprise/assistant/tools/database/agents.py:227
+msgid "Generating example rows for these new tables..."
+msgstr "Beispielzeilen für diese neuen Tabellen werden generiert..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:641
+#, python-format
+msgid "Updating field %(field_id)s..."
+msgstr "Feld %(field_id)s wird aktualisiert..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:697
+#, python-format
+msgid "Deleting field %(field_id)s..."
+msgstr "Feld %(field_id)s wird gelöscht..."
+
+#: src/baserow_enterprise/assistant/types.py:246
+#, python-format
+msgid "page %(page_name)s"
+msgstr "Seite %(page_name)s"
+
+#: src/baserow_enterprise/automation/nodes/node_types.py:20
+msgid "Code"
+msgstr "Code"
+
+#: src/baserow_enterprise/builder/elements/element_types.py:31
+msgid "Auth form"
+msgstr "Authentifizierungsformular"
+
+#: src/baserow_enterprise/builder/elements/element_types.py:139
+msgid "File input"
+msgstr "Dateieingabe"

@@ -746,3 +746,32 @@ msgstr "Kontolöschung abgebrochen - Baserow"
 #: src/baserow/core/user/emails.py:94
 msgid "Confirm email address change - Baserow"
 msgstr "Änderung der E-Mail-Adresse bestätigen - Baserow"
+
+#: src/baserow/core/graph/models.py:163
+msgid "Unlabeled"
+msgstr "Ohne Bezeichnung"
+
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:173
+msgid "Password changed"
+msgstr "Passwort geändert"
+
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:178
+#, python-format
+msgid ""
+"The password for your account (%(username)s) on Baserow "
+"(%(baserow_embedded_share_hostname)s) has been successfully changed."
+msgstr ""
+"Das Passwort für Ihr Konto (%(username)s) auf Baserow "
+"(%(baserow_embedded_share_hostname)s) wurde erfolgreich geändert."
+
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:183
+msgid ""
+"If you did not make this change, please contact your administrator "
+"immediately to secure your account."
+msgstr ""
+"Wenn Sie diese Änderung nicht vorgenommen haben, kontaktieren Sie bitte "
+"umgehend Ihren Administrator, um Ihr Konto zu schützen."
+
+#: src/baserow/core/user/emails.py:36
+msgid "Password changed - Baserow"
+msgstr "Passwort geändert - Baserow"

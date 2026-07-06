@@ -79,7 +79,24 @@
         "slackWriteMessageDescription": "Sendet eine Nachricht an einen bestimmten Slack-#Kanal",
         "slackWriteMessageMissingChannel": "Ein Kanal ist erforderlich.",
         "slackWriteMessageMissingMessage": "Eine Nachricht ist erforderlich.",
-        "slackWriteMessageMissingIntegration": "Keine Slack-Integration ausgewählt."
+        "slackWriteMessageMissingIntegration": "Keine Slack-Integration ausgewählt.",
+        "localBaserowCreateRows": "Mehrere Zeilen erstellen",
+        "localBaserowCreateRowsDescription": "Erstellt mehrere neue Zeilen in einer Baserow-Tabelle.",
+        "localBaserowUpdateRows": "Mehrere Zeilen aktualisieren",
+        "localBaserowUpdateRowsDescription": "Aktualisiert mehrere bestehende Zeilen in einer Baserow-Tabelle.",
+        "localBaserowFieldsUpdated": "Bestimmte Feldwerte werden aktualisiert",
+        "localBaserowFieldsUpdatedDescription": "Wird ausgelöst, wenn Zeilen in bestimmten Feldern einer Baserow-Tabelle aktualisiert werden.",
+        "coreManualTrigger": "Manueller Auslöser",
+        "coreManualTriggerDescription": "Startet nur, wenn eine andere Workflow-Aktion diesen Workflow startet.",
+        "coreCSVFileReader": "Eine CSV-Datei lesen",
+        "coreCSVFileReaderDescription": "Liest Zeilen aus einer CSV-Datei.",
+        "coreStartWorkflow": "Workflow starten",
+        "coreStartWorkflowDescription": "Startet einen Automatisierungs-Workflow.",
+        "errorNoRowsSelected": "Keine Zeilen ausgewählt",
+        "errorCSVFileMissing": "Fehlende CSV-Datei-Eigenschaft",
+        "errorCSVContentMissing": "Fehlende CSV-Daten-Eigenschaft",
+        "errorNoWorkflowSelected": "Kein Workflow ausgewählt",
+        "errorWorkflowNotImmediateDispatch": "Der ausgewählte Workflow muss einen Auslöser verwenden, der sofort starten kann."
     },
     "userSourceType": {
         "localBaserow": "Baserow-Tabellen-Authentifizierung"
@@ -329,5 +346,48 @@
         "fieldMappingPlaceholderDuration": "Wählen Sie einen Dauerwert, z. B. 1:23:40",
         "noTableSelectedMessage": "Wählen Sie eine Tabelle aus, um Ihre Felder zu konfigurieren.",
         "noWritableFields": "Diese Tabelle enthält keine beschreibbaren Felder."
+    },
+    "localBaserowFieldsUpdatedForm": {
+        "fieldLabel": "Felder",
+        "fieldHelper": "Der Workflow wird nur ausgelöst, wenn sich der Wert eines dieser Felder ändert."
+    },
+    "coreCSVFileReaderServiceForm": {
+        "inputType": "Quelle",
+        "inputTypeFile": "Datei",
+        "inputTypeContent": "Inhalt",
+        "file": "CSV-Datei",
+        "filePlaceholder": "Wählen Sie eine CSV-Datei...",
+        "csv": "CSV-Daten",
+        "csvPlaceholder": "Geben Sie CSV-Daten ein...",
+        "separator": "Trennzeichen",
+        "encoding": "Kodierung",
+        "firstLineIsHeader": "Erste Zeile ist Kopfzeile",
+        "comma": "Komma",
+        "semicolon": "Semikolon",
+        "tab": "Tabulator",
+        "pipe": "Pipe",
+        "utf8": "UTF-8",
+        "utf8Bom": "UTF-8 mit BOM",
+        "latin1": "Latin-1"
+    },
+    "coreStartWorkflowServiceForm": {
+        "automation": "Automatisierung",
+        "workflow": "Workflow",
+        "workflowHelperText": "Es können nur veröffentlichte Workflows mit einem manuellen Auslöser gestartet werden. Wenn dieser Workflow unveröffentlichte Änderungen hat, wird die zuletzt veröffentlichte Version ausgeführt."
+    },
+    "localBaserowDeleteRowServiceForm": {
+        "rowIdLabel": "Zeilen-ID(s)",
+        "rowIdPlaceholder": "Wählen Sie eine Zeilen-ID oder ein Array von Zeilen-IDs",
+        "rowIdHelper": "Wählen Sie eine Zeilen-ID oder ein Array von Zeilen-IDs. Es können bis zu {limit} Zeilen gleichzeitig gelöscht werden."
+    },
+    "localBaserowCreateRowsServiceForm": {
+        "rowsLabel": "Zeilen",
+        "rowsPlaceholder": "Wählen Sie eine Liste von Zeilenobjekten",
+        "rowsHelper": "Die Formel muss ein Array von Zeilenobjekten zurückgeben oder eine JSON-Zeichenkette, die zu einem solchen geparst werden kann. Verwenden Sie Feldnamen oder Feld-IDs als Objektschlüssel. Es können bis zu {limit} Zeilen gleichzeitig erstellt werden."
+    },
+    "localBaserowUpdateRowsServiceForm": {
+        "rowsLabel": "Zeilen",
+        "rowsPlaceholder": "Wählen Sie eine Liste von Zeilenobjekten mit IDs",
+        "rowsHelper": "Die Formel muss ein Array von Zeilenobjekten zurückgeben oder eine JSON-Zeichenkette, die zu einem solchen geparst werden kann. Jedes Objekt muss eine id-Eigenschaft enthalten. Verwenden Sie Feldnamen oder Feld-IDs als Objektschlüssel. Es können bis zu {limit} Zeilen gleichzeitig aktualisiert werden."
     }
 }

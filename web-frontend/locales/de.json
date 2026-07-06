@@ -23,7 +23,8 @@
         "friday": "Freitag",
         "saturday": "Samstag",
         "sunday": "Sonntag",
-        "value": "Wert"
+        "value": "Wert",
+        "workspace": "Arbeitsbereich"
     },
     "action": {
         "close": "Schließen",
@@ -332,7 +333,8 @@
         "hasDateOnOrAfter": "hat Datum am oder nach",
         "hasNotDateOnOrAfter": "hat kein Datum am oder nach",
         "hasDateWithin": "Datum liegt zwischen",
-        "hasNotDateWithin": "Datum liegt nicht zwischen"
+        "hasNotDateWithin": "Datum liegt nicht zwischen",
+        "startsWith": "beginnt mit"
     },
     "viewType": {
         "grid": "Gitternetz",
@@ -352,7 +354,9 @@
         "field": "Feld",
         "row": "Zeile",
         "rows": "Zeilen",
-        "view": "Ansicht"
+        "view": "Ansicht",
+        "builder_page": "Builder-Seite",
+        "builder_element": "Builder-Element"
     },
     "webhook": {
         "request": "Anfrage",
@@ -476,7 +480,8 @@
         "csv": "Importieren einer CSV-Datei",
         "paste": "Einfügen von Tabellendaten",
         "xml": "Importieren einer XML-Datei",
-        "json": "Importieren einer JSON-Datei"
+        "json": "Importieren einer JSON-Datei",
+        "excel": "Importieren einer Excel-Datei"
     },
     "apiDocs": {
         "intro": "Einführung",
@@ -703,7 +708,17 @@
         "categoryNumber": "Zahl",
         "categoryBoolean": "Wahrheitswert",
         "categoryDate": "Datum",
-        "categoryCondition": "Bedingung"
+        "categoryCondition": "Bedingung",
+        "absDescription": "Gibt den absoluten Wert des Arguments zurück.",
+        "rangeDescription": "Gibt ein Array von Zahlen zurück. Verwenden Sie range(stop), range(start, stop) oder range(start, stop, step).",
+        "toJsonDescription": "Serialisiert einen Wert in eine JSON-kodierte Zeichenkette, wobei Anführungszeichen, Backslashes und Steuerzeichen maskiert werden, damit er sicher in ein JSON-Dokument eingebettet werden kann.",
+        "fromJsonDescription": "Wandelt eine JSON-kodierte Zeichenkette in einen Wert wie ein Objekt, ein Array oder eine Zahl um. Gibt null zurück, wenn die Zeichenkette kein gültiges JSON ist.",
+        "nullDescription": "Gibt null zurück, was als Wert oder zum Vergleich verwendet werden kann",
+        "numberFormatDescription": "Formatiert eine Zahl als Zeichenkette mit konfigurierbaren Dezimalstellen, Tausendertrennzeichen und Dezimaltrennzeichen.",
+        "toDatetimeDescription": "Wandelt eine Zeichenkette in ein Datetime-Objekt um. Ein optionales zweites Argument gibt das Format an (z. B. 'DD/MM/YYYY'). Wird es weggelassen, wird das ISO-8601-Format angenommen.",
+        "toDurationDescription": "Gibt die Dauer zurück, die dem angegebenen Argument entspricht.",
+        "durationFormatDescription": "Formatiert eine Dauer als Text mit einer Formatzeichenkette mit den Platzhaltern 'd' (Tage), 'h' (Stunden), 'm' (Minuten), 's' (Sekunden), z. B. 'h:mm', 'd h:mm:ss'.",
+        "categoryUtility": "Hilfsfunktionen"
     },
     "runtimeGetErrors": {
         "invalidPath": "Das 'get'-Argument '{path}' muss ein durch Punkte getrennter Pfad sein (z. B. 'provider.property').",
@@ -714,5 +729,15 @@
     "nodeExplorer": {
         "noResults": "Keine Ergebnisse gefunden",
         "resetSearch": "Suche zurücksetzen"
+    },
+    "runtimeFormulaTypeErrors": {
+        "invalidNumber": "'{value}' ist keine gültige Zahl.",
+        "invalidTimezone": "'{value}' ist keine gültige Zeitzone. Verwenden Sie eine gültige IANA-Zeitzone (z. B. 'Europe/Amsterdam').",
+        "invalidThousandSeparator": "'{value}' ist kein gültiges Tausendertrennzeichen. Gültige Optionen sind: ',', '.', ' ' oder '' (leere Zeichenkette).",
+        "invalidDecimalSeparator": "'{value}' ist kein gültiges Dezimaltrennzeichen. Gültige Optionen sind: ',' oder '.'.",
+        "sameSeparators": "Das Tausendertrennzeichen und das Dezimaltrennzeichen dürfen nicht identisch sein.",
+        "invalidDuration": "'{value}' ist keine gültige Dauer. Gültige Optionen sind: '1 day', '2 hours' usw.",
+        "invalidDatetimeFormat": "'{value}' ist kein gültiges Datums-/Zeitformat. Gültige Optionen sind: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss' usw.",
+        "invalidDurationFormat": "'{value}' ist kein gültiges Dauerformat. Verwenden Sie 'd' (Tage), 'h' (Stunden), 'm' (Minuten), 's' (Sekunden), z. B. 'd:h', 'd h:mm:ss'."
     }
 }

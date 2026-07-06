@@ -239,3 +239,80 @@ msgstr "Keine Zeilen gefunden"
 #: src/baserow/contrib/integrations/slack/service_types.py:166
 msgid "OK"
 msgstr "OK"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:133
+msgid "Local Baserow create row"
+msgstr "Lokales Baserow Zeile erstellen"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:140
+msgid "Local Baserow update row"
+msgstr "Lokales Baserow Zeile aktualisieren"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:147
+msgid "Local Baserow delete row"
+msgstr "Lokales Baserow Zeile löschen"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:155
+msgid "Local Baserow get row"
+msgstr "Lokales Baserow Zeile abrufen"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:163
+msgid "Local Baserow list rows"
+msgstr "Lokales Baserow Zeilen auflisten"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:171
+msgid "Local Baserow aggregate rows"
+msgstr "Lokales Baserow Zeilen zusammenfassen"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:179
+msgid "HTTP request"
+msgstr "HTTP-Anfrage"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:186
+msgid "Iterator"
+msgstr "Iterator"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:199
+msgid "Send email"
+msgstr "E-Mail senden"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:206
+msgid "AI agent"
+msgstr "KI-Agent"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:213
+msgid "Router"
+msgstr "Router"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:408
+msgid "Local Baserow rows created"
+msgstr "Lokales Baserow Zeilen erstellt"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:416
+msgid "Local Baserow rows updated"
+msgstr "Lokales Baserow Zeilen aktualisiert"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:424
+msgid "Local Baserow rows deleted"
+msgstr "Lokales Baserow Zeilen gelöscht"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:434
+msgid "Periodic trigger"
+msgstr "Periodischer Auslöser"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:441
+msgid "HTTP trigger"
+msgstr "HTTP-Auslöser"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:448
+msgid "Slack write message"
+msgstr "Slack-Nachricht schreiben"
+
+#: src/baserow/contrib/automation/nodes/registries.py:47
+msgid "Unnamed node"
+msgstr "Unbenannter Knoten"
+
+#: src/baserow/contrib/automation/notification_types.py:57
+#, python-format
+msgid "%(name)s workflow was disabled."
+msgstr "Der Workflow %(name)s wurde deaktiviert."

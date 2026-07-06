@@ -68,7 +68,8 @@
         "lastSynced": "Zuletzt synchronisiert",
         "notSynced": "nicht synchronisiert",
         "sync": "Tabelle synchronisieren",
-        "updateSyncConfig": "Sync-Konfiguration aktualisieren"
+        "updateSyncConfig": "Sync-Konfiguration aktualisieren",
+        "importFile": "Datei importieren"
     },
     "duplicateTableJobType": {
         "name": "Tabelle duplizieren",
@@ -328,7 +329,8 @@
         "dbIndexError": "Dieser Feldtyp kann keinen Index haben. Bitte entfernen Sie ihn vor dem Speichern oder ändern Sie den Feldtyp.",
         "dbIndexDescription": "Indizierung kann die Filterleistung erheblich verbessern, verlangsamt jedoch Erstellungs-, Aktualisierungs- und Löschvorgänge.",
         "defaultValueDisabledByConstraint": "Es kann kein Standardwert mit einer Eindeutigkeits-Constraint festgelegt werden",
-        "dbIndexDisabledTooltip": "Indizierung ist für diesen Feldtyp nicht verfügbar."
+        "dbIndexDisabledTooltip": "Indizierung ist für diesen Feldtyp nicht verfügbar.",
+        "defaultValueOverriddenByView": "Für dieses Feld ist ein Standardwert auf Ansichtsebene festgelegt, der Vorrang vor diesem Standardwert hat."
     },
     "fieldSelectThroughFieldSubForm": {
         "noTable": "Sie benötigen mindestens ein Verknüpfungszeilenfeld, um dieses Feld zu erstellen.",
@@ -450,7 +452,8 @@
         "importError": "Beim Import der Datei ist etwas schiefgelaufen",
         "stateRowCreation": "Importieren...",
         "statePreValidation": "Daten werden validiert...",
-        "stateCreateTable": "Tabelle wird erstellt..."
+        "stateCreateTable": "Tabelle wird erstellt...",
+        "importingTable": "Tabelle \"{name}\" wird importiert..."
     },
     "importErrorReport": {
         "reportTitleFailure": "Fehlgeschlagene Zeilen",
@@ -476,7 +479,8 @@
         "upsertTooltip": "Vorhandene Zeilen über ein eindeutiges Feld abgleichen, um Daten mit den importierten Werten zu überschreiben.",
         "stateRowCreation": "Importieren...",
         "statePreValidation": "Daten werden validiert...",
-        "stateCreateTable": "Tabelle wird erstellt..."
+        "stateCreateTable": "Tabelle wird erstellt...",
+        "restoredFile": "Datei \"{name}\" wird importiert..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Klicken Sie zum Bearbeiten der Formel",
@@ -563,7 +567,10 @@
         "groupBy": "Gruppieren nach",
         "thenBy": "dann nach",
         "addGroupBy": "Wählen Sie ein Feld, nach dem gruppiert werden soll",
-        "hiddenFieldWarning": "Eine oder mehrere Gruppierungen verweisen auf ausgeblendete Felder, die für Editoren und niedrigere Rollen nicht sichtbar sind."
+        "hiddenFieldWarning": "Eine oder mehrere Gruppierungen verweisen auf ausgeblendete Felder, die für Editoren und niedrigere Rollen nicht sichtbar sind.",
+        "maxGroupBysReached": "Sie können nach bis zu {count} Feldern gruppieren.",
+        "collapseAllGroups": "Alle einklappen",
+        "expandAllGroups": "Alle ausklappen"
     },
     "viewGroupBy": {
         "groupBy": "Gruppieren | Gruppieren nach 1 Feld | Gruppieren nach {count} Feldern"
@@ -748,7 +755,9 @@
     },
     "exportTableForm": {
         "viewLabel": "Wählen Sie die zu exportierende Ansicht aus:",
-        "typeError": "Kein Exporttyp verfügbar, bitte wählen Sie eine andere Ansicht oder eine ganze Tabelle."
+        "typeError": "Kein Exporttyp verfügbar, bitte wählen Sie eine andere Ansicht oder eine ganze Tabelle.",
+        "includeRowId": "Zeilen-ID einbeziehen",
+        "includePrimaryField": "Primärfeld einbeziehen"
     },
     "exportTableLoadingBar": {
         "export": "Exportieren",
@@ -1101,7 +1110,10 @@
         "error": "Bei der Synchronisation ist etwas schiefgelaufen",
         "autoAddLabel": "Neue Eigenschaften automatisch hinzufügen",
         "autoAddHelper": "Fügt automatisch neu verfügbare Eigenschaften aus der Datenquelle in die Baserow-Tabelle ein und synchronisiert sie. Damit dies funktioniert, müssen alle Eigenschaften synchronisiert werden.",
-        "twoWaySyncLabel": "Bidirektionale Synchronisation"
+        "twoWaySyncLabel": "Bidirektionale Synchronisation",
+        "deleteUnmatchedRowsLabel": "Zeilen löschen, wenn sie in der Quelle gelöscht oder ausgeblendet werden",
+        "deleteUnmatchedRowsHelper": "Wenn aktiviert, werden Zeilen, die in der Quelle gelöscht oder nicht mehr sichtbar sind, bei jeder Synchronisierung auch aus dieser Tabelle gelöscht. Wenn deaktiviert, bleiben diese Zeilen erhalten und werden wiederverwendet, wenn die Quellzeile wieder erscheint.",
+        "syncing": "Daten werden synchronisiert..."
     },
     "syncTableModal": {
         "title": "{name} synchronisieren",
@@ -1182,5 +1194,25 @@
     "rowEditFieldFormViewEditRow": {
         "copyLink": "Link kopieren",
         "noFormView": "Keine Formularansicht konfiguriert"
+    },
+    "tableExcelImporter": {
+        "chooseFileLabel": "Excel-Datei auswählen",
+        "chooseFileDescription": "Sie können eine vorhandene Kalkulationstabelle importieren, indem Sie eine .xlsx-, .xls- oder .ods-Datei hochladen. Wenn die Datei mehrere Blätter enthält, können Sie auswählen, welches importiert werden soll.",
+        "chooseFile": "Excel-Datei auswählen",
+        "sheet": "Blatt",
+        "firstRowHeader": "Erste Zeile ist Kopfzeile",
+        "limitFileSize": "Die maximale Dateigröße beträgt {limit}MB.",
+        "limitError": "Es ist nicht möglich, mehr als {limit} Zeilen zu importieren.",
+        "processingError": "Beim Verarbeiten der Excel-Datei ist ein Fehler aufgetreten: {error}",
+        "emptyError": "Diese Excel-Datei enthält keine Blätter.",
+        "emptySheetError": "Das ausgewählte Blatt ist leer."
+    },
+    "viewSearch": {
+        "clearSearch": "Suche löschen"
+    },
+    "gridViewGroupByBanner": {
+        "emptyValue": "(Leer)",
+        "expandGroup": "Gruppe ausklappen",
+        "collapseGroup": "Gruppe einklappen"
     }
 }

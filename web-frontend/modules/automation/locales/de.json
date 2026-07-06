@@ -144,7 +144,14 @@
         "periodicTriggerLabel": "Periodischer Auslöser",
         "aiAgent": "KI-Prompt",
         "slackWriteMessageName": "Eine Slack-Nachricht senden",
-        "slackWriteMessageLabel": "Eine Nachricht an #{channel} senden"
+        "slackWriteMessageLabel": "Eine Nachricht an #{channel} senden",
+        "localBaserowFieldsUpdatedLabel": "{fieldName} wird in {tableName} aktualisiert",
+        "localBaserowFieldsUpdatedMultipleLabel": "Werte von {count} Feldern werden in {tableName} aktualisiert",
+        "localBaserowFieldsUpdatedNoFieldLabel": "Werte bestimmter Felder werden in einer Tabelle aktualisiert",
+        "localBaserowCreateRowsLabel": "Mehrere Zeilen in {tableName} erstellen",
+        "localBaserowUpdateRowsLabel": "Mehrere Zeilen in {tableName} aktualisieren",
+        "csvFileReaderLabel": "Eine CSV-Datei lesen",
+        "startWorkflowLabel": "{workflowName} starten"
     },
     "workflowNode": {
         "actionDelete": "Löschen",
@@ -176,7 +183,9 @@
         "periodicTriggerTriggeredAt": "Ausgelöst am",
         "errorIntervalMissing": "Ein Intervall ist erforderlich.",
         "coreHTTPTrigger": "HTTP-Auslöser",
-        "coreHTTPTriggerDescription": "HTTP-Anfragen empfangen, um Workflows auszulösen"
+        "coreHTTPTriggerDescription": "HTTP-Anfragen empfangen, um Workflows auszulösen",
+        "coreManualTrigger": "Manueller Auslöser",
+        "coreManualTriggerDescription": "Startet nur, wenn eine andere Workflow-Aktion diesen Workflow startet"
     },
     "workflowEditor": {
         "chooseEvent": "Ein Ereignis auswählen..."

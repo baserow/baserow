@@ -20,39 +20,186 @@ msgstr ""
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:45
 msgid "Homepage"
-msgstr ""
+msgstr "Homepagina"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:46
 msgid "Examples"
-msgstr ""
+msgstr "Voorbeelden"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:47
 msgid "Customers"
-msgstr ""
+msgstr "Klanten"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:48
 msgid "List rows"
-msgstr ""
+msgstr "Rijen ophalen"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:49
 msgid "Local Baserow"
-msgstr ""
+msgstr "Lokaal Baserow"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:50
 msgid "Name"
-msgstr ""
+msgstr "Naam"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:51
 msgid "Last name"
-msgstr ""
+msgstr "Achternaam"
 
 #: src/baserow/contrib/builder/data_sources/service.py:128
 msgid "Data source"
-msgstr ""
+msgstr "Gegevensbron"
 
 #: src/baserow/contrib/builder/elements/element_types.py:184
 #: src/baserow/contrib/builder/elements/element_types.py:189
 #: src/baserow/contrib/builder/elements/element_types.py:194
 #, python-format
 msgid "Column %(count)s"
+msgstr "Kolom %(count)s"
+
+#: src/baserow/contrib/builder/action_scopes.py:10
+#, python-format
+msgid ""
+"of type \"%(element_type)s\" on page (%(page_id)s) in builder "
+"\"%(builder_name)s\" (%(builder_id)s)."
 msgstr ""
+"van type \"%(element_type)s\" op pagina (%(page_id)s) in builder "
+"\"%(builder_name)s\" (%(builder_id)s)."
+
+#: src/baserow/contrib/builder/data_providers/data_provider_types.py:650
+#, python-format
+msgid "%(user_source_name)s member"
+msgstr "%(user_source_name)s lid"
+
+#: src/baserow/contrib/builder/elements/actions.py:48
+msgid "Create element"
+msgstr "Element maken"
+
+#: src/baserow/contrib/builder/elements/actions.py:49
+#, python-format
+msgid "Element (%(element_id)s) created"
+msgstr "Element (%(element_id)s) aangemaakt"
+
+#: src/baserow/contrib/builder/elements/actions.py:107
+msgid "Update element"
+msgstr "Element bijwerken"
+
+#: src/baserow/contrib/builder/elements/actions.py:108
+#, python-format
+msgid "Element (%(element_id)s) updated"
+msgstr "Element (%(element_id)s) bijgewerkt"
+
+#: src/baserow/contrib/builder/elements/actions.py:161
+msgid "Delete element"
+msgstr "Element verwijderen"
+
+#: src/baserow/contrib/builder/elements/actions.py:162
+#, python-format
+msgid "Element (%(element_id)s) deleted"
+msgstr "Element (%(element_id)s) verwijderd"
+
+#: src/baserow/contrib/builder/elements/actions.py:217
+msgid "Duplicate element"
+msgstr "Element dupliceren"
+
+#: src/baserow/contrib/builder/elements/actions.py:218
+#, python-format
+msgid "Element (%(element_id)s) duplicated"
+msgstr "Element (%(element_id)s) gedupliceerd"
+
+#: src/baserow/contrib/builder/elements/actions.py:278
+msgid "Move element"
+msgstr "Element verplaatsen"
+
+#: src/baserow/contrib/builder/elements/actions.py:279
+#, python-format
+msgid "Element (%(element_id)s) moved"
+msgstr "Element (%(element_id)s) verplaatst"
+
+#: src/baserow/contrib/builder/elements/element_types.py:137
+msgid "Column"
+msgstr "Kolommen"
+
+#: src/baserow/contrib/builder/elements/element_types.py:220
+msgid "Form"
+msgstr "Formulier"
+
+#: src/baserow/contrib/builder/elements/element_types.py:292
+msgid "Container"
+msgstr "Container"
+
+#: src/baserow/contrib/builder/elements/element_types.py:304
+msgid "Table"
+msgstr "Tabel"
+
+#: src/baserow/contrib/builder/elements/element_types.py:369
+msgid "Repeat"
+msgstr "Herhaal"
+
+#: src/baserow/contrib/builder/elements/element_types.py:437
+msgid "Record selector"
+msgstr "Recordkiezer"
+
+#: src/baserow/contrib/builder/elements/element_types.py:686
+msgid "Heading"
+msgstr "Kop"
+
+#: src/baserow/contrib/builder/elements/element_types.py:753
+msgid "Text"
+msgstr "Paragraaf"
+
+#: src/baserow/contrib/builder/elements/element_types.py:975
+msgid "Link"
+msgstr "Link"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1113
+msgid "Image"
+msgstr "Afbeelding"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1277
+msgid "Rating"
+msgstr "Beoordeling"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1324
+msgid "Rating input"
+msgstr "Beoordeling invoer"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1410
+msgid "Input text"
+msgstr "Tekstinvoer"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1550
+msgid "Button"
+msgstr "Knop"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1595
+msgid "Checkbox"
+msgstr "Checkbox"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1669
+msgid "Choice"
+msgstr "Keuze"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1982
+msgid "Iframe"
+msgstr "IFrame"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2041
+msgid "Date time picker"
+msgstr "Datum tijd kiezer"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2185
+msgid "Shared header"
+msgstr "Gedeelde header"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2195
+msgid "Shared footer"
+msgstr "Gedeelde footer"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2205
+msgid "Menu"
+msgstr "Menu"
+
+#: src/baserow/contrib/builder/elements/registries.py:68
+msgid "Unnamed element"
+msgstr "Naamloos element"

@@ -25,7 +25,8 @@
         "friday": "Vrijdag",
         "saturday": "Zaterdag",
         "sunday": "Zondag",
-        "value": "waarde"
+        "value": "waarde",
+        "workspace": "werkruimte"
     },
     "action": {
         "upload": "Uploaden",
@@ -61,7 +62,8 @@
         "close": "Sluit",
         "getStarted": "Aan de slag",
         "hide": "Verberg",
-        "next": "Volgende"
+        "next": "Volgende",
+        "select": "Selecteer"
     },
     "adminType": {
         "settings": "Instellingen",
@@ -315,7 +317,8 @@
         "hasDateWithin": "heeft datum binnen",
         "hasNotDateWithin": "heeft geen datum binnen",
         "hasAnyOf": "heeft een van",
-        "hasNotAnyOf": "heeft niets van"
+        "hasNotAnyOf": "heeft niets van",
+        "startsWith": "begint met"
     },
     "viewType": {
         "grid": "Raster",
@@ -338,7 +341,9 @@
         "view": "weergave",
         "rows": "rijen",
         "automation_workflow": "automatiseringWorkflow",
-        "automation_node": "automatisering knooppunt"
+        "automation_node": "automatisering knooppunt",
+        "builder_page": "builder-pagina",
+        "builder_element": "builder-element"
     },
     "webhook": {
         "request": "Verzoek",
@@ -466,7 +471,8 @@
         "csv": "Een CSV-bestand importeren",
         "paste": "Tabelgegevens plakken",
         "xml": "Een XML-bestand importeren",
-        "json": "Een JSON-bestand importeren"
+        "json": "Een JSON-bestand importeren",
+        "excel": "Een Excel-bestand importeren"
     },
     "apiDocs": {
         "intro": "Introductie",
@@ -713,7 +719,17 @@
         "sumDescription": "Telt de getallen in het argument op.",
         "avgDescription": "Berekent het gemiddelde van de getallen in het argument.",
         "atDescription": "Geeft het item in het eerste argument terug op de index die is opgegeven door het tweede argument.",
-        "toArrayDescription": "Zet een door komma's gescheiden string om naar een array."
+        "toArrayDescription": "Zet een door komma's gescheiden string om naar een array.",
+        "absDescription": "Geeft de absolute waarde van het argument terug.",
+        "rangeDescription": "Geeft een array van getallen terug. Gebruik range(stop), range(start, stop) of range(start, stop, step).",
+        "toJsonDescription": "Serialiseert een waarde naar een JSON-gecodeerde string, waarbij aanhalingstekens, backslashes en controletekens worden geëscapet zodat deze veilig in een JSON-document kan worden opgenomen.",
+        "fromJsonDescription": "Parseert een JSON-gecodeerde string naar een waarde zoals een object, array of getal. Geeft null terug als de string geen geldige JSON is.",
+        "nullDescription": "Geeft null terug, wat kan worden gebruikt als waarde of voor vergelijking",
+        "numberFormatDescription": "Formatteert een getal als een string met instelbare decimalen, duizendtalscheidingsteken en decimaalteken.",
+        "toDatetimeDescription": "Parseert een string naar een datetime-object. Een optioneel tweede argument specificeert het formaat (bijv. 'DD/MM/YYYY'). Indien weggelaten wordt het ISO 8601-formaat aangenomen.",
+        "toDurationDescription": "Geeft de duur terug die overeenkomt met het opgegeven argument.",
+        "durationFormatDescription": "Formatteert een duur als tekst met een formaatstring met de tokens 'd' (dagen), 'h' (uren), 'm' (minuten), 's' (seconden), bijv. 'h:mm', 'd h:mm:ss'.",
+        "categoryUtility": "Hulpfuncties"
     },
     "formulaInputContext": {
         "useRegularInput": "Gebruik regelmatige invoer",
@@ -731,5 +747,15 @@
         "missingProvider": "Het argument 'get' '{path}' mist het voorvoegsel van de formuleprovider.",
         "unknownProvider": "De formuleprovider '{providerName}' bestaat niet.",
         "invalidProviderPath": "De formuleprovider '{providerName}' heeft vastgesteld dat '{path}' ongeldig is."
+    },
+    "runtimeFormulaTypeErrors": {
+        "invalidNumber": "'{value}' is geen geldig getal.",
+        "invalidTimezone": "'{value}' is geen geldige tijdzone. Gebruik een geldige IANA-tijdzone (bijv. 'Europe/Amsterdam').",
+        "invalidThousandSeparator": "'{value}' is geen geldig duizendtalscheidingsteken. Geldige opties zijn: ',', '.', ' ' of '' (lege string).",
+        "invalidDecimalSeparator": "'{value}' is geen geldig decimaalteken. Geldige opties zijn: ',' of '.'.",
+        "sameSeparators": "Het duizendtalscheidingsteken en het decimaalteken mogen niet hetzelfde zijn.",
+        "invalidDuration": "'{value}' is geen geldige duur. Geldige opties zijn: '1 day', '2 hours', enz.",
+        "invalidDatetimeFormat": "'{value}' is geen geldig datum-tijdformaat. Geldige opties zijn: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss', enz.",
+        "invalidDurationFormat": "'{value}' is geen geldig duurformaat. Gebruik 'd' (dagen), 'h' (uren), 'm' (minuten), 's' (seconden), bijv. 'd:h', 'd h:mm:ss'."
     }
 }

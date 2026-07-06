@@ -60,3 +60,145 @@ msgstr "Datenquelle"
 #, python-format
 msgid "Column %(count)s"
 msgstr "Spalte %(count)s"
+
+#: src/baserow/contrib/builder/action_scopes.py:10
+#, python-format
+msgid ""
+"of type \"%(element_type)s\" on page (%(page_id)s) in builder "
+"\"%(builder_name)s\" (%(builder_id)s)."
+msgstr ""
+"vom Typ \"%(element_type)s\" auf Seite (%(page_id)s) in Builder "
+"\"%(builder_name)s\" (%(builder_id)s)."
+
+#: src/baserow/contrib/builder/elements/actions.py:48
+msgid "Create element"
+msgstr "Element erstellen"
+
+#: src/baserow/contrib/builder/elements/actions.py:49
+#, python-format
+msgid "Element (%(element_id)s) created"
+msgstr "Element (%(element_id)s) erstellt"
+
+#: src/baserow/contrib/builder/elements/actions.py:107
+msgid "Update element"
+msgstr "Element aktualisieren"
+
+#: src/baserow/contrib/builder/elements/actions.py:108
+#, python-format
+msgid "Element (%(element_id)s) updated"
+msgstr "Element (%(element_id)s) aktualisiert"
+
+#: src/baserow/contrib/builder/elements/actions.py:161
+msgid "Delete element"
+msgstr "Element löschen"
+
+#: src/baserow/contrib/builder/elements/actions.py:162
+#, python-format
+msgid "Element (%(element_id)s) deleted"
+msgstr "Element (%(element_id)s) gelöscht"
+
+#: src/baserow/contrib/builder/elements/actions.py:217
+msgid "Duplicate element"
+msgstr "Element duplizieren"
+
+#: src/baserow/contrib/builder/elements/actions.py:218
+#, python-format
+msgid "Element (%(element_id)s) duplicated"
+msgstr "Element (%(element_id)s) dupliziert"
+
+#: src/baserow/contrib/builder/elements/actions.py:278
+msgid "Move element"
+msgstr "Element verschieben"
+
+#: src/baserow/contrib/builder/elements/actions.py:279
+#, python-format
+msgid "Element (%(element_id)s) moved"
+msgstr "Element (%(element_id)s) verschoben"
+
+#: src/baserow/contrib/builder/elements/element_types.py:137
+msgid "Column"
+msgstr "Spalten"
+
+#: src/baserow/contrib/builder/elements/element_types.py:220
+msgid "Form"
+msgstr "Formular"
+
+#: src/baserow/contrib/builder/elements/element_types.py:292
+msgid "Container"
+msgstr "Container"
+
+#: src/baserow/contrib/builder/elements/element_types.py:304
+msgid "Table"
+msgstr "Tabelle"
+
+#: src/baserow/contrib/builder/elements/element_types.py:369
+msgid "Repeat"
+msgstr "Wiederholen"
+
+#: src/baserow/contrib/builder/elements/element_types.py:437
+msgid "Record selector"
+msgstr "Datensatz-Auswahl"
+
+#: src/baserow/contrib/builder/elements/element_types.py:686
+msgid "Heading"
+msgstr "Überschrift"
+
+#: src/baserow/contrib/builder/elements/element_types.py:753
+msgid "Text"
+msgstr "Paragraph"
+
+#: src/baserow/contrib/builder/elements/element_types.py:975
+msgid "Link"
+msgstr "Verknüpfung"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1113
+msgid "Image"
+msgstr "Bild"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1277
+msgid "Rating"
+msgstr "Bewertung"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1324
+msgid "Rating input"
+msgstr "Bewertungseingabefeld"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1410
+msgid "Input text"
+msgstr "Dateneingabe"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1550
+msgid "Button"
+msgstr "Button"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1595
+msgid "Checkbox"
+msgstr "Kontrollkästchen"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1669
+msgid "Choice"
+msgstr "Auswahl"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1982
+msgid "Iframe"
+msgstr "iFrame"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2041
+msgid "Date time picker"
+msgstr "Datums- und Zeitauswahl"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2185
+msgid "Shared header"
+msgstr "Gemeinsamer Kopfbereich"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2195
+msgid "Shared footer"
+msgstr "Gemeinsamer Fussbereich"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2205
+msgid "Menu"
+msgstr "Menü"
+
+#: src/baserow/contrib/builder/elements/registries.py:68
+msgid "Unnamed element"
+msgstr "Unbenanntes Element"

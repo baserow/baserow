@@ -756,3 +756,28 @@ msgstr ""
 "Die Payload des Webhooks %(name)s mit der Ereignis-ID %(event_id)s war zu "
 "groß. Der Inhalt wurde in mehrere Batches aufgeteilt, aber Daten oberhalb "
 "des Batch-Limits von %(batch_limit)s wurden verworfen."
+
+#: src/baserow/contrib/database/views/actions.py:1087
+msgid "Prioritize view sortings"
+msgstr "Ansichtssortierungen priorisieren"
+
+#: src/baserow/contrib/database/views/actions.py:1088
+msgid "View sortings priority changed"
+msgstr "Priorität der Ansichtssortierungen geändert"
+
+#: src/baserow/contrib/database/views/actions.py:2396
+msgid "Prioritize view group bys"
+msgstr "Ansichtsgruppierungen priorisieren"
+
+#: src/baserow/contrib/database/views/actions.py:2397
+msgid "View group bys priority changed"
+msgstr "Priorität der Ansichtsgruppierungen geändert"
+
+#: src/baserow/contrib/database/views/actions.py:2710
+msgid "Update view default values"
+msgstr "Standardwerte der Ansicht aktualisieren"
+
+#: src/baserow/contrib/database/views/actions.py:2711
+#, python-format
+msgid "Default row values updated for view (%(view_name)s)"
+msgstr "Standardwerte für Zeilen der Ansicht (%(view_name)s) aktualisiert"

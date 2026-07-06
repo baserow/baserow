@@ -4,7 +4,8 @@
         "cannotDisableAllAuthProvidersDescription": "Es ist nicht möglich, den zuletzt aktivierten Anbieter zu deaktivieren oder zu löschen."
     },
     "advanced": {
-        "license": "Advanced"
+        "license": "Advanced",
+        "openSubscriptions": "Abonnements für mehr Seats öffnen"
     },
     "enterprise": {
         "license": "Enterprise",
@@ -13,7 +14,8 @@
         "sso": "SSO",
         "licenseDescription": "Betrachter sind bei Baserow Enterprise kostenlos. Wenn ein Benutzer eine andere Rolle in irgendeinem Arbeitsbereich hat, wird automatisch ein kostenpflichtiger Platz verwendet.",
         "overflowWarning": "Sie haben zu viele Nicht-Betrachter-Benutzer und haben alle Ihre kostenpflichtigen Plätze aufgebraucht. Ändern Sie die Benutzer auf der Mitgliederseite jedes Arbeitsbereichs zu Betrachtern.",
-        "deactivated": "Verfügbar in der Advanced/Enterprise-Version"
+        "deactivated": "Verfügbar in der Advanced/Enterprise-Version",
+        "enterpriseOnlyDeactivated": "Verfügbar in der Enterprise-Version"
     },
     "trashType": {
         "team": "Team"
@@ -316,7 +318,14 @@
             "warningTitle": "Andere Benutzer könnten den Zugriff erben!",
             "warningMessage": "Andere Benutzer erben möglicherweise den Zugriff über ihre jeweiligen Rollen in der übergeordneten Tabelle, Datenbank oder dem Arbeitsbereich.",
             "headerTooltip": "Ansichtsrollen überschreiben Arbeitsbereichs-, Datenbank- und Tabellenrollen."
-        }
+        },
+        "title": "{name} {type}",
+        "selectMembers": "Mitglieder auswählen",
+        "everyoneHasAccess": "Jeder im Arbeitsbereich {name} kann auf diese(s) {type} zugreifen.",
+        "onlyYouHaveAccess": "Nur Sie können auf diese(s) {type} zugreifen.",
+        "warningTitle": "Andere Benutzer könnten Zugriff erben!",
+        "warningMessage": "Andere Benutzer könnten über ihre jeweiligen Rollen auf dem übergeordneten {parent} Zugriff erben.",
+        "headerTooltip": "Rollen auf diese(m) {type} überschreiben die Rollen des {overrides}."
     },
     "memberRolesShareToggle": {
         "label": "Mit allen bei {name} teilen",
@@ -417,7 +426,11 @@
         "dateDependency": "Datumsabhängigkeit",
         "dateDependencyContent": "Sie können eine Abhängigkeit zwischen zwei Daten und einer Dauer als Start-/Enddatum und Dauer definieren. Mit der Datumsabhängigkeit werden bei einer Änderung eines Wertes andere Werte entsprechend angepasst.",
         "dataScanner": "Daten-Scanner",
-        "dataScannerContent": "Scannen Sie alle Daten in Ihrer Baserow-Instanz auf sensible Muster wie IBAN-Nummern oder medizinische IDs oder gleichen Sie sie mit bekannten Wertelisten ab. Konfigurieren Sie automatische Scan-Zeitpläne und sehen Sie sich detaillierte Ergebnisse an."
+        "dataScannerContent": "Scannen Sie alle Daten in Ihrer Baserow-Instanz auf sensible Muster wie IBAN-Nummern oder medizinische IDs oder gleichen Sie sie mit bekannten Wertelisten ab. Konfigurieren Sie automatische Scan-Zeitpläne und sehen Sie sich detaillierte Ergebnisse an.",
+        "codeRunner": "Code-Runner",
+        "codeRunnerContent": "Führen Sie JavaScript-Code in Automatisierungsknoten und Workflow-Aktionen des Application Builders aus.",
+        "xlsFileReader": "XLS-Dateileser",
+        "xlsFileReaderContent": "Lesen Sie Zeilen aus XLS- und XLSX-Dateien in Automatisierungsknoten und Workflow-Aktionen des Application Builders."
     },
     "assistantSidebarItem": {
         "title": "Kuma AI"
@@ -824,5 +837,47 @@
     },
     "assistantOnboardingMessage": {
         "instructing": "Kuma wird angewiesen, Ihre Datenbank zu erstellen."
+    },
+    "serviceType": {
+        "coreCode": "Code ausführen",
+        "coreCodeDescription": "Führt beliebigen JavaScript-Code aus.",
+        "coreXLSFileReader": "Eine XLS-Datei lesen",
+        "coreXLSFileReaderDescription": "Liest Zeilen aus einer XLS- oder XLSX-Datei.",
+        "errorCodeMissing": "Fehlende Code-Eigenschaft",
+        "errorXLSFileMissing": "Fehlende XLS-Datei-Eigenschaft"
+    },
+    "coreCodeServiceForm": {
+        "codeLabel": "Code",
+        "codeHelperText": "Baserow ruft die Funktion main(context) auf, wenn die Aktion ausgeführt wird. Verwenden Sie context, um injizierte Werte zu lesen, und geben Sie ein Objekt zurück, dessen Eigenschaften von späteren Aktionen verwendet werden können.",
+        "codePlaceholder": "Geben Sie den auszuführenden Code ein",
+        "editCode": "Code bearbeiten",
+        "injectionsLabel": "Dateninjektionen",
+        "injectionsHelperText": "Injektionen sind Formeln, die ausgewertet werden, bevor der Code ausgeführt wird. Jeder Injektionsname wird zu einer Eigenschaft von context. Eine Injektion mit dem Namen customerName ist zum Beispiel als context.customerName verfügbar.",
+        "nameLabel": "Name",
+        "namePlaceholder": "Variablenname",
+        "valueLabel": "Wert",
+        "valuePlaceholder": "Wertformel",
+        "addInjection": "Injektion hinzufügen",
+        "nameFieldRequired": "Das Namensfeld ist erforderlich.",
+        "nameFieldInvalid": "Der Name muss ein gültiger Variablenname sein."
+    },
+    "coreXLSFileReaderServiceForm": {
+        "file": "XLS-Datei",
+        "filePlaceholder": "Wählen Sie eine XLS- oder XLSX-Datei...",
+        "sheetName": "Blattname",
+        "sheetNamePlaceholder": "Erstes Blatt",
+        "firstLineIsHeader": "Erste Zeile ist Kopfzeile"
+    },
+    "nodeType": {
+        "codeLabel": "Code ausführen",
+        "xlsFileReaderLabel": "Eine XLS-Datei lesen"
+    },
+    "restrictedViewFilterContext": {
+        "matchTitle": "Standardwerte der Ansicht stimmen mit den Filtern überein",
+        "matchSubtitle": "Bearbeiter sehen die von ihnen erstellten Zeilen.",
+        "mismatchTitle": "Standardwerte stimmen nicht mit den Filtern überein",
+        "mismatchSubtitle": "Bearbeiter können Zeilen erstellen, sehen sie aber nicht.",
+        "removeDefaultValue": "Standardwert entfernen",
+        "removeDefaultValueHelper": "Dieses Feld hat einen Standardwert, aber keinen Filter. Sie können ihn hier entfernen oder alle Standardwerte verwalten, indem Sie auf die drei Punkte neben der Ansicht und dann auf \"Standardwerte für Zeilen\" klicken."
     }
 }

@@ -281,7 +281,10 @@
         "errorLinkExpiredMessage": "De link voor het resetten van je wachtwoord is verlopen. Vraag een nieuwe link aan.",
         "disabled": "Wachtwoord opnieuw instellen is uitgeschakeld",
         "disabledMessage": "Het is niet mogelijk om het wachtwoord te resetten omdat het is uitgeschakeld.",
-        "message": "Je kunt nu inloggen op Baserow met je nieuwe wachtwoord."
+        "message": "Je kunt nu inloggen op Baserow met je nieuwe wachtwoord.",
+        "repeatPasswordPlaceholder": "Herhaal je nieuwe wachtwoord",
+        "errorLinkAlreadyUsedTitle": "Link al gebruikt",
+        "errorLinkAlreadyUsedMessage": "Deze link om het wachtwoord te resetten is al gebruikt. Vraag een nieuwe aan."
     },
     "signup": {
         "headTitle": "Nieuw account aanmaken",
@@ -988,7 +991,8 @@
         "workspaces": "Werkruimtes",
         "lastLogin": "Laatste login",
         "dateJoined": "Ingeschreven",
-        "active": "Ingeschakeld"
+        "active": "Ingeschakeld",
+        "twoFactorAuth": "2FA"
     },
     "editUserContext": {
         "changePassword": "Wachtwoord wijzigen",
@@ -1015,7 +1019,9 @@
         "error": {
             "invalidName": "Voer een geldige volledige naam in. De naam moet langer zijn dan 2 letters en minder dan 150.",
             "invalidEmail": "Voer een geldig e-mail adres in."
-        }
+        },
+        "twoFactorAuth": "Tweefactorauthenticatie",
+        "removeTwoFactorAuth": "Tweefactorauthenticatie verwijderen"
     },
     "changeUserPasswordModal": {
         "changePassword": "Wijzig wachtwoord voor {gebruikersnaam}"
@@ -1279,6 +1285,28 @@
     "formulaParserErrors": {
         "invalidArgCountMin": "De functie '{funcType}' verwacht minimaal {minArgs} argumenten.",
         "invalidArgCountExact": "De functie '{funcType}' verwacht precies {minArgs} argumenten.",
-        "invalidArgCountRange": "De functie '{funcType}' verwacht tussen {minArgs} en {maxArgs} argumenten."
+        "invalidArgCountRange": "De functie '{funcType}' verwacht tussen {minArgs} en {maxArgs} argumenten.",
+        "invalidArgumentType": "'{value}' is geen geldig argument voor de functie '{funcType}'."
+    },
+    "sampleDataViewer": {
+        "payloadLabel": "Uitvoer",
+        "errorLabel": "Er is een fout opgetreden...",
+        "showPayloadLabel": "Toon payload",
+        "showErrorLabel": "Toon fout",
+        "downloadFullPayload": "Volledige payload downloaden",
+        "truncatedLabel": "[Uitvoer afgekapt]",
+        "truncatedPayloadWarning": "Alleen de eerste {size} tekens worden getoond. Download de volledige payload om deze op je computer te bekijken."
+    },
+    "workspaceOutdatedToast": {
+        "title": "Te veel wijzigingen",
+        "content": "Er zijn te veel wijzigingen doorgevoerd terwijl je weg was. Vernieuw om de nieuwste gegevens te zien.",
+        "action": "Gegevens vernieuwen",
+        "dismiss": "Sluiten"
+    },
+    "disableTwoFactorAuthModal": {
+        "title": "Tweefactorauthenticatie verwijderen",
+        "confirmation": "Weet je zeker dat je tweefactorauthenticatie voor {name} wilt verwijderen?",
+        "comment": "Deze gebruiker kan dan inloggen met alleen een wachtwoord en kan daarna tweefactorauthenticatie opnieuw instellen.",
+        "remove": "Tweefactorauthenticatie verwijderen"
     }
 }
