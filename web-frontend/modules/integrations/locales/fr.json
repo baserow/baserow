@@ -15,15 +15,15 @@
         "misconfigured": "Configuration incorrecte",
         "localBaserowCreateRow": "Créer une ligne",
         "localBaserowUpdateRow": "Modification d'une ligne",
-        "localBaserowDeleteRow": "Supprimer une ligne",
+        "localBaserowDeleteRow": "Supprimer des lignes",
         "localBaserowRowsCreated": "Des lignes sont créées",
         "localBaserowRowsCreatedDescription": "Déclenché lorsque des lignes sont créées dans une table Baserow.",
         "coreHTTPRequest": "Envoyer une requête HTTP",
         "localBaserowCreateRowDescription": "Crée une nouvelle ligne dans une table Baserow.",
         "localBaserowUpdateRowDescription": "Modifie une ligne dans une table Baserow.",
-        "localBaserowDeleteRowDescription": "Suppression d'une ligne dans une table Baserow.",
+        "localBaserowDeleteRowDescription": "Suppression d'une ou pliseurs lignes dans une table Baserow.",
         "localBaserowRowsUpdated": "Les lignes sont actualisées",
-        "localBaserowRowsUpdatedDescription": "Déclenché lorsque des lignes sont modifiées dans une table Baserow.",
+        "localBaserowRowsUpdatedDescription": "Déclenché lorsque n'importe quel champs d'une ou plusieurs lignes sont modifiées dans une table Baserow.",
         "localBaserowRowsDeleted": "Les lignes sont supprimées",
         "localBaserowRowsDeletedDescription": "Déclenché lorsque des lignes sont supprimés dans une table Baserow.",
         "coreHTTPRequestDescription": "Envoie une requête HTTP à un point d'accès spécifié.",
@@ -64,7 +64,24 @@
         "slackWriteMessageDescription": "Envoie un message à un #canal Slack spécifique",
         "slackWriteMessageMissingChannel": "Un canal est nécessaire.",
         "slackWriteMessageMissingMessage": "Un message est nécessaire.",
-        "slackWriteMessageMissingIntegration": "Aucune intégration Slack n'a été sélectionnée."
+        "slackWriteMessageMissingIntegration": "Aucune intégration Slack n'a été sélectionnée.",
+        "coreManualTrigger": "Déclencheur manuel",
+        "localBaserowCreateRows": "Création de lignes par lots",
+        "localBaserowCreateRowsDescription": "Créer plusieurs lignes dans une table « Baserow ».",
+        "localBaserowUpdateRows": "Mise à jour de ligne par lots",
+        "localBaserowUpdateRowsDescription": "Met à jour plusieurs lignes dans une table « Baserow ».",
+        "localBaserowFieldsUpdated": "Les valeurs de certaines colonnes sont mises à jour",
+        "localBaserowFieldsUpdatedDescription": "Se déclenche lorsque les colonnes séléctionnées de une ou plusieurs lignes sont mises à jour d'une table Baserow.",
+        "coreManualTriggerDescription": "Ne démarre que lorsqu'une autre action lance ce scénario.",
+        "coreCSVFileReader": "Lire un fichier CSV",
+        "coreCSVFileReaderDescription": "Lit les lignes d'un fichier CSV.",
+        "coreStartWorkflow": "Lancer un scénario",
+        "coreStartWorkflowDescription": "Lance un scénario d'automatisation.",
+        "errorNoRowsSelected": "Aucune ligne sélectionnée",
+        "errorCSVFileMissing": "Fichier CSV manquant",
+        "errorCSVContentMissing": "La propriété Fichier CSV est manquante",
+        "errorNoWorkflowSelected": "Aucun scénario n'a été sélectionné",
+        "errorWorkflowNotImmediateDispatch": "Le scénario sélectionné doit utiliser un déclencheur pouvant être activé immédiatement."
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -339,5 +356,48 @@
         "fieldMappingPlaceholderDuration": "Choisissez une durée, par exemple 1:23:40",
         "noTableSelectedMessage": "Choisissez une table pour commencer à configurer vos champs.",
         "noWritableFields": "Cette table ne contient pas de champs modifiables."
+    },
+    "localBaserowFieldsUpdatedForm": {
+        "fieldLabel": "Colonnes",
+        "fieldHelper": "Le scénario ne se déclenche que lorsque la valeur de l'une de ces colonnes change."
+    },
+    "coreCSVFileReaderServiceForm": {
+        "inputType": "Source",
+        "inputTypeFile": "Fichier",
+        "inputTypeContent": "Contenu",
+        "file": "Fichier CSV",
+        "filePlaceholder": "Sélectionnez un fichier CSV...",
+        "csv": "Données au format CSV",
+        "csvPlaceholder": "Saisissez les données au format CSV...",
+        "separator": "Séparateur",
+        "encoding": "Encodage",
+        "firstLineIsHeader": "La première ligne est l'en-tête",
+        "comma": "Virgule",
+        "semicolon": "Point-virgule",
+        "tab": "Tab",
+        "pipe": "Barre verticale",
+        "utf8": "UTF-8",
+        "utf8Bom": "UTF-8 avec BOM",
+        "latin1": "Latin-1"
+    },
+    "coreStartWorkflowServiceForm": {
+        "automation": "Automatisation",
+        "workflow": "Scénario",
+        "workflowHelperText": "Seuls les scénarios publiés dotés d'un déclencheur manuel peuvent être lancés. Si ce scénario comporte des modifications non publiées, c'est la dernière version publiée qui s'exécutera."
+    },
+    "localBaserowDeleteRowServiceForm": {
+        "rowIdLabel": "ID(s) de ligne",
+        "rowIdPlaceholder": "Sélectionnez un identifiant de ligne ou un tableau d'identifiants de lignes",
+        "rowIdHelper": "Sélectionnez un identifiant de ligne ou un tableau d'identifiants de lignes. Il est possible de supprimer jusqu'à {limit} lignes à la fois."
+    },
+    "localBaserowCreateRowsServiceForm": {
+        "rowsLabel": "Lignes",
+        "rowsPlaceholder": "Sélectionner une liste d'objets de ligne",
+        "rowsHelper": "La formule doit renvoyer un tableau d'objets de ligne, ou une chaîne JSON pouvant être analysée pour en former un. Utilisez les noms de colonne ou les identifiants de colonne comme clés d'objet. Il est possible de créer jusqu'à {limit} lignes à la fois."
+    },
+    "localBaserowUpdateRowsServiceForm": {
+        "rowsLabel": "Lignes",
+        "rowsPlaceholder": "Sélectionner une liste d'objets de ligne avec leurs identifiants",
+        "rowsHelper": "La formule doit renvoyer un tableau d'objets de ligne, ou une chaîne JSON pouvant être analysée pour en former un. Chaque objet doit comporter une propriété « id ». Utilisez les noms de colonne ou les identifiants de colonne comme clés d'objet. Il est possible de mettre à jour jusqu'à {limit} lignes à la fois."
     }
 }
