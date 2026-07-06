@@ -339,5 +339,11 @@
         "rowIdPlaceholder": "Elige un ID de fila único",
         "rowIdLabel": "ID de fila",
         "integrationDropdownLabel": "Integración"
+    },
+    "localBaserowUpdateRowsServiceForm": {
+        "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Cada objeto debe incluir una propiedad ID. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden actualizar hasta {limit} filas a la vez."
+    },
+    "localBaserowCreateRowsServiceForm": {
+        "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden crear hasta {limit} filas a la vez."
     }
 }
