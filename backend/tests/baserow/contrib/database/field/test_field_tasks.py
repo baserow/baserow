@@ -717,3 +717,19 @@ def test_cross_table_dependent_formulas_update_when_multiple_tables_have_now(
 
     row_a.refresh_from_db()
     assert getattr(row_a, formula_a.db_column) == "02"
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_command_runs_inline(data_fixture, settings):
+    from django.core.management import call_command
+
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    with patch(
+        "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields"
+    ) as inline:
+        with freeze_time("2023-02-27 10:30"):
+            call_command("run_periodic_fields_updates", workspace_id=workspace.id)
+
+    inline.assert_called_once_with(workspace.id, True)

@@ -22,5 +22,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         run_periodic_fields_updates(
-            options["workspace_id"], not options["dont_update_now"]
+            options["workspace_id"],
+            not options["dont_update_now"],
+            dispatch=False,
         )
