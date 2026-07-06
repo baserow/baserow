@@ -123,6 +123,9 @@ def _collect_workspace_ids_needing_update(
 ) -> set[int]:
     """Returns the ids of workspaces that have at least one periodic field due."""
 
+    # Eligibility is snapshotted once here, before any refresh_now happens in the
+    # workers. With a single periodic field type (formula) today this matches the old
+    # per-type loop exactly; adding a second periodic type would need this revisited.
     workspace_ids: set[int] = set()
     for field_type_instance in field_type_registry.get_all():
         field_qs = field_type_instance.get_fields_needing_periodic_update()
