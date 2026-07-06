@@ -9,7 +9,6 @@
     <GridViewRow
       v-for="(row, index) in rows"
       :key="`row-${row._.persistentId}`"
-      :group-end="rowsAtEndOfGroups.has(row.id)"
       :view="view"
       :workspace-id="workspaceId"
       :row="row"
@@ -25,6 +24,8 @@
       :can-drag="
         canDrag && view.sortings.length === 0 && activeGroupBys.length === 0
       "
+      :focus-entries-by-cell="focusEntriesByCell"
+      :focus-entries-by-row="focusEntriesByRow"
       :store-prefix="storePrefix"
       :row-identifier-type="view.row_identifier_type"
       :count="index + rowsStartIndex + bufferStartIndex + 1"
@@ -42,6 +43,7 @@
       @unselect="$emit('unselect', $event)"
       @select-next="$emit('select-next', $event)"
       @add-row-after="$emit('add-row-after', $event)"
+      @editing-changed="$emit('editing-changed', $event)"
       @edit-modal="$emit('edit-modal', $event)"
       @refresh-row="$emit('refresh-row', $event)"
       @row-dragging="$emit('row-dragging', $event)"
@@ -120,9 +122,15 @@ export default {
       type: Number,
       required: true,
     },
-    rowsAtEndOfGroups: {
-      type: Set,
-      default: () => new Set(),
+    focusEntriesByCell: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
+    },
+    focusEntriesByRow: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
     },
     canDrag: {
       type: Boolean,
@@ -145,6 +153,7 @@ export default {
     'select-next',
     'add-row-after',
     'edit-modal',
+    'editing-changed',
     'refresh-row',
     'row-dragging',
     'row-hover',

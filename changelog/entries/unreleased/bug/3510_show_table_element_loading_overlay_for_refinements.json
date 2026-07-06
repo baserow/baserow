@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Show a loading overlay on application builder table elements while ad hoc filters, sorting, or search results are loading.",
+  "issue_origin": "github",
+  "issue_number": 3510,
+  "domain": "builder",
+  "bullet_points": [],
+  "created_at": "2026-06-29"
+}

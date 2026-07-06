@@ -110,6 +110,10 @@
   &.header__filter-item--no-margin-left {
     margin-left: 0;
   }
+
+  &:last-child {
+    margin-right: 10px;
+  }
 }
 
 .header__filter-link {

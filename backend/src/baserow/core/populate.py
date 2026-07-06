@@ -28,6 +28,7 @@ def load_test_data():
             admin = User.objects.get(email=email)
 
         admin.is_staff = True
+        admin.is_superuser = True
         admin.save()
 
         user_handler.update_user(

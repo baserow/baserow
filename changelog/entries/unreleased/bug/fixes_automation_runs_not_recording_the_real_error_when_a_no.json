@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes automation runs not recording the real error when a node hits a database problem",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-06-30"
+}

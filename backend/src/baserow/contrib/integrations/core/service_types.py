@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import re
 import socket
 import uuid
 from datetime import datetime
@@ -57,6 +58,7 @@ from baserow.contrib.integrations.core.models import (
 )
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
     ensure_array,
@@ -82,6 +84,12 @@ from baserow.core.services.registries import (
 )
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
+
+# Captures potential runtime formula function calls, e.g. `get(`, `concat(`, etc.
+# The captured name is checked against the runtime function registry so that
+# literal text like `foo(` (which isn't a real function) doesn't match. Function
+# names are case-insensitive, so the name is lowercased before the lookup.
+RE_FORMULA_FUNCTION = re.compile(r"\b([a-zA-Z_]+)\s*\(")
 
 
 class CoreServiceType(ServiceType):
@@ -531,6 +539,23 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         return formulas
 
+    def _body_has_formula(self, service: CoreHTTPRequestService) -> bool:
+        """
+        Returns True if the JSON body is built from a formula that interpolates a
+        runtime value, e.g. a data source via `get(...)` or a function like `now()`.
+
+        This is used to customize the JSON validation error with a more specific
+        error message.
+        """
+
+        formula = (service.body_content or {}).get("formula") or ""
+
+        registered_functions = set(formula_runtime_function_registry.get_types())
+        return any(
+            match.group(1).lower() in registered_functions
+            for match in RE_FORMULA_FUNCTION.finditer(formula)
+        )
+
     def dispatch_data(
         self,
         service: CoreHTTPRequestService,
@@ -554,9 +579,14 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     json.loads(body_content, strict=False) if body_content else None
                 )
             except json.JSONDecodeError as e:
-                raise ServiceImproperlyConfiguredDispatchException(
-                    "The body is not a valid JSON"
-                ) from e
+                message = "The body is not a valid JSON"
+                if self._body_has_formula(service):
+                    message += (
+                        ". If the body includes a value from a formula, wrap "
+                        "it with to_json() so it is correctly quoted and "
+                        "escaped, e.g. concat('{\"value\": ', to_json(get('...')), '}')."
+                    )
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
         elif service.body_type == BODY_TYPE.FORM:  # Form multipart payload
             body_dict["data"] = {
                 f.key: resolved_values[f"form_data_{f.id}"]

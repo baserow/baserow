@@ -307,6 +307,42 @@ class ContainsNotViewFilterType(NotViewFilterTypeMixin, ContainsViewFilterType):
     type = "contains_not"
 
 
+class StartsWithViewFilterType(ViewFilterType):
+    """
+    The starts with filter checks if the field value starts with the provided filter
+    value.
+    """
+
+    type = "starts_with"
+    # Field types that resolve to one of these via `get_compatible_filter_field_type`
+    # also become compatible, so they must implement `starts_with_query`. Otherwise
+    # the base implementation returns an empty `Q()` and the filter matches every row.
+    compatible_field_types = [
+        TextFieldType.type,
+        LongTextFieldType.type,
+        URLFieldType.type,
+        EmailFieldType.type,
+        PhoneNumberFieldType.type,
+        NumberFieldType.type,
+        AutonumberFieldType.type,
+        SingleSelectFieldType.type,
+        FormulaFieldType.compatible_with_formula_types(
+            BaserowFormulaTextType.type,
+            BaserowFormulaCharType.type,
+            BaserowFormulaURLType.type,
+            BaserowFormulaNumberType.type,
+            BaserowFormulaSingleSelectType.type,
+        ),
+    ]
+
+    def get_filter(self, field_name, value, model_field, field) -> OptionallyAnnotatedQ:
+        try:
+            field_type = field_type_registry.get_by_model(field)
+            return field_type.starts_with_query(field_name, value, model_field, field)
+        except Exception:
+            return self.default_filter_on_exception()
+
+
 class LengthIsLowerThanViewFilterType(ViewFilterType):
     """
     The length is lower than filter checks if the fields character

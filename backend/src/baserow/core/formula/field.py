@@ -1,5 +1,6 @@
 import json
 import logging
+from copy import deepcopy
 from typing import Any, Dict, List, Optional, Union
 
 from django.db import connection, models
@@ -450,6 +451,15 @@ class JSONFormulaField(models.JSONField):
         # `page_deleted_update_link_collection_fields`), then return its value.
         if not isinstance(value, (dict, list)):
             return value
+
+        # Work on a copy: the minification below mutates `value` in place, but
+        # `value` is the model instance's in-memory attribute. Mutating it as a
+        # side effect of preparing the DB value is unsafe when `get_prep_value`
+        # runs more than once for a single save (e.g. django-silk compiles each
+        # query twice for logging) — the second run would re-minify the
+        # already-minified value and blank the formula. Copying keeps the
+        # in-memory value untouched (full form) so re-runs are idempotent.
+        value = deepcopy(value)
 
         # Iterate over the properties bound to this field.
         # Each property represents a path to a formula field

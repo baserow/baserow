@@ -389,6 +389,18 @@ class BaserowFormulaNumberType(
             "number_negative": serializers.BooleanField(
                 required=False, read_only=True, default=True
             ),
+            "number_prefix": serializers.CharField(
+                max_length=10,
+                required=False,
+                allow_blank=True,
+                trim_whitespace=False,
+            ),
+            "number_suffix": serializers.CharField(
+                max_length=10,
+                required=False,
+                allow_blank=True,
+                trim_whitespace=False,
+            ),
         }
 
     def __init__(

@@ -28,9 +28,9 @@
       :database="database"
       :table="table"
       :view="view"
-      :include-row-details="!viewHasGroupBys"
-      :include-grid-view-identifier-dropdown="!viewHasGroupBys"
-      :include-group-by="true"
+      :include-row-details="true"
+      :include-grid-view-identifier-dropdown="true"
+      :include-group-by="!viewHasGroupBys"
       :can-order-fields="frozenColumnCount > 1"
       :read-only="
         readOnly ||
@@ -45,6 +45,8 @@
             database.workspace.id
           ))
       "
+      :focus-entries-by-cell="focusEntriesByCell"
+      :focus-entries-by-row="focusEntriesByRow"
       :store-prefix="storePrefix"
       :style="{ width: leftWidth + 'px' }"
       @refresh="$emit('refresh', $event)"
@@ -58,7 +60,7 @@
       @cell-mouseover="multiSelectHold"
       @cell-mouseup-left="multiSelectStop"
       @cell-shift-click="multiSelectShiftClick"
-      @add-row="addRow()"
+      @add-row="addRow($event)"
       @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
       @add-row-after="addRowAfter($event)"
       @update="updateValue"
@@ -67,6 +69,7 @@
       @selected="selectedCell"
       @unselected="unselectedCell"
       @select-next="selectNextCell"
+      @editing-changed="cellEditingChanged"
       @edit-modal="openRowEditModal($event)"
       @refresh-row="refreshRow"
       @scroll="scroll($event.pixelY, 0)"
@@ -79,9 +82,7 @@
       :style="{ left: leftWidth + 'px' }"
     ></div>
     <GridViewFreezeHandle
-      v-if="
-        canFitFrozenColumns && !viewHasGroupBys && allDraggableFields.length > 0
-      "
+      v-if="canFitFrozenColumns && allDraggableFields.length > 0"
       :view="view"
       :database="database"
       :fields="fields"
@@ -99,25 +100,6 @@
       :get-field-width="getFieldWidth"
       @frozen-count-change="onFrozenCountDragChange"
     ></GridViewFreezeHandle>
-    <HorizontalResize
-      v-else-if="viewHasGroupBys && leftFields.length === 0"
-      class="grid-view__divider-width"
-      :style="{ left: leftWidth + 'px' }"
-      :width="activeGroupBys[activeGroupBys.length - 1].width"
-      :min="GRID_VIEW_MIN_FIELD_WIDTH"
-      @move="
-        moveGroupWidth(activeGroupBys[activeGroupBys.length - 1], view, $event)
-      "
-      @update="
-        updateGroupWidth(
-          activeGroupBys[activeGroupBys.length - 1],
-          view,
-          database,
-          readOnly,
-          $event
-        )
-      "
-    ></HorizontalResize>
     <GridViewSection
       ref="right"
       class="grid-view__right"
@@ -128,8 +110,8 @@
       :database="database"
       :table="table"
       :view="view"
-      :include-row-details="viewHasGroupBys"
-      :include-grid-view-identifier-dropdown="viewHasGroupBys"
+      :include-row-details="false"
+      :include-grid-view-identifier-dropdown="false"
       :include-add-field="true"
       :can-order-fields="true"
       :read-only="
@@ -145,6 +127,8 @@
             database.workspace.id
           ))
       "
+      :focus-entries-by-cell="focusEntriesByCell"
+      :focus-entries-by-row="focusEntriesByRow"
       :store-prefix="storePrefix"
       :style="{ left: leftWidth + 'px' }"
       @refresh="$emit('refresh', $event)"
@@ -152,7 +136,7 @@
       @field-dragging="startCrossSectionFieldDrag($event.field, $event.event)"
       @row-hover="setRowHover($event.row, $event.value)"
       @row-context="showRowContext($event.event, $event.row)"
-      @add-row="addRow()"
+      @add-row="addRow($event)"
       @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
       @add-row-after="addRowAfter($event)"
       @update="updateValue"
@@ -166,6 +150,7 @@
       @selected="selectedCell"
       @unselected="unselectedCell"
       @select-next="selectNextCell"
+      @editing-changed="cellEditingChanged"
       @edit-modal="openRowEditModal($event)"
       @refresh-row="refreshRow"
       @scroll="scroll($event.pixelY, $event.pixelX)"
@@ -197,7 +182,7 @@
       :all-visible-fields="allVisibleFields"
       :all-fields-in-table="fields"
       :store-prefix="storePrefix"
-      :offset="activeGroupByWidth"
+      :offset="0"
       :get-scroll-element="getVerticalScrollbarElement"
       @scroll="scroll($event.pixelY, $event.pixelX)"
     ></GridViewRowDragging>
@@ -334,7 +319,6 @@ import { mapGetters } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import GridViewSection from '@baserow/modules/database/components/view/grid/GridViewSection'
-import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import GridViewFieldDragging from '@baserow/modules/database/components/view/grid/GridViewFieldDragging'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
@@ -351,6 +335,11 @@ import viewDecoration from '@baserow/modules/database/mixins/viewDecoration'
 import { populateRow } from '@baserow/modules/database/store/view/grid'
 import { clone } from '@baserow/modules/core/utils/object'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
+import {
+  createPresenceFocusSender,
+  isUserPresenceEnabled,
+  resolvePresencePageParams,
+} from '@baserow/modules/database/utils/presence'
 import GridViewRowsAddContext from '@baserow/modules/database/components/view/grid/fields/GridViewRowsAddContext'
 import GridRowContextItems from '@baserow/modules/database/components/view/grid/GridRowContextItems'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
@@ -359,11 +348,15 @@ import {
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
   GRID_VIEW_MULTI_SELECT_AREA,
 } from '@baserow/modules/database/constants'
+import {
+  getGroupByFieldsFromActiveGroupBys,
+  groupPathFromRow,
+} from '@baserow/modules/database/utils/gridGroupBy'
+import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 
 export default {
   name: 'GridView',
   components: {
-    HorizontalResize,
     GridViewFieldDragging,
     GridViewFreezeHandle,
     GridViewRowsAddContext,
@@ -414,12 +407,31 @@ export default {
       // submitting multiple refresh requests at the same time.
       refreshingRow: false,
       resizeObserver: null,
+      presenceSpaceName: null,
     }
   },
   computed: {
     ...mapGetters({
       row: 'rowModalNavigation/getRow',
     }),
+    focusEntriesByCell() {
+      if (!this.presenceSpaceName) return new Map()
+      return this.$store.getters['presence/getFocusEntriesByCell'](
+        this.presenceSpaceName
+      )
+    },
+    focusEntriesByRow() {
+      if (!this.presenceSpaceName) return new Map()
+      return this.$store.getters['presence/getFocusEntriesByRow'](
+        this.presenceSpaceName
+      )
+    },
+    hasOtherPresenceMembers() {
+      if (!this.presenceSpaceName) return false
+      const spaceData =
+        this.$store.state.presence.spaces[this.presenceSpaceName]
+      return spaceData ? Object.keys(spaceData.members).length > 0 : false
+    },
     /**
      * Returns all visible fields no matter in what section they
      * belong.
@@ -495,11 +507,7 @@ export default {
       return this.view.frozen_column_count ?? 1
     },
     hasFrozenColumns() {
-      return (
-        this.canFitFrozenColumns &&
-        !this.viewHasGroupBys &&
-        this.frozenColumnCount > 0
-      )
+      return this.canFitFrozenColumns && this.frozenColumnCount > 0
     },
     isEditable() {
       return (
@@ -544,11 +552,7 @@ export default {
       )
     },
     leftWidth() {
-      return (
-        this.leftFieldsWidth +
-        (this.viewHasGroupBys ? 0 : this.gridViewRowDetailsWidth) +
-        this.activeGroupByWidth
-      )
+      return this.leftFieldsWidth + this.gridViewRowDetailsWidth
     },
     /**
      * All non-primary visible fields in order, used by the cross-section
@@ -560,7 +564,6 @@ export default {
     crossSectionDraggingOffset() {
       const primary = this.fields.find((f) => f.primary)
       return (
-        this.activeGroupByWidth +
         this.gridViewRowDetailsWidth +
         (primary ? this.getFieldWidth(primary) : 0)
       )
@@ -592,6 +595,27 @@ export default {
       // When a field is added or removed, we want to update the scrollbars.
       this.fieldsUpdated()
     },
+    activeGroupBys(newVal, oldVal) {
+      // The store restarts the scroll offset at the top when group-by fields change, but
+      // the DOM scroll containers keep their old offset, which now points at an unloaded
+      // region. Mirror the reset on the DOM once the new layout has rendered.
+      const fieldKey = (groupBys) =>
+        (groupBys || []).map((g) => g.field).join(',')
+      if (fieldKey(newVal) === fieldKey(oldVal)) {
+        return
+      }
+      this.$nextTick(() => {
+        const left = this.$refs.left?.$refs?.body
+        const right = this.$refs.right?.$refs?.body
+        if (left) left.scrollTop = 0
+        if (right) right.scrollTop = 0
+      })
+    },
+    hasOtherPresenceMembers(hasMembers) {
+      if (hasMembers && this.presenceFocus) {
+        this.presenceFocus.reemitLastFocus()
+      }
+    },
     'view.frozen_column_count'() {
       // When the frozen column count changes (e.g. real-time sync from another
       // user), recalculate the viewport fit and update scrollbars. Use $nextTick
@@ -608,6 +632,11 @@ export default {
           ) {
             this.populateAndEditRow(newRow)
           } else if (prevRow !== null && newRow === null) {
+            // hide(false) suppresses the `hidden` event, which is the modal's
+            // only presence cleanup path, so the remote focus entry must be
+            // cleared explicitly first.
+            this.$refs.rowEditModal.clearPresenceFocus()
+            this._restorePresenceFocusAfterRowModal()
             // Pass emit=false as argument into the hide function because that will
             // prevent emitting another `hidden` event of the `RowEditModal` which can
             // result in the route changing twice.
@@ -642,16 +671,6 @@ export default {
       this.$emit('refresh')
     },
   },
-  /*beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        allRows: this.$options.propsData.storePrefix + 'view/grid/getAllRows',
-        isMultiSelectActive:
-          this.$options.propsData.storePrefix + 'view/grid/isMultiSelectActive',
-      }),
-    }
-  },*/
   created() {
     // When the grid view is created we want to update the scrollbars.
     this.fieldsUpdated()
@@ -676,8 +695,32 @@ export default {
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
     }
+
+    if (isUserPresenceEnabled(this)) {
+      const { page, params, spaceName, focusEnabled } =
+        resolvePresencePageParams(
+          this.$registry,
+          this.database,
+          this.table,
+          this.view
+        )
+      this.presenceSpaceName = spaceName
+      if (focusEnabled) {
+        this.presenceFocus = createPresenceFocusSender(
+          this.$realtime,
+          page,
+          params,
+          { hasOtherMembers: () => this.hasOtherPresenceMembers }
+        )
+      }
+    }
   },
   beforeUnmount() {
+    if (this.presenceFocus) {
+      this.presenceFocus.clearFocus()
+      this.presenceFocus.destroy()
+      this.presenceFocus = null
+    }
     if (this.resizeObserver !== null) {
       this.resizeObserver.disconnect()
       this.resizeObserver = null
@@ -1041,8 +1084,58 @@ export default {
         }
       )
     },
+    getGroupByFields() {
+      return getGroupByFieldsFromActiveGroupBys(
+        this.activeGroupBys,
+        this.fields
+      )
+    },
+    getGroupPathForRow(row) {
+      return groupPathFromRow(row, this.getGroupByFields(), this.$registry)
+    },
+    rowsBelongToSameGroup(leftRow, rightRow) {
+      const groupByFields = this.getGroupByFields()
+      const leftPath = groupPathFromRow(leftRow, groupByFields, this.$registry)
+      const rightPath = groupPathFromRow(
+        rightRow,
+        groupByFields,
+        this.$registry
+      )
+      return (
+        pathKey(leftPath, groupByFields) === pathKey(rightPath, groupByFields)
+      )
+    },
+    getGroupInsertionForBefore(before) {
+      if (before?.groupPath) {
+        return { path: before.groupPath, before: before.before ?? null }
+      }
+
+      if (this.viewHasGroupBys && before !== null) {
+        return { path: this.getGroupPathForRow(before), before }
+      }
+
+      return null
+    },
     async addRow(before = null, values = {}) {
       try {
+        const groupInsertion = this.getGroupInsertionForBefore(before)
+        if (groupInsertion !== null) {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/grid/createNewRowInGroup',
+            {
+              view: this.view,
+              table: this.table,
+              fields: this.fields,
+              path: groupInsertion.path,
+              before: groupInsertion.before,
+              values,
+              selectPrimaryCell: true,
+              isRowOpenedInModal: this.isRowOpenedInModal,
+            }
+          )
+          return
+        }
+
         await this.$store.dispatch(
           this.storePrefix + 'view/grid/createNewRow',
           {
@@ -1092,6 +1185,20 @@ export default {
 
       if (index !== -1 && rows.length > index + 1) {
         nextRow = rows[index + 1]
+      }
+
+      if (this.viewHasGroupBys) {
+        this.addRow(
+          {
+            groupPath: this.getGroupPathForRow(row),
+            before:
+              nextRow !== null && this.rowsBelongToSameGroup(row, nextRow)
+                ? nextRow
+                : null,
+          },
+          values
+        )
+        return
       }
 
       this.addRow(nextRow, values)
@@ -1183,6 +1290,7 @@ export default {
      */
     rowEditModalHidden({ row }) {
       this.$emit('selected-row', undefined)
+      this._restorePresenceFocusAfterRowModal()
 
       // It could be that the row is not in the buffer anymore and in that case we also
       // don't need to refresh the row.
@@ -1241,6 +1349,7 @@ export default {
         row,
         field,
       })
+      this._emitPresenceCellFocus(row.id, field.id)
     },
     /**
      * This function helps the store determine whether it is safe to hide a row. Since
@@ -1291,6 +1400,13 @@ export default {
             isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
+
+        if (
+          this.selectedCellComponents.length === 0 &&
+          !this.$store.getters['rowModalNavigation/getRow']
+        ) {
+          this._clearPresenceFocus()
+        }
       })
     },
     /**
@@ -1337,17 +1453,7 @@ export default {
       }
 
       if (nextFieldId === -1 || nextRowId === -1) {
-        // For Tab navigation with no next cell (last field of last row), still
-        // unselect the current cell so the open editor saves its value.
-        // For Enter/arrow navigation with no target, just return — the editor
-        // was already closed by save() in the key handler.
-        if (direction === 'next' || direction === 'previous') {
-          this.$store.dispatch(this.storePrefix + 'view/grid/setSelectedCell', {
-            rowId: -1,
-            fieldId: -1,
-            fields: this.fields,
-          })
-        }
+        // At the edge: stop with the current cell still selected, don't unselect it.
         return
       }
 
@@ -1360,6 +1466,37 @@ export default {
         fieldId: nextFieldId,
         fields: this.fields,
       })
+
+      this.scrollToGroupByRowIfNeeded(nextRowId, field)
+      this._emitPresenceCellFocus(nextRowId, nextFieldId)
+    },
+    /**
+     * The group-by canvas only renders rows inside the viewport, so a cell selected
+     * outside of it never mounts and can't trigger the usual scroll-into-view via its
+     * `selected` event. Scroll to the row's layout position instead; once visible, the
+     * mounted cell fine-tunes the scroll itself.
+     */
+    scrollToGroupByRowIfNeeded(rowId, field) {
+      if (!this.$store.getters[this.storePrefix + 'view/grid/isGroupByMode']) {
+        return
+      }
+      const range = this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupByRowVerticalRange'
+      ](rowId, this.fields)
+      if (range === null) {
+        return
+      }
+      const scrollTop = this.$refs.right.$refs.body.scrollTop
+      this.scrollToElementRect(
+        {
+          elementTop: range.top - scrollTop,
+          elementBottom: range.bottom - scrollTop,
+          elementLeft: 0,
+          elementRight: 0,
+        },
+        'vertical',
+        field
+      )
     },
     cellSelected({ fieldId, rowId }) {
       this.$store.dispatch(this.storePrefix + 'view/grid/setSelectedCell', {
@@ -1374,17 +1511,25 @@ export default {
      * or wants to sort on a field.
      */
     async refresh() {
-      await this.$store.dispatch(
-        this.storePrefix + 'view/grid/visibleByScrollTop',
-        this.$refs.right.$refs.body.scrollTop
+      const scrollTop = this.$refs.right.$refs.body.scrollTop
+      const handledGroupByRefresh = await this.$store.dispatch(
+        this.storePrefix + 'view/grid/refreshActiveGroupBys',
+        {
+          view: this.view,
+          fields: this.fields,
+          scrollTop,
+        }
       )
-      // The grid view store keeps a copy of the group bys that must only be updated
-      // after the refresh of the page. This is because the group by depends on the rows
-      // being sorted, and this will only be the case after a refresh.
-      await this.$store.dispatch(
-        this.storePrefix + 'view/grid/updateActiveGroupBys',
-        clone(this.view.group_bys || [])
-      )
+      if (!handledGroupByRefresh) {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/updateActiveGroupBys',
+          clone(this.view.group_bys || [])
+        )
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/visibleByScrollTop',
+          scrollTop
+        )
+      }
       this.$nextTick(() => {
         this.fieldsUpdated()
       })
@@ -1450,6 +1595,13 @@ export default {
      * outside of GridViewRows.
      */
     cancelMultiSelectIfActive(event) {
+      // A click inside a context menu (e.g. the row "Select row" action) is a
+      // deliberate grid action, not a click outside, so it must not clear the
+      // selection that action just made.
+      if (event.target.closest?.('.context__menu')) {
+        return
+      }
+
       const selectionType =
         this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
 
@@ -1463,9 +1615,15 @@ export default {
         ] &&
         !event.shiftKey &&
         (!isElement(this.$refs.gridView, event.target) ||
-          !['grid-view__row', 'grid-view__rows', 'grid-view'].includes(
-            event.target.classList[0]
-          ))
+          ![
+            'grid-view__row',
+            'grid-view__rows',
+            'grid-view',
+            // The group-by feature renders rows in its own containers; a drag's click
+            // lands on these, so they count as "inside the rows" too.
+            'grid-view__group-by-rows',
+            'grid-view__group-by-rows-row',
+          ].includes(event.target.classList[0]))
       ) {
         this.$store.dispatch(
           this.storePrefix + 'view/grid/clearAndDisableMultiSelect'
@@ -1817,6 +1975,35 @@ export default {
         { fields: this.fields }
       )
       return fieldsAndRows[1]
+    },
+    _emitPresenceCellFocus(rowId, fieldId, editing = false) {
+      if (this.presenceFocus) {
+        this.presenceFocus.emitCellFocus(rowId, fieldId, editing)
+      }
+    },
+    _clearPresenceFocus() {
+      if (this.presenceFocus) {
+        this.presenceFocus.clearFocus()
+      }
+    },
+    /**
+     * Reconciles the grid sender's focus after the row edit modal closes: if
+     * a cell is still selected its focus becomes the shared remote entry
+     * again, otherwise any focus this sender transmitted is cleared.
+     * clearFocus only sends when this sender actually transmitted something,
+     * so it is correct whether or not the modal's own sender already cleared
+     * the shared entry (e.g. its sends were gated because the user was
+     * alone).
+     */
+    _restorePresenceFocusAfterRowModal() {
+      if (this.selectedCellComponents.length > 0) {
+        this.presenceFocus?.reemitLastFocus()
+      } else {
+        this.presenceFocus?.clearFocus()
+      }
+    },
+    cellEditingChanged({ row, field, editing }) {
+      this._emitPresenceCellFocus(row.id, field.id, editing)
     },
   },
 }

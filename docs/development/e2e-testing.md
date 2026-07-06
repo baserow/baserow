@@ -33,8 +33,13 @@ just e2e down     # Stop and cleanup
 ```
 
 Access during testing:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
+- Frontend: http://localhost:3070
+- Backend API: http://localhost:8070
+
+The e2e stack intentionally uses `3070`/`8070` by default so it does not
+collide with the default dev stack (`3000`/`8000`) or the documented alternate
+dev stacks (`3010`/`8010` and `3020`/`8020`), and leaves `3030`-`3060`/
+`8030`-`8060` free for additional dev instances.
 
 ## Commands Reference
 
@@ -103,7 +108,7 @@ just e2e test --ui
 just e2e test tests/mytest.spec.ts --trace on
 
 # Keep environment running for manual inspection
-# Access http://localhost:3000 in your browser
+# Access http://localhost:3070 in your browser
 ```
 
 ### Regenerating Database Dump
@@ -164,10 +169,18 @@ Consider adding E2E tests for:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PUBLIC_WEB_FRONTEND_URL` | Frontend URL for tests | `http://localhost:3000` |
-| `PUBLIC_BACKEND_URL` | Backend API URL for tests | `http://localhost:8000` |
+| `E2E_FRONTEND_PORT` | Host port published by `just e2e up` for the frontend | `3070` |
+| `E2E_BACKEND_PORT` | Host port published by `just e2e up` for the backend API | `8070` |
+| `E2E_FRONTEND_COOKIE_PREFIX` | Cookie prefix used by the e2e frontend to avoid same-host auth cookie collisions | `baserow_e2e_` |
+| `PUBLIC_WEB_FRONTEND_URL` | Frontend URL for tests | `http://localhost:3070` |
+| `PUBLIC_BACKEND_URL` | Backend API URL for tests | `http://localhost:8070` |
+| `BASEROW_FRONTEND_COOKIE_PREFIX` | Cookie prefix expected by Playwright helpers when tests write frontend cookies directly | `baserow_e2e_` |
 
 You can set these in `e2e-tests/.env` (see `.env-example`).
+
+When running the deprecated `run-e2e-tests-locally.sh` script against a normal
+local dev environment, it keeps using `3000`/`8000` and an empty cookie prefix
+unless you override the variables above.
 
 ### Playwright Configuration
 

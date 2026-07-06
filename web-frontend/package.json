@@ -104,7 +104,7 @@
     "moment-timezone": "0.5.43",
     "normalize.css": "^8.0.1",
     "nuxt": "^4.4.2",
-    "papaparse": "5.4.1",
+    "papaparse": "5.5.4",
     "path-to-regexp": "8.4.0",
     "posthog-js": "^1.232.4",
     "sass": "1.98.0",
@@ -129,13 +129,13 @@
     "@storybook/addon-designs": "^11.1.0",
     "@storybook/addon-docs": "10.3.5",
     "@storybook/addon-links": "10.3.5",
-    "@vitest/coverage-istanbul": "^4.1.2",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-istanbul": "4.1.9",
+    "@vitest/coverage-v8": "4.1.9",
     "@vue/test-utils": "^2.4.6",
     "axios-mock-adapter": "^2.1.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vitest": "^0.5.4",
-    "globals": "^17.0.0",
+    "globals": "^17.7.0",
     "happy-dom": "^20.8.9",
     "node-mocks-http": "^1.17.2",
     "postcss-scss": "^4.0.9",
@@ -145,6 +145,6 @@
     "stylelint-config-standard": "^39.0.1",
     "stylelint-config-standard-scss": "^16.0.0",
     "stylelint-selector-bem-pattern": "^4.0.1",
-    "vitest": "^4.0.17"
+    "vitest": "4.1.9"
   }
 }

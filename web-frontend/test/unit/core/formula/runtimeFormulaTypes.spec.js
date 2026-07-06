@@ -50,6 +50,8 @@ import {
   RuntimeAt,
   RuntimeToArray,
   RuntimeRange,
+  RuntimeToJson,
+  RuntimeFromJson,
   RuntimeNull,
   RuntimeNumberFormat,
   RuntimeToDatetime,
@@ -2228,6 +2230,73 @@ describe('RuntimeRange', () => {
       0, 1, 2, 3, 4,
     ])
     expect(formulaType.execute({}, formulaType.parseArgs([0, 6]))).toBeNull()
+  })
+})
+
+describe('RuntimeToJson', () => {
+  test.each([
+    { args: ['foo'], expected: '"foo"' },
+    { args: [123], expected: '123' },
+    { args: [true], expected: 'true' },
+    { args: [null], expected: 'null' },
+    { args: [{ a: 1 }], expected: '{"a":1}' },
+    { args: [[1, 2]], expected: '[1,2]' },
+    // Quotes and control characters are escaped so the result is safe to embed
+    // inside a larger JSON document.
+    { args: ['foo "bar"'], expected: '"foo \\"bar\\""' },
+    { args: ['a\nb'], expected: '"a\\nb"' },
+    // A Timedelta is normalized to its number of seconds, matching the
+    // backend's `to_json` output (e.g. `3600`, not `{"ms":3600000}`).
+    { args: [new Timedelta(3600 * 1000)], expected: '3600' },
+    { args: [new Timedelta(5400 * 1000)], expected: '5400' },
+    // Timedeltas nested inside arrays and objects are normalized recursively.
+    { args: [[new Timedelta(1800 * 1000)]], expected: '[1800]' },
+    {
+      args: [{ a: new Timedelta(3600 * 1000), b: [1, 2] }],
+      expected: '{"a":3600,"b":[1,2]}',
+    },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeToJson()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeToJson()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeFromJson', () => {
+  test.each([
+    { args: ['[1, 2, 3]'], expected: [1, 2, 3] },
+    { args: ['{"a": 1}'], expected: { a: 1 } },
+    { args: ['"foo"'], expected: 'foo' },
+    { args: ['123'], expected: 123 },
+    // Invalid JSON degrades gracefully to null instead of throwing.
+    { args: ['not json'], expected: null },
+    { args: [''], expected: null },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeFromJson()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeFromJson()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
   })
 })
 

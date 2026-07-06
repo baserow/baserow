@@ -1,10 +1,12 @@
 import { expect, Locator, Page } from "@playwright/test";
+import { baserowConfig } from "../../playwright.config";
 import { Database } from "../../fixtures/database/database";
 import { Table } from "../../fixtures/database/table";
 import { User } from "../../fixtures/user";
+import { View } from "../../fixtures/database/view";
 
 /**
- * Page object for the flat (no group-by) Baserow grid view.
+ * Page object for the Baserow grid view.
  *
  * ## Left / right section model
  *
@@ -32,24 +34,28 @@ export class GridPage {
     readonly page: Page,
     private readonly user: User,
   ) {
-    this.baseUrl =
-      process.env.PUBLIC_WEB_FRONTEND_URL ?? "http://localhost:3000";
+    this.baseUrl = baserowConfig.PUBLIC_WEB_FRONTEND_URL;
   }
 
   // -- Navigation --------------------------------------------------------------
 
-  async goTo(database: Database, table: Table): Promise<void> {
+  async goTo(database: Database, table: Table, view?: View): Promise<void> {
+    const url = new URL(
+      `/database/${database.id}/table/${table.id}${
+        view ? `/${view.id}` : ""
+      }`,
+      this.baseUrl,
+    );
+    url.searchParams.set("token", this.user.refreshToken);
+
     await this.page.context().addCookies([
       {
-        name: "jwt_token",
+        name: `${baserowConfig.BASEROW_FRONTEND_COOKIE_PREFIX}jwt_token`,
         value: this.user.refreshToken,
         url: this.baseUrl,
       },
     ]);
-    await this.page.goto(
-      `${this.baseUrl}/database/${database.id}/table/${table.id}`,
-      { waitUntil: "domcontentloaded" },
-    );
+    await this.page.goto(url.toString(), { waitUntil: "domcontentloaded" });
     // Wait until Nuxt finishes hydrating. Falls back gracefully if the dev
     // server CSP blocks the function evaluation.
     await this.page
@@ -64,7 +70,34 @@ export class GridPage {
         // assertion below provides sufficient confirmation of hydration.
       });
     const grid = this.page.locator(".grid-view__right");
-    await expect(grid).toBeVisible({ timeout: 15_000 });
+    try {
+      await expect(grid).toBeVisible({ timeout: 25_000 });
+    } catch (error) {
+      const diagnostics = await this.navigationDiagnostics();
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Timed out waiting for the grid view to load.\n${diagnostics}\n${message}`,
+      );
+    }
+  }
+
+  private async navigationDiagnostics(): Promise<string> {
+    const currentUrl = new URL(this.page.url());
+    if (currentUrl.searchParams.has("token")) {
+      currentUrl.searchParams.set("token", "<redacted>");
+    }
+    const title = await this.page.title().catch(() => "<unavailable>");
+    const body = await this.page
+      .locator("body")
+      .innerText({ timeout: 1_000 })
+      .catch(() => "<unavailable>");
+    const bodyExcerpt = body.replace(/\s+/g, " ").trim().slice(0, 500);
+
+    return [
+      `url=${currentUrl.toString()}`,
+      `title=${title}`,
+      `body=${bodyExcerpt}`,
+    ].join("\n");
   }
 
   // -- Row locators -------------------------------------------------------------
@@ -76,14 +109,24 @@ export class GridPage {
   /** All rows in the LEFT section (primary field + row controls) */
   leftRows(): Locator {
     return this.page.locator(
-      ".grid-view__left .grid-view__rows .grid-view__row",
+      [
+        ".grid-view__left .grid-view__rows > .grid-view__row",
+        ".grid-view__left .grid-view__rows > .grid-view__row-background-wrapper > .grid-view__row",
+        ".grid-view__left .grid-view__group-by-rows-row > .grid-view__row",
+        ".grid-view__left .grid-view__group-by-rows-row > .grid-view__row-background-wrapper > .grid-view__row",
+      ].join(", "),
     );
   }
 
   /** All rows in the RIGHT section (non-primary fields) */
   rightRows(): Locator {
     return this.page.locator(
-      ".grid-view__right .grid-view__rows .grid-view__row",
+      [
+        ".grid-view__right .grid-view__rows > .grid-view__row",
+        ".grid-view__right .grid-view__rows > .grid-view__row-background-wrapper > .grid-view__row",
+        ".grid-view__right .grid-view__group-by-rows-row > .grid-view__row",
+        ".grid-view__right .grid-view__group-by-rows-row > .grid-view__row-background-wrapper > .grid-view__row",
+      ].join(", "),
     );
   }
 
@@ -115,6 +158,12 @@ export class GridPage {
     return this.rightRowAt(rowIndex)
       .locator(".grid-view__column")
       .nth(fieldIndex);
+  }
+
+  singleSelectOptionAt(rowIndex: number, fieldIndex: number): Locator {
+    return this.fieldCellAt(rowIndex, fieldIndex)
+      .locator(".grid-field-single-select__option")
+      .first();
   }
 
   nonPrimaryFieldHeadersByName(fieldName: string): Locator {
@@ -191,13 +240,105 @@ export class GridPage {
     });
   }
 
+  rowEditModalTextField(fieldName: string): Locator {
+    return this.rowEditModal()
+      .locator(".row-modal__field-item", { hasText: fieldName })
+      .first()
+      .locator("input")
+      .first();
+  }
+
+  groupByBannerByValue(value: string): Locator {
+    return this.page
+      .locator(".grid-view__left .grid-view__group-by-banner", {
+        has: this.page.locator(".grid-view__group-by-banner-value", {
+          hasText: value,
+        }),
+      })
+      .first();
+  }
+
+  groupByContextToggle(): Locator {
+    return this.page
+      .locator(".header__filter-link", {
+        has: this.page.locator(".iconoir-book-stack"),
+      })
+      .first();
+  }
+
+  groupByContext(): Locator {
+    return this.page.locator(".context.group-bys").first();
+  }
+
   // -- Grid actions ------------------------------------------------------------
 
   /** Click "+ Add row" at the bottom of the right section */
   async addRow(): Promise<void> {
-    const addRow = this.page.locator(".grid-view__right .grid-view__add-row");
+    const addRow = this.page
+      .locator(".grid-view__right .grid-view__add-row")
+      .first();
     await expect(addRow).toBeVisible({ timeout: 10_000 });
     await addRow.click();
+  }
+
+  async toggleGroupBy(value: string): Promise<void> {
+    await this.closeOpenContexts();
+    const banner = this.groupByBannerByValue(value);
+    await expect(banner).toBeVisible({ timeout: 10_000 });
+    await banner.locator(".grid-view__group-by-banner-toggle").click();
+  }
+
+  async openGroupByContext(): Promise<void> {
+    const toggle = this.groupByContextToggle();
+    await expect(toggle).toBeVisible({ timeout: 10_000 });
+    await toggle.click();
+    await expect(this.groupByContext()).toBeVisible({ timeout: 10_000 });
+  }
+
+  async collapseAllGroupsFromContext(): Promise<void> {
+    await this.openGroupByContext();
+    await this.groupByContext()
+      .getByText("Collapse all", { exact: true })
+      .click();
+    await this.closeGroupByContext();
+  }
+
+  async expandAllGroupsFromContext(): Promise<void> {
+    await this.openGroupByContext();
+    await this.groupByContext()
+      .getByText("Expand all", { exact: true })
+      .click();
+    await this.closeGroupByContext();
+  }
+
+  async addGroupBy(fieldName: string): Promise<void> {
+    await this.openGroupByContext();
+    await this.groupByContext()
+      .getByText("choose a field to group by", { exact: true })
+      .click();
+
+    const item = this.page
+      .locator(".select__items:visible .select__item", {
+        hasText: this.exactTextRegex(fieldName),
+      })
+      .first();
+    await expect(item).toBeVisible({ timeout: 10_000 });
+    await item.locator(".select__item-link").click();
+    await this.closeGroupByContext();
+  }
+
+  async closeGroupByContext(): Promise<void> {
+    await this.closeOpenContexts();
+    await expect(this.groupByContext()).toBeHidden({ timeout: 10_000 });
+  }
+
+  async closeOpenContexts(): Promise<void> {
+    await this.page.keyboard.press("Escape");
+    const viewport = this.page.viewportSize();
+    await this.page.mouse.click(
+      viewport ? viewport.width - 5 : 1000,
+      viewport ? viewport.height - 5 : 700,
+    );
   }
 
   /** Single-click a non-primary cell to select it without entering edit mode */
@@ -271,6 +412,23 @@ export class GridPage {
    */
   async confirmWithTab(): Promise<void> {
     await this.page.keyboard.press("Tab");
+  }
+
+  async selectSingleSelectOption(
+    rowIndex: number,
+    fieldIndex: number,
+    option: string,
+  ): Promise<void> {
+    await this.selectFieldCell(rowIndex, fieldIndex);
+    await this.page.keyboard.press("Enter");
+
+    const optionItem = this.page
+      .locator(".select-options__dropdown-item:not(.hidden)", {
+        hasText: this.exactTextRegex(option),
+      })
+      .first();
+    await expect(optionItem).toBeVisible({ timeout: 10_000 });
+    await optionItem.locator(".select-options__dropdown-link").click();
   }
 
   /** Press Escape: cancels the edit and reverts to the original value */
@@ -390,6 +548,25 @@ export class GridPage {
   }
 
   /**
+   * Scroll the grid (via real wheel events) until the row whose primary cell
+   * contains `text` is rendered and visible. Used to reach a deep row in a large
+   * table so the loaded buffer is a genuine window (the top of the table stays
+   * unloaded), matching real virtualization.
+   */
+  async scrollPrimaryIntoView(text: string): Promise<void> {
+    const target = this.leftRows().filter({ hasText: text }).first();
+    await this.rightRows().first().hover();
+    for (let i = 0; i < 100; i += 1) {
+      if ((await target.count()) > 0 && (await target.isVisible())) {
+        return;
+      }
+      await this.page.mouse.wheel(0, 1500);
+      await this.page.waitForTimeout(80);
+    }
+    await expect(target).toBeVisible({ timeout: 5_000 });
+  }
+
+  /**
    * Right-click a row to open its context menu.
    * We right-click the RIGHT section row (field cell area) because the left
    * section's row-controls area does not reliably trigger the context menu.
@@ -436,6 +613,16 @@ export class GridPage {
   async closeRowModal(): Promise<void> {
     await this.rowEditModal().locator(".modal__close").click();
     await expect(this.rowEditModal()).toHaveCount(0, { timeout: 10_000 });
+  }
+
+  /**
+   * Fill a text field inside the open row edit modal and blur it so the value
+   * is persisted.
+   */
+  async fillRowModalTextField(fieldName: string, value: string): Promise<void> {
+    const input = this.rowEditModalTextField(fieldName);
+    await input.fill(value);
+    await input.blur();
   }
 
   private escapeRegex(value: string): string {
@@ -618,6 +805,19 @@ export class GridPage {
     );
   }
 
+  async expectSingleSelectFieldText(
+    rowIndex: number,
+    fieldIndex: number,
+    text: string,
+  ): Promise<void> {
+    await expect(this.singleSelectOptionAt(rowIndex, fieldIndex)).toHaveText(
+      this.exactTextRegex(text),
+      {
+        timeout: 10_000,
+      },
+    );
+  }
+
   async expectPrimaryEmpty(rowIndex: number): Promise<void> {
     await expect(this.primaryCellAt(rowIndex)).toBeEmpty({
       timeout: 10_000,
@@ -728,6 +928,72 @@ export class GridPage {
     });
   }
 
+  async expectRowModalTextFieldValue(
+    fieldName: string,
+    value: string,
+  ): Promise<void> {
+    await expect(this.rowEditModalTextField(fieldName)).toHaveValue(value, {
+      timeout: 10_000,
+    });
+  }
+
+  async expectGroupByBanner(
+    value: string,
+    count: number,
+    collapsed = false,
+  ): Promise<void> {
+    const banner = this.groupByBannerByValue(value);
+    await expect(banner).toBeVisible({ timeout: 10_000 });
+    await expect(
+      banner.locator(".grid-view__group-by-banner-value"),
+    ).toHaveText(new RegExp(`^\\s*${this.escapeRegex(value)}\\s*$`), {
+      timeout: 10_000,
+    });
+    await expect(
+      banner.locator(".grid-view__group-by-banner-count"),
+    ).toHaveText(new RegExp(`^\\s*${count}\\s*$`), { timeout: 10_000 });
+    await expect(banner).toHaveAttribute(
+      "data-collapsed",
+      collapsed ? "true" : "false",
+      { timeout: 10_000 },
+    );
+  }
+
+  async expectNoGroupByBanner(value: string): Promise<void> {
+    await expect(this.groupByBannerByValue(value)).toHaveCount(0, {
+      timeout: 10_000,
+    });
+  }
+
+  /**
+   * Assert a group-by header aggregation value is shown `count` times. The text is
+   * the short name + value concatenated, e.g. "Sum30"; whitespace is ignored. Polls,
+   * so it also covers the live in-place update after an edit.
+   */
+  async expectGroupAggregation(text: string, count = 1): Promise<void> {
+    const want = text.replace(/\s+/g, "");
+    await expect(async () => {
+      const texts = await this.page
+        .locator(".grid-view__group-by-banner-aggregation")
+        .allTextContents();
+      const matches = texts.filter(
+        (t) => t.replace(/\s+/g, "") === want,
+      ).length;
+      expect(matches).toBe(count);
+    }).toPass({ timeout: 10_000 });
+  }
+
+  /** Assert the bottom footer shows an aggregation value, e.g. "Sum35". */
+  async expectFooterAggregation(text: string): Promise<void> {
+    const want = text.replace(/\s+/g, "");
+    await expect(async () => {
+      const texts = await this.page
+        .locator(".grid-view__foot .grid-view-aggregation")
+        .allTextContents();
+      expect(texts.map((t) => t.replace(/\s+/g, ""))).toContain(want);
+    }).toPass({ timeout: 10_000 });
+  }
+
   /**
    * Assert that the row at `rowIndex` has the warning class
    * (shown when matchFilters, matchSortings, or matchSearch is false
@@ -740,10 +1006,59 @@ export class GridPage {
     );
   }
 
+  async expectRowWarningVisible(rowIndex: number): Promise<void> {
+    await expect(this.rowWarningAt(rowIndex)).toBeVisible({
+      timeout: 10_000,
+    });
+  }
+
   async expectRowWarningText(rowIndex: number, text: string): Promise<void> {
     await expect(this.rowWarningAt(rowIndex)).toContainText(text, {
       timeout: 10_000,
     });
+  }
+
+  /**
+   * The last row in the LEFT section. Unlike a snapshotted `renderedRowCount() - 1`
+   * index, this re-resolves on every poll, so assertions stay correct even if a
+   * re-render changes the row count mid-assertion.
+   */
+  lastLeftRow(): Locator {
+    return this.leftRows().last();
+  }
+
+  async expectLastRowPrimaryEmpty(): Promise<void> {
+    await expect(
+      this.lastLeftRow().locator(".grid-view__column").last(),
+    ).toBeEmpty({ timeout: 10_000 });
+  }
+
+  async expectLastRowLoading(): Promise<void> {
+    await expect(this.lastLeftRow()).toHaveClass(/grid-view__row--loading/, {
+      timeout: 10_000,
+    });
+  }
+
+  async expectLastRowWarning(text: string): Promise<void> {
+    await expect(this.lastLeftRow()).toHaveClass(/grid-view__row--warning/, {
+      timeout: 10_000,
+    });
+    await expect(
+      this.lastLeftRow().locator(".grid-view__row-warning"),
+    ).toContainText(text, { timeout: 10_000 });
+  }
+
+  async expectLastRowPrimaryText(text: string): Promise<void> {
+    await expect(
+      this.lastLeftRow().locator(".grid-view__column").last(),
+    ).toHaveText(this.exactTextRegex(text), { timeout: 10_000 });
+  }
+
+  async expectLastRowNoWarning(): Promise<void> {
+    await expect(this.lastLeftRow()).not.toHaveClass(
+      /grid-view__row--warning/,
+      { timeout: 10_000 },
+    );
   }
 
   async expectPrimaryRowHasWarning(
@@ -880,6 +1195,30 @@ export class GridPage {
         .locator(".grid-view__right .grid-view__row-background-wrapper")
         .nth(rowIndex),
     ).toHaveClass(colorClass, { timeout: 10_000 });
+  }
+
+  /**
+   * Assert the decoration color actually paints: the row element stacked on top
+   * of the colored `.grid-view__row-background-wrapper` must keep a transparent
+   * background in both grid sections, otherwise the wrapper color is hidden
+   * even though the color class is applied.
+   */
+  async expectRowBackgroundNotObscured(rowIndex: number): Promise<void> {
+    const transparent = "rgba(0, 0, 0, 0)";
+    await expect(
+      this.page
+        .locator(
+          ".grid-view__left .grid-view__row-background-wrapper > .grid-view__row",
+        )
+        .nth(rowIndex),
+    ).toHaveCSS("background-color", transparent, { timeout: 10_000 });
+    await expect(
+      this.page
+        .locator(
+          ".grid-view__right .grid-view__row-background-wrapper > .grid-view__row",
+        )
+        .nth(rowIndex),
+    ).toHaveCSS("background-color", transparent, { timeout: 10_000 });
   }
 
   /**

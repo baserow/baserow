@@ -1,3 +1,7 @@
+.ab-table__wrapper {
+  position: relative;
+}
+
 .ab-table {
   border: var(--table-border-size, 1px) solid var(--table-border-color, $black);
   font-size: var(--body-font-size, 12px);
@@ -117,4 +121,8 @@
   text-align: center;
   padding: 50px 0;
   font-weight: 600;
+}
+
+.ab-table__loading-overlay {
+  border-radius: var(--table-border-radius, 0);
 }

@@ -8,6 +8,8 @@ import {
   ensureViewFieldOptions,
   createViewFilter,
   createViewSort,
+  createViewGroupBy,
+  setViewFieldAggregation,
 } from "./view";
 import {
   Field,
@@ -60,6 +62,19 @@ export interface SortSpec {
   order?: "ASC" | "DESC";
 }
 
+export interface GroupBySpec {
+  fieldName: string;
+  order?: "ASC" | "DESC";
+}
+
+export interface AggregationSpec {
+  fieldName: string;
+  /** Aggregation type, e.g. "sum", "min", "max", "average". */
+  type: string;
+  /** Raw aggregation type; defaults to `type` when the two are the same. */
+  rawType?: string;
+}
+
 // Setup options
 
 export interface GridSetupOptions {
@@ -79,6 +94,10 @@ export interface GridSetupOptions {
   filters?: FilterSpec[];
   /** View-level sorts applied via the API before the test starts */
   sorts?: SortSpec[];
+  /** View-level group-bys applied via the API before the test starts */
+  groupBys?: GroupBySpec[];
+  /** Per-column "Summarize" aggregations applied via the API before the test starts */
+  aggregations?: AggregationSpec[];
 }
 
 // Setup result
@@ -271,6 +290,27 @@ export async function setupGrid(
     );
   }
 
+  // 8. Apply view-level group-bys
+  for (const g of options.groupBys ?? []) {
+    await createViewGroupBy(
+      user,
+      view,
+      fieldByName[g.fieldName],
+      g.order ?? "ASC",
+    );
+  }
+
+  // 9. Apply per-column "Summarize" aggregations
+  for (const a of options.aggregations ?? []) {
+    await setViewFieldAggregation(
+      user,
+      view,
+      fieldByName[a.fieldName],
+      a.type,
+      a.rawType ?? a.type,
+    );
+  }
+
   return { user, database, table, view, fieldByName, rowIds, getOptionId };
 }
 
@@ -315,7 +355,10 @@ export async function resetRows(
   const resolved = newRows.map((row) => {
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(row)) {
-      if (g.fieldByName[key]?.type === "single_select" && typeof value === "string") {
+      if (
+        g.fieldByName[key]?.type === "single_select" &&
+        typeof value === "string"
+      ) {
         out[key] = g.getOptionId(key, value);
       } else {
         out[key] = value;

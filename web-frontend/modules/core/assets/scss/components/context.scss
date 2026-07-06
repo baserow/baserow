@@ -172,6 +172,13 @@
   @include flex-align-items(10px);
 }
 
+.context__menu-item-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .context__form {
   min-width: 260px;
   padding: 16px;

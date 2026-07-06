@@ -1,3 +1,4 @@
+import json
 import random
 import uuid
 from datetime import datetime, timedelta
@@ -33,7 +34,13 @@ from baserow.core.formula.argument_types import (
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
 from baserow.core.formula.utils.date import convert_date_format_moment_to_python
-from baserow.core.formula.validator import ensure_array, ensure_datetime, ensure_string
+from baserow.core.formula.validator import (
+    ensure_array,
+    ensure_datetime,
+    ensure_deserialized_json,
+    ensure_json_serializable,
+    ensure_string,
+)
 from baserow.core.utils import to_path
 
 
@@ -782,6 +789,37 @@ class RuntimeRange(RuntimeFormulaFunction):
             )
 
         return list(result)
+
+
+class RuntimeToJson(RuntimeFormulaFunction):
+    type = "to_json"
+
+    args = [AnyBaserowRuntimeFormulaArgumentType()]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        try:
+            serializable = ensure_json_serializable(args[0])
+        except ValidationError as exc:
+            raise BaserowFormulaSyntaxError(
+                "The 'to_json' function received a value that cannot be "
+                "converted to JSON."
+            ) from exc
+        # Compact separators are used to match the frontend's `JSON.stringify` output.
+        return json.dumps(serializable, separators=(",", ":"))
+
+
+class RuntimeFromJson(RuntimeFormulaFunction):
+    type = "from_json"
+
+    args = [TextBaserowRuntimeFormulaArgumentType()]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        # Parse a JSON-encoded string back into a value. Returns `None` when the
+        # input isn't valid JSON.
+        try:
+            return ensure_deserialized_json(args[0], strict=True)
+        except ValidationError:
+            return None
 
 
 class RuntimeNull(RuntimeFormulaFunction):

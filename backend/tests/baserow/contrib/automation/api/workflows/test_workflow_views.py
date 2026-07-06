@@ -678,6 +678,7 @@ def test_get_workflow_histories(api_client, data_fixture):
                 "message": "",
                 "status": "success",
                 "simulate_until_node": None,
+                "plugin_data": {},
             },
         ],
     }

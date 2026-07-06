@@ -30,11 +30,8 @@ export default {
         this.$emit('edit', this.prepareValue(newCopy), this.value)
       }
     },
-    editing: {
-      handler(newValue) {
-        this.$emit('editing-changed', newValue)
-      },
-      immediate: true,
+    editing(newValue) {
+      this.$emit('editing-changed', newValue)
     },
   },
   mounted() {

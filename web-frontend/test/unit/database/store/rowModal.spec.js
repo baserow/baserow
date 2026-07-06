@@ -164,39 +164,39 @@ describe('rowModal store', () => {
       row: { id: 100, field_1: 'Test' },
     })
 
-    // Because `exists` is true, the row shouldn't be updated because it's managed
-    // via another process.
+    // Even while `exists` is true, the cached row is updated. A realtime event can
+    // remove the row from the grid buffer before the modal watcher has flipped this
+    // flag, and the modal must not miss that transition update.
     await store.dispatch('test/updated', {
       tableId: 10,
       values: { id: 100, field_1: 'Test 2' },
     })
     let valuesOfComponent1 = store.getters['test/get'](1)
-    expect(valuesOfComponent1.row.field_1).toBe('Test')
+    expect(valuesOfComponent1.row.field_1).toBe('Test 2')
 
-    // Because `exists` is false, the row is managed by the store, so when an update
-    // action is dispatched it should update the row.
+    // When `exists` is false, follow-up realtime updates keep updating the row.
     await store.dispatch('test/doesNotExist', { componentId: 1 })
     await store.dispatch('test/updated', {
       tableId: 10,
-      values: { id: 100, field_1: 'Test 2' },
+      values: { id: 100, field_1: 'Test 3' },
     })
     valuesOfComponent1 = store.getters['test/get'](1)
-    expect(valuesOfComponent1.row.field_1).toBe('Test 2')
+    expect(valuesOfComponent1.row.field_1).toBe('Test 3')
 
     // Because the table id doesn't match, we don't expect the value to be updated.
     await store.dispatch('test/updated', {
       tableId: 11,
-      values: { id: 100, field_1: 'Test 3' },
+      values: { id: 100, field_1: 'Test 4' },
     })
     valuesOfComponent1 = store.getters['test/get'](1)
-    expect(valuesOfComponent1.row.field_1).toBe('Test 2')
+    expect(valuesOfComponent1.row.field_1).toBe('Test 3')
 
     // Because the row id doesn't match, we don't expect the value to be updated.
     await store.dispatch('test/updated', {
       tableId: 10,
-      values: { id: 101, field_1: 'Test 4' },
+      values: { id: 101, field_1: 'Test 5' },
     })
     valuesOfComponent1 = store.getters['test/get'](1)
-    expect(valuesOfComponent1.row.field_1).toBe('Test 2')
+    expect(valuesOfComponent1.row.field_1).toBe('Test 3')
   })
 })

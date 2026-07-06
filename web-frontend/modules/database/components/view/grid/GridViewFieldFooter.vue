@@ -101,6 +101,10 @@ export default {
     return { pendingValueUpdate: false }
   },
   computed: {
+    // Group headers reuse this column's aggregation config in grouped mode.
+    groupAggregationsEnabled() {
+      return this.$store.getters[this.storePrefix + 'view/grid/isGroupByMode']
+    },
     userCanMakeAggregations() {
       return this.$hasPermission(
         'database.table.view.update_field_options',
@@ -115,7 +119,10 @@ export default {
       return this.fieldOptions[this.field.id]?.aggregation_raw_type
     },
     value() {
-      if (this.fieldAggregationData[this.field.id] !== undefined) {
+      if (
+        this.viewAggregationType &&
+        this.fieldAggregationData[this.field.id] !== undefined
+      ) {
         const { value } = this.fieldAggregationData[this.field.id]
 
         return this.viewAggregationType.getValue(value, {
@@ -123,9 +130,8 @@ export default {
           field: this.field,
           fieldType: this.fieldType,
         })
-      } else {
-        return undefined
       }
+      return undefined
     },
     loading() {
       return this.fieldAggregationData[this.field.id]?.loading
@@ -134,7 +140,12 @@ export default {
       if (!this.aggregationType) {
         return null
       }
-      return this.$registry.get('viewAggregation', this.aggregationType)
+      try {
+        return this.$registry.get('viewAggregation', this.aggregationType)
+      } catch (_) {
+        // A stale/unknown aggregation type must not crash the grid.
+        return null
+      }
     },
     viewAggregationTypes() {
       return this.$registry
@@ -165,15 +176,25 @@ export default {
       if (!value) {
         return
       }
-      // If an update is already pending, we don't need this one.
-      if (!this.pendingValueUpdate) {
-        this.$store.dispatch(
-          this.storePrefix + 'view/grid/fetchAllFieldAggregationData',
-          {
-            view: this.view,
-          }
-        )
+      if (this.pendingValueUpdate) {
+        return
       }
+      // Skip while a picker already owns the grouped refresh (its spinner is on);
+      // remote changes leave it off and still refresh here.
+      if (
+        this.groupAggregationsEnabled &&
+        this.$store.getters[
+          this.storePrefix + 'view/grid/getGroupByAggregationsLoading'
+        ](this.field.id)
+      ) {
+        return
+      }
+      this.$store.dispatch(
+        this.storePrefix + 'view/grid/fetchAllFieldAggregationData',
+        {
+          view: this.view,
+        }
+      )
     },
   },
   /*beforeCreate() {
@@ -207,6 +228,21 @@ export default {
         values.aggregation_raw_type = selectedAggregation.getRawType()
       }
 
+      // Only the raw type is server-computed; a display-only change re-renders from
+      // the existing value, so skip the spinner and refetch (like the context menu).
+      const rawTypeChanged =
+        values.aggregation_raw_type !==
+        (this.fieldOptions[this.field.id]?.aggregation_raw_type || '')
+
+      const syncGroups = this.groupAggregationsEnabled
+      if (syncGroups && rawTypeChanged) {
+        // Spin before the optimistic change so the new label never shows the old value.
+        this.$store.dispatch(
+          this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
+          { fieldId: this.field.id }
+        )
+      }
+
       // Prevent the watcher to trigger while value is not yet saved on server
       this.pendingValueUpdate = true
       try {
@@ -216,10 +252,30 @@ export default {
             field: this.field,
             values,
             readOnly: !this.userCanMakeAggregations,
+            skipAggregationRefresh: syncGroups,
           }
         )
+      } catch (error) {
+        if (syncGroups && rawTypeChanged) {
+          this.$store.dispatch(
+            this.storePrefix + 'view/grid/setGroupByAggregationsLoading',
+            { loading: false }
+          )
+        }
+        throw error
       } finally {
         this.pendingValueUpdate = false
+      }
+
+      if (syncGroups && rawTypeChanged) {
+        this.$store.dispatch(
+          this.storePrefix + 'view/grid/refreshGroupByAggregations',
+          {
+            view: this.view,
+            fields: this.$store.getters['field/getAll'],
+            fieldId: this.field.id,
+          }
+        )
       }
     },
   },

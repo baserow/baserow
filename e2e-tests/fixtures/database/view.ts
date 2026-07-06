@@ -95,6 +95,27 @@ export async function updateFormFieldOptions(
   });
 }
 
+/**
+ * Configure a column's "Summarize" aggregation on a grid view, the same
+ * field-options PATCH the footer/group-header picker sends.
+ */
+export async function setViewFieldAggregation(
+  user: User,
+  view: View,
+  field: Field,
+  aggregationType: string,
+  aggregationRawType: string,
+): Promise<void> {
+  await getClient(user).patch(`database/views/${view.id}/field-options/`, {
+    field_options: {
+      [field.id]: {
+        aggregation_type: aggregationType,
+        aggregation_raw_type: aggregationRawType,
+      },
+    },
+  });
+}
+
 export async function getDefaultGridView(
   user: User,
   table: Table,
@@ -110,6 +131,21 @@ export async function getDefaultGridView(
     gridView.slug,
     table,
   );
+}
+
+export async function createGridView(
+  user: User,
+  table: Table,
+  { name = "Grid" }: { name?: string } = {},
+): Promise<View> {
+  const response: any = await getClient(user).post(
+    `database/views/table/${table.id}/`,
+    { name, type: "grid" },
+  );
+  const data = response.data;
+  const view = new View(data.id, data.name, data.type, data.slug, table);
+  await ensureViewFieldOptions(user, view);
+  return view;
 }
 
 export async function ensureViewFieldOptions(
@@ -140,6 +176,18 @@ export async function createViewSort(
   order: "ASC" | "DESC" = "ASC",
 ): Promise<void> {
   await getClient(user).post(`database/views/${view.id}/sortings/`, {
+    field: field.id,
+    order,
+  });
+}
+
+export async function createViewGroupBy(
+  user: User,
+  view: View,
+  field: Field,
+  order: "ASC" | "DESC" = "ASC",
+): Promise<void> {
+  await getClient(user).post(`database/views/${view.id}/group_bys/`, {
     field: field.id,
     order,
   });

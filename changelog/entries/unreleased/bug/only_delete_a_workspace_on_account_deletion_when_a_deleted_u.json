@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Only delete a workspace on account deletion when a deleted user was its last admin",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-01"
+}

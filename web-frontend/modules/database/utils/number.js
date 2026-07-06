@@ -148,7 +148,7 @@ export const formatNumberValue = (
   }
 
   const sign = isNegative ? '-' : ''
-  return `${sign}${numberPrefix}${formatted}${numberSuffix}`.trim()
+  return `${sign}${numberPrefix}${formatted}${numberSuffix}`
 }
 
 export const parseNumberValue = (field, value, roundDecimals = true) => {

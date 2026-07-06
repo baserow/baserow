@@ -28,6 +28,8 @@ import {
   ensureString,
   ensureArray,
   ensureDateTime,
+  ensureJsonSerializable,
+  ensureDeserializedJson,
 } from '@baserow/modules/core/utils/validator'
 import {
   formatValueWithDurationFormat,
@@ -2775,6 +2777,86 @@ export class RuntimeRange extends RuntimeFormulaFunction {
       {
         formula: 'range(0, 10, 2)',
         result: '[0, 2, 4, 6, 8]',
+      },
+    ]
+  }
+}
+
+export class RuntimeToJson extends RuntimeFormulaFunction {
+  static getType() {
+    return 'to_json'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.UTILITY
+  }
+
+  get args() {
+    return [new AnyBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    try {
+      return JSON.stringify(ensureJsonSerializable(arg))
+    } catch {
+      return null
+    }
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.toJsonDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "concat('{\"value\": ', to_json('foo \"bar\"'), '}')",
+        result: '\'{"value": "foo \\"bar\\""}\'',
+      },
+    ]
+  }
+}
+
+export class RuntimeFromJson extends RuntimeFormulaFunction {
+  static getType() {
+    return 'from_json'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.UTILITY
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    try {
+      return ensureDeserializedJson(arg, { strict: true })
+    } catch {
+      return null
+    }
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.fromJsonDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "from_json('[1, 2, 3]')",
+        result: '[1, 2, 3]',
       },
     ]
   }

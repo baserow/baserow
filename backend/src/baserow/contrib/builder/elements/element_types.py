@@ -2411,8 +2411,14 @@ class MenuElementType(ElementType):
         :return: None
         """
 
-        # Get all workflow actions associated with this menu element.
-        all_workflow_actions = BuilderWorkflowAction.objects.filter(element=instance)
+        # Get all workflow actions associated with this menu element. This runs
+        # during permanent deletion, when the element is already trashed, so we use
+        # the manager that still includes actions of trashed elements.
+        all_workflow_actions = (
+            BuilderWorkflowAction.objects_including_trashed_elements.filter(
+                element=instance
+            )
+        )
 
         # If there are menu items, only keep workflow actions that match
         # existing menu items.

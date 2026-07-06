@@ -47,10 +47,7 @@ help:
 frontend *ARGS:
     @just {{ ARGS }}
 
-alias f := frontend
-
 # Common shortcuts
-alias l := lint
 alias t := test
 alias dev := run-dev-server
 alias serve := run-dev-server
@@ -94,7 +91,7 @@ install:
 # no-args path doesn't need this flag because it walks directories.
 [group('4 - code-quality')]
 [positional-arguments]
-lint *ARGS:
+check *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -129,6 +126,9 @@ lint *ARGS:
     if [ ${#PRETTIER_FILES[@]} -gt 0 ]; then
         ./node_modules/.bin/prettier --check --log-level=warn --cache --cache-location=.cache/prettier "${PRETTIER_FILES[@]}"
     fi
+
+alias lint := check
+alias l := check
 
 # Fix code style issues. Pass file paths to fix only those files (repo-root-relative,
 # e.g. web-frontend/modules/foo.js). Paths outside the three frontend trees are
@@ -170,6 +170,9 @@ fix *ARGS:
     if [ ${#PRETTIER_FILES[@]} -gt 0 ]; then
         ./node_modules/.bin/prettier --write --log-level=warn --cache --cache-location=.cache/prettier "${PRETTIER_FILES[@]}"
     fi
+
+alias format := fix
+alias f := fix
 
 # =============================================================================
 # Testing

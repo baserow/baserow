@@ -324,20 +324,28 @@ class BaserowFormulaJSONEncoder(DjangoJSONEncoder):
         return super().default(obj)
 
 
-def ensure_deserialized_json(value: Any) -> Any:
+def ensure_deserialized_json(value: Any, strict: bool = False) -> Any:
     """
     Decode a JSON string if possible, otherwise return the value unchanged.
 
+    Values that are not strings are already deserialized and are returned as-is,
+    even when `strict` is True.
+
     :param value: The value to decode if it is a valid JSON string.
+    :param strict: If True, raise a ValidationError when `value` is a string that
+        cannot be decoded as JSON, instead of returning it unchanged.
     :return: The decoded JSON value if `value` is a valid JSON string, otherwise
         `value`.
+    :raises ValidationError: If `strict` is True and `value` is a string that is
+        not valid JSON.
     """
 
     if isinstance(value, str):
         try:
             return json.loads(value)
-        except (TypeError, JSONDecodeError):
-            pass
+        except (TypeError, JSONDecodeError) as exc:
+            if strict:
+                raise ValidationError("Value is not valid JSON.") from exc
 
     return value
 

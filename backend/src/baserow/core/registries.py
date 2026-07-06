@@ -237,6 +237,16 @@ class Plugin(APIUrlsInstanceMixin, Instance):
 
         return queryset
 
+    def get_automation_workflow_history_plugin_data(
+        self, user: "AbstractUser", workflow_id: int, workflow_histories: List[Any]
+    ) -> Dict[int, Any]:
+        """
+        Provides plugin-specific data for serialized automation workflow history
+        entries. The returned dict must be keyed by workflow history id.
+        """
+
+        return {}
+
 
 class PluginRegistry(APIUrlsRegistryMixin, Registry[Plugin]):
     """

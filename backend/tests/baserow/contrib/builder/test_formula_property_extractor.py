@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pytest_unordered import unordered
 
+from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.formula_property_extractor import (
     FormulaFieldVisitor,
     get_builder_used_property_names,
@@ -27,6 +29,7 @@ from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
+from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
 class TestDataProviderType(DataProviderType):
@@ -471,6 +474,86 @@ def test_get_workflow_action_property_names_returns_property_names(data_fixture)
         f"field_{fields[1].id}"
     ]
     assert results["internal"] == {}
+
+
+@pytest.mark.django_db
+def test_get_builder_workflow_actions_excludes_trashed_element(data_fixture):
+    """
+    An action whose element has been trashed (soft-deleted) must be dropped from the
+    queryset returned by the service. The `element` foreign key only cascades on
+    permanent deletion, so an action can outlive the trashing of its element. Actions
+    without an element (page-scoped) must still be returned.
+    """
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+
+    element_action = BuilderWorkflowActionService().create_workflow_action(
+        user,
+        NotificationWorkflowActionType(),
+        page=page,
+        element=button_element,
+        event=EventTypes.CLICK,
+    )
+    page_action = BuilderWorkflowActionService().create_workflow_action(
+        user,
+        NotificationWorkflowActionType(),
+        page=page,
+        event=EventTypes.CLICK,
+    )
+
+    # Both actions are returned while the element is live.
+    actions = BuilderWorkflowActionService().get_builder_workflow_actions(user, builder)
+    assert {action.id for action in actions} == {element_action.id, page_action.id}
+
+    # Trash the button. Its action still references it via element_id.
+    element = ElementHandler().get_element_for_update(button_element.id)
+    ElementService().delete_element(user, element)
+
+    # The trashed element's action is excluded, but the page-scoped one remains.
+    actions = BuilderWorkflowActionService().get_builder_workflow_actions(user, builder)
+    assert {action.id for action in actions} == {page_action.id}
+
+
+@pytest.mark.django_db
+def test_get_builder_used_property_names_with_trashed_action_element(data_fixture):
+    """
+    Previewing a page after trashing a button that owns a workflow
+    action must not raise ElementDoesNotExist while recomputing used properties.
+    """
+
+    user = data_fixture.create_user()
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Fruit", "text")],
+        rows=[["Apple"]],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user, page=page, table=table
+    )
+    button_element = data_fixture.create_builder_button_element(page=page)
+    BuilderWorkflowActionService().create_workflow_action(
+        user,
+        NotificationWorkflowActionType(),
+        page=page,
+        element=button_element,
+        event=EventTypes.CLICK,
+        title=f"get('data_source.{data_source.id}.0.field_{fields[0].id}')",
+    )
+
+    element = ElementHandler().get_element_for_update(button_element.id)
+    ElementService().delete_element(user, element)
+
+    user_source_user = UserSourceUser(None, None, 1, "foo", "foo@bar.com")
+
+    # Should not raise; the trashed button's action is skipped.
+    results = get_builder_used_property_names(user_source_user, builder)
+
+    assert results == {"all": {}, "external": {}, "internal": {}}
 
 
 @pytest.mark.django_db

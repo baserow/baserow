@@ -322,3 +322,56 @@ export const ensureDuration = (value) => {
 
   throw new TypeError('Value cannot be converted to a duration.')
 }
+
+/**
+ * Normalizes a value into a JSON-serializable counterpart, mirroring the
+ * backend `ensure_json_serializable`. Special runtime types are converted to
+ * the same representation the backend uses, so `to_json` produces identical
+ * output on both sides: a `Timedelta` becomes its number of seconds. Arrays and
+ * plain objects are normalized recursively; every other value is returned
+ * unchanged so native JSON types pass through untouched.
+ *
+ * @param {*} value - The value to normalize.
+ * @returns {*} The JSON-serializable value.
+ */
+export const ensureJsonSerializable = (value) => {
+  if (value instanceof Timedelta) {
+    return Math.floor(value.ms / 1000)
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => ensureJsonSerializable(item))
+  }
+
+  if (_.isPlainObject(value)) {
+    return _.mapValues(value, (item) => ensureJsonSerializable(item))
+  }
+
+  return value
+}
+
+/**
+ * Decodes a JSON string if possible, otherwise returns the value unchanged,
+ * mirroring the backend `ensure_deserialized_json`. Values that are not strings
+ * are already deserialized and are returned as-is, even when `strict` is true.
+ *
+ * @param {*} value - The value to decode if it is a valid JSON string.
+ * @param {Boolean} strict - If true, throw when `value` is a string that cannot
+ *   be decoded as JSON, instead of returning it unchanged.
+ * @returns {*} The decoded JSON value, or `value` when it is not a JSON string.
+ * @throws {Error} If `strict` is true and `value` is a string that is not valid
+ *   JSON.
+ */
+export const ensureDeserializedJson = (value, { strict = false } = {}) => {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value)
+    } catch (e) {
+      if (strict) {
+        throw new Error('Value is not valid JSON.', { cause: e })
+      }
+    }
+  }
+
+  return value
+}

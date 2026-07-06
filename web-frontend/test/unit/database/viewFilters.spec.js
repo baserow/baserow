@@ -3,6 +3,7 @@ import { createFile } from '@baserow/test/fixtures/fields'
 import {
   EqualViewFilterType,
   FilenameContainsViewFilterType,
+  StartsWithViewFilterType,
   UserIsFilterType,
   UserIsNotFilterType,
 } from '@baserow/modules/database/viewFilters'
@@ -49,6 +50,34 @@ describe('View Filter Tests', () => {
       'text',
       'newly_edited_value_not_matching'
     )
+    expect(row._.matchFilters).toBe(false)
+  })
+
+  test('When A Starts With Filter is applied a string field correctly indicates if the row will continue to match after an edit', async () => {
+    await thereIsATableWithRowAndFilter(
+      {
+        name: 'Text Field Field',
+        type: 'text',
+        primary: true,
+      },
+      { id: 1, order: 0, field_1: 'hello world' },
+      {
+        id: 1,
+        view: 1,
+        field: 1,
+        type: StartsWithViewFilterType.getType(),
+        value: 'hello',
+      }
+    )
+
+    const row = store.getters['page/view/grid/getRow'](1)
+
+    // Case insensitive match at the start of the value.
+    await editFieldWithoutSavingNewValue(row, 'text', 'Hello everyone')
+    expect(row._.matchFilters).toBe(true)
+
+    // The value is contained but not at the start, so it no longer matches.
+    await editFieldWithoutSavingNewValue(row, 'text', 'say hello')
     expect(row._.matchFilters).toBe(false)
   })
 

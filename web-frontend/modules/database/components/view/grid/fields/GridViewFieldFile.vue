@@ -87,7 +87,7 @@ export default {
   name: 'GridViewFieldFile',
   components: { UserFilesModal, FileFieldModal },
   mixins: [gridField, fileField],
-  emits: ['add-keep-alive', 'remove-keep-alive', 'select'],
+  emits: ['add-keep-alive', 'remove-keep-alive', 'select', 'editing-changed'],
   data() {
     return {
       modalOpen: false,
@@ -97,6 +97,11 @@ export default {
       // Event handler reference for cleanup
       keydownEvent: null,
     }
+  },
+  watch: {
+    modalOpen(editing) {
+      this.$emit('editing-changed', editing)
+    },
   },
   methods: {
     /**

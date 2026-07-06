@@ -401,6 +401,7 @@ class DatabaseConfig(AppConfig):
             SingleSelectIsAnyOfViewFilterType,
             SingleSelectIsNoneOfViewFilterType,
             SingleSelectNotEqualViewFilterType,
+            StartsWithViewFilterType,
             UserIsNotViewFilterType,
             UserIsViewFilterType,
         )
@@ -414,6 +415,7 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(ContainsNotViewFilterType())
         view_filter_type_registry.register(ContainsWordViewFilterType())
         view_filter_type_registry.register(DoesntContainWordViewFilterType())
+        view_filter_type_registry.register(StartsWithViewFilterType())
         view_filter_type_registry.register(LengthIsLowerThanViewFilterType())
         view_filter_type_registry.register(HigherThanViewFilterType())
         view_filter_type_registry.register(HigherThanOrEqualViewFilterType())
@@ -575,6 +577,8 @@ class DatabaseConfig(AppConfig):
 
         application_type_registry.register(DatabaseApplicationType())
 
+        from baserow.ws.registries import presence_focus_type_registry
+
         from .ws.pages import (
             PublicViewPageType,
             RowPageType,
@@ -584,6 +588,14 @@ class DatabaseConfig(AppConfig):
         page_registry.register(TablePageType())
         page_registry.register(PublicViewPageType())
         page_registry.register(RowPageType())
+
+        from baserow.contrib.database.ws.presence_focus_types import (
+            CellFocusType,
+            RowFocusType,
+        )
+
+        presence_focus_type_registry.register(CellFocusType())
+        presence_focus_type_registry.register(RowFocusType())
 
         from .export.table_exporters.csv_table_exporter import CsvTableExporter
 

@@ -141,6 +141,11 @@
 <script>
 import { mapGetters } from 'vuex'
 import modal from '@baserow/modules/core/mixins/modal'
+import {
+  createPresenceFocusSender,
+  isUserPresenceEnabled,
+  resolvePresencePageParams,
+} from '@baserow/modules/database/utils/presence'
 import CreateFieldContext from '@baserow/modules/database/components/field/CreateFieldContext'
 import RowEditModalFieldsList from './RowEditModalFieldsList.vue'
 import RowEditModalHiddenFieldsSection from './RowEditModalHiddenFieldsSection.vue'
@@ -216,6 +221,11 @@ export default {
       required: false,
       default: () => true,
     },
+    presenceFocusEnabled: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   emits: [
     'field-updated',
@@ -231,6 +241,11 @@ export default {
     'field-created',
     'field-created-callback-done',
   ],
+  data() {
+    return {
+      presenceSpaceName: null,
+    }
+  },
   computed: {
     ...mapGetters({
       navigationLoading: 'rowModalNavigation/getLoading',
@@ -301,6 +316,12 @@ export default {
         Number.isInteger(this.rowId)
       )
     },
+    hasOtherPresenceMembers() {
+      if (!this.presenceSpaceName) return false
+      const spaceData =
+        this.$store.state.presence.spaces[this.presenceSpaceName]
+      return spaceData ? Object.keys(spaceData.members).length > 0 : false
+    },
     rowModalActionComponents() {
       return this.activeSidebarTypes
         .map((type) => type.getActionComponent(this.row))
@@ -353,7 +374,18 @@ export default {
           })
         }
       }
+      if (this.presenceFocus && newValue > 0) {
+        this.presenceFocus.emitRowFocus(newValue)
+      }
     },
+    hasOtherPresenceMembers(hasMembers) {
+      if (hasMembers && this.presenceFocus) {
+        this.presenceFocus.reemitLastFocus()
+      }
+    },
+  },
+  beforeUnmount() {
+    this.clearPresenceFocus()
   },
   methods: {
     show(rowId, rowFallback = {}, ...args) {
@@ -371,17 +403,69 @@ export default {
           row_id: rowId,
         })
       }
+      this._initPresenceFocus()
       this.getRootModal().show(...args)
     },
     hidden(...args) {
+      this.clearPresenceFocus()
       if (this.canSubscribeToRowUpdates) {
         this.$realtime.unsubscribe('row', {
           table_id: this.table.id,
           row_id: this.rowId,
         })
       }
+      // Capture the row before clearing the store: `this.row` resolves through the
+      // cleared entry afterwards, and the `hidden` listeners need the row id to
+      // refresh (e.g. hide a row that no longer matches the filters).
+      const row = this.row
       this.$store.dispatch('rowModal/clear', { componentId: this.$.uid })
-      this.$emit('hidden', { row: this.row })
+      this.$emit('hidden', { row })
+    },
+    _initPresenceFocus() {
+      if (!this.presenceFocusEnabled || !isUserPresenceEnabled(this)) {
+        return
+      }
+      const { page, params, spaceName, focusEnabled } =
+        resolvePresencePageParams(
+          this.$registry,
+          this.database,
+          this.table,
+          this.view
+        )
+      if (!focusEnabled) return
+      // Reuse the existing sender when it targets the same realtime page, so
+      // that its transmitted-focus tracking (and any armed debounce timer)
+      // survives consecutive show() calls; a new sender wouldn't know it
+      // still has to clear the previously transmitted focus.
+      const senderKey = JSON.stringify([page, params])
+      if (this.presenceFocus && this.presenceSenderKey === senderKey) {
+        return
+      }
+      this.clearPresenceFocus()
+      this.presenceSenderKey = senderKey
+      this.presenceSpaceName = spaceName
+      this.presenceFocus = createPresenceFocusSender(
+        this.$realtime,
+        page,
+        params,
+        { hasOtherMembers: () => this._hasOtherPresenceMembers() }
+      )
+    },
+    /**
+     * Clears the transmitted presence focus and disposes the sender. Public
+     * because parents hiding the modal with hide(false) suppress the `hidden`
+     * event and must invoke the presence cleanup themselves.
+     */
+    clearPresenceFocus() {
+      if (!this.presenceFocus) return
+      this.presenceFocus.clearFocus()
+      this.presenceFocus.destroy()
+      this.presenceFocus = null
+      this.presenceSenderKey = null
+      this.presenceSpaceName = null
+    },
+    _hasOtherPresenceMembers() {
+      return this.hasOtherPresenceMembers
     },
     /**
      * Because the modal can't update values by himself, an event will be called to

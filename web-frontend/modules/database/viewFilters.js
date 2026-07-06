@@ -689,6 +689,48 @@ export class ContainsNotViewFilterType extends ViewFilterType {
   }
 }
 
+export class StartsWithViewFilterType extends ViewFilterType {
+  static getType() {
+    return 'starts_with'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('viewFilter.startsWith')
+  }
+
+  getInputComponent(field) {
+    const inputComponent = {
+      [NumberFieldType.getType()]: ViewFilterTypeNumber,
+    }
+    return inputComponent[field?.type] || ViewFilterTypeText
+  }
+
+  getCompatibleFieldTypes() {
+    return [
+      'text',
+      'long_text',
+      'url',
+      'email',
+      'phone_number',
+      'number',
+      'autonumber',
+      'single_select',
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'text',
+        'char',
+        'url',
+        'number',
+        'single_select'
+      ),
+    ]
+  }
+
+  matches(rowValue, filterValue, field, fieldType) {
+    return fieldType.startsWithFilter(rowValue, filterValue, field)
+  }
+}
+
 export class ContainsWordViewFilterType extends ViewFilterType {
   static getType() {
     return 'contains_word'

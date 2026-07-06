@@ -31,6 +31,7 @@ from baserow.core.utils import (
     set_allowed_attrs,
 )
 
+from .constants import BASE_DATA_SYNC_ALLOWED_FIELDS
 from .exceptions import (
     DataSyncDoesNotExist,
     PropertyNotFound,
@@ -168,10 +169,7 @@ class DataSyncHandler:
         data_sync_type = data_sync_type_registry.get(type_name)
         model_class = data_sync_type.model_class
 
-        allowed_fields = [
-            "auto_add_new_properties",
-            "two_way_sync",
-        ] + data_sync_type.allowed_fields
+        allowed_fields = BASE_DATA_SYNC_ALLOWED_FIELDS + data_sync_type.allowed_fields
         values = extract_allowed(kwargs, allowed_fields)
         values = data_sync_type.prepare_values(user, values)
 
@@ -293,10 +291,7 @@ class DataSyncHandler:
         data_sync = data_sync.specific
         data_sync_type = data_sync_type_registry.get_by_model(data_sync)
 
-        allowed_fields = [
-            "auto_add_new_properties",
-            "two_way_sync",
-        ] + data_sync_type.allowed_fields
+        allowed_fields = BASE_DATA_SYNC_ALLOWED_FIELDS + data_sync_type.allowed_fields
 
         # Check if there is two-way support, if it must be enabled and wasn't enabled
         # before.
@@ -496,14 +491,15 @@ class DataSyncHandler:
         progress.increment(by=2)  # makes the total `69`
 
         row_ids_to_delete = []
-        for existing_id in existing_rows_in_table.keys():
-            if existing_id is None or existing_id not in rows_of_data_sync:
-                row_ids_to_delete.append(existing_rows_in_table[existing_id]["id"])
-        # Loop over the dangling rows and delete those because they can't be identified
-        # anymore.
-        for row in existing_rows_queryset:
-            if any(not row[key_to_field_id[key]] for key in unique_primary_keys):
-                row_ids_to_delete.append(row["id"])
+        if data_sync.delete_unmatched_rows:
+            for existing_id in existing_rows_in_table.keys():
+                if existing_id is None or existing_id not in rows_of_data_sync:
+                    row_ids_to_delete.append(existing_rows_in_table[existing_id]["id"])
+            # Loop over the dangling rows and delete those because they can't be
+            # identified anymore.
+            for row in existing_rows_queryset:
+                if any(not row[key_to_field_id[key]] for key in unique_primary_keys):
+                    row_ids_to_delete.append(row["id"])
         progress.increment(by=1)  # makes the total `70`
 
         created_rows = CreatedRowsData([], {}, [], None)

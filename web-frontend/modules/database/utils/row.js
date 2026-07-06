@@ -1,4 +1,3 @@
-//import Vue from 'vue'
 import { clone } from '@baserow/modules/core/utils/object'
 import {
   getRowSortFunction,
@@ -326,7 +325,7 @@ export function getRowMetadata(row, metadata = {}) {
  * - `sortedIndex` is the 0-based position of `row` in the merged, sorted result.
  *
  * Expressing the insert position by row identity rather than numeric index lets
- * both flat-array stores and group-tree stores consume the result without
+ * both flat-array stores and grouped stores consume the result without
  * needing to agree on a shared index space.
  */
 export function computeRowInsertPosition(

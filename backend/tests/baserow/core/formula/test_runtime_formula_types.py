@@ -20,6 +20,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeDivide,
     RuntimeDurationFormat,
     RuntimeEqual,
+    RuntimeFromJson,
     RuntimeGenerateUUID,
     RuntimeGet,
     RuntimeGetProperty,
@@ -59,6 +60,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeToDatetime,
     RuntimeToday,
     RuntimeToDuration,
+    RuntimeToJson,
     RuntimeUpper,
     RuntimeYear,
 )
@@ -2507,6 +2509,99 @@ def test_runtime_range_validate_type_of_args(args, expected):
 )
 def test_runtime_range_validate_number_of_args(args, expected):
     result = RuntimeRange().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["foo"], '"foo"'),
+        ([123], "123"),
+        ([True], "true"),
+        ([None], "null"),
+        ([{"a": 1}], '{"a":1}'),
+        ([[1, 2]], "[1,2]"),
+        # Quotes, backslashes and control characters are escaped so the result
+        # is safe to embed inside a larger JSON document.
+        ([r'foo "bar"'], r'"foo \"bar\""'),
+        (["a\nb"], r'"a\nb"'),
+    ],
+)
+def test_runtime_to_json_execute(args, expected):
+    parsed_args = RuntimeToJson().parse_args(args)
+    result = RuntimeToJson().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), object()])
+def test_runtime_to_json_raises_for_non_serializable_value(value):
+    parsed_args = RuntimeToJson().parse_args([value])
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToJson().execute({}, parsed_args)
+    assert "cannot be" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([123], []),
+        (["foo"], []),
+        ([{"a": 1}], []),
+    ],
+)
+def test_runtime_to_json_validate_type_of_args(args, expected):
+    result = RuntimeToJson().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_to_json_validate_number_of_args(args, expected):
+    result = RuntimeToJson().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["[1, 2, 3]"], [1, 2, 3]),
+        (['{"a": 1}'], {"a": 1}),
+        (['"foo"'], "foo"),
+        (["123"], 123),
+        # Invalid JSON degrades gracefully to None instead of raising.
+        (["not json"], None),
+        ([""], None),
+    ],
+)
+def test_runtime_from_json_execute(args, expected):
+    parsed_args = RuntimeFromJson().parse_args(args)
+    result = RuntimeFromJson().execute({}, parsed_args)
+    assert result == expected
+
+
+def test_runtime_to_json_from_json_round_trip():
+    value = {"value1": 'foo "bar"\nbaz'}
+    dumped = RuntimeToJson().execute({}, RuntimeToJson().parse_args([value]))
+    result = RuntimeFromJson().execute({}, RuntimeFromJson().parse_args([dumped]))
+    assert result == value
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_from_json_validate_number_of_args(args, expected):
+    result = RuntimeFromJson().validate_number_of_args(args)
     assert result is expected
 
 

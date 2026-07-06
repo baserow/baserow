@@ -53,3 +53,89 @@ class GridViewFilterSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text="Only rows related to the provided ids are added to the response.",
     )
+
+
+class GridViewGroupByDataGroupSerializer(serializers.Serializer):
+    path = serializers.DictField(
+        help_text=(
+            "Mapping of group-by field db_column names to the serialized group "
+            "value at every depth from 0 up to this group's depth."
+        )
+    )
+    display = serializers.DictField(
+        required=False,
+        help_text=(
+            "Mapping of group-by field db_column names to the renderable display "
+            "value for reference fields (for example collaborator names or the "
+            "linked row's primary value). Only present for fields whose group value "
+            "is an id or list of ids that the client cannot render on its own."
+        ),
+    )
+    depth = serializers.IntegerField(
+        help_text="Zero-based depth of this group in the group-by hierarchy."
+    )
+    row_count = serializers.IntegerField(
+        required=False,
+        help_text=(
+            "Number of leaf rows descending from this group. In "
+            "`aggregations_only` mode, this is still returned so derived "
+            "aggregation values can be formatted without using optimistic "
+            "client-side counts."
+        ),
+    )
+    children_count = serializers.IntegerField(
+        required=False,
+        help_text="Number of immediate sub-groups. Omitted at leaf depth.",
+    )
+    sibling_index = serializers.IntegerField(
+        required=False,
+        help_text=(
+            "Zero-based index of this group among its siblings. Omitted in "
+            "`aggregations_only` mode, which returns no windowed layout."
+        ),
+    )
+    row_offset = serializers.IntegerField(
+        required=False,
+        help_text=(
+            "Absolute offset of this group's first descendant row in the full "
+            "grouped row order. Omitted in `aggregations_only` mode, which returns "
+            "no windowed layout."
+        ),
+    )
+    aggregations = serializers.DictField(
+        required=False,
+        help_text=(
+            "Per-group aggregation values keyed by field db_column, mirroring the "
+            "grid view field-aggregations response. Only present for visible fields "
+            "that have a scalar aggregation configured."
+        ),
+    )
+
+
+class GridViewGroupByDataPageSerializer(serializers.Serializer):
+    parent = serializers.DictField(
+        help_text="The serialized parent group path requested for this page."
+    )
+    groups = GridViewGroupByDataGroupSerializer(many=True)
+    offset = serializers.IntegerField()
+    limit = serializers.IntegerField()
+    group_count = serializers.IntegerField()
+
+
+class GridViewGroupByDataSerializer(serializers.Serializer):
+    pages = GridViewGroupByDataPageSerializer(many=True)
+    truncated = serializers.BooleanField(
+        required=False,
+        help_text=(
+            "Whether descendant loading stopped early because the response page or "
+            "group cap was reached."
+        ),
+    )
+    aggregations = serializers.DictField(
+        required=False,
+        help_text=(
+            "Table-level field aggregation totals keyed by field db_column, "
+            "mirroring the grid view field-aggregations response. Only present when "
+            "`include_totals=true` was requested."
+        ),
+    )

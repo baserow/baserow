@@ -7,6 +7,7 @@ from faker import Faker
 from baserow.contrib.database.fields.exceptions import FieldNotInTable
 from baserow.contrib.database.fields.field_types import SingleSelectFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.exceptions import FieldAggregationNotSupported
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
@@ -113,6 +114,49 @@ def test_view_empty_count_aggregation(data_fixture):
     )
 
     assert result[f"total"] == 4
+
+
+@pytest.mark.django_db
+def test_view_empty_count_aggregation_on_array_field(data_fixture):
+    # empty/not-empty count on a lookup-of-file field filters by an AnnotatedQ; its
+    # annotation must be applied or Django can't resolve it as a footer aggregate.
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    related_table = data_fixture.create_database_table(user=user, database=database)
+    related_primary = data_fixture.create_text_field(
+        table=related_table, name="Name", primary=True
+    )
+    related_file = data_fixture.create_file_field(table=related_table, name="File")
+    related_row = related_table.get_model().objects.create(
+        **{f"field_{related_primary.id}": "r"}
+    )
+
+    table = data_fixture.create_database_table(user=user, database=database)
+    link = data_fixture.create_link_row_field(
+        name="Link", table=table, link_row_table=related_table
+    )
+    lookup = data_fixture.create_lookup_field(
+        table=table,
+        through_field=link,
+        target_field=related_file,
+        through_field_name=link.name,
+        target_field_name=related_file.name,
+    )
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    RowHandler().create_row(user, table, {f"field_{link.id}": [related_row.id]})
+    RowHandler().create_row(user, table, {})
+
+    view_handler = ViewHandler()
+    empty = view_handler.get_field_aggregations(
+        user, grid_view, [(lookup, "empty_count")]
+    )
+    not_empty = view_handler.get_field_aggregations(
+        user, grid_view, [(lookup, "not_empty_count")]
+    )
+
+    # Both aggregations must resolve (no AnnotatedQ crash) and partition the 2 rows.
+    assert empty[lookup.db_column] + not_empty[lookup.db_column] == 2
 
 
 @pytest.mark.django_db

@@ -62,7 +62,7 @@ Do not commit secrets or local overrides. Use `.env.local` for development, keep
 
 ## Good practices
 
-- On a specific branch, always merge backend migrations file instead of creating new ones.
+- On a specific branch, always merge backend migrations file instead of creating new ones only if it was created on the very same branch.
 - Django migrations must be executed with zero downtime. This means the new database schema must remain compatible with the previous application version during the deployment.
   - Every new field must define a `db_default`.
   - Do not remove fields unless you are certain they are no longer used by the previous application version. Instead, keep the field and add a `# TODO ZDM: remove this field in the next version` comment so it can be safely removed in a subsequent release.

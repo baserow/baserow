@@ -245,6 +245,67 @@ def test_dispatch_node_unexpected_error(mock_logger, mock_dispatch, data_fixture
 
 
 @pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_database_error_does_not_break_transaction(
+    mock_logger, data_fixture
+):
+    """
+    Regression test: when a service dispatch raises a *database* error, it
+    leaves the surrounding transaction in a "needs rollback" state. The service
+    dispatch wraps its work in a savepoint so the surrounding transaction stays
+    usable, allowing the error handling path to persist the failure
+    (workflow/node history) instead of crashing with a
+    TransactionManagementError on the broken transaction.
+    """
+
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    action_node = data["action_node"]
+    workflow_history = data["workflow_history"]
+
+    # First dispatch the trigger so the action node has its previous results.
+    result = AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+    assert_dispatches_next_node(result, (action_node, workflow_history, None))
+
+    def _broken_db_dispatch_data(*args, **kwargs):
+        # Run a failing query inside the dispatch so the connection is marked
+        # as needing a rollback, then let the resulting database error
+        # propagate, mimicking a real service dispatch hitting a DB error.
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM table_that_does_not_exist_xyz")
+
+    # Now dispatch the action node, whose service dispatch hits a DB error.
+    # This must not raise a TransactionManagementError.
+    with patch(
+        "baserow.contrib.integrations.local_baserow.service_types"
+        ".LocalBaserowUpsertRowServiceType.dispatch_data",
+        side_effect=_broken_db_dispatch_data,
+    ):
+        result = AutomationNodeHandler().dispatch_node(
+            action_node.id,
+            history_id=workflow_history.id,
+        )
+    assert result is None
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert "Unexpected error while running workflow" in workflow_history.message
+
+    node_history = (
+        AutomationNodeHistory.objects.filter(workflow_history=workflow_history)
+        .order_by("-id")
+        .first()
+    )
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert "Unexpected error while running workflow" in node_history.message
+
+
+@pytest.mark.django_db
 @patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
 @patch(f"{NODE_HANDLER_PATH}.logger")
 def test_dispatch_node_expected_error(mock_logger, mock_dispatch, data_fixture):

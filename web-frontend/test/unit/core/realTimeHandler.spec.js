@@ -299,6 +299,18 @@ describe('RealTimeHandler reconnect logic', () => {
     connectSpy.mockRestore()
   })
 
+  test('wires a window focus listener to the retry handler', () => {
+    const addSpy = vi.spyOn(window, 'addEventListener')
+    const handler = new RealTimeHandler({
+      store: makeStore(),
+      app: { router: {} },
+    })
+    const focusCall = addSpy.mock.calls.find(([type]) => type === 'focus')
+    expect(focusCall).toBeDefined()
+    expect(focusCall[1]).toBe(handler._onShouldRetryNow)
+    addSpy.mockRestore()
+  })
+
   test('delayedReconnect skipped when reconnect is false', () => {
     const { handler } = env
     handler.reconnect = false
@@ -581,21 +593,30 @@ describe('RealTimeHandler max attempts', () => {
     vi.useRealTimers()
   })
 
-  test('delayedReconnect stops and shows failed toast after exceeding max attempts', () => {
+  test('shows the failed toast but keeps retrying slowly after max attempts', () => {
     const { handler, store } = env
     handler.reconnect = true
-    // After 10 successful calls, attempts will be 10.
-    // The 11th call increments to 11 which exceeds RECONNECT_MAX_ATTEMPTS (10).
     handler.attempts = 10
+    const connectSpy = vi.spyOn(handler, 'connect').mockImplementation(() => {})
 
     handler.delayedReconnect()
 
+    // Capped so slow retries can't grow the count unbounded.
     expect(handler.attempts).toBe(11)
+    handler.delayedReconnect()
+    expect(handler.attempts).toBe(11)
+
     expect(
       store._dispatched.some(
         ([n, v]) => n === 'toast/setFailedConnecting' && v === true
       )
     ).toBe(true)
+
+    // Self-heals when the backend returns, with no user action.
+    expect(connectSpy).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(30000)
+    expect(connectSpy).toHaveBeenCalledWith(true, false)
+    connectSpy.mockRestore()
   })
 
   test('connect does not show failed toast while tab is hidden', () => {
@@ -727,6 +748,150 @@ describe('RealTimeHandler connect early-exit', () => {
   })
 })
 
+describe('RealTimeHandler connection watchdog', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  test('force-closes a socket stuck in CONNECTING so a reconnect can start', () => {
+    const { handler } = makeHandler()
+    let closed = false
+    handler.socket = {
+      readyState: WebSocket.CONNECTING,
+      close() {
+        closed = true
+      },
+      send() {},
+    }
+    handler._armConnectionTimeout()
+
+    vi.advanceTimersByTime(9999)
+    expect(closed).toBe(false)
+    vi.advanceTimersByTime(1)
+    expect(closed).toBe(true)
+  })
+
+  test('does not close a socket that finished connecting', () => {
+    const { handler } = makeHandler()
+    let closed = false
+    handler.socket = {
+      readyState: WebSocket.OPEN,
+      close() {
+        closed = true
+      },
+      send() {},
+    }
+    handler._armConnectionTimeout()
+
+    vi.advanceTimersByTime(10000)
+    expect(closed).toBe(false)
+  })
+
+  test('clearing the watchdog cancels the pending force-close', () => {
+    const { handler } = makeHandler()
+    let closed = false
+    handler.socket = {
+      readyState: WebSocket.CONNECTING,
+      close() {
+        closed = true
+      },
+      send() {},
+    }
+    handler._armConnectionTimeout()
+    handler._clearConnectionTimeout()
+
+    vi.advanceTimersByTime(10000)
+    expect(closed).toBe(false)
+    expect(handler.connectionTimeout).toBeNull()
+  })
+})
+
+describe('RealTimeHandler sendFocus', () => {
+  test('sendFocus sends correctly shaped presence.focus message', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = true
+
+    handler.sendFocus(
+      'table',
+      { table_id: 42 },
+      { type: 'cell', row_id: 1, field_id: 2, editing: false }
+    )
+
+    expect(sentMessages).toHaveLength(1)
+    expect(sentMessages[0]).toEqual({
+      type: 'presence.focus',
+      page: 'table',
+      table_id: 42,
+      focus: { type: 'cell', row_id: 1, field_id: 2, editing: false },
+    })
+  })
+
+  test('sendFocus sends null focus for clear', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = true
+
+    handler.sendFocus('table', { table_id: 42 }, null)
+
+    expect(sentMessages).toHaveLength(1)
+    expect(sentMessages[0]).toEqual({
+      type: 'presence.focus',
+      page: 'table',
+      table_id: 42,
+      focus: null,
+    })
+  })
+
+  test('sendFocus is suppressed when not connected', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = false
+
+    handler.sendFocus(
+      'table',
+      { table_id: 42 },
+      { type: 'cell', row_id: 1, field_id: 2, editing: false }
+    )
+
+    expect(sentMessages).toHaveLength(0)
+  })
+
+  test('sendFocus is suppressed when socket is not open', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = true
+    handler.socket.readyState = WebSocket.CLOSED
+
+    handler.sendFocus(
+      'table',
+      { table_id: 42 },
+      { type: 'cell', row_id: 1, field_id: 2, editing: false }
+    )
+
+    expect(sentMessages).toHaveLength(0)
+  })
+
+  test('sendFocus spreads parameters into top-level message', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.connected = true
+
+    handler.sendFocus(
+      'table',
+      { table_id: 10, extra_param: 'val' },
+      { type: 'row', row_id: 5, editing: true }
+    )
+
+    expect(sentMessages[0]).toEqual({
+      type: 'presence.focus',
+      page: 'table',
+      table_id: 10,
+      extra_param: 'val',
+      focus: { type: 'row', row_id: 5, editing: true },
+    })
+  })
+})
+
 describe('RealTimeHandler presence events', () => {
   test('presence.members dispatches handleMembers', () => {
     const { handler, store } = makeHandler()
@@ -788,5 +953,261 @@ describe('RealTimeHandler presence events', () => {
         ([n, v]) => n === 'presence/clearSpace' && v.space === 'table-1'
       )
     ).toBe(true)
+  })
+
+  test('presence.focus dispatches handleFocus with correct shape', () => {
+    const { handler, store } = makeHandler()
+    fire(handler, 'presence.focus', {
+      space: 'table-1',
+      presence_id: 'pid-5',
+      focus: { type: 'cell', row_id: 10, field_id: 20, editing: true },
+    })
+    expect(
+      store._dispatched.some(
+        ([n, v]) =>
+          n === 'presence/handleFocus' &&
+          v.space === 'table-1' &&
+          v.presence_id === 'pid-5' &&
+          v.focus.type === 'cell' &&
+          v.focus.row_id === 10 &&
+          v.focus.field_id === 20 &&
+          v.focus.editing === true
+      )
+    ).toBe(true)
+  })
+
+  test('presence.focus dispatches null focus for clear', () => {
+    const { handler, store } = makeHandler()
+    fire(handler, 'presence.focus', {
+      space: 'table-1',
+      presence_id: 'pid-6',
+      focus: null,
+    })
+    expect(
+      store._dispatched.some(
+        ([n, v]) =>
+          n === 'presence/handleFocus' &&
+          v.space === 'table-1' &&
+          v.presence_id === 'pid-6' &&
+          v.focus === null
+      )
+    ).toBe(true)
+  })
+})
+
+describe('RealTimeHandler token refresh on reconnect', () => {
+  function makeRefreshStore({ shouldRefresh = false } = {}) {
+    const dispatched = []
+    const store = {
+      getters: {
+        'auth/token': 'stale-token',
+        'auth/webSocketId': 'ws-id',
+        'auth/isAuthenticated': true,
+        'auth/shouldRefreshToken': () => shouldRefresh,
+      },
+      dispatch(name, value) {
+        dispatched.push([name, value])
+        if (name === 'auth/refresh') {
+          const refreshCount = dispatched.filter(
+            ([n]) => n === 'auth/refresh'
+          ).length
+          store.getters['auth/token'] = `fresh-token-${refreshCount}`
+        }
+        return Promise.resolve()
+      },
+      subscribe() {},
+      _dispatched: dispatched,
+    }
+    return store
+  }
+
+  function makeHandlerWith(store) {
+    const context = { store, app: { router: {} } }
+    return { handler: new RealTimeHandler(context), store }
+  }
+
+  beforeEach(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  test('an expiring access token is refreshed before the socket opens', async () => {
+    const store = makeRefreshStore({ shouldRefresh: true })
+    const { handler } = makeHandlerWith(store)
+
+    await handler.connect(true, false)
+
+    expect(store._dispatched.some(([n]) => n === 'auth/refresh')).toBe(true)
+    expect(handler.lastToken).toBe('fresh-token-1')
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(false)
+  })
+
+  test('a fresh-looking token is not refreshed on a normal reconnect', async () => {
+    const store = makeRefreshStore({ shouldRefresh: false })
+    const { handler } = makeHandlerWith(store)
+
+    await handler.connect(true, false)
+
+    expect(store._dispatched.some(([n]) => n === 'auth/refresh')).toBe(false)
+    expect(handler.lastToken).toBe('stale-token')
+  })
+
+  test('anonymous reconnects never refresh the token', async () => {
+    const store = makeRefreshStore({ shouldRefresh: true })
+    // An anonymous session has no refresh token to spend.
+    store.getters['auth/isAuthenticated'] = false
+    const { handler } = makeHandlerWith(store)
+
+    await handler.connect(true, true)
+
+    expect(store._dispatched.some(([n]) => n === 'auth/refresh')).toBe(false)
+  })
+
+  test('auth rejection forces a token refresh on the next reconnect', async () => {
+    // The token looks fresh to the client (shouldRefresh=false) but the server
+    // rejects it. The reconnect must still refresh instead of giving up.
+    const store = makeRefreshStore({ shouldRefresh: false })
+    const { handler } = makeHandlerWith(store)
+    handler.reconnect = true
+    handler.anonymous = false
+
+    await handler.connect(true, false)
+    expect(handler.lastToken).toBe('stale-token')
+
+    fire(handler, 'authentication', { success: false })
+    expect(handler.forceTokenRefresh).toBe(true)
+
+    await handler.connect(true, false)
+
+    expect(store._dispatched.some(([n]) => n === 'auth/refresh')).toBe(true)
+    expect(handler.lastToken).toBe('fresh-token-1')
+    expect(handler.forceTokenRefresh).toBe(false)
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(false)
+  })
+
+  test('a successful reconnect clears the forced-refresh flag', async () => {
+    const store = makeRefreshStore({ shouldRefresh: false })
+    const { handler } = makeHandlerWith(store)
+    handler.forceTokenRefresh = true
+
+    fire(handler, 'authentication', { success: true, replay_enabled: false })
+
+    expect(handler.forceTokenRefresh).toBe(false)
+  })
+
+  test('stops refreshing once a freshly refreshed token is also rejected', async () => {
+    const store = makeRefreshStore({ shouldRefresh: false })
+    const { handler } = makeHandlerWith(store)
+    handler.reconnect = true
+    handler.anonymous = false
+
+    fire(handler, 'authentication', { success: false })
+    expect(handler.forceTokenRefresh).toBe(true)
+    expect(handler.tokenRefreshRetries).toBe(1)
+    await handler.connect(true, false)
+    expect(handler.lastToken).toBe('fresh-token-1')
+
+    fire(handler, 'authentication', { success: false })
+    expect(handler.forceTokenRefresh).toBe(false)
+
+    // The next reconnect reuses the same rejected token and surfaces failure.
+    const refreshesBefore = store._dispatched.filter(
+      ([n]) => n === 'auth/refresh'
+    ).length
+    await handler.connect(true, false)
+    const refreshesAfter = store._dispatched.filter(
+      ([n]) => n === 'auth/refresh'
+    ).length
+    expect(refreshesAfter).toBe(refreshesBefore)
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(true)
+  })
+
+  test('a 401 refresh clears the session and surfaces the failure toast', async () => {
+    const dispatched = []
+    const store = {
+      getters: {
+        'auth/token': 'stale-token',
+        'auth/webSocketId': 'ws-id',
+        'auth/isAuthenticated': true,
+        'auth/shouldRefreshToken': () => true,
+      },
+      dispatch(name, value) {
+        dispatched.push([name, value])
+        if (name === 'auth/refresh') {
+          store.getters['auth/token'] = null
+          const error = new Error('session expired')
+          error.response = { status: 401 }
+          return Promise.reject(error)
+        }
+        return Promise.resolve()
+      },
+      subscribe() {},
+      _dispatched: dispatched,
+    }
+    const { handler } = makeHandlerWith(store)
+
+    await handler.connect(true, false)
+
+    expect(dispatched.some(([n]) => n === 'auth/refresh')).toBe(true)
+    expect(
+      dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(true)
+  })
+
+  test('a transient refresh failure retries with backoff instead of failing', async () => {
+    vi.useFakeTimers()
+    const dispatched = []
+    const store = {
+      getters: {
+        'auth/token': 'stale-token',
+        'auth/webSocketId': 'ws-id',
+        'auth/isAuthenticated': true,
+        'auth/shouldRefreshToken': () => true,
+      },
+      dispatch(name, value) {
+        dispatched.push([name, value])
+        if (name === 'auth/refresh') {
+          // No ``response`` — a network-level error that leaves the token intact.
+          return Promise.reject(new Error('Network Error'))
+        }
+        return Promise.resolve()
+      },
+      subscribe() {},
+      _dispatched: dispatched,
+    }
+    const { handler } = makeHandlerWith(store)
+    handler.reconnect = true
+
+    await handler.connect(true, false)
+
+    expect(
+      dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(false)
+    expect(
+      dispatched.some(([n, v]) => n === 'toast/setReconnecting' && v === true)
+    ).toBe(true)
+    expect(handler.connecting).toBe(false)
+
+    clearTimeout(handler.reconnectTimeout)
+    vi.useRealTimers()
   })
 })
