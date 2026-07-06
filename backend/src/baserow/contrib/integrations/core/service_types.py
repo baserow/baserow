@@ -1307,7 +1307,7 @@ class CoreGotoServiceType(CoreServiceType):
         """
         The destination is a reference to another service which may not have
         been imported yet (e.g. a forward jump). We therefore null it on this
-        first pass and remap it during the second pass in import_formulas(),
+        first pass and remap it during the second pass in import_references(),
         once all the workflow's services have been imported.
         """
 
@@ -1329,10 +1329,9 @@ class CoreGotoServiceType(CoreServiceType):
 
         return service
 
-    def import_formulas(self, instance, id_mapping, import_formula, **kwargs):
+    def import_references(self, instance, id_mapping, **kwargs):
         """
-        Performs the second-pass remap of the destination service reference,
-        alongside the formula migration.
+        Performs the second-pass remap of the destination service reference.
 
         By this point every service of the workflow has been imported, so
         id_mapping["services"] can resolve both backward and forward jumps.
@@ -1346,9 +1345,7 @@ class CoreGotoServiceType(CoreServiceType):
         import.
         """
 
-        updated_models = super().import_formulas(
-            instance, id_mapping, import_formula, **kwargs
-        )
+        updated_models = super().import_references(instance, id_mapping, **kwargs)
 
         pending_destinations = id_mapping.get("goto_destination_services", {})
         if instance.id in pending_destinations:

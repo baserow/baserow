@@ -367,12 +367,16 @@ class AutomationNodeHandler:
             if progress:
                 progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
-        # We migrate service formulas here to make sure all nodes are imported before
-        # we migrate them
+        # We migrate service formulas and remap cross-service references here to
+        # make sure all nodes are imported before we migrate them
         for imported_node in imported_nodes:
             service = imported_node.service.specific
-            updated_models = service.get_type().import_formulas(
+            service_type = service.get_type()
+            updated_models = service_type.import_formulas(
                 service, id_mapping, import_formula, **kwargs
+            )
+            updated_models |= service_type.import_references(
+                service, id_mapping, **kwargs
             )
 
             [u.save() for u in updated_models]

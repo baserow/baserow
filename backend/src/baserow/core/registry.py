@@ -1085,3 +1085,22 @@ class InstanceWithFormulaMixin:
                 updated_models.add(formula_gen.send(new_formula))
 
         return updated_models
+
+    def import_references(
+        self,
+        instance: Instance,
+        id_mapping: Dict[str, Any],
+        **kwargs: Dict[str, Any],
+    ) -> Set[Instance]:
+        """
+        Second-pass hook to remap references to other instances that may not
+        have existed yet during the first import pass (e.g. a forward
+        reference). It is meant to run once every instance of the import has
+        been created, so both backward and forward references can be resolved.
+
+        Like import_formulas(), this method does not save any updates made to
+        the instance. Instead, it returns a set of all updated model instances,
+        and the caller should call `.save()` on them to persist the changes.
+        """
+
+        return set()
