@@ -1,11 +1,13 @@
 import CoreGotoServiceForm from '@baserow/modules/automation/components/services/CoreGotoServiceForm'
 
 describe('CoreGotoServiceForm destinationNodes', () => {
-  // A linear workflow: trigger -> before -> current (goto) -> after
-  const trigger = { id: 1, type: 'trigger' }
-  const before = { id: 2, type: 'create_row' }
-  const current = { id: 3, type: 'goto_node' }
-  const after = { id: 4, type: 'create_row' }
+  // A linear workflow: trigger -> before -> current (goto) -> after. Each node
+  // carries a service, since a node is only a selectable destination once its
+  // service (what `destination_service_id` points at) has landed.
+  const trigger = { id: 1, type: 'trigger', service: { id: 11 } }
+  const before = { id: 2, type: 'create_row', service: { id: 12 } }
+  const current = { id: 3, type: 'goto_node', service: { id: 13 } }
+  const after = { id: 4, type: 'create_row', service: { id: 14 } }
   const allNodes = [trigger, before, current, after]
 
   // The transitive previous nodes of each node on the linear path. Both the
