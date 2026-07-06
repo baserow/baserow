@@ -328,6 +328,7 @@ async def test_request_stream_recovers_mid_stream_api_error():
 
     from pydantic_ai._parts_manager import ModelResponsePartsManager
     from pydantic_ai.models import ModelRequestParameters, PartStartEvent
+    from pydantic_ai.usage import RequestUsage
 
     # Simulate a real StreamedResponse whose _get_event_iterator raises APIError
     class FakeAPIError(Exception):
@@ -340,13 +341,18 @@ async def test_request_stream_recovers_mid_stream_api_error():
     class FakeStreamedResponse:
         """Minimal fake that raises during iteration."""
 
+        _cancelled = False
+        _finished = False
+        _usage = RequestUsage()
         model_name = "test-model"
         provider_name = "test"
         provider_url = "http://test"
         timestamp = None
-        _parts_manager = ModelResponsePartsManager()
         model_request_parameters = ModelRequestParameters(
             function_tools=[], output_tools=[]
+        )
+        _parts_manager = ModelResponsePartsManager(
+            model_request_parameters=model_request_parameters
         )
         final_result_event = None
         provider_response_id = None
@@ -383,6 +389,12 @@ async def test_request_stream_recovers_mid_stream_api_error():
     assert len(start_events) == 1
     assert start_events[0].part.tool_name == "create_elements"
 
+    # get() must read the inner stream's parts manager through the proxy;
+    # StreamedResponse._parts_manager is a cached_property that would
+    # otherwise build an empty proxy-local one.
+    response = stream.get()
+    assert [p.tool_name for p in response.parts] == ["create_elements"]
+
 
 @pytest.mark.asyncio
 async def test_request_stream_recovers_mid_stream_malformed_json():
@@ -407,9 +419,11 @@ async def test_request_stream_recovers_mid_stream_malformed_json():
         provider_name = "test"
         provider_url = "http://test"
         timestamp = None
-        _parts_manager = ModelResponsePartsManager()
         model_request_parameters = ModelRequestParameters(
             function_tools=[], output_tools=[]
+        )
+        _parts_manager = ModelResponsePartsManager(
+            model_request_parameters=model_request_parameters
         )
         final_result_event = None
         provider_response_id = None

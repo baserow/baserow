@@ -477,14 +477,21 @@ class _ErrorRecoveringStream(StreamedResponse):
     validation loop can tell the model what was wrong.
     """
 
-    # Dataclass fields on StreamedResponse that have class-level defaults
-    # (e.g. ``final_result_event = None``).  These shadow ``__getattr__``
-    # because Python finds the class attribute before calling __getattr__.
-    # We override them as properties so reads delegate to ``_inner``.
+    # Class attributes on StreamedResponse (dataclass fields with class-level
+    # defaults such as ``final_result_event = None``, and the
+    # ``_parts_manager`` cached_property) shadow ``__getattr__`` because
+    # Python resolves class attributes before calling __getattr__ — the proxy
+    # would silently use its own state instead of the inner stream's (e.g.
+    # ``get()`` would build the response from an empty parts manager).  We
+    # override them as properties so reads delegate to ``_inner``; writes
+    # already delegate through ``__setattr__``.
     final_result_event = property(lambda self: self._inner.final_result_event)  # type: ignore[assignment]
     provider_response_id = property(lambda self: self._inner.provider_response_id)  # type: ignore[assignment]
     provider_details = property(lambda self: self._inner.provider_details)  # type: ignore[assignment]
     finish_reason = property(lambda self: self._inner.finish_reason)  # type: ignore[assignment]
+    _cancelled = property(lambda self: self._inner._cancelled)  # type: ignore[assignment]
+    _finished = property(lambda self: self._inner._finished)  # type: ignore[assignment]
+    _parts_manager = property(lambda self: self._inner._parts_manager)  # type: ignore[assignment]
 
     def __init__(self, inner: StreamedResponse):
         # Don't call super().__init__() — delegate everything to *inner*.
