@@ -1128,8 +1128,8 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
    * @returns {string} - The default label for the node.
    */
   getDefaultLabel({ automation, node }) {
-    const destinationId = node.service?.destination_node_id
-    if (!destinationId) {
+    const destinationServiceId = node.service?.destination_service_id
+    if (!destinationServiceId) {
       return this.name
     }
 
@@ -1138,8 +1138,8 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
       node.workflow
     )
     const destinationNode = this.app.$store.getters[
-      'automationWorkflowNode/findById'
-    ](workflow, destinationId)
+      'automationWorkflowNode/findByServiceId'
+    ](workflow, destinationServiceId)
     if (!destinationNode) {
       return this.name
     }
@@ -1164,13 +1164,13 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
    * a stale link during the brief window before that reconciliation runs.
    */
   getConnections({ workflow, node }) {
-    const destinationId = node.service?.destination_node_id
-    if (destinationId == null) {
+    const destinationServiceId = node.service?.destination_service_id
+    if (destinationServiceId == null) {
       return []
     }
     const destinationNode = this.app.$store.getters[
-      'automationWorkflowNode/findById'
-    ](workflow, destinationId)
+      'automationWorkflowNode/findByServiceId'
+    ](workflow, destinationServiceId)
     if (!destinationNode) {
       return []
     }
@@ -1192,7 +1192,7 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
     if (!isValid) {
       return []
     }
-    return [{ destinationNodeId: destinationId }]
+    return [{ destinationNodeId: destinationNode.id }]
   }
 }
 

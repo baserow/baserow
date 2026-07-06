@@ -24,7 +24,7 @@ describe('CoreGotoServiceType', () => {
   test('getErrorMessage requires a destination node', () => {
     expect(
       makeServiceType().getErrorMessage({
-        service: { destination_node_id: null },
+        service: { destination_service_id: null },
       })
     ).toBe('serviceType.coreGotoDestinationRequired')
   })
@@ -32,7 +32,7 @@ describe('CoreGotoServiceType', () => {
   test('getErrorMessage passes when a destination node is set', () => {
     expect(
       makeServiceType().getErrorMessage({
-        service: { destination_node_id: 42 },
+        service: { destination_service_id: 42 },
       })
     ).not.toBe('serviceType.coreGotoDestinationRequired')
   })

@@ -32,9 +32,9 @@ class DispatchResult:
     data: dict = field(default_factory=dict)
     status: int = 200
     output_uid: str = ""
-    # When set, the runner redirects execution to this node id instead of
-    # resolving the natural next node(s). Used by the "Go to node" node.
-    output_node_id: Optional[int] = None
+    # When set, the runner redirects execution to this service instead of
+    # resolving the natural next step. Used to implement conditional jumps.
+    output_service_id: Optional[int] = None
 
 
 @dataclass

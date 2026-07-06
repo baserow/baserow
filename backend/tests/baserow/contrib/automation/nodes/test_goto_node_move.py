@@ -13,7 +13,7 @@ from baserow.core.action.handler import ActionHandler
 def _root_goto_workflow(data_fixture, user=None):
     """
     Builds a workflow whose root level is:
-        trigger -> destination -> iterator -> goto (destination_node=destination)
+        trigger -> destination -> iterator -> goto (destination_service=destination.service)
     """
 
     user = user or data_fixture.create_user()
@@ -29,7 +29,7 @@ def _root_goto_workflow(data_fixture, user=None):
 
     service = goto.service.specific
     service.condition = "'true'"
-    service.destination_node = destination
+    service.destination_service = destination.service
     service.save()
 
     # Sanity check: same root level, so the link is valid to begin with.
@@ -56,7 +56,7 @@ def test_move_destination_into_container_clears_goto_link(data_fixture):
     )
 
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id is None
+    assert data["service"].destination_service_id is None
 
 
 @pytest.mark.django_db
@@ -69,7 +69,7 @@ def test_move_goto_into_container_clears_goto_link(data_fixture):
     )
 
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id is None
+    assert data["service"].destination_service_id is None
 
 
 @pytest.mark.django_db
@@ -84,7 +84,7 @@ def test_move_goto_before_destination_clears_goto_link(data_fixture):
     )
 
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id is None
+    assert data["service"].destination_service_id is None
 
 
 @pytest.mark.django_db
@@ -100,7 +100,7 @@ def test_move_unrelated_node_keeps_goto_link(data_fixture):
     )
 
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id == data["destination"].id
+    assert data["service"].destination_service_id == data["destination"].service_id
 
 
 @pytest.mark.django_db
@@ -124,7 +124,7 @@ def test_move_container_holding_both_endpoints_keeps_goto_link(data_fixture):
         workflow=workflow, label="goto", reference_node=destination, position="south"
     )
     service = goto.service.specific
-    service.destination_node = destination
+    service.destination_service = destination.service
     service.save()
     assert CoreGotoActionNodeType.validate_goto_destination(goto, destination) is None
 
@@ -133,7 +133,7 @@ def test_move_container_holding_both_endpoints_keeps_goto_link(data_fixture):
     AutomationNodeService().move_node(user, iterator.id, after.id, "south", "")
 
     service.refresh_from_db()
-    assert service.destination_node_id == destination.id
+    assert service.destination_service_id == destination.service_id
 
 
 @pytest.mark.django_db
@@ -149,17 +149,17 @@ def test_undo_redo_move_restores_and_reclears_goto_link(data_fixture):
         user, data["destination"].id, data["iterator"].id, "child", ""
     )
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id is None
+    assert data["service"].destination_service_id is None
 
     # Undo returns the destination to the root, so the link is restored.
     ActionHandler.undo(user, [scope], session_id)
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id == data["destination"].id
+    assert data["service"].destination_service_id == data["destination"].service_id
 
     # Redo breaks it again.
     ActionHandler.redo(user, [scope], session_id)
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id is None
+    assert data["service"].destination_service_id is None
 
 
 @pytest.mark.django_db
@@ -171,10 +171,10 @@ def test_duplicate_goto_node_copies_its_destination(data_fixture):
     # A single-node duplicate leaves the destination node in place, so the copy
     # keeps jumping to the same destination as the original.
     duplicated_service = duplicated.service.specific
-    assert duplicated_service.destination_node_id == data["destination"].id
+    assert duplicated_service.destination_service_id == data["destination"].service_id
     # The original link is untouched.
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id == data["destination"].id
+    assert data["service"].destination_service_id == data["destination"].service_id
 
 
 @pytest.mark.django_db
@@ -188,10 +188,10 @@ def test_duplicate_destination_node_is_not_referenced_by_any_goto(data_fixture):
     # The copy is a standalone node: no goto points at it, and the original
     # link is untouched.
     assert not CoreGotoService.objects.filter(
-        destination_node=duplicated_destination
+        destination_service=duplicated_destination.service
     ).exists()
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id == data["destination"].id
+    assert data["service"].destination_service_id == data["destination"].service_id
 
 
 @pytest.mark.django_db
@@ -203,4 +203,4 @@ def test_deleting_destination_preserves_link_for_restore(data_fixture):
     AutomationNodeService().delete_node(data["user"], data["destination"].id)
 
     data["service"].refresh_from_db()
-    assert data["service"].destination_node_id == data["destination"].id
+    assert data["service"].destination_service_id == data["destination"].service_id

@@ -25,7 +25,7 @@ def _build_goto_workflow(data_fixture, condition="'false'", with_destination=Tru
     service = goto_node.service.specific
     service.condition = condition
     if with_destination:
-        service.destination_node = destination
+        service.destination_service = destination.service
     service.save()
 
     return {
@@ -45,7 +45,7 @@ def test_goto_node_prepare_values_rejects_trigger_destination(data_fixture):
 
     with pytest.raises(AutomationNodeMisconfiguredService):
         goto_node.get_type().prepare_values(
-            {"service": {"destination_node_id": trigger.id}},
+            {"service": {"destination_service_id": trigger.service_id}},
             data["user"],
             instance=goto_node,
         )
@@ -65,7 +65,7 @@ def test_goto_node_prepare_values_rejects_cross_level_destination(data_fixture):
 
     with pytest.raises(AutomationNodeMisconfiguredService):
         goto_node.get_type().prepare_values(
-            {"service": {"destination_node_id": iterator_child.id}},
+            {"service": {"destination_service_id": iterator_child.service_id}},
             user,
             instance=goto_node,
         )
@@ -86,7 +86,7 @@ def test_goto_node_prepare_values_rejects_cross_workflow_destination(data_fixtur
 
     with pytest.raises(AutomationNodeMisconfiguredService):
         goto_node.get_type().prepare_values(
-            {"service": {"destination_node_id": other_destination.id}},
+            {"service": {"destination_service_id": other_destination.service_id}},
             data["user"],
             instance=goto_node,
         )
@@ -99,11 +99,11 @@ def test_goto_node_prepare_values_allows_same_level_destination(data_fixture):
     destination = data["destination"]
 
     values = goto_node.get_type().prepare_values(
-        {"service": {"destination_node_id": destination.id}},
+        {"service": {"destination_service_id": destination.service_id}},
         data["user"],
         instance=goto_node,
     )
-    assert values["service"].destination_node_id == destination.id
+    assert values["service"].destination_service_id == destination.service_id
 
 
 @pytest.mark.django_db
@@ -124,7 +124,7 @@ def test_goto_node_prepare_values_rejects_forward_jump(data_fixture):
 
     with pytest.raises(AutomationNodeMisconfiguredService):
         goto_node.get_type().prepare_values(
-            {"service": {"destination_node_id": forward_node.id}},
+            {"service": {"destination_service_id": forward_node.service_id}},
             user,
             instance=goto_node,
         )
@@ -148,18 +148,18 @@ def test_goto_node_prepare_values_rejects_cross_branch_destination(data_fixture)
 
     with pytest.raises(AutomationNodeMisconfiguredService):
         goto_node.get_type().prepare_values(
-            {"service": {"destination_node_id": branch_b_node.id}},
+            {"service": {"destination_service_id": branch_b_node.service_id}},
             user,
             instance=goto_node,
         )
 
     # ...but jumping back to an earlier node in its own branch is allowed.
     values = goto_node.get_type().prepare_values(
-        {"service": {"destination_node_id": branch_a_node.id}},
+        {"service": {"destination_service_id": branch_a_node.service_id}},
         user,
         instance=goto_node,
     )
-    assert values["service"].destination_node_id == branch_a_node.id
+    assert values["service"].destination_service_id == branch_a_node.service_id
 
 
 @pytest.mark.django_db
@@ -171,7 +171,7 @@ def test_goto_node_prepare_values_rejects_self_target(data_fixture):
     # against unchanged state, so it can only be a no-op or a guaranteed infinite loop.
     with pytest.raises(AutomationNodeMisconfiguredService):
         goto_node.get_type().prepare_values(
-            {"service": {"destination_node_id": goto_node.id}},
+            {"service": {"destination_service_id": goto_node.service_id}},
             data["user"],
             instance=goto_node,
         )
@@ -226,7 +226,7 @@ def test_goto_node_dispatch_skips_jump_when_simulating(data_fixture):
     dispatch_context = FakeDispatchContext(simulate_until_node=goto_node)
     dispatch_result = goto_node.get_type().dispatch(goto_node, dispatch_context)
 
-    assert dispatch_result.output_node_id is None
+    assert dispatch_result.output_service_id is None
 
 
 @pytest.mark.django_db
@@ -249,7 +249,7 @@ def test_goto_node_dispatch_rejects_cross_level_destination(data_fixture):
     service = goto_node.service.specific
     service.condition = "'true'"
     # ...but the destination lives inside the iterator (a different level).
-    service.destination_node = iterator_child
+    service.destination_service = iterator_child.service
     service.save()
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):

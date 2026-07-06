@@ -82,7 +82,7 @@ def test_get_node_histories_surfaces_goto_destination(api_client, data_fixture):
     goto_node = data_fixture.create_core_goto_node(
         workflow=workflow, reference_node=destination
     )
-    goto_node.service.specific.destination_node = destination
+    goto_node.service.specific.destination_service = destination.service
     goto_node.service.specific.save()
 
     workflow_history = data_fixture.create_automation_workflow_history(

@@ -566,11 +566,14 @@ const actions = {
     const isTrigger = (node) => this.$registry.get('node', node.type).isTrigger
 
     for (const gotoNode of getters.getNodes(workflow)) {
-      const destinationId = gotoNode.service?.destination_node_id
-      if (gotoNode.type !== GOTO_NODE_TYPE || destinationId == null) {
+      const destinationServiceId = gotoNode.service?.destination_service_id
+      if (gotoNode.type !== GOTO_NODE_TYPE || destinationServiceId == null) {
         continue
       }
-      const destinationNode = getters.findById(workflow, destinationId)
+      const destinationNode = getters.findByServiceId(
+        workflow,
+        destinationServiceId
+      )
       const valid = isValidGotoDestination({
         gotoNode,
         destinationNode,
@@ -583,7 +586,7 @@ const actions = {
           workflow,
           node: gotoNode,
           values: {
-            service: { ...gotoNode.service, destination_node_id: null },
+            service: { ...gotoNode.service, destination_service_id: null },
           },
         })
       }
@@ -735,6 +738,14 @@ const getters = {
       return workflow.nodeMap[nodeIdStr]
     }
     return null
+  },
+  findByServiceId: (state, getters) => (workflow, serviceId) => {
+    if (!workflow || !serviceId) return null
+    return (
+      getters
+        .getNodes(workflow)
+        .find((node) => node.service?.id === serviceId) || null
+    )
   },
   getSelected: (state) => (workflow) => {
     if (!workflow) return null

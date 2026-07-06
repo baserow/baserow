@@ -201,7 +201,7 @@ export class CoreGotoServiceType extends WorkflowActionServiceTypeMixin(
     if (service === undefined) {
       return null
     }
-    if (!service.destination_node_id) {
+    if (!service.destination_service_id) {
       return this.app.$i18n.t('serviceType.coreGotoDestinationRequired')
     }
     return super.getErrorMessage({ service })

@@ -434,15 +434,15 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
 
         dispatch_result = super().dispatch(automation_node, dispatch_context)
 
-        if dispatch_result.output_node_id is None:
+        if dispatch_result.output_service_id is None:
             return dispatch_result
 
         if getattr(dispatch_context, "simulate_until_node", None) is not None:
-            dispatch_result.output_node_id = None
+            dispatch_result.output_service_id = None
             return dispatch_result
 
-        destination_node = AutomationNodeHandler().get_node(
-            dispatch_result.output_node_id
+        destination_node = AutomationNodeHandler().get_node_by_service_id(
+            dispatch_result.output_service_id
         )
         if error := self.validate_goto_destination(automation_node, destination_node):
             raise ServiceImproperlyConfiguredDispatchException(error)
@@ -467,9 +467,9 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         service_values = values.get("service", {})
-        if instance is not None and service_values.get("destination_node_id"):
-            destination_node = AutomationNodeHandler().get_node(
-                service_values["destination_node_id"]
+        if instance is not None and service_values.get("destination_service_id"):
+            destination_node = AutomationNodeHandler().get_node_by_service_id(
+                service_values["destination_service_id"]
             )
             if error := self.validate_goto_destination(instance, destination_node):
                 raise AutomationNodeMisconfiguredService(error)
@@ -518,20 +518,22 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
         handler = AutomationNodeHandler()
         goto_services = CoreGotoService.objects.filter(
             automation_workflow_node__workflow=workflow,
-            destination_node__isnull=False,
-        ).select_related("automation_workflow_node", "destination_node")
+            destination_service__isnull=False,
+        ).select_related(
+            "automation_workflow_node",
+            "destination_service__automation_workflow_node",
+        )
 
         cleared_goto_links: list[tuple[int, int]] = []
         for service in goto_services:
             source_node = service.automation_workflow_node
-            destination_node = service.destination_node
+            destination_node = service.destination_service.automation_workflow_node
             if cls.validate_goto_destination(source_node, destination_node) is None:
                 continue
 
-            previous_destination_id = service.destination_node_id
-            service.destination_node = None
-            service.save(update_fields=["destination_node"])
-            cleared_goto_links.append((source_node.id, previous_destination_id))
+            service.destination_service = None
+            service.save(update_fields=["destination_service"])
+            cleared_goto_links.append((source_node.id, destination_node.id))
 
             automation_node_updated.send(
                 cls, user=user, node=handler.get_node(source_node.id)
@@ -569,8 +571,8 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
                 continue
 
             service = goto_node.service.specific
-            service.destination_node = destination_node
-            service.save(update_fields=["destination_node"])
+            service.destination_service_id = destination_node.service_id
+            service.save(update_fields=["destination_service"])
 
             automation_node_updated.send(
                 cls, user=user, node=handler.get_node(goto_node_id)

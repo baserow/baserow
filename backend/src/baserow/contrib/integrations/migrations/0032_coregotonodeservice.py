@@ -18,8 +18,8 @@ class Migration(migrations.Migration):
             name='CoreGotoService',
             fields=[
                 ('service_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='core.service')),
-                ('condition', baserow.core.formula.field.FormulaField(blank=True, default='', help_text='The formula that must evaluate to true for the jump to the destination node to be followed.', null=True)),
-                ('destination_node', models.ForeignKey(help_text='The node to jump to when the condition evaluates to true.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to='automation.automationnode')),
+                ('condition', baserow.core.formula.field.FormulaField(blank=True, default='', help_text='The formula that must evaluate to true for the jump to the destination service to be followed.', null=True)),
+                ('destination_service', models.ForeignKey(help_text='The service to jump to when the condition evaluates to true.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to='core.service')),
             ],
             options={
                 'abstract': False,

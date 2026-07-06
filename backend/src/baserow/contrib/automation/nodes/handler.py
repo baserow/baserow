@@ -175,6 +175,25 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
+    def get_node_by_service_id(self, service_id: int) -> AutomationNode:
+        """
+        Return the AutomationNode that owns the given service. The node<->service
+        relation is one-to-one, so a service maps to exactly one node.
+
+        :param service_id: The ID of the node's service.
+        :raises AutomationNodeDoesNotExist: If no node owns the service.
+        :return: The specific model instance of the AutomationNode.
+        """
+
+        try:
+            return (
+                AutomationNode.objects.select_related("workflow__automation__workspace")
+                .get(service_id=service_id)
+                .specific
+            )
+        except AutomationNode.DoesNotExist:
+            raise AutomationNodeDoesNotExist(service_id)
+
     def create_node(
         self,
         node_type: AutomationNodeType,
@@ -234,6 +253,10 @@ class AutomationNodeHandler:
 
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflow_nodes"] = MirrorDict()
+        # A single-node duplicate leaves referenced nodes (and thus their
+        # services) in place, so mirror service ids too. This lets a self
+        # reference like a "Go to node" destination carry over unchanged.
+        id_mapping["services"] = MirrorDict()
 
         import_export_config = ImportExportConfig(
             include_permission_data=True,
@@ -649,10 +672,12 @@ class AutomationNodeHandler:
                 canvas = chain(*groups_to_chain)
                 to_chain.append(canvas)
 
-        if dispatch_result.output_node_id is not None:
-            # A node (e.g. "Go to node") requested a jump to a specific node
-            # rather than the natural next node.
-            next_node_ids = [dispatch_result.output_node_id]
+        if dispatch_result.output_service_id is not None:
+            # A node (e.g. "Go to node") requested a jump to a specific node,
+            # identified by its service, rather than the natural next node.
+            next_node_ids = [
+                self.get_node_by_service_id(dispatch_result.output_service_id).id
+            ]
         else:
             # Handle non-iterator nodes, including iterator children.
             next_node_ids = [

@@ -23,14 +23,14 @@
         {{ $t('coreGotoServiceForm.destinationDescription') }}
       </p>
       <Dropdown
-        v-model="values.destination_node_id"
+        v-model="values.destination_service_id"
         :placeholder="$t('coreGotoServiceForm.destinationPlaceholder')"
       >
         <DropdownItem
           v-for="destination in destinationNodes"
           :key="destination.id"
           :name="getNodeName(destination)"
-          :value="destination.id"
+          :value="destination.service.id"
         />
       </Dropdown>
     </FormGroup>
@@ -56,10 +56,10 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['condition', 'destination_node_id'],
+      allowedValues: ['condition', 'destination_service_id'],
       values: {
         condition: {},
-        destination_node_id: null,
+        destination_service_id: null,
       },
     }
   },
@@ -110,9 +110,9 @@ export default {
      * such changes here.
      */
     service(service) {
-      const destinationNodeId = service?.destination_node_id ?? null
-      if (destinationNodeId !== this.values.destination_node_id) {
-        this.values.destination_node_id = destinationNodeId
+      const destinationServiceId = service?.destination_service_id ?? null
+      if (destinationServiceId !== this.values.destination_service_id) {
+        this.values.destination_service_id = destinationServiceId
       }
     },
   },

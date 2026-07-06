@@ -5,12 +5,12 @@ const clearInvalidatedGotoLinks = nodeStore.actions.clearInvalidatedGotoLinks
 describe('clearInvalidatedGotoLinks', () => {
   const workflow = { id: 1 }
   const trigger = { id: 1, type: 'trigger' }
-  const destination = { id: 2, type: 'create_row' }
+  const destination = { id: 2, type: 'create_row', service: { id: 20 } }
 
   const makeGoto = () => ({
     id: 3,
     type: 'goto_node',
-    service: { condition: {}, destination_node_id: destination.id },
+    service: { condition: {}, destination_service_id: destination.service.id },
   })
 
   /**
@@ -26,7 +26,8 @@ describe('clearInvalidatedGotoLinks', () => {
       getNodes: () => nodes,
       getAncestors: () => [],
       getPreviousNodes: () => previousNodes,
-      findById: (_workflow, id) => nodes.find((node) => node.id === id) || null,
+      findByServiceId: (_workflow, serviceId) =>
+        nodes.find((node) => node.service?.id === serviceId) || null,
     }
     const thisArg = {
       $registry: { get: (kind, type) => ({ isTrigger: type === 'trigger' }) },
@@ -41,7 +42,9 @@ describe('clearInvalidatedGotoLinks', () => {
     expect(dispatched).toHaveLength(1)
     expect(dispatched[0].name).toBe('forceUpdate')
     expect(dispatched[0].payload.node.id).toBe(3)
-    expect(dispatched[0].payload.values.service.destination_node_id).toBeNull()
+    expect(
+      dispatched[0].payload.values.service.destination_service_id
+    ).toBeNull()
   })
 
   test('keeps a valid backward jump untouched', () => {

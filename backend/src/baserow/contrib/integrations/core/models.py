@@ -274,14 +274,14 @@ class CoreGotoService(Service):
 
     condition = FormulaField(
         help_text="The formula that must evaluate to true for the jump to the "
-        "destination node to be followed.",
+        "destination service to be followed.",
     )
-    destination_node = models.ForeignKey(
-        "automation.AutomationNode",
+    destination_service = models.ForeignKey(
+        Service,
         null=True,
         on_delete=models.SET_NULL,
         related_name="+",
-        help_text="The node to jump to when the condition evaluates to true.",
+        help_text="The service to jump to when the condition evaluates to true.",
     )
 
 

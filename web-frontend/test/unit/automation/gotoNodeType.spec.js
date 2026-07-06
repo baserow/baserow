@@ -29,7 +29,7 @@ describe('CoreGotoNodeType', () => {
       $store: {
         getters: {
           'automationWorkflow/getById': () => ({ id: 10 }),
-          'automationWorkflowNode/findById': () => destinationNode,
+          'automationWorkflowNode/findByServiceId': () => destinationNode,
         },
       },
       $registry: {
@@ -51,7 +51,7 @@ describe('CoreGotoNodeType', () => {
       const nodeType = new CoreGotoNodeType({
         app: makeApp({ destinationNode: null }),
       })
-      const node = { workflow: 10, service: { destination_node_id: 5 } }
+      const node = { workflow: 10, service: { destination_service_id: 5 } }
       expect(nodeType.getDefaultLabel({ automation, node })).toBe(
         'nodeType.gotoNodeLabel'
       )
@@ -64,7 +64,7 @@ describe('CoreGotoNodeType', () => {
           destinationLabel: 'List rows',
         }),
       })
-      const node = { workflow: 10, service: { destination_node_id: 5 } }
+      const node = { workflow: 10, service: { destination_service_id: 5 } }
       expect(nodeType.getDefaultLabel({ automation, node })).toBe(
         'nodeType.gotoNodeLabelWithDestination:{"destination":"List rows"}'
       )
@@ -82,7 +82,7 @@ describe('CoreGotoNodeType', () => {
     const makeApp = ({ destinationNode = before } = {}) => ({
       $store: {
         getters: {
-          'automationWorkflowNode/findById': () => destinationNode,
+          'automationWorkflowNode/findByServiceId': () => destinationNode,
           'automationWorkflowNode/getAncestors': () => [],
           'automationWorkflowNode/getPreviousNodes': () => [trigger, before],
         },
@@ -102,7 +102,7 @@ describe('CoreGotoNodeType', () => {
       const nodeType = new CoreGotoNodeType({
         app: makeApp({ destinationNode: null }),
       })
-      const node = { ...goto, service: { destination_node_id: 2 } }
+      const node = { ...goto, service: { destination_service_id: 2 } }
       expect(nodeType.getConnections({ workflow, node })).toEqual([])
     })
 
@@ -112,13 +112,13 @@ describe('CoreGotoNodeType', () => {
       const nodeType = new CoreGotoNodeType({
         app: makeApp({ destinationNode: after }),
       })
-      const node = { ...goto, service: { destination_node_id: 4 } }
+      const node = { ...goto, service: { destination_service_id: 4 } }
       expect(nodeType.getConnections({ workflow, node })).toEqual([])
     })
 
     test('returns the destination connection when the jump is valid', () => {
       const nodeType = new CoreGotoNodeType({ app: makeApp() })
-      const node = { ...goto, service: { destination_node_id: 2 } }
+      const node = { ...goto, service: { destination_service_id: 2 } }
       expect(nodeType.getConnections({ workflow, node })).toEqual([
         { destinationNodeId: 2 },
       ])

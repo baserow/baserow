@@ -19,7 +19,7 @@ def test_create_core_goto_node_service(data_fixture):
     values = service_type.prepare_values({"condition": "'true'"}, user)
     service = ServiceHandler().create_service(service_type, **values)
     assert service.condition["formula"] == "'true'"
-    assert service.destination_node_id is None
+    assert service.destination_service_id is None
 
 
 @pytest.mark.django_db
@@ -34,11 +34,11 @@ def test_update_core_goto_node_service_sets_destination(data_fixture):
     service = goto_node.service.specific
     service_type = service.get_type()
     values = service_type.prepare_values(
-        {"condition": "'true'", "destination_node_id": destination.id}, user
+        {"condition": "'true'", "destination_service_id": destination.service_id}, user
     )
     result = ServiceHandler().update_service(service_type, service, **values)
 
-    assert result.service.destination_node_id == destination.id
+    assert result.service.destination_service_id == destination.service_id
 
 
 @pytest.mark.django_db
@@ -58,12 +58,12 @@ def test_core_goto_node_dispatch_condition_true(data_fixture, truthful_condition
 
     service = goto_node.service.specific
     service.condition = truthful_condition
-    service.destination_node = destination
+    service.destination_service = destination.service
     service.save()
 
     dispatch_result = service.get_type().dispatch(service, FakeDispatchContext())
 
-    assert dispatch_result.output_node_id == destination.id
+    assert dispatch_result.output_service_id == destination.service_id
     assert dispatch_result.data == {"condition": True}
 
 
@@ -78,12 +78,12 @@ def test_core_goto_node_dispatch_condition_false(data_fixture):
 
     service = goto_node.service.specific
     service.condition = "'false'"
-    service.destination_node = destination
+    service.destination_service = destination.service
     service.save()
 
     dispatch_result = service.get_type().dispatch(service, FakeDispatchContext())
 
-    assert dispatch_result.output_node_id is None
+    assert dispatch_result.output_service_id is None
     assert dispatch_result.data == {"condition": False}
 
 
@@ -110,12 +110,12 @@ def test_core_goto_node_dispatch_empty_condition_jumps(data_fixture, empty_condi
 
     service = goto_node.service.specific
     service.condition = empty_condition
-    service.destination_node = destination
+    service.destination_service = destination.service
     service.save()
 
     dispatch_result = service.get_type().dispatch(service, FakeDispatchContext())
 
-    assert dispatch_result.output_node_id == destination.id
+    assert dispatch_result.output_service_id == destination.service_id
     assert dispatch_result.data == {"condition": True}
 
 
@@ -158,21 +158,22 @@ def test_core_goto_node_destination_set_null_on_delete(data_fixture):
     )
 
     service = goto_node.service.specific
-    service.destination_node = destination
+    service.destination_service = destination.service
     service.save()
 
-    # A hard delete of the destination node should null the FK (on_delete=SET_NULL).
+    # A hard delete of the destination node cascades to its service, which nulls
+    # the goto's destination_service FK (on_delete=SET_NULL).
     destination.delete()
 
     service.refresh_from_db()
-    assert service.destination_node_id is None
+    assert service.destination_service_id is None
 
 
 @pytest.mark.django_db
 def test_core_goto_node_import_export_remaps_destination(data_fixture):
     """
     Exporting then importing the workflow's nodes should remap the goto node's
-    `destination_node` reference to the newly-imported destination node id.
+    `destination_service` reference to the newly-imported destination service id.
     """
 
     user = data_fixture.create_user()
@@ -187,7 +188,7 @@ def test_core_goto_node_import_export_remaps_destination(data_fixture):
     )
     service = goto_node.service.specific
     service.condition = "'true'"
-    service.destination_node = destination
+    service.destination_service = destination.service
     service.save()
 
     handler = AutomationNodeHandler()
@@ -196,7 +197,7 @@ def test_core_goto_node_import_export_remaps_destination(data_fixture):
 
     target_workflow = data_fixture.create_automation_workflow(user=user)
     id_mapping = defaultdict(MirrorDict)
-    id_mapping["automation_workflow_nodes"] = {}
+    id_mapping["services"] = {}
 
     imported_destination, imported_goto = handler.import_nodes(
         target_workflow,
@@ -204,15 +205,20 @@ def test_core_goto_node_import_export_remaps_destination(data_fixture):
         id_mapping,
     )
 
-    assert imported_goto.service.specific.destination_node_id == imported_destination.id
-    assert imported_goto.service.specific.destination_node_id != destination.id
+    assert (
+        imported_goto.service.specific.destination_service_id
+        == imported_destination.service_id
+    )
+    assert (
+        imported_goto.service.specific.destination_service_id != destination.service_id
+    )
 
 
 @pytest.mark.django_db
 def test_core_goto_node_single_node_duplicate_keeps_destination(data_fixture):
     """
     A single-node duplicate copies only the Go to node and leaves the
-    destination node in place, so the import (seeded with a MirrorDict node
+    destination node in place, so the import (seeded with a MirrorDict service
     mapping) should carry the original destination over unchanged.
     """
 
@@ -228,16 +234,19 @@ def test_core_goto_node_single_node_duplicate_keeps_destination(data_fixture):
     )
     service = goto_node.service.specific
     service.condition = "'true'"
-    service.destination_node = destination
+    service.destination_service = destination.service
     service.save()
 
     handler = AutomationNodeHandler()
     serialized_goto = handler.export_node(goto_node)
 
-    # A single-node duplicate seeds the node mapping with a MirrorDict.
+    # A single-node duplicate seeds the service mapping with a MirrorDict.
     id_mapping = defaultdict(MirrorDict)
     id_mapping["automation_workflow_nodes"] = MirrorDict()
+    id_mapping["services"] = MirrorDict()
 
     imported_goto = handler.import_node(workflow, serialized_goto, id_mapping)
 
-    assert imported_goto.service.specific.destination_node_id == destination.id
+    assert (
+        imported_goto.service.specific.destination_service_id == destination.service_id
+    )

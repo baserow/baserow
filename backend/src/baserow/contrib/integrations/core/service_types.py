@@ -1267,14 +1267,14 @@ class CoreRouterServiceType(CoreServiceType):
 class CoreGotoServiceType(CoreServiceType):
     type = "goto"
     model_class = CoreGotoService
-    allowed_fields = ["condition", "destination_node_id"]
+    allowed_fields = ["condition", "destination_service_id"]
     dispatch_types = [DispatchTypes.ACTION]
-    serializer_field_names = ["condition", "destination_node_id"]
+    serializer_field_names = ["condition", "destination_service_id"]
     simple_formula_fields = ["condition"]
 
     class SerializedDict(ServiceDict):
         condition: str
-        destination_node_id: int
+        destination_service_id: int
 
     @property
     def serializer_field_overrides(self):
@@ -1286,10 +1286,12 @@ class CoreGotoServiceType(CoreServiceType):
                 required=False,
                 default="",
             ),
-            "destination_node_id": serializers.IntegerField(
+            "destination_service_id": serializers.IntegerField(
                 required=False,
                 allow_null=True,
-                help_text=CoreGotoService._meta.get_field("destination_node").help_text,
+                help_text=CoreGotoService._meta.get_field(
+                    "destination_service"
+                ).help_text,
             ),
         }
 
@@ -1303,14 +1305,13 @@ class CoreGotoServiceType(CoreServiceType):
         **kwargs,
     ):
         """
-        The destination_node is a cross-app reference to another automation
-        node which may not have been imported yet (e.g. a forward jump). We
-        therefore null it on this first pass and remap it during the second
-        pass in import_formulas(), once all the workflow's nodes have been
-        imported.
+        The destination is a reference to another service which may not have
+        been imported yet (e.g. a forward jump). We therefore null it on this
+        first pass and remap it during the second pass in import_formulas(),
+        once all the workflow's services have been imported.
         """
 
-        original_destination_id = serialized_values.pop("destination_node_id", None)
+        original_destination_id = serialized_values.pop("destination_service_id", None)
 
         service = super().create_instance_from_serialized(
             serialized_values,
@@ -1322,7 +1323,7 @@ class CoreGotoServiceType(CoreServiceType):
         )
 
         if original_destination_id is not None:
-            id_mapping.setdefault("goto_destination_nodes", {})[service.id] = (
+            id_mapping.setdefault("goto_destination_services", {})[service.id] = (
                 original_destination_id
             )
 
@@ -1330,40 +1331,41 @@ class CoreGotoServiceType(CoreServiceType):
 
     def import_formulas(self, instance, id_mapping, import_formula, **kwargs):
         """
-        Performs the second-pass remap of the destination_node reference,
+        Performs the second-pass remap of the destination service reference,
         alongside the formula migration.
 
-        By this point every node of the workflow has been imported, so
-        id_mapping["automation_workflow_nodes"] can resolve both backward and
-        forward jumps.
+        By this point every service of the workflow has been imported, so
+        id_mapping["services"] can resolve both backward and forward jumps.
 
-        When the destination node was part of this import - e.g. a full
-        workflow duplicate - it is remapped to the newly imported node. For a
+        When the destination service was part of this import - e.g. a full
+        workflow duplicate - it is remapped to the newly imported service. For a
         single-node duplicate, which copies just the Go to node and leaves the
         destination node in place, the destination is carried over unchanged so
         the duplicate jumps to the same place as the original. The link is only
-        reset when the destination node is genuinely absent from this import.
+        reset when the destination service is genuinely absent from this import.
         """
 
         updated_models = super().import_formulas(
             instance, id_mapping, import_formula, **kwargs
         )
 
-        pending_destinations = id_mapping.get("goto_destination_nodes", {})
+        pending_destinations = id_mapping.get("goto_destination_services", {})
         if instance.id in pending_destinations:
             original_destination_id = pending_destinations[instance.id]
-            node_mapping = id_mapping.get("automation_workflow_nodes", {})
+            service_mapping = id_mapping.get("services", {})
             # `in keys()` tests genuine membership: a single-node duplicate seeds
-            # the node mapping with a MirrorDict whose catch-all __contains__
+            # the service mapping with a MirrorDict whose catch-all __contains__
             # would otherwise echo any id back as if it had been remapped.
-            if original_destination_id in node_mapping.keys():
-                instance.destination_node_id = node_mapping[original_destination_id]
-            elif isinstance(node_mapping, MirrorDict):
+            if original_destination_id in service_mapping.keys():
+                instance.destination_service_id = service_mapping[
+                    original_destination_id
+                ]
+            elif isinstance(service_mapping, MirrorDict):
                 # A single-node duplicate doesn't remap the destination, so keep
-                # pointing at the original destination node.
-                instance.destination_node_id = original_destination_id
+                # pointing at the original destination service.
+                instance.destination_service_id = original_destination_id
             else:
-                instance.destination_node_id = None
+                instance.destination_service_id = None
             updated_models.add(instance)
 
         return updated_models
@@ -1431,7 +1433,8 @@ class CoreGotoServiceType(CoreServiceType):
         This only resolves the intent to jump; how the jump is validated against
         the graph, and whether it should be suppressed (e.g. while simulating),
         is decided by the consumer that owns the graph. The returned
-        `output_node_id` is a plain reference to the configured destination.
+        `output_service_id` is a plain reference to the configured destination
+        service, which the consumer resolves back to a node.
         """
 
         # An empty condition means "always jump"; only a configured condition
@@ -1439,16 +1442,16 @@ class CoreGotoServiceType(CoreServiceType):
         should_jump = resolved_values["condition"] or not self._condition_is_set(
             service
         )
-        output_node_id = None
+        output_service_id = None
         if should_jump:
-            if service.destination_node_id is None:
+            if service.destination_service_id is None:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "No destination has been configured for this Go to node."
                 )
-            output_node_id = service.destination_node_id
+            output_service_id = service.destination_service_id
 
         return {
-            "output_node_id": output_node_id,
+            "output_service_id": output_service_id,
             "data": {"condition": bool(should_jump)},
         }
 
@@ -1456,7 +1459,9 @@ class CoreGotoServiceType(CoreServiceType):
         self,
         data: Any,
     ) -> DispatchResult:
-        return DispatchResult(output_node_id=data["output_node_id"], data=data["data"])
+        return DispatchResult(
+            output_service_id=data["output_service_id"], data=data["data"]
+        )
 
 
 class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):

@@ -90,23 +90,23 @@ describe('CoreGotoServiceForm service watcher', () => {
 
   test('adopts an externally cleared destination into the form values', () => {
     // The store cleared the link (the move turned it into a forward jump).
-    const ctx = { values: { destination_node_id: 2 } }
-    watcher.call(ctx, { destination_node_id: null })
-    expect(ctx.values.destination_node_id).toBeNull()
+    const ctx = { values: { destination_service_id: 2 } }
+    watcher.call(ctx, { destination_service_id: null })
+    expect(ctx.values.destination_service_id).toBeNull()
   })
 
   test('leaves the form values untouched when nothing changed', () => {
-    const values = { destination_node_id: 2 }
+    const values = { destination_service_id: 2 }
     const ctx = { values }
-    watcher.call(ctx, { destination_node_id: 2 })
+    watcher.call(ctx, { destination_service_id: 2 })
     // Same reference, unchanged — no redundant write that could loop.
     expect(ctx.values).toBe(values)
-    expect(ctx.values.destination_node_id).toBe(2)
+    expect(ctx.values.destination_service_id).toBe(2)
   })
 
   test('treats a missing service as no destination', () => {
-    const ctx = { values: { destination_node_id: 2 } }
+    const ctx = { values: { destination_service_id: 2 } }
     watcher.call(ctx, null)
-    expect(ctx.values.destination_node_id).toBeNull()
+    expect(ctx.values.destination_service_id).toBeNull()
   })
 })

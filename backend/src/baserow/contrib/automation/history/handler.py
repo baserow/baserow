@@ -312,13 +312,17 @@ class AutomationHistoryHandler:
             service.id: service
             for service in CoreGotoService.objects.filter(
                 id__in=[nh.node.service_id for nh in goto_histories]
-            ).select_related("destination_node")
+            ).select_related("destination_service__automation_workflow_node")
         }
 
         labels = {}
         for nh in goto_histories:
             service = services.get(nh.node.service_id)
-            destination = service.destination_node if service else None
+            destination = (
+                service.destination_service.automation_workflow_node
+                if service and service.destination_service_id
+                else None
+            )
             if destination is not None:
                 labels[nh.id] = {
                     "id": destination.id,
