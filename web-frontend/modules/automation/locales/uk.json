@@ -101,7 +101,16 @@
         "completedInLessThanSecond": "Виконано менше ніж за 1 секунду.",
         "testRun": "Тест",
         "statusStarted": "У процесі…",
-        "running": "Працює протягом {at} с"
+        "running": "Працює протягом {at} с",
+        "statusSuccessBadge": "Виконано",
+        "statusErrorBadge": "Неуспішно",
+        "successfulRuns": "Успішні виконання",
+        "failedRuns": "Невдалі виконання",
+        "errorHideDetails": "Приховати деталі",
+        "errorShowDetails": "Показати деталі",
+        "runNumber": "Запуск {n}",
+        "runCount": "{n} запусків",
+        "showResult": "Показати результат"
     },
     "nodeType": {
         "triggerDeletionError": "Тригери не можна видаляти, лише замінювати.",
@@ -110,7 +119,7 @@
         "localBaserowRowsDeletedLabel": "Рядки видаляються в {tableName}",
         "localBaserowCreateRowLabel": "Створити рядок у {tableName}",
         "localBaserowUpdateRowLabel": "Оновити рядок у {tableName}",
-        "localBaserowDeleteRowLabel": "Видалити рядок у {tableName}",
+        "localBaserowDeleteRowLabel": "Видалення рядків у таблиці {tableName}",
         "localBaserowGetRowLabel": "Прочитати рядок у {tableName}",
         "localBaserowListRowsLabel": "Перелік рядків у {tableName}",
         "localBaserowAggregateRowsLabel": "Підсумувати рядки в {tableName}",
@@ -126,7 +135,15 @@
         "periodicTriggerLabel": "Періодичний тригер",
         "aiAgent": "Запит для ШІ",
         "slackWriteMessageName": "Надіслати повідомлення в Slack",
-        "slackWriteMessageLabel": "Надіслати повідомлення в #{channel}"
+        "slackWriteMessageLabel": "Надіслати повідомлення в #{channel}",
+        "localBaserowFieldsUpdatedLabel": "Поле {fieldName} оновлено в таблиці {tableName}",
+        "localBaserowFieldsUpdatedMultipleLabel": "Значення {count} полів оновлено в таблиці {tableName}",
+        "localBaserowFieldsUpdatedNoFieldLabel": "Значення певних полів оновлюються в таблиці",
+        "localBaserowCreateRowsLabel": "Масове створення рядків у таблиці {tableName}",
+        "localBaserowUpdateRowsLabel": "Масове оновлення рядків у таблиці {tableName}",
+        "csvFileReaderLabel": "Прочитати файл CSV",
+        "startWorkflowLabel": "Запустити {workflowName}",
+        "defaultEdgeLabelFallback": "За замовчуванням"
     },
     "workflowNode": {
         "actionDelete": "Видалити",
@@ -158,7 +175,9 @@
         "periodicTriggerTriggeredAt": "Активовано о",
         "errorIntervalMissing": "Необхідно вказати інтервал.",
         "coreHTTPTrigger": "HTTP-тригер",
-        "coreHTTPTriggerDescription": "Отримує HTTP-запити для запуску робочих процесів"
+        "coreHTTPTriggerDescription": "Отримує HTTP-запити для запуску робочих процесів",
+        "coreManualTrigger": "Ручний тригер",
+        "coreManualTriggerDescription": "Запускається лише тоді, коли інша дія робочого процесу запускає цей робочий процес"
     },
     "periodicTriggerServiceForm": {
         "intervalLabel": "Інтервал",
@@ -193,9 +212,9 @@
         "errorNodeNotConfigured": "Крок повинен бути налаштований перед тестуванням.",
         "errorPreviousNodeNotConfigured": "Попередній крок \"{node}\" повинен бути налаштований.",
         "errorPreviousNodesNotTested": "Попередній крок \"{node}\" спочатку потрібно протестувати.",
-        "buttonLabelTest": "Тестова подія",
-        "buttonLabelTestAgain": "Повторити тестову подію",
-        "testNodeDescription": "Протестуйте цю подію, щоб підтвердити правильність налаштувань. Дані з цього тесту можна буде використовувати на наступних кроках.",
+        "buttonLabelTest": "Тестовий вузол",
+        "buttonLabelTestAgain": "Протестувати вузол ще раз",
+        "testNodeDescription": "Протестуйте цей вузол, щоб переконатися, що його налаштовано правильно. Дані, отримані під час тестування, можна використовувати на наступних кроках.",
         "buttonLabelShowPayload": "Показати дані",
         "buttonLabelShowError": "Показати помилку",
         "sampleDataModalTitle": "Дані для {nodeLabel}",
@@ -203,5 +222,18 @@
         "sampleDataCopy": "Скопіювати",
         "errorOccurred": "Сталася помилка…",
         "sampleDataCopied": "Дані скопійовано в буфер обміну"
+    },
+    "workflowGeneralSettings": {
+        "titleOverview": "Налаштування робочого процесу",
+        "nameLabel": "Назва робочого процесу",
+        "workflowDisabledRecipientsLabel": "Одержувачі сповіщень",
+        "workflowDisabledRecipientsHelp": "Ці учасники робочого простору отримають сповіщення в застосунку, якщо цей робочий процес буде автоматично вимкнено.",
+        "selectWorkflowDisabledRecipients": "Виберіть одержувачів",
+        "noWorkflowDisabledRecipients": "Одержувачів не вибрано.",
+        "cantUpdateWorkflowTitle": "Не вдалося оновити робочий процес",
+        "cantUpdateWorkflowDescription": "Не вдалося оновити робочий процес."
+    },
+    "workflowDisabledNotification": {
+        "body": "Робочий процес {name} було вимкнено."
     }
 }
