@@ -76,15 +76,15 @@ export class NodeType extends Registerable {
   }
 
   /**
-   * The outgoing connectors this node draws to other nodes on the graph. By
-   * default a node links to nothing; types like the "Go to node" override this
-   * to point at another node, and any future node that references another node
-   * can do the same. The connector overlay renders whatever is returned here,
-   * so each entry must already be a node-to-node link that is valid to draw.
+   * The node-to-node links this node declares. By default a node links to
+   * nothing; types like the "Go to node" override this to point at another
+   * node, and any future node that references another node can do the same.
+   * Each link is surfaced as a paired marker on both the source and
+   * destination cards, so every entry returned must already be a valid link.
    *
    * @param {Object} workflow The workflow the node belongs to.
-   * @param {Object} node The node the connectors originate from.
-   * @returns {Array<{ destinationNodeId: number }>} The outgoing connectors.
+   * @param {Object} node The node the links originate from.
+   * @returns {Array<{ destinationNodeId: number }>} The outgoing links.
    */
   getConnections({ workflow, node }) {
     return []
@@ -1157,11 +1157,12 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
   }
 
   /**
-   * Draws a connector from this Go to node to its destination node, as long as
-   * the jump is still valid. Validity mirrors the backend
-   * `validate_goto_destination` (same level, backward jump, non-trigger); the
-   * store is reconciled after a move, but re-checking here also avoids drawing
-   * a stale link during the brief window before that reconciliation runs.
+   * Declares a link from this Go to node to its destination node, as long as
+   * the jump is still valid. The link is surfaced as a paired marker on both
+   * cards. Validity mirrors the backend `validate_goto_destination` (same
+   * level, backward jump, non-trigger); the store is reconciled after a move,
+   * but re-checking here also avoids surfacing a stale link during the brief
+   * window before that reconciliation runs.
    */
   getConnections({ workflow, node }) {
     const destinationServiceId = node.service?.destination_service_id

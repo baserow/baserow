@@ -17,7 +17,7 @@
     <Background pattern-color="#ededed" :size="3" :gap="15" />
 
     <template #node-workflow-node>
-      <div v-if="trigger" class="workflow-editor__canvas">
+      <div v-if="trigger">
         <WorkflowNode
           :key="updateKey"
           :node="trigger"
