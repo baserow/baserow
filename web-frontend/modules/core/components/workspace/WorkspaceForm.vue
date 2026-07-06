@@ -15,7 +15,7 @@
         @blur="v$.values.name.$touch"
       ></FormInput>
 
-      <template #error>{{ $t('error.requiredField') }}</template>
+      <template #error>{{ v$.values.name.$errors[0]?.$message }}</template>
     </FormGroup>
     <slot></slot>
   </form>
@@ -26,6 +26,7 @@ import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
+import { nameContainsNoUrl } from '@baserow/modules/core/validators'
 
 export default {
   name: 'WorkspaceForm',
@@ -54,6 +55,10 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required
+          ),
+          nameContainsNoUrl: helpers.withMessage(
+            this.$t('error.nameContainsUrl'),
+            nameContainsNoUrl
           ),
         },
       },

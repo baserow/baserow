@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from baserow.api.validators import no_url_validation
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.models import Workspace
 
@@ -26,6 +27,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "id": {"read_only": True},
             "generative_ai_models_enabled": {"read_only": True},
+            "name": {"validators": [no_url_validation]},
         }
 
     def get_generative_ai_models_enabled(self, object):

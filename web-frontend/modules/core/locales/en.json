@@ -221,6 +221,9 @@
   "workspaceForm": {
     "nameLabel": "Name"
   },
+  "editWorkspace": {
+    "invalidNameTitle": "Workspace name not allowed"
+  },
   "leaveWorkspaceModal": {
     "title": "Leave {workspace}",
     "message": "Are you sure you want to leave the workspace {workspace}? You won't be able to access the related applications anymore and if you want to regain access, one of the admins must invite you again. If you leave the workspace, it will not be deleted. All the other members will still have access to it. It is not possible to leave a workspace if you're the last admin because that will leave it unmaintained.",

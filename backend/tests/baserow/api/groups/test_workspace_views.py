@@ -162,6 +162,59 @@ def test_create_workspace(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_workspace_name_validation(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user, name="Old name")
+
+    invalid_names = [
+        "SOMETHING! Your account has been blocked: something-helps.com",
+        "Verify again: x.gd/bot",
+        "www.evil.com",
+        "https://evil.com",
+        "bad\nname",
+    ]
+    for invalid_name in invalid_names:
+        response = api_client.post(
+            reverse("api:workspaces:list"),
+            {"name": invalid_name},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_400_BAD_REQUEST, invalid_name
+        assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+        assert response_json["detail"]["name"][0]["code"] == "invalid_name"
+
+        url = reverse("api:workspaces:item", kwargs={"workspace_id": workspace.id})
+        response = api_client.patch(
+            url,
+            {"name": invalid_name},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_400_BAD_REQUEST, invalid_name
+        assert response_json["detail"]["name"][0]["code"] == "invalid_name"
+
+    workspace.refresh_from_db()
+    assert workspace.name == "Old name"
+
+    # Dotted names without a high risk TLD or path must still be allowed.
+    valid_names = ["Dept. Marketing", "rocket.ia", "team.exenra"]
+    for valid_name in valid_names:
+        url = reverse("api:workspaces:item", kwargs={"workspace_id": workspace.id})
+        response = api_client.patch(
+            url,
+            {"name": valid_name},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK, valid_name
+        workspace.refresh_from_db()
+        assert workspace.name == valid_name
+
+
+@pytest.mark.django_db
 def test_update_workspace(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     user_2, token_2 = data_fixture.create_user_and_token()
