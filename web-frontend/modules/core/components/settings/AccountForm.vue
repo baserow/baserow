@@ -45,7 +45,10 @@ import { required, maxLength, minLength, helpers } from '@vuelidate/validators'
 import { useI18n } from 'vue-i18n'
 
 import form from '@baserow/modules/core/mixins/form'
-import { nameContainsNoUrl } from '@baserow/modules/core/validators'
+import {
+  nameContainsNoUrl,
+  nameIsNotEmail,
+} from '@baserow/modules/core/validators'
 
 export default {
   name: 'AccountForm',
@@ -89,6 +92,10 @@ export default {
               min: 2,
             }),
             maxLength(60)
+          ),
+          nameIsNotEmail: helpers.withMessage(
+            this.$t('error.nameCantBeEmail'),
+            nameIsNotEmail
           ),
           nameContainsNoUrl: helpers.withMessage(
             this.$t('error.nameContainsUrl'),

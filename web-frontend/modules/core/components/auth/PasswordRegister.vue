@@ -69,6 +69,14 @@
           <i class="iconoir-warning-triangle"></i>
           <span
             v-if="
+              v$.account.name.nameIsNotEmail &&
+              v$.account.name.nameIsNotEmail.$invalid
+            "
+          >
+            {{ $t('error.nameCantBeEmail') }}
+          </span>
+          <span
+            v-else-if="
               v$.account.name.nameContainsNoUrl &&
               v$.account.name.nameContainsNoUrl.$invalid
             "
@@ -136,6 +144,7 @@ import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInpu
 import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
 import {
   nameContainsNoUrl,
+  nameIsNotEmail,
   passwordValidation,
 } from '@baserow/modules/core/validators'
 
@@ -172,6 +181,7 @@ export default {
           required,
           minLength: minLength(2),
           maxLength: maxLength(60),
+          nameIsNotEmail,
           nameContainsNoUrl,
         },
         password: passwordValidation,

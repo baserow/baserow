@@ -218,11 +218,14 @@ def test_create_user_with_url_in_name_is_rejected(client, data_fixture):
     valid_password = "thisIsAValidPassword"
 
     invalid_names = [
-        "POSHMARK! Your account has been blocked: poshmark-helps.com",
-        "Your account has been blocked: x.gd/2Bqbt",
+        "SOMETHING! Your account has been blocked: something-helps.com",
+        "Your account has been blocked: x.gd/bot",
         "www.evil.com",
         "http://x",
         "https://evil.com",
+        "scam.xyz",
+        "evil.click",
+        "unknown-tld.weirdtld/path",
         "bad\nname",
     ]
     for invalid_name in invalid_names:
@@ -245,6 +248,14 @@ def test_create_user_with_url_in_name_is_rejected(client, data_fixture):
         "St. John",
         "J.R.R. Tolkien",
         "Mary-Jane O'Neil",
+        "J.Smith",
+        "A.Merkel",
+        "John.Smith",
+        "O.J.Simpson",
+        "tech.something",
+        "something.AI",
+        "b.something",
+        "startup.ai",
     ]
     for index, valid_name in enumerate(valid_names):
         response = client.post(
@@ -259,6 +270,29 @@ def test_create_user_with_url_in_name_is_rejected(client, data_fixture):
         assert response.status_code == HTTP_200_OK, valid_name
         user = User.objects.get(email=f"user{index}@test.nl")
         assert user.first_name == valid_name
+
+
+@pytest.mark.django_db
+def test_create_user_with_email_as_name_is_rejected(client, data_fixture):
+    data_fixture.create_password_provider()
+
+    response = client.post(
+        reverse("api:user:index"),
+        {
+            "name": "john.smith@gmail.com",
+            "email": "john.smith@gmail.com",
+            "password": "thisIsAValidPassword",
+        },
+        format="json",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["name"][0]["code"] == "name_is_email"
+    assert (
+        response_json["detail"]["name"][0]["error"]
+        == "Please enter your name, not your email address."
+    )
 
 
 @pytest.mark.django_db
@@ -277,6 +311,16 @@ def test_user_account_name_validation(data_fixture, api_client):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
     assert response_json["detail"]["first_name"][0]["code"] == "invalid_name"
+
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {"first_name": "test@localhost.nl"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["detail"]["first_name"][0]["code"] == "name_is_email"
 
     response = api_client.patch(
         reverse("api:user:account"),

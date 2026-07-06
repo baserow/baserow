@@ -116,6 +116,7 @@
     "maxLength": "A maximum of {max} characters is allowed here.",
     "minMaxLength": "A minimum of {min} and a maximum of {max} characters is allowed here.",
     "nameContainsUrl": "Names can't contain links, domains or web addresses.",
+    "nameCantBeEmail": "Please enter your name, not your email address.",
     "invalidCharacters": "This field contains invalid characters.",
     "requiredField": "This field is required.",
     "integerField": "The field must be an integer.",

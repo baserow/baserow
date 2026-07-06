@@ -1,4 +1,7 @@
-import { nameContainsNoUrl } from '@baserow/modules/core/validators'
+import {
+  nameContainsNoUrl,
+  nameIsNotEmail,
+} from '@baserow/modules/core/validators'
 
 describe('nameContainsNoUrl', () => {
   const validNames = [
@@ -9,15 +12,25 @@ describe('nameContainsNoUrl', () => {
     "Mary-Jane O'Neil",
     'Anne-Marie',
     'Bram',
+    'J.Smith',
+    'A.Merkel',
+    'John.Smith',
+    'O.J.Simpson',
+    'tech.something',
+    'something.AI',
+    'b.something',
+    'startup.ai',
   ]
 
   const invalidNames = [
-    'POSHMARK! Your account has been blocked: poshmark-helps.com',
-    'Your account has been blocked. Verify again: x.gd/2Bqbt',
+    'SOMETHING! Your account has been blocked: something-helps.com',
+    'Your account has been blocked. Verify again: x.gd/bot',
     'www.evil.com',
     'http://x',
     'https://evil.com',
-    'A.Smith',
+    'scam.xyz',
+    'evil.click',
+    'unknown-tld.weirdtld/path',
     'bad\nname',
     'bad\tname',
   ]
@@ -29,4 +42,20 @@ describe('nameContainsNoUrl', () => {
   test.each(invalidNames)('rejects %j', (name) => {
     expect(nameContainsNoUrl(name)).toBe(false)
   })
+})
+
+describe('nameIsNotEmail', () => {
+  test.each(['J.Smith', 'Dr. Smith', 'Bram', 'name with @ in it'])(
+    'accepts %j',
+    (name) => {
+      expect(nameIsNotEmail(name)).toBe(true)
+    }
+  )
+
+  test.each(['john.smith@gmail.com', 'user@example.org', ' user@example.org '])(
+    'rejects %j',
+    (name) => {
+      expect(nameIsNotEmail(name)).toBe(false)
+    }
+  )
 })
