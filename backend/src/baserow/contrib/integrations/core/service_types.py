@@ -1339,10 +1339,11 @@ class CoreGotoServiceType(CoreServiceType):
 
         When the destination service was part of this import - e.g. a full
         workflow duplicate - it is remapped to the newly imported service. For a
-        single-node duplicate, which copies just the Go to node and leaves the
-        destination node in place, the destination is carried over unchanged so
-        the duplicate jumps to the same place as the original. The link is only
-        reset when the destination service is genuinely absent from this import.
+        partial duplicate, which copies just this Go to service and leaves the
+        destination service in place, the destination is carried over unchanged
+        so the duplicate jumps to the same place as the original. The link is
+        only reset when the destination service is genuinely absent from this
+        import.
         """
 
         updated_models = super().import_formulas(
@@ -1353,7 +1354,7 @@ class CoreGotoServiceType(CoreServiceType):
         if instance.id in pending_destinations:
             original_destination_id = pending_destinations[instance.id]
             service_mapping = id_mapping.get("services", {})
-            # `in keys()` tests genuine membership: a single-node duplicate seeds
+            # `in keys()` tests genuine membership: a partial duplicate seeds
             # the service mapping with a MirrorDict whose catch-all __contains__
             # would otherwise echo any id back as if it had been remapped.
             if original_destination_id in service_mapping.keys():
@@ -1361,7 +1362,7 @@ class CoreGotoServiceType(CoreServiceType):
                     original_destination_id
                 ]
             elif isinstance(service_mapping, MirrorDict):
-                # A single-node duplicate doesn't remap the destination, so keep
+                # A partial duplicate doesn't remap the destination, so keep
                 # pointing at the original destination service.
                 instance.destination_service_id = original_destination_id
             else:
@@ -1434,7 +1435,7 @@ class CoreGotoServiceType(CoreServiceType):
         the graph, and whether it should be suppressed (e.g. while simulating),
         is decided by the consumer that owns the graph. The returned
         `output_service_id` is a plain reference to the configured destination
-        service, which the consumer resolves back to a node.
+        service, which the consumer resolves within its own graph.
         """
 
         # An empty condition means "always jump"; only a configured condition
@@ -1446,7 +1447,7 @@ class CoreGotoServiceType(CoreServiceType):
         if should_jump:
             if service.destination_service_id is None:
                 raise ServiceImproperlyConfiguredDispatchException(
-                    "No destination has been configured for this Go to node."
+                    "No destination has been configured for this service."
                 )
             output_service_id = service.destination_service_id
 
