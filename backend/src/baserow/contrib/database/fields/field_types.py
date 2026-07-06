@@ -7333,7 +7333,7 @@ class MultipleCollaboratorsFieldType(
                 JSONBAgg(
                     get_collaborator_extractor(db_column, model_field),
                     filter=Q(**{f"{db_column}__isnull": False}),
-                    order=f"{db_column}__id",
+                    order_by=f"{db_column}__id",
                 ),
                 Value([], output_field=JSONField()),
             )
@@ -7342,7 +7342,7 @@ class MultipleCollaboratorsFieldType(
                 wrap_in_subquery(
                     JSONBAgg(
                         get_collaborator_extractor(db_column, model_field),
-                        order=f"{db_column}__id",
+                        order_by=f"{db_column}__id",
                     ),
                     db_column,
                     model_field.model,

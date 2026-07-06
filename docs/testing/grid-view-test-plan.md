@@ -816,6 +816,41 @@ flat/group-by runs, the same way filters and sorts do.
 - New nested group banners and their counters are visible after the refresh.
 - Total row count is unchanged.
 
+### 7.3.1 Group headers show per-column aggregation summaries
+
+- When a column has a "Summarize" aggregation configured, each group header shows
+  that column's aggregation computed over that group's rows, column-aligned under
+  the field, at every group-by depth.
+- The summary is visible whether the group is collapsed or expanded.
+- It respects the view's filters and search, the same scope as the group row count.
+- A column set to the `distribution` aggregation shows no value in group headers;
+  its bottom-footer value is unaffected.
+- The bottom footer still shows the overall total for the column.
+
+### 7.3.2 Hovering a group header to pick or change an aggregation
+
+- Hovering a group-by header reveals, per column, the aggregation value or a
+  `+ Summarize` affordance on the hovered column (only the hovered column).
+- Clicking it opens the aggregation menu; choosing a function sets it for the
+  column, so the bottom footer and every group's header show that function
+  together (shared column setting).
+- After choosing a function, the affected values show a brief loading spinner and
+  update in place. The group layout (rows, counts, offsets) is not rebuilt; only
+  the aggregation values change.
+
+### 7.3.3 Live group aggregation updates on row changes
+
+- Editing a cell updates that row's group value (and its ancestor groups + the
+  footer total) in place, with no spinner — like a spreadsheet SUM.
+- Moving a row between groups (editing a group-by field) updates both the source
+  and destination group values.
+- A second browser session viewing the same grouped view sees the values update
+  via realtime, the same way.
+- Changing the sort does not change aggregation values (they are order-independent),
+  so no aggregation request is made for a sort change.
+- In grouped mode the values come from a single `group-by-data` request (the
+  standalone `/aggregations/` footer endpoint is not called).
+
 ## Search
 
 ### 8.1.1 Search in highlight mode

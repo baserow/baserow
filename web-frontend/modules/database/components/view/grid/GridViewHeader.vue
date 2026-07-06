@@ -52,8 +52,11 @@ import { mapState } from 'vuex'
 import GridViewRowHeight from '@baserow/modules/database/components/view/grid/GridViewRowHeight'
 import GridViewHide from '@baserow/modules/database/components/view/grid/GridViewHide'
 import PresenceBar from '@baserow/modules/core/components/presence/PresenceBar'
-import { FF_USER_PRESENCE } from '@baserow/modules/core/plugins/featureFlags'
 import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
+import {
+  isUserPresenceEnabled,
+  tablePresenceSpaceName,
+} from '@baserow/modules/database/utils/presence'
 
 export default {
   name: 'GridViewHeader',
@@ -91,15 +94,12 @@ export default {
       tableLoading: (state) => state.table.loading,
     }),
     presenceEnabled() {
-      return (
-        typeof this.$featureFlagIsEnabled === 'function' &&
-        this.$featureFlagIsEnabled(FF_USER_PRESENCE)
-      )
+      return isUserPresenceEnabled(this)
     },
     activePresenceSpace() {
       const table = this.$store.state.table.selected
       if (!table || !table.id) return ''
-      return `table-${table.id}`
+      return tablePresenceSpaceName(table.id)
     },
     hasPresenceUsers() {
       if (!this.activePresenceSpace) return false

@@ -17,6 +17,10 @@ from django.db.models import (
 )
 
 from baserow.contrib.database.db.aggregations import Percentile
+from baserow.contrib.database.fields.field_filters import (
+    AnnotatedQ,
+    OptionallyAnnotatedQ,
+)
 from baserow.contrib.database.fields.field_types import (
     AutonumberFieldType,
     BooleanFieldType,
@@ -69,6 +73,23 @@ def get_has_relations_annotation(field_name: str, model_field: Field) -> Dict:
     reversed_field = through_model._meta.get_fields()[1].name
     subquery = through_model.objects.filter(**{f"{reversed_field}_id": OuterRef("pk")})
     return {f"has_relations_{field_name}": Exists(subquery)}
+
+
+def count_distinct_filtered_by(filter_q: OptionallyAnnotatedQ):
+    """
+    Builds a distinct ``Count`` filtered by a ``Q``/``AnnotatedQ``.
+
+    Array/lookup fields express their empty filter as an ``AnnotatedQ``; a plain
+    ``Count(filter=AnnotatedQ)`` is invalid, so those are wrapped in an
+    ``AnnotatedAggregation`` (like the M2M branch) which callers already unwrap.
+    """
+
+    if isinstance(filter_q, AnnotatedQ):
+        return AnnotatedAggregation(
+            annotations=filter_q.annotation,
+            aggregation=Count("id", distinct=True, filter=filter_q.q),
+        )
+    return Count("id", distinct=True, filter=filter_q)
 
 
 class CountViewAggregationType(ViewAggregationType):
@@ -169,10 +190,8 @@ class EmptyCountViewAggregationType(ViewAggregationType):
                 ),
             )
         else:
-            return Count(
-                "id",
-                distinct=True,
-                filter=field_type.empty_query(field_name, model_field, field),
+            return count_distinct_filtered_by(
+                field_type.empty_query(field_name, model_field, field)
             )
 
 
@@ -198,10 +217,8 @@ class NotEmptyCountViewAggregationType(EmptyCountViewAggregationType):
                 ),
             )
         else:
-            return Count(
-                "id",
-                distinct=True,
-                filter=~field_type.empty_query(field_name, model_field, field),
+            return count_distinct_filtered_by(
+                ~field_type.empty_query(field_name, model_field, field)
             )
 
 

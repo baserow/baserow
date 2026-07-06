@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type
 
 from django.conf import settings
@@ -421,6 +422,16 @@ def _resolve_group_by_display_lists(
     return display_lists_per_page
 
 
+def json_safe_aggregation_value(value: Any) -> Any:
+    # Decimal("NaN") isn't JSON-serializable (it renders as the invalid JSON `NaN`
+    # token), so it's substituted with its string form. Ideally each field type would
+    # own how its aggregated value is represented; this single helper keeps that
+    # concern in one place until that field-type-level refactor is worth doing.
+    if isinstance(value, Decimal) and value.is_nan():
+        return "NaN"
+    return value
+
+
 def serialize_group_by_data(
     page: Dict[str, Any],
     group_by_fields: List[Field],
@@ -491,16 +502,26 @@ def serialize_group_by_data(
         out_group = {
             "path": serialize_path(group["path"]),
             "depth": group["depth"],
-            "row_count": group["row_count"],
-            "sibling_index": group["sibling_index"],
-            "row_offset": group["row_offset"],
         }
+        # Layout keys are omitted in the lean "aggregations only" mode, so only
+        # copy the ones the handler provided.
+        for layout_key in (
+            "row_count",
+            "sibling_index",
+            "row_offset",
+            "children_count",
+        ):
+            if layout_key in group:
+                out_group[layout_key] = group[layout_key]
         # `containers[0]` is the parent, so the groups start at index 1.
         display = serialize_display(group_index + 1)
         if display:
             out_group["display"] = display
-        if "children_count" in group:
-            out_group["children_count"] = group["children_count"]
+        if "aggregations" in group:
+            out_group["aggregations"] = {
+                db_column: json_safe_aggregation_value(value)
+                for db_column, value in group["aggregations"].items()
+            }
         groups.append(out_group)
 
     return {

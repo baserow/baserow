@@ -2,15 +2,16 @@
 
 The collapsible grid group-by view renders and scrolls a large grouped table
 without loading every group or every row. The design goal is to keep the flat
-grid's `offset`/`limit` row-windowing behavior, but apply it to a tree of groups
-so both rows and groups can scale far beyond what a fully loaded grouped row list
-can handle in the browser.
+grid's row-windowing behavior — fetch rows by absolute offset and limit — but
+apply it to a tree of groups, so both rows and groups can scale far beyond what
+a fully loaded grouped row list can handle in the browser.
 
-This document intentionally describes the stable contract and the principles the
-implementation follows. It avoids repeating function names, component names, and
-store internals that are better read from the code directly. To find the current
-implementation, search the codebase for the stable API concepts documented here,
-especially `group-by-data`, `row_offset`, `sibling_index`, and `truncated`.
+This document describes the stable approach and the tradeoffs behind it. It
+deliberately avoids endpoint shapes, parameter lists, field-by-field schemas,
+function names, and store internals: those drift and are better read from the
+code. To find the current implementation, search the codebase for the durable
+concepts named here, especially `group-by-data`, `row_offset`, `sibling_index`,
+and `truncated`.
 
 ## Core Principles
 
@@ -18,12 +19,12 @@ especially `group-by-data`, `row_offset`, `sibling_index`, and `truncated`.
 
 The feature is built from two data layers:
 
-1. **Group metadata layer** - the `group-by-data` endpoint returns pages of
-   groups, not rows. Each group tells the client how many rows it contains, where
-   it sits among its siblings, whether it has child groups, and where its first
+1. **Group metadata layer** - a dedicated endpoint returns pages of groups, not
+   rows. Each group tells the client how many rows it contains, where it sits
+   among its siblings, whether it has child groups, and where its first
    descendant row appears in the full grouped row order.
-2. **Row layer** - the existing grid rows endpoint still returns rows by
-   `offset` and `limit`, just as it does for the flat grid.
+2. **Row layer** - the existing grid rows endpoint still returns rows by offset
+   and limit, just as it does for the flat grid.
 
 The bridge between the layers is `row_offset`: the absolute zero-based position
 of a group's first leaf row in the fully expanded grouped row order. Because the
@@ -35,10 +36,10 @@ groups are collapsed or expanded.
 
 The implementation has to keep three offset spaces separate:
 
-- **Sibling-space** - `group-by-data` pages groups under one parent. Its
-  `offset`, `limit`, and `sibling_index` are group indexes among siblings.
+- **Sibling-space** - the group metadata layer pages groups under one parent.
+  Its offsets and the `sibling_index` are group indexes among siblings.
 - **Absolute-row-space** - `row_offset` is an index into the fully expanded
-  grouped row stream. The client uses it as the `offset` for the rows endpoint.
+  grouped row stream. The client uses it as the offset for the rows endpoint.
 - **Visible layout-space** - the user scrolls through the currently visible
   layout, where collapsed subtrees contribute their group header but none of
   their rows.
@@ -83,7 +84,7 @@ buffering the grid normally needs. The client maps the viewport to:
 - missing group pages by parent or by depth;
 - missing absolute row ranges for visible leaf sections.
 
-Visible parent requests can be batched into a single `group-by-data` call, and
+Visible parent requests can be batched into a single group metadata call, and
 missing row ranges can be deduplicated before calling the rows endpoint. In-flight
 responses must be ignored if the grouping, collapse state, ordering, filtering,
 or optimistic row counts changed after the request was sent.
@@ -103,104 +104,37 @@ missing group pages, or an error response that requires rollback.
 
 Requests that include descendants must be bounded. A wide or deep group tree
 must not turn one request into unbounded server work or an unbounded response.
-When a descendant response is cut short by a cap, the API returns
-`truncated: true` so the client can lazy-load the rest.
+When a descendant response is cut short by a cap, the API signals truncation (the
+`truncated` flag) so the client can lazy-load the rest.
 
-## API Contract
+## Group Metadata API
 
-### Endpoints
+A read-only group metadata endpoint, with a matching public-view variant,
+returns group metadata in pages: which groups exist under a parent, how many
+rows and child groups each has, where each group sits among its siblings, and the
+absolute row offset of its first leaf row. It can also bundle the footer totals
+and preload a bounded slice of descendants in the same round trip. The exact
+parameters, response shape, and field names live in the serializer and view code.
 
-Two read-only endpoints expose group metadata:
+The endpoint supports three request shapes, chosen by what the viewport needs:
 
-```http
-GET /api/database/views/grid/{view_id}/group-by-data/
-GET /api/database/views/grid/{slug}/public/group-by-data/
-```
+- a single parent's page of child groups;
+- several parents' pages in one round trip, for when multiple visible parents at
+  the same depth all need their children at once;
+- a whole-depth page across all parents, which serves uniform expand/collapse
+  states without one request per visible parent.
 
-Both endpoints must apply the same filters, search, sorts, and group-by ordering
-as the rows endpoint. That invariant is what makes `row_offset` line up with the
-rows returned by the ordinary grid rows endpoint.
+Two invariants make this work:
 
-### Query Parameters
+- The group metadata query and the rows query must apply identical filters,
+  search, sorts, and group ordering. If they disagree, fetching rows by a group's
+  `row_offset` places them in the wrong group.
+- Descendant preloading must be bounded; when a cap cuts a response short, the
+  API signals truncation so the client can lazy-load the remainder.
 
-| Param                   | Meaning                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `offset`                | Sibling offset within the parent. This is group-space, not row-space.          |
-| `limit`                 | Maximum sibling groups per page, capped by the server.                         |
-| `parents`               | Optional JSON array of `{parent\|path, offset, limit}` requests. Omitted means top-level groups. |
-| `depth`                 | Zero-based depth. When present, switches to depth mode (used for collapse-all). |
-| `include_descendants`   | Walk the returned parents' subtrees depth-first down to the leaves (see Dispatch Modes). |
-| `descendant_limit`      | Per-descendant-page group limit, capped by the server.                         |
-| `descendant_row_budget` | Total leaf-row budget for descendant loading, defaulting to `limit` and capped by the server. |
-| filters / search        | Same ad-hoc filter and search parameters accepted by the rows endpoint.        |
-
-### Response Shape
-
-```jsonc
-{
-  "pages": [
-    {
-      "parent": { "field_42": "active" },
-      "groups": [
-        {
-          "path": { "field_42": "active", "field_7": "EU" },
-          "depth": 1,
-          "row_count": 1280,
-          "children_count": 12,
-          "sibling_index": 3,
-          "row_offset": 51840
-        }
-      ],
-      "offset": 0,
-      "limit": 40,
-      "group_count": 312
-    }
-  ],
-  "truncated": true
-}
-```
-
-`parent` is `{}` for the top level. `truncated` is present only when descendant
-loading hit a cap.
-
-The group fields are part of the frontend contract:
-
-| Field            | Meaning                                                                 |
-| ---------------- | ----------------------------------------------------------------------- |
-| `path`           | Serialized group path from the root to this group.                      |
-| `depth`          | Zero-based depth of this group in the active group-by hierarchy.         |
-| `row_count`      | Number of leaf rows under this group after filters/search are applied.   |
-| `children_count` | Number of immediate child groups. Omitted or zero at leaf depth.         |
-| `sibling_index`  | This group's zero-based index among siblings under the same parent.      |
-| `row_offset`     | Absolute first-row offset in the fully expanded grouped row order.       |
-| `group_count`    | Total sibling group count for the page's parent.                         |
-
-Group values in `path` and `parent` are serialized using each field type's
-group-by serialization rules. The frontend must treat them as API values, not
-raw database values.
-
-### Dispatch Modes
-
-The same endpoint supports two loading modes:
-
-- **Parent-pages mode** - `parents` asks for one or more parent pages in one
-  request. This is useful when several visible parent groups at the same depth
-  need their child pages at the same time.
-- **Depth mode** - `depth=N` asks for one global page across all parents at that
-  depth. It is used for collapse-all, where only the single top-level depth is
-  visible.
-
-When `include_descendants` is used, the server walks each requested parent's
-subtree **depth-first** (pre-order) and returns the visited pages down to the
-leaves, so one request returns the whole visible subtree rather than a single
-level. The walk is bounded by an absolute row window: it anchors at the first
-returned group's row offset `start` and only expands groups whose `row_offset`
-falls within `[start, start + budget)`, where `budget` is the viewport size taken
-from `descendant_row_budget` (or from `limit` when omitted); groups starting past
-the window render a placeholder and lazy-load on scroll. The page and group caps
-still bound pathological trees (`truncated: true` when hit). The server threads
-known parent offsets into descendant calculations so child `row_offset` values
-stay aligned without extra work.
+Group values in group paths are serialized using each field type's group-by
+serialization rules. The frontend must treat them as API values, not raw database
+values.
 
 ## Server-Side Responsibilities
 
@@ -211,20 +145,20 @@ The server owns all facts that the client cannot derive reliably:
 - child group counts for non-leaf groups;
 - sibling indexes;
 - absolute row offsets in the fully expanded grouped order;
-- capped descendant expansion and `truncated` signaling.
+- capped descendant expansion and truncation signaling.
 
 These values must be computed from the same logical row set that the rows
-endpoint uses. If the rows endpoint and `group-by-data` disagree about filters,
-search, sort order, or group order, row fetching by `row_offset` will place rows
-in the wrong group.
+endpoint uses. If the rows endpoint and the group metadata layer disagree about
+filters, search, sort order, or group order, row fetching by `row_offset` will
+place rows in the wrong group.
 
 ## Client-Side Responsibilities
 
 The client realizes the feature by following the API contract above:
 
 - keep loaded group pages sparse and keyed by parent path/depth;
-- render unloaded group ranges as placeholders sized from `group_count` and
-  known geometry;
+- render unloaded group ranges as placeholders sized from known sibling counts
+  and geometry;
 - map visible leaf row sections to absolute row ranges using `row_offset`;
 - fetch missing rows from the ordinary rows endpoint; on the initial expand-all
   load the first rows page (offset 0) is fetched in parallel with the group
@@ -237,13 +171,13 @@ The client realizes the feature by following the API contract above:
 - update visible counts and row positions optimistically, then reconcile with the
   server response.
 
-The public grid must use the public `group-by-data` endpoint and the public rows
+The public grid must use the public group metadata endpoint and the public rows
 endpoint, but the offset and grouping semantics are the same.
 
 ## Scalability Characteristics And Limits
 
 The row layer scales like the flat grid: rows are fetched by true row
-`offset`/`limit`, and rendering stays virtualized to the viewport.
+offset/limit, and rendering stays virtualized to the viewport.
 
 The group layer scales by loading group metadata windows, not the complete group
 tree. Query count per viewport should be proportional to visible groups and
@@ -268,12 +202,27 @@ Known costs to keep in mind:
 
 ## Contract Invariants
 
-- `row_offset`, `sibling_index`, `row_count`, `children_count`, and
-  `group_count` are cross-layer contract fields. Renaming or changing their
-  semantics requires coordinated backend and frontend changes.
-- The rows endpoint and `group-by-data` must apply the same view constraints and
-  ordering.
+- A small set of cross-layer fields — the absolute row offset, sibling index, row
+  count, child count, and total sibling count — form a contract between backend
+  and frontend. Renaming them or changing their semantics requires coordinated
+  backend and frontend changes.
+- The rows endpoint and the group metadata layer must apply the same view
+  constraints and ordering.
 - Geometry used for placeholders, group headers, row sections, and add-row lines
   must match the rendered UI dimensions, otherwise scroll math drifts.
 - Optimistic updates must keep row counts and row placement indexes consistent
   until the next server reconciliation.
+
+## Group Aggregations
+
+When a column has a footer "Summarize" aggregation, each group header shows that
+aggregation computed over the group's rows, at every depth. The values travel
+inside the group metadata response, and the footer total can be bundled into the
+same request, so grouped mode never calls the standalone aggregations endpoint.
+
+Updates are consolidated and backend-authoritative. A single group metadata
+request refreshes both the loaded group window and the footer totals, and every
+edit path and the realtime echo funnel through the same group-aware refresh. Row
+edits refresh silently; a spinner is reserved for changing a column's aggregation
+function. Sorting needs no refresh because these aggregations are
+order-independent.

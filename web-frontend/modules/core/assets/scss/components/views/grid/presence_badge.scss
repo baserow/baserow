@@ -1,0 +1,85 @@
+.grid-view__focus-badge {
+  position: absolute;
+  bottom: -23px;
+  right: -2px;
+  display: flex;
+
+  // Above row content, below header
+  z-index: 2;
+  pointer-events: none;
+}
+
+.grid-view__focus-badge-item {
+  height: 23px;
+  padding: 0 6px;
+  border-radius: 0 0 $rounded-md $rounded-md;
+  color: $white;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.grid-view__focus-badge-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.grid-view__focus-badge-count {
+  opacity: 0.85;
+}
+
+.grid-view__row-focus-badge {
+  position: absolute;
+  bottom: -23px;
+  left: 0;
+  display: none;
+  z-index: 2;
+  pointer-events: none;
+
+  .grid-view__left & {
+    display: flex;
+  }
+}
+
+.grid-view__focus-badge-typing {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.grid-view__focus-badge-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background-color: $white;
+  animation: focus-badge-bounce 1.2s infinite ease-in-out;
+
+  &:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
+@keyframes focus-badge-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+
+  30% {
+    transform: translateY(-2px);
+    opacity: 1;
+  }
+}

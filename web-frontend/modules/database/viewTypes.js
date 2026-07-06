@@ -802,6 +802,17 @@ export class GridViewType extends ViewType {
     )
   }
 
+  // fetchAllFieldAggregationData refreshes the footer in flat mode and the per-group
+  // values + footer totals (one request) in grouped mode, so this works for both.
+  refreshAggregationsAfterRowChange(store, fields, storePrefix) {
+    store.dispatch(
+      storePrefix + 'view/grid/fetchAllFieldAggregationDataDebounced',
+      {
+        view: store.getters['view/getSelected'],
+      }
+    )
+  }
+
   async rowCreated(
     { store },
     tableId,
@@ -821,9 +832,7 @@ export class GridViewType extends ViewType {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
         fields,
       })
-      store.dispatch(storePrefix + 'view/grid/fetchAllFieldAggregationData', {
-        view: store.getters['view/getSelected'],
-      })
+      this.refreshAggregationsAfterRowChange(store, fields, storePrefix)
     }
   }
 
@@ -865,9 +874,7 @@ export class GridViewType extends ViewType {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
         fields,
       })
-      store.dispatch(storePrefix + 'view/grid/fetchAllFieldAggregationData', {
-        view: store.getters['view/getSelected'],
-      })
+      this.refreshAggregationsAfterRowChange(store, fields, storePrefix)
     }
   }
 
@@ -882,9 +889,7 @@ export class GridViewType extends ViewType {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
         fields,
       })
-      store.dispatch(storePrefix + 'view/grid/fetchAllFieldAggregationData', {
-        view: store.getters['view/getSelected'],
-      })
+      this.refreshAggregationsAfterRowChange(store, fields, storePrefix)
     }
   }
 

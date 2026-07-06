@@ -52,7 +52,21 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     return 30
   }
 
+  supportsPresenceFocus(database, table, view) {
+    return this._hasFullTableAccess(database, table, view)
+  }
+
   enhanceRealtimePagePayload(database, table, view, payload) {
+    if (this._hasFullTableAccess(database, table, view)) {
+      return super.enhanceRealtimePagePayload(database, table, view, payload)
+    }
+
+    payload.page = 'restricted_view'
+    payload.params = { restricted_view_id: view.id, table_id: table.id }
+    return payload
+  }
+
+  _hasFullTableAccess(database, table, view) {
     const canListenToTableEvents = this.app.$hasPermission(
       'database.table.listen_to_all',
       table,
@@ -63,13 +77,7 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
       view,
       database.workspace.id
     )
-    if (canListenToTableEvents && canCreateFilters) {
-      return super.enhanceRealtimePagePayload(database, table, view, payload)
-    }
-
-    payload.page = 'restricted_view'
-    payload.params = { restricted_view_id: view.id, table_id: table.id }
-    return payload
+    return canListenToTableEvents && canCreateFilters
   }
 
   fetchingFieldsRequiresViewId(database, table, view) {

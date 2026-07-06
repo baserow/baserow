@@ -103,7 +103,7 @@ export default {
   name: 'GridViewFieldLinkRow',
   components: { ForeignRowEditModal, SelectRowModal },
   mixins: [gridField, linkRowField, arrayLoading],
-  emits: ['refresh-row'],
+  emits: ['refresh-row', 'editing-changed'],
   data() {
     return {
       modalOpen: false,
@@ -115,6 +115,11 @@ export default {
   computed: {
     publicGrid() {
       return this.$store.getters['page/view/public/getIsPublic']
+    },
+  },
+  watch: {
+    modalOpen(editing) {
+      this.$emit('editing-changed', editing)
     },
   },
   methods: {

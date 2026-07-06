@@ -68,6 +68,17 @@ export const smallUID = (length = 5) => {
   return result
 }
 
+// Escape user-controlled text before it's interpolated into raw HTML
+// rendered with v-html or contentIsHtml tooltips. Without this, a malicious
+// display name could inject markup and execute a stored XSS.
+export const escapeHtml = (value) =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
 export const upperCaseFirst = function (string) {
   return string.charAt(0).toUpperCase() + string.slice(1)
 }

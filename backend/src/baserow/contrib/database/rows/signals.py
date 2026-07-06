@@ -12,6 +12,10 @@ rows_updated = Signal()
 rows_deleted = Signal()
 rows_ai_values_generation_error = Signal()
 
+# Sent alongside the rows_* signals with the List[DependantRowsUpdate] of rows
+# whose values changed as a consequence of the triggering change.
+dependant_rows_updated = Signal()
+
 row_orders_recalculated = Signal()
 
 rows_history_updated = Signal()

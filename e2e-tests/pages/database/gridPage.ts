@@ -966,6 +966,35 @@ export class GridPage {
   }
 
   /**
+   * Assert a group-by header aggregation value is shown `count` times. The text is
+   * the short name + value concatenated, e.g. "Sum30"; whitespace is ignored. Polls,
+   * so it also covers the live in-place update after an edit.
+   */
+  async expectGroupAggregation(text: string, count = 1): Promise<void> {
+    const want = text.replace(/\s+/g, "");
+    await expect(async () => {
+      const texts = await this.page
+        .locator(".grid-view__group-by-banner-aggregation")
+        .allTextContents();
+      const matches = texts.filter(
+        (t) => t.replace(/\s+/g, "") === want,
+      ).length;
+      expect(matches).toBe(count);
+    }).toPass({ timeout: 10_000 });
+  }
+
+  /** Assert the bottom footer shows an aggregation value, e.g. "Sum35". */
+  async expectFooterAggregation(text: string): Promise<void> {
+    const want = text.replace(/\s+/g, "");
+    await expect(async () => {
+      const texts = await this.page
+        .locator(".grid-view__foot .grid-view-aggregation")
+        .allTextContents();
+      expect(texts.map((t) => t.replace(/\s+/g, ""))).toContain(want);
+    }).toPass({ timeout: 10_000 });
+  }
+
+  /**
    * Assert that the row at `rowIndex` has the warning class
    * (shown when matchFilters, matchSortings, or matchSearch is false
    * while the row is still selected).

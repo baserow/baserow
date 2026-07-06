@@ -8,6 +8,7 @@
     ref="wrapper"
     class="grid-view__column"
     :class="columnClass"
+    :style="focusStyle"
     v-bind="$attrs"
     @click.exact="select($event, field.id)"
     @mousedown.left="cellMouseDownLeft($event)"
@@ -15,6 +16,12 @@
     @mouseup.left="cellMouseUpLeft($event)"
     @click.shift.exact="cellShiftClick($event)"
   >
+    <div v-if="focusEntries.length > 0" class="grid-view__focus-border" />
+    <GridViewFocusBadge
+      v-if="focusEntries.length > 0"
+      :entries="focusEntries"
+      :max-width="fieldWidth"
+    />
     <component
       :is="getFunctionalComponent()"
       v-if="!isSelected && !isAlive"
@@ -55,12 +62,17 @@
       @add-keep-alive="addKeepAlive(field.id)"
       @remove-keep-alive="removeKeepAlive(field.id)"
       @edit-modal="editModal"
+      @editing-changed="editingChanged"
     />
   </div>
 </template>
 
 <script>
+import GridViewFocusBadge from '@baserow/modules/database/components/view/grid/GridViewFocusBadge'
+import { activeFocusEntry } from '@baserow/modules/database/utils/presenceFocusEntries'
+
 export default {
+  components: { GridViewFocusBadge },
   inheritAttrs: false,
   props: {
     workspaceId: {
@@ -105,6 +117,14 @@ export default {
       required: false,
       default: false,
     },
+    focusEntries: {
+      type: Array,
+      default: () => [],
+    },
+    fieldWidth: {
+      type: Number,
+      default: 120,
+    },
     addKeepAlive: {
       type: Function,
       required: true,
@@ -129,6 +149,7 @@ export default {
     'select-next',
     'add-row-after',
     'edit-modal',
+    'editing-changed',
     'refresh-row',
     'set-state',
   ],
@@ -137,6 +158,8 @@ export default {
       return `row-field-cell-${this.row._.persistentId}-${this.field.id}`
     },
     columnClass() {
+      const hasFocus = this.focusEntries.length > 0
+      const hasEditing = hasFocus && this.focusEntries.some((e) => e.editing)
       return {
         'grid-view__column--matches-search':
           this.row._.matchSearch &&
@@ -147,7 +170,13 @@ export default {
         'grid-view__column--multi-select-left': this.multiSelectPosition.left,
         'grid-view__column--multi-select-bottom':
           this.multiSelectPosition.bottom,
+        'grid-view__column--focus-highlight': hasFocus,
+        'grid-view__column--focus-editing': hasEditing,
       }
+    },
+    focusStyle() {
+      const entry = activeFocusEntry(this.focusEntries)
+      return entry === null ? {} : { '--focus-color': entry.color }
     },
     fieldValue() {
       return this.row[`field_${this.field.id}`]
@@ -248,6 +277,13 @@ export default {
     },
     editModal() {
       this.$emit('edit-modal')
+    },
+    editingChanged(editing) {
+      this.$emit('editing-changed', {
+        row: this.row,
+        field: this.field,
+        editing,
+      })
     },
     refreshRow() {
       this.$emit('refresh-row', this.row)

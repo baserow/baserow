@@ -96,6 +96,12 @@ export class ViewAggregationType extends Registerable {
     return true
   }
 
+  // Whether this aggregation produces a single scalar the backend can compute per
+  // group. Non-scalar types (e.g. distribution) are table-level footer only.
+  isAllowedInGroupBy() {
+    return true
+  }
+
   /**
    * @return object
    */
@@ -907,6 +913,10 @@ export class DistributionViewAggregationType extends ViewAggregationType {
     return DistributionAggregation
   }
 
+  isAllowedInGroupBy() {
+    return false
+  }
+
   getValue(value, { rowCount }) {
     // Value is returned from the server as an array of arrays,
     // each inner array representing one value of the distribution
@@ -924,9 +934,12 @@ export class DistributionViewAggregationType extends ViewAggregationType {
     //   [
     //     ["Blue", "(3)", "30%"],
     //     ["Red", "(6)", "60%"],
-    //     ["Others", "(1)", "10%"]
+    //     [undefined, "(1)", "10%"]
     //   ]
-    if (!value) {
+    // The UI renders an undefined label as "Others".
+    // A type switch can briefly feed the previous aggregation's scalar value in
+    // before the refresh lands; only an array is a real distribution result.
+    if (!Array.isArray(value)) {
       return null
     }
 
@@ -939,7 +952,7 @@ export class DistributionViewAggregationType extends ViewAggregationType {
     // we need to add an "Others" entry to account for them. This can happen
     // because the server only sends the top ten distributions by count. If
     // there were more than ten unique values, the rest need to be represented
-    // as a single entry named "Others"
+    // as a single entry with an undefined label, rendered as "Others" in the UI.
     const othersCount =
       rowCount - value.reduce((sum, current) => sum + current[1], 0)
     if (othersCount > 0) {

@@ -850,6 +850,14 @@ BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
 
+# Per table, how many rows changed by a dependency cascade (formulas, lookups,
+# link row display values in other tables) are broadcast as exact realtime row
+# updates. Above the limit subscribers receive a whole-table refresh event
+# instead. Zero disables realtime events for dependant rows entirely.
+DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT = int(
+    os.getenv("BASEROW_DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT", 200)
+)
+
 SEARCH_UPDATE_BATCH_SIZE = int(
     os.getenv("BASEROW_SEARCH_UPDATE_BATCH_SIZE", 2000)
 )  # How many rows to process per batch in search index updates.
@@ -1223,6 +1231,8 @@ if bool(os.getenv("BASEROW_ENABLE_SECURE_PROXY_SSL_HEADER", False)):
 DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS = bool(
     os.getenv("DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS", "")
 )
+
+PRESENCE_VISIBLE_USERS = int(os.getenv("BASEROW_PRESENCE_VISIBLE_USERS") or 3)
 
 BASEROW_BACKEND_LOG_LEVEL = os.getenv("BASEROW_BACKEND_LOG_LEVEL", "INFO")
 BASEROW_BACKEND_DATABASE_LOG_LEVEL = os.getenv(

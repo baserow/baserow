@@ -49,13 +49,12 @@ RealtimeEventPayload = Union[
 ]
 
 
-class RedisPresenceEntry(TypedDict):
-    user_id: int
-
-
 class ActivePresenceEntry(TypedDict):
+    """A single presence entry returned to clients in the members snapshot."""
+
     user_id: int
     presence_id: str
+    focus: dict | None
 
 
 class PresenceMembershipMessage(TypedDict):

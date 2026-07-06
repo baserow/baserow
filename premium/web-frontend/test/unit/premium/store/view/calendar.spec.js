@@ -1509,4 +1509,52 @@ describe('Calendar view store', () => {
       })
     })
   })
+
+  test('updatedExistingRow with a skeleton before row', async () => {
+    const dateStacks = {}
+    dateStacks['2023-01-01'] = {
+      count: 2,
+      results: [
+        { id: 10, order: '10.00', field_2: '2023-01-01' },
+        { id: 11, order: '11.00', field_2: '2023-01-01' },
+      ],
+    }
+    dateStacks['2023-01-02'] = {
+      count: 0,
+      results: [],
+    }
+
+    const state = Object.assign(calendarStore.state(), {
+      dateFieldId: 2,
+      dateStacks,
+    })
+    store.replaceState({ ...store.state, calendar: state })
+
+    // A buffered row must move stacks based on its buffered old state.
+    await store.dispatch('calendar/updatedExistingRow', {
+      view,
+      row: { id: 11 },
+      values: { field_2: '2023-01-02' },
+      fields,
+    })
+    expect(
+      store.state.calendar.dateStacks['2023-01-01'].results.findIndex(
+        (r) => r.id === 11
+      )
+    ).toBe(-1)
+    expect(store.state.calendar.dateStacks['2023-01-02'].results[0].id).toBe(11)
+
+    // A skeleton before row for an unbuffered row has no usable old state, so
+    // the event must be ignored instead of duplicating the card.
+    const before = JSON.parse(JSON.stringify(store.state.calendar.dateStacks))
+    await store.dispatch('calendar/updatedExistingRow', {
+      view,
+      row: { id: 99 },
+      values: { field_2: '2023-01-01' },
+      fields,
+    })
+    expect(
+      JSON.parse(JSON.stringify(store.state.calendar.dateStacks))
+    ).toStrictEqual(before)
+  })
 })

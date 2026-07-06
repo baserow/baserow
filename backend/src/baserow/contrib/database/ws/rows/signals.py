@@ -1,5 +1,7 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from functools import partial
+from typing import TYPE_CHECKING, List
 
+from django.conf import settings
 from django.db import transaction
 from django.dispatch import receiver
 
@@ -9,9 +11,14 @@ from baserow.contrib.database.api.rows.serializers import (
     get_row_serializer_class,
     serialize_rows_for_response,
 )
+from baserow.contrib.database.fields.dependencies.update_collector import (
+    DependantRowsUpdate,
+)
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.rows.registries import row_metadata_registry
-from baserow.contrib.database.table.models import GeneratedTableModel
+from baserow.contrib.database.table.signals import table_updated
+from baserow.contrib.database.ws.rows.messages import RealtimeRowMessages
+from baserow.contrib.database.ws.rows.tasks import broadcast_dependant_rows_updated
 from baserow.ws.registries import PageType, page_registry
 
 if TYPE_CHECKING:
@@ -117,6 +124,43 @@ def rows_updated(
     )
 
 
+@receiver(row_signals.dependant_rows_updated)
+def dependant_rows_updated(
+    sender,
+    user,
+    table,
+    dependant_rows_updates: List[DependantRowsUpdate],
+    send_realtime_update: bool = True,
+    **kwargs,
+):
+    """
+    Broadcasts realtime events for rows changed by a dependency cascade so the
+    affected tables' subscribers see the new values without refreshing. Tables
+    with more affected rows than the limit receive a whole-table refresh instead.
+    """
+
+    if not send_realtime_update or not dependant_rows_updates:
+        return
+    if settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT <= 0:
+        return
+
+    for update in dependant_rows_updates:
+        if update.requires_refresh:
+            table_updated.send(
+                sender, table=update.table, user=None, force_table_refresh=True
+            )
+        else:
+            transaction.on_commit(
+                partial(
+                    broadcast_dependant_rows_updated.delay,
+                    table_id=update.table.id,
+                    row_ids=list(update.row_ids),
+                    updated_field_ids=list(update.field_ids),
+                    serialized_rows_before=list(update.before_rows.values()),
+                )
+            )
+
+
 @receiver(row_signals.rows_ai_values_generation_error)
 def rows_ai_values_generation_error(
     sender, user, rows, field, table, error_message, **kwargs
@@ -206,63 +250,3 @@ def rows_history_updated(
         )
 
     transaction.on_commit(send_rows)
-
-
-class RealtimeRowMessages:
-    """
-    A collection of functions which construct the payloads for the realtime
-    websocket messages related to rows.
-    """
-
-    @staticmethod
-    def rows_deleted(
-        table_id: int, serialized_rows: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        return {
-            "type": "rows_deleted",
-            "table_id": table_id,
-            "row_ids": [r["id"] for r in serialized_rows],
-            "rows": serialized_rows,
-        }
-
-    @staticmethod
-    def rows_created(
-        table_id: int,
-        serialized_rows: List[Dict[str, Any]],
-        metadata: Dict[str, Any],
-        before: Optional[GeneratedTableModel],
-    ) -> Dict[str, Any]:
-        return {
-            "type": "rows_created",
-            "table_id": table_id,
-            "rows": serialized_rows,
-            "metadata": metadata,
-            "before_row_id": before.id if before else None,
-        }
-
-    @staticmethod
-    def rows_updated(
-        table_id: int,
-        serialized_rows_before_update: List[Dict[str, Any]],
-        serialized_rows: List[Dict[str, Any]],
-        metadata: Dict[int, Dict[str, Any]],
-        updated_field_ids: List[int],
-    ) -> Dict[str, Any]:
-        return {
-            "type": "rows_updated",
-            "table_id": table_id,
-            # The web-frontend expects a serialized version of the rows before it
-            # was updated in order to estimate what position the row had in the
-            # view.
-            "rows_before_update": serialized_rows_before_update,
-            "rows": serialized_rows,
-            "metadata": metadata,
-            "updated_field_ids": updated_field_ids,
-        }
-
-    @staticmethod
-    def row_orders_recalculated(table_id: int) -> Dict[str, Any]:
-        return {
-            "type": "row_orders_recalculated",
-            "table_id": table_id,
-        }

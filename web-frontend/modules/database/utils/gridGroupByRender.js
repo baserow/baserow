@@ -150,6 +150,8 @@ export function buildLayout({
       fields
     )
     const rowCount = node.rowCount ?? node.row_count ?? 0
+    const aggregationRowCount =
+      node.aggregationRowCount ?? node.aggregation_row_count ?? rowCount
 
     items.push({
       type: 'header',
@@ -157,10 +159,12 @@ export function buildLayout({
       path: node.path,
       display: node.display,
       rowCount,
+      aggregationRowCount,
       y,
       height: HEADER_HEIGHT,
       collapsed,
       gapAbove,
+      aggregations: node.aggregations ?? null,
     })
     y += HEADER_HEIGHT
 
@@ -369,6 +373,8 @@ function buildPagedLayout({
         fields
       )
       const rowCount = node.rowCount ?? node.row_count ?? 0
+      const aggregationRowCount =
+        node.aggregationRowCount ?? node.aggregation_row_count ?? rowCount
       const childrenCount = node.childrenCount ?? node.children_count ?? 0
 
       items.push({
@@ -377,10 +383,12 @@ function buildPagedLayout({
         path: node.path,
         display: node.display,
         rowCount,
+        aggregationRowCount,
         y,
         height: HEADER_HEIGHT,
         collapsed,
         gapAbove,
+        aggregations: node.aggregations ?? null,
       })
       y += HEADER_HEIGHT
 
@@ -610,10 +618,12 @@ export function renderViewport({
         path: item.path,
         display: item.display,
         rowCount: item.rowCount,
+        aggregationRowCount: item.aggregationRowCount ?? item.rowCount,
         y: item.y,
         height: item.height,
         collapsed: item.collapsed,
         gapAbove: item.gapAbove,
+        aggregations: item.aggregations ?? null,
       })
       continue
     }

@@ -9,6 +9,7 @@ import {
   createViewFilter,
   createViewSort,
   createViewGroupBy,
+  setViewFieldAggregation,
 } from "./view";
 import {
   Field,
@@ -66,6 +67,14 @@ export interface GroupBySpec {
   order?: "ASC" | "DESC";
 }
 
+export interface AggregationSpec {
+  fieldName: string;
+  /** Aggregation type, e.g. "sum", "min", "max", "average". */
+  type: string;
+  /** Raw aggregation type; defaults to `type` when the two are the same. */
+  rawType?: string;
+}
+
 // Setup options
 
 export interface GridSetupOptions {
@@ -87,6 +96,8 @@ export interface GridSetupOptions {
   sorts?: SortSpec[];
   /** View-level group-bys applied via the API before the test starts */
   groupBys?: GroupBySpec[];
+  /** Per-column "Summarize" aggregations applied via the API before the test starts */
+  aggregations?: AggregationSpec[];
 }
 
 // Setup result
@@ -286,6 +297,17 @@ export async function setupGrid(
       view,
       fieldByName[g.fieldName],
       g.order ?? "ASC",
+    );
+  }
+
+  // 9. Apply per-column "Summarize" aggregations
+  for (const a of options.aggregations ?? []) {
+    await setViewFieldAggregation(
+      user,
+      view,
+      fieldByName[a.fieldName],
+      a.type,
+      a.rawType ?? a.type,
     );
   }
 

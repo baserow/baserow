@@ -21,9 +21,9 @@ Presence answers one question for people working in the same place: **who else i
 | **Presence space** | The single logical location presence is tracked for — e.g. one table's grid, whose presence space is `table-42` (Redis key `presence:table-42`, channel group `presence.table-42`). Every connection viewing that location shares one space, **independent of how many data channel groups back it**. One space per location; a presence concept, distinct from any single channel group. |
 | **Presence visibility** | The per-recipient decision "should this recipient see that a connection is present *at all*?" Evaluated — depends on how both the observer and the observed entered the space, not a static flag on the connection. |
 | **Presence focus** | What one connection is doing within a space — a typed value (e.g. a selected cell) or nothing. Each connection has at most one current focus **per space**; only the latest matters (it is a current state, not a history). |
-| **Focus visibility** | The per-recipient decision "should this recipient see this focus?" Lets one space serve viewers with different permissions without leaking what a viewer may not see. |
-| **Presence focus type** | A registered kind of focus (e.g. `cell`, `row`) that owns its payload shape, the page types it applies to, and its visibility rule. Pluggable; not owned by any one page type. |
-| **Presence focus staleness** | A focus state no longer trustworthy. Enforced client-side, per focus type (e.g. an `editing: true` indicator older than ~30s). |
+| **Focus visibility** | The per-recipient decision "should this recipient see this focus?", answered by the recipient's host — the page they entered through — and denied unless that host grants it. Lets one space serve viewers with different permissions without leaking what a viewer may not see. |
+| **Presence focus type** | A registered kind of focus (e.g. `cell`, `row`) that owns only its payload shape — validating and normalising what clients send. Pluggable; not owned by any one page type. Whether a recipient sees a focus is focus visibility, owned by the recipient's host, not by the focus type. |
+| **Presence focus staleness** | A focus state no longer trustworthy. Reserved for future client-side enforcement per focus type. Not currently implemented — an `editing: true` indicator persists until an explicit clear (disconnect, navigation, or editing end). |
 
 ### Entity relationships
 
@@ -61,7 +61,7 @@ A presence space is a logical location, not a transport channel. The same place 
 
 A connection becomes present when it subscribes to a presence-enabled place, and is removed when it unsubscribes or disconnects. A connection can be present in several spaces at once (e.g. a grid and an expanded-row modal), each tracked independently; a disconnect clears all of them.
 
-Cleanup leans on the **disconnect signal**, which is reliable because both runtime stacks run a server-side WebSocket keepalive that closes connections which stop responding — so a dead client is detected and removed within seconds, while a merely idle-but-connected client (whose browser keeps answering keepalives automatically) correctly stays present. Any further cleanup is a best-effort backstop, never the primary mechanism. Because presence is best-effort, a connection's mere presence is not guaranteed to be complete or permanent.
+Cleanup leans on the **disconnect signal**, which is reliable because both runtime stacks run a server-side WebSocket keepalive that closes connections which stop responding — so a dead client is detected and removed within seconds, while a merely idle-but-connected client (whose browser keeps answering keepalives automatically) correctly stays present. Any further cleanup is a best-effort backstop, never the primary mechanism: a space's stored record carries a coarse expiry, and a focus update rewrites the member's full entry in one atomic step, so an entry dropped by that expiry is recreated on the next focus without a resubscribe. Because presence is best-effort, a connection's mere presence is not guaranteed to be complete or permanent.
 
 ### Two-axis visibility
 
@@ -70,13 +70,13 @@ Two independent, per-recipient questions decide what a viewer sees. They compose
 | Axis | Question | Owner | Default |
 |---|---|---|---|
 | **Presence visibility** | May this viewer see that a connection is present at all? | The place's host | Visible |
-| **Focus visibility** | Given the connection is visible, may this viewer see its focus? | The focus type | Visible |
+| **Focus visibility** | Given the connection is visible, may this viewer see its focus? | The place's host (the recipient's entry point) | Hidden — fail-closed; focus delivery is opt-in per host |
 
 **Presence visibility** is evaluated per recipient — the host determines who sees whom based on how each entered the space. A full-access viewer may see everyone; a restricted viewer may see only others at the same access level. The rule is **asymmetric by design**: who you see depends on your entry point, not theirs.
 
-**Focus visibility** is how one shared space safely serves viewers with different permissions: a viewer sees focus only on the rows and fields they are permitted to see.
+**Focus visibility** is answered by the *recipient's* entry point: the host they subscribed through decides, per event, whether they may see it. The default denies — a host that enables presence must explicitly grant focus delivery, and any error while deciding also withholds the focus (fail closed). This is how one shared space safely serves viewers with different permissions: a viewer sees focus only on the rows and fields they are permitted to see.
 
-Focus visibility is all-or-nothing: a viewer sees a connection's focus in full, or not at all.
+Focus visibility is all-or-nothing: a viewer sees a connection's focus in full, or not at all. It never affects presence visibility — in the members snapshot a withheld focus is nulled out while the member stays listed. The same per-recipient rule runs on live focus broadcasts and on the stored focus delivered in the members snapshot on subscribe.
 
 ### Focus
 
@@ -85,12 +85,14 @@ Focus is what a connection is doing within a space — a single current value pe
 Before a focus is shown, three questions are answered, in order:
 
 1. **Is presence enabled here?** — a property of the place.
-2. **Does this kind of place support this kind of focus?** — *applicability*, not permission. A grid has cells and rows; a dashboard has neither. Both full and restricted grid views support the same focus kinds and emit them identically.
-3. **Is the focus well-formed?** — invalid focus is silently dropped.
+2. **Is the focus well-formed?** — unknown or invalid focus is silently dropped.
+3. **May this recipient see it?** — focus visibility, answered per recipient by their host.
 
-**Emitting and seeing are separate.** Which page types may *emit* a focus kind is independent of who may *see* it. Two users on the same grid emit cell focus identically; the difference in what each *sees* is purely the area-visibility rule (which rows/fields each may see), never the page type.
+> An *applicability* check — "does this kind of place support this kind of focus?" (a grid has cells and rows; a dashboard has neither) — is a deliberate future seam that is **not implemented**: today any registered focus kind is accepted on any presence-enabled place.
 
-**Staleness** is judged on the client, per focus type: a state implying active engagement (someone is *editing*) stops being shown after a short silence, because it is no longer trustworthy. Passive states linger longer or indefinitely.
+**Emitting and seeing are separate.** Emitting is unrestricted — any member of a presence-enabled space may store any well-formed focus. Seeing is decided per recipient at delivery time by the host the recipient entered through. Two users on the same grid emit cell focus identically; what each *sees* depends only on their own entry point.
+
+**Staleness** is reserved for future implementation. Currently, an `editing: true` indicator persists until an explicit clear (the user stops editing, navigates away, or disconnects). A client-side staleness timer may be added later if phantom editing indicators become a problem in practice.
 
 ---
 
@@ -104,9 +106,9 @@ Presence uses **one** space per place and enforces visibility *within* it, per r
 
 - **Avatars show unique users**, not connections — multiple tabs of one person collapse to a single avatar, with a deterministic per-user colour. When more users are present than fit, the rest collapse into a counter.
 - **A user does not see their own focus** as a presence indicator — the native selection UI already shows it. Their own avatar is **not** shown in the presence bar — only other users appear.
-- **Focus highlights** show another user's selected cell or row (with their colour and initials), and an editing indicator when they are actively editing. Highlights render only for what is currently on screen.
-- **Focus emission is debounced per space.** Rapid navigation within a space emits only the final position (others see where you land, not each step), and activity in one space never interferes with another. Two purposes: a clean end-state for viewers, and protection against flooding.
-- **When several users focus the same target**, their labels collapse into a count.
+- **Focus highlights** show another user's selected cell or row (with their colour and full name), and an editing indicator when they are actively editing. Highlights render only for what is currently on screen.
+- **Focus emission is debounced per space.** Navigation focus (cell/row selection changes) is debounced at 150ms — others see where you land, not each step. Editing state transitions (start/stop editing) send immediately, without debounce. When a user is alone in a space, focus sends are skipped — except **clears**: once a focus has actually been transmitted, its clear always goes out, so the server never holds stale focus that a later joiner would receive. When another member joins, the sender re-emits its current focus so the joiner sees it without waiting for the next change.
+- **When several users focus the same target**, one label is shown — an actively editing user wins — plus a counter for the rest.
 
 ---
 
@@ -114,7 +116,7 @@ Presence uses **one** space per place and enforces visibility *within* it, per r
 
 The model deliberately *reserves room for* these without building them now; each can be added without changing the concepts or the wire-level contract:
 
-- **Filtered focus on restricted views** — showing a viewer only the focus on rows/fields they may see. The focus-visibility rule is the reserved seam; today it passes everything through.
+- **Filtered focus on restricted views** — showing a viewer only the focus on rows/fields they may see. The host's per-recipient focus rule is the reserved seam, already applied to live broadcasts and the members snapshot alike; today the only presence-enabled host (the table page) grants everything, because its subscribers have full table visibility anyway.
 - **Entry-point-aware presence visibility** — visibility rules that depend on how each party entered the space (e.g. restricted viewers not seeing full-access users, admins seeing anonymous public-view users). The evaluated presence-visibility model is the reserved seam. In V1, restricted views are excluded from presence entirely; in V2 they will join with asymmetric visibility (full-access sees restricted users, not vice versa).
 - **Stronger cleanup of abandoned entries** — a backstop for the rare case where a disconnect signal is lost. Disconnect remains the primary mechanism either way.
 

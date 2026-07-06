@@ -577,6 +577,8 @@ class DatabaseConfig(AppConfig):
 
         application_type_registry.register(DatabaseApplicationType())
 
+        from baserow.ws.registries import presence_focus_type_registry
+
         from .ws.pages import (
             PublicViewPageType,
             RowPageType,
@@ -586,6 +588,14 @@ class DatabaseConfig(AppConfig):
         page_registry.register(TablePageType())
         page_registry.register(PublicViewPageType())
         page_registry.register(RowPageType())
+
+        from baserow.contrib.database.ws.presence_focus_types import (
+            CellFocusType,
+            RowFocusType,
+        )
+
+        presence_focus_type_registry.register(CellFocusType())
+        presence_focus_type_registry.register(RowFocusType())
 
         from .export.table_exporters.csv_table_exporter import CsvTableExporter
 
@@ -1202,6 +1212,7 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.tokens.receivers  # noqa: F401
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
+        import baserow.contrib.database.ws.rows.tasks  # noqa: F401
         from baserow.contrib.database.fields.models import SelectOption
 
         # Make sure that from now on, no model can make the User cache to expire,

@@ -21,7 +21,23 @@ const PALETTE = [
   '#0C8599',
 ]
 
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `${r}, ${g}, ${b}`
+}
+
+const PALETTE_RGB = PALETTE.map(hexToRgb)
+
+function _colorIndex(userId) {
+  return (Math.imul(userId, 2654435761) >>> 0) % PALETTE.length
+}
+
 export function getPresenceUserColor(userId) {
-  const hash = ((userId * 2654435761) >>> 0) % PALETTE.length
-  return PALETTE[hash]
+  return PALETTE[_colorIndex(userId)]
+}
+
+export function getPresenceUserColorRgb(userId) {
+  return PALETTE_RGB[_colorIndex(userId)]
 }

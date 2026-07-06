@@ -102,7 +102,11 @@ class FieldFixtures:
             kwargs["table"] = self.create_database_table(user=user)
 
         if "name" not in kwargs:
-            kwargs["name"] = self.fake.name()
+            # Faker names can contain apostrophes (e.g. "Kevin O'Kon"), which
+            # break tests that interpolate the field name into a single-quoted
+            # formula string without escaping it. Strip them so a randomly
+            # generated name is always safe to use in a formula reference.
+            kwargs["name"] = self.fake.name().replace("'", "")
 
         if "order" not in kwargs:
             kwargs["order"] = 0

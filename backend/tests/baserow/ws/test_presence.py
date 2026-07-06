@@ -1,6 +1,8 @@
 import json
 import uuid
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock, patch
+
+from django.test import override_settings
 
 import pytest
 from channels.db import database_sync_to_async
@@ -12,8 +14,8 @@ from baserow.core.async_redis import get_async_redis
 from baserow.ws.presence import (
     PresenceHandler,
     PresenceSpace,
+    make_page_key,
 )
-from baserow.ws.registries import PageType, page_registry
 
 VALID_ONE_SEAT_ENTERPRISE_LICENSE = (
     # id: "1", instance_id: "1"
@@ -34,62 +36,8 @@ def _enable_enterprise():
     local_cache.clear()
 
 
-GROUP = "test-presence-page-1"
 SPACE_NAME = "test-space-1"
 PRESENCE_KEY = f"presence:{SPACE_NAME}"
-
-
-class PresenceTestPageType(PageType):
-    type = "test_presence_page"
-    parameters = ["test_param"]
-
-    def can_add(self, user, web_socket_id, test_param, **kwargs):
-        return True
-
-    def get_group_name(self, test_param, **kwargs):
-        return f"test-presence-page-{test_param}"
-
-    def get_presence_space_name(self, test_param, **kwargs):
-        return f"test-space-{test_param}"
-
-
-class NonPresencePageType(PageType):
-    type = "test_non_presence_page"
-    parameters = ["test_param"]
-
-    def can_add(self, user, web_socket_id, test_param, **kwargs):
-        return True
-
-    def get_group_name(self, test_param, **kwargs):
-        return f"test-non-presence-page-{test_param}"
-
-
-class PresenceWithPermGroupPageType(PageType):
-    type = "test_presence_perm_page"
-    parameters = ["test_param"]
-
-    def can_add(self, user, web_socket_id, test_param, **kwargs):
-        return True
-
-    def get_group_name(self, test_param, **kwargs):
-        return f"test-presence-perm-page-{test_param}"
-
-    def get_permission_channel_group_name(self, test_param, **kwargs):
-        return f"test-perm-group-{test_param}"
-
-    def get_presence_space_name(self, test_param, **kwargs):
-        return f"test-perm-space-{test_param}"
-
-
-@pytest.fixture
-def presence_types():
-    page_registry.register(PresenceTestPageType())
-    page_registry.register(NonPresencePageType())
-    page_registry.register(PresenceWithPermGroupPageType())
-    yield
-    page_registry.unregister(PresenceTestPageType.type)
-    page_registry.unregister(NonPresencePageType.type)
-    page_registry.unregister(PresenceWithPermGroupPageType.type)
 
 
 async def _connect(token):
@@ -133,6 +81,39 @@ async def _presence_ids_in_redis(redis_key):
     return set(await redis.hkeys(redis_key))
 
 
+def _make_mock_handler(user_id=7):
+    """Build a PresenceHandler wired to a fully mocked consumer."""
+    consumer = Mock()
+    consumer.channel_layer = AsyncMock()
+    consumer.channel_name = "chan-test"
+    consumer.send_json = AsyncMock()
+    handler = PresenceHandler(
+        consumer=consumer, web_socket_id="ws-test", user_id=user_id
+    )
+    return handler, consumer
+
+
+async def _create_enterprise_table_with_restricted_view(data_fixture):
+    setup = await database_sync_to_async(
+        lambda: (
+            _enable_enterprise(),
+            data_fixture.create_user_and_token(),
+            data_fixture.create_user_and_token(),
+        )
+    )()
+    _, (user_a, token_a), (user_b, token_b) = setup
+
+    _, _, table, restricted_view = await database_sync_to_async(
+        lambda: (
+            (w := data_fixture.create_workspace(user=user_a, members=[user_b])),
+            (db := data_fixture.create_database_application(workspace=w)),
+            (t := data_fixture.create_database_table(database=db)),
+            data_fixture.create_grid_view(table=t, ownership_type="restricted"),
+        )
+    )()
+    return user_a, token_a, user_b, token_b, table, restricted_view
+
+
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
@@ -164,6 +145,24 @@ async def test_subscribe_broadcasts_join_and_returns_members(
 
     await comm_a.disconnect()
     await comm_b.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+@override_settings(PRESENCE_VISIBLE_USERS=0)
+async def test_circuit_breaker_setting_disables_presence(data_fixture, presence_types):
+    user, token = data_fixture.create_user_and_token()
+
+    comm, _ = await _connect(token)
+    page_add = await _subscribe(comm)
+    assert page_add["type"] == "page_add"
+
+    frames = await _drain(comm)
+    assert [f for f in frames if f["type"].startswith("presence.")] == []
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == set()
+
+    await comm.disconnect()
 
 
 @pytest.mark.asyncio
@@ -502,32 +501,6 @@ async def test_permission_revocation_removes_presence_and_broadcasts_leave(
     await comm_b.disconnect()
 
 
-async def _create_enterprise_table_with_restricted_view(data_fixture):
-    setup = await database_sync_to_async(
-        lambda: (
-            _enable_enterprise(),
-            data_fixture.create_user_and_token(),
-            data_fixture.create_user_and_token(),
-        )
-    )()
-    _, (user_a, token_a), (user_b, token_b) = setup
-
-    _, _, table, restricted_view = await database_sync_to_async(
-        lambda: (
-            (w := data_fixture.create_workspace(user=user_a, members=[user_b])),
-            (db := data_fixture.create_database_application(workspace=w)),
-            (t := data_fixture.create_database_table(database=db)),
-            data_fixture.create_grid_view(table=t, ownership_type="restricted"),
-        )
-    )()
-    return user_a, token_a, user_b, token_b, table, restricted_view
-
-
-# ---------------------------------------------------------------------------
-# Integration tests with real page types
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
@@ -660,7 +633,6 @@ async def test_restricted_view_no_presence_entries_in_redis(data_fixture):
 async def test_independent_space_isolation_on_partial_unsubscribe(
     data_fixture, presence_types
 ):
-    """Removing one page leaves its space; other spaces remain unaffected."""
     user_a, token_a = data_fixture.create_user_and_token()
     user_b, token_b = data_fixture.create_user_and_token()
 
@@ -767,3 +739,107 @@ async def test_invalid_shape_entries_cleaned_from_redis():
     assert await redis.hexists(space.redis_key, "valid") is True
     for bad_key in ("list", "empty", "null-uid", "str-uid"):
         assert await redis.hexists(space.redis_key, bad_key) is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_unsubscribe_failure_keeps_state_for_disconnect_retry(presence_types):
+    handler, consumer = _make_mock_handler()
+    params = {"test_param": 1}
+    await handler.handle_page_subscribed("test_presence_page", params)
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == {handler.presence_id}
+    consumer.send_json.reset_mock()
+    consumer.channel_layer.group_discard.reset_mock()
+
+    with patch.object(handler, "_leave", side_effect=Exception("redis down")):
+        await handler.handle_page_unsubscribed("test_presence_page", params)
+
+    # Failure keeps the maps and Redis entry intact and skips every later
+    # side effect, so disconnect cleanup can retry the whole sequence.
+    page_key = make_page_key("test_presence_page", params)
+    assert handler._page_to_space == {page_key: SPACE_NAME}
+    assert page_key in handler._space_pages[SPACE_NAME]
+    assert handler.presence_id in await _presence_ids_in_redis(PRESENCE_KEY)
+    consumer.send_json.assert_not_called()
+    consumer.channel_layer.group_discard.assert_not_called()
+
+    await handler.leave_all_spaces()
+
+    assert handler._page_to_space == {}
+    assert handler._space_pages == {}
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == set()
+    consumer.channel_layer.group_discard.assert_awaited_once_with(
+        f"presence.{SPACE_NAME}", "chan-test"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_unsubscribe_broadcast_failure_after_leave_still_commits_maps(
+    presence_types,
+):
+    handler, consumer = _make_mock_handler()
+    params = {"test_param": 1}
+    await handler.handle_page_subscribed("test_presence_page", params)
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == {handler.presence_id}
+    consumer.send_json.reset_mock()
+
+    with patch.object(
+        handler, "_broadcast_leave", side_effect=Exception("channel layer down")
+    ):
+        await handler.handle_page_unsubscribed("test_presence_page", params)
+
+    # The Redis removal succeeded, so the maps must be committed even though a
+    # later side effect failed; keeping them would make a re-subscribe
+    # early-return on a page key with no Redis entry behind it.
+    assert handler._page_to_space == {}
+    assert handler._space_pages == {}
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == set()
+    # The side effects after the failed broadcast still ran.
+    space_discard_msg = consumer.send_json.await_args_list[0].args[0]
+    assert space_discard_msg["type"] == "presence.space_discard"
+    assert space_discard_msg["space"] == SPACE_NAME
+    consumer.channel_layer.group_discard.assert_awaited_once_with(
+        f"presence.{SPACE_NAME}", "chan-test"
+    )
+
+    consumer.send_json.reset_mock()
+    await handler.handle_page_subscribed("test_presence_page", params)
+
+    page_key = make_page_key("test_presence_page", params)
+    assert handler._page_to_space == {page_key: SPACE_NAME}
+    assert handler.presence_id in await _presence_ids_in_redis(PRESENCE_KEY)
+    members_msg = consumer.send_json.await_args_list[0].args[0]
+    assert members_msg["type"] == "presence.members"
+    assert members_msg["space"] == SPACE_NAME
+
+    await handler.leave_all_spaces()
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_subscribe_failure_rolls_back_state_so_resubscribe_works(
+    presence_types,
+):
+    handler, consumer = _make_mock_handler()
+    params = {"test_param": 1}
+    consumer.send_json.side_effect = Exception("send failed")
+
+    await handler.handle_page_subscribed("test_presence_page", params)
+
+    assert handler._page_to_space == {}
+    assert handler._space_pages == {}
+    assert await _presence_ids_in_redis(PRESENCE_KEY) == set()
+    consumer.channel_layer.group_discard.assert_awaited_once_with(
+        f"presence.{SPACE_NAME}", "chan-test"
+    )
+
+    consumer.send_json = AsyncMock()
+    await handler.handle_page_subscribed("test_presence_page", params)
+
+    page_key = make_page_key("test_presence_page", params)
+    assert handler._page_to_space == {page_key: SPACE_NAME}
+    assert handler.presence_id in await _presence_ids_in_redis(PRESENCE_KEY)
+    members_msg = consumer.send_json.await_args_list[0].args[0]
+    assert members_msg["type"] == "presence.members"
+    assert members_msg["space"] == SPACE_NAME

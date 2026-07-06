@@ -261,6 +261,65 @@ test.describe("7 Group-by", () => {
 });
 
 // -----------------------------------------------------------------------------
+// section 7.3  Group aggregations
+// -----------------------------------------------------------------------------
+
+test.describe("7.3 Group aggregations", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "GroupAggregationsDb",
+      fields: [
+        { name: "Team", type: "text" },
+        { name: "Score", type: "number" },
+      ],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+      aggregations: [{ fieldName: "Score", type: "sum" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Alice", Team: "A", Score: 10 },
+      { Name: "Bob", Team: "A", Score: 20 },
+      { Name: "Carol", Team: "B", Score: 5 },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+  });
+
+  test("7.3.1 group headers show the per-column aggregation and the footer shows the total", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.expectGroupAggregation("Sum30"); // Team A: 10 + 20
+    await grid.expectGroupAggregation("Sum5"); // Team B: 5
+    await grid.expectFooterAggregation("Sum35"); // overall total
+  });
+
+  test("7.3.3 editing a cell updates that group's value and the footer in place", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.expectGroupAggregation("Sum30");
+    await grid.expectFooterAggregation("Sum35");
+
+    // Alice (Team A) Score 10 -> 100.
+    await grid.startEditingField(0, 1);
+    await grid.type("100");
+    await grid.confirmWithEnter();
+
+    await grid.expectGroupAggregation("Sum120"); // Team A: 100 + 20
+    await grid.expectGroupAggregation("Sum5"); // Team B unchanged
+    await grid.expectFooterAggregation("Sum125"); // overall total: 120 + 5
+  });
+});
+
+// -----------------------------------------------------------------------------
 // section 1.5  Create with active group-by
 // -----------------------------------------------------------------------------
 

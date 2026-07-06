@@ -21,7 +21,6 @@ dependencies = [
     "djangorestframework-simplejwt==5.5.1",
     "psycopg2-binary==2.9.11",
     "Faker==40.1.0",
-    "Twisted==25.5.0",
     "gunicorn==23.0.0",
     "uvicorn[standard]==0.40.0",
     "websockets==16.0.0",

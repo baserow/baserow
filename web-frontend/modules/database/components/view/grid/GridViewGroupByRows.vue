@@ -6,20 +6,20 @@
         :item="item"
         :group-by-fields="groupByFields"
         :include-row-details="includeRowDetails"
-        :primary-field-width="primaryFieldWidth"
         :row-details-width="gridViewRowDetailsWidth"
         :workspace-id="workspaceId"
-        :separator-positions="bannerSeparatorPositions"
         :width="sectionWidth"
+        :visible-fields="visibleFields"
+        :field-widths="fieldWidths"
+        :view="view"
+        :store-prefix="storePrefix"
         @toggle="toggleGroup"
+        @aggregation-changed="onAggregationChanged"
       />
       <div
         v-else-if="item.type === 'row' && shouldRenderRows"
         class="grid-view__group-by-rows-row"
-        :class="{
-          'grid-view__group-by-rows-row--warning': isWarningRow(item.row),
-          'grid-view__group-by-rows-row--selected': item.row._.selected,
-        }"
+        :class="rowClass(item.row)"
         :style="{
           top: item.y + 'px',
           transform: `translateX(${leftOffset || 0}px)`,
@@ -39,9 +39,12 @@
           :decorations-by-place="decorationsByPlace"
           :read-only="readOnly"
           :can-drag="false"
+          :focus-entries-by-cell="focusEntriesByCell"
+          :focus-entries-by-row="focusEntriesByRow"
           :store-prefix="storePrefix"
           :row-identifier-type="view.row_identifier_type"
           :count="item.globalRowOffset + 1"
+          @editing-changed="$emit('editing-changed', $event)"
           @update="$emit('update', $event)"
           @paste="$emit('paste', $event)"
           @edit="$emit('edit', $event)"
@@ -153,6 +156,14 @@ export default {
     readOnly: { type: Boolean, required: true },
     canAddRow: { type: Boolean, default: false },
     workspaceId: { type: Number, required: true },
+    focusEntriesByCell: {
+      type: Map,
+      default: () => new Map(),
+    },
+    focusEntriesByRow: {
+      type: Map,
+      default: () => new Map(),
+    },
   },
   emits: [
     'update',
@@ -175,6 +186,7 @@ export default {
     'row-dragging',
     'row-hover',
     'row-context',
+    'editing-changed',
   ],
   computed: {
     groupByFields() {
@@ -220,30 +232,6 @@ export default {
       })
       return positions
     },
-    /**
-     * Vertical cell separators inside the group banner, at every internal field
-     * boundary. The left section starts with the row-details lane, so offset
-     * field separators and draw that first lane boundary there too.
-     */
-    bannerSeparatorPositions() {
-      const positions = []
-      let x = 0
-
-      if (this.includeRowDetails) {
-        x += this.gridViewRowDetailsWidth
-        positions.push(x)
-      }
-
-      this.visibleFields.slice(0, -1).forEach((field) => {
-        x += this.getFieldWidth(field)
-        positions.push(x)
-      })
-      return positions
-    },
-    primaryFieldWidth() {
-      const primaryField = this.visibleFields[0]
-      return primaryField ? this.getFieldWidth(primaryField) : 0
-    },
     shouldRenderRows() {
       return this.includeRowDetails || this.visibleFields.length > 0
     },
@@ -257,6 +245,21 @@ export default {
     },
   },
   methods: {
+    rowClass(row) {
+      return {
+        'grid-view__group-by-rows-row--warning': this.isWarningRow(row),
+        'grid-view__group-by-rows-row--selected': row._.selected,
+        'grid-view__group-by-rows-row--presence': this.rowHasPresence(row),
+      }
+    },
+    rowHasPresence(row) {
+      if (this.focusEntriesByRow.has(row.id)) return true
+      const prefix = `${row.id}:`
+      for (const key of this.focusEntriesByCell.keys()) {
+        if (key.startsWith(prefix)) return true
+      }
+      return false
+    },
     addRow(event, path) {
       event.preventFieldCellUnselect = true
       this.$emit('add-row', { groupPath: path })
@@ -308,6 +311,20 @@ export default {
             path,
             view: this.view,
             fields: this.allFieldsInTable,
+          }
+        )
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
+    },
+    async onAggregationChanged(fieldId) {
+      try {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/refreshGroupByAggregations',
+          {
+            view: this.view,
+            fields: this.allFieldsInTable,
+            fieldId,
           }
         )
       } catch (error) {

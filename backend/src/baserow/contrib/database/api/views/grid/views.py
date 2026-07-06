@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -17,6 +15,7 @@ from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.schemas import get_error_schema
 from baserow.api.search.serializers import SearchQueryParamSerializer
 from baserow.api.serializers import get_example_pagination_serializer_class
+from baserow.config.settings.utils import str_to_bool
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
@@ -62,6 +61,7 @@ from baserow.contrib.database.api.views.utils import (
     get_public_view_authorization_token,
     get_public_view_filtered_queryset,
     get_view_filtered_queryset,
+    json_safe_aggregation_value,
     paginate_and_serialize_queryset,
     serialize_group_by_data_pages,
     serialize_group_by_fields_metadata,
@@ -108,6 +108,7 @@ from .serializers import GridViewFilterSerializer, GridViewGroupByDataSerializer
 from .utils import (
     build_group_by_data_response,
     empty_group_by_data_page,
+    get_grid_view_group_by_aggregations,
     parse_adhoc_view_group_bys,
 )
 
@@ -167,6 +168,29 @@ GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM = OpenApiParameter(
     description=(
         "Optional total leaf-row budget for include_descendants. Defaults to the "
         "request limit and is capped by the total group budget."
+    ),
+)
+GROUP_BY_DATA_AGGREGATIONS_ONLY_API_PARAM = OpenApiParameter(
+    name="aggregations_only",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.BOOL,
+    required=False,
+    description=(
+        "When true, returns a lean values-only page: each group carries only its "
+        "`path` (plus `children_count` and per-group `aggregations`) and omits the "
+        "windowed layout fields (`row_count`, `sibling_index`, `row_offset`). Used "
+        "to refresh aggregation values in place without rebuilding the layout."
+    ),
+)
+GROUP_BY_DATA_INCLUDE_TOTALS_API_PARAM = OpenApiParameter(
+    name="include_totals",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.BOOL,
+    required=False,
+    description=(
+        "When true, the response also includes a top-level `aggregations` object "
+        "with the view's table-level field aggregation totals, mirroring the grid "
+        "view field-aggregations response."
     ),
 )
 
@@ -464,6 +488,8 @@ class GridViewGroupByDataView(APIView):
             GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM,
+            GROUP_BY_DATA_AGGREGATIONS_ONLY_API_PARAM,
+            GROUP_BY_DATA_INCLUDE_TOTALS_API_PARAM,
             OpenApiParameter("offset", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter(
@@ -557,9 +583,30 @@ class GridViewGroupByDataView(APIView):
             )
 
         group_by_fields = view_handler.get_group_by_fields(queryset, view_group_bys)
+        aggregations = get_grid_view_group_by_aggregations(view, view_type)
+
+        totals = None
+        if aggregations and str_to_bool(str(request.GET.get("include_totals"))):
+            totals = view_handler.get_view_field_aggregations(
+                request.user,
+                view,
+                search=query_params.get("search"),
+                search_mode=query_params.get("search_mode"),
+                adhoc_filters=adhoc_filters,
+            )
+            totals = {
+                field: json_safe_aggregation_value(value)
+                for field, value in totals.items()
+            }
 
         response_data = build_group_by_data_response(
-            view_handler, request, queryset, view_group_bys, group_by_fields
+            view_handler,
+            request,
+            queryset,
+            view_group_bys,
+            group_by_fields,
+            aggregations,
+            totals=totals,
         )
 
         return Response(response_data)
@@ -666,12 +713,9 @@ class GridViewFieldAggregationsView(APIView):
             adhoc_filters=adhoc_filters,
         )
 
-        # Decimal("NaN") can't be serialized, therefore we have to replace it
-        # with its literal string representation
-        nan_replacement_value = "NaN"
-        for field in result:
-            if isinstance(result[field], Decimal) and result[field].is_nan():
-                result[field] = nan_replacement_value
+        result = {
+            field: json_safe_aggregation_value(value) for field, value in result.items()
+        }
 
         return Response(result)
 
@@ -775,12 +819,9 @@ class PublicGridViewFieldAggregationsView(APIView):
             skip_perm_check=True,
         )
 
-        # Decimal("NaN") can't be serialized, therefore we have to replace it
-        # with its literal string representation
-        nan_replacement_value = "NaN"
-        for field in result:
-            if isinstance(result[field], Decimal) and result[field].is_nan():
-                result[field] = nan_replacement_value
+        result = {
+            field: json_safe_aggregation_value(value) for field, value in result.items()
+        }
 
         return Response(result)
 
@@ -911,6 +952,8 @@ class PublicGridViewGroupByDataView(APIView):
             GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM,
+            GROUP_BY_DATA_AGGREGATIONS_ONLY_API_PARAM,
+            GROUP_BY_DATA_INCLUDE_TOTALS_API_PARAM,
             OpenApiParameter("offset", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter(
@@ -992,9 +1035,34 @@ class PublicGridViewGroupByDataView(APIView):
             )
 
         group_by_fields = view_handler.get_group_by_fields(queryset, view_group_bys)
+        aggregations = get_grid_view_group_by_aggregations(view, view_type)
+
+        totals = None
+        if aggregations and str_to_bool(str(request.GET.get("include_totals"))):
+            # Public visitors can't change the view, so skip the perm check and
+            # combine ad hoc + view filters, like the public aggregations endpoint.
+            totals = view_handler.get_view_field_aggregations(
+                request.user,
+                view,
+                search=query_params.get("search"),
+                search_mode=query_params.get("search_mode"),
+                adhoc_filters=AdHocFilters.from_request(request),
+                combine_filters=True,
+                skip_perm_check=True,
+            )
+            totals = {
+                field: json_safe_aggregation_value(value)
+                for field, value in totals.items()
+            }
 
         response_data = build_group_by_data_response(
-            view_handler, request, queryset, view_group_bys, group_by_fields
+            view_handler,
+            request,
+            queryset,
+            view_group_bys,
+            group_by_fields,
+            aggregations,
+            totals=totals,
         )
 
         return Response(response_data)

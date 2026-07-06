@@ -1,6 +1,5 @@
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
-import GridViewGroupByRows from '@baserow/modules/database/components/view/grid/GridViewGroupByRows'
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
 
 describe('GridView component', () => {
@@ -51,37 +50,6 @@ describe('GridView component', () => {
     })
 
     expect(sortedFields.map((field) => field.id)).toEqual([1, 3])
-  })
-
-  test('group-by banner separators include left row-details and field boundaries', () => {
-    const separatorPositions =
-      GridViewGroupByRows.computed.bannerSeparatorPositions.call({
-        includeRowDetails: true,
-        gridViewRowDetailsWidth: 72,
-        visibleFields: [
-          { id: 1, name: 'Name' },
-          { id: 2, name: 'Team' },
-          { id: 3, name: 'Notes' },
-        ],
-        getFieldWidth: (field) => ({ 1: 200, 2: 150, 3: 100 })[field.id],
-      })
-
-    expect(separatorPositions).toEqual([72, 272, 422])
-  })
-
-  test('group-by banner separators in the right section stay on field boundaries', () => {
-    const separatorPositions =
-      GridViewGroupByRows.computed.bannerSeparatorPositions.call({
-        includeRowDetails: false,
-        visibleFields: [
-          { id: 1, name: 'Team' },
-          { id: 2, name: 'Notes' },
-          { id: 3, name: 'Score' },
-        ],
-        getFieldWidth: (field) => ({ 1: 200, 2: 150, 3: 100 })[field.id],
-      })
-
-    expect(separatorPositions).toEqual([200, 350])
   })
 
   // The post-drag click of a multi-select lands on the rows container; that must not
@@ -137,6 +105,7 @@ describe('GridView component', () => {
         fields: navFields,
         $store: { getters: {}, dispatch },
         scrollToGroupByRowIfNeeded: vi.fn(),
+        _emitPresenceCellFocus: vi.fn(),
       },
       { row: { id: 10 }, field, direction }
     )
@@ -225,5 +194,71 @@ describe('GridView component', () => {
       { groupPath: { field_2: 'A' }, before: null },
       {}
     )
+  })
+  describe('presence focus after the row edit modal closes', () => {
+    const makeContext = ({ cellSelected }) => ({
+      presenceFocus: {
+        reemitLastFocus: vi.fn(),
+        clearFocus: vi.fn(),
+      },
+      selectedCellComponents: cellSelected ? [{}] : [],
+      $emit: vi.fn(),
+      _restorePresenceFocusAfterRowModal:
+        GridView.methods._restorePresenceFocusAfterRowModal,
+    })
+
+    test('rowEditModalHidden re-emits the cell focus when a cell is still selected', () => {
+      const ctx = makeContext({ cellSelected: true })
+
+      GridView.methods.rowEditModalHidden.call(ctx, { row: undefined })
+
+      expect(ctx.presenceFocus.reemitLastFocus).toHaveBeenCalledOnce()
+      expect(ctx.presenceFocus.clearFocus).not.toHaveBeenCalled()
+    })
+
+    test('rowEditModalHidden clears the transmitted focus when no cell is selected', () => {
+      const ctx = makeContext({ cellSelected: false })
+
+      GridView.methods.rowEditModalHidden.call(ctx, { row: undefined })
+
+      expect(ctx.presenceFocus.clearFocus).toHaveBeenCalledOnce()
+      expect(ctx.presenceFocus.reemitLastFocus).not.toHaveBeenCalled()
+    })
+
+    test('route-driven close clears the grid focus when no cell is selected', () => {
+      const ctx = makeContext({ cellSelected: false })
+      ctx.$refs = {
+        rowEditModal: { clearPresenceFocus: vi.fn(), hide: vi.fn() },
+        left: { $refs: { body: { scrollTop: 0 } } },
+      }
+      ctx.$store = { dispatch: vi.fn() }
+      ctx.storePrefix = ''
+      ctx.view = {}
+      ctx.fields = []
+
+      GridView.watch.row.handler.call(ctx, null, { id: 1 })
+
+      expect(ctx.$refs.rowEditModal.clearPresenceFocus).toHaveBeenCalledOnce()
+      expect(ctx.presenceFocus.clearFocus).toHaveBeenCalledOnce()
+      expect(ctx.presenceFocus.reemitLastFocus).not.toHaveBeenCalled()
+      expect(ctx.$refs.rowEditModal.hide).toHaveBeenCalledWith(false)
+    })
+
+    test('route-driven close re-emits the cell focus when a cell is selected', () => {
+      const ctx = makeContext({ cellSelected: true })
+      ctx.$refs = {
+        rowEditModal: { clearPresenceFocus: vi.fn(), hide: vi.fn() },
+        left: { $refs: { body: { scrollTop: 0 } } },
+      }
+      ctx.$store = { dispatch: vi.fn() }
+      ctx.storePrefix = ''
+      ctx.view = {}
+      ctx.fields = []
+
+      GridView.watch.row.handler.call(ctx, null, { id: 1 })
+
+      expect(ctx.presenceFocus.reemitLastFocus).toHaveBeenCalledOnce()
+      expect(ctx.presenceFocus.clearFocus).not.toHaveBeenCalled()
+    })
   })
 })

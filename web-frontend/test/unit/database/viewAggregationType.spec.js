@@ -237,6 +237,18 @@ const testData = {
       },
     },
   ],
+  distribution: {
+    inputValue: [
+      ['Blue', 3],
+      ['Red', 6],
+    ],
+    expectedResult: [
+      ['Blue', '(3)', '30%'],
+      ['Red', '(6)', '60%'],
+      [undefined, '(1)', '10%'],
+    ],
+    context: { rowCount: 10 },
+  },
 }
 
 const testDataError = {
@@ -395,6 +407,13 @@ const testDataError = {
       },
     },
   ],
+  // A previous aggregation's scalar value can briefly reach distribution during a
+  // type switch; it must resolve to null rather than throwing on `.map`.
+  distribution: {
+    inputValue: 25,
+    expectedResult: null,
+    context: { rowCount: 100 },
+  },
 }
 
 describe('View Aggregation Tests', () => {
@@ -444,5 +463,21 @@ describe('View Aggregation Tests', () => {
           })
         }
       })
+  })
+
+  test('only scalar aggregations are allowed in group-by mode', () => {
+    const allowed = {}
+    store.$registry
+      .getOrderedList('viewAggregation')
+      .forEach((aggregationType) => {
+        allowed[aggregationType.getType()] =
+          aggregationType.isAllowedInGroupBy()
+      })
+
+    // Distribution has no scalar per-group value, so it is footer-only.
+    expect(allowed.distribution).toBe(false)
+    // Scalar aggregations remain available per group.
+    expect(allowed.sum).toBe(true)
+    expect(allowed.not_empty_count).toBe(true)
   })
 })

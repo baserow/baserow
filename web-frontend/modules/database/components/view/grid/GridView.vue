@@ -45,6 +45,8 @@
             database.workspace.id
           ))
       "
+      :focus-entries-by-cell="focusEntriesByCell"
+      :focus-entries-by-row="focusEntriesByRow"
       :store-prefix="storePrefix"
       :style="{ width: leftWidth + 'px' }"
       @refresh="$emit('refresh', $event)"
@@ -67,6 +69,7 @@
       @selected="selectedCell"
       @unselected="unselectedCell"
       @select-next="selectNextCell"
+      @editing-changed="cellEditingChanged"
       @edit-modal="openRowEditModal($event)"
       @refresh-row="refreshRow"
       @scroll="scroll($event.pixelY, 0)"
@@ -124,6 +127,8 @@
             database.workspace.id
           ))
       "
+      :focus-entries-by-cell="focusEntriesByCell"
+      :focus-entries-by-row="focusEntriesByRow"
       :store-prefix="storePrefix"
       :style="{ left: leftWidth + 'px' }"
       @refresh="$emit('refresh', $event)"
@@ -145,6 +150,7 @@
       @selected="selectedCell"
       @unselected="unselectedCell"
       @select-next="selectNextCell"
+      @editing-changed="cellEditingChanged"
       @edit-modal="openRowEditModal($event)"
       @refresh-row="refreshRow"
       @scroll="scroll($event.pixelY, $event.pixelX)"
@@ -329,6 +335,11 @@ import viewDecoration from '@baserow/modules/database/mixins/viewDecoration'
 import { populateRow } from '@baserow/modules/database/store/view/grid'
 import { clone } from '@baserow/modules/core/utils/object'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
+import {
+  createPresenceFocusSender,
+  isUserPresenceEnabled,
+  resolvePresencePageParams,
+} from '@baserow/modules/database/utils/presence'
 import GridViewRowsAddContext from '@baserow/modules/database/components/view/grid/fields/GridViewRowsAddContext'
 import GridRowContextItems from '@baserow/modules/database/components/view/grid/GridRowContextItems'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
@@ -396,12 +407,31 @@ export default {
       // submitting multiple refresh requests at the same time.
       refreshingRow: false,
       resizeObserver: null,
+      presenceSpaceName: null,
     }
   },
   computed: {
     ...mapGetters({
       row: 'rowModalNavigation/getRow',
     }),
+    focusEntriesByCell() {
+      if (!this.presenceSpaceName) return new Map()
+      return this.$store.getters['presence/getFocusEntriesByCell'](
+        this.presenceSpaceName
+      )
+    },
+    focusEntriesByRow() {
+      if (!this.presenceSpaceName) return new Map()
+      return this.$store.getters['presence/getFocusEntriesByRow'](
+        this.presenceSpaceName
+      )
+    },
+    hasOtherPresenceMembers() {
+      if (!this.presenceSpaceName) return false
+      const spaceData =
+        this.$store.state.presence.spaces[this.presenceSpaceName]
+      return spaceData ? Object.keys(spaceData.members).length > 0 : false
+    },
     /**
      * Returns all visible fields no matter in what section they
      * belong.
@@ -581,6 +611,11 @@ export default {
         if (right) right.scrollTop = 0
       })
     },
+    hasOtherPresenceMembers(hasMembers) {
+      if (hasMembers && this.presenceFocus) {
+        this.presenceFocus.reemitLastFocus()
+      }
+    },
     'view.frozen_column_count'() {
       // When the frozen column count changes (e.g. real-time sync from another
       // user), recalculate the viewport fit and update scrollbars. Use $nextTick
@@ -597,6 +632,11 @@ export default {
           ) {
             this.populateAndEditRow(newRow)
           } else if (prevRow !== null && newRow === null) {
+            // hide(false) suppresses the `hidden` event, which is the modal's
+            // only presence cleanup path, so the remote focus entry must be
+            // cleared explicitly first.
+            this.$refs.rowEditModal.clearPresenceFocus()
+            this._restorePresenceFocusAfterRowModal()
             // Pass emit=false as argument into the hide function because that will
             // prevent emitting another `hidden` event of the `RowEditModal` which can
             // result in the route changing twice.
@@ -655,8 +695,32 @@ export default {
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
     }
+
+    if (isUserPresenceEnabled(this)) {
+      const { page, params, spaceName, focusEnabled } =
+        resolvePresencePageParams(
+          this.$registry,
+          this.database,
+          this.table,
+          this.view
+        )
+      this.presenceSpaceName = spaceName
+      if (focusEnabled) {
+        this.presenceFocus = createPresenceFocusSender(
+          this.$realtime,
+          page,
+          params,
+          { hasOtherMembers: () => this.hasOtherPresenceMembers }
+        )
+      }
+    }
   },
   beforeUnmount() {
+    if (this.presenceFocus) {
+      this.presenceFocus.clearFocus()
+      this.presenceFocus.destroy()
+      this.presenceFocus = null
+    }
     if (this.resizeObserver !== null) {
       this.resizeObserver.disconnect()
       this.resizeObserver = null
@@ -1226,6 +1290,7 @@ export default {
      */
     rowEditModalHidden({ row }) {
       this.$emit('selected-row', undefined)
+      this._restorePresenceFocusAfterRowModal()
 
       // It could be that the row is not in the buffer anymore and in that case we also
       // don't need to refresh the row.
@@ -1284,6 +1349,7 @@ export default {
         row,
         field,
       })
+      this._emitPresenceCellFocus(row.id, field.id)
     },
     /**
      * This function helps the store determine whether it is safe to hide a row. Since
@@ -1334,6 +1400,13 @@ export default {
             isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
+
+        if (
+          this.selectedCellComponents.length === 0 &&
+          !this.$store.getters['rowModalNavigation/getRow']
+        ) {
+          this._clearPresenceFocus()
+        }
       })
     },
     /**
@@ -1395,6 +1468,7 @@ export default {
       })
 
       this.scrollToGroupByRowIfNeeded(nextRowId, field)
+      this._emitPresenceCellFocus(nextRowId, nextFieldId)
     },
     /**
      * The group-by canvas only renders rows inside the viewport, so a cell selected
@@ -1521,6 +1595,13 @@ export default {
      * outside of GridViewRows.
      */
     cancelMultiSelectIfActive(event) {
+      // A click inside a context menu (e.g. the row "Select row" action) is a
+      // deliberate grid action, not a click outside, so it must not clear the
+      // selection that action just made.
+      if (event.target.closest?.('.context__menu')) {
+        return
+      }
+
       const selectionType =
         this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
 
@@ -1894,6 +1975,35 @@ export default {
         { fields: this.fields }
       )
       return fieldsAndRows[1]
+    },
+    _emitPresenceCellFocus(rowId, fieldId, editing = false) {
+      if (this.presenceFocus) {
+        this.presenceFocus.emitCellFocus(rowId, fieldId, editing)
+      }
+    },
+    _clearPresenceFocus() {
+      if (this.presenceFocus) {
+        this.presenceFocus.clearFocus()
+      }
+    },
+    /**
+     * Reconciles the grid sender's focus after the row edit modal closes: if
+     * a cell is still selected its focus becomes the shared remote entry
+     * again, otherwise any focus this sender transmitted is cleared.
+     * clearFocus only sends when this sender actually transmitted something,
+     * so it is correct whether or not the modal's own sender already cleared
+     * the shared entry (e.g. its sends were gated because the user was
+     * alone).
+     */
+    _restorePresenceFocusAfterRowModal() {
+      if (this.selectedCellComponents.length > 0) {
+        this.presenceFocus?.reemitLastFocus()
+      } else {
+        this.presenceFocus?.clearFocus()
+      }
+    },
+    cellEditingChanged({ row, field, editing }) {
+      this._emitPresenceCellFocus(row.id, field.id, editing)
     },
   },
 }
