@@ -1,6 +1,7 @@
 import Markdown from 'markdown-it'
 import taskLists from 'markdown-it-task-lists'
 import { parseMention } from '@baserow/modules/core/editor/mention'
+import { blankLinePreservation } from '@baserow/modules/core/editor/emptyParagraphPreservation'
 
 export const parseMarkdown = (
   value,
@@ -66,5 +67,12 @@ export const parseMarkdown = (
   // mentions
   md.use(parseMention(workspaceUsers || [], loggedUserId))
 
-  return md.render(value || '')
+  // blank line preservation
+  md.use(blankLinePreservation)
+
+  let html = md.render(value || '')
+  // Empty paragraphs from blankLinePreservation render as zero-height
+  // <p></p>. Replace with <br> for consistent visual spacing.
+  html = html.replace(/<p><\/p>/g, '<br>')
+  return html
 }

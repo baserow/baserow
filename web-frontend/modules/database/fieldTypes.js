@@ -25,6 +25,7 @@ import {
 
 import moment from '@baserow/modules/core/moment'
 import guessFormat from 'moment-guess'
+import { padBlankLinesForMarkdown } from '@baserow/modules/core/editor/emptyParagraphPreservation'
 import { Registerable } from '@baserow/modules/core/registry'
 import { mix } from '@baserow/modules/core/mixins'
 import FieldNumberSubForm from '@baserow/modules/database/components/field/FieldNumberSubForm'
@@ -1378,6 +1379,14 @@ export class LongTextFieldType extends FieldType {
 
   getCanGroupByInView(field) {
     return !field.long_text_enable_rich_text
+  }
+
+  prepareValueForPaste(field, clipboardData, richClipboardData) {
+    if (richClipboardData != null) return richClipboardData
+    if (field.long_text_enable_rich_text && clipboardData?.includes('\n\n')) {
+      return padBlankLinesForMarkdown(clipboardData)
+    }
+    return clipboardData
   }
 
   canHaveDbIndex(fieldValues) {

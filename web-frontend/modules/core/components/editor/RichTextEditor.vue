@@ -72,6 +72,10 @@ import { Markdown } from 'tiptap-markdown'
 import RichTextEditorBubbleMenu from '@baserow/modules/core/components/editor/RichTextEditorBubbleMenu'
 import RichTextEditorFloatingMenu from '@baserow/modules/core/components/editor/RichTextEditorFloatingMenu'
 import { EnterStopEditExtension } from '@baserow/modules/core/editor/enterStopEditExtension'
+import {
+  ParagraphWithEmptyPreservation,
+  padBlankLinesForMarkdown,
+} from '@baserow/modules/core/editor/emptyParagraphPreservation'
 import { ScalableImage } from '@baserow/modules/core/editor/image'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
@@ -276,8 +280,12 @@ export default {
       }
     },
     getConfiguredExtensions() {
-      // Base extensions that are always enabled.
-      const extensions = [Document, Paragraph, Text, HardBreak]
+      // When rich text is on, use ParagraphWithEmptyPreservation so
+      // empty paragraphs survive the markdown round-trip.
+      const paragraphExt = this.enableRichTextFormatting
+        ? ParagraphWithEmptyPreservation
+        : Paragraph
+      const extensions = [Document, paragraphExt, Text, HardBreak]
 
       if (this.enableRichTextFormatting) {
         extensions.push(
@@ -334,6 +342,9 @@ export default {
               return true
             }
           },
+          transformPastedText: this.enableRichTextFormatting
+            ? (text) => padBlankLinesForMarkdown(text)
+            : undefined,
           handlePaste: (view, event) => {
             const plainText = event.clipboardData.getData('text/plain')
             if (plainText.startsWith('"') && plainText.endsWith('"')) {

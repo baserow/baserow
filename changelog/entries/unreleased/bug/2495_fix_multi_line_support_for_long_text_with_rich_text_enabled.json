@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix multi-line support for long text with rich text enabled",
+    "issue_origin": "github",
+    "issue_number": 2495,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-08"
+}
