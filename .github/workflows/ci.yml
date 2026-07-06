@@ -1394,7 +1394,7 @@ jobs:
           path: |
             .yarn-cache
             saas/node_modules
-          key: trigger-saas-yarn-${{ hashFiles('saas/yarn.lock') }}
+          key: trigger-saas-yarn-${{ github.sha }}-${{ hashFiles('saas/yarn.lock') }}
           restore-keys: trigger-saas-yarn-
 
       - name: Install just and yarn
