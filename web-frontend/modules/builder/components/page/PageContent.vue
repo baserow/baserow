@@ -1,5 +1,6 @@
 <template>
   <div class="page">
+    <!-- Sections are built by pagePlaceElementsMixin. -->
     <component
       :is="section.tag"
       v-for="section in visiblePageElementSections"

@@ -17,6 +17,7 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
+          <!-- Sections are built by pagePlaceElementsMixin. -->
           <template v-for="section in pageElementSections" :key="section.key">
             <div
               v-if="showSectionSeparator(section, 'before')"
