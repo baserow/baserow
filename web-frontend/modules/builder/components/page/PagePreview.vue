@@ -334,8 +334,8 @@ export default {
         ...section.classNames,
         ...(section.previewClassNames || []),
         {
-          [section.selectedClassName]:
-            section.selectedClassName &&
+          [section.selectedPreviewClassName]:
+            section.selectedPreviewClassName &&
             this.pageSectionWithSelectedElement === section.place,
         },
       ]

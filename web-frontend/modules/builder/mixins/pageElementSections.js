@@ -21,7 +21,7 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
     isFixed: false,
     tag: 'header',
     classNames: ['page__header'],
-    selectedClassName: 'page__header--element-selected',
+    selectedPreviewClassName: 'page__header--element-selected',
     separator: {
       label: 'pagePreview.header',
       position: 'after',
@@ -32,7 +32,7 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
     place: PAGE_PLACES.CONTENT,
     tag: 'div',
     classNames: ['page__content'],
-    selectedClassName: 'page__content--element-selected',
+    selectedPreviewClassName: 'page__content--element-selected',
   },
   {
     key: 'footer',
@@ -40,7 +40,7 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
     isFixed: false,
     tag: 'footer',
     classNames: ['page__footer'],
-    selectedClassName: 'page__footer--element-selected',
+    selectedPreviewClassName: 'page__footer--element-selected',
     separator: {
       label: 'pagePreview.footer',
       position: 'before',
