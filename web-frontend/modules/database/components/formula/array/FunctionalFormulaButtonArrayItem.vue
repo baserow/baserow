@@ -6,7 +6,7 @@
       size="tiny"
       type="secondary"
       class="forced-pointer-events-auto array-field__button-button"
-      :href="value && value.url"
+      :href="getHref(value)"
       target="_blank"
       rel="nofollow noopener noreferrer"
       @mousedown.stop

@@ -2,7 +2,7 @@
   <div>
     <Button
       v-if="isValid(value)"
-      :href="value && value.url"
+      :href="getHref(value)"
       tag="a"
       target="_blank"
       rel="nofollow noopener noreferrer"

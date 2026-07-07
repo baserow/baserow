@@ -26,12 +26,30 @@ export function addQueryParamsToRedirectUrl(url, params) {
   return parsedUrl.toString()
 }
 
+const SAFE_URL_PROTOCOLS = [
+  'http:',
+  'https:',
+  'ftp:',
+  'ftps:',
+  'mailto:',
+  'tel:',
+]
+
+export function getUrlScheme(value) {
+  // Strip chars browsers ignore, so `java\tscript:` still reads as `javascript:`.
+  // eslint-disable-next-line no-control-regex
+  const stripped = String(value ?? '').replace(/[\x00-\x20]/g, '')
+  const match = stripped.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/)
+  return match ? `${match[1].toLowerCase()}:` : null
+}
+
 export function ensureUrlProtocol(value) {
-  const protocolRegex = /^[a-zA-Z]+:\/\//
-  if (!protocolRegex.test(value)) {
-    return `https://${value}`
+  const scheme = getUrlScheme(value)
+  if (scheme && SAFE_URL_PROTOCOLS.includes(scheme)) {
+    return value
   }
-  return value
+  // Force https so an unsafe scheme (javascript:, data:) can't execute as a URI.
+  return `https://${value}`
 }
 
 /**

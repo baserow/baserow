@@ -7,7 +7,7 @@
         size="tiny"
         type="secondary"
         rel="nofollow noopener noreferrer"
-        :href="value && value.url"
+        :href="getHref(value)"
         target="_blank"
       >
         {{ getLabelOrURL(value) }}

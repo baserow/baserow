@@ -9,6 +9,7 @@ import {
 } from '@baserow/modules/database/utils/duration'
 import {
   collatedStringCompare,
+  escapeHtml,
   getFilenameFromUrl,
   isInteger,
   isSimplePhoneNumber,
@@ -3853,7 +3854,9 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
           // @TODO move this template to a component.
           `<div class="select-options-listing">
               <div class="select-options-listing__id">${option.id}</div>
-              <div class="select-options-listing__value background-color--${option.color}">${option.value}</div>
+              <div class="select-options-listing__value background-color--${escapeHtml(
+                option.color
+              )}">${escapeHtml(option.value)}</div>
            </div>
           `
       )
@@ -4151,7 +4154,9 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
           // @TODO move this template to a component.
           `<div class="select-options-listing">
               <div class="select-options-listing__id">${option.id}</div>
-              <div class="select-options-listing__value background-color--${option.color}">${option.value}</div>
+              <div class="select-options-listing__value background-color--${escapeHtml(
+                option.color
+              )}">${escapeHtml(option.value)}</div>
            </div>
           `
       )

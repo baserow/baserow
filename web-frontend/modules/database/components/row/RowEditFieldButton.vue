@@ -5,7 +5,7 @@
       tag="a"
       size="tiny"
       type="secondary"
-      :href="copy && copy.url"
+      :href="getHref(copy)"
       target="_blank"
       rel="nofollow noopener noreferrer"
     >

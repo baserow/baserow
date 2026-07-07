@@ -744,6 +744,34 @@ describe('FieldType tests', () => {
   afterEach(() => {
     testApp.afterEach()
   })
+
+  test.each([
+    { name: 'single select', FieldType: SingleSelectFieldType },
+    { name: 'multiple select', FieldType: MultipleSelectFieldType },
+  ])(
+    'getDocsDescription escapes HTML in $name option value and color',
+    ({ FieldType }) => {
+      const fieldType = new FieldType({ app: testApp._app })
+      const field = {
+        select_options: [
+          {
+            id: 1,
+            value: '<img src=x onerror=alert(1)>',
+            color: '"><img src=x onerror=alert(2)>',
+          },
+        ],
+      }
+
+      const description = fieldType.getDocsDescription(field)
+
+      expect(description).not.toContain('<img')
+      expect(description).toContain('&lt;img src=x onerror=alert(1)&gt;')
+      expect(description).toContain(
+        '&quot;&gt;&lt;img src=x onerror=alert(2)&gt;'
+      )
+    }
+  )
+
   test.each(valuesToCall)(
     'Verify that calling prepareValueForCopy will not throw when value is %s',
     (valueType) => {

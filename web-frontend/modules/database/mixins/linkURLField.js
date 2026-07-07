@@ -14,7 +14,7 @@ export default {
       }
     },
     getHref(value) {
-      return ensureUrlProtocol(value)
+      return value?.url ? ensureUrlProtocol(value.url) : undefined
     },
   },
 }
