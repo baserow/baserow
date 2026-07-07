@@ -26,7 +26,7 @@ def no_url_validation(value):
 
     if CONTROL_CHARS_REGEX.search(value) or URL_LIKE_NAME_REGEX.search(value):
         raise serializers.ValidationError(
-            "Names can't contain URLs, domains or control characters.",
+            "Names can't contain links, domains or web addresses.",
             code="invalid_name",
         )
 
