@@ -73,7 +73,8 @@
         "notSynced": "non synchronisé",
         "lastSynced": "Dernière synchronisation",
         "sync": "Synchroniser la table",
-        "updateSyncConfig": "Mettre à jour la configuration de la synchronisation"
+        "updateSyncConfig": "Mettre à jour la configuration de la synchronisation",
+        "importFile": "Importer un fichier"
     },
     "apiToken": {
         "create": "créer",
