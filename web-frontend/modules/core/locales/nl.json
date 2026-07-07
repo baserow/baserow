@@ -1308,5 +1308,8 @@
         "confirmation": "Weet je zeker dat je tweefactorauthenticatie voor {name} wilt verwijderen?",
         "comment": "Deze gebruiker kan dan inloggen met alleen een wachtwoord en kan daarna tweefactorauthenticatie opnieuw instellen.",
         "remove": "Tweefactorauthenticatie verwijderen"
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "Werkruimtenaam niet toegestaan"
     }
 }
