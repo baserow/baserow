@@ -5,6 +5,12 @@
   align-items: stretch;
 }
 
+@media (min-width: 768px) {
+  .column-element--public.column-element--stack-desktop {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (min-width: 421px) and (max-width: 768px) {
   .column-element--public.column-element--stack-tablet {
     grid-template-columns: 1fr !important;
