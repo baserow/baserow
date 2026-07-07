@@ -1922,6 +1922,23 @@ describe('elementTypes tests', () => {
       ).not.toBeNull()
     })
 
+    test('normal and fixed headers resolve to different page sections', () => {
+      const headerType = testApp.$registry.get('element', 'header')
+
+      expect(
+        headerType.getPageSection({
+          type: 'header',
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+        })
+      ).toBe('header')
+      expect(
+        headerType.getPageSection({
+          type: 'header',
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+        })
+      ).toBe('fixed-header')
+    })
+
     test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {
       // The empty content drop zone supplies referencePagePlace=content via
       // targetPagePlace, which must keep a header out of the content zone.
@@ -2176,6 +2193,23 @@ describe('elementTypes tests', () => {
           referencePagePlace: 'footer',
         })
       ).not.toBeNull()
+    })
+
+    test('normal and fixed footers resolve to different page sections', () => {
+      const footerType = testApp.$registry.get('element', 'footer')
+
+      expect(
+        footerType.getPageSection({
+          type: 'footer',
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+        })
+      ).toBe('footer')
+      expect(
+        footerType.getPageSection({
+          type: 'footer',
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+        })
+      ).toBe('fixed-footer')
     })
 
     test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {

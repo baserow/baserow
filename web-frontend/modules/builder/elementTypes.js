@@ -179,6 +179,18 @@ export class ElementType extends Registerable {
   }
 
   /**
+   * Returns the page section where an element is rendered. This is the same as
+   * the page place by default, but element types can split a place into smaller
+   * sections using instance properties.
+   *
+   * @param {Object} element
+   * @returns {string}
+   */
+  getPageSection(element = null) {
+    return this.getPagePlace()
+  }
+
+  /**
    * Returns the reason why this element type is disallowed for the given location.
    * @param {Object} builder the current builder object
    * @param {Object} page the current page
@@ -2304,6 +2316,13 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     return PAGE_PLACES.HEADER
   }
 
+  getPageSection(element = null) {
+    const pagePlace = this.getPagePlace()
+    return element?.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+      ? `${PAGE_ELEMENT_BEHAVIOURS.FIXED}-${pagePlace}`
+      : pagePlace
+  }
+
   getDefaultChildValues(page, values) {
     return {}
   }
@@ -2347,11 +2366,17 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
       if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
       }
-      if (
-        referenceElement &&
-        element?.behaviour !== referenceElement.behaviour
-      ) {
-        return this.app.$i18n.t('elementType.notAllowedLocation')
+      if (referenceElement) {
+        const referenceElementType = this.app.$registry.get(
+          'element',
+          referenceElement.type
+        )
+        if (
+          this.getPageSection(element) !==
+          referenceElementType.getPageSection(referenceElement)
+        ) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
       }
       return null
     }
@@ -2457,11 +2482,17 @@ export class FooterElementType extends HeaderElementType {
       if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
       }
-      if (
-        referenceElement &&
-        element?.behaviour !== referenceElement.behaviour
-      ) {
-        return this.app.$i18n.t('elementType.notAllowedLocation')
+      if (referenceElement) {
+        const referenceElementType = this.app.$registry.get(
+          'element',
+          referenceElement.type
+        )
+        if (
+          this.getPageSection(element) !==
+          referenceElementType.getPageSection(referenceElement)
+        ) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
       }
       return null
     }

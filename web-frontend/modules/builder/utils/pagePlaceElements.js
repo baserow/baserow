@@ -24,28 +24,18 @@ export function groupElementsByPagePlace(
   registry,
   places = Object.values(PAGE_PLACES)
 ) {
-  const groupedElements = places.map((place) => ({
-    place,
-    elements: [],
-  }))
-  const groupedElementsByPlace = groupedElements.reduce((acc, section) => {
-    acc[section.place] = section
-    return acc
-  }, {})
-
-  elements.forEach((element) => {
-    const place = registry.get('element', element.type).getPagePlace()
-    const section = groupedElementsByPlace[place]
-
-    if (!section) {
-      return
-    }
-
-    section.elements.push({
+  const elementEntries = elements
+    .map((element) => ({
+      place: registry.get('element', element.type).getPagePlace(),
       element,
       isFixed: element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED,
-    })
-  })
+    }))
+    .filter(({ place }) => places.includes(place))
 
-  return groupedElements
+  return places.map((place) => ({
+    place,
+    elements: elementEntries
+      .filter((elementEntry) => elementEntry.place === place)
+      .map(({ element, isFixed }) => ({ element, isFixed })),
+  }))
 }
