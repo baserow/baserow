@@ -48,4 +48,55 @@ describe('ElementGraphHandler.getOrderedElements', () => {
 
     expect(ordered.map((el) => el.id).sort()).toEqual([5, 6])
   })
+
+  test('skips filtered elements without hiding following root elements', () => {
+    const page = makePage(
+      {
+        0: 1,
+        1: { children: { '': [2] }, next: { '': [4] } },
+        2: {},
+        4: {},
+      },
+      [4]
+    )
+
+    const ordered = new ElementGraphHandler(page).getOrderedElements()
+
+    expect(ordered.map((el) => el.id)).toEqual([4])
+  })
+})
+
+describe('ElementGraphHandler.getChildren', () => {
+  test('skips filtered children without hiding following siblings', () => {
+    const page = makePage(
+      {
+        0: 1,
+        1: { children: { '0': [2] } },
+        2: { next: { '': [3] } },
+        3: {},
+      },
+      [1, 3]
+    )
+
+    const children = new ElementGraphHandler(page).getChildren({ id: 1 })
+
+    expect(children.map((el) => el.id)).toEqual([3])
+  })
+
+  test('skips descendants of filtered children', () => {
+    const page = makePage(
+      {
+        0: 1,
+        1: { children: { '0': [2] } },
+        2: { children: { '': [3] }, next: { '': [4] } },
+        3: {},
+        4: {},
+      },
+      [1, 3, 4]
+    )
+
+    const children = new ElementGraphHandler(page).getChildren({ id: 1 })
+
+    expect(children.map((el) => el.id)).toEqual([4])
+  })
 })

@@ -31,15 +31,18 @@ export default class ElementGraphHandler extends BaseGraphHandler {
 
   // Follows next[''] chains within each slot (all children at every depth within slots).
   getChildren(targetElement) {
-    return super.getChildren(targetElement, { followChains: true })
+    const children = this._getChildrenAsDict(this.getInfo(targetElement)?.children)
+    return Object.values(children).flatMap((headIds) =>
+      this._getPresentElementsInChain(headIds[0])
+    )
   }
 
   // Returns the chain of children in a specific container slot.
   getChildrenInPlace(containerElement, place) {
-    return super.getChildren(containerElement, {
-      slot: place,
-      followChains: true,
-    })
+    const children = this._getChildrenAsDict(
+      this.getInfo(containerElement)?.children
+    )
+    return this._getPresentElementsInChain(children[place]?.[0])
   }
 
   // Returns elements following this element on the default next edge.
@@ -57,11 +60,14 @@ export default class ElementGraphHandler extends BaseGraphHandler {
       while (currentId && !visited.has(currentId)) {
         visited.add(currentId)
         const el = this.getElement(currentId)
-        if (el) result.push(el)
         const info = this.graph[currentId]
         if (!info) break
 
-        if (info.children) {
+        if (el) {
+          result.push(el)
+        }
+
+        if (el && info.children) {
           for (const place of Object.keys(info.children).sort()) {
             const firstChildId = (info.children[place] || [])[0]
             if (firstChildId) visitChain(firstChildId)
@@ -85,6 +91,21 @@ export default class ElementGraphHandler extends BaseGraphHandler {
       }
     }
 
+    return result
+  }
+
+  _getPresentElementsInChain(firstId) {
+    const result = []
+    const visited = new Set()
+    let currentId = firstId
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId)
+      const element = this.getElement(currentId)
+      if (element) {
+        result.push(element)
+      }
+      currentId = this.graph[currentId]?.next?.['']?.[0] ?? null
+    }
     return result
   }
 
