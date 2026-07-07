@@ -127,7 +127,9 @@
         "alreadyInUse": "Deze veldnaam is al in gebruik.",
         "invalidCharacters": "Dit veld bevat ongeldige tekens.",
         "decimalField": "Het veld moet een decimaal zijn.",
-        "copyFailed": "Kopiëren naar klembord mislukt. Probeer het opnieuw."
+        "copyFailed": "Kopiëren naar klembord mislukt. Probeer het opnieuw.",
+        "nameContainsUrl": "Namen mogen geen links, domeinnamen of webadressen bevatten.",
+        "nameCantBeEmail": "Vul hier je naam in, niet je e-mailadres."
     },
     "permission": {
         "admin": "Beheerder",
