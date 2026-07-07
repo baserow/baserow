@@ -20,6 +20,7 @@ from baserow.contrib.database.fields.tasks import (
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.core.cache import local_cache
+from baserow.core.models import Workspace
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -259,6 +260,93 @@ def test_update_workspace_periodic_fields_records_histogram(data_fixture, settin
             _update_workspace_periodic_fields(workspace.id)
 
     hist.record.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_dispatches_stalest_first(data_fixture, settings):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    user = data_fixture.create_user()
+
+    with freeze_time("2023-02-27 09:00"):
+        ws_a = data_fixture.create_workspace(user=user)
+        create_table_with_row_in_workspace(data_fixture, ws_a)
+        ws_b = data_fixture.create_workspace(user=user)
+        create_table_with_row_in_workspace(data_fixture, ws_b)
+        ws_c = data_fixture.create_workspace(user=user)
+        create_table_with_row_in_workspace(data_fixture, ws_c)
+
+    # b is the most out-of-date, then a, then c
+    Workspace.objects.filter(id=ws_a.id).update(
+        now=datetime(2023, 2, 27, 8, 0, tzinfo=timezone.utc)
+    )
+    Workspace.objects.filter(id=ws_b.id).update(
+        now=datetime(2023, 2, 27, 7, 0, tzinfo=timezone.utc)
+    )
+    Workspace.objects.filter(id=ws_c.id).update(
+        now=datetime(2023, 2, 27, 9, 0, tzinfo=timezone.utc)
+    )
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks."
+            "update_workspace_periodic_fields.delay"
+        ) as delay,
+        freeze_time("2023-02-27 10:00"),
+    ):
+        run_periodic_fields_updates()
+
+    dispatched_order = [call.args[0] for call in delay.call_args_list]
+    assert dispatched_order == [ws_b.id, ws_a.id, ws_c.id]
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_records_dispatch_metric(data_fixture, settings):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    _workspace_with_now_formula(data_fixture)
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks."
+            "periodic_field_update_dispatch_duration"
+        ) as hist,
+        patch(
+            "baserow.contrib.database.fields.tasks."
+            "update_workspace_periodic_fields.delay"
+        ),
+        freeze_time("2023-02-27 10:30"),
+    ):
+        run_periodic_fields_updates()
+
+    hist.record.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_update_workspace_periodic_fields_warns_when_slow(data_fixture, settings):
+    from loguru import logger
+
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    messages = []
+    sink_id = logger.add(messages.append, level="WARNING")
+    try:
+        # threshold 0 makes any duration count as slow
+        with (
+            patch(
+                "baserow.contrib.database.fields.tasks."
+                "SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS",
+                0,
+            ),
+            freeze_time("2023-02-27 10:30"),
+            local_cache.context(),
+        ):
+            _update_workspace_periodic_fields(workspace.id)
+    finally:
+        logger.remove(sink_id)
+
+    slow_logs = [m for m in messages if "took" in str(m)]
+    assert len(slow_logs) == 1
+    assert str(workspace.id) in str(slow_logs[0])
 
 
 @pytest.mark.django_db
