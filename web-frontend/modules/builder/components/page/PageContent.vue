@@ -1,11 +1,13 @@
 <template>
   <div class="page">
-    <div
-      v-if="fixedHeaderElements.length !== 0"
-      class="page__fixed-stack page__fixed-stack--top"
+    <component
+      :is="section.tag"
+      v-for="section in visiblePageElementSections"
+      :key="section.key"
+      :class="section.classNames"
     >
       <PageElement
-        v-for="element in fixedHeaderElements"
+        v-for="element in section.elements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -14,58 +16,7 @@
           recordIndexPath: [],
         }"
       />
-    </div>
-    <header v-if="normalHeaderElements.length !== 0" class="page__header">
-      <PageElement
-        v-for="element in normalHeaderElements"
-        :key="element.id"
-        :element="element"
-        :mode="mode"
-        :application-context-additions="{
-          page: currentPage,
-          recordIndexPath: [],
-        }"
-      />
-    </header>
-    <div class="page__content">
-      <PageElement
-        v-for="element in elements"
-        :key="element.id"
-        :element="element"
-        :mode="mode"
-        :application-context-additions="{
-          page: currentPage,
-          recordIndexPath: [],
-        }"
-      />
-    </div>
-    <footer v-if="normalFooterElements.length !== 0" class="page__footer">
-      <PageElement
-        v-for="element in normalFooterElements"
-        :key="element.id"
-        :element="element"
-        :mode="mode"
-        :application-context-additions="{
-          page: currentPage,
-          recordIndexPath: [],
-        }"
-      />
-    </footer>
-    <div
-      v-if="fixedFooterElements.length !== 0"
-      class="page__fixed-stack page__fixed-stack--bottom"
-    >
-      <PageElement
-        v-for="element in fixedFooterElements"
-        :key="element.id"
-        :element="element"
-        :mode="mode"
-        :application-context-additions="{
-          page: currentPage,
-          recordIndexPath: [],
-        }"
-      />
-    </div>
+    </component>
   </div>
 </template>
 
