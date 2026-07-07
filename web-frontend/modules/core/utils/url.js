@@ -48,6 +48,10 @@ export function ensureUrlProtocol(value) {
   if (scheme && SAFE_URL_PROTOCOLS.includes(scheme)) {
     return value
   }
+  // Protocol-relative URLs only need the scheme, not another `//`.
+  if (String(value).startsWith('//')) {
+    return `https:${value}`
+  }
   // Force https so an unsafe scheme (javascript:, data:) can't execute as a URI.
   return `https://${value}`
 }

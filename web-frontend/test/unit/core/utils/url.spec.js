@@ -146,8 +146,10 @@ describe('test url utils', () => {
       ['http://example.com', 'http://example.com'],
       ['https://example.com', 'https://example.com'],
       ['ftp://example.com/file.txt', 'ftp://example.com/file.txt'],
+      ['ftps://example.com/file.txt', 'ftps://example.com/file.txt'],
       ['mailto:a@b.com', 'mailto:a@b.com'],
       ['tel:+123456', 'tel:+123456'],
+      ['//cdn.example.com/lib.js', 'https://cdn.example.com/lib.js'],
     ])('keeps safe/relative URL %j -> %j', (input, expected) => {
       expect(ensureUrlProtocol(input)).toBe(expected)
     })
