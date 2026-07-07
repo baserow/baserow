@@ -69,7 +69,7 @@ export default {
     pageElementSections() {
       return PAGE_ELEMENT_SECTION_CONFIGS.map((section) => ({
         ...section,
-        elements: this.getPageSectionElements(section),
+        elements: this.getElementsForSection(section),
       }))
     },
     visiblePageElementSections() {
@@ -77,50 +77,22 @@ export default {
         (section) => section.elements.length !== 0
       )
     },
-    headerElementsSection() {
-      return this.getSharedElementSection(PAGE_PLACES.HEADER)
-    },
-    footerElementsSection() {
-      return this.getSharedElementSection(PAGE_PLACES.FOOTER)
-    },
-    fixedHeaderElements() {
-      return this.getSharedElementsForPlace(PAGE_PLACES.HEADER, true)
-    },
-    normalHeaderElements() {
-      return this.getSharedElementsForPlace(PAGE_PLACES.HEADER, false)
-    },
-    fixedFooterElements() {
-      return this.getSharedElementsForPlace(PAGE_PLACES.FOOTER, true)
-    },
-    normalFooterElements() {
-      return this.getSharedElementsForPlace(PAGE_PLACES.FOOTER, false)
-    },
   },
   methods: {
-    getSharedElementSection(place) {
-      return (
-        this.sharedElementsByPlace.find((section) => section.place === place) || {
-          place,
-          elements: [],
-        }
-      )
-    },
-    getPageSectionElements(section) {
+    getElementsForSection(section) {
       if (section.place === PAGE_PLACES.CONTENT) {
         return this.elements || []
       }
-      return this.getSharedElementsForPlace(section.place, section.isFixed)
+
+      return this.getEntriesForSharedPlace(section.place)
+        .filter((entry) => entry.isFixed === section.isFixed)
+        .map((entry) => entry.element)
     },
-    getSharedElementsForPlace(place, isFixed) {
-      return this.getElementsMatchingFixedState(
-        this.getSharedElementSection(place),
-        isFixed
+    getEntriesForSharedPlace(place) {
+      return (
+        this.sharedElementsByPlace.find((group) => group.place === place)
+          ?.elements || []
       )
-    },
-    getElementsMatchingFixedState(section, isFixed) {
-      return section.elements
-        .filter((elementEntry) => elementEntry.isFixed === isFixed)
-        .map((elementEntry) => elementEntry.element)
     },
   },
 }
