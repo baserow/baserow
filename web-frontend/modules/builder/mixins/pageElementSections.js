@@ -1,5 +1,5 @@
 import { PAGE_PLACES } from '@baserow/modules/builder/enums'
-import { getElementsPerPlace } from '@baserow/modules/builder/utils/pagePlaceElements'
+import { groupElementsByPagePlace } from '@baserow/modules/builder/utils/pagePlaceElements'
 
 const PAGE_ELEMENT_SECTION_CONFIGS = [
   {
@@ -63,13 +63,13 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
 
 export default {
   computed: {
-    elementsPerPlace() {
-      return getElementsPerPlace(this.sharedElements, this.$registry)
+    sharedElementsByPlace() {
+      return groupElementsByPagePlace(this.sharedElements, this.$registry)
     },
     pageElementSections() {
       return PAGE_ELEMENT_SECTION_CONFIGS.map((section) => ({
         ...section,
-        elements: this.getElementsForSection(section),
+        elements: this.getPageSectionElements(section),
       }))
     },
     visiblePageElementSections() {
@@ -78,43 +78,46 @@ export default {
       )
     },
     headerElementsSection() {
-      return this.getElementsSection(PAGE_PLACES.HEADER)
+      return this.getSharedElementSection(PAGE_PLACES.HEADER)
     },
     footerElementsSection() {
-      return this.getElementsSection(PAGE_PLACES.FOOTER)
+      return this.getSharedElementSection(PAGE_PLACES.FOOTER)
     },
     fixedHeaderElements() {
-      return this.getElementsByPlace(PAGE_PLACES.HEADER, true)
+      return this.getSharedElementsForPlace(PAGE_PLACES.HEADER, true)
     },
     normalHeaderElements() {
-      return this.getElementsByPlace(PAGE_PLACES.HEADER, false)
+      return this.getSharedElementsForPlace(PAGE_PLACES.HEADER, false)
     },
     fixedFooterElements() {
-      return this.getElementsByPlace(PAGE_PLACES.FOOTER, true)
+      return this.getSharedElementsForPlace(PAGE_PLACES.FOOTER, true)
     },
     normalFooterElements() {
-      return this.getElementsByPlace(PAGE_PLACES.FOOTER, false)
+      return this.getSharedElementsForPlace(PAGE_PLACES.FOOTER, false)
     },
   },
   methods: {
-    getElementsSection(place) {
+    getSharedElementSection(place) {
       return (
-        this.elementsPerPlace.find((section) => section.place === place) || {
+        this.sharedElementsByPlace.find((section) => section.place === place) || {
           place,
           elements: [],
         }
       )
     },
-    getElementsForSection(section) {
+    getPageSectionElements(section) {
       if (section.place === PAGE_PLACES.CONTENT) {
         return this.elements || []
       }
-      return this.getElementsByPlace(section.place, section.isFixed)
+      return this.getSharedElementsForPlace(section.place, section.isFixed)
     },
-    getElementsByPlace(place, isFixed) {
-      return this.getElementsByFixedState(this.getElementsSection(place), isFixed)
+    getSharedElementsForPlace(place, isFixed) {
+      return this.getElementsMatchingFixedState(
+        this.getSharedElementSection(place),
+        isFixed
+      )
     },
-    getElementsByFixedState(section, isFixed) {
+    getElementsMatchingFixedState(section, isFixed) {
       return section.elements
         .filter((elementEntry) => elementEntry.isFixed === isFixed)
         .map((elementEntry) => elementEntry.element)

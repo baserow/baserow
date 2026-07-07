@@ -17,7 +17,7 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
-          <!-- Sections are built by pagePlaceElementsMixin. -->
+          <!-- Sections are built by pageElementSectionsMixin. -->
           <template v-for="section in pageElementSections" :key="section.key">
             <div
               v-if="showSectionSeparator(section, 'before')"
@@ -106,7 +106,7 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
-import pagePlaceElementsMixin from '@baserow/modules/builder/mixins/pagePlaceElements'
+import pageElementSectionsMixin from '@baserow/modules/builder/mixins/pageElementSections'
 
 export default {
   name: 'PagePreview',
@@ -118,7 +118,7 @@ export default {
     BuilderToasts,
     AddElementZone,
   },
-  mixins: [pagePlaceElementsMixin],
+  mixins: [pageElementSectionsMixin],
   inject: ['builder', 'currentPage', 'workspace'],
   provide() {
     return {

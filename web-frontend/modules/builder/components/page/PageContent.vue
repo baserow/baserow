@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <!-- Sections are built by pagePlaceElementsMixin. -->
+    <!-- Sections are built by pageElementSectionsMixin. -->
     <component
       :is="section.tag"
       v-for="section in visiblePageElementSections"
@@ -25,11 +25,11 @@
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import _ from 'lodash'
-import pagePlaceElementsMixin from '@baserow/modules/builder/mixins/pagePlaceElements'
+import pageElementSectionsMixin from '@baserow/modules/builder/mixins/pageElementSections'
 
 export default {
   components: { PageElement },
-  mixins: [dimensionMixin, pagePlaceElementsMixin],
+  mixins: [dimensionMixin, pageElementSectionsMixin],
   inject: ['builder', 'mode', 'currentPage'],
   props: {
     path: {
