@@ -1568,6 +1568,46 @@ describe('elementTypes tests', () => {
       expect(elementsAround.left).toBeNull()
       expect(elementsAround.right).toBeNull()
     })
+    test('for first fixed header ignores normal headers in the backend order.', async () => {
+      const fixedHeader1 = {
+        id: 115,
+        type: 'header',
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+      }
+      const fixedHeader2 = {
+        id: 116,
+        type: 'header',
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+      }
+
+      for (const [index, element] of [fixedHeader1, fixedHeader2].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page: sharedPage,
+          element: {
+            place_in_container: null,
+            ...element,
+            page_id: sharedPage.id,
+            order: `${index + 10}.0000`,
+          },
+        })
+      }
+
+      const elementType = testApp.$registry.get('element', 'header')
+      const storedFixedHeader1 = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], fixedHeader1.id)
+      const elementsAround = elementType.getElementsAround({
+        builder,
+        page,
+        element: storedFixedHeader1,
+        withSharedPage: false,
+      })
+
+      expect(elementsAround.before).toBeNull()
+      expect(elementsAround.after?.id).toEqual(fixedHeader2.id)
+      expect(elementsAround.left).toBeNull()
+      expect(elementsAround.right).toBeNull()
+    })
     test('for first footer.', () => {
       const elementType = testApp.$registry.get('element', 'footer')
       const firstFooter = testApp.$store.getters[
@@ -1613,6 +1653,46 @@ describe('elementTypes tests', () => {
       })
       expect(elementsAround.before?.id).toEqual(113)
       expect(elementsAround.after).toBeNull()
+      expect(elementsAround.left).toBeNull()
+      expect(elementsAround.right).toBeNull()
+    })
+    test('for first fixed footer ignores normal footers in the backend order.', async () => {
+      const fixedFooter1 = {
+        id: 117,
+        type: 'footer',
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+      }
+      const fixedFooter2 = {
+        id: 118,
+        type: 'footer',
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+      }
+
+      for (const [index, element] of [fixedFooter1, fixedFooter2].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page: sharedPage,
+          element: {
+            place_in_container: null,
+            ...element,
+            page_id: sharedPage.id,
+            order: `${index + 10}.0000`,
+          },
+        })
+      }
+
+      const elementType = testApp.$registry.get('element', 'footer')
+      const storedFixedFooter1 = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], fixedFooter1.id)
+      const elementsAround = elementType.getElementsAround({
+        builder,
+        page,
+        element: storedFixedFooter1,
+        withSharedPage: false,
+      })
+
+      expect(elementsAround.before).toBeNull()
+      expect(elementsAround.after?.id).toEqual(fixedFooter2.id)
       expect(elementsAround.left).toBeNull()
       expect(elementsAround.right).toBeNull()
     })

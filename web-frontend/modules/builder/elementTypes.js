@@ -662,6 +662,7 @@ export class ElementType extends Registerable {
   getElementsAround({ builder, page, element, withSharedPage = false }) {
     const elementType = this.app.$registry.get('element', element.type)
     const elementPlace = elementType.getPagePlace()
+    const elementSection = elementType.getPageSection(element)
 
     const elementPage = this.app.$store.getters['page/getById'](
       builder,
@@ -681,8 +682,9 @@ export class ElementType extends Registerable {
     ).filter(
       (sibling) =>
         Boolean(parentElement) ||
-        this.app.$registry.get('element', sibling.type).getPagePlace() ===
-          elementPlace
+        this.app.$registry
+          .get('element', sibling.type)
+          .getPageSection(sibling) === elementSection
     )
 
     const elementIndex = siblings.findIndex((e) => e.id === element.id)
