@@ -125,7 +125,9 @@
         "invalidURL": "Bitte geben Sie eine gültige URL ein.",
         "email": "Das Feld muss eine E-Mailadresse sein.",
         "alreadyInUse": "Dieser Feldname wird bereits verwendet.",
-        "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen. Bitte versuchen Sie es erneut."
+        "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        "nameContainsUrl": "Namen dürfen keine Links, Domains oder Webadressen enthalten.",
+        "nameCantBeEmail": "Bitte geben Sie Ihren Namen ein, nicht Ihre E-Mail-Adresse."
     },
     "permission": {
         "admin": "Administration",
