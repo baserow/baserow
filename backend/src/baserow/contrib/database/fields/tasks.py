@@ -11,7 +11,7 @@ from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from celery_singleton import Singleton
 from loguru import logger
-from opentelemetry import metrics, trace
+from opentelemetry import trace
 
 from baserow.config.celery import app
 from baserow.contrib.database.fields.periodic_field_update_handler import (
@@ -26,23 +26,6 @@ from baserow.core.models import Workspace
 from baserow.core.telemetry.utils import add_baserow_trace_attrs, baserow_trace
 
 tracer = trace.get_tracer(__name__)
-meter = metrics.get_meter(__name__)
-
-# How long it takes to update one workspace. The spread of these numbers tells us
-# whether the job is slow because of one big workspace or many small ones. We don't
-# tag it with the workspace id (that would make too many metric series); slow
-# workspaces are logged by id instead (see below).
-periodic_field_update_workspace_duration = meter.create_histogram(
-    name="baserow.periodic_field_update.workspace.duration",
-    description="Seconds spent updating periodic fields for a single workspace",
-    unit="s",
-)
-# How long the dispatcher takes to find the due workspaces and queue their tasks.
-periodic_field_update_dispatch_duration = meter.create_histogram(
-    name="baserow.periodic_field_update.dispatch.duration",
-    description="Seconds spent dispatching periodic field update tasks",
-    unit="s",
-)
 
 # Workspaces that take longer than this are logged by id so we can look into them.
 SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS = 60
@@ -109,32 +92,23 @@ def run_periodic_fields_updates(
             _update_workspace_periodic_fields(wid, update_now)
         return
 
-    started_at = time.monotonic()
+    if not ordered_ids:
+        return
+
     batch_count = max(1, settings.PERIODIC_FIELD_UPDATE_BATCH_COUNT)
-    batches = _split_into_batches(ordered_ids, batch_count)
+    batch_size = ceil(len(ordered_ids) / batch_count)
+    batches = list(itertools.batched(ordered_ids, batch_size))
     for batch_index, batch_ids in enumerate(batches):
         update_workspaces_periodic_fields.delay(
-            batch_ids, update_now, batch_index=batch_index
+            list(batch_ids), update_now, batch_index=batch_index
         )
 
-    elapsed = time.monotonic() - started_at
-    periodic_field_update_dispatch_duration.record(elapsed)
     logger.info(
         "run_periodic_fields_updates dispatched {count} workspace(s) across "
-        "{batches} batch(es) in {elapsed:.1f}s.",
+        "{batches} batch(es).",
         count=len(ordered_ids),
         batches=len(batches),
-        elapsed=elapsed,
     )
-
-
-def _split_into_batches(items: list, batch_count: int) -> list[list]:
-    """Splits ``items`` into at most ``batch_count`` contiguous, non-empty batches."""
-
-    if not items:
-        return []
-    batch_size = ceil(len(items) / batch_count)
-    return [list(batch) for batch in itertools.batched(items, batch_size)]
 
 
 def _collect_workspace_ids_needing_update(
@@ -274,7 +248,6 @@ def _update_workspace_periodic_fields(
         )
 
     elapsed = time.monotonic() - started_at
-    periodic_field_update_workspace_duration.record(elapsed)
     if elapsed >= SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS:
         logger.warning(
             "Periodic field update for workspace {workspace_id} took {elapsed:.1f}s.",

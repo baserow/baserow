@@ -11,7 +11,6 @@ from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
 )
 from baserow.contrib.database.fields.tasks import (
-    _split_into_batches,
     _update_workspace_periodic_fields,
     delete_mentions_marked_for_deletion,
     run_periodic_fields_updates,
@@ -216,17 +215,6 @@ def test_update_workspace_periodic_fields_updates_now_fields(data_fixture, setti
     )
 
 
-def test_split_into_batches():
-    # one batch by default keeps everything together, in order
-    assert _split_into_batches([1, 2, 3, 4, 5], 1) == [[1, 2, 3, 4, 5]]
-    # splits into contiguous, evenly sized (ceil) batches
-    assert _split_into_batches([1, 2, 3, 4, 5], 2) == [[1, 2, 3], [4, 5]]
-    assert _split_into_batches([1, 2, 3], 3) == [[1], [2], [3]]
-    # never returns more batches than items or any empty batch
-    assert _split_into_batches([1, 2], 5) == [[1], [2]]
-    assert _split_into_batches([], 3) == []
-
-
 @pytest.mark.django_db
 def test_run_periodic_fields_updates_splits_into_configured_batches(
     data_fixture, settings
@@ -281,20 +269,6 @@ def test_update_workspace_periodic_fields_skips_missing_workspace():
 
 
 @pytest.mark.django_db
-def test_update_workspace_periodic_fields_records_histogram(data_fixture, settings):
-    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
-    workspace = _workspace_with_now_formula(data_fixture)
-
-    with patch(
-        "baserow.contrib.database.fields.tasks.periodic_field_update_workspace_duration"
-    ) as hist:
-        with freeze_time("2023-02-27 10:30"), local_cache.context():
-            _update_workspace_periodic_fields(workspace.id)
-
-    hist.record.assert_called_once()
-
-
-@pytest.mark.django_db
 def test_run_periodic_fields_updates_dispatches_stalest_first(data_fixture, settings):
     settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
     user = data_fixture.create_user()
@@ -330,50 +304,6 @@ def test_run_periodic_fields_updates_dispatches_stalest_first(data_fixture, sett
     # default single batch keeps the most out-of-date workspaces first
     assert delay.call_count == 1
     assert delay.call_args_list[0].args[0] == [ws_b.id, ws_a.id, ws_c.id]
-
-
-@pytest.mark.django_db
-def test_run_periodic_fields_updates_records_dispatch_metric(data_fixture, settings):
-    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
-    _workspace_with_now_formula(data_fixture)
-
-    with (
-        patch(
-            "baserow.contrib.database.fields.tasks."
-            "periodic_field_update_dispatch_duration"
-        ) as hist,
-        patch(
-            "baserow.contrib.database.fields.tasks."
-            "update_workspaces_periodic_fields.delay"
-        ),
-        freeze_time("2023-02-27 10:30"),
-    ):
-        run_periodic_fields_updates()
-
-    hist.record.assert_called_once()
-
-
-@pytest.mark.django_db
-def test_run_periodic_fields_updates_inline_skips_dispatch_metric(
-    data_fixture, settings
-):
-    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
-    workspace = _workspace_with_now_formula(data_fixture)
-
-    # dispatch=False (management command) must not pollute the dispatch metric
-    with (
-        patch(
-            "baserow.contrib.database.fields.tasks."
-            "periodic_field_update_dispatch_duration"
-        ) as hist,
-        patch(
-            "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields"
-        ),
-        freeze_time("2023-02-27 10:30"),
-    ):
-        run_periodic_fields_updates(workspace_id=workspace.id, dispatch=False)
-
-    hist.record.assert_not_called()
 
 
 @pytest.mark.django_db
