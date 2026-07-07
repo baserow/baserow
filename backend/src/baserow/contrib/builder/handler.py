@@ -66,13 +66,16 @@ class BuilderHandler:
         expensive function call to get_builder_used_property_names().
         """
 
-        if user.is_anonymous or not hasattr(user, "role"):
-            # When the user is anonymous, only use the prefix + page ID.
-            role = ""
+        # Anonymous is the only actor that gets an empty auth segment, so an
+        # authenticated visitor can never share a key with an anonymous one -
+        # even with a blank or missing role. `getattr` guards actors (e.g. a
+        # Django User) that have no `role` attribute at all rather than raising.
+        if user.is_anonymous:
+            auth = ""
         else:
-            role = f"_{user.role}"
+            auth = f"_auth_{getattr(user, 'role', '')}"
 
-        return f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_{builder.id}{role}"
+        return f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_{builder.id}{auth}"
 
     @classmethod
     def invalidate_builder_public_properties_cache(cls, builder: Builder):

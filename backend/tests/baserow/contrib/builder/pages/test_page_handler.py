@@ -1,3 +1,7 @@
+from unittest.mock import MagicMock
+
+from django.contrib.auth.models import AnonymousUser
+
 import pytest
 
 from baserow.contrib.builder.domains.handler import DomainHandler
@@ -545,15 +549,43 @@ def test_get_page_public_records_cache_key():
     )
     assert (
         PageHandler.get_page_public_records_cache_key(123, user_with_role, "elements")
-        == "ab_public_page_123_admin_elements_records"
+        == "ab_public_page_123_auth_admin_elements_records"
     )
     user_without_role = UserSourceUser(None, None, 1, "username", "foo@bar.com")
     assert (
         PageHandler.get_page_public_records_cache_key(
             123, user_without_role, "elements"
         )
-        == "ab_public_page_123_elements_records"
+        == "ab_public_page_123_auth__elements_records"
     )
+
+
+def test_get_page_public_records_cache_key_anonymous_differs_from_blank_role():
+    # An authenticated visitor with a blank role must not share a cache key with an
+    # anonymous visitor, otherwise records restricted to logged-in users leak between
+    # the two audiences.
+    anonymous_user = AnonymousUser()
+    authenticated_blank_role = UserSourceUser(
+        None, None, 1, "username", "foo@bar.com", role=""
+    )
+
+    anonymous_key = PageHandler.get_page_public_records_cache_key(
+        123, anonymous_user, "elements"
+    )
+    authenticated_key = PageHandler.get_page_public_records_cache_key(
+        123, authenticated_blank_role, "elements"
+    )
+
+    assert anonymous_key != authenticated_key
+
+    # An authenticated actor without a `role` attribute at all (e.g. a Django
+    # User) must not raise and must still be keyed apart from anonymous.
+    roleless_authenticated = MagicMock(is_anonymous=False, spec=["is_anonymous"])
+    roleless_key = PageHandler.get_page_public_records_cache_key(
+        123, roleless_authenticated, "elements"
+    )
+
+    assert roleless_key != anonymous_key
 
 
 @pytest.mark.django_db

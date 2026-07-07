@@ -254,8 +254,12 @@ class PageHandler:
     ):
         """
         Generates the cache key used by the public elements, data sources and workflow
-        actions endpoints. If the `user` is authenticated, and they have a role, we will
-        include the role in the cache key.
+        actions endpoints. Anonymous and authenticated visitors always get separate
+        cache keys, and authenticated visitors are further separated by role.
+
+        Authenticated visitors without a role must not share a key with anonymous
+        visitors: they see different records (e.g. elements restricted to logged-in
+        users), so a shared key would leak one audience's records to the other.
 
         :param page_id: the ID of the public page being requested.
         :param user: the `UserSourceUser` performing the HTTP request.
@@ -264,8 +268,15 @@ class PageHandler:
         :return: the cache key.
         """
 
-        role = f"_{user.role}" if not user.is_anonymous and user.role else ""
-        return f"ab_public_page_{page_id}{role}_{record_name}_records"
+        # Anonymous is the only actor that gets an empty auth segment, so an
+        # authenticated visitor can never share a key with an anonymous one -
+        # even with a blank or missing role. `getattr` guards actors (e.g. a
+        # Django User) that have no `role` attribute at all rather than raising.
+        if user.is_anonymous:
+            auth = ""
+        else:
+            auth = f"_auth_{getattr(user, 'role', '')}"
+        return f"ab_public_page_{page_id}{auth}_{record_name}_records"
 
     def is_published_page(self, public_page_id: int) -> bool:
         """
