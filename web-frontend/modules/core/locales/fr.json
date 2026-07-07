@@ -1307,5 +1307,8 @@
         "confirmation": "Êtes-vous sûr de vouloir désactiver l'authentification à deux facteurs pour {name} ?",
         "comment": "Ils pourront se connecter en utilisant uniquement leur mot de passe, puis réactiver l'authentification à deux facteurs par la suite.",
         "remove": "Désactiver l'authentification à deux facteurs"
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "Nom du projet non autorisé"
     }
 }
