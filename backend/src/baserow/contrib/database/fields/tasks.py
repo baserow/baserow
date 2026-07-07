@@ -2,6 +2,7 @@ import itertools
 import time
 import traceback
 from datetime import datetime, timedelta, timezone
+from math import ceil
 from typing import Optional, Type
 
 from django.conf import settings
@@ -132,8 +133,8 @@ def _split_into_batches(items: list, batch_count: int) -> list[list]:
 
     if not items:
         return []
-    size = -(-len(items) // batch_count)  # ceil division
-    return [items[start : start + size] for start in range(0, len(items), size)]
+    batch_size = ceil(len(items) / batch_count)
+    return [list(batch) for batch in itertools.batched(items, batch_size)]
 
 
 def _collect_workspace_ids_needing_update(
