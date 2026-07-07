@@ -42,24 +42,6 @@ def get_application_user_usage_and_limit(
     return 0, None
 
 
-def get_application_user_login_limit(workspace: Workspace) -> Optional[int]:
-    """
-    Resolves the application user limit to enforce at login time for the given
-    workspace by asking the registered providers, highest order first. Returns the
-    first limit that a provider returns, or `None` when no provider enforces a hard
-    login limit for the current deployment.
-
-    :param workspace: The workspace the authenticating user belongs to.
-    :return: The login limit, or `None`.
-    """
-
-    for provider in _sorted_providers():
-        limit = provider.get_login_limit(workspace)
-        if limit is not None:
-            return limit
-    return None
-
-
 def check_application_user_limit(workspace: Workspace) -> None:
     """
     Sends an in-app notification to the workspace members when the application user
@@ -107,13 +89,18 @@ def notify_workspaces_approaching_application_user_limit() -> None:
 def raise_if_over_application_user_login_limit(user_source: UserSource, user) -> None:
     """
     Raises `ApplicationUserLimitReached` when the given user isn't allowed to
-    authenticate because the workspace enforces an application user login limit and
-    the user is past it, i.e. not amongst the first `limit` users (ordered by
-    creation) of the user source.
+    authenticate because a provider that enforces a hard application user login limit
+    considers the user over it.
+
+    The over-limit decision is delegated to the registered providers (highest order
+    first): the first provider that returns a non-`None` verdict decides. A provider
+    returning `None` doesn't enforce a hard login limit for the current deployment, so
+    the next provider is consulted; when none do, the login is allowed.
 
     :param user_source: The user source the user is authenticating against.
     :param user: The authenticated `UserSourceUser`.
-    :raises ApplicationUserLimitReached: When the user is past the limit.
+    :raises ApplicationUserLimitReached: When a provider considers the user over the
+        limit.
     """
 
     # Soft limit (the default): the limit is only used to notify workspace members,
@@ -121,16 +108,12 @@ def raise_if_over_application_user_login_limit(user_source: UserSource, user) ->
     if not settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED:
         return
 
-    workspace = user_source.application.workspace
-    if workspace is None:
+    for provider in _sorted_providers():
+        over_limit = provider.is_over_login_limit(user_source, user)
+        if over_limit is None:
+            continue
+        if over_limit:
+            raise ApplicationUserLimitReached(
+                "The application user limit has been reached."
+            )
         return
-
-    limit = get_application_user_login_limit(workspace)
-    if limit is None:
-        return
-
-    position = user_source.get_type().get_user_position(user_source, user)
-    if position is not None and position > limit:
-        raise ApplicationUserLimitReached(
-            "The application user limit has been reached."
-        )

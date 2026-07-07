@@ -5,6 +5,7 @@ from baserow.core.registry import Instance, Registry
 
 if TYPE_CHECKING:
     from baserow.core.models import Workspace
+    from baserow.core.user_sources.models import UserSource
 
 
 class ApplicationUserUsageProviderType(Instance, ABC):
@@ -52,6 +53,27 @@ class ApplicationUserUsageProviderType(Instance, ABC):
 
         :param workspace: The workspace the authenticating user belongs to.
         :return: The login limit, or `None`.
+        """
+
+        return None
+
+    def is_over_login_limit(self, user_source: "UserSource", user) -> Optional[bool]:
+        """
+        Returns whether the authenticating `user` is over this provider's hard
+        application user login limit, or `None` when this provider doesn't enforce a
+        hard login limit for the current deployment (so the next provider should be
+        consulted).
+
+        The over-limit decision lives here, rather than in the calling code, so that
+        each provider can count/rank users within its own limit scope (per-workspace
+        for SaaS, instance-wide for self-hosted) without the caller knowing where the
+        scope boundary is. Defaults to `None` so a provider only opts into hard login
+        enforcement when it overrides this.
+
+        :param user_source: The user source the user is authenticating against.
+        :param user: The authenticated `UserSourceUser`.
+        :return: `True`/`False` when this provider enforces a hard login limit, or
+            `None` when it doesn't.
         """
 
         return None
