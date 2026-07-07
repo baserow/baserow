@@ -1157,6 +1157,11 @@ BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = int(
 PERIODIC_FIELD_UPDATE_QUEUE_NAME = os.getenv(
     "BASEROW_PERIODIC_FIELD_UPDATE_QUEUE_NAME", "export"
 )
+# Number of tasks the periodic field update is split into. Defaults to 1 (a single
+# task, like the original job); raise it to spread the work across more workers.
+PERIODIC_FIELD_UPDATE_BATCH_COUNT = int(
+    os.getenv("BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT", 1)
+)
 
 BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES = int(
     os.getenv("BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES", 8)

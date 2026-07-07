@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-from django.core.cache import cache
 from django.test import override_settings
 
 import pytest
@@ -12,7 +11,7 @@ from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
 )
 from baserow.contrib.database.fields.tasks import (
-    WORKSPACE_UPDATE_LOCK_KEY,
+    _split_into_batches,
     _update_workspace_periodic_fields,
     delete_mentions_marked_for_deletion,
     run_periodic_fields_updates,
@@ -55,13 +54,13 @@ def test_run_periodic_fields_updates_dispatches_only_eligible_workspaces(
     with (
         patch(
             "baserow.contrib.database.fields.tasks."
-            "update_workspace_periodic_fields.delay"
+            "update_workspaces_periodic_fields.delay"
         ) as delay,
         freeze_time("2020-01-01 00:04"),
     ):
         run_periodic_fields_updates()
 
-    dispatched = {call.args[0] for call in delay.call_args_list}
+    dispatched = {wid for call in delay.call_args_list for wid in call.args[0]}
     assert workspace.id in dispatched
     assert workspace_2.id not in dispatched
 
@@ -74,7 +73,7 @@ def test_run_periodic_fields_updates_dispatch_false_runs_inline(data_fixture, se
     with (
         patch(
             "baserow.contrib.database.fields.tasks."
-            "update_workspace_periodic_fields.delay"
+            "update_workspaces_periodic_fields.delay"
         ) as delay,
         patch(
             "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields"
@@ -217,25 +216,58 @@ def test_update_workspace_periodic_fields_updates_now_fields(data_fixture, setti
     )
 
 
-@pytest.mark.django_db
-def test_update_workspace_periodic_fields_skips_when_locked(data_fixture, settings):
-    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
-    workspace = _workspace_with_now_formula(data_fixture)
+def test_split_into_batches():
+    # one batch by default keeps everything together, in order
+    assert _split_into_batches([1, 2, 3, 4, 5], 1) == [[1, 2, 3, 4, 5]]
+    # splits into contiguous, evenly sized (ceil) batches
+    assert _split_into_batches([1, 2, 3, 4, 5], 2) == [[1, 2, 3], [4, 5]]
+    assert _split_into_batches([1, 2, 3], 3) == [[1], [2], [3]]
+    # never returns more batches than items or any empty batch
+    assert _split_into_batches([1, 2], 5) == [[1], [2]]
+    assert _split_into_batches([], 3) == []
 
-    # hold the lock so the update should skip without touching the field types
-    held = cache.lock(
-        WORKSPACE_UPDATE_LOCK_KEY.format(workspace_id=workspace.id), timeout=60
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_splits_into_configured_batches(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    settings.PERIODIC_FIELD_UPDATE_BATCH_COUNT = 2
+    user = data_fixture.create_user()
+
+    with freeze_time("2023-02-27 09:00"):
+        ws_a = data_fixture.create_workspace(user=user)
+        create_table_with_row_in_workspace(data_fixture, ws_a)
+        ws_b = data_fixture.create_workspace(user=user)
+        create_table_with_row_in_workspace(data_fixture, ws_b)
+        ws_c = data_fixture.create_workspace(user=user)
+        create_table_with_row_in_workspace(data_fixture, ws_c)
+
+    Workspace.objects.filter(id=ws_a.id).update(
+        now=datetime(2023, 2, 27, 8, 0, tzinfo=timezone.utc)
     )
-    assert held.acquire(blocking=False) is True
-    try:
-        with patch(
+    Workspace.objects.filter(id=ws_b.id).update(
+        now=datetime(2023, 2, 27, 7, 0, tzinfo=timezone.utc)
+    )
+    Workspace.objects.filter(id=ws_c.id).update(
+        now=datetime(2023, 2, 27, 9, 0, tzinfo=timezone.utc)
+    )
+
+    with (
+        patch(
             "baserow.contrib.database.fields.tasks."
-            "_run_periodic_field_type_update_per_workspace"
-        ) as inner:
-            _update_workspace_periodic_fields(workspace.id)
-        inner.assert_not_called()
-    finally:
-        held.release()
+            "update_workspaces_periodic_fields.delay"
+        ) as delay,
+        freeze_time("2023-02-27 10:00"),
+    ):
+        run_periodic_fields_updates()
+
+    # 3 stalest-first workspaces split into 2 batches, each tagged with its index
+    assert delay.call_count == 2
+    assert delay.call_args_list[0].args[0] == [ws_b.id, ws_a.id]
+    assert delay.call_args_list[0].kwargs["batch_index"] == 0
+    assert delay.call_args_list[1].args[0] == [ws_c.id]
+    assert delay.call_args_list[1].kwargs["batch_index"] == 1
 
 
 @pytest.mark.django_db
@@ -289,14 +321,15 @@ def test_run_periodic_fields_updates_dispatches_stalest_first(data_fixture, sett
     with (
         patch(
             "baserow.contrib.database.fields.tasks."
-            "update_workspace_periodic_fields.delay"
+            "update_workspaces_periodic_fields.delay"
         ) as delay,
         freeze_time("2023-02-27 10:00"),
     ):
         run_periodic_fields_updates()
 
-    dispatched_order = [call.args[0] for call in delay.call_args_list]
-    assert dispatched_order == [ws_b.id, ws_a.id, ws_c.id]
+    # default single batch keeps the most out-of-date workspaces first
+    assert delay.call_count == 1
+    assert delay.call_args_list[0].args[0] == [ws_b.id, ws_a.id, ws_c.id]
 
 
 @pytest.mark.django_db
@@ -311,13 +344,36 @@ def test_run_periodic_fields_updates_records_dispatch_metric(data_fixture, setti
         ) as hist,
         patch(
             "baserow.contrib.database.fields.tasks."
-            "update_workspace_periodic_fields.delay"
+            "update_workspaces_periodic_fields.delay"
         ),
         freeze_time("2023-02-27 10:30"),
     ):
         run_periodic_fields_updates()
 
     hist.record.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_inline_skips_dispatch_metric(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    # dispatch=False (management command) must not pollute the dispatch metric
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks."
+            "periodic_field_update_dispatch_duration"
+        ) as hist,
+        patch(
+            "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields"
+        ),
+        freeze_time("2023-02-27 10:30"),
+    ):
+        run_periodic_fields_updates(workspace_id=workspace.id, dispatch=False)
+
+    hist.record.assert_not_called()
 
 
 @pytest.mark.django_db
