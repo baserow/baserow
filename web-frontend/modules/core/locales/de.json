@@ -1176,5 +1176,8 @@
         "confirmation": "Sind Sie sicher, dass Sie die Zwei-Faktor-Authentifizierung für {name} entfernen möchten?",
         "comment": "Der Benutzer kann sich dann nur mit seinem Passwort anmelden und die Zwei-Faktor-Authentifizierung anschließend erneut einrichten.",
         "remove": "Zwei-Faktor-Authentifizierung entfernen"
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "Workspace-Name nicht zulässig"
     }
 }
