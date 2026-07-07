@@ -9,6 +9,7 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
     tag: 'div',
     classNames: ['page__fixed-stack', 'page__fixed-stack--top'],
     previewClassNames: ['page__fixed-stack--header'],
+    selectedPreviewClassName: 'page__fixed-stack--element-selected',
     separator: {
       label: 'pagePreview.fixedHeader',
       position: 'after',
@@ -53,6 +54,7 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
     tag: 'div',
     classNames: ['page__fixed-stack', 'page__fixed-stack--bottom'],
     previewClassNames: ['page__fixed-stack--footer'],
+    selectedPreviewClassName: 'page__fixed-stack--element-selected',
     separator: {
       label: 'pagePreview.fixedFooter',
       position: 'before',

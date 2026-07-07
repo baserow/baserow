@@ -193,7 +193,7 @@ export default {
       }
       return this.$registry.get('element', this.elementSelected.type)
     },
-    pageSectionWithSelectedElement() {
+    pageElementSectionWithSelectedElement() {
       if (!this.elementSelected) {
         return null
       }
@@ -223,7 +223,7 @@ export default {
 
       return this.$registry
         .get('element', ancestorWithPagePlace.type)
-        .getPagePlace()
+        .getPageSection(ancestorWithPagePlace)
     },
     elementsAround() {
       if (!this.elementSelected) {
@@ -336,7 +336,7 @@ export default {
         {
           [section.selectedPreviewClassName]:
             section.selectedPreviewClassName &&
-            this.pageSectionWithSelectedElement === section.place,
+            this.pageElementSectionWithSelectedElement === section.key,
         },
       ]
     },

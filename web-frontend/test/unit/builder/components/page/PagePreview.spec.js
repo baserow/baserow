@@ -53,6 +53,8 @@ describe('PagePreview', () => {
   const mountComponent = async ({
     elements = [],
     sharedElements = [],
+    selectedElement = null,
+    ancestorsByElementId = {},
   } = {}) => {
     const currentPage = createPage({ elements })
     const sharedPage = createPage({
@@ -105,6 +107,19 @@ describe('PagePreview', () => {
                     }
                     return PAGE_PLACES.CONTENT
                   },
+                  getPageSection: (element) => {
+                    if (type === 'header') {
+                      return element?.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+                        ? 'fixed-header'
+                        : PAGE_PLACES.HEADER
+                    }
+                    if (type === 'footer') {
+                      return element?.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+                        ? 'fixed-footer'
+                        : PAGE_PLACES.FOOTER
+                    }
+                    return PAGE_PLACES.CONTENT
+                  },
                 }
               }
               return null
@@ -112,12 +127,25 @@ describe('PagePreview', () => {
           },
           $store: {
             getters: {
+              'element/getAncestors': (page, element, options = {}) => {
+                if (!element) {
+                  return []
+                }
+                const ancestors = [
+                  ...(options.includeSelf ? [element] : []),
+                  ...(ancestorsByElementId[element.id] || []),
+                ]
+                return options.predicate
+                  ? ancestors.filter(options.predicate)
+                  : ancestors
+              },
               'element/getChildren': () => [],
               'element/getClosestSiblingElement': () => null,
               'element/getElementById': () => null,
               'element/getRootElements': (page) => page.elements,
-              'element/getSelected': () => null,
-              'page/getById': () => currentPage,
+              'element/getSelected': () => selectedElement,
+              'page/getById': (builder, pageId) =>
+                builder.pages.find((page) => page.id === pageId),
               'page/getDeviceTypeSelected': 'desktop',
               'page/getSharedPage': () => sharedPage,
             },
@@ -304,5 +332,87 @@ describe('PagePreview', () => {
     expect(bottomStack.find('.page-preview__separator-label').text()).toBe(
       'pagePreview.fixedFooter'
     )
+  })
+
+  test('raises the fixed header section when a fixed header is selected', async () => {
+    const fixedHeader = createElement({
+      id: 44,
+      type: 'header',
+      page_id: 2,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const normalHeader = createElement({
+      id: 45,
+      type: 'header',
+      page_id: 2,
+    })
+    const { wrapper } = await mountComponent({
+      sharedElements: [fixedHeader, normalHeader],
+      selectedElement: fixedHeader,
+    })
+    const topStack = wrapper.find('.page__fixed-stack--top')
+    const header = wrapper.find('.page__header')
+
+    expect(topStack.classes()).toContain('page__fixed-stack--element-selected')
+    expect(header.classes()).not.toContain('page__header--element-selected')
+  })
+
+  test('raises the normal header section when a normal header is selected', async () => {
+    const fixedHeader = createElement({
+      id: 44,
+      type: 'header',
+      page_id: 2,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const normalHeader = createElement({
+      id: 45,
+      type: 'header',
+      page_id: 2,
+    })
+    const { wrapper } = await mountComponent({
+      sharedElements: [fixedHeader, normalHeader],
+      selectedElement: normalHeader,
+    })
+    const topStack = wrapper.find('.page__fixed-stack--top')
+    const header = wrapper.find('.page__header')
+
+    expect(topStack.classes()).not.toContain(
+      'page__fixed-stack--element-selected'
+    )
+    expect(header.classes()).toContain('page__header--element-selected')
+  })
+
+  test('raises the normal header section when a child element is selected', async () => {
+    const fixedHeader = createElement({
+      id: 44,
+      type: 'header',
+      page_id: 2,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const normalHeader = createElement({
+      id: 45,
+      type: 'header',
+      page_id: 2,
+    })
+    const nestedHeading = createElement({
+      id: 46,
+      type: 'heading',
+      page_id: 2,
+      parent_element_id: normalHeader.id,
+    })
+    const { wrapper } = await mountComponent({
+      sharedElements: [fixedHeader, normalHeader],
+      selectedElement: nestedHeading,
+      ancestorsByElementId: {
+        [nestedHeading.id]: [normalHeader],
+      },
+    })
+    const topStack = wrapper.find('.page__fixed-stack--top')
+    const header = wrapper.find('.page__header')
+
+    expect(topStack.classes()).not.toContain(
+      'page__fixed-stack--element-selected'
+    )
+    expect(header.classes()).toContain('page__header--element-selected')
   })
 })

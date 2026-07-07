@@ -26,9 +26,13 @@
   .page__header--element-selected,
   .page__content--element-selected,
   .page__footer--element-selected {
-    // ...Except if they contain the selected element
-    z-index: 2;
+    z-index: auto;
     position: relative;
+  }
+
+  .page__fixed-stack--element-selected {
+    // Selected fixed stacks must stay above the normal selected sections.
+    z-index: 4;
   }
 }
 

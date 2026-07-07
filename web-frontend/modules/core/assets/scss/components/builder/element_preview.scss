@@ -105,6 +105,18 @@
     }
   }
 
+  .page__header--element-selected &.element-preview--active,
+  .page__content--element-selected &.element-preview--active,
+  .page__footer--element-selected &.element-preview--active {
+    // Raise only the editor chrome, not the section content.
+    &::before,
+    > .element-preview__tags,
+    > .element-preview__insert,
+    > .element-preview__menu {
+      z-index: 3;
+    }
+  }
+
   &.element-preview--parent-of-selected {
     cursor: inherit;
 
