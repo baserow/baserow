@@ -1016,6 +1016,7 @@ export const mutations = {
     state.pendingFieldOps = {}
     state.checkboxSelectedRows = []
     state.selectionType = null
+    state.selectedRowId = -1
     state.groupBy = {
       ...getEmptyGroupByState(),
       generation: getNextGroupByGeneration(state),
@@ -1613,6 +1614,9 @@ export const mutations = {
    * Deletes a row of which we are sure that it is in the buffer right now.
    */
   DELETE_ROW_IN_BUFFER(state, row) {
+    if (state.selectedRowId === row.id) {
+      state.selectedRowId = -1
+    }
     if (state.activeGroupBys.length > 0) {
       const location = state.groupBy.rowLocations[row.id]
       if (location) {
@@ -1638,6 +1642,9 @@ export const mutations = {
    * Deletes a row from the buffer without updating the buffer limit and count.
    */
   DELETE_ROW_IN_BUFFER_WITHOUT_UPDATE(state, row) {
+    if (state.selectedRowId === row.id) {
+      state.selectedRowId = -1
+    }
     if (state.activeGroupBys.length > 0) {
       const location = state.groupBy.rowLocations[row.id]
       if (location) {
@@ -2990,7 +2997,7 @@ export const actions = {
     return lastRefreshRequest
   },
   async refreshActiveGroupBys(
-    { commit, getters, rootGetters, state },
+    { commit, dispatch, getters, rootGetters, state },
     {
       view,
       fields,
@@ -3235,6 +3242,19 @@ export const actions = {
       } else {
         commit('REPLACE_ALL_FIELD_OPTIONS', rowData.field_options)
       }
+    }
+    if (preserveScroll) {
+      // Clamp scrollTop to viewport after swapping in snapshot layout.
+      // Fetch the slice anchored there; no-ops if snapshot covers viewport.
+      const clampedScrollTop = getClampedGroupByScrollTop(getters)
+      commit('SET_SCROLL_TOP', clampedScrollTop)
+      await dispatch('fetchGroupByRowsByScrollTop', {
+        gridId,
+        view,
+        fields,
+        scrollTop: clampedScrollTop,
+        includeFieldOptions: includeFieldOptions && rowData === null,
+      })
     }
     return true
   },

@@ -5557,6 +5557,155 @@ describe('Grid view store', () => {
     expect(fetchAllFieldAggregationData).not.toHaveBeenCalled()
   })
 
+  test('plain refresh scrolled past the first group page refetches the viewport groups and rows', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+    ]
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: groupBys,
+    }
+    const groupByStore = testApp.createStore({
+      modules: {
+        view: {
+          namespaced: true,
+          getters: {
+            get: () => () => view,
+          },
+        },
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+          },
+        },
+      },
+    })
+
+    const groupCount = 60
+    const rowsPerGroup = 100
+    const groupName = (index) => `G${String(index).padStart(2, '0')}`
+    const makeGroups = (start, end) =>
+      Array.from({ length: end - start }, (_, i) => {
+        const index = start + i
+        return {
+          path: { field_2: groupName(index) },
+          depth: 0,
+          row_count: rowsPerGroup,
+          sibling_index: index,
+          row_offset: index * rowsPerGroup,
+        }
+      })
+
+    // Group stride is 48px header + 100 rows * 33px + 8px gap = 3356px. The
+    // refresh snapshot only fetches the first 40 groups and estimates the other
+    // 20 as header-only placeholders, so 135000 (inside group 40's rows once
+    // real counts load) sits past every loaded section of the snapshot layout.
+    const scrollTop = 135000
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: groupCount * rowsPerGroup,
+      rowHeight: 33,
+      windowHeight: 330,
+      scrollTop,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: makeGroups(0, groupCount),
+        collapse: { mode: 'expand', paths: [] },
+        collapseInitialized: true,
+      },
+    })
+    groupByStore.replaceState({ ...groupByStore.state, grid: state })
+
+    const groupByDataRequests = []
+    mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        groupByDataRequests.push(config.params)
+        const parents = config.params.get('parents')
+        const pageRequests = parents
+          ? JSON.parse(parents)
+          : [
+              {
+                parent: {},
+                offset: Number(config.params.get('offset')),
+                limit: Number(config.params.get('limit')),
+              },
+            ]
+        return [
+          200,
+          {
+            pages: pageRequests.map(({ parent, offset, limit }) => ({
+              parent: parent || {},
+              groups: makeGroups(offset, Math.min(offset + limit, groupCount)),
+              offset,
+              limit,
+              group_count: groupCount,
+            })),
+          },
+        ]
+      })
+    mockServer.mock.onGet('/database/views/grid/1/').reply((config) => {
+      const offset = Number(config.params.get('offset'))
+      const limit = Number(config.params.get('limit'))
+      return [
+        200,
+        {
+          count: groupCount * rowsPerGroup,
+          results: Array.from({ length: limit }, (_, index) => {
+            const absolute = offset + index
+            return {
+              id: 10000 + absolute,
+              order: `${absolute}.00`,
+              field_1: `Fresh ${absolute}`,
+              field_2: groupName(Math.floor(absolute / rowsPerGroup)),
+            }
+          }),
+        },
+      ]
+    })
+
+    await groupByStore.dispatch('grid/refresh', {
+      view,
+      fields,
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    expect(groupByStore.state.grid.scrollTop).toBe(scrollTop)
+    // First request builds the snapshot from group offset 0; the follow-up
+    // fetches the group page anchored at the preserved viewport.
+    expect(groupByDataRequests.length).toBeGreaterThanOrEqual(2)
+    expect(groupByDataRequests[0].get('parents')).toBeNull()
+    expect(groupByDataRequests[0].get('offset')).toBe('0')
+    expect(JSON.parse(groupByDataRequests[1].get('parents'))[0]).toMatchObject({
+      parent: {},
+      offset: 40,
+    })
+    // The row under the preserved scroll position is loaded, not a skeleton:
+    // group 40 starts at 40 * 3356 = 134240, rows at 134288, so 135000 is
+    // position 21 (absolute row 4021).
+    const section =
+      groupByStore.state.grid.groupBy.sectionRows[groupPathKey(2, 'G40')]
+    expect(section[21].field_1).toBe('Fresh 4021')
+    expect(correctMultiSelect).toHaveBeenCalledOnce()
+  })
+
   test('refresh resets a mixed group-by collapse to expand-all when adding a level', async () => {
     const correctMultiSelect = vi.fn()
     const fetchAllFieldAggregationData = vi.fn()
@@ -7512,6 +7661,55 @@ describe('Grid view store', () => {
       store.state.grid.groupBy.sectionRows[groupPathKey(2, 'A')][0]._.selected
     ).toBe(true)
     expect(store.state.grid.selectedRowId).toBe(11)
+  })
+
+  test('group-by row removal and full clear reset selectedRowId', () => {
+    const emptyUi = () => ({
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+    })
+    const setup = () => {
+      const state = Object.assign(gridStore.state(), {
+        activeGroupBys: [{ field: 2, order: 'ASC', type: 'default' }],
+        groupBy: {
+          treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 2 }],
+          truncated: false,
+          collapse: { mode: 'expand', paths: [] },
+          sectionRows: {},
+          rowLocations: {},
+        },
+      })
+      store.replaceState({ ...store.state, grid: state })
+      store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey: groupPathKey(2, 'A'),
+        rows: [
+          { id: 11, order: '1.00', field_2: 'A', _: emptyUi() },
+          { id: 22, order: '2.00', field_2: 'A', _: emptyUi() },
+        ],
+        startPosition: 0,
+      })
+      store.commit('grid/SET_SELECTED_CELL', { rowId: 11, fieldId: 1 })
+      expect(store.state.grid.selectedRowId).toBe(11)
+    }
+
+    setup()
+    store.commit('grid/DELETE_ROW_IN_BUFFER', { id: 11 })
+    expect(store.state.grid.selectedRowId).toBe(-1)
+
+    setup()
+    // Removing a different row keeps the selection pointer.
+    store.commit('grid/DELETE_ROW_IN_BUFFER', { id: 22 })
+    expect(store.state.grid.selectedRowId).toBe(11)
+
+    setup()
+    store.commit('grid/DELETE_ROW_IN_BUFFER_WITHOUT_UPDATE', { id: 11 })
+    expect(store.state.grid.selectedRowId).toBe(-1)
+
+    setup()
+    store.commit('grid/CLEAR_ROWS')
+    expect(store.state.grid.selectedRowId).toBe(-1)
   })
 
   test('group-by visible items render sparse section row ranges loaded by scroll', () => {
