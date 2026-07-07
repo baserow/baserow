@@ -33,6 +33,7 @@ const SAFE_URL_PROTOCOLS = [
   'ftps:',
   'mailto:',
   'tel:',
+  'sms:',
 ]
 
 export function getUrlScheme(value) {
