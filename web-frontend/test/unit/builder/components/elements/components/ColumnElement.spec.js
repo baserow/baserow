@@ -144,4 +144,60 @@ describe('ColumnElement', () => {
     await store.dispatch('page/setDeviceTypeSelected', 'smartphone')
     expect(wrapper.vm.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))')
   })
+
+  test('adds public stacking fallback classes based on the element configuration', async () => {
+    const builder = { id: 1, theme: { primary_color: '#ccc' } }
+    const page = { orderedElements: [] }
+    const workspace = {}
+    const element = {
+      column_amount: 3,
+      column_gap: 30,
+      alignment: 'top',
+      layout_type: 'auto',
+      column_weights: [],
+      column_stacking: {
+        smartphone: 'stacked',
+        tablet: 'stacked',
+        desktop: 'horizontal',
+      },
+    }
+
+    let wrapper = await mountComponent({
+      props: {
+        element,
+      },
+      provide: {
+        builder,
+        mode: 'public',
+        currentPage: page,
+        elementPage: page,
+        applicationContext: { builder, page, mode: 'public' },
+        element,
+        workspace,
+      },
+    })
+
+    expect(wrapper.classes()).toContain('column-element--public')
+    expect(wrapper.classes()).toContain('column-element--stack-smartphone')
+    expect(wrapper.classes()).toContain('column-element--stack-tablet')
+
+    wrapper.unmount()
+
+    wrapper = await mountComponent({
+      props: {
+        element,
+      },
+      provide: {
+        builder,
+        mode: 'editing',
+        currentPage: page,
+        elementPage: page,
+        applicationContext: { builder, page, mode: 'editing' },
+        element,
+        workspace,
+      },
+    })
+
+    expect(wrapper.classes()).not.toContain('column-element--public')
+  })
 })

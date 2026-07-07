@@ -5,6 +5,18 @@
   align-items: stretch;
 }
 
+@media (min-width: 421px) and (max-width: 768px) {
+  .column-element--public.column-element--stack-tablet {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .column-element--public.column-element--stack-smartphone {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .column-element__column {
   position: relative;
   display: flex;

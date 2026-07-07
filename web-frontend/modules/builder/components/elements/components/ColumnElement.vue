@@ -1,6 +1,7 @@
 <template>
   <div
     class="column-element"
+    :class="stackingClasses"
     :style="{
       '--space-between-columns': `${element.column_gap}px`,
       '--alignment': flexAlignment,
@@ -111,6 +112,17 @@ export default {
         this.element.column_stacking?.[currentDeviceType] ===
         COLUMN_STACKING.STACKED
       )
+    },
+
+    // Enables the public/preview CSS fallback for stacked responsive layouts.
+    stackingClasses() {
+      return {
+        'column-element--public': this.mode !== 'editing',
+        'column-element--stack-smartphone':
+          this.element.column_stacking?.smartphone === COLUMN_STACKING.STACKED,
+        'column-element--stack-tablet':
+          this.element.column_stacking?.tablet === COLUMN_STACKING.STACKED,
+      }
     },
 
     gridTemplateColumns() {

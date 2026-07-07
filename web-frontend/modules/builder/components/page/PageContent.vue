@@ -84,15 +84,9 @@ export default {
       },
     },
   },
-  created() {
-    // to make device detection a little faster
-    if (typeof window === 'undefined') {
-      return
-    }
+  mounted() {
     const device = this.closestDeviceType(window.innerWidth)
     this.$store.dispatch('page/setDeviceTypeSelected', device.getType())
-  },
-  mounted() {
     this.dimensions.targetElement = document.documentElement
   },
   methods: {
