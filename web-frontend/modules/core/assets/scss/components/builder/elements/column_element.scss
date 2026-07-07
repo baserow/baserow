@@ -3,23 +3,24 @@
   width: 100%;
   gap: var(--space-between-columns);
   align-items: stretch;
+  grid-template-columns: var(--grid-template-columns);
 }
 
 @media (min-width: 768px) {
   .column-element--public.column-element--stack-desktop {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 
 @media (min-width: 421px) and (max-width: 768px) {
   .column-element--public.column-element--stack-tablet {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 420px) {
   .column-element--public.column-element--stack-smartphone {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
 

@@ -5,7 +5,7 @@
     :style="{
       '--space-between-columns': `${element.column_gap}px`,
       '--alignment': flexAlignment,
-      'grid-template-columns': gridTemplateColumns,
+      '--grid-template-columns': gridTemplateColumns,
     }"
   >
     <div
