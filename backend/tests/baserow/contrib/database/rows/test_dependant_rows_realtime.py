@@ -435,3 +435,36 @@ def test_formula_referencing_self_link_recalculates_rows_linking_to_updated_row(
     assert updates[table.id].row_ids == [row_b.id]
     assert self_link.id in updates[table.id].field_ids
     assert formula.id in updates[table.id].field_ids
+
+
+@pytest.mark.django_db
+def test_cascading_row_update_checks_view_subscriptions_in_a_single_query(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_b = data_fixture.create_two_linked_tables(user=user)
+    primary_b = table_b.field_set.get(primary=True).specific
+    data_fixture.create_formula_field(
+        table=table_a, formula="join(lookup('link', 'primary'), '')"
+    )
+
+    row_b1 = (
+        RowHandler()
+        .create_rows(user, table_b, [{primary_b.db_column: "b1"}])
+        .created_rows[0]
+    )
+    RowHandler().create_rows(user, table_a, [{link_a_b.db_column: [row_b1.id]}])
+
+    # Updating table_b cascades to a dependant field in table_a, so both table_b
+    # and table_a get notified within the same signal.
+    with CaptureQueriesContext(connection) as captured:
+        RowHandler().force_update_rows(
+            user=user,
+            table=table_b,
+            rows_values=[{"id": row_b1.id, primary_b.db_column: "renamed"}],
+        )
+
+    subscription_queries = [
+        q for q in captured.captured_queries if "database_viewsubscription" in q["sql"]
+    ]
+    assert len(subscription_queries) == 1

@@ -5531,6 +5531,32 @@ class ViewSubscriptionHandler:
             cls.notify_table_views(view_ids_with_subscribers, model)
 
     @classmethod
+    def notify_tables_views_updates(
+        cls, models_by_table: dict[Table, GeneratedTableModel | None]
+    ):
+        """
+        Verify if the views of the given tables have subscribers and notify them of
+        any changes in the view results. The subscribers of all tables are looked up
+        with a single query, so this scales to the many tables that a single row
+        change can affect through dependency cascades.
+
+        :param models_by_table: The tables to notify subscribers of, each mapped to
+            the table model to use, or None to let it be generated when needed.
+        """
+
+        view_ids_by_table = defaultdict(list)
+        subscribed_views = ViewSubscription.objects.filter(
+            view__in=View.objects.filter(table__in=models_by_table.keys())
+        ).values_list("view__table_id", "view_id")
+        for table_id, view_id in subscribed_views:
+            view_ids_by_table[table_id].append(view_id)
+
+        for table, model in models_by_table.items():
+            view_ids = view_ids_by_table.get(table.id)
+            if view_ids:
+                cls.notify_table_views(view_ids, model)
+
+    @classmethod
     def notify_table_views(
         cls, view_ids: list[int], model: GeneratedTableModel | None = None
     ):

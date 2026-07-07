@@ -4133,6 +4133,11 @@ class SelectOptionBaseFieldType(FieldType):
     _can_group_by = True
     _db_column_fields = []
 
+    def enhance_field_queryset(self, queryset, field):
+        # Prefetch the options so the generated model's select fields can build their
+        # serializer help text without a query per field.
+        return queryset.prefetch_related("select_options")
+
     def _get_select_option_display_map(self, field):
         return {
             option.id: {

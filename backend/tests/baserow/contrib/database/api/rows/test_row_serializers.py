@@ -579,6 +579,21 @@ def test_get_row_serializer_with_user_field_names(
 
 
 @pytest.mark.django_db
+def test_get_row_validation_serializer_does_not_query_select_options_per_field(
+    data_fixture, django_assert_num_queries
+):
+    # The validation serializer builds a help text from each select field's options.
+    # Those options are prefetched during model generation, so building the serializer
+    # must not issue a query per select field (regression for the select option N+1 on
+    # the batch rows endpoint, Sentry BASEROW-SAAS-BACKEND-12V).
+    table, _, _, _, _ = setup_interesting_test_table(data_fixture)
+    model = table.get_model()
+
+    with django_assert_num_queries(0):
+        get_row_serializer_class(model, RowSerializer, user_field_names=True)
+
+
+@pytest.mark.django_db
 def test_get_row_serializer_with_user_field_names_named_meta(data_fixture):
     table = data_fixture.create_database_table(name="Cars")
     text_field = data_fixture.create_text_field(table=table, order=0, name="Meta")

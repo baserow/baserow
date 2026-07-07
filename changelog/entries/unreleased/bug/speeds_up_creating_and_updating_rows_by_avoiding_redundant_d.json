@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Speeds up creating and updating rows by avoiding redundant database queries",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-07"
+}
