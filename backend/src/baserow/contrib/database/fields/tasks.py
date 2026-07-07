@@ -28,28 +28,29 @@ from baserow.core.telemetry.utils import add_baserow_trace_attrs, baserow_trace
 tracer = trace.get_tracer(__name__)
 meter = metrics.get_meter(__name__)
 
-# Distribution of how long a single workspace takes to update. This is the unit of
-# work we intend to fan out, so its shape tells us whether the time limit is blown by
-# one heavy workspace or by many adding up. workspace_id is deliberately not a metric
-# attribute to keep cardinality bounded; heavy workspaces are named in the logs below.
+# How long it takes to update one workspace. The spread of these numbers tells us
+# whether the job is slow because of one big workspace or many small ones. We don't
+# tag it with the workspace id (that would make too many metric series); slow
+# workspaces are logged by id instead (see below).
 periodic_field_update_workspace_duration = meter.create_histogram(
     name="baserow.periodic_field_update.workspace.duration",
     description="Seconds spent updating periodic fields for a single workspace",
     unit="s",
 )
-# Wall-clock the dispatcher spends collecting and enqueuing workspace update tasks.
+# How long the dispatcher takes to find the due workspaces and queue their tasks.
 periodic_field_update_dispatch_duration = meter.create_histogram(
     name="baserow.periodic_field_update.dispatch.duration",
     description="Seconds spent dispatching periodic field update tasks",
     unit="s",
 )
 
-# A workspace slower than this is logged by id so it can be investigated.
+# Workspaces that take longer than this are logged by id so we can look into them.
 SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS = 60
 
-# Per-workspace update budget. Now that each workspace is its own task this is no longer
-# bounded by the run interval, so a slow workspace can't starve the others.
+# How long one workspace's update may run. Each workspace now has its own task, so a
+# slow one no longer holds up the rest and this no longer has to fit the run interval.
 WORKSPACE_UPDATE_SOFT_TIME_LIMIT = settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60
+# Give the hard kill a small margin over the soft limit.
 WORKSPACE_UPDATE_HARD_TIME_LIMIT = WORKSPACE_UPDATE_SOFT_TIME_LIMIT + 30
 
 WORKSPACE_UPDATE_LOCK_KEY = "periodic_field_update_lock:{workspace_id}"
@@ -78,8 +79,8 @@ def filter_distinct_workspace_ids_per_fields(
 @app.task(
     bind=True,
     queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME,
-    soft_time_limit=5 * 60,
-    time_limit=5 * 60 + 30,
+    soft_time_limit=settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60,
+    time_limit=settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60 + 30,
 )
 def run_periodic_fields_updates(
     self,
@@ -88,16 +89,16 @@ def run_periodic_fields_updates(
     dispatch: bool = True,
 ):
     """
-    Collects the workspaces whose periodic fields are due and runs a separate update
-    task per workspace, so no single task is bounded by the whole instance's workload.
-    When ``dispatch`` is False the per-workspace updates run inline, which the
-    management command relies on for synchronous execution.
+    Finds the workspaces whose periodic fields need refreshing and starts a separate
+    task for each one, so no single task has to update the whole instance at once.
+    When ``dispatch`` is False the updates run inline instead of being queued, which
+    the management command uses to run synchronously.
     """
 
     started_at = time.monotonic()
     workspace_ids = _collect_workspace_ids_needing_update(workspace_id)
-    # Dispatch staler workspaces (lowest `now`) first, same priority the old
-    # monolithic loop used, so a backlog still drains the most overdue first.
+    # Update the most out-of-date workspaces (oldest `now`) first, like the old job did,
+    # so if there's a backlog the most overdue ones still get done first.
     ordered_ids = (
         Workspace.objects.filter(id__in=workspace_ids)
         .order_by("now")
@@ -123,9 +124,9 @@ def _collect_workspace_ids_needing_update(
 ) -> set[int]:
     """Returns the ids of workspaces that have at least one periodic field due."""
 
-    # Eligibility is snapshotted once here, before any refresh_now happens in the
-    # workers. With a single periodic field type (formula) today this matches the old
-    # per-type loop exactly; adding a second periodic type would need this revisited.
+    # We pick the workspaces to update once here, before any of them are refreshed.
+    # Only formula fields update periodically today, so this matches the old behaviour.
+    # If another field type ever needs periodic updates, revisit this.
     workspace_ids: set[int] = set()
     for field_type_instance in field_type_registry.get_all():
         field_qs = field_type_instance.get_fields_needing_periodic_update()
@@ -220,9 +221,9 @@ def update_workspace_periodic_fields(self, workspace_id: int, update_now: bool =
 def _update_workspace_periodic_fields(
     workspace_id: int, update_now: bool = True
 ) -> None:
-    # Skip if another task is already updating this workspace so cycles can't stack and
-    # double-process it. The lock expires at the hard time limit so a killed task can't
-    # wedge it.
+    # Take a lock so two tasks can't update the same workspace at once (which would just
+    # double the work). The lock auto-expires at the hard time limit, so a task that gets
+    # killed can't leave it stuck.
     lock = cache.lock(
         WORKSPACE_UPDATE_LOCK_KEY.format(workspace_id=workspace_id),
         timeout=WORKSPACE_UPDATE_HARD_TIME_LIMIT,
@@ -245,8 +246,8 @@ def _update_workspace_periodic_fields(
             field_qs = field_type_instance.get_fields_needing_periodic_update()
             if field_qs is None:
                 continue
-            # only work if this workspace actually has a due field of this type, so we
-            # keep the exact selection the monolithic loop had.
+            # Only update this field type if the workspace actually has one due, so we
+            # do exactly the same work the old single job did.
             has_due_fields = field_qs.filter(
                 table__database__workspace_id=workspace_id,
                 table__database__trashed=False,
@@ -271,7 +272,7 @@ def _update_workspace_periodic_fields(
         try:
             lock.release()
         except LockNotOwnedError:
-            # the lock may have expired and been stolen; nothing to release
+            # the lock already expired and was taken by someone else; nothing to release
             pass
 
 
