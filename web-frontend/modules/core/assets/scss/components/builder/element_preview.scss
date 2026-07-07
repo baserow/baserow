@@ -105,18 +105,6 @@
     }
   }
 
-  .page__header--element-selected &.element-preview--active,
-  .page__content--element-selected &.element-preview--active,
-  .page__footer--element-selected &.element-preview--active {
-    // Raise only the editor chrome, not the section content.
-    &::before,
-    > .element-preview__tags,
-    > .element-preview__insert,
-    > .element-preview__menu {
-      z-index: 3;
-    }
-  }
-
   &.element-preview--parent-of-selected {
     cursor: inherit;
 
@@ -144,6 +132,18 @@
 
   .element-preview--on-top & {
     @include absolute(auto, auto, -26px, 8px);
+  }
+}
+
+.page__header--element-selected .element-preview.element-preview--active,
+.page__content--element-selected .element-preview.element-preview--active,
+.page__footer--element-selected .element-preview.element-preview--active {
+  // Raise only the editor chrome, not the section content.
+  &::before,
+  > .element-preview__tags,
+  > .element-preview__insert,
+  > .element-preview__menu {
+    z-index: 3;
   }
 }
 

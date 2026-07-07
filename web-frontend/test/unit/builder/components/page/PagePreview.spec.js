@@ -109,12 +109,14 @@ describe('PagePreview', () => {
                   },
                   getPageSection: (element) => {
                     if (type === 'header') {
-                      return element?.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+                      return element?.behaviour ===
+                        PAGE_ELEMENT_BEHAVIOURS.FIXED
                         ? 'fixed-header'
                         : PAGE_PLACES.HEADER
                     }
                     if (type === 'footer') {
-                      return element?.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+                      return element?.behaviour ===
+                        PAGE_ELEMENT_BEHAVIOURS.FIXED
                         ? 'fixed-footer'
                         : PAGE_PLACES.FOOTER
                     }
