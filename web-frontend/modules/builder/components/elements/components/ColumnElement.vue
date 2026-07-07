@@ -118,6 +118,8 @@ export default {
     stackingClasses() {
       return {
         'column-element--public': this.mode !== 'editing',
+        'column-element--stack-desktop':
+          this.element.column_stacking?.desktop === COLUMN_STACKING.STACKED,
         'column-element--stack-smartphone':
           this.element.column_stacking?.smartphone === COLUMN_STACKING.STACKED,
         'column-element--stack-tablet':
