@@ -34,6 +34,28 @@ def setup(settings):
         os.getenv("BASEROW_ENTERPRISE_AUDIT_LOG_RETENTION_DAYS", "") or 365
     )
 
+    # Comma-separated list of percentages (e.g. "50,80,95") at which the members of a
+    # workspace are notified that it is approaching its application user limit. The
+    # limit itself (100%) always notifies and is enforced separately.
+    settings.BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS = sorted(
+        {
+            percent
+            for value in os.getenv(
+                "BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS", "80"
+            ).split(",")
+            if value.strip()
+            for percent in [int(value.strip())]
+            if 0 < percent < 100
+        }
+    )
+
+    # When enabled ("hard" limit) users past the application user limit are refused at
+    # login. When disabled (the default "soft" limit) the limit is only used to notify
+    # workspace members; nobody is blocked from signing in.
+    settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED = str_to_bool(
+        os.getenv("BASEROW_APPLICATION_USER_LIMIT_ENFORCED", "")
+    )
+
     # Set this to True to enable users to login with auth providers different than
     # the one they were originally created with.
     settings.BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT = bool(

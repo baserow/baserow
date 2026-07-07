@@ -475,7 +475,6 @@ class CoreConfig(AppConfig):
         import baserow.core.notifications.receivers  # noqa: F401
         import baserow.core.notifications.tasks  # noqa: F401
         from baserow.core.notification_types import (
-            ApplicationUserLimitNotificationType,
             BaserowVersionUpgradeNotificationType,
             WorkspaceInvitationAcceptedNotificationType,
             WorkspaceInvitationCreatedNotificationType,
@@ -493,7 +492,6 @@ class CoreConfig(AppConfig):
             WorkspaceInvitationRejectedNotificationType()
         )
         notification_type_registry.register(BaserowVersionUpgradeNotificationType())
-        notification_type_registry.register(ApplicationUserLimitNotificationType())
 
         from baserow.core.abuse_reports.actions import SubmitAbuseReportActionType
         from baserow.core.abuse_reports.notification_types import (

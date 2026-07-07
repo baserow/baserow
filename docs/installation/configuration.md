@@ -293,7 +293,6 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 | Name                      | Description                                                                                                              | Defaults |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------- |
 | BASEROW\_BUILDER\_DOMAINS | A comma separated list of domain names that can be used as the domains to create sub domains in the application builder. |          |
-| BASEROW\_APPLICATION\_USER\_LIMIT\_ENFORCED | When set to `true` the application user limit is a hard limit: application users past the limit are refused at login. When unset or `false` the limit is soft, only used to notify workspace members without blocking anyone from signing in. |  |
 
 ### Misc Configuration
 

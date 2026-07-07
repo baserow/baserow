@@ -187,6 +187,11 @@
     "titlePlural": "{count} new results found for {scanName}",
     "description": "Review the results in the admin data scanner."
   },
+  "applicationUserLimitNotification": {
+    "titleWarning": "{workspaceName} has used {threshold} of its application user limit.",
+    "titleReached": "{workspaceName} has reached its application user limit. Please upgrade.",
+    "titleReachedEnforced": "{workspaceName} has reached its application user limit. New users can't sign in until you upgrade."
+  },
   "auditLog": {
     "adminTitle": "Audit log",
     "workspaceTitle": "Audit log - {workspaceName}",

@@ -21,7 +21,6 @@ from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.user.exceptions import DeactivatedUserException
 from baserow.core.user_sources.exceptions import (
-    ApplicationUserLimitReached,
     UserSourceDoesNotExist,
     UserSourceImproperlyConfigured,
 )
@@ -36,6 +35,7 @@ from baserow_enterprise.api.sso.utils import (
     map_sso_exceptions,
     urlencode_query_params,
 )
+from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
 from baserow_enterprise.integrations.common.sso.saml.handler import (
     SamlAppAuthProviderHandler,
 )

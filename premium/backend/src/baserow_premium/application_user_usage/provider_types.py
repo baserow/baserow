@@ -2,7 +2,9 @@ from typing import Optional, Tuple
 
 from baserow.contrib.builder.handler import BuilderHandler
 from baserow.core.models import Workspace
-from baserow.core.user_sources.registries import ApplicationUserUsageProviderType
+from baserow_premium.application_user_usage.registries import (
+    ApplicationUserUsageProviderType,
+)
 from baserow_premium.license.models import License
 
 

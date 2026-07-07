@@ -22,9 +22,6 @@ from baserow.core.user_sources.jwt_token import UserSourceToken
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import user_source_type_registry
 from baserow.core.user_sources.service import UserSourceService
-from baserow.core.user_sources.usage import (
-    raise_if_over_application_user_login_limit,
-)
 
 
 class UserSourceRolesSerializer(serializers.ModelSerializer):
@@ -247,9 +244,6 @@ class UserSourceTokenObtainSerializer(TokenObtainPairSerializer):
             raise exceptions.AuthenticationFailed(
                 "User not found", code="user_not_found"
             ) from exc
-
-        # Refuse the login of users that are past the application user limit.
-        raise_if_over_application_user_login_limit(self.user_source, user)
 
         refresh = user.get_refresh_token()
 

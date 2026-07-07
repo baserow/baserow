@@ -1,8 +1,4 @@
-from rest_framework.status import (
-    HTTP_400_BAD_REQUEST,
-    HTTP_402_PAYMENT_REQUIRED,
-    HTTP_404_NOT_FOUND,
-)
+from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
 ERROR_USER_SOURCE_DOES_NOT_EXIST = (
     "ERROR_USER_SOURCE_DOES_NOT_EXIST",
@@ -41,11 +37,4 @@ ERROR_USER_SOURCE_IMPROPERLY_CONFIGURED = (
     "ERROR_USER_SOURCE_IMPROPERLY_CONFIGURED",
     HTTP_400_BAD_REQUEST,
     "The user_source configuration is incomplete.",
-)
-
-ERROR_APPLICATION_USER_LIMIT_REACHED = (
-    "ERROR_APPLICATION_USER_LIMIT_REACHED",
-    HTTP_402_PAYMENT_REQUIRED,
-    "The application user limit has been reached, please contact the application "
-    "owner.",
 )

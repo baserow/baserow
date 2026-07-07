@@ -1,5 +1,8 @@
 import { NotificationType } from '@baserow/modules/core/notificationTypes'
+import NotificationImgIcon from '@baserow/modules/core/components/notifications/NotificationImgIcon'
+import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 
+import ApplicationUserLimitNotification from '@baserow_enterprise/components/notifications/ApplicationUserLimitNotification'
 import DataScanNewResultsNotification from '@baserow_enterprise/components/notifications/DataScanNewResultsNotification'
 import PeriodicDataSyncDeactivatedNotification from '@baserow_enterprise/components/notifications/PeriodicDataSyncDeactivatedNotification'
 import TwoWaySyncUpdateFailedNotification from '@baserow_enterprise/components/notifications/TwoWaySyncUpdateFailedNotification'
@@ -107,5 +110,23 @@ export class DataScanNewResultsNotificationType extends NotificationType {
         scan_name: notificationData.scan_name,
       },
     }
+  }
+}
+
+export class ApplicationUserLimitNotificationType extends NotificationType {
+  static getType() {
+    return 'application_user_limit'
+  }
+
+  getIconComponent() {
+    return NotificationImgIcon
+  }
+
+  getIconComponentProps() {
+    return { icon: BaserowIcon }
+  }
+
+  getContentComponent() {
+    return ApplicationUserLimitNotification
   }
 }

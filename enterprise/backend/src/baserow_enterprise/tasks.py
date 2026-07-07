@@ -7,7 +7,7 @@ from baserow.contrib.database.table.tasks import (
     unsubscribe_subject_from_tables_currently_subscribed_to,
 )
 from baserow.core.user_sources.handler import UserSourceHandler
-from baserow.core.user_sources.usage import (
+from baserow_enterprise.application_users.usage import (
     notify_workspaces_approaching_application_user_limit,
 )
 from baserow_enterprise.audit_log.tasks import (

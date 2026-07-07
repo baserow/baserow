@@ -20,10 +20,7 @@ from baserow.core.auth_provider.exceptions import (
     DifferentAuthProvider,
 )
 from baserow.core.user.exceptions import DeactivatedUserException
-from baserow.core.user_sources.exceptions import (
-    ApplicationUserLimitReached,
-    UserSourceDoesNotExist,
-)
+from baserow.core.user_sources.exceptions import UserSourceDoesNotExist
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.api.integrations.common.sso.oauth2.serializers import (
     OIDCLoginRequestSerializer,
@@ -34,6 +31,7 @@ from baserow_enterprise.api.sso.utils import (
     map_sso_exceptions,
     urlencode_query_params,
 )
+from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
 from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types import (
     OpenIdConnectAppAuthProviderType,
 )

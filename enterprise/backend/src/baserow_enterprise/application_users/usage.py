@@ -3,13 +3,13 @@ from typing import Optional, Tuple
 from django.conf import settings
 
 from baserow.core.models import Workspace
-from baserow.core.notification_types import (
+from baserow.core.user_sources.models import UserSource
+from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
+from baserow_enterprise.application_users.notification_types import (
     clear_application_user_threshold,
     notify_application_user_threshold,
 )
-from baserow.core.user_sources.exceptions import ApplicationUserLimitReached
-from baserow.core.user_sources.models import UserSource
-from baserow.core.user_sources.registries import (
+from baserow_premium.application_user_usage.registries import (
     application_user_usage_provider_registry,
 )
 
