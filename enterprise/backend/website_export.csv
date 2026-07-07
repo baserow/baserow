@@ -1819,7 +1819,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/88f97d32-ed89-4c1a-a4fc-d78f00701c41/View%20configuration%20toolbar%20in%20Baserow.jpg
   [2]: https://baserow.io/user-docs/date-and-time-fields
   [3]: https://baserow.io/user-docs/duration-field
-  [4]: https://baserow.io/user-docs/date-dependency",,baserow_user_docs,https://baserow.io/user-docs/view-customization
+  [4]: https://baserow.io/user-docs/date-dependency",view,baserow_user_docs,https://baserow.io/user-docs/view-customization
 13,Grid view,guide-to-grid-view,Baserow grid view: Organize and manage your data,"# Grid view
 
 Grid view displays your data in rows and columns like a traditional spreadsheet, making it the most versatile view type for detailed data work.
@@ -2715,7 +2715,6 @@ The card's Single select field updates automatically to match the new column. Th
 Cards within a column can be reordered manually:
 1. **Drag a card** up or down within its current column
 2. Drop it at the desired position
-3. Manual order persists until you apply automatic sorts
 
 Manual ordering lets you prioritize cards within each stage without changing their status.
 
@@ -2813,6 +2812,8 @@ The toolbar at the top of Kanban view provides quick access to common operations
 
 **[Filter](/user-docs/filters-in-baserow)** - Show only cards matching specific conditions. Useful for focusing on high-priority items or specific assignees.
 
+**Sort** – Define how cards are ordered within each column. You can add multiple sort conditions and reorder them using drag and drop.
+
 **[Share view](/user-docs/public-sharing)** - Generate public links or embed codes to share your kanban board externally.
 
 **[Row colors](/user-docs/row-coloring)** - Apply conditional formatting to highlight specific cards based on field values.
@@ -2859,10 +2860,6 @@ Yes, but each Kanban view uses a Single select field to define columns. Create m
 ### What happens to cards when I delete them?
 
 Right-clicking a card shows a **Delete** option that removes the record from your table. The deletion affects all views; the record disappears from the Grid view, other kanban boards, and everywhere else. Always verify card content before deleting to prevent data loss. Learn more: [Delete row][6].
-
-### Can I sort cards within columns automatically?
-
-Yes. Apply [sorts](/user-docs/view-customization) from the toolbar to automatically order cards within each column by any field (priority, due date, value). Automatic sorting disables manual drag-to-reorder within columns.
 
 ### Why are some cards missing from my Kanban view?
 
@@ -3159,18 +3156,28 @@ Learn more: [Workspace permission levels overview](/user-docs/permissions-overvi
 
 Multiple team members can work simultaneously on the same database without conflicts.
 
+Baserow shows who is currently viewing a table and which cells are being edited, making it easier to coordinate work and avoid editing conflicts.
+
+![Real-time cell editing][1]
+
 **What's real-time:**
-- Data changes appear instantly for all workspace members viewing the same table
-- Row additions, edits, and deletions sync immediately
-- Comments and mentions notify workspace members in real-time
-- View configurations update when changed by other workspace members (collaborative views)
+- See changes appear instantly for everyone viewing the same table
+- Add, edit, and delete rows collaboratively
+- See who is currently viewing a table
+- See which cells other users are editing
+- View configuration changes (such as filters, sorting, grouping, or field visibility in collaborative views) update automatically for everyone viewing the same table
+- Continue working even if a temporary connection interruption occurs, with automatic reconnection when possible
 
 **What's not real-time:**
 - Personal view configurations remain private
 - Undo/redo operates on individual user actions only
 - Browser refresh may be needed occasionally to see updates
 
-Multiple workspace members can edit different rows simultaneously. If two users edit the same cell, the last save wins.
+### Editing the same cell
+
+Multiple workspace members can edit different rows or cells simultaneously.
+
+When another user is editing a cell, you'll see their presence directly in the table. If two users edit the same cell at nearly the same time, the last saved value is retained.
 
 ## Communication features
 
@@ -3195,7 +3202,7 @@ Assign specific workspace members to rows using the [collaborator field](/user-d
 
 **Use cases:** Assign tasks to workspace members, track who's responsible for each customer, designate reviewers for content, or show project ownership.
 
-Workspace members assigned as a collaborator receive [notifications][1] when assigned to rows (if enabled).
+Workspace members assigned as a collaborator receive [notifications][2] when assigned to rows (if enabled).
 
 ### Notifications
 
@@ -3229,11 +3236,11 @@ Learn more: [Public sharing](/user-docs/public-sharing)
 
 ### How many people can collaborate in a workspace?
 
-There's no hard limit on workspace members. Free plans have row and storage limits ([check your plan][2]), while paid plans support unlimited workspaces with unlimited members. Performance remains good even with dozens of simultaneous workspace members.
+There's no hard limit on workspace members. Free plans have row and storage limits ([check your plan][3]), while paid plans support unlimited workspaces with unlimited members. Performance remains good even with dozens of simultaneous workspace members.
 
 ### Can I see who's currently viewing a table?
 
-Not currently. Baserow doesn't show real-time presence indicators (who's online now). You can see who made changes through [row change history](/user-docs/row-change-history) and [audit logs](/user-docs/admin-panel-audit-logs) (Advanced/Enterprise).
+Yes. Baserow now shows real-time presence indicators, so you can see which users are currently viewing and editing the same table. This helps teams avoid conflicts and makes collaboration more transparent.
 
 ### What happens if two people edit the same cell simultaneously?
 
@@ -3290,8 +3297,9 @@ Still need help? If you're looking for something else, please feel free to make 
 - [Contact support](/contact) for questions about Baserow or help with your account
 
 
-  [1]: https://baserow.io/user-docs/notifications
-  [2]: https://baserow.io/pricing",collaboration,baserow_user_docs,https://baserow.io/user-docs/managing-workspace-collaborators
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/c99287c7-9fd8-48a1-ba6e-d431238b5f09/Cell%20editing.png
+  [2]: https://baserow.io/user-docs/notifications
+  [3]: https://baserow.io/pricing",collaboration,baserow_user_docs,https://baserow.io/user-docs/managing-workspace-collaborators
 19,Manage workspace members,manage-workspace-permissions,Manage Baserow workspace members,"# Manage workspace members
 
 Workspace admins control who has access to their workspaces and can modify member permissions as team needs change.
@@ -4141,6 +4149,25 @@ Empty trash to permanently delete items before the 3-day retention period expire
 **[Delete a view](/user-docs/view-customization#delete-a-view)** - Deletes view configuration but not underlying table data.
 
 **[Delete a field](/user-docs/field-customization#delete-field)** - Permanently removes the field and all data in that column.
+
+## Application Builder recovery
+
+The Application Builder includes the same undo, redo, and trash functionality, making it easier to experiment with layouts without worrying about accidental changes.
+
+You can recover:
+
+- Elements (such as text, buttons, forms, images, menus, and containers)
+- Layout changes
+- Deleted elements for up to **3 days** using the workspace Trash
+
+Use the same shortcuts and controls as in the Database Builder:
+
+- **Undo:** `Cmd/Ctrl + Z`
+- **Redo:** `Cmd/Ctrl + Shift + Z`
+- Restore recently deleted elements from the Restore deleted popup or recover them later from the Workspace Trash.
+
+> **Note:** Undo, redo, and trash currently support Application Builder elements. Support for data sources, user sources, integrations & workflow actions will be added in a future release.
+>
 
 ## Frequently asked questions
 
@@ -5101,7 +5128,7 @@ Arrange rows based on field values to organize data for analysis or presentation
 2. Select **Sort ascending** or **Sort descending**
 3. Rows reorganize immediately based on the sort
 
-Multiple sorts can be applied sequentially; sort by Department first, then by Priority within each department.
+Multiple sorts can be applied sequentially; sort by Department first, then by Priority within each department. You can also reorder multiple sort conditions using drag and drop from the Sort panel to quickly change the sorting priority without recreating your sort rules.
 
 #### Sorting behavior by field type
 
@@ -7155,6 +7182,52 @@ link('mailto:' + [Email])
 
 Beyond table fields, Baserow formulas power advanced logic in the **[Workflow Builder][1]** and **[Application Builder][2]**. The **Expert formula builder** handles complex conditions and dynamic content.
 
+It helps you create expressions without memorizing the formula language and consists of three tabs:
+
+### 1. Data
+
+Browse outputs from previous workflow nodes or application actions and insert them into your formula.
+
+The available data depends on where the formula is used. For example, inside an Automation you can reference outputs from earlier nodes, while in Application Builder you can also reference page variables, form inputs, and previous actions.
+
+### 2. Functions
+
+Browse all available formula functions by category.
+
+Functions are grouped into categories such as:
+
+- Boolean
+- Conditions
+- Date & Duration
+- Numbers
+- Text
+- Utility
+
+Selecting a function displays its description, syntax, and an example that you can copy directly into your formula.
+
+Examples include:
+
+- `number_format()`
+- `abs()`
+- `to_duration()`
+- `format_duration()`
+- `to_datetime()`
+- `to_json()`
+- `from_json()`
+- `range()`
+
+### **3. Operators**
+
+Operators let you compare values and perform calculations.
+
+Available operators include:
+
+Comparison (`=, !=, >, <, >=, <=`)
+Logical (`&&, ||`)
+Arithmetic (`+, -, *, /, %`)
+
+Each operator includes a short explanation and example.
+
 ### Router conditions
 
 When configuring an [action node](https://baserow.io/user-docs/workflow-automation), you can switch from the basic visual builder to **Expert input**. This allows you to write raw formula expressions for your conditions using operators and functions.
@@ -7186,6 +7259,28 @@ Example: Dynamic AI Prompt
 Dynamically generate a prompt that asks for different tasks based on the record type.
 
 `concat('Please write a ', if([Type]='Blog', 'creative', 'formal'), ' summary for: ', [Notes])`
+
+### Working with durations
+
+Application Builder supports duration values throughout expert formulas.
+
+You can convert, calculate, and format durations using functions such as:
+
+-  `to_duration()`
+-  `format_duration()`
+
+This makes it easy to build timers, calculate elapsed time, or display durations in a user-friendly format.
+
+### Working with JSON
+
+You can convert values to and from JSON directly inside formulas.
+
+**Useful functions include:**
+
+- `to_json()`
+- `from_json()`
+
+This is particularly useful when working with HTTP responses, Execute code, or external APIs.
 
 
 ## Frequently asked questions
@@ -7220,6 +7315,8 @@ For more date formatting options, see the [PostgreSQL formatting documentation](
 ### Do the today() and now() functions update automatically?
 
 Yes. Both functions update every 10 minutes. Use `today()` for the current date only, and `now()` when you need both date and time.
+
+***Note:** The 10-minute refresh interval is a best-effort target and not guaranteed. Actual refresh times can vary between workspaces. If a workspace has not been accessed for some time, refreshes may occur as infrequently as once every 60 minutes.*
 
 ### How do I handle empty or null values in formulas?
 
@@ -11986,7 +12083,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [4]: https://baserow.io/user-docs/enterprise-admin-panel
   [5]: https://baserow.io/user-docs/admin-panel-users
   [6]: /user-docs/enable-single-sign-on-sso
-  [7]: /user-docs/admin-panel-overview
+  [7]: https://baserow.io/user-docs/enterprise-admin-panel
   [8]: /user-docs/single-sign-on-sso-overview",sso,baserow_user_docs,https://baserow.io/user-docs/email-and-password-authentication
 109,Add database from template,add-database-from-template,Add Baserow database from a template,"# Add a database from a template
 
@@ -13771,7 +13868,7 @@ No. Deleting a workspace only removes the container and the data (databases/apps
 
 ## Related content
 
-  * [Baserow Admin Panel Overview](/user-docs/admin-panel-overview)
+  * [Baserow Admin Panel Overview][2]
   * [Manage Users](/user-docs/admin-panel-users)
   * [Setting up a Workspace](/user-docs/setting-up-a-workspace)
   * [Audit Logs](/user-docs/admin-panel-audit-logs)
@@ -14133,19 +14230,15 @@ This enables a nightly job that automatically tracks workspace usage. The job ca
 
 This data populates the ""Usage"" columns in the **Workspaces** list, helping admins spot heavy users. 
 
-## Branding and white labeling
+## Instance branding and co-branding
 
-> Enterprise only: Co-branding and white labeling are [Enterprise plan][6] features. You must have an active Enterprise license uploaded to unlock these settings.
+Baserow allows self-hosted instance administrators to personalize the interface by adding custom logos. This feature is designed as a co-branding solution, allowing you to display your organization's identity alongside the Baserow platform.
 
-Customize the look and feel of the platform to match your organization's identity. These settings allow you to remove Baserow branding elements and replace them with your own.
+Co-branding allows you to present Baserow as your own proprietary tool to your team or clients. By configuring these settings, you ensure that the interface and system communications reflect your brand identity.
 
-### What is white labeling in Baserow?
+**What it affects**:
 
-White labeling allows you to present Baserow as your own proprietary tool to your team or clients. By configuring these settings, you ensure that the interface and system communications reflect your brand identity rather than Baserow's.
-
-**What disappears**:
-
- - The Baserow logo from the login page, sidebar, and navigation bar.
+ - The logo from the login page, sidebar, and navigation bar. We have logo removal capabilities in the public views (on premium) and published application(on advanced)
  - The ""Powered by Baserow"" text from the footer of all system emails.
  - The ""Need Help?"" button (if disabled), which links to Baserow's public support documentation.
 
@@ -14157,7 +14250,7 @@ White labeling allows you to present Baserow as your own proprietary tool to you
 ### Show help message
 
   * **Enabled:** Displays the ""Need Help?"" button on the dashboard, linking to Baserow support.
-  * **Disabled:** Hides the help button. This is recommended for white-labeling if you want to route support questions to your own internal IT team instead of Baserow's public documentation.
+  * **Disabled:** Hides the help button. This is recommended if you want to route support questions to your internal IT team rather than to Baserow's public documentation.
 
 ### Custom logo
 
@@ -14181,7 +14274,7 @@ You have two options:
 
 A **workspace admin** manages a specific workspace, adding members, creating databases, and controlling workspace-level permissions. An **instance admin** (Self-hosted only) manages the entire Baserow installation, all users, all workspaces, licenses, and system settings. One person can own both roles, but they serve different purposes.
 
-### Are email notifications white-labeled?
+### Are email notifications co-branded?
 
 Yes. When you upload a custom logo in the Branding settings, that logo is automatically applied to system emails (such as workspace invites and password resets). Also, the ""Powered by Baserow"" branding is removed from the email footer.
 
@@ -14410,7 +14503,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
   [1]: /user-docs/admin-panel-audit-logs
   [2]: /user-docs/single-sign-on-sso-overview
-  [3]: /user-docs/pricing
+  [3]: https://baserow.io/user-docs/pricing-plans
   [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/34157e16-d75a-412d-8fbd-4bb32023177d/Admin%20dashboard.jpg
   [5]: /user-docs/admin-panel-settings
   [6]: /user-docs/admin-panel-users
@@ -17213,7 +17306,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
 Baserow's import feature converts your existing data into organized tables; bring your spreadsheets to life with database capabilities.
 
-Create Baserow tables by importing CSV, Excel, JSON, or XML files, or paste data directly from spreadsheets. Convert existing data into structured tables with automatic field detection.
+Create Baserow tables by importing CSV, Excel, JSON, XLSX or XML files, or paste data directly from spreadsheets. Convert existing data into structured tables with automatic field detection.
 
 > This guide covers creating new tables through import. To add data to existing tables, see [Import data into an existing table](/user-docs/import-data-into-an-existing-table).
 
@@ -17230,6 +17323,7 @@ Importing lets you create fully populated tables from existing data files or spr
 | **CSV** | Simple tabular data from any spreadsheet app | .csv | 
 | **JSON** | Structured data exports from APIs or apps | .json | 
 | **XML** | Hierarchical data from technical systems | .xml | 
+| **Excel** | Import spreadsheets files | `.xlsx`, `.xls`, `.ods` |
 
 > All import methods are limited to 5,000 rows per table. For larger datasets, split your file and import in batches, or contact support for enterprise solutions.
 
@@ -17345,12 +17439,37 @@ XML files contain hierarchical data often exported from technical systems or ent
 > Complex nested structures are flattened. For best results, use XML files with simple, tabular structures.
 
 
+### Method 5: Import XLSX files
+
+![Import Excel files to create new tables][2]
+
+Import existing Excel spreadsheets (`.xlsx`, `.xls`, or `.ods`) directly into a new Baserow table.
+
+To import an Excel file:
+
+1. Open your database.
+2. Click **+ Add table**.
+3. Select **Import an Excel file**.
+4. Enter a table name.
+5. Click **Choose Excel file** and select your spreadsheet.
+6. Click **Add table**.
+
+Baserow uploads your workbook and displays a preview of the selected worksheet.
+
+If your workbook contains multiple worksheets, choose the sheet you want to import from the **Sheet** dropdown.
+
+You can also choose whether the first row should be used as column headers.
+
+Before importing, Baserow shows a preview of your data so you can verify you've selected the correct worksheet and that your columns are interpreted correctly.
+
+When you're ready, click **Add table** to create a new table from the spreadsheet.
+
 
 ## After importing: Next steps
 
 ### Convert field types
 
-All imported data starts as text fields. [Convert them][2] to appropriate types for better functionality:
+All imported data starts as text fields. [Convert them][3] to appropriate types for better functionality:
 
 - Text that looks like numbers → [Number field](/user-docs/number-field)
 - Text containing dates → [Date field](/user-docs/date-and-time-fields)
@@ -17463,7 +17582,8 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/b23ea9f0-9a3b-43c3-874f-86ad3641d3b1/Merge%20or%20upsert%20rows%20during%20additional%20import.jpg
-  [2]: https://baserow.io/user-docs/field-customization",,baserow_user_docs,https://baserow.io/user-docs/create-a-table-via-import
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/bd2c15ad-1144-4dfe-9081-0ae16ea9dea3/Excel.png
+  [3]: https://baserow.io/user-docs/field-customization",database,baserow_user_docs,https://baserow.io/user-docs/create-a-table-via-import
 139,Remove workspace member,remove-a-user-from-a-workspace,Remove a user from a Baserow workspace,"# Remove a member from a workspace
 
 Workspace admins can instantly revoke access by removing members from a workspace. This action cannot be undone and permanently deletes all role and team assignments.
@@ -19102,12 +19222,14 @@ View exports work through the view settings menu, giving you format and configur
 
 ### Step-by-step process
 
+![Export a view][1]
+
 1. **Open the view** you want to export
 2. **Click the ellipsis `•••`** beside the view name to open view settings
 3. **Select ""Export view""** from the menu
 4. **Confirm the view selection** in the dropdown (it should show your current view)
 5. **Choose your export format** (CSV, Excel, JSON, or XML)
-6. **Configure format-specific options** if applicable (CSV delimiters, encoding)
+6. **Configure the export options,** such as CSV delimiters, encoding, and whether to include the **Row ID** and **Primary field**.
 7. **Click ""Export""** to download the file to your device
 
 The exported file respects all view configurations active when you initiate the export. Filters, sorts, hidden fields, and row groupings all influence the final export content.
@@ -19178,6 +19300,10 @@ Create a dedicated view configured specifically for your recurring export needs 
 
 Yes, use the ""Export files"" option, which creates a zip archive containing only files from file fields, organized into folders by row ID. This gives you all the uploaded files, images, and attachments without the structured table data. The folder structure helps you identify which files came from which records.
 
+### Can I export the Row ID or primary field?
+
+Yes. When exporting a Grid view to CSV, Excel, JSON, or XML, you can choose whether to include the **Row ID** and **primary field** in the exported data.
+
 ## Related resources
 
 ### Export and import
@@ -19200,7 +19326,10 @@ Yes, use the ""Export files"" option, which creates a zip archive containing onl
 Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we're ready to assist you.
 
 - [Ask the Baserow community](https://community.baserow.io)  
-- [Contact support](/contact) for questions about Baserow or help with your account",,baserow_user_docs,https://baserow.io/user-docs/export-a-view
+- [Contact support](/contact) for questions about Baserow or help with your account
+
+
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/1e07317d-d97b-471d-a68e-4f36dc2386af/Export%20a%20view.png",database,baserow_user_docs,https://baserow.io/user-docs/export-a-view
 150,Advanced row filter,advanced-filtering,Baserow advanced filtering by field values,"# Advanced filtering in Baserow
 
 Advanced filtering in Baserow unlocks database-level querying power; combining multiple conditions with AND/OR logic and nested groups to find exactly what you need in tables with thousands of records.
@@ -19756,13 +19885,13 @@ This guide explains how to organize table data by grouping rows based on field v
 
 ## Overview
 
-The Group by feature organizes your table rows into collapsible sections based on field values, similar to pivot tables in spreadsheets or GROUP BY clauses in databases. When you group by a field like ""Status,"" Baserow automatically creates sections for each unique status value (In Progress, Complete, Pending) and displays all matching rows within each section.
+The Group by feature organizes your table rows into expandable and collapsible groups based on one or more field values, making it easier to navigate and analyze large datasets. For example, you can group tasks by Status, Assignee, or both, creating nested groups that organize related rows together. Each group can display aggregations such as counts or sums, new rows can be created directly within a group, and groups can be reordered using drag and drop. You can group by up to five fields, helping you organize data in multiple levels without losing context.
 
 Groups update automatically as your data changes. Add a row with a new status value, and Baserow creates a new group instantly. You can nest multiple levels of grouping to create hierarchies like Department → Team → Priority, revealing patterns across multiple dimensions simultaneously.
 
 Grouping works exclusively in [Grid View][1] and complements filtering and sorting to give you powerful data organization without formulas or complex configurations.
 
-![Grouped rows in Baserow Grid View](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/2efb8922-415e-4420-9f73-079899541fa9/Group%20by.png)
+![Grouped rows in Baserow Grid View][2]
 
 ## When to use row grouping
 
@@ -19780,8 +19909,8 @@ Grouping works exclusively in [Grid View][1] and complements filtering and sorti
 
 | Feature | Purpose | Result | Rows visibility |
 |---------|---------|--------|-----------------|
-| **Grouping** | Organize into categories | Collapsible sections by value | All rows visible in sections |
-| **[Filtering][2]** | Show subset of data | Hide rows not matching criteria | Only matching rows visible |
+| **Grouping** | Organize into categories | Collapsible groups with aggregations and nested grouping | All rows organized into groups |
+| **[Filtering][3]** | Show subset of data | Hide rows not matching criteria | Only matching rows visible |
 | **Sorting** | Change row order | Rows arranged by value | All rows visible in order |
 | **Combined** | Focus and organize | Filtered data in organized groups | Only matching rows, grouped |
 
@@ -19802,11 +19931,11 @@ Grouping works exclusively in [Grid View][1] and complements filtering and sorti
 
 ## How to add a group
 
-Create your first group level to organize rows by a single field.
+Create your first group level to organize rows by a single field. You can group by up to five fields, creating nested groups within groups.
 
 **To group rows:**
 
-1. Open your table in [Grid View][3]
+1. Open your table in [Grid View][4]
 2. Click the **Group** button in the view toolbar
 3. Select **Choose a field to group by** from the dropdown
 4. Choose the field you want to group by
@@ -19827,9 +19956,31 @@ Create nested groups (subgroups) to reveal hierarchical patterns in your data.
 
 **To add more levels:** Repeat the process to create third, fourth, or more nesting levels. Each level creates subgroups within the previous level's sections.
 
-**Group order matters:** The first field creates top-level sections, the second creates subgroups within those sections, and so on. Reorder group levels by dragging them in the Group panel.
-
 ## How to manage groups
+
+### Expand and collapse groups
+
+Groups are collapsed by default, making it easier to navigate large datasets.
+
+You can:
+
+- Expand an individual group to view its rows.
+- Collapse a group to hide its contents.
+- Expand or collapse nested groups independently.
+- Use **Expand all** or **Collapse all** to quickly change the visibility of every group.
+
+Collapsed groups display their row count and any configured summary values, making it easier to navigate large tables.
+
+### Reorder group levels
+
+Re-order group by fields using drag and drop.
+
+The order of group levels determines the hierarchy. The first field creates the top-level groups, while each additional field creates nested subgroups.
+
+For example:
+
+- Status → Assignee groups tasks by Status first, then by Assignee.
+- Assignee → Status groups tasks by Assignee first, then by Status.
 
 ### Remove a group level
 
@@ -19845,19 +19996,34 @@ Click a group field in the Group panel and select a different field from the dro
 
 Remove all group levels by clicking the X button on each group, or close the Group panel and click ""Clear all"" if available. Your table returns to a flat list view.
 
-## Group summaries and counts
+## **Group summaries and counts**
 
-Each group header displays a summary showing how many rows belong to that group. These counts update automatically as you add, edit, or delete rows.
+Each group header displays the number of rows it contains. You can also configure field summaries that are calculated separately for each group.
 
-When using [footer aggregations][3] (sum, average, count), the aggregated values reflect only the visible filtered rows, even within groups. This lets you analyze grouped subsets of your data with calculated totals.
+In addition to row counts, you can display the same calculations that are available in table footers, calculated separately for each group.
 
-![Group summaries showing row counts](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9e8b91d4-32e5-469d-afb1-09b98242df96/Grouped%20records%20and%20the%20summary%20bar.png)
+Depending on the field type, available [summaries][5] include:
+
+- Count
+- Empty / Not empty
+- Sum
+- Average
+- Minimum
+- Maximum
+- Median
+- Standard deviation
+- Variance
+- Unique values
+
+Group summaries update automatically whenever rows are added, edited, or deleted.
+
+![Group summaries showing row counts][6]
 
 ## Combining grouping with filters and sorts
 
 Grouping works alongside filtering and sorting to create powerful data views:
 
-**Grouping + Filtering:** Apply [filters][4] first to show a subset of rows, then group the filtered results. Example: Filter to show only ""Open"" tickets, then group by Priority.
+**Grouping + Filtering:** Apply [filters][7] first to show a subset of rows, then group the filtered results. Example: Filter to show only ""Open"" tickets, then group by Priority.
 
 **Grouping + Sorting:** [Sort][1] rows within each group alphabetically, numerically, or by date. Groups maintain their structure while rows inside sort independently.
 
@@ -19893,14 +20059,18 @@ Grouping adds minimal performance impact for most tables. Very large tables (100
 
 When you export a view, the data exports in flat format without group structure. However, rows appear in the order they're displayed in groups, so you can see the grouping sequence in your exported file.
 
+### How many fields can I group by?
+
+You can group by up to five fields, creating nested groups that help organize your data across multiple levels.
+
 ## Related content
 
 - [Grid View guide][1] - Learn about Grid View features and capabilities
-- [Filter rows][4] - Combine filtering with grouping for focused views
-- [View customization][5] - Explore other view configuration options
-- [Field summaries][3] - Add calculations to grouped data
-- [Create custom views][6] - Design views optimized for specific grouping needs
-- [Rows overview][7] - Understand how rows work in Baserow
+- [Filter rows][7] - Combine filtering with grouping for focused views
+- [View customization][8] - Explore other view configuration options
+- [Field summaries][4] - Add calculations to grouped data
+- [Create custom views][9] - Design views optimized for specific grouping needs
+- [Rows overview][10] - Understand how rows work in Baserow
 
 ---
 
@@ -19911,12 +20081,15 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: /user-docs/guide-to-grid-view
-  [2]: https://baserow.io/user-docs/filters-in-baserow
-  [3]: /user-docs/footer-aggregation
-  [4]: /user-docs/filters-in-baserow
-  [5]: /user-docs/view-customization
-  [6]: /user-docs/create-custom-views-of-your-data
-  [7]: /user-docs/overview-of-rows",view,baserow_user_docs,https://baserow.io/user-docs/group-rows-in-baserow
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/8d449ae8-e229-415e-84ca-d18f5a2a8ac1/Group%20by%20new.png
+  [3]: https://baserow.io/user-docs/filters-in-baserow
+  [4]: /user-docs/footer-aggregation
+  [5]: https://baserow.io/user-docs/footer-aggregation
+  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e17c5ab8-8bae-4c3b-9693-35d5ba0126b8/Group%20by.png
+  [7]: /user-docs/filters-in-baserow
+  [8]: /user-docs/view-customization
+  [9]: /user-docs/create-custom-views-of-your-data
+  [10]: /user-docs/overview-of-rows",view,baserow_user_docs,https://baserow.io/user-docs/group-rows-in-baserow
 154,Created by field,created-by-field,Created by field in Baserow,"# Working with the 'Created by' field
 
 The **'Created by' field** automatically stamps a row with the user who created it, providing a permanent, unchangeable record of origin.
@@ -22226,11 +22399,11 @@ This guide covers how to customize the layout, spacing, and visual appearance of
 
 The Application Builder offers a wide range of customization options to personalize the look and feel of a page. You can control everything, from color schemes, to typography, and spacing.
 
-* **Global Theme:** Set the default look for *all* elements in [Application Settings][3].
+* **Global Theme:** Set the default look for *all* elements in [Application Settings][1].
 * **Style Tab:** Controls the ""box"" around your element. Use this to change width, background color, borders, and padding.
 * **Theme Overrides (General Tab):** Controls the specific features inside the element. Use this to make a specific button red instead of the default blue.
 
-![Style element][1]
+![Style element][2]
 
 ## The Style Tab (Layout & Container)
 
@@ -22246,7 +22419,7 @@ Control how much horizontal space the element occupies on the page.
 | **Medium** | A contained width, slightly narrower than normal. |
 | **Small** | The narrowest option, useful for centering small interactions. |
 
-![Width][5]
+![Width][3]
 
 ### Padding (Spacing)
 Padding creates a buffer zone between the element's content and its border. Increasing padding adds ""breathing room"" inside the element.
@@ -22289,7 +22462,7 @@ If the built-in style options are not enough, you can apply custom CSS.
 
 1.  In the **Style** tab, scroll to the **CSS Class** field.
 2.  Enter a class name (e.g., `my-custom-button`).
-3.  Go to [Application Settings > Custom Code](/user-docs/custom-css-and-javascript-in-application-builder) to define the rules for that class.
+3.  Go to [Application Settings > Custom Code][5] to define the rules for that class.
 
 ## Frequently asked questions (FAQ)
 
@@ -22314,8 +22487,8 @@ No. Complex elements like [Tables](/user-docs/intro-to-tables) or [Forms](/user-
 
 ## Related content
 
-* [Global Theme Settings][2]
-* [Custom CSS and JavaScript](/user-docs/custom-css-and-javascript-in-application-builder)
+* [Global Theme Settings][6]
+* [Custom CSS and JavaScript][5]
 * [Overview of Elements](/user-docs/elements-overview)
 
 ---
@@ -22326,11 +22499,13 @@ Still need help? If you're looking for something else, please feel free to make 
  - [Ask the Baserow community](https://community.baserow.io)
  - [Contact support](/contact) for questions about Baserow or help with your account.
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/26d9b670-4d8a-49a7-bfa1-cf1197d9fa3b/Untitled.png
-  [2]: /user-docs/application-settings#theme
-  [3]: https://baserow.io/user-docs/application-settings
+
+  [1]: https://baserow.io/user-docs/application-settings
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/26d9b670-4d8a-49a7-bfa1-cf1197d9fa3b/Untitled.png
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9c2c8f51-2c0a-4b37-ba11-dcc2344c0736/Untitled%202.png
   [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9cd19c33-5ae9-4115-9f68-c189609f6088/Untitled%201.png
-  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9c2c8f51-2c0a-4b37-ba11-dcc2344c0736/Untitled%202.png",application builder,baserow_user_docs,https://baserow.io/user-docs/element-style
+  [5]: https://baserow.io/user-docs/custom-css-and-javascript
+  [6]: /user-docs/application-settings#theme",application builder,baserow_user_docs,https://baserow.io/user-docs/element-style
 175,Element events,element-events,Baserow Application Builder element events,"# Configure element events and workflows
 
 Events are the logic layer of your application. They allow you to define exactly what happens when a user interacts with an element, whether it's showing a success message, updating a database row, or sending an email to a customer.
@@ -22373,19 +22548,24 @@ Events are categorized by their function. Below is a guide to every available ac
 ### Data Operations (CRUD)
 These actions interact directly with your Baserow database.
 
-* **Create row:** Adds a new record to a table. You must map your form inputs to the table columns.
-* **Update row:** Modifies an existing record. Requires a Row ID to identify which item to update.
-* **Delete row:** Permanently removes a record. Requires a Row ID.
+ * **Create row:** Adds a new record to a table. You must map your form inputs to the table columns.
+ * **Batch create rows:** Creates multiple records in a single action from an array of row objects.
+ * **Update row:** Modifies an existing record. Requires a Row ID to identify which item to update.
+ * **Batch update rows:** Updates multiple existing records in a single action from an array of row objects. Each object must include a Row ID.
+ * **Delete row:** Permanently removes a record. Requires a Row ID.
 
 ![Create a row event in Baserow Application Builder][2]
 
-### External Integrations
-These actions connect your application to third-party services.
+### Core actions
 
  * **Send email:** Sends a custom email via SMTP (Gmail, Outlook, etc.).
  * **Send HTTP request:** Connects to any API (e.g., Stripe, Zapier, Webhooks).
- * **Send Slack message:** Posts a message to a specific channel or user.
+* **Execute code:** Runs custom JavaScript to transform data, perform calculations, or implement custom business logic.
  * **AI prompt:** Sends text to a generative AI model for analysis or content creation.
+
+### External Integrations
+
+ * **Send Slack message:** Posts a message to a specific channel or user.
 
 Learn more about [how to configure the Slack message action][3].
 
@@ -22431,11 +22611,67 @@ To update a specific row, the workflow needs to know *which* row to target.
 
 ![Update row event in Baserow Application Builder][5]
 
+## Execute code
+
+The new ‘Code execution’ event lets you write JavaScript to transform data, perform calculations, and prepare information before the next step in your automation or application.
+
+![enter image description here][6]
+
+1. Open your **Application Builder** app.
+2. Select the interactive element (for example, a **Button** or **Form**) that should run the code.
+3. Open the **Events** tab in the properties panel.
+4. Under the desired trigger (for example, **On click** or **On submit**), click **+ Add action**.
+5. Select **Execute code**.
+
+The action contains two main sections:
+
+- **Data injections**
+- **Code editor**
+
+👉 [See how to configure this event.][7] 
+
 ## AI prompt
 
 The AI Prompt node connects to generative AI models to execute prompts, analyze data, or generate content directly within your workflow. This allows you to build powerful automations that can summarize text, categorize customer feedback, translate languages, or generate email replies based on your Baserow data.
 
-Learn more about [how to configure the AI prompt][6].
+Learn more about [how to configure the AI prompt][8].
+
+## Read a CSV file
+
+The Read a CSV file action reads structured CSV data and makes each row available to later actions in your application workflow.
+
+This is useful for processing spreadsheets uploaded through forms, reading files stored in Baserow file fields, or creating and updating records from CSV data.
+
+**Add the action**
+
+1. Select the interactive element that will trigger the action.
+2. Open the **Events** tab.
+3. Click **+ Add action**.
+4. Select **Read a CSV file**.
+
+👉 [Learn more about configuring the Read a CSV file action.][9]
+
+## Read an XLS file
+
+The Read an XLS file action reads data from .xls and .xlsx spreadsheets and makes each row available to later actions in your application workflow.
+
+You can optionally choose which worksheet to read, making it easy to process uploaded Excel files without importing them into a database first.
+
+**Add the action**
+1. Select the interactive element that will trigger the action.
+2. Open the **Events** tab.
+3. Click **+ Add action**.
+4. Select **Read an XLS file**.
+
+👉 [Learn more about configuring the Read an XLS file action.][10]
+
+## Start workflow
+
+The Start workflow action starts a published automation workflow with a Manual trigger. This lets you reuse the same workflow from multiple applications and automations instead of duplicating your logic.
+
+This is useful for centralizing common processes, such as sending reports, importing data, or running approval workflows.
+
+👉 [Learn more about configuring the Start workflow action.][11]
 
 ## Frequently asked questions (FAQ)
 
@@ -22451,7 +22687,7 @@ Check your SMTP credentials. If you are using Gmail, you *must* use an **App Pas
 ## Related content
 
  * [Configure Page Parameters](/user-docs/application-builder-page-settings)
- * [Using the Form Element][7]
+ * [Using the Form Element][12]
  * [Connecting Data Sources](/user-docs/data-sources)
 
 ---
@@ -22468,8 +22704,13 @@ Still need help? If you're looking for something else, please feel free to make 
   [3]: https://baserow.io/user-docs/automation-actions#send-a-slack-message
   [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/820cea6d-8d59-485c-bbe4-db29bf3231a7/Send%20email.png
   [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/b07285b6-777b-44b2-86ad-4bbb4acfb0f5/Untitled%203.png
-  [6]: https://baserow.io/user-docs/automation-actions#ai-prompt
-  [7]: /user-docs/application-builder-form-element",application builder,baserow_user_docs,https://baserow.io/user-docs/element-events
+  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/2cc50d49-29be-4e0f-b1a8-f8af20c9d307/Execute%20code%20AB.png
+  [7]: https://baserow.io/user-docs/automation-actions#execute-code-node
+  [8]: https://baserow.io/user-docs/automation-actions#ai-prompt
+  [9]: https://baserow.io/user-docs/automation-actions#read-a-csv-file
+  [10]: https://baserow.io/user-docs/automation-actions#read-an-xls-file
+  [11]: https://baserow.io/user-docs/automation-actions#start-workflow
+  [12]: /user-docs/application-builder-form-element",application builder,baserow_user_docs,https://baserow.io/user-docs/element-events
 176,Heading element,application-builder-heading-element,Baserow Application Builder heading element,"# Application Builder - Heading element
 
 Headings are static or dynamic text elements used to organize your [page][1]. They provide visual hierarchy, allowing users to scan content easily, and are essential for accessibility and SEO.
@@ -22952,7 +23193,7 @@ Still need help? If you're looking for something else, please feel free to make 
   [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/0a0ea05b-9f3a-4d31-a52d-f7bc285021c0/Untitled%202.png",application builder,baserow_user_docs,https://baserow.io/user-docs/application-builder-text-input-element
 181,Columns element,application-builder-columns-element,Columns element in Baserow Application Builder,"# Columns element
 
-The Columns element is a structural container that allows you to break the default vertical stacking of the page. You can split a row into up to 6 distinct columns, controlling the spacing and alignment of the content inside.
+The Columns element is a structural container that allows you to break the default vertical stacking of the page. You can split a row into up to 6 columns, controlling the spacing and alignment of the content inside.
 
 This page covers how to create multi-column layouts to organize elements side-by-side.
 
@@ -22960,12 +23201,12 @@ This page covers how to create multi-column layouts to organize elements side-by
 
 A column container serves as a foundational element in organizing your application. It allows you to arrange content for an intuitive user experience. With column containers, you gain the flexibility to structure and customize your layout.
 
- * **Structure:** Splits the page width into 1, 2, 3, 4, 5, or 6 equal sections.
- * **Container:** You drag other elements (Text, Images, Forms) *inside* the column slots.
- * **Alignment:** You can vertically align content (e.g., center a button next to a tall text block).
- * **Responsiveness:** Columns automatically stack vertically on smaller mobile screens for readability.
+- **Layout:** Arrange content using up to 6 columns with preset or custom widths.
+- **Responsive:** Choose whether columns stay side by side or stack on desktop, tablet, and mobile devices.
+- **Container:** Drag other elements into each column.
+- **Alignment:** Control the vertical alignment of content within columns.
 
-![Baserow column Layout][2]
+![Baserow column Layout][1]
 
 ## Add columns
 
@@ -22985,30 +23226,76 @@ Once the structure is in place, you must populate it.
 ## Configuration
 
 Click the Columns element to open the **General** properties tab.
+Click the **Columns** element to open the **General** tab.
 
-### 1. Column Layout
-Choose the number of vertical sections.
-* **Range:** Select between **1** and **6** columns.
-* **Behavior:** Columns are equal width. For example, selecting ""2"" creates a 50%/50% split. Selecting ""3"" creates a 33%/33%/33% split.
+![Column layouts][2]
 
-### 2. Space between columns (Gap)
-Define the horizontal whitespace between each column slot.
-* **Input:** Enter a value in pixels (e.g., `20`).
-* **Limit:** Maximum value is 2000.
-* **Use Case:** Increase this value to prevent dense text blocks from looking cluttered.
+### Layout
 
-![Space between columns][3]
+Choose how your columns are arranged.
 
-### 3. Vertical alignment
-Control how elements sit relative to each other when column heights differ. This is critical when placing a small element (like a button) next to a tall element (like a paragraph).
+You can:
 
-| Option | Behavior | Use Case |
-| :--- | :--- | :--- |
-| **Top** | Content aligns to the top edge. | Standard text layouts. |
-| **Middle** | Content centers vertically. | Centering a button next to a tall image. |
-| **Bottom** | Content aligns to the bottom edge. | Aligning footer links or ""Read More"" buttons. |
+- Select from several preset layouts, such as 1:1:1, 1:1:2, 2:1:1, and 1:2:1.
+- Choose **Custom** to define your own column widths.
+- Create up to three columns in a single Columns element.
 
-![Column Vertical alignment][4]
+When using a **Custom** layout, assign a weight to each column. A value of **0** sizes the column to fit its content, while the remaining columns share the available space according to their weights.
+
+For example:
+
+- **0 : 5 : 5** creates a narrow column sized to its content alongside two equally sized columns.
+- **2 : 1 : 1** makes the first column twice as wide as the other two.
+
+This allows you to build layouts such as a logo, navigation menu, and login button while controlling how much space each section occupies.
+
+
+### Stack columns per device type
+
+Choose how columns are displayed on different screen sizes.
+
+For each device type, you can choose:
+
+- **Side by side** — Columns remain next to each other.
+- **Stacked** — Columns are displayed vertically.
+
+You can configure this independently for:
+
+- **Desktop**
+- **Tablet**
+- **Mobile**
+
+This makes it easy to create responsive layouts that adapt to different devices without creating separate pages.
+
+
+### Space between columns
+
+Set the horizontal spacing between columns.
+
+Increase this value to create more whitespace between columns or reduce it to place content closer together.
+
+
+### Vertical alignment
+
+Control how content is aligned within each column when columns have different heights.
+
+Available options are:
+
+- **Top** — Align content to the top of the column.
+- **Center** — Center content vertically.
+- **Bottom** — Align content to the bottom of the column.
+
+This is useful when placing smaller elements, such as buttons, next to taller content like forms or text blocks.
+
+### Example
+
+Create a three-column layout for a page header:
+
+- **Column 1:** Company logo (content-sized)
+- **Column 2:** Navigation menu
+- **Column 3:** Login button
+
+Configure the layout as **0 : 5 : 5** so the logo only takes the space it needs while the navigation and login sections share the remaining width. Set **Desktop** to **Side by side** and **Mobile** to **Stacked** so the layout automatically adapts to smaller screens.
 
 ## Frequently asked questions (FAQ)
 
@@ -23023,9 +23310,9 @@ Currently, you cannot place a Columns element inside another Columns element. To
 
 ## Related content
 
- * [Add and remove elements][147]
- * [Overview of Elements][146]
- * [Managing Page Layouts][143]
+ * [Add and remove elements][3]
+ * [Overview of Elements][4]
+ * [Managing Page Layouts][5]
 
 ---
 
@@ -23035,13 +23322,12 @@ Still need help? If you're looking for something else, please feel free to make 
  - [Ask the Baserow community](https://community.baserow.io)
  - [Contact support](/contact) for questions about Baserow or help with your account.
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e338a239-e015-4e96-bcec-f2c8da4cfc31/Untitled.png
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/82e294ec-5047-4f59-aa27-dc8c0906d67d/Untitled%201.png
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/85360cc8-c0ba-40af-ae0a-a3e482d8fb3e/Untitled%202.png
-  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/754cf382-747d-4cf9-bec9-2b57ae6589a6/Untitled%203.png
-  [143]: /user-docs/pages-in-the-application-builder
-  [146]: /user-docs/elements-overview
-  [147]: /user-docs/add-and-remove-elements",application builder,baserow_user_docs,https://baserow.io/user-docs/application-builder-columns-element
+
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/82e294ec-5047-4f59-aa27-dc8c0906d67d/Untitled%201.png
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/75176563-8541-4d14-b1d3-5c7e0f23c718/Columns.png
+  [3]: /user-docs/add-and-remove-elements
+  [4]: /user-docs/elements-overview
+  [5]: /user-docs/pages-in-the-application-builder",application builder,baserow_user_docs,https://baserow.io/user-docs/application-builder-columns-element
 182,Button element,application-builder-button-element,Button element in Baserow Application Builder,"# Application Builder - Button element
 
 The Button element is the primary ""Call to Action"" (CTA) in your application. Unlike a simple [Link element][1], buttons are designed to trigger complex workflows; such as creating database rows, sending emails, or executing API requests.
@@ -24291,7 +24577,7 @@ Yes. You can generate all AI values in one go by clicking the **Generate all AI 
 **Need help?** Visit the [Baserow community](https://community.baserow.io/) or [contact support](/contact) for assistance with your account.
 
 
-  [1]: https://baserow.io/user-docs/generative-ai-baserow
+  [1]: https://baserow.io/user-docs/configure-generative-ai
   [2]: https://baserow.io/user-docs/baserow-field-overview
   [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/11dc38d8-051a-481a-86b1-38f3c0c7484f/ai_field_improvements.webp
   [4]: https://baserow.io/user-docs/subscriptions-overview
@@ -25034,7 +25320,7 @@ Data synchronization ensures your external data is consistent and up-to-date acr
 
 By automating the process of updating data, you can eliminate the need for manual updates in different systems. This guarantees that everyone within your organization has access to the latest information, reducing errors and increasing efficiency.
 
-> Some sync sources (Baserow, Jira, GitHub, GitLab, Hubspot) are available with a [paid plan][3]. To access them, please upgrade your account by subscribing. 
+> Some sync sources (Baserow, Jira, GitHub, GitLab, Hubspot) are available with a [paid plan][1]. To access them, please upgrade your account by subscribing. 
 
 This section will guide you through the process of setting up and managing data sync in Baserow. 
 
@@ -25051,9 +25337,9 @@ Data sync creates live-updating tables that automatically pull information from 
 
 Data sync eliminates manual data entry and ensures single-source-of-truth consistency across platforms.
 
-> Synced tables are read-only in Baserow, meaning you modify data at the [source][1] and see changes reflected automatically.
+> Synced tables are read-only in Baserow, meaning you modify data at the [source][2] and see changes reflected automatically.
 
-![Screenshot of data sync in Baserow][2]
+![Screenshot of data sync in Baserow][3]
 
 ## How to set up data sync
 
@@ -25063,7 +25349,7 @@ Setting up any sync source follows the same basic pattern, with source-specific 
 ### Basic setup process
 
 1. Navigate to your database in the sidebar and click **+ New table**
-2. Select your [sync source][1] from the available integration options
+2. Select your [sync source][2] from the available integration options
 3. Enter connection details specific to your source (see source sections below)
 4. Name your synced table descriptively to identify the data source
 5. Select fields to sync. You don't need all fields; choose only what's relevant. 
@@ -25223,6 +25509,18 @@ Configure automatic sync schedules through the ellipsis menu of any synced table
 
 ![Daily sync schedule settings](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/user_files/O24Ax8tN1cMsz6UfGkTTxvP6rVyDVNzM_097dd28d744e7a5d6fbf0375730349211d7f60255974000afa50eb37b5c6cd42.png)
 
+### Delete rows when they are deleted or hidden in the source
+
+![Option to keep synced rows when they are deleted in source][10]
+
+By default, **Delete rows when they are deleted or hidden in the source** is enabled.
+
+When enabled, rows that are deleted or no longer visible in the source are also deleted from the synced table during each synchronization.
+
+Disable this option if you want to keep those rows in your synced table. This is useful when you've added custom fields, notes, or other information in Baserow that you don't want to lose if a record is removed or temporarily hidden in the source.
+
+If the same row becomes visible in the source again, Baserow automatically reuses the existing row and synchronizes it again instead of creating a duplicate.
+
 ### Add new fields
 
 Synced fields are read-only, but you can [add new editable fields](/user-docs/adding-a-field) to synced tables for tracking additional information not provided by the source. These custom fields don't interfere with synced data and update independently. 
@@ -25278,19 +25576,16 @@ Still need help? If you're looking for something else, please feel free to make 
  - [Contact support](/contact) for questions about Baserow or help with your account.
 
 
-  [1]: #data-sync-sources
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/279cf13c-95fd-47e8-a8ed-16471d2e8acc/data_sync.webp
-  [3]: https://baserow.io/pricing
+  [1]: https://baserow.io/pricing
+  [2]: #data-sync-sources
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/279cf13c-95fd-47e8-a8ed-16471d2e8acc/data_sync.webp
   [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/a2733ae8-2dad-49da-aae1-713485ab67af/screenshot_to_select_the_fields_you_would_like_to_sync.webp
   [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/920300d9-ac20-4aab-9c2a-40c4d94a1981/data_sync_jira_gitlab_github_and_postgresql.webp
   [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f5ec7571-448f-4bc4-8eca-a1feab1c430d/image_hubspot_data_sync.webp
   [7]: /user-docs/field-customization
   [8]: /user-docs/overview-of-baserow-views
   [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/8ba3e6b7-0d17-4285-90de-f1a824861d45/data_sync.png
-  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/user_files/O24Ax8tN1cMsz6UfGkTTxvP6rVyDVNzM_097dd28d744e7a5d6fbf0375730349211d7f60255974000afa50eb37b5c6cd42.png
-  [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/user_files/KshOKWGHedPZuZMyOaVcdsVwZSlNd9Xp_3be5b5805528eddf66dc95d7729fcbdf6bbdb98ff2725f0607d674c558ad8cca.png
-  [12]: /user-docs/adding-a-field
-  [13]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/1338865f-6680-4868-b330-4f2b6307c85b/screenshot_to_identify_a_synced_field.webp",,baserow_user_docs,https://baserow.io/user-docs/data-sync-in-baserow
+  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/ed946338-deaa-4494-9275-2beebc081b63/delete%20rows.png",database,baserow_user_docs,https://baserow.io/user-docs/data-sync-in-baserow
 260,Record selector element,application-builder-record-selector-element,Record selector element in Baserow Application Builder,"# Application Builder - Record selector element
 
 The Record Selector is a specialized input element designed to handle relationships. Unlike a simple dropdown menu, it allows users to search, paginate, and select records from a connected Data Source. It is the frontend equivalent of the ""Link to Table"" field.
@@ -26132,24 +26427,20 @@ Still need help? If you’re looking for something else, please feel free to mak
   [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/02403839-efc7-4bcb-935b-01b2e426d442/Add%20a%20Widget.png",dashboard,baserow_user_docs,https://baserow.io/user-docs/create-a-dashboard
 328,Menu element,menu-element,Menu element in Baserow Application Builder,"# Menu element
 
-The Menu element is a container for navigation links. Unlike individual [Link elements][153], the Menu element groups multiple items together, handling alignment, spacing, and layout (horizontal vs. vertical) automatically. It is essential for headers, footers, and sidebars.
+The Menu element is a container for navigation links. Unlike individual Link elements, it groups multiple navigation items together while handling layout, spacing, alignment, and responsive behavior automatically. It's ideal for building headers, footers, and side navigation.
 
-This page covers how to create structured navigation bars or sidebars to help users move through your application.
+With the Menu element you can:
 
-## Overview
-
-The Menu element helps users move through different parts of your application smoothly. It creates an organized structure that makes navigation intuitive and efficient.
-
-* **Structure:** Organizes multiple navigation items in a list.
-* **Orientation:** Can be displayed **Horizontally** (Top Bar) or **Vertically** (Sidebar).
-* **Items:** Each item can link to an internal page or external URL.
-* **Styling:** Visual properties for **Buttons** and **Links** are managed via **Theme Overrides**.
+- Organize navigation items into a single menu.
+- Display items horizontally or vertically.
+- Align menu items within the container.
+- Configure whether the menu is expanded or collapses into a compact burger menu on desktop, tablet, and mobile devices independently.
 
 ## Add a menu
 
 1.  Open the **Elements** panel (click the `+` icon).
 2.  Select **Menu**.
-3.  Drag and drop the element onto your canvas (typically into a [Column][156] or [Header/Footer][167] container).
+3.  Drag and drop the element onto your canvas (typically into a [Column][1] or [Header/Footer][2] container).
 
 ## Configuration
 
@@ -26176,6 +26467,25 @@ Control how the items sit within the container.
 * **Left/Start:** Items group to the left.
 * **Center:** Items group in the middle.
 * **Right/End:** Items group to the right.
+
+### 4. Variant per device type
+
+![Burger menu][3]
+
+Choose how the menu is displayed on each device independently.
+
+For **Desktop**, **Tablet**, and **Mobile**, you can choose one of two variants:
+
+- **Expanded** – Displays all menu items.
+- **Compact** – Displays a burger menu that users can open to access the navigation.
+
+This allows you to create responsive navigation without duplicating menu elements or configuring visibility rules.
+
+For example, you can configure:
+
+- Desktop → Expanded
+- Tablet → Compact
+- Mobile → Compact
 
 ## Styling and Theme Overrides
 
@@ -26207,13 +26517,13 @@ The Menu element automatically detects the active page based on the URL. You can
 Currently, the Menu element supports a single level of links. To create a dropdown, you may need to use a container with visibility logic or check for updates to the Menu component.
 
 ### Does the menu collapse on mobile?
-The Menu element itself simply lists items. For a responsive mobile experience (like a hamburger menu), you typically place the Menu element inside a container that is hidden on Desktop and visible on Mobile (using [Visibility settings][150]).
+The Menu element itself simply lists items. For a responsive mobile experience (like a hamburger menu), you typically place the Menu element inside a container that is hidden on Desktop and visible on Mobile (using [Visibility settings][4]).
 
 ## Related content
 
- * [Multi-page Header and Footer][167]
- * [Link Element Configuration][153]
- * [Element Styling (Layout vs. Theme)][148]
+ * [Multi-page Header and Footer][2]
+ * [Link Element Configuration][5]
+ * [Element Styling (Layout vs. Theme)][6]
 
 ---
 
@@ -26223,12 +26533,13 @@ Still need help? If you're looking for something else, please feel free to make 
  - [Ask the Baserow community](https://community.baserow.io)
  - [Contact support](/contact) for questions about Baserow or help with your account.
 
-[1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/example_menu_screenshot.png
-[148]: /user-docs/element-style
-[150]: /user-docs/application-builder-element-visibility
-[153]: /user-docs/application-builder-link-element
-[156]: /user-docs/application-builder-columns-element
-[167]: /user-docs/application-builder-multi-page-container",application builder,baserow_user_docs,https://baserow.io/user-docs/menu-element
+
+  [1]: /user-docs/application-builder-columns-element
+  [2]: /user-docs/application-builder-multi-page-container
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/b0ed0e43-4e2f-43a4-8ffe-fbecc9867568/Burger%20menu.png
+  [4]: /user-docs/application-builder-element-visibility
+  [5]: /user-docs/application-builder-link-element
+  [6]: /user-docs/element-style",application builder,baserow_user_docs,https://baserow.io/user-docs/menu-element
 359,Rating element,application-builder-rating-element,Rating element in Baserow Application Builder,"# Application Builder - Rating elements
 
 Baserow provides two distinct elements for handling ratings. The **Rating** element is read-only and used to visualize data (e.g., ""4.5 out of 5 stars""). The **Rating Input** element is interactive and used in forms to collect feedback from users (e.g., ""Rate this product"").
@@ -26431,9 +26742,11 @@ Still need help? If you're looking for something else, please feel free to make 
   [157]: /user-docs/application-builder-button-element",application builder,baserow_user_docs,https://baserow.io/user-docs/application-builder-file-input-element
 361,MCP Server,mcp-server,Baserow MCP Server overview,"# MCP Server in Baserow
 
-Baserow's Model Context Protocol (MCP) Server lets you connect Large Language Models like Claude, Cursor, or Windsurf directly to your workspace. You can create, read, update, and delete data using natural language prompts without writing code or API calls.
+Baserow features a native, built-in Model Context Protocol (MCP) server that lets local AI models securely read and write data to an on-premise relational database. Unlike cloud alternatives, it passes zero private data to third-party servers, minimizes context window token waste by streaming only requested database rows, and operates entirely behind your local firewall via a standard JSON configuration.
 
 ## What is MCP Server in Baserow?
+
+Baserow's Model Context Protocol (MCP) Server lets you connect Large Language Models like Claude, Cursor, or Windsurf directly to your workspace. You can create, read, update, and delete data using natural language prompts without writing code or API calls.
 
 MCP Server makes it easy to manage Baserow data through AI assistants in less time than manual database operations.
 
@@ -26491,6 +26804,16 @@ Select from the available options:
 - Claude
 - Cursor
 - Windsurf
+
+## Available capabilites
+
+ - Create rows
+ - Delete rows
+ - Get table schema
+ - List databases
+ - List table rows
+ - List tables
+ - Update rows
 
 ## Configure your LLM client
 
@@ -26996,7 +27319,6 @@ Indexes don't export with data in CSV/Excel; they're database structures, not da
 - [Filtering in Baserow][6] - Optimize filters with indexed fields
 - [API documentation][100] - Leverage indexes in API queries
 - [Grid View guide][22] - Understand view performance and optimization
-- [Database performance][perf] - Additional optimization strategies
 - [Field types overview][field-types] - Learn which fields support indexing
 
 ---
@@ -27011,8 +27333,7 @@ Still need help? If you're looking for something else, please feel free to make 
 [100]: /user-docs/database-api
 [field-config]: /user-docs/field-customization
 [field-types]: /user-docs/baserow-field-overview
-[view-custom]: /user-docs/view-customization
-[perf]: /user-docs/database-performance",,baserow_user_docs,https://baserow.io/user-docs/field-indexes
+[view-custom]: /user-docs/view-customization",field,baserow_user_docs,https://baserow.io/user-docs/field-indexes
 393,Field value constraints,field-value-constraints,Baserow Field value constraints,"# Field value constraints in Baserow
 
 Field value constraints in Baserow prevent bad data at the source; enforcing uniqueness, required values, and validation rules automatically so your database stays clean without manual checking or post-entry cleanup.
@@ -27202,7 +27523,6 @@ Constraints **prevent** invalid data from being saved (enforcement). Filters **h
 ## Related content
 
 - [Field configuration options][field-config] - Access constraint settings through field editor
-- [Data validation][validation] - Additional data quality strategies
 - [CSV import guide][import] - Handle constrained fields during import
 - [API documentation][100] - Work with constraints in API operations
 - [Form configuration][forms] - Understand constraint behavior in forms
@@ -27220,8 +27540,7 @@ Still need help? If you're looking for something else, please feel free to make 
 [field-config]: /user-docs/field-customization
 [field-types]: /user-docs/baserow-field-overview
 [forms]: /user-docs/guide-to-creating-forms-in-baserow
-[import]: /user-docs/create-a-table-via-import
-[validation]: /user-docs/data-validation-strategies",,baserow_user_docs,https://baserow.io/user-docs/field-value-constraints
+[import]: /user-docs/create-a-table-via-import",field,baserow_user_docs,https://baserow.io/user-docs/field-value-constraints
 394,Custom code,custom-css-and-javascript,Custom CSS and JavaScript in Baserow Application Builder,"# Configure custom code (CSS and JavaScript)
 
 While Baserow offers a wide range of built-in no-code tools, you can use the **Custom CSS/JS** settings to inject standard web code into your application. This feature allows developers and designers to override default styles, add advanced interactivity, or connect external services like analytics and chat widgets.
@@ -28020,13 +28339,87 @@ Learn more: [Publishing and Managing Workflows][5]
 
 ### Workflow history
 
-The History tab provides a chronological log of all workflow executions. Use this log to monitor performance and maintain your automations.
+![Node history][6]
 
- - Execution Status: See whether a workflow run was successful or failed.
- - Execution Time: View the exact timestamp of when the workflow was triggered.
- - Error Messaging: If a workflow fails, Baserow provides a descriptive error message within the history record to help you identify which step caused the issue.
+Node history lets you inspect every workflow run, making it easier to understand what happened and troubleshoot issues.
 
-To view specific data outputs and node-level processing results, use the Test Workflow modal during the configuration phase. 
+Instead of only seeing whether a workflow succeeded or failed, you can inspect every node that executed, view its output, see how many automation credits were consumed (Baserow cloud only), and identify exactly where errors occurred.
+
+**To open Node history:**
+
+1. Open your workflow.
+2. Click **History** in the top navigation bar.
+
+The History panel displays:
+
+- Total successful runs
+- Total failed runs
+- A chronological list of workflow runs, including manual test runs
+
+If a workflow runs while you're viewing the History panel, new entries appear automatically without refreshing the page.
+
+**Inspect a workflow run**
+
+Click any workflow run to expand its details.
+
+**For each run, you can see:**
+
+- Overall workflow status
+- Execution time
+- Automation credits consumed (Baserow cloud only)
+- Every node that executed during the run
+
+**Each node shows whether it:**
+
+- Completed successfully
+- Failed
+- Is currently running
+
+This gives you a complete overview of what happened during that workflow execution.
+
+**Inspect node results**
+
+![Node history details][7]
+
+Expand any node to inspect its execution.
+
+Depending on the node, you can view:
+
+- Execution status
+- Returned output
+- Error messages (if the node failed)
+
+Click **Show result** to inspect the data returned by the node.
+
+This is especially useful when later nodes depend on values produced by previous workflow steps.
+
+---
+
+## Troubleshoot workflow errors
+
+If a workflow fails, Node history shows exactly where the failure occurred.
+
+Instead of only seeing that a workflow failed, you can identify:
+
+- Which node failed
+- The returned error message
+- Which previous nodes completed successfully
+
+This makes it much easier to troubleshoot complex workflows.
+
+---
+
+## Inspect Iterator nodes
+
+Node history groups Iterator executions together, making repeated actions easier to inspect.
+
+For each Iterator you can:
+
+- See how many times it executed
+- Expand individual iterations
+- Inspect the nodes executed during each iteration
+
+Nested Iterators are displayed hierarchically, allowing you to drill down into each execution without overwhelming the history view.
 
 ## How to build and manage workflows
 
@@ -28037,7 +28430,7 @@ To view specific data outputs and node-level processing results, use the Test Wo
 3. Select **Automation** from the dropdown menu
 4. (Optional) Click the ellipsis beside the automation name and select **Rename** to give it a descriptive name or **Duplicate** to create a copy of an automation.
 
-> Learn more about [how snapshots work in Baserow][6].
+> Learn more about [how snapshots work in Baserow][8].
 
 ### Building your workflow
 
@@ -28068,7 +28461,7 @@ You must publish your workflow for it to begin processing real data. Baserow wor
 
 Learn more: [Publishing and managing workflows][5]
 
-![image Baserow router automation][7]
+![image Baserow router automation][9]
 
 ## Frequently asked questions
 
@@ -28114,8 +28507,10 @@ Still need help? If you're looking for something else, please feel free to make 
   [3]: https://baserow.io/user-docs/automation-triggers
   [4]: https://baserow.io/user-docs/automation-actions
   [5]: https://baserow.io/user-docs/workflow-management
-  [6]: https://baserow.io/user-docs/snapshots
-  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/14d8595d-2484-458a-b77b-dc25018110b1/Baserow%20router%20automation.jpg",automation,baserow_user_docs,https://baserow.io/user-docs/workflow-automation
+  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3f66fc94-7225-4693-b169-ea7e1ca7bb02/Node%20history.png
+  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/7a618064-dfe3-4df8-93bf-ce9393aeec9a/Node%20history%20details.png
+  [8]: https://baserow.io/user-docs/snapshots
+  [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/14d8595d-2484-458a-b77b-dc25018110b1/Baserow%20router%20automation.jpg",automation,baserow_user_docs,https://baserow.io/user-docs/workflow-automation
 525,Workflow triggers,automation-triggers,Baserow workflow triggers,"# Workflow triggers: How to start an automation
 
 Triggers are the starting point of every Baserow workflow. They define when your automation runs, whether on a schedule, when data changes in your tables, or when external services send requests. Configure your trigger first, then build actions that respond to it.
@@ -28178,6 +28573,7 @@ These triggers monitor your Baserow tables and fire immediately when specified c
 |--------------|-----------|------------------|
 | **Rows are created** | New rows are added to a table | Welcome new customers, assign tasks to team members |
 | **Rows are updated** | Existing rows are modified | Notify stakeholders of status changes, log edit history |
+| **Specific field values are updated** | One or more selected fields are updated | Trigger approvals when a Status changes, notify assignees, react only to important field changes |
 | **Rows are deleted** | Rows are permanently removed | Archive deleted data elsewhere, send deletion confirmations |
 
 **Configuration (applies to all table-change triggers):**
@@ -28196,6 +28592,29 @@ If one API request creates several rows (for example, 10 rows in a single batch)
 
 Multiple requests creating individual rows:
 If you send separate requests for each row (for example, 10 individual requests), the workflow trigger fires once per request, resulting in 10 separate workflow executions.
+
+### Specific field values are updated
+
+The **Specific field values are updated** trigger starts a workflow only when selected fields in a Baserow table are updated.
+
+Instead of running every time a row changes, you can choose one or more fields to watch. Changes to any other fields won't trigger the workflow.
+
+This is useful for workflows that should only run when important information changes, such as a status, assignee, or approval field.
+
+**Configure the trigger by selecting:**
+
+- **Integration** – The Baserow integration to use.
+- **Database** – The database containing the table to monitor.
+- **Table** – The table to watch for changes.
+- **Fields** – One or more fields that should trigger the workflow when their values change.
+
+The workflow will only run when one of the selected fields is updated.
+
+**Example**
+
+An expense approval workflow should only run when the **Status** field changes.
+
+Configure the **Specific field values are updated** trigger to watch the **Expenses** table and select the **Status** field. The workflow will start whenever the status changes, but not when other fields, such as the description or amount, are edited.
 
 ### Receive an HTTP request (webhook)
 
@@ -28220,6 +28639,32 @@ GET requests are used by web browsers and crawlers for simple page visits. Exclu
  - Receive form submissions from your website
  - Sync data from external CRM systems
  - Trigger workflows from Zapier or Make automations
+
+### Manual trigger
+
+The **Manual trigger** creates a workflow that is only triggered on demand.
+
+Unlike other triggers, it doesn't run on a schedule, when rows change, or when an HTTP request is received. It only runs when another workflow or an application starts it using the **Start workflow** action.
+
+This is useful for creating reusable workflows that can be started whenever they're needed.
+
+**Configure the trigger by setting:**
+
+- **Label** *(optional)* – Give the trigger a custom name.
+
+No additional configuration is required.
+
+**Limitations**
+
+- A workflow with a **Manual trigger** can only be started using the **Start workflow** action.
+- It can't be started by a **Periodic trigger**, another **Manual trigger**, or any other trigger directly.
+- To run a manual workflow automatically, start it from another workflow using the **Start workflow** action.
+
+**Example**
+
+Create a **Send monthly report** workflow with a **Manual trigger**. The workflow gathers project data and sends a Slack notification.
+
+A scheduled workflow runs every month and uses the **Start workflow** action to start the **Send monthly report** workflow. The same workflow can also be started from an application when a user clicks a button, allowing the reporting logic to be reused without duplicating it.
 
 ## How to test your trigger
 
@@ -28336,7 +28781,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3a11987e-6c82-47d8-9670-19cc14397edb/Baserow%20workflow%20automation.jpg
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d23180d4-fcc1-437f-a744-01d385059d62/Baserow%20trigger%20automation.jpg",,baserow_user_docs,https://baserow.io/user-docs/automation-triggers
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d23180d4-fcc1-437f-a744-01d385059d62/Baserow%20trigger%20automation.jpg",automation,baserow_user_docs,https://baserow.io/user-docs/automation-triggers
 526,Workflow actions,automation-actions,Baserow Workflow actions,"# Workflow actions: Reading and modifying data
 
 Baserow workflow actions turn static data into dynamic processes by automating updates, notifications, and external syncs instantly.
@@ -28403,6 +28848,30 @@ This action automatically adds a new row to a specified table when certain event
 
 Common use cases include adding new customers from website form submissions, creating tasks when a project’s status changes, logging activity when external events occur, or duplicating existing rows with modifications.
 
+### Batch create rows
+
+Use **Batch create rows** to create multiple records in a Baserow table at once.
+
+**Configuration:**
+
+1. Open your workflow.
+2. Click the **+** button where you want to add an action.
+3. Select **Batch create rows**.
+
+**Configure the following options:**
+
+- **Label** *(optional)* — Give the action a descriptive name.
+- **Integration** — Select the Baserow integration.
+- **Database** — Choose the database where the rows will be created.
+- **Table** — Choose the destination table.
+- **Rows** — Select or enter a formula that returns an array of row objects. You can use outputs from previous actions or switch to **Expert mode** to write a custom formula.
+
+Each object in the array becomes a new row. Object keys should match the destination table's field names or field IDs.
+
+You can create up to **1,000 rows** in a single action. 
+
+**Self-hosted:** Instance administrators can change this limit by configuring `INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT`.
+
 ### Update a row
 
 This action allows you to modify existing records in your table based on changing conditions or new information. It updates specific field values in a row without altering any other fields.
@@ -28420,6 +28889,30 @@ This action allows you to modify existing records in your table based on changin
 Common use cases include updating an order status when payment is received, marking tasks as complete when all subtasks are finished, incrementing counters when events occur, and syncing changes from external systems.
 
 > Only mapped fields are updated. All other fields retain their current values.
+
+### Batch update rows
+
+Use **Batch update rows** to update multiple existing records in a Baserow table at once.
+
+**Configuration:**
+
+1. Open your workflow.
+2. Click the **+** button where you want to add an action.
+3. Select **Batch update rows**.
+
+**Configure the following options:**
+
+- **Label** *(optional)* — Give the action a descriptive name.
+- **Integration** — Select the Baserow integration.
+- **Database** — Choose the database containing the rows to update.
+- **Table** — Choose the table containing the rows to update.
+- **Rows** — Select or enter a formula that returns an array of row objects. Each object must include an `id` property identifying the row to update. You can use outputs from previous actions or switch to **Expert mode** to write a custom formula.
+
+The remaining properties in each object define the field values to update.
+
+You can update up to **1,000 rows** in a single action. 
+
+**Self-hosted:** Instance administrators can change this limit by configuring `INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT`.
 
 ### Delete a row
 
@@ -28495,6 +28988,33 @@ This action calculates aggregate statistics across multiple rows without retriev
 
 Common use cases include calculating total revenue for the current month, counting how many tasks are still open, finding the average rating across all reviews, and identifying the highest priority value currently in the queue.
 
+### Start workflow
+
+The **Start workflow** action starts another automation workflow. You can use it to start another workflow or restart the current workflow, allowing it to run again and follow a different path if needed.
+
+You can use it in both Automation Builder and Application Builder to reuse existing workflows instead of duplicating the same logic in multiple places.
+
+This is useful for breaking large automations into smaller, reusable workflows that can be started whenever they're needed.
+
+**Configure the action by selecting:**
+
+- **Label** *(optional)* – Give the action a custom name.
+- **Workflow** – Select the workflow to start.
+
+Only published workflows with a **Manual trigger** can be selected. If the selected workflow has unpublished changes, the latest published version will run.
+
+**Example**
+
+A project management application includes a **Generate daily report** button.
+
+When a user clicks the button, the application uses the **Start workflow** action to start the **Daily report** workflow. The same workflow can also be started from other automations, allowing the reporting logic to be reused instead of recreated in multiple workflows.
+
+**Notes**
+
+- Only workflows with a **Manual** trigger can be started.
+- Only the latest **published** version of a workflow is executed.
+- If a workflow has unpublished changes, those changes won't be used until the workflow is published.
+
 ## Workflow control actions
 
 ### Router (conditional branching)
@@ -28545,31 +29065,7 @@ These nested actions will run once for *each item* in the source list. Inside a 
 
 The workflow will only proceed to the nodes *after* the Iterator once all items in the list have been processed.
 
-## External integration actions
-
-### Send a Slack message
-
-This action sends a message directly to a Slack channel when your workflow runs.
-
-**Configuration:**
-
-1. **Integration:** Select your ""Slack Bot"" integration.
-2. **Channel:** Choose the channel name.
-3. **Message:** Enter the text content. You can use dynamic data (e.g., `New lead: [Name]`) to personalize the message.
-
-How to set up the Slack Bot:
-
-To use this integration, you must create a Slack App and issue a token.
-
- 1. Navigate to your [workspace's apps page][9].
- 2. Create a new App in the **Slack API** portal, choose 'From scratch' and enter a name. Select the workspace your app should operate in, and click 'Create'.
-     > Notify your Slack workspace admin if you are unable to create a new Slack app. If you are re-using an existing app which can write messages, proceed to **Step 5** to install the app to your workspace.
-
- 3. In the left sidebar, navigate to **OAuth & Permissions**, scroll down to Scopes and under 'Bot Token Scopes', select 'Add an OAuth Scope'. 
- 4. To allow your app to post messages, add the `chat:write` scope.
- 5. Navigate to the 'Settings' -> 'Install App' to install the App to your workspace.
- 6. Copy your **Bot User OAuth Token** and store it in the 'Bot User Token' field in the Slack integration form in Baserow.
- 7. **Crucial Step:** You must invite the bot to the Slack channel you wish to post in (e.g., type `/invite @YourBotName` in the Slack channel).
+## Core actions
 
 ### Send an HTTP request
 
@@ -28605,13 +29101,13 @@ Body:
 }
 ```
 
-Learn more about [Baserow database tokens][10].
+Learn more about [Baserow database tokens][9].
 
 ### Send an email
 
 This action allows your workflow to automatically notify users, teams, or customers when specific events occur. It sends emails using your configured SMTP settings, enabling immediate communication from your automation.
 
-> Automations can use a pre-configured SMTP server when [self-hosting][11]. This removes the need to configure email settings for each automation individually, while still allowing custom configurations when needed.
+> Automations can use a pre-configured SMTP server when [self-hosting][10]. This removes the need to configure email settings for each automation individually, while still allowing custom configurations when needed.
 
 **Configuration:**
 
@@ -28646,9 +29142,189 @@ Common use cases include welcoming new users after registration, sending order c
 <p><a href=""https://baserow.io/dashboard"">Get Started</a></p>
 ```
 
+### Execute code node
+
+The Execute code action lets you run JavaScript directly inside Automation workflows and [Application Builder][11] pages.
+
+Use it to transform data, perform calculations, generate custom outputs, or prepare information before passing it to the next action.
+
+![Execute code node example][12]
+
+**For example, you can use the Execute code action to:**
+
+- Format data before sending an email
+- Clean or transform text before updating a row
+- Perform calculations that aren't possible with formulas alone
+- Generate HTML, JSON, or other structured output
+- Process lists of records before creating or updating data
+
+The action returns an object whose values can be used by any following workflow action.
+
+**The Execute code action is available on the Advanced and Enterprise plans.**
+
+Currently, JavaScript is the supported language.
+
+
+**Add an Execute code action**
+
+1. Open your **Automation workflow**.
+2. Click the **+** button where you want to add a new action (after a trigger or another action).
+3. Select **Execute code**.
+
+![Add an Execute code action][13]
+
+The action contains two main sections:
+
+- **Data injections**
+- **Code editor**
+
+
+**Configure data injections**
+
+Before your code runs, you define which values should be available inside your JavaScript.
+
+Rather than exposing the entire workflow context, Baserow lets you inject only the values your code needs.
+
+Each injection consists of:
+
+- **Name** — the variable name available inside your code
+- **Value** — any formula or value from previous workflow steps
+
+**For example:**
+
+| Name | Value |
+| --- | --- |
+| tasks | Previous node → Get tasks of today |
+| customerName | Current row → Name |
+| total | Formula result |
+
+Inside your JavaScript, these values are available through the `context` object:
+
+```
+context.tasks
+context.customerName
+context.total
+```
+
+You can add multiple injections if your code requires several inputs.
+
+
+**Write JavaScript**
+
+The **Code** section is where you write your JavaScript.
+
+Your code must define a `main(context)` function.
+
+Baserow automatically calls this function when the workflow runs.
+
+Example:
+
+```
+function main(context) {
+return {
+        message:`Hello${context.customerName}`
+    }
+}
+```
+
+The returned object becomes the output of the Execute code action and can be referenced by later workflow steps.
+
+
+**Return values**
+
+The Execute code action always returns an object.
+
+Each property of that object becomes available to subsequent workflow actions.
+
+For example:
+
+```
+function main(context) {
+return {
+        total:42,
+        status:""Complete""
+    }
+}
+```
+
+Later actions can reference:
+
+- `total`
+- `status`
+
+just like outputs from any other workflow step.
+
+
+**Use the full-screen editor**
+
+For larger scripts, click the **Expand editor** button in the top-right corner of the code editor.
+
+The full-screen editor provides more space for writing and editing JavaScript while keeping syntax highlighting.
+
+
+**Test your code**
+
+Click **Test node** to execute your code using the current workflow data.
+
+The Output section displays the object returned by your script, making it easy to verify your logic before publishing the workflow.
+
+
+**Example: Build an HTML email**
+
+One practical use case is generating HTML before sending an email.
+
+![Example: Build an HTML email][14]
+
+Suppose you have a workflow that:
+
+1. Runs every morning.
+2. Retrieves today's tasks.
+3. Uses Execute code to generate an HTML table.
+4. Sends that HTML as a daily report by email.
+
+Workflow:
+
+```
+Periodic trigger
+    ↓
+Get tasks of today
+    ↓
+Execute code
+    ↓
+Send email
+```
+
+**In this example:**
+
+- The **Get tasks** action retrieves a list of tasks.
+- The list is injected into the Execute code action as `tasks`.
+- JavaScript loops through the tasks and generates an HTML table.
+- The HTML is returned as:
+
+```
+return {
+    html:generatedHtml
+}
+```
+
+The following **[Send email][15]** action inserts `html` directly into the email body, producing a formatted report such as:
+
+- Total tasks
+- Completed tasks
+- Open tasks
+- A table listing today's tasks
+
+This approach is useful whenever you need to build custom emails, reports, or formatted content dynamically before sending it.
+
+**Code node security**
+
+Code is executed in a secure, isolated runtime designed to prevent access to the underlying server or operating system.
+
+Your script only has access to the values you explicitly provide through Data injections, helping keep workflow execution isolated and predictable.
+
 ### AI Prompt
 
-The AI Prompt node connects to [generative AI models][12] to execute prompts, analyze data, or generate content directly within your workflow. This allows you to build powerful automations that can summarize text, categorize customer feedback, translate languages, or generate email replies based on your Baserow data.
+The AI Prompt node connects to [generative AI models][16] to execute prompts, analyze data, or generate content directly within your workflow. This allows you to build powerful automations that can summarize text, categorize customer feedback, translate languages, or generate email replies based on your Baserow data.
 
 **Configuration:**
 
@@ -28658,7 +29334,7 @@ To use the AI Prompt, you must first configure an AI integration.
 
       * Click the **AI integration** dropdown. If you have already set up AI in your workspace, you can select it here.
       * To add a new one, click **Add new integration**. A modal will appear.
-      * **Workspace AI Settings:** By default, new integrations inherit [settings from your workspace][12]. You can override specific AI providers with different API keys or models if needed.
+      * **Workspace AI Settings:** By default, new integrations inherit [settings from your workspace][16]. You can override specific AI providers with different API keys or models if needed.
       * Click **Create** to save the integration.
 
 2.  **Configure AI action:**
@@ -28672,6 +29348,117 @@ To use the AI Prompt, you must first configure an AI integration.
 | **Temperature** | Controls randomness (0.0 - 2.0). Lower values (e.g., 0.2) are more focused and deterministic. Higher values (e.g., 0.8) are more creative and varied. |
 | **Prompt** | The most important field. Write your prompt and use dynamic data from previous nodes. <br> **Example:** `Summarize the following customer feedback into one sentence: [map 'Notes' field from trigger]` |
 | **Advanced formula mode** | Check this box to use an expression to dynamically generate the entire prompt. |
+
+## External integration actions
+
+### Send a Slack message
+
+This action sends a message directly to a Slack channel when your workflow runs.
+
+**Configuration:**
+
+1. **Integration:** Select your ""Slack Bot"" integration.
+2. **Channel:** Choose the channel name.
+3. **Message:** Enter the text content. You can use dynamic data (e.g., `New lead: [Name]`) to personalize the message.
+
+How to set up the Slack Bot:
+
+To use this integration, you must create a Slack App and issue a token.
+
+ 1. Navigate to your [workspace's apps page][17].
+ 2. Create a new App in the **Slack API** portal, choose 'From scratch' and enter a name. Select the workspace your app should operate in, and click 'Create'.
+     > Notify your Slack workspace admin if you are unable to create a new Slack app. If you are re-using an existing app which can write messages, proceed to **Step 5** to install the app to your workspace.
+
+ 3. In the left sidebar, navigate to **OAuth & Permissions**, scroll down to Scopes and under 'Bot Token Scopes', select 'Add an OAuth Scope'. 
+ 4. To allow your app to post messages, add the `chat:write` scope.
+ 5. Navigate to the 'Settings' -> 'Install App' to install the App to your workspace.
+ 6. Copy your **Bot User OAuth Token** and store it in the 'Bot User Token' field in the Slack integration form in Baserow.
+ 7. **Crucial Step:** You must invite the bot to the Slack channel you wish to post in (e.g., type `/invite @YourBotName` in the Slack channel).
+
+## File processing actions
+
+The **Read a CSV file** and **Read an XLS file** actions let you read structured spreadsheet data directly inside Automations and [Application Builder.][11]
+
+These actions read CSV or Excel files and return their rows so they can be used by later actions. 
+
+**Common use cases include:**
+
+- Reading project templates stored as CSV or Excel files
+- Processing spreadsheets uploaded through an application form
+- Reading files stored in Baserow file fields
+- Creating or updating records from spreadsheet data
+
+The Read a CSV file action can read data from either a CSV file or raw CSV content, while the Read an XLS file action supports both `.xls` and `.xlsx` files.
+
+### Read a CSV file
+
+The **Read a CSV file** action reads rows from a CSV file and makes them available to the following actions in your workflow.
+
+**Add the action**
+
+1. Open your workflow.
+2. Click the **+** button where you want to add an action.
+3. Select **Read a CSV file**.
+
+**Configure the action**
+
+You can configure the following options:
+
+- **Label (optional)** – Give the action a descriptive name.
+- **Source** – Read data from a CSV file or provide raw CSV content directly.
+- **CSV data** – Select the file or provide the CSV content to read.
+- **Separator** – Specify the delimiter used in the CSV data.
+- **Encoding** – Choose the character encoding of the CSV file.
+- **First line is header** – Enable this if the first row contains column names.
+
+After configuring the action, run a **Test node** (or preview the application page) to inspect the returned data and make it available to later steps.
+
+**Output**
+
+The action returns an array of rows. Each row can be referenced by later actions, such as Iterator, Create row, Batch create rows, or Execute code.
+
+**Example**
+
+The workflow below automatically creates project tasks from a CSV template. It:
+
+1. Retrieves the appropriate CSV template.
+2. Reads the CSV file.
+3. Calculates task dates.
+4. Iterates through the returned rows.
+5. Creates a task for each row.
+
+This allows a complete project plan to be generated automatically from a single template file.
+
+### Read an XLS file
+
+The **Read an XLS file** action reads rows from `.xls` and `.xlsx` spreadsheets and makes them available to later actions.
+
+**Add the action**
+
+1. Open your workflow.
+2. Click the **+** button where you want to add an action.
+3. Select **Read an XLS file**.
+
+**Configure the action**
+
+You can configure the following options:
+
+- **Label (optional)** – Give the action a descriptive name.
+- **XLS file** – Select the Excel file to read.
+- **Sheet name (optional)** – Specify which worksheet to read. If left empty, the first worksheet is used.
+- **First line is header** – Enable this if the first row contains column names.
+
+After configuring the action, run a **Test node** (or preview the application page) to inspect the returned data and make it available to later steps.
+
+**Output**
+
+The action returns an array of rows from the selected worksheet. The returned data can be used by any subsequent workflow or application action.
+
+**Example**
+
+A workflow receives an uploaded Excel workbook containing project tasks.
+
+The workflow reads the selected worksheet, processes each row, and automatically creates the corresponding project tasks. This makes it easy to use Excel files as input without importing them into a database first.
 
 ## Testing and debugging actions
 
@@ -28765,7 +29552,7 @@ The condition formula isn't returning a boolean value or has syntax errors. Test
 
 ### I’m trying to create a new row, but I’m getting an error or no response.
 
-This usually happens when your workspace has reached its row limit. Check your current plan to confirm that it allows additional rows. If the workspace has exceeded its row limit, you’ll need to either delete some rows to stay within your plan’s limit or upgrade your plan to continue adding new rows. Learn more about [Baserow pricing plan and limits][13].
+This usually happens when your workspace has reached its row limit. Check your current plan to confirm that it allows additional rows. If the workspace has exceeded its row limit, you’ll need to either delete some rows to stay within your plan’s limit or upgrade your plan to continue adding new rows. Learn more about [Baserow pricing plan and limits][18].
 
 ## Related content
 
@@ -28794,11 +29581,16 @@ Still need help? If you're looking for something else, please feel free to make 
   [6]: https://baserow.io/user-docs/footer-aggregation
   [7]: https://baserow.io/user-docs/understanding-formulas
   [8]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f1b84bbf-6bb8-463b-ad37-3f9af542b9bd/Baserow%20router%20automation.jpg
-  [9]: https://api.slack.com/apps
-  [10]: https://baserow.io/user-docs/personal-api-tokens
-  [11]: https://baserow.io/user-docs/set-up-baserow
-  [12]: https://baserow.io/user-docs/configure-generative-ai
-  [13]: https://baserow.io/user-docs/pricing-plans",automation,baserow_user_docs,https://baserow.io/user-docs/automation-actions
+  [9]: https://baserow.io/user-docs/personal-api-tokens
+  [10]: https://baserow.io/user-docs/set-up-baserow
+  [11]: https://baserow.io/user-docs/element-events#
+  [12]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f96072ed-53e2-410c-a348-a499716f00df/Table.png
+  [13]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e7f4106d-b9cf-4611-9a87-0bc6e45c681c/Execute%20code.png
+  [14]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/8b60b7e3-c9d8-495e-bb15-a54f0add8076/Code%20node%20example.png
+  [15]: https://baserow.io/user-docs/automation-actions#send-an-email
+  [16]: https://baserow.io/user-docs/configure-generative-ai
+  [17]: https://api.slack.com/apps
+  [18]: https://baserow.io/user-docs/pricing-plans",automation,baserow_user_docs,https://baserow.io/user-docs/automation-actions
 527,Publish & manage workflow,workflow-management,Baserow Workflow settings and management,"# Manage workflow automation in Baserow
 
 Automation management gives you full control over the lifecycle of your workflows, from initial testing to real-time, published execution.
@@ -29281,7 +30073,7 @@ Like any AI, Kuma can sometimes misinterpret a request or make a mistake. We rec
 ## Related content
 
   * [AI prompt field](/user-docs/ai-field)
-  * [Write effective AI prompts in Baserow](/user-docs/write-effective-ai-prompts)
+  * [Write effective AI prompts in Baserow][13]
   * [Formula field reference](/user-docs/understanding-formulas)
   * [Introduction to databases in Baserow](/user-docs/intro-to-databases)
 
@@ -29304,7 +30096,8 @@ Still need help? If you're looking for something else, please feel free to make 
   [9]: /user-docs/create-custom-views-of-your-data
   [10]: https://baserow.io/user-docs/application-builder-overview
   [11]: https://baserow.io/user-docs/build-applications-with-ai
-  [12]: /docs/installation/ai-assistant",workspace,baserow_user_docs,https://baserow.io/user-docs/ai-assistant
+  [12]: /docs/installation/ai-assistant
+  [13]: https://baserow.io/user-docs/ai-prompt-guide",workspace,baserow_user_docs,https://baserow.io/user-docs/ai-assistant
 623,Two-factor auth,two-factor-auth,Two-factor authentication in Baserow,"# Two-factor authentication (2FA)
 
 Two-factor authentication (2FA) adds an extra layer of security to your Baserow account. In addition to your password, you will need to provide a unique verification code generated by an authenticator app on your phone to log in.
@@ -29367,6 +30160,12 @@ If you wish to turn off 2-factor authentication:
 3.  You will be asked to enter your password to confirm this action.
 
 > **Security Warning:** Disabling 2FA makes your account less secure. We strongly recommend keeping it enabled to protect your data.
+
+## Manage users' two-factor authentication (Admins)
+
+Instance administrators can now view whether users have two-factor authentication (2FA) enabled.
+
+If a user loses access to their authenticator app or recovery codes, an instance administrator can reset their two-factor authentication so they can set it up again.
 
 ## Related resources
 
@@ -32107,6 +32906,8 @@ When editing data inside a restricted view, permissions are strictly enforced. U
 
 To support data entry, you can define **default values per view**. When a user creates a new row inside a restricted view, these default values are automatically applied to ensure the new row instantly matches the view's filters and remains visible to the user.
 
+Baserow also indicates whether your configured default values satisfy the view filters, making it easier to verify that newly created records will remain visible in the restricted view.
+
 ## Set up a restricted view
 
  1. Navigate to the table where you want to restrict data.
@@ -32303,6 +33104,463 @@ Still need help? If you’re looking for something else, please feel free to mak
   [4]: https://baserow.io/user-docs/overview-of-rows
   [5]: https://baserow.io/blog/use-link-row-data-pre-fill-forms
   [6]: https://baserow.io/user-docs/public-sharing",field,baserow_user_docs,https://baserow.io/user-docs/edit-rows-via-form
+854,Claude MCP,claude-mcp,Connect Baserow to Claude via MCP,"# Connect Baserow to Claude via Model Context Protocol (MCP)
+
+Baserow's Model Context Protocol (MCP) Server lets you connect Large Language Models like Claude, Cursor, or Windsurf directly to your workspace. You can create, read, update, and delete data using natural language prompts without writing code or API calls.
+
+This guide covers how to natively integrate Baserow with Claude Desktop using the Model Context Protocol (MCP). By configuring Baserow as an MCP server, you establish a direct, real-time bridge that allows Claude to execute CRUD operations against your workspace using natural language.
+
+Because MCP acts as a standardized translation layer, you do not need to build custom API middleware, configure webhooks, or hardcode your specific database schemas into the LLM context.
+
+Learn more: [What is an MCP server?](https://baserow.io/blog/what-is-an-mcp-server)
+
+<iframe width=""560"" height=""315"" src=""https://www.youtube.com/embed/GYDYFVLPhcM?si=N4-bSlen38xPXwEq"" title=""YouTube video player"" frameborder=""0"" allow=""accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"" referrerpolicy=""strict-origin-when-cross-origin"" allowfullscreen></iframe>
+
+## Available capabilites
+
+ - Create rows
+ - Delete rows
+ - Get table schema
+ - List databases
+ - List table rows
+ - List tables
+ - Update rows
+
+## How the Integration Works
+
+The core advantage of this integration is its dynamic nature. When you connect Claude to Baserow via MCP, you are not setting up a rigid, one-to-one mapping of fields.
+
+Instead, the architecture works like this:
+
+1. **Introspection:** Upon connection, the MCP server exposes your Baserow workspace schema (tables, column names, and data types) to Claude.
+2. **Dynamic Mapping:** Claude reads this schema in real-time. Whether your primary key is named `Asset ID`, `Device Tag`, or `Serial_No`, Claude understands the structure automatically.
+3. **Execution:** When a user prompts Claude, the LLM translates the natural language request into precise REST API calls routed through the MCP endpoint to perform the requested Create, Read, Update, or Delete operation.
+
+This means you can swap data sources or alter your Baserow schema at any time without ever needing to update the integration code.
+
+Read more about [Fostering a Developer Ecosystem Around MCP Servers](https://baserow.io/blog/fostering-a-developer-ecosystem-around-mcp-servers)
+
+![What is an MCP server?](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e461940d-5713-4c99-8094-fc82fc8779b3/MCP%20Server.jpg)
+
+## Infrastructure Configuration
+
+To establish the connection, you need to generate a secure access endpoint in Baserow and define it in Claude Desktop’s environment configuration.
+
+### Step 1: Generate the Baserow MCP Endpoint
+
+MCP server endpoints can be used to directly integrate with Claude and let the LLM perform actions directly in Baserow. 
+
+This endpoint functions as both the connection route and the authentication credential.
+
+1. In Baserow, click your workspace name in the top navigation bar.
+2. Select **My Settings** > **MCP Server**.
+3. Click **Create Endpoint**.
+4. Assign a descriptive name (e.g., `Claude_Desktop_Local`) and select the target workspace.
+5. Copy the generated **MCP URL**.
+
+> **⚠️ Critical Security Note:** Treat your MCP URL strictly as an API Secret. It grants full programmatic access to modify data within the selected workspace. Do not commit this URL to version control or share it across multiple team members. If compromised, revoke and regenerate the endpoint immediately via the Baserow settings.
+> 
+
+### Step 2: Configure the Claude Desktop Client
+
+You must point Claude Desktop's local environment to your new Baserow endpoint using the `npx mcp-remote` command.
+
+1. Open Claude Desktop settings (use `⌘ + ,` on Mac).
+2. Navigate to the **Develop** tab.
+3. Click **Edit Config** to open the `claude_desktop_config.json` file.
+4. Append the Baserow MCP server block to your configuration file, replacing `""YOUR_MCP_URL_HERE""` with your secure endpoint.
+    
+    ```jsx
+    `{
+      ""mcpServers"": {
+        ""Baserow MCP"": {
+          ""command"": ""npx"",
+          ""args"": [
+            ""mcp-remote"",
+            ""YOUR_MCP_URL_HERE""
+          ]
+        }
+      }
+    }`
+    ```
+    
+5. Save the file and restart Claude Desktop to initialize the server connection.
+
+## Enterprise Application: IT Asset Management
+
+Because the MCP server dynamically reads your schema, you can immediately begin querying and updating your existing workflows.
+
+For example, if your organization uses an **IT Asset Management** template in Baserow to track hardware lifecycle, you do not need to instruct Claude on *how* to find a device. You simply rely on the established connection to execute operations via standard prompts.
+
+- **Read (Querying assignments):**
+*""Check the Baserow IT Assets table. What laptop is currently assigned to John Doe, and what is its warranty expiration date?""*
+- **Update (Modifying status):**
+*""Update the status of John Doe's laptop to 'Under Repair' and add a note that the battery is expanding.""*
+- **Create (Provisioning):**
+*""Add a new record for a MacBook Pro M3, serial number XYZ789, assign it to the Engineering department, and set the status to 'Available'.""*
+
+In all of these scenarios, Claude uses the MCP bridge to inspect your specific table structure, find the relevant columns (regardless of how you named them), and execute the database changes instantly.
+
+Learn more: [MCP server AI integration](https://baserow.io/blog/baserow-mcp-server-ai-integration)
+
+## Best Practices for Scaling MCP
+
+- **Granular Endpoints:** Do not use a single MCP URL for your entire organization. Create separate endpoints for different use cases or developers to maintain accurate audit logs and allow for targeted revocation.
+- **Model Selection:** The accuracy of the dynamic schema mapping relies entirely on the reasoning capabilities of the LLM. For production environments or complex database architectures, ensure Claude is utilizing its highest-parameter model for optimal query translation.
+- **Data Validation:** While MCP supports destructive actions (bulk updates/deletes), instruct users to prompt Claude to *preview* the records it intends to delete before confirming the execution in natural language.
+
+## FAQuestions
+
+### Claude tells me it cannot see my table, but I know my JSON config is correct. How do I fix this?
+
+Claude sometimes needs a manual nudge to initiate schema introspection. If it claims a table is missing, simply prompt it: *""Please fetch the current list of tables from the Baserow MCP server.""* Once Claude reads the live schema aloud, it will cache your database structure, and your subsequent queries will work perfectly.
+
+### Can I use Claude to bulk update without accidentally wiping my database?
+
+Yes, the MCP bridge translates your natural language into precise bulk API operations. However, for mass updates, always use a two-step prompting strategy. Tell Claude: *""Find all laptops older than 4 years. Summarize how many records this affects, and wait for my approval before updating their status to 'Decommissioned'.""* This ensures Claude’s interpretation matches your intent before executing destructive changes.
+
+### I manage multiple workspaces in Baserow. How do I connect Claude to both?
+
+You do not need separate configuration files. First, generate a unique MCP URL for each workspace in your Baserow settings. Then, open your `claude_desktop_config.json` and add multiple server blocks under the `""mcpServers""` object. Just give them distinct names, like `""Baserow IT MCP""` and `""Baserow HR MCP""`, each pointing to their respective URLs. Claude will automatically route your prompts to the correct workspace based on context.
+
+### Is it safe to share my Claude `claude_desktop_config.json` file in our team's Slack so everyone can use the integration?
+
+Absolutely not. Your MCP URL acts as a high-privilege API secret tied to your specific workspace permissions. If you share it, every database action your team takes will be logged under your account, and anyone with the URL has full programmatic access to modify your data. Each team member must generate their own unique MCP endpoint in their personal Baserow settings.",integrations,baserow_user_docs,https://baserow.io/user-docs/claude-mcp
+887,Cursor MCP,cursor-mcp,Connect Baserow to Cursor,"# Connect Baserow workspace directly to Cursor
+
+Baserow's Model Context Protocol (MCP) Server lets you connect Large Language Models like Claude, Cursor, or Windsurf directly to your workspace. You can create, read, update, and delete data using natural language prompts without writing code or API calls.
+
+This guide details how to connect your Baserow workspace directly to Cursor using the Model Context Protocol (MCP). By configuring Baserow as an MCP server, you enable Cursor's built-in AI models to securely query, manipulate, and structure your database records using natural language prompts directly from your editor.
+
+This native connection relies on standardized dynamic schema routing. Rather than building custom REST API calls or webhooks for every database interaction, the MCP bridge allows Cursor to automatically discover your table structures and execute CRUD (Create, Read, Update, Delete) operations seamlessly.
+
+## Workflow Advantage
+
+In a typical enterprise environment, developers constantly switch context between their IDE, database GUIs, and API documentation to manage application data.
+
+By integrating Baserow with Cursor via MCP, you create a unified workflow:
+
+- **Dynamic Schema Discovery:** Cursor reads your live database schema. If you add a new `Environment` column to a table, Cursor instantly knows it exists without any configuration changes.
+- **Frictionless Data Seeding:** You can instruct Cursor to generate and push complex mock data directly into your staging tables to test your code.
+- **Contextual Queries:** You can ask Cursor to analyze existing database records to inform the code it is currently writing for you.
+
+## Step 1: Generate the Baserow Access Endpoint
+
+Before configuring Cursor, you must generate a secure MCP URL from your Baserow workspace. This URL acts as the authentication token and routing endpoint for the integration.
+
+1. Log into Baserow and click your workspace name in the top navigation bar.
+2. Select **My Settings** from the dropdown menu, then navigate to the **MCP Server** tab.
+3. Click **Create Endpoint**.
+4. Name the endpoint clearly (e.g., `Cursor_Local_Dev_Environment`) and select the specific workspace you want Cursor to access.
+5. Copy the generated **MCP URL**.
+
+> **⚠️** This URL contains credentials granting programmatic read/write access to your workspace. Treat it exactly like a production API Secret. Never commit this URL to your codebase or `.env` files that might be pushed to version control.
+> 
+
+## Step 2: Configure Cursor IDE
+
+Once you have your Baserow endpoint, you need to add it to Cursor's local environment settings.
+
+1. Open Cursor's settings panel (Use `⇧ + ⌘ + J` on Mac).
+2. Navigate to the **MCP** tab in the settings menu.
+3. Click the **Add MCP Server** button.
+4. Paste the following JSON configuration, replacing `""YOUR_MCP_URL_HERE""` with the secure URL you generated in Baserow:
+    
+    ```jsx
+    `{
+      ""mcpServers"": {
+        ""Baserow MCP"": {
+          ""url"": ""YOUR_MCP_URL_HERE""
+        }
+      }
+    }`
+    ```
+    
+5. Save your configuration. Cursor is now securely linked to your Baserow workspace.
+
+## Use Cases
+
+Once connected, you can leverage Cursor’s prompt interface to interact with templates like the **Software Bug Tracker** or **Agile Project Management** bases.
+
+- **Rapid Test Data Generation:** 
+*""Look at my Users table in Baserow. Generate 20 mock user records with realistic names, hashed passwords, and set 5 of them to have 'Admin' privileges. Insert them into the database.""*
+- **Contextual Bug Resolution:** 
+*""Query the active bugs in the Baserow Issue Tracker table. Find the ticket related to the 'Null Pointer Exception on Login' and print the stack trace saved in the description so I can fix it in this file.""*
+- **Automated Changelog Management:**
+*""I just finished writing the code for the new payment gateway. Create a new record in the Baserow Sprint Releases table summarizing these changes and mark the status as 'Pending QA'.""*
+
+## FAQs
+
+### Can I use Cursor to permanently drop a table or delete my entire database by accident?
+
+The MCP integration translates natural language into standard API operations, meaning it *can* perform destructive actions like deleting records if instructed. However, you should utilize high-parameter models (like Claude 3.5 Sonnet within Cursor) and explicitly prompt the AI to preview deletions: *""Show me the records you are going to delete before you execute the command.""* For absolute security, limit the workspace permissions of the account that generated the MCP URL.
+
+### My database schema just changed. Do I need to update my Cursor JSON config?
+
+No configuration changes are required. The MCP integration is purely dynamic. Simply tell Cursor: *""The schema has updated, please refresh your view of the tables,""* or just use the new column name in your next prompt. Cursor will read the live schema from the endpoint and adapt instantly.
+
+### Is Cursor sending my proprietary source code to Baserow?
+
+No. The MCP server functions as a one-way command bridge. Cursor sends standard CRUD requests (translated from your prompts) to Baserow to fetch or modify data. Your local source code files remain within your IDE and the LLM provider; they are not stored in or transmitted to your Baserow database unless you explicitly command Cursor to copy specific code snippets into a text field in a table.
+
+### Cursor keeps telling me it cannot find the table I am asking for, even though I know it exists. How do I fix this?
+
+This usually happens if the AI lacks context on your specific workspace structure. To fix this, refine your prompt to trigger introspection. Ask Cursor: *""List all the tables available in the current Baserow MCP workspace.""* Once Cursor reads the schema aloud, it will successfully cache the table names and your subsequent queries will work.",integrations,baserow_user_docs,https://baserow.io/user-docs/cursor-mcp
+888,Windsurf MCP,windsurf-mcp,Integrate Baserow with Windsurf MCP,"# Integrate Baserow with Windsurf IDE via Model Context Protocol (MCP)
+
+Baserow's Model Context Protocol (MCP) Server lets you connect Large Language Models like Claude, Cursor, or Windsurf directly to your workspace. You can create, read, update, and delete data using natural language prompts without writing code or API calls.
+
+This guide explains how to connect your Baserow workspace directly to Windsurf using the Model Context Protocol (MCP). By configuring Baserow as an MCP server, you allow Windsurf’s AI engine, Cascade, to securely interface with your live databases.
+
+This native architecture eliminates the need to write boilerplate REST API calls, configure webhooks, or manually copy-paste JSON responses into your editor. Instead, Cascade interacts with your Baserow data using natural language and dynamic schema discovery.
+
+## Step 1: Generate the Baserow Access Endpoint
+
+The foundation of the integration is a secure MCP endpoint generated from your Baserow workspace. This unique URL routes the operations and serves as the authentication token.
+
+1. Log into your Baserow account and click your workspace name in the top navigation bar.
+2. Select **My Settings** from the dropdown menu and navigate to the **MCP Server** tab.
+3. Click **Create Endpoint**.
+4. Provide a descriptive name for this connection (e.g., `Windsurf_Cascade_Access`) and select the target workspace.
+5. Copy the generated **MCP URL**.
+
+> **⚠️ Critical Security Protocol:** The MCP URL grants deep programmatic access to modify data within the specified workspace. Treat it as a high-privilege API secret. Never store it in version control, and regenerate it immediately if you suspect it has been exposed.
+> 
+
+## Step 2: Configure Windsurf (Cascade)
+
+You must now provide Windsurf's Cascade engine with your Baserow endpoint using the local configuration file.
+
+1. Open Windsurf Settings and navigate to **Advanced Settings** (alternatively, open the Command Palette and type ""Open Windsurf settings page"").
+2. Scroll down to the **Cascade** section.
+3. Click to add a new server, or directly open the raw JSON configuration file named `mcp_config.json`.
+4. Add the following JSON block, ensuring you replace `""YOUR_MCP_URL_HERE""` with the secure endpoint copied from Baserow:
+    
+    ```jsx
+    `{
+      ""mcpServers"": {
+        ""Baserow MCP"": {
+          ""serverUrl"": ""YOUR_MCP_URL_HERE""
+        }
+      }
+    }`
+    ```
+    
+5. Save the configuration file. Cascade is now ready to interact with your Baserow workspace.
+
+## Agentic Workflow Architecture
+
+Windsurf is designed around autonomous, agent-like coding assistance. Connecting it to Baserow via MCP turbocharges this capability.
+
+The integration relies on real-time introspection rather than hardcoded configurations. The workflow operates as follows:
+
+1. **Schema Discovery:** Upon connecting, the MCP server broadcasts your live Baserow table structures (columns, relationships, data types) to Windsurf.
+2. **Contextual Awareness:** Cascade instantly understands your database layout. If your primary keys are labeled `User_UUID` instead of `ID`, Cascade automatically adapts its logic.
+3. **Agentic Execution:** You can ask Cascade to write a feature, and it can autonomously query Baserow to understand the necessary data models, or even push mock data to the database to test the code it just wrote.
+
+## Localization and Feature Flags
+
+With Cascade natively connected to Baserow, you can utilize templates like **Content Management** or **App Configuration** to drive your codebase directly from the database.
+
+- **Automated Localization Syncing:** *""Cascade, look at the Baserow 'App Translations' table. Extract all the English and Spanish strings and automatically generate the `en.json` and `es.json` localization files in my current project directory.""*
+- **Feature Flag Implementation:** *""Query the active feature flags in the Baserow 'App Config' table. I need you to write a React wrapper component for the new checkout flow that only renders if the 'Beta_Checkout' flag is set to true in the database.""*
+- **Bulk Database Seeding:** *""I have a local `products.csv` file in my workspace. Read the file, format the data to match the schema of my Baserow 'Inventory' table, and push all 500 records to the database.""*
+
+## FAQs
+
+### I pasted the JSON from a different AI editor into Windsurf, but the connection is failing. Why?
+
+Different MCP clients use slightly different JSON key structures. Windsurf explicitly requires the `""serverUrl""` key. If you pasted a configuration that uses `""url""` or `""command""`, Windsurf will not recognize it. Ensure your `mcp_config.json` strictly uses `""serverUrl"": ""https://...""`.
+
+### Can Cascade accidentally delete production data if I give it a vague prompt?
+
+Yes. Because MCP translates natural language into direct CRUD operations, instructing Cascade to ""clean up the database"" might result in unintended deletions. Always apply the principle of least privilege: connect Windsurf to a staging workspace, or prompt Cascade defensively: *""List the records you plan to delete from Baserow and wait for my confirmation before executing.""*
+
+### How should our engineering team share MCP configuration?
+
+You should never share a single MCP URL across a team. Each developer must generate their own unique endpoint in the Baserow MCP settings. This ensures that every database read, write, or delete operation is accurately tied to an individual user in your workspace audit logs, and allows administrators to revoke access on a per-developer basis.
+
+### Cascade keeps generating code using the wrong column names for my database. How do I fix this?
+
+If Cascade is hallucinating table structures, it simply needs a context refresh. You do not need to rewrite your JSON config. Send a prompt saying: *""Please inspect the Baserow MCP server and list all columns in the 'Customers' table.""* This forces Cascade to dynamically read the live schema, realigning its context for your subsequent requests.",integrations,baserow_user_docs,https://baserow.io/user-docs/windsurf-mcp
+920,Understanding Baserow automation credits,baserow-automation-credits,Baserow automation credits explained,"# Understanding Baserow automation credits
+
+Automation credits measure how much automation usage your workspace consumes in Baserow Cloud.
+
+**Each time an automation runs, every completed action consumes 1 automation credit.** 
+
+Actions include steps such as creating or updating rows, sending emails, making HTTP requests, running AI models, or executing code. Triggers, Router node, and Iterator node are free and don't consume automation credits. 
+
+Your total monthly usage depends on how many actions your automations execute and how often they run. For example, a workflow triggered every time a row is updated or running on a frequent schedule will consume automation credits each time it runs.
+
+Automation credits are only available in Baserow Cloud. Self-hosted workspaces have unlimited automation usage.
+
+---
+
+## How automation credits are calculated
+
+Each completed automation step consumes one credit.
+
+For example:
+
+| Automation | Runs | Credits used |
+| --- | --- | --- |
+| 1 step | 1 | 1 |
+| 3 steps | 1 | 3 |
+| 3 steps | 100 | 300 |
+
+This means that larger workflows consume more credits than shorter ones, and frequently triggered automations consume more credits than those that run occasionally.
+
+### Simple workflow
+
+- Trigger: **Row is updated**
+- Action: **Create a row**
+
+Every time this workflow runs, it uses 1 automation credit.
+
+### Multi-step workflow
+
+- Trigger: **Specific field values are updated**
+- Action: **Update a row**
+- Action: **Send an email**
+- Action: **Send a Slack message**
+- Action: **AI prompt**
+
+Every time this workflow runs, it uses 4 automation credits.
+
+If this workflow runs 100 times during the month, it uses 400 automation credits.
+
+### Workflow with an Iterator
+
+- Trigger: **Rows are created**
+- Action: **List rows** (returns 100 rows)
+- **Iterator**
+- Action: **Update a row**
+
+The Iterator itself doesn't consume automation credits. However, the Update a row action is executed once for every row processed.
+
+If the iterator processes 100 rows, the workflow uses:
+
+- **List rows** = 1 automation credit
+- **Update a row** × 100 = 100 automation credits
+
+Total: 101 automation credits.
+
+**Note:** Iterator and Router nodes don't consume automation credits. Only the actions in the route that is executed count toward your usage.
+
+### Scheduled workflow
+
+- Trigger: **Periodic** (runs every 15 minutes)
+- Action: **List rows**
+- Action: **Send an email**
+
+Every time this workflow runs, it uses 2 automation credits.
+
+Running every 15 minutes means the workflow executes about 2,880 times per month, consuming approximately 5,760 automation credits.
+
+---
+
+## Monthly automation credit limits
+
+Each workspace receives a monthly automation credit allowance based on its subscription. Automation credits are shared across all users in the workspace.
+
+| Plan | Monthly automation credits |
+| --- | --- |
+| Free | 2,000 credits |
+| Premium | 100,000 credits |
+| Advanced | 500,000 credits |
+| Enterprise | 2,000,000 credits |
+
+The allowance resets automatically at the beginning of each billing month.
+
+---
+
+## How to check your automation credit usage
+
+You can check your current automation credit usage from the workspace home page.
+
+Hover over the **Usage** indicator to see:
+
+![Baserow usage][1]
+
+- the number of automation credits used this month
+- your monthly allowance
+
+**For example:**
+
+> 1,600 / 2,000 automation credits used (80%)
+> 
+
+This helps you monitor automation usage throughout the month.
+
+---
+
+## What happens when you reach your limit?
+
+Baserow automatically lets you know when your workspace is approaching its monthly allowance.
+
+### At 80%
+
+![80% of monthly automation credits][2]
+
+When your workspace reaches **80%** of its monthly automation credits:
+
+- an in-app notification is displayed
+- a banner appears in the workspace reminding you that you're approaching your monthly limit
+
+This gives you time to upgrade your plan or purchase additional automation credits before reaching the limit.
+
+### At 100%
+
+![100% of monthly automation credits][3]
+
+Once your workspace uses all available automation credits:
+
+- automation workflows stop running
+- manual test runs are also blocked
+- you'll receive another notification explaining that you've reached your monthly limit
+
+Your workflows will resume once your monthly allowance resets or additional automation credits become available.
+
+---
+
+## Frequently asked questions
+
+### Do automation credits apply to self-hosted workspaces?
+
+No. Automation credits are only counted in Baserow Cloud. Self-hosted workspaces continue to have unlimited automation usage.
+
+---
+
+### When do automation credits reset?
+
+Your automation credits reset automatically on the 1st day of every calendar month.
+
+---
+
+### Do all workflows use the same number of credits?
+
+The number of automation credits used depends on:
+
+- how many actions your automation executes, and
+- how often the automation runs.
+
+---
+
+### What happens if I try to run an automation after reaching my limit?
+
+The automation won't run. This applies to both published automations and manual test runs until additional credits become available or your monthly allowance resets.
+
+---
+
+### **How are automation credits allocated?**
+
+Automation credits are allocated per workspace, not per user. Each workspace receives a monthly automation credit allowance based on its plan, and everyone in that workspace shares the same pool of credits.
+
+
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/42f127bd-fe50-4d73-a9d6-273577afa681/usage.png
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/192235e0-4e91-41bf-a1c8-98888adf89e7/80%25.png
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/a7a822da-33e3-425e-a6f7-bf198425387a/100%25.png",automation,baserow_user_docs,https://baserow.io/user-docs/baserow-automation-credits
 1,What is Baserow?,faq,What is Baserow?,"What is Baserow?
 
 Baserow is an open-source no-code database. Our database platform enables both non-technical and technical teams to capture, organize and build logical relationships between data to trigger decisions and automate processes. We focus on openness, scalability, performance, and data security.",faq,faq,https://baserow.io/faq
