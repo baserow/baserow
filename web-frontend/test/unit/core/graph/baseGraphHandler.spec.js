@@ -129,6 +129,27 @@ describe('BaseGraphHandler', () => {
       expect(children.map((p) => p.id)).toEqual([2, 3])
     })
 
+    test('followChains=true can skip missing points', () => {
+      const h = make(
+        {
+          0: 1,
+          1: { children: { 0: [2] } },
+          2: { next: { '': [3] } },
+          3: {},
+        },
+        pm(1, 3)
+      )
+
+      expect(
+        h.getChildren(pt(1), { followChains: true }).map((p) => p.id)
+      ).toEqual([])
+      expect(
+        h
+          .getChildren(pt(1), { followChains: true, skipMissing: true })
+          .map((p) => p.id)
+      ).toEqual([3])
+    })
+
     test('empty children', () => {
       const h = make({ 0: 1, 1: {} }, pm(1))
       expect(h.getChildren(pt(1))).toEqual([])
@@ -163,6 +184,48 @@ describe('BaseGraphHandler', () => {
       const h = make(graph, points)
       expect(h.getNextPoints(pt(1), 'empty')).toEqual([])
       expect(h.getNextPoints(pt(2))).toEqual([])
+    })
+  })
+
+  describe('getPointsInDepthFirstOrder', () => {
+    test('returns graph-reachable points in depth-first order', () => {
+      const h = make(
+        {
+          0: 1,
+          1: { children: { 0: [2] }, next: { '': [4] } },
+          2: { next: { '': [3] } },
+          3: {},
+          4: {},
+        },
+        pm(1, 2, 3, 4)
+      )
+
+      expect(h.getPointsInDepthFirstOrder().map((p) => p.id)).toEqual([
+        1, 2, 3, 4,
+      ])
+    })
+
+    test('can skip missing points without visiting their children', () => {
+      const h = make(
+        {
+          0: 1,
+          1: { children: { 0: [2] }, next: { '': [5] } },
+          2: { children: { '': [3] }, next: { '': [4] } },
+          3: {},
+          4: {},
+          5: {},
+        },
+        pm(1, 3, 4, 5)
+      )
+
+      expect(
+        h
+          .getPointsInDepthFirstOrder({
+            skipMissing: true,
+            skipChildrenOfMissing: true,
+          })
+          .map((p) => p.id)
+      ).toEqual([1, 4, 5])
     })
   })
 

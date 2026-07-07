@@ -71,7 +71,7 @@ describe('ElementGraphHandler.getChildren', () => {
     const page = makePage(
       {
         0: 1,
-        1: { children: { '0': [2] } },
+        1: { children: { 0: [2] } },
         2: { next: { '': [3] } },
         3: {},
       },
@@ -87,7 +87,7 @@ describe('ElementGraphHandler.getChildren', () => {
     const page = makePage(
       {
         0: 1,
-        1: { children: { '0': [2] } },
+        1: { children: { 0: [2] } },
         2: { children: { '': [3] }, next: { '': [4] } },
         3: {},
         4: {},

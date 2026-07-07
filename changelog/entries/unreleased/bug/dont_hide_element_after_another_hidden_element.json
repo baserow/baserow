@@ -1,9 +1,0 @@
-{
-    "type": "bug",
-    "message": "Don't hide element after another hidden element",
-    "issue_origin": "github",
-    "issue_number": null,
-    "domain": "builder",
-    "bullet_points": [],
-    "created_at": "2026-07-07"
-}

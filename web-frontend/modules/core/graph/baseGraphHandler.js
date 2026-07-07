@@ -59,7 +59,12 @@ export default class BaseGraphHandler {
   // slot: restrict to a specific slot/place; null means all slots.
   // followChains: if true, follows next[''] chains within each slot (builder style);
   //   if false, returns only the head of each slot (automation style).
-  getChildren(targetPoint, { slot = null, followChains = false } = {}) {
+  // skipMissing: if true, missing points are skipped while traversal continues
+  //   along the default next chain.
+  getChildren(
+    targetPoint,
+    { slot = null, followChains = false, skipMissing = false } = {}
+  ) {
     const childrenDict = this._getChildrenAsDict(
       this.getInfo(targetPoint)?.children
     )
@@ -78,8 +83,8 @@ export default class BaseGraphHandler {
         let currentId = headIds[0]
         while (currentId) {
           const point = this.getPoint(currentId)
-          if (!point) break
-          result.push(point)
+          if (!point && !skipMissing) break
+          if (point) result.push(point)
           currentId = this.graph[currentId]?.next?.['']?.[0] ?? null
         }
       }
@@ -100,6 +105,44 @@ export default class BaseGraphHandler {
       .flat()
       .map((id) => this.getPoint(id))
       .filter((point) => point)
+  }
+
+  getPointsInDepthFirstOrder({
+    skipMissing = false,
+    skipChildrenOfMissing = false,
+  } = {}) {
+    const result = []
+    const visited = new Set()
+
+    const visitChain = (firstId) => {
+      let currentId = firstId
+      while (currentId && !visited.has(currentId)) {
+        visited.add(currentId)
+        const point = this.getPoint(currentId)
+        if (!point && !skipMissing) break
+
+        const info = this.graph[currentId]
+        if (!info) break
+
+        if (point) {
+          result.push(point)
+        }
+
+        if (info.children && (point || !skipChildrenOfMissing)) {
+          const childrenDict = this._getChildrenAsDict(info.children)
+          for (const slot of Object.keys(childrenDict).sort()) {
+            const firstChildId = childrenDict[slot]?.[0]
+            if (firstChildId) visitChain(firstChildId)
+          }
+        }
+
+        currentId = info.next?.['']?.[0] ?? null
+      }
+    }
+
+    if (this.graph['0']) visitChain(this.graph['0'])
+
+    return result
   }
 
   getPointAtPosition(referencePoint, position, output) {
