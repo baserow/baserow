@@ -8,6 +8,12 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
     isFixed: true,
     tag: 'div',
     classNames: ['page__fixed-stack', 'page__fixed-stack--top'],
+    previewClassNames: ['page__fixed-stack--header'],
+    separator: {
+      label: 'pagePreview.fixedHeader',
+      position: 'after',
+      insideSection: true,
+    },
   },
   {
     key: 'header',
@@ -15,12 +21,18 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
     isFixed: false,
     tag: 'header',
     classNames: ['page__header'],
+    selectedClassName: 'page__header--element-selected',
+    separator: {
+      label: 'pagePreview.header',
+      position: 'after',
+    },
   },
   {
     key: 'content',
     place: PAGE_PLACES.CONTENT,
     tag: 'div',
     classNames: ['page__content'],
+    selectedClassName: 'page__content--element-selected',
   },
   {
     key: 'footer',
@@ -28,6 +40,11 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
     isFixed: false,
     tag: 'footer',
     classNames: ['page__footer'],
+    selectedClassName: 'page__footer--element-selected',
+    separator: {
+      label: 'pagePreview.footer',
+      position: 'before',
+    },
   },
   {
     key: 'fixed-footer',
@@ -35,6 +52,12 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
     isFixed: true,
     tag: 'div',
     classNames: ['page__fixed-stack', 'page__fixed-stack--bottom'],
+    previewClassNames: ['page__fixed-stack--footer'],
+    separator: {
+      label: 'pagePreview.fixedFooter',
+      position: 'before',
+      insideSection: true,
+    },
   },
 ]
 

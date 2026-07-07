@@ -17,80 +17,38 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
-          <div
-            v-if="fixedHeaderElements.length !== 0"
-            class="page__fixed-stack page__fixed-stack--top page__fixed-stack--header"
-          >
-            <ElementPreview
-              v-for="element in fixedHeaderElements"
-              :key="element.id"
-              :element="element"
-              :is-first-element="element.id === firstPreviewElementId"
-              :application-context-additions="{
-                recordIndexPath: [],
-                page: currentPage,
-              }"
-              :show-element-id="showElementId"
-              @move="moveElement($event)"
-            />
-            <div class="page-preview__separator">
-              <span class="page-preview__separator-label">
-                {{ $t('pagePreview.fixedHeader') }}
-              </span>
-            </div>
-          </div>
-          <template v-if="headerElementsSection.elements.length !== 0">
-            <header
-              v-if="normalHeaderElements.length !== 0"
-              class="page__header"
-              :class="{
-                'page__header--element-selected':
-                  pageSectionWithSelectedElement === 'header',
-              }"
-            >
-              <ElementPreview
-                v-for="element in normalHeaderElements"
-                :key="element.id"
-                :element="element"
-                :is-first-element="element.id === firstPreviewElementId"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                  page: currentPage,
-                }"
-                :show-element-id="showElementId"
-                @move="moveElement($event)"
-              />
-            </header>
+          <template v-for="section in pageElementSections" :key="section.key">
             <div
-              v-if="
-                normalHeaderElements.length !== 0 ||
-                fixedHeaderElements.length === 0
-              "
+              v-if="showSectionSeparator(section, 'before')"
               class="page-preview__separator"
             >
               <span class="page-preview__separator-label">
-                {{ $t('pagePreview.header') }}
+                {{ $t(section.separator.label) }}
               </span>
             </div>
-          </template>
-          <AddElementZone
-            v-if="elements.length === 0"
-            class="page__content add-element-zone--full-height"
-            :page="currentPage"
-            :target-page-place="PAGE_PLACES.CONTENT"
-            :label="$t('pagePreview.emptyMessage')"
-            @add-element="$refs.addElementModal.show()"
-          />
-          <template v-else>
-            <div
-              class="page__content"
-              :class="{
-                'page__content--element-selected':
-                  pageSectionWithSelectedElement === 'content',
-              }"
+            <AddElementZone
+              v-if="showEmptyContentSection(section)"
+              class="page__content add-element-zone--full-height"
+              :page="currentPage"
+              :target-page-place="PAGE_PLACES.CONTENT"
+              :label="$t('pagePreview.emptyMessage')"
+              @add-element="$refs.addElementModal.show()"
+            />
+            <component
+              :is="section.tag"
+              v-else-if="section.elements.length !== 0"
+              :class="getPreviewSectionClassNames(section)"
             >
+              <div
+                v-if="showSectionSeparator(section, 'before', true)"
+                class="page-preview__separator"
+              >
+                <span class="page-preview__separator-label">
+                  {{ $t(section.separator.label) }}
+                </span>
+              </div>
               <ElementPreview
-                v-for="element in elements"
+                v-for="element in section.elements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -101,64 +59,24 @@
                 :show-element-id="showElementId"
                 @move="moveElement($event)"
               />
-            </div>
-          </template>
-          <template v-if="footerElementsSection.elements.length !== 0">
+              <div
+                v-if="showSectionSeparator(section, 'after', true)"
+                class="page-preview__separator"
+              >
+                <span class="page-preview__separator-label">
+                  {{ $t(section.separator.label) }}
+                </span>
+              </div>
+            </component>
             <div
-              v-if="
-                normalFooterElements.length !== 0 ||
-                fixedFooterElements.length === 0
-              "
+              v-if="showSectionSeparator(section, 'after')"
               class="page-preview__separator"
             >
               <span class="page-preview__separator-label">
-                {{ $t('pagePreview.footer') }}
+                {{ $t(section.separator.label) }}
               </span>
             </div>
-            <footer
-              v-if="normalFooterElements.length !== 0"
-              class="page__footer"
-              :class="{
-                'page__footer--element-selected':
-                  pageSectionWithSelectedElement === 'footer',
-              }"
-            >
-              <ElementPreview
-                v-for="element in normalFooterElements"
-                :key="element.id"
-                :element="element"
-                :is-first-element="element.id === firstPreviewElementId"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                  page: currentPage,
-                }"
-                :show-element-id="showElementId"
-                @move="moveElement($event)"
-              />
-            </footer>
           </template>
-          <div
-            v-if="fixedFooterElements.length !== 0"
-            class="page__fixed-stack page__fixed-stack--bottom page__fixed-stack--footer"
-          >
-            <div class="page-preview__separator">
-              <span class="page-preview__separator-label">
-                {{ $t('pagePreview.fixedFooter') }}
-              </span>
-            </div>
-            <ElementPreview
-              v-for="element in fixedFooterElements"
-              :key="element.id"
-              :element="element"
-              :is-first-element="element.id === firstPreviewElementId"
-              :application-context-additions="{
-                recordIndexPath: [],
-                page: currentPage,
-              }"
-              :show-element-id="showElementId"
-              @move="moveElement($event)"
-            />
-          </div>
 
           <client-only>
             <component
@@ -260,14 +178,10 @@ export default {
       return this.$store.getters['element/getRootElements'](this.sharedPage)
     },
     firstPreviewElementId() {
-      return (
-        this.fixedHeaderElements[0]?.id ||
-        this.normalHeaderElements[0]?.id ||
-        this.elements[0]?.id ||
-        this.normalFooterElements[0]?.id ||
-        this.fixedFooterElements[0]?.id ||
-        null
+      const firstSectionWithElement = this.pageElementSections.find(
+        (section) => section.elements.length !== 0
       )
+      return firstSectionWithElement?.elements[0]?.id || null
     },
     elementSelectedId() {
       return this.elementSelected?.id
@@ -413,6 +327,29 @@ export default {
     },
     setPagePreviewLocked(locked) {
       this.isPreviewLocked = locked
+    },
+    getPreviewSectionClassNames(section) {
+      return [
+        ...section.classNames,
+        ...(section.previewClassNames || []),
+        {
+          [section.selectedClassName]:
+            section.selectedClassName &&
+            this.pageSectionWithSelectedElement === section.place,
+        },
+      ]
+    },
+    showEmptyContentSection(section) {
+      return (
+        section.place === PAGE_PLACES.CONTENT && section.elements.length === 0
+      )
+    },
+    showSectionSeparator(section, position, insideSection = false) {
+      return (
+        section.separator?.position === position &&
+        Boolean(section.separator.insideSection) === insideSection &&
+        section.elements.length !== 0
+      )
     },
     onWindowResized() {
       this.$nextTick(() => {
