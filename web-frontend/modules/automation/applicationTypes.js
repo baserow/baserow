@@ -3,7 +3,6 @@ import ApplicationContext from '@baserow/modules/automation/components/applicati
 import AutomationForm from '@baserow/modules/automation/components/form/AutomationForm'
 import SidebarComponentAutomation from '@baserow/modules/automation/components/sidebar/SidebarComponentAutomation'
 import { populateAutomationWorkflow } from '@baserow/modules/automation/store/automationWorkflow'
-import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 import WorkflowTemplate from '@baserow/modules/automation/components/workflow/WorkflowTemplate.vue'
@@ -145,10 +144,6 @@ export class AutomationApplicationType extends ApplicationType {
       application,
       application.workspace.id
     )
-  }
-
-  get developmentStage() {
-    return DEVELOPMENT_STAGES.BETA
   }
 
   getOrder() {
