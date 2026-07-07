@@ -41,12 +41,14 @@ from baserow.contrib.database.views.exceptions import (
     ViewFilterTypeNotAllowedForField,
     ViewGroupByFieldAlreadyExist,
     ViewGroupByFieldNotSupported,
+    ViewGroupByNotInView,
     ViewGroupByNotSupported,
     ViewNotInTable,
     ViewOwnershipTypeDoesNotExist,
     ViewSortDoesNotExist,
     ViewSortFieldAlreadyExist,
     ViewSortFieldNotSupported,
+    ViewSortNotInView,
     ViewSortNotSupported,
     ViewTypeDoesNotExist,
 )
@@ -54,6 +56,7 @@ from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler, ViewIndexingHandler
 from baserow.contrib.database.views.models import (
     DEFAULT_SORT_TYPE_KEY,
+    MAX_ORDER_VALUE,
     OWNERSHIP_TYPE_COLLABORATIVE,
     FormView,
     GridView,
@@ -94,6 +97,7 @@ def clean_registry_cache():
 
     view_type_registry.get_for_class.cache_clear()
     yield
+    field_type_registry.get_for_class.cache_clear()
 
 
 @pytest.mark.django_db
@@ -1504,6 +1508,71 @@ def test_create_sort(send_mock, data_fixture):
     assert view_sort_2.field_id == text_field_2.id
     assert view_sort_2.order == "DESC"
     assert ViewSort.objects.all().count() == 2
+
+
+@pytest.mark.django_db
+def test_create_sort_when_existing_priority_is_at_smallint_ceiling(data_fixture):
+    # Regression for `smallint out of range`: adding a sort to a view whose existing
+    # sort sits at the ceiling used to overflow; it now renumbers the chain instead.
+    user = data_fixture.create_user()
+    grid_view = data_fixture.create_grid_view(user=user)
+    text_field = data_fixture.create_text_field(table=grid_view.table)
+    text_field_2 = data_fixture.create_text_field(table=grid_view.table)
+
+    existing_sort = data_fixture.create_view_sort(
+        view=grid_view, field=text_field, order="ASC", priority=MAX_ORDER_VALUE
+    )
+
+    new_sort = ViewHandler().create_sort(
+        user=user, view=grid_view, field=text_field_2, order="DESC"
+    )
+
+    existing_sort.refresh_from_db()
+    # Chain renumbered to a dense 1..N, order kept, new sort last.
+    assert existing_sort.priority == 1
+    assert new_sort.priority == 2
+    assert ViewSort.objects.filter(view=grid_view).count() == 2
+
+
+@pytest.mark.django_db
+def test_create_group_by_when_existing_priority_is_at_smallint_ceiling(data_fixture):
+    # Same regression as the sort case above, for the parallel group-by create path.
+    user = data_fixture.create_user()
+    grid_view = data_fixture.create_grid_view(user=user)
+    text_field = data_fixture.create_text_field(table=grid_view.table)
+    text_field_2 = data_fixture.create_text_field(table=grid_view.table)
+
+    existing_group_by = data_fixture.create_view_group_by(
+        view=grid_view, field=text_field, order="ASC", priority=MAX_ORDER_VALUE
+    )
+
+    new_group_by = ViewHandler().create_group_by(
+        user=user, view=grid_view, field=text_field_2, order="DESC", width=200
+    )
+
+    existing_group_by.refresh_from_db()
+    assert existing_group_by.priority == 1
+    assert new_group_by.priority == 2
+    assert ViewGroupBy.objects.filter(view=grid_view).count() == 2
+
+
+@pytest.mark.django_db
+def test_create_sort_keeps_priority_chain_dense(data_fixture):
+    # Priorities stay a dense 1..N sequence no matter how many sorts are added.
+    user = data_fixture.create_user()
+    grid_view = data_fixture.create_grid_view(user=user)
+    fields = [data_fixture.create_text_field(table=grid_view.table) for _ in range(4)]
+
+    handler = ViewHandler()
+    for field in fields:
+        handler.create_sort(user=user, view=grid_view, field=field, order="ASC")
+
+    priorities = list(
+        ViewSort.objects.filter(view=grid_view)
+        .order_by("priority")
+        .values_list("priority", flat=True)
+    )
+    assert priorities == [1, 2, 3, 4]
 
 
 @pytest.mark.django_db
@@ -4346,11 +4415,14 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
         "multiple_select": [
             {"field_multiple_select": [], "count": 1},
             {
-                "field_multiple_select": [
-                    multiple_select_options[1].id,
-                    multiple_select_options[0].id,
-                    multiple_select_options[2].id,
-                ],
+                # The group value is set-based, so the option ids are sorted.
+                "field_multiple_select": sorted(
+                    [
+                        multiple_select_options[1].id,
+                        multiple_select_options[0].id,
+                        multiple_select_options[2].id,
+                    ]
+                ),
                 "count": 1,
             },
         ],
@@ -5278,3 +5350,107 @@ def test_export_import_default_values_for_all_field_types(data_fixture):
         assert imported.enabled == original.enabled
         assert imported.field_type == original.field_type
         assert imported.function == original.function
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.views.signals.view_sortings_prioritized.send")
+def test_prioritize_view_sortings(send_mock, data_fixture):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_grid_view(table=table)
+    other_view = data_fixture.create_grid_view(table=table)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    foreign_field = data_fixture.create_text_field(table=table)
+
+    sort_1 = data_fixture.create_view_sort(view=view, field=field_1)
+    sort_2 = data_fixture.create_view_sort(view=view, field=field_2)
+    sort_3 = data_fixture.create_view_sort(view=view, field=field_3)
+    foreign_sort = data_fixture.create_view_sort(view=other_view, field=foreign_field)
+
+    handler = ViewHandler()
+
+    with pytest.raises(UserNotInWorkspace):
+        handler.prioritize_sortings(
+            user=other_user, view=view, view_sort_ids=[sort_1.id]
+        )
+
+    with pytest.raises(ViewSortNotInView):
+        handler.prioritize_sortings(
+            user=user, view=view, view_sort_ids=[foreign_sort.id]
+        )
+
+    full_order = handler.prioritize_sortings(
+        user=user, view=view, view_sort_ids=[sort_3.id, sort_1.id, sort_2.id]
+    )
+    assert full_order == [sort_3.id, sort_1.id, sort_2.id]
+
+    sort_1.refresh_from_db()
+    sort_2.refresh_from_db()
+    sort_3.refresh_from_db()
+    assert sort_3.priority < sort_1.priority < sort_2.priority
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["view"].id == view.id
+    assert send_mock.call_args[1]["view_sort_ids"] == [
+        sort_3.id,
+        sort_1.id,
+        sort_2.id,
+    ]
+    assert send_mock.call_args[1]["user"].id == user.id
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.views.signals.view_group_bys_prioritized.send")
+def test_prioritize_view_group_bys(send_mock, data_fixture):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_grid_view(table=table)
+    other_view = data_fixture.create_grid_view(table=table)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    foreign_field = data_fixture.create_text_field(table=table)
+
+    group_by_1 = data_fixture.create_view_group_by(view=view, field=field_1)
+    group_by_2 = data_fixture.create_view_group_by(view=view, field=field_2)
+    group_by_3 = data_fixture.create_view_group_by(view=view, field=field_3)
+    foreign_group_by = data_fixture.create_view_group_by(
+        view=other_view, field=foreign_field
+    )
+
+    handler = ViewHandler()
+
+    with pytest.raises(UserNotInWorkspace):
+        handler.prioritize_group_bys(
+            user=other_user, view=view, view_group_by_ids=[group_by_1.id]
+        )
+
+    with pytest.raises(ViewGroupByNotInView):
+        handler.prioritize_group_bys(
+            user=user, view=view, view_group_by_ids=[foreign_group_by.id]
+        )
+
+    full_order = handler.prioritize_group_bys(
+        user=user,
+        view=view,
+        view_group_by_ids=[group_by_3.id, group_by_1.id, group_by_2.id],
+    )
+    assert full_order == [group_by_3.id, group_by_1.id, group_by_2.id]
+
+    group_by_1.refresh_from_db()
+    group_by_2.refresh_from_db()
+    group_by_3.refresh_from_db()
+    assert group_by_3.priority < group_by_1.priority < group_by_2.priority
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["view"].id == view.id
+    assert send_mock.call_args[1]["view_group_by_ids"] == [
+        group_by_3.id,
+        group_by_1.id,
+        group_by_2.id,
+    ]
+    assert send_mock.call_args[1]["user"].id == user.id

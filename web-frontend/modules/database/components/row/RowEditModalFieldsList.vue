@@ -27,6 +27,7 @@
         :sortable="sortable && fieldIsSortable(field)"
         :can-modify-fields="canModifyFields"
         :all-fields-in-table="allFieldsInTable"
+        :touched="touched"
         @field-updated="$emit('field-updated', $event)"
         @field-deleted="$emit('field-deleted')"
         @update="$emit('update', $event)"
@@ -93,6 +94,11 @@ export default {
       type: Array,
       required: true,
     },
+    touched: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   emits: [
     'field-deleted',
@@ -105,6 +111,13 @@ export default {
   methods: {
     fieldIsSortable(field) {
       return this.sortable && (this.primaryIsSortable || !field.primary)
+    },
+    isValid() {
+      return this.fields.every((field) => {
+        const ref = this.$refs['field-' + field.id]
+        const component = Array.isArray(ref) ? ref[0] : ref
+        return component ? component.isValid() : true
+      })
     },
   },
 }

@@ -3,14 +3,23 @@ export default (client) => {
     fetchAll(pageId) {
       return client.get(`builder/page/${pageId}/elements/`)
     },
-    create(pageId, elementType, beforeId = null, configuration = null) {
+    create(
+      pageId,
+      elementType,
+      referenceElementId = null,
+      position = 'south',
+      placeInContainer = '',
+      configuration = {}
+    ) {
       const payload = {
         type: elementType,
+        position,
+        place_in_container: placeInContainer,
         ...configuration,
       }
 
-      if (beforeId !== null) {
-        payload.before_id = beforeId
+      if (referenceElementId !== null) {
+        payload.reference_element_id = referenceElementId
       }
 
       return client.post(`builder/page/${pageId}/elements/`, payload)
@@ -21,12 +30,18 @@ export default (client) => {
     delete(elementId) {
       return client.delete(`builder/element/${elementId}/`)
     },
-    move(targetPageId, elementId, beforeId, parentElementId, placeInContainer) {
+    move(
+      elementId,
+      referenceElementId,
+      position,
+      placeInContainer,
+      targetPageId
+    ) {
       return client.patch(`builder/element/${elementId}/move/`, {
-        target_page_id: targetPageId,
-        before_id: beforeId,
-        parent_element_id: parentElementId,
+        reference_element_id: referenceElementId,
+        position,
         place_in_container: placeInContainer,
+        target_page_id: targetPageId,
       })
     },
     duplicate(elementId) {

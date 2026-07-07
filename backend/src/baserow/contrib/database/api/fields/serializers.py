@@ -13,6 +13,7 @@ from rest_framework import serializers
 from rest_framework.serializers import SkipField, empty
 
 from baserow.api.polymorphic import PolymorphicSerializer
+from baserow.api.serializers import PrefetchedManyToManyListSerializer
 from baserow.api.user_files.serializers import UserFileURLAndThumbnailsSerializerMixin
 from baserow.api.user_files.validators import user_file_name_validator
 from baserow.contrib.database.fields.constants import (
@@ -146,6 +147,10 @@ class SelectOptionSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=False)
     value = serializers.CharField(max_length=255, required=True)
     color = serializers.CharField(max_length=255, required=True)
+
+    class Meta:
+        # Read prefetched options directly when serializing rows in bulk.
+        list_serializer_class = PrefetchedManyToManyListSerializer
 
 
 class CreateFieldSerializer(serializers.ModelSerializer):
@@ -392,6 +397,10 @@ class LinkRowRequestSerializer(serializers.ListField):
             return []
 
         if isinstance(data, list):
+            data = [
+                item.get("id", item) if isinstance(item, dict) else item
+                for item in data
+            ]
             if any([not isinstance(i, type(data[0])) for i in data]):
                 raise serializers.ValidationError(
                     "All list values must be same type.", code="not_same_type"

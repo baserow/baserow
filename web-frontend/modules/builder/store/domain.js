@@ -10,9 +10,9 @@ const populateDomain = (domain) => {
   return domain
 }
 
-const state = {
+const state = () => ({
   domains: [],
-}
+})
 
 const mutations = {
   SET_ITEMS(state, { domains }) {

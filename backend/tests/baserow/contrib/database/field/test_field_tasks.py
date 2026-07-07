@@ -363,9 +363,10 @@ def test_all_formula_that_needs_updates_are_periodically_updated(data_fixture):
     table = data_fixture.create_database_table(database=database)
     with freeze_time("2023-02-27 10:15"):
         now_field = data_fixture.create_formula_field(
-            table=table, formula="now()", date_include_time=True
+            name="now", table=table, formula="now()", date_include_time=True
         )
         data_fixture.create_formula_field(
+            name="ref_now",
             table=table,
             formula=f"field('{now_field.name}')",
             date_include_time=True,
@@ -373,6 +374,7 @@ def test_all_formula_that_needs_updates_are_periodically_updated(data_fixture):
 
         date_field = data_fixture.create_date_field(table=table, date_include_time=True)
         data_fixture.create_formula_field(
+            name="now_vs_date",
             table=table,
             formula=f"now() > field('{date_field.name}')",
             date_include_time=True,
@@ -571,6 +573,69 @@ def test_link_row_fields_deps_are_excluded_from_periodic_updates(data_fixture):
             table=table_a,
             formula=f"join(datetime_format(field('{link_a_to_b.name}'), 'DD'), ',')",
         )
+        row_b = RowHandler().force_create_row(None, table_b, {})
+        row_a = RowHandler().force_create_row(
+            None, table_a, {link_a_to_b.db_column: [row_b.id]}
+        )
+
+    with freeze_time("2023-01-02"), local_cache.context():
+        run_periodic_fields_updates()
+
+    row_a.refresh_from_db()
+    assert getattr(row_a, formula_a.db_column) == "02"
+
+
+@pytest.mark.django_db
+def test_invalid_formula_is_skipped_by_periodic_update(data_fixture):
+    table = data_fixture.create_database_table()
+    date_field = data_fixture.create_date_field(table=table, date_include_time=True)
+    bool_formula = data_fixture.create_formula_field(
+        table=table,
+        formula=f"today() > field('{date_field.name}')",
+    )
+    data_fixture.create_formula_field(
+        table=table,
+        formula=f"if(field('{bool_formula.name}'), 'YES', 'NO')",
+    )
+
+    assert bool_formula.needs_periodic_update is True
+    assert bool_formula.formula_type == "boolean"
+
+    bool_formula.mark_as_invalid_and_save("simulated invalid state")
+    bool_formula.refresh_from_db()
+    assert bool_formula.formula_type == "invalid"
+    assert bool_formula.needs_periodic_update is True
+
+    assert FormulaFieldType().get_fields_needing_periodic_update().exists() is False
+
+
+@pytest.mark.django_db
+def test_cross_table_dependent_formulas_update_when_multiple_tables_have_now(
+    data_fixture,
+):
+    with freeze_time("2023-01-01"):
+        database = data_fixture.create_database_application()
+
+        table_b = data_fixture.create_database_table(database=database)
+        primary_b = data_fixture.create_formula_field(
+            table=table_b, primary=True, formula="now()"
+        )
+
+        table_a = data_fixture.create_database_table(database=database)
+        link_a_to_b = data_fixture.create_link_row_field(
+            table=table_a, link_row_table=table_b
+        )
+        formula_a = data_fixture.create_formula_field(
+            table=table_a,
+            formula=(f"join(datetime_format(field('{link_a_to_b.name}'), 'DD'), ',')"),
+        )
+
+        # Second formula with now()
+        now_in_a = data_fixture.create_formula_field(
+            table=table_a,
+            formula="datetime_format(now(), 'YYYY-MM-DD')",
+        )
+
         row_b = RowHandler().force_create_row(None, table_b, {})
         row_a = RowHandler().force_create_row(
             None, table_a, {link_a_to_b.db_column: [row_b.id]}

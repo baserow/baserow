@@ -16,6 +16,20 @@ class EventTypes(models.TextChoices):
     AFTER_LOGIN = "after_login"
 
 
+class BuilderWorkflowActionManager(models.Manager):
+    """
+    By default, we will only return workflow
+    actions associated with untrashed elements.
+    """
+
+    def get_queryset(self):
+        # `exclude` rather than `filter(element__trashed=False)` so that
+        # page-scoped actions, whose `element` is NULL, are still returned.
+        # An `element__trashed=False` filter is an inner join that would
+        # silently drop those NULL-element rows.
+        return super().get_queryset().exclude(element__trashed=True)
+
+
 class BuilderWorkflowAction(
     WorkflowAction,
     OrderableMixin,
@@ -35,6 +49,13 @@ class BuilderWorkflowAction(
     element = models.ForeignKey(
         Element, on_delete=models.CASCADE, null=True, default=None
     )
+
+    # The default manager hides actions whose element has been trashed. Use
+    # `objects_including_trashed_elements` in the rare places that must operate on
+    # those actions regardless of their element's trash state, such as cleaning them
+    # up when the element is permanently deleted.
+    objects = BuilderWorkflowActionManager()
+    objects_including_trashed_elements = models.Manager()
 
     @classmethod
     def is_dynamic_event(cls, event: str) -> bool:
@@ -106,7 +127,13 @@ class BuilderWorkflowServiceAction(BuilderWorkflowAction):
 class LocalBaserowCreateRowWorkflowAction(BuilderWorkflowServiceAction): ...
 
 
+class LocalBaserowCreateRowsWorkflowAction(BuilderWorkflowServiceAction): ...
+
+
 class LocalBaserowUpdateRowWorkflowAction(BuilderWorkflowServiceAction): ...
+
+
+class LocalBaserowUpdateRowsWorkflowAction(BuilderWorkflowServiceAction): ...
 
 
 class LocalBaserowDeleteRowWorkflowAction(BuilderWorkflowServiceAction): ...
@@ -116,6 +143,12 @@ class CoreHTTPRequestWorkflowAction(BuilderWorkflowServiceAction): ...
 
 
 class CoreSMTPEmailWorkflowAction(BuilderWorkflowServiceAction): ...
+
+
+class CoreCSVFileReaderWorkflowAction(BuilderWorkflowServiceAction): ...
+
+
+class CoreStartWorkflowWorkflowAction(BuilderWorkflowServiceAction): ...
 
 
 class AIAgentWorkflowAction(BuilderWorkflowServiceAction): ...

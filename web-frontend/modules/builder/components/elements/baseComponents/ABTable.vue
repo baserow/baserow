@@ -1,41 +1,47 @@
 <template>
-  <BaserowTable
-    :fields="fields"
-    :rows="rows"
-    class="ab-table"
-    :orientation="orientation"
-  >
-    <template #field-name="{ field }">
-      <th :key="field.__id__" class="ab-table__header-cell">
-        <slot name="field-name" :field="field">{{ field.name }}</slot>
-      </th>
-    </template>
-    <template #cell-content="{ rowIndex, value, field, row }">
-      <slot
-        name="cell-content"
-        :value="value"
-        :field="field"
-        :row-index="rowIndex"
-        :row="row"
-      >
-        <td :key="field.id" class="ab-table__cell">
-          <div class="ab-table__cell-content">
-            {{ row[field.__id__] }}
-          </div>
-        </td>
-      </slot>
-    </template>
-    <template #empty-state>
-      <div class="ab-table__empty-state">
-        <template v-if="contentLoading">
-          <div class="loading-spinner" />
-        </template>
-        <template v-else>
-          {{ $t('abTable.empty') }}
-        </template>
-      </div>
-    </template>
-  </BaserowTable>
+  <div class="ab-table__wrapper">
+    <BaserowTable
+      :fields="fields"
+      :rows="rows"
+      class="ab-table"
+      :orientation="orientation"
+    >
+      <template #field-name="{ field }">
+        <th :key="field.__id__" class="ab-table__header-cell">
+          <slot name="field-name" :field="field">{{ field.name }}</slot>
+        </th>
+      </template>
+      <template #cell-content="{ rowIndex, value, field, row }">
+        <slot
+          name="cell-content"
+          :value="value"
+          :field="field"
+          :row-index="rowIndex"
+          :row="row"
+        >
+          <td :key="field.id" class="ab-table__cell">
+            <div class="ab-table__cell-content">
+              {{ row[field.__id__] }}
+            </div>
+          </td>
+        </slot>
+      </template>
+      <template #empty-state>
+        <div class="ab-table__empty-state">
+          <template v-if="contentLoading">
+            <div class="loading-spinner" />
+          </template>
+          <template v-else>
+            {{ $t('abTable.empty') }}
+          </template>
+        </div>
+      </template>
+    </BaserowTable>
+    <div
+      v-if="contentLoading && rows.length"
+      class="ab-table__loading-overlay loading-overlay"
+    ></div>
+  </div>
 </template>
 
 <script>

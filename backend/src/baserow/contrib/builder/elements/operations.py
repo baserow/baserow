@@ -32,3 +32,7 @@ class UpdateElementOperationType(BuilderElementOperationType):
 
 class ReadElementOperationType(BuilderElementOperationType):
     type = "builder.page.element.read"
+
+
+class RestoreElementOperationType(BuilderElementOperationType):
+    type = "builder.page.element.restore"

@@ -1,6 +1,8 @@
 import { Mention as TiptapMention } from '@tiptap/extension-mention'
 import regexp from 'markdown-it-regexp'
 
+import { escapeHtml } from '@baserow/modules/core/utils/string'
+
 const USER_ID_REGEXP = /@(\d+)/
 
 export const parseMention = (users, loggedUserId = null) =>
@@ -11,9 +13,10 @@ export const parseMention = (users, loggedUserId = null) =>
       if (user.user_id === loggedUserId) {
         className += ' rich-text-editor__mention--current-user'
       }
+      const name = escapeHtml(user.name)
       // NOTE: Keep this in sync with the @tiptap/extension-mention
       // https://github.com/ueberdosis/tiptap/blob/main/packages/extension-mention/src/mention.ts
-      return `<span class="${className}" data-id="${user.user_id}" data-label="${user.name}" data-type="mention">@${user.name}</span>`
+      return `<span class="${className}" data-id="${user.user_id}" data-label="${name}" data-type="mention">@${name}</span>`
     } else {
       return `@${match[1]}`
     }

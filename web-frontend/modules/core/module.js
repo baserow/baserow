@@ -25,11 +25,6 @@ export default defineNuxtModule({
     name: '@baserow/core',
     // The key in `nuxt.config` that holds your module options
     configKey: 'core',
-    // Compatibility constraints
-    compatibility: {
-      // Semver version of supported nuxt versions
-      nuxt: '^3.0.0',
-    },
   },
   // Default configuration options for your module, can also be a function returning those
   defaults: {},
@@ -68,15 +63,19 @@ export default defineNuxtModule({
         disableAnonymousPublicViewWsConnections: '',
         baserowMaxImportFileSizeMb: 512,
         featureFlags: '',
+        baserowPresenceVisibleUsers: '3',
         baserowDisableGoogleDocsFilePreview: '',
         baserowMaxSnapshotsPerGroup: -1,
         baserowFrontendSameSiteCookie: 'lax',
+        baserowFrontendCookiePrefix: '',
         baserowFrontendJobsPollingTimeoutMs: 2000,
         posthogProjectApiKey: '',
         posthogHost: '',
         baserowEmbeddedShareUrl: 'http://localhost:3000',
         baserowUsePgFulltextSearch: 'true',
         integrationLocalBaserowPageSizeLimit: 200,
+        formulaRangeMaxItems: 10000,
+        integrationLocalBaserowBatchOperationSizeLimit: 1000,
         extraPublicWebFrontendHostnames: [],
         baserowBuilderDomains: [],
         baserowRowPageSizeLimit: 200,
@@ -86,6 +85,7 @@ export default defineNuxtModule({
         mediaUrl: 'http://localhost:4000/media/',
         sentryDsn: '',
         sentryEnvironment: '',
+        sentryTracesSampleRate: '0.1',
       }
     )
 
@@ -112,7 +112,6 @@ export default defineNuxtModule({
     )
 
     addPlugin(resolve('plugins/store.js'))
-    addPlugin(resolve('plugins/errorHandler.js'))
     addPlugin(resolve('plugins/filters.js'))
     addPlugin(resolve('plugins/vuexState.js'))
     addPlugin(resolve('plugin.js'))

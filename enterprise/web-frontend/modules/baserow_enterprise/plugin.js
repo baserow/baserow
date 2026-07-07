@@ -75,6 +75,7 @@ import {
   BuilderBrandingPaidFeature,
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
+  CodeRunnerPaidFeature,
   CoBrandingPaidFeature,
   DataScannerPaidFeature,
   DataSyncPaidFeature,
@@ -83,6 +84,7 @@ import {
   RBACPaidFeature,
   SSOPaidFeature,
   SupportPaidFeature,
+  XLSFileReaderPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 import {
@@ -93,12 +95,24 @@ import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSetting
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
+import {
+  CoreCodeServiceType,
+  CoreXLSFileReaderServiceType,
+} from '@baserow_enterprise/integrations/core/serviceTypes'
+import {
+  CoreCodeWorkflowActionType,
+  CoreXLSFileReaderWorkflowActionType,
+} from '@baserow_enterprise/builder/workflowActionTypes'
+import {
+  CoreCodeNodeType,
+  CoreXLSFileReaderNodeType,
+} from '@baserow_enterprise/automation/nodeTypes'
 
 export default defineNuxtPlugin({
   name: 'enterprise',
   dependsOn: ['premium', 'registry'],
   setup(nuxtApp) {
-    const { $registry, $store } = nuxtApp
+    const { $config, $registry, $store } = nuxtApp
 
     const context = { app: nuxtApp }
 
@@ -157,6 +171,20 @@ export default defineNuxtPlugin({
     $registry.register('license', new EnterpriseLicenseType(context))
 
     $registry.register('userSource', new LocalBaserowUserSourceType(context))
+    if ($config.public.baserowEnterpriseCodeRunnerDefaultType) {
+      $registry.register('service', new CoreCodeServiceType(context))
+      $registry.register(
+        'workflowAction',
+        new CoreCodeWorkflowActionType(context)
+      )
+      $registry.register('node', new CoreCodeNodeType(context))
+    }
+    $registry.register('service', new CoreXLSFileReaderServiceType(context))
+    $registry.register(
+      'workflowAction',
+      new CoreXLSFileReaderWorkflowActionType(context)
+    )
+    $registry.register('node', new CoreXLSFileReaderNodeType(context))
 
     $registry.register(
       'appAuthProvider',
@@ -233,6 +261,8 @@ export default defineNuxtPlugin({
       'paidFeature',
       new BuilderFileInputElementPaidFeature(context)
     )
+    $registry.register('paidFeature', new CodeRunnerPaidFeature(context))
+    $registry.register('paidFeature', new XLSFileReaderPaidFeature(context))
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))
     $registry.register('paidFeature', new DateDependencyPaidFeature(context))

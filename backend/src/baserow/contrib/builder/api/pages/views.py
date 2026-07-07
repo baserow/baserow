@@ -19,7 +19,6 @@ from baserow.contrib.builder.api.pages.errors import (
     ERROR_DUPLICATE_QUERY_PARAMS,
     ERROR_INVALID_QUERY_PARAM_NAME,
     ERROR_PAGE_DOES_NOT_EXIST,
-    ERROR_PAGE_NAME_NOT_UNIQUE,
     ERROR_PAGE_NOT_IN_BUILDER,
     ERROR_PAGE_PATH_NOT_UNIQUE,
     ERROR_PATH_PARAM_NOT_DEFINED,
@@ -38,7 +37,6 @@ from baserow.contrib.builder.pages.exceptions import (
     DuplicatePathParamsInPath,
     InvalidQueryParamName,
     PageDoesNotExist,
-    PageNameNotUnique,
     PageNotInBuilder,
     PagePathNotUnique,
     PathParamNotDefined,
@@ -76,7 +74,6 @@ class PagesView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_PAGE_NAME_NOT_UNIQUE",
                     "ERROR_PAGE_PATH_NOT_UNIQUE",
                     "ERROR_PATH_PARAM_NOT_IN_PATH",
                     "ERROR_PATH_PARAM_NOT_DEFINED",
@@ -91,7 +88,6 @@ class PagesView(APIView):
     @map_exceptions(
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
-            PageNameNotUnique: ERROR_PAGE_NAME_NOT_UNIQUE,
             PagePathNotUnique: ERROR_PAGE_PATH_NOT_UNIQUE,
             PathParamNotInPath: ERROR_PATH_PARAM_NOT_IN_PATH,
             PathParamNotDefined: ERROR_PATH_PARAM_NOT_DEFINED,
@@ -137,7 +133,6 @@ class PageView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_PAGE_NAME_NOT_UNIQUE",
                     "ERROR_PAGE_PATH_NOT_UNIQUE",
                     "ERROR_PATH_PARAM_NOT_IN_PATH",
                     "ERROR_PATH_PARAM_NOT_DEFINED",
@@ -156,7 +151,6 @@ class PageView(APIView):
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
-            PageNameNotUnique: ERROR_PAGE_NAME_NOT_UNIQUE,
             PagePathNotUnique: ERROR_PAGE_PATH_NOT_UNIQUE,
             PathParamNotInPath: ERROR_PATH_PARAM_NOT_IN_PATH,
             PathParamNotDefined: ERROR_PATH_PARAM_NOT_DEFINED,

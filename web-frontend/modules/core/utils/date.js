@@ -1,4 +1,18 @@
 import moment from '@baserow/modules/core/moment'
+export {
+  Timedelta,
+  parseDurationString,
+} from '@baserow/modules/core/utils/duration'
+
+const SUPPORTED_MOMENT_TOKEN_RE =
+  /YYYY|MMMM|dddd|MMM|ddd|SSS|YY|MM|DD|HH|hh|mm|ss|[MDHhmsAaT]/g
+
+export function isValidDatetimeFormat(value) {
+  if (typeof value !== 'string') return false
+  // An empty string is not a valid datetime format
+  if (value === '') return false
+  return !/[a-zA-Z]/.test(value.replace(SUPPORTED_MOMENT_TOKEN_RE, ''))
+}
 
 export const getHumanPeriodAgoCount = (dateTime) => {
   const now = moment()

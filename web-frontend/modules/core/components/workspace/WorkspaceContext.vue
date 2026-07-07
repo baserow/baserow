@@ -24,13 +24,7 @@
         </a>
       </li>
       <li
-        v-if="
-          $hasPermission(
-            'workspace.create_application',
-            workspace,
-            workspace.id
-          )
-        "
+        v-if="$hasPermission('workspace.export', workspace, workspace.id)"
         class="context__menu-item"
       >
         <a class="context__menu-item-link" @click="openImportData">
@@ -124,9 +118,7 @@
     >
     </ExportWorkspaceModal>
     <ImportWorkspaceModal
-      v-if="
-        $hasPermission('workspace.create_application', workspace, workspace.id)
-      "
+      v-if="$hasPermission('workspace.export', workspace, workspace.id)"
       ref="importWorkspaceModal"
       :workspace="workspace"
     ></ImportWorkspaceModal>

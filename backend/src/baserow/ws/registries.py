@@ -1,4 +1,5 @@
-from typing import Optional
+import abc
+from typing import Any, Optional
 
 from baserow.core.registry import Instance, Registry
 from baserow.ws.tasks import broadcast_many_to_channel_group, broadcast_to_channel_group
@@ -26,19 +27,15 @@ class PageType(Instance):
     dynamic groups.
     """
 
-    def can_add(self, user, web_socket_id, **kwargs):
+    def can_add(self, user: Any, web_socket_id: str, **kwargs: Any) -> bool:
         """
         Indicates whether the user can be added to the page group. Here can for
         example be checked if the user has access to a related group.
 
         :param user: The user requesting access.
-        :type user: User
         :param web_socket_id: The unique web socket id of the user.
-        :type web_socket_id: str
         :param kwargs: The additional parameters including their provided values.
-        :type kwargs: dict
         :return: Should indicate if the user can join the page (yes=True and no=False).
-        :rtype: bool
         """
 
         raise NotImplementedError(
@@ -78,23 +75,60 @@ class PageType(Instance):
 
         return None
 
+    def get_presence_space_name(self, **kwargs) -> str | None:
+        """
+        Return the presence space name for this page, or None to opt out of
+        presence tracking. Override to enable presence for a page type.
+
+        :param kwargs: The additional parameters including their provided values.
+        :return: A presence space name string, or None if this page type does
+            not participate in presence.
+        """
+
+        return None
+
+    def filter_focus_for_recipient(
+        self,
+        page_parameters: dict[str, Any],
+        focus: dict[str, Any] | None,
+        focus_type: "PresenceFocusType | None",
+    ) -> bool:
+        """
+        Decide whether a recipient on this page should see the given focus
+        event. Called per-recipient during focus broadcast and when building
+        the members snapshot on subscribe.
+
+        Focus delivery is opt-in: the default denies everything, so page
+        types that enable presence (return a non-None space name) must
+        override this to grant visibility.
+
+        When focus is None (clear-focus), the page type should decide whether
+        to deliver the "user stopped focusing" signal.
+
+        :param page_parameters: The recipient's page subscription parameters.
+        :param focus: The focus event payload, or None for clear-focus.
+        :param focus_type: The focus type instance, or None for clear-focus.
+        :return: True if the recipient should see this focus event.
+        """
+
+        return False
+
     def broadcast(
-        self, payload, ignore_web_socket_id=None, exclude_user_ids=None, **kwargs
-    ):
+        self,
+        payload: dict[str, Any],
+        ignore_web_socket_id: str | None = None,
+        exclude_user_ids: list[int] | None = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Broadcasts a payload to everyone within the group.
 
-        :param payload: A payload that must be broad casted to all the users in the
-            group.
-        :type payload:  dict
-        :param ignore_web_socket_id: If provided then the payload will not be broad
-            casted to that web socket id. This is often the sender.
-        :type ignore_web_socket_id: Optional[str]
+        :param payload: A payload that must be broadcast to all the users in the group.
+        :param ignore_web_socket_id: If provided then the payload will not be
+            broadcast to that web socket id. This is often the sender.
         :param exclude_user_ids: A list of User ids which should be excluded from
             receiving the message.
-        :type exclude_user_ids: Optional[list]
         :param kwargs: The additional parameters including their provided values.
-        :type kwargs: dict
         """
 
         broadcast_to_channel_group.delay(
@@ -126,14 +160,16 @@ class PageType(Instance):
         :return:
         """
 
-        broadcast_many_to_channel_group.delay(
-            [
+        prepared: list[tuple[str, dict]] = []
+        for group_kw, payload in payloads_with_groups:
+            prepared.append(
                 (
                     self.get_group_name(**group_kw),
                     payload,
                 )
-                for group_kw, payload in payloads_with_groups
-            ],
+            )
+        broadcast_many_to_channel_group.delay(
+            prepared,
             ignore_web_socket_id,
             exclude_user_ids,
         )
@@ -144,3 +180,61 @@ class PageRegistry(Registry):
 
 
 page_registry = PageRegistry()
+
+
+class InvalidFocusPayloadException(Exception):
+    pass
+
+
+class PresenceFocusType(abc.ABC, Instance):
+    @abc.abstractmethod
+    def validate(self, raw_focus: dict) -> dict:
+        """
+        Validate and normalize a raw focus payload from the client.
+
+        :param raw_focus: The raw focus dict sent by the client. Always
+            contains at least a ``"type"`` key matching this instance's type.
+        :return: A normalized dict that must include a ``"type"`` key matching
+            the registered type name. Extra keys are type-specific.
+        :raises ValueError: If the payload is malformed.
+        """
+
+        ...
+
+
+class PresenceFocusTypeRegistry(Registry):
+    name = "presence_focus_type"
+
+    def validate_focus(self, raw_focus: dict | None) -> tuple[dict | None, str | None]:
+        """
+        Validate and resolve a raw focus payload.
+
+        Returns (validated_focus, focus_type_name) on success.
+        Returns (None, None) for a clear-focus (null) payload.
+        Raises InvalidFocusPayloadException if the payload is malformed
+        or incompatible.
+        """
+
+        if raw_focus is None:
+            return None, None
+
+        if not isinstance(raw_focus, dict) or "type" not in raw_focus:
+            raise InvalidFocusPayloadException("Missing type in focus payload")
+
+        type_name = raw_focus["type"]
+        if not isinstance(type_name, str):
+            raise InvalidFocusPayloadException("Focus type must be a string")
+        try:
+            focus_type = self.get(type_name)
+        except self.does_not_exist_exception_class:
+            raise InvalidFocusPayloadException(f"Unknown focus type: {type_name}")
+
+        try:
+            return focus_type.validate(raw_focus), type_name
+        except Exception as exc:
+            raise InvalidFocusPayloadException(
+                f"Validation failed for focus type {type_name}"
+            ) from exc
+
+
+presence_focus_type_registry = PresenceFocusTypeRegistry()

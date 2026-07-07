@@ -9,8 +9,8 @@
         "overflowWarning": "Le licenze disponibili sono terminate. Imposta gli utenti come \"viewers\" per liberare le licenze necessarie."
     },
     "clientHandler": {
-        "cannotDisableAllAuthProvidersTitle": "Ultimo provider attivo",
-        "cannotDisableAllAuthProvidersDescription": "Non è possibile disabilitare o cancellare l'ultimo provider attivo."
+        "cannotDisableAllAuthProvidersTitle": "Ultimo provider attivato",
+        "cannotDisableAllAuthProvidersDescription": "Non è possibile disabilitare o cancellare l'ultimo provider attivato."
     },
     "trashType": {
         "team": "team"
@@ -278,7 +278,9 @@
         "coBranding": "Sostituzione logo co-branding",
         "auditLogs": "Registro attività",
         "support": "Supporto diretto",
-        "dataSync": "Sync dei dati"
+        "dataSync": "Sync dei dati",
+        "dataSyncContent": "Mantieni automaticamente le tabelle aggiornate sincronizzandole con altre tabelle Baserow o fonti esterne come Jira, GitHub, GitLab o HubSpot. Consente anche di sincronizzare periodicamente e abilita la sincronizzazione dei dati bidirezionale per i tipi di sincronizzazione dati supportati.",
+        "ssoContent": "Abilita accessi sicuri e senza interruzioni con SAML, Google, Facebook, GitHub, GitLab o OpenID Connect. Supporta più provider contemporaneamente. Nota che sia Baserow come strumento, sia il sistema di autenticazione del costruttore di applicazioni supportano SSO."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Supporto diretto"
@@ -366,7 +368,8 @@
         "preview": "Anteprima"
     },
     "configureDataSyncPeriodicInterval": {
-        "saved": "Salvato"
+        "saved": "Salvato",
+        "deactivatedText": "La sincronizzazione dei dati periodica è stata disattivata perché ha fallito troppe volte consecutive. Per favore prova a sincronizzare manualmente, e se funziona come previsto, allora clicca sul pulsante di attivazione."
     },
     "dataSyncPeriodicIntervalForm": {
         "intervalLabel": "Intervallo",
@@ -388,5 +391,50 @@
     },
     "fileInputElementForm": {
         "fileTypesHelper": "Scegli quali estensioni di file sono consentite (una per riga) dall'input file (ad esempio jpg, png, svg, pdf). Puoi specificare image/*, video/* o audio/* per consentire tutti i file di questi tipi. Lascia vuoto per permettere tutti i tipi di file."
+    },
+    "dataScanner": {
+        "wholeWordsCheckbox": "Riconosci solo parole intere",
+        "wholeWordsHelp": "Quando è attiva, la funzione di scansione rileva solo parole o token completi. Ad esempio, 'DDDD' corrisponde a '1234' ma non a '12345'.",
+        "workspaceScopeLabel": "Spazi di lavoro da scansionare",
+        "scanAllWorkspaces": "Scansiona tutti gli spazi di lavoro",
+        "filterByScan": "Filtra per scansionare",
+        "allScans": "Tutte le scansioni",
+        "scanNameColumn": "Scansiona",
+        "workspaceColumn": "Spazio di lavoro",
+        "databaseColumn": "Database",
+        "tableColumn": "Tabella",
+        "fieldColumn": "Campo",
+        "rowIdColumn": "ID Riga",
+        "matchedValueColumn": "Valore abbinato",
+        "firstIdentifiedColumn": "Prima identificazione",
+        "clearFilters": "Rimuovi filtri",
+        "addWorkspace": "Aggiungi uno spazio di lavoro",
+        "scanTypePattern": "Modello",
+        "scanTypeListOfValues": "Lista di valori",
+        "scanTypeListTable": "Tabella Baserow",
+        "lastRunColumn": "Ultima esecuzione",
+        "resultsCountColumn": "Risultati",
+        "viewResults": "Vedi risultati",
+        "results": "Visualizza {count} risultato|Visualizza i {count} risultati",
+        "noResults": "Nessun risultato trovato",
+        "resolveResult": "Risolvi",
+        "resultResolved": "Risolto",
+        "exportToCsv": "Esporta in CSV",
+        "exportModalTitle": "Esporta risultati in CSV",
+        "exportFilename": "risultati_scansione_dati_{date}.csv",
+        "exportFailedTitle": "Esportazione fallita",
+        "exportFailedDescription": "Il processo di esportazione è fallito. Per favore riprova.",
+        "exportCancelledTitle": "Esportazione cancellata",
+        "exportCancelledDescription": "Il processo di esportazione è stato cancellato.",
+        "emptyTitle": "Nessuna scansione dati ad ora",
+        "emptyDescription": "Una scansione dati ti permette di scansionare automaticamente l'intera istanza o specifici spazi di lavoro per verificare se modelli (come IBAN) o testo predefinito (come identificativi univoci) siano in uso.",
+        "emptyResultsTitle": "Nessun risultato trovato",
+        "emptyResultsDescription": "Non ci sono ancora risultati di scansione. I risultati appariranno qui dopo l'esecuzione di una scansione e l'individuazione di un riscontro."
+    },
+    "deleteDataScanModal": {
+        "title": "Annulla scansione dati"
+    },
+    "fieldPermissionModal": {
+        "linkRowWarning": "Questo è un campo 'Link to table'. Per assicurare che i valori non possano essere cambiati dalla tabella collegata, per favore assicurati di impostare i permessi giusti anche sulla tabella collegata."
     }
 }

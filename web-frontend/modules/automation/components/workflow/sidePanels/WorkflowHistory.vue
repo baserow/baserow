@@ -1,5 +1,5 @@
 <template>
-  <Expandable toggle-on-click>
+  <Expandable toggle-on-click @toggle="onToggle">
     <template #header="{ expanded }">
       <div class="workflow-history__divider"></div>
       <div class="workflow-history__header">
@@ -26,20 +26,29 @@
     <template #default>
       <template v-if="item.status !== 'started'">
         <div
-          v-if="!item.node_histories.length && item.message"
+          v-if="nodeHistoriesEntry === null"
           class="workflow-history__message"
         >
-          {{ item.message }}
+          <div class="loading"></div>
         </div>
-        <NodeHistory
-          v-for="nodeId in rootNodeIds"
-          v-else
-          :key="nodeId"
-          :node-id="nodeId"
-          :node-histories="nodeHistoriesByNode[nodeId] || []"
-          :child-node-histories-by-parent="childNodeHistoriesByParent"
-          :depth="0"
-        />
+        <template v-else>
+          <div
+            v-if="!rootNodeHistories.length && item.message"
+            class="workflow-history__message"
+          >
+            {{ item.message }}
+          </div>
+          <NodeHistory
+            v-for="nh in rootNodeHistories"
+            v-else
+            :key="nh.node"
+            :workflow-history-id="item.id"
+            :node-history="nh"
+            :child-node-histories-by-parent="childNodeHistoriesByParent"
+            :error-descendant-node-ids="errorDescendantNodeIds"
+            :depth="0"
+          />
+        </template>
         <div class="workflow-history__run-time">
           {{ totalRunTimeMessage }}
         </div>
@@ -49,11 +58,23 @@
           {{ totalRunTimeMessage }}
         </div>
       </template>
+      <div
+        v-if="workflowHistoryComponents.length"
+        class="workflow-history__components"
+      >
+        <component
+          :is="component"
+          v-for="(component, index) in workflowHistoryComponents"
+          :key="index"
+          :workflow-history="item"
+        />
+      </div>
     </template>
   </Expandable>
 </template>
 
 <script setup>
+import { useStore } from 'vuex'
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 
@@ -63,6 +84,7 @@ import historyDisabledIcon from '@baserow/modules/core/assets/images/history-dis
 import NodeHistory from '@baserow/modules/automation/components/workflow/sidePanels/NodeHistory.vue'
 
 const app = useNuxtApp()
+const store = useStore()
 
 const props = defineProps({
   item: {
@@ -88,9 +110,25 @@ watch(
     } else if (timer) {
       clearInterval(timer)
       timer = null
+      // When the workflow run completes, if the WorkflowHistory is already
+      // expanded, we should fetch the node histories.
+      store.dispatch('automationHistory/fetchNodeHistories', {
+        workflowHistoryId: props.item.id,
+      })
     }
   },
   { immediate: true }
+)
+
+const onToggle = () => {
+  if (props.item.status === 'started') return
+  store.dispatch('automationHistory/fetchNodeHistories', {
+    workflowHistoryId: props.item.id,
+  })
+}
+
+const nodeHistoriesEntry = computed(() =>
+  store.getters['automationHistory/getNodeHistories'](props.item.id)
 )
 
 const statusTitle = computed(() => {
@@ -117,6 +155,14 @@ const humanCompletedDate = computed(() => {
   return moment.utc(props.item.completed_on).tz(getUserTimeZone()).fromNow()
 })
 
+const workflowHistoryComponents = computed(() => {
+  return Object.values(app.$registry.getAll('plugin')).reduce(
+    (components, plugin) =>
+      components.concat(plugin.getWorkflowHistoryComponents(props.item)),
+    []
+  )
+})
+
 const historyTitlePrefix = computed(() => {
   return props.item.is_test_run === true
     ? `[${app.$i18n.t('historySidePanel.testRun')}] `
@@ -124,41 +170,18 @@ const historyTitlePrefix = computed(() => {
 })
 
 /**
- * Return an array of root node IDs, e.g. nodes that do not have a parent node.
- *
- * WorkflowHistory only renders the root nodes directly via NodeHistory.
- * NodeHistory then renders any child nodes recursively. This makes it easy
- * to correctly nest child nodes as well as their expandable content.
+ * Return an array of root nodes, e.g. nodes that do not have a parent node.
+ * They are rendered directly by WorkflowHistory. All other nodes are rendered
+ * recursively by NodeHistory.
  */
-const rootNodeIds = computed(() => {
-  const _rootNodeIds = []
-  for (const nodeHistory of props.item.node_histories) {
-    if (
-      nodeHistory.parent_node_id == null &&
-      !_rootNodeIds.includes(nodeHistory.node)
-    ) {
-      _rootNodeIds.push(nodeHistory.node)
+const rootNodeHistories = computed(() => {
+  const roots = []
+  for (const nh of nodeHistoriesEntry.value ?? []) {
+    if (nh.parent_node_id == null) {
+      roots.push(nh)
     }
   }
-  return _rootNodeIds
-})
-
-/**
- * Return an object where keys are node IDs and values are an array of node
- * histories for that node.
- *
- * This is used to show the correct histories (node status, run number) are
- * shown in the NodeHistory.
- */
-const nodeHistoriesByNode = computed(() => {
-  const _nodeHistoriesByNode = {}
-  for (const nodeHistory of props.item.node_histories) {
-    if (!_nodeHistoriesByNode[nodeHistory.node]) {
-      _nodeHistoriesByNode[nodeHistory.node] = []
-    }
-    _nodeHistoriesByNode[nodeHistory.node].push(nodeHistory)
-  }
-  return _nodeHistoriesByNode
+  return roots
 })
 
 /**
@@ -170,7 +193,7 @@ const nodeHistoriesByNode = computed(() => {
  */
 const childNodeHistoriesByParent = computed(() => {
   const _childNodeHistoriesByParent = {}
-  for (const nodeHistory of props.item.node_histories) {
+  for (const nodeHistory of nodeHistoriesEntry.value ?? []) {
     if (nodeHistory.parent_node_id != null) {
       const parent = nodeHistory.parent_node_id
       if (!_childNodeHistoriesByParent[parent])
@@ -179,6 +202,38 @@ const childNodeHistoriesByParent = computed(() => {
     }
   }
   return _childNodeHistoriesByParent
+})
+
+/**
+ * Precomputed set of parent node IDs that have at least one errored
+ * node history in their descendant subtree.
+ */
+const errorDescendantNodeIds = computed(() => {
+  const items = nodeHistoriesEntry.value ?? []
+  const nodesParents = new Map()
+  for (const nh of items) {
+    if (!nodesParents.has(nh.node)) {
+      nodesParents.set(nh.node, nh.parent_node_id)
+    }
+  }
+
+  const parentsWithErroredChild = new Set()
+  for (const nh of items) {
+    if (nh.status !== 'error') continue
+
+    // We exclude the node itself so that different iterations of the same
+    // node aren't tied to each other's own error status.
+    let current = nodesParents.get(nh.node)
+
+    // If a parent has already been marked as having an errored child, we
+    // stop early to avoid unnecessary walks - since all of its ancestors
+    // have already been marked.
+    while (current != null && !parentsWithErroredChild.has(current)) {
+      parentsWithErroredChild.add(current)
+      current = nodesParents.get(current)
+    }
+  }
+  return parentsWithErroredChild
 })
 
 const historyIconPath = computed(() => {

@@ -1,3 +1,0 @@
-/**
- * Nothing here yet
- */

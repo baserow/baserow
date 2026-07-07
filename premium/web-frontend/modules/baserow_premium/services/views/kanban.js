@@ -16,6 +16,7 @@ export default (client) => {
       selectOptions = [],
       publicUrl = false,
       publicAuthToken = null,
+      orderBy = null,
       filters = {},
       limitLinkedItems = null,
     }) {
@@ -25,6 +26,10 @@ export default (client) => {
 
       if (offset !== null) {
         params.append('offset', offset)
+      }
+
+      if (orderBy !== null && orderBy !== '') {
+        params.append('order_by', orderBy)
       }
 
       if (includeFieldOptions) {

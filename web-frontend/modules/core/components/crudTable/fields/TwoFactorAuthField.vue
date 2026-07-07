@@ -1,9 +1,9 @@
 <template>
   <Badge
-    :color="row[column.key].is_enabled ? 'green' : 'neutral'"
+    :color="row[column.key]?.is_enabled ? 'green' : 'neutral'"
     :rounded="true"
   >
-    <span v-if="row[column.key].is_enabled">
+    <span v-if="row[column.key]?.is_enabled">
       {{ $t('twoFactorAuthField.enabled') }}
     </span>
     <span v-else>

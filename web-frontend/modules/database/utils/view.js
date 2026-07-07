@@ -1,5 +1,6 @@
 import thenBy from 'thenby'
 import BigNumber from 'bignumber.js'
+import { getCookieName } from '@baserow/modules/core/utils/cookie'
 import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
 import { SearchMode } from '@baserow/modules/database/utils/search'
 import { convertStringToMatchBackendTsvectorData } from '@baserow/modules/database/search/regexes'
@@ -472,8 +473,8 @@ export function newFieldMatchesActiveSearchTerm(
   return false
 }
 
-export function getGroupBy(rootGetters, viewId) {
-  if (rootGetters['page/view/public/getIsPublic']) {
+export function getGroupBy(rootGetters, viewId, adhocGroupBy = false) {
+  if (rootGetters['page/view/public/getIsPublic'] || adhocGroupBy) {
     const view = rootGetters['view/get'](viewId)
     return view.group_bys
       .map((groupBy) => {
@@ -497,6 +498,22 @@ export function isAdhocSorting(app, workspace, view, publicView) {
     (app.$hasPermission('database.table.view.list_sort', view, workspace.id) &&
       !app.$hasPermission(
         'database.table.view.create_sort',
+        view,
+        workspace.id
+      ))
+  )
+}
+
+export function isAdhocGroupBy(app, workspace, view, publicView) {
+  return (
+    publicView ||
+    (app.$hasPermission(
+      'database.table.view.list_group_bys',
+      view,
+      workspace.id
+    ) &&
+      !app.$hasPermission(
+        'database.table.view.create_group_by',
         view,
         workspace.id
       ))
@@ -537,6 +554,18 @@ export function canRowsBeOptimisticallyUpdatedInView(
     readOnlyFilters ||
     (activeSearchTerm && readOnlyFieldIds.size > 0)
   return !needsServerSideCalculation
+}
+
+/**
+ * Returns true when changing a row can affect its visible position, visibility,
+ * or mismatch warning in the current view.
+ */
+export function viewHasRulesThatCanMoveOrHideRows(view, activeSearchTerm) {
+  const hasSortings = (view.sortings?.length ?? 0) > 0
+  const hasGroupBys = (view.group_bys?.length ?? 0) > 0
+  const hasFilters = !view.filters_disabled && (view.filters?.length ?? 0) > 0
+
+  return hasSortings || hasGroupBys || hasFilters || Boolean(activeSearchTerm)
 }
 
 export function getOrderBy(view, adhocSorting) {
@@ -710,7 +739,8 @@ export function readDefaultViewIdFromCookie(
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
   try {
-    const cookie = useCookie(cookieName)
+    const config = useRuntimeConfig()
+    const cookie = useCookie(getCookieName(config, cookieName))
     const cookieValue = cookie.value || ''
     const defaultViews = decodeDefaultViewIdPerTable(cookieValue)
     const defaultView = defaultViews.find((view) => view.tableId === tableId)
@@ -737,7 +767,7 @@ export function saveDefaultViewIdInCookie(
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
   const secure = isSecureURL(config.public.publicWebFrontendUrl)
-  const cookieValue = useCookie(cookieName, {
+  const cookieValue = useCookie(getCookieName(config, cookieName), {
     path: '/',
     maxAge: 60 * 60 * 24 * 365, // 1 year
     sameSite: config.public.baserowFrontendSameSiteCookie,

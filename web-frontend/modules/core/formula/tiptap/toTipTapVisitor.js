@@ -1,6 +1,29 @@
 import BaserowFormulaVisitor from '@baserow/modules/core/formula/parser/generated/BaserowFormulaVisitor'
 import { UnknownOperatorError } from '@baserow/modules/core/formula/parser/errors'
 import _ from 'lodash'
+import {
+  ZWS,
+  zwsTextJSON,
+} from '@baserow/modules/core/components/formula/extensions/helpers'
+
+/**
+ * Returns true when the ANTLR node is absent or was injected by error
+ * recovery (e.g. `<missing ')'>`). The `FormulaInputField` parses formulas
+ * in tolerant mode so a partial AST can be rendered while the user is still
+ * typing/pasting; this helper lets the visitor degrade gracefully.
+ */
+const isErrorOrMissingNode = (node) => {
+  if (!node) return true
+  if (typeof node.isErrorNode === 'function' && node.isErrorNode()) return true
+  const text = node.getText?.()
+  return Boolean(text && text.startsWith('<missing'))
+}
+
+/** Character-stream start index for a rule context or terminal node. */
+const startIndexOf = (node) => node?.start?.start ?? node?.symbol?.start ?? -1
+
+/** Character-stream stop index for a rule context or terminal node. */
+const stopIndexOf = (node) => node?.stop?.stop ?? node?.symbol?.stop ?? -1
 
 export class ToTipTapVisitor extends BaserowFormulaVisitor {
   constructor(functions, mode = 'simple') {
@@ -72,12 +95,8 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
    */
   _ensureStartsWithZWS(content) {
     const firstNode = content[0]
-    if (
-      !firstNode ||
-      firstNode.type !== 'text' ||
-      firstNode.text !== '\u200B'
-    ) {
-      content.unshift({ type: 'text', text: '\u200B' })
+    if (!firstNode || firstNode.type !== 'text' || firstNode.text !== ZWS) {
+      content.unshift(zwsTextJSON())
     }
   }
 
@@ -140,7 +159,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
           return { type: 'text', text: processedString }
         } else {
           // Empty strings are represented as a special marker that won't be confused with line breaks
-          return { type: 'text', text: '\u200B' } // Zero-width space for empty strings
+          return zwsTextJSON() // Zero-width space for empty strings
         }
       }
     }
@@ -158,32 +177,34 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
   visitBrackets(ctx) {
     const innerContent = ctx.expr().accept(this)
 
-    // In advanced mode, wrap the content with group parenthesis nodes
-    if (this.mode === 'advanced') {
-      const content = []
-
-      // Add opening group parenthesis
-      content.push({ type: 'text', text: '\u200B' })
-      content.push({ type: 'group-opening-paren' })
-      content.push({ type: 'text', text: '\u200B' })
-
-      // Add the inner content
-      if (Array.isArray(innerContent)) {
-        content.push(...innerContent)
-      } else {
-        content.push(innerContent)
-      }
-
-      // Add closing group parenthesis
-      content.push({ type: 'text', text: '\u200B' })
-      content.push({ type: 'group-closing-paren' })
-      content.push({ type: 'text', text: '\u200B' })
-
-      return content
+    // In simple mode, parentheses are implicit — just return the inner content.
+    if (this.mode !== 'advanced') {
+      return innerContent
     }
 
-    // In simple mode, just return the inner content without parentheses
-    return innerContent
+    const content = [
+      zwsTextJSON(),
+      { type: 'group-opening-paren' },
+      zwsTextJSON(),
+    ]
+
+    if (Array.isArray(innerContent)) {
+      content.push(...innerContent)
+    } else if (innerContent) {
+      content.push(innerContent)
+    }
+
+    // Skip the closing paren node when it was synthesized by error recovery,
+    // so the rest of the formula can keep highlighting normally.
+    if (!isErrorOrMissingNode(ctx.CLOSE_PAREN())) {
+      content.push(
+        zwsTextJSON(),
+        { type: 'group-closing-paren' },
+        zwsTextJSON()
+      )
+    }
+
+    return content
   }
 
   processString(ctx) {
@@ -191,9 +212,9 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     let literal
 
     if (ctx.SINGLEQ_STRING_LITERAL() !== null) {
-      literal = literalWithoutOuterQuotes.replace(/\\'/g, "'")
+      literal = literalWithoutOuterQuotes.replace(/\\(['\\])/g, '$1')
     } else {
-      literal = literalWithoutOuterQuotes.replace(/\\"/g, '"')
+      literal = literalWithoutOuterQuotes.replace(/\\(["\\])/g, '$1')
     }
 
     return literal
@@ -201,9 +222,62 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
 
   visitFunctionCall(ctx) {
     const functionName = this.visitFuncName(ctx.func_name()).toLowerCase()
-    const functionArgumentExpressions = ctx.expr()
 
-    return this.doFunc(functionArgumentExpressions, functionName)
+    // Tolerant paths: when a parenthesis was synthesized by error recovery
+    // (e.g. bare `month` or unclosed `month(` pasted into the editor), render
+    // the already-parsed prefix as plain text and splice whatever comes next
+    // straight from the source so surrounding operators are not dropped.
+    if (isErrorOrMissingNode(ctx.OPEN_PAREN())) {
+      return this._renderPartialCall(ctx, ctx.func_name(), functionName)
+    }
+    if (isErrorOrMissingNode(ctx.CLOSE_PAREN())) {
+      return this._renderPartialCall(ctx, ctx.OPEN_PAREN(), `${functionName}(`)
+    }
+
+    return this.doFunc(ctx.expr(), functionName)
+  }
+
+  /**
+   * Emits `prefixText` for the portion of the call that was already parsed
+   * (`func_name` or `func_name(`), then walks the remaining children while
+   * splicing any raw source the parser dropped during error recovery (for
+   * instance the `+` in `month + year(...)`). The gap text is read directly
+   * from the input stream since those tokens are no longer in the AST.
+   */
+  _renderPartialCall(ctx, prefixNode, prefixText) {
+    const parts = [{ type: 'text', text: prefixText }]
+    const inputStream = ctx.start?.getInputStream?.() ?? null
+    const funcNameNode = ctx.func_name()
+    let lastStopIndex = stopIndexOf(prefixNode)
+
+    const pushGap = (from, to) => {
+      if (!inputStream || from < 0 || to < from) return
+      const gapText = inputStream.getText(from, to)
+      if (gapText && !gapText.includes('<missing')) {
+        parts.push({ type: 'text', text: gapText })
+      }
+    }
+
+    for (const child of ctx.children ?? []) {
+      if (child === prefixNode || child === funcNameNode) continue
+      const childText = child.getText?.()
+      if (childText?.startsWith('<missing')) continue
+
+      pushGap(lastStopIndex + 1, startIndexOf(child) - 1)
+
+      try {
+        const result = child.accept(this)
+        if (Array.isArray(result)) parts.push(...result)
+        else if (result) parts.push(result)
+      } catch (e) {
+        if (childText) parts.push({ type: 'text', text: childText })
+      }
+
+      lastStopIndex = Math.max(lastStopIndex, stopIndexOf(child))
+    }
+
+    pushGap(lastStopIndex + 1, stopIndexOf(ctx))
+    return parts
   }
 
   /**
@@ -218,7 +292,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         ((arg.text.startsWith('"') && arg.text.endsWith('"')) ||
           (arg.text.startsWith("'") && arg.text.endsWith("'")))
 
-      if (isBoolean || isNumber || hasQuotes) {
+      if (isBoolean || isNumber || hasQuotes || this.mode === 'advanced') {
         return arg
       } else {
         // In simple mode, add quotes
@@ -275,7 +349,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
    */
   buildFunctionContentAdvanced(functionName, args) {
     const result = [
-      { type: 'text', text: '\u200B' },
+      zwsTextJSON(),
       {
         type: 'function-formula-component',
         attrs: {
@@ -299,7 +373,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       attrs: { noArgs: args.length === 0 },
     })
 
-    result.push({ type: 'text', text: '\u200B' })
+    result.push(zwsTextJSON())
 
     return result
   }
@@ -324,46 +398,50 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
   }
 
   doFunc(functionArgumentExpressions, functionName) {
-    const args = Array.from(functionArgumentExpressions, (expr) =>
-      expr.accept(this)
-    )
+    // Each argument is visited independently so a single broken sub-expression
+    // in a tolerant parse does not take the whole formula down with it.
+    const args = Array.from(functionArgumentExpressions, (expr) => {
+      try {
+        return expr.accept(this)
+      } catch (e) {
+        return { type: 'text', text: expr.getText() }
+      }
+    })
 
-    // Preprocess arguments (special handling for 'get' in advanced mode)
+    const formulaFunctionType = this.functions.get(functionName)
+    if (!formulaFunctionType) {
+      // Unknown function in a partial AST — render as plain text so the rest
+      // of the formula can keep highlighting normally.
+      const argsText = args.map((a) => a?.text ?? '').join(', ')
+      return { type: 'text', text: `${functionName}(${argsText})` }
+    }
+
     const processedArgs = this.preprocessGetArgs(args, functionName)
 
-    // Get the node from the runtime function
-    const formulaFunctionType = this.functions.get(functionName)
-    const node = formulaFunctionType.toNode(processedArgs, this.mode)
+    let node
+    try {
+      node = formulaFunctionType.toNode(processedArgs, this.mode)
+    } catch (e) {
+      return this.buildFallbackContent(args, functionName, formulaFunctionType)
+    }
 
-    // Early return: if it's a component that needs ZWS wrapping
     if (
       node?.type === 'get-formula-component' ||
       node?.type === 'function-formula-component'
     ) {
-      return [
-        { type: 'text', text: '\u200B' },
-        node,
-        { type: 'text', text: '\u200B' },
-      ]
+      return [zwsTextJSON(), node, zwsTextJSON()]
     }
-
-    // Early return: if it's already an array (e.g., concat with newlines)
     if (Array.isArray(node)) {
       return node
     }
-
-    // Flatten nested arrays in wrapper content
     if (node?.type === 'wrapper' && node.content) {
       node.content = node.content.flat()
       return node
     }
-
-    // Early return: if node is valid, use it
     if (node?.type) {
       return node
     }
 
-    // Fallback: build content manually when no proper TipTap component exists
     return this.buildFallbackContent(args, functionName, formulaFunctionType)
   }
 

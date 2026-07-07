@@ -1,11 +1,13 @@
 from django.contrib.auth import get_user_model
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.fields import CharField, EmailField
 from rest_framework.serializers import ModelSerializer
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
-from baserow.api.user.validators import password_validation
+from baserow.api.two_factor_auth.serializers import TwoFactorAuthSerializer
+from baserow.api.user.validators import name_validation, password_validation
 from baserow.core.models import WorkspaceUser
 
 User = get_user_model()
@@ -19,6 +21,26 @@ _USER_ADMIN_SERIALIZER_API_DOC_KWARGS = {
     "is_staff": {
         "help_text": "Designates whether this user is an admin and has access to all "
         "workspaces and Baserow's admin areas. "
+    },
+}
+
+
+# Raw OpenAPI schema for the ``two_factor_auth`` admin response field. It is
+# ``null`` when the user has no provider configured, otherwise the provider
+# ``{type, is_enabled}``. A raw dict (instead of ``TwoFactorAuthSerializer``)
+# is used so the field can be marked nullable, which drf-spectacular does not
+# infer for a serializer-typed SerializerMethodField.
+_USER_ADMIN_TWO_FACTOR_AUTH_FIELD_SCHEMA = {
+    "type": "object",
+    "nullable": True,
+    "description": (
+        "The user's two factor auth provider state, or null when no provider "
+        "is configured."
+    ),
+    "required": ["type", "is_enabled"],
+    "properties": {
+        "type": {"type": "string", "readOnly": True},
+        "is_enabled": {"type": "boolean", "readOnly": True},
     },
 }
 
@@ -46,6 +68,7 @@ class UserAdminResponseSerializer(ModelSerializer):
     name = CharField(source="first_name", max_length=150)
     username = EmailField()
     workspaces = UserAdminWorkspacesSerializer(source="workspaceuser_set", many=True)
+    two_factor_auth = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -58,8 +81,21 @@ class UserAdminResponseSerializer(ModelSerializer):
             "date_joined",
             "is_active",
             "is_staff",
+            "two_factor_auth",
         )
         extra_kwargs = _USER_ADMIN_SERIALIZER_API_DOC_KWARGS
+
+    @extend_schema_field(_USER_ADMIN_TWO_FACTOR_AUTH_FIELD_SCHEMA)
+    def get_two_factor_auth(self, object):
+        try:
+            provider = object.two_factor_auth_provider
+        except User.two_factor_auth_provider.RelatedObjectDoesNotExist:
+            provider = None
+
+        if provider is None:
+            return None
+
+        return TwoFactorAuthSerializer(provider).data
 
 
 class UserAdminCreateSerializer(
@@ -70,8 +106,13 @@ class UserAdminCreateSerializer(
     data as the password will be returned also.
     """
 
-    # Max length set to match django user models first_name fields max length
-    name = CharField(source="first_name", max_length=150, required=True)
+    name = CharField(
+        source="first_name",
+        min_length=2,
+        max_length=60,
+        required=True,
+        validators=[name_validation],
+    )
     username = EmailField(required=True)
     password = CharField(validators=[password_validation], required=True)
 
@@ -91,8 +132,13 @@ class UserAdminUpdateSerializer(
     data as the password will be returned also.
     """
 
-    # Max length set to match django user models first_name fields max length
-    name = CharField(source="first_name", max_length=150, required=False)
+    name = CharField(
+        source="first_name",
+        min_length=2,
+        max_length=60,
+        required=False,
+        validators=[name_validation],
+    )
     username = EmailField(required=False)
     password = CharField(validators=[password_validation], required=False)
 

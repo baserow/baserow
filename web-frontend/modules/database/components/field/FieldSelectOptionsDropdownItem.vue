@@ -14,7 +14,11 @@
       @mousemove="hover(value, disabled)"
     >
       <div v-if="multiple.value">
-        <Checkbox :disabled="disabled" :checked="isActive(value)"></Checkbox>
+        <Checkbox
+          :disabled="disabled"
+          :checked="isActive(value)"
+          @click.prevent
+        ></Checkbox>
       </div>
       <div
         class="select-options__dropdown-option"

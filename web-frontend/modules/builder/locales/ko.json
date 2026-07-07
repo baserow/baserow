@@ -163,7 +163,8 @@
         "moveDown": "아래로 이동",
         "moveLeft": "왼쪽으로 이동",
         "moveRight": "오른쪽으로 이동",
-        "selectParent": "부모 선택"
+        "selectParent": "부모 선택",
+        "drag": "드래그하여 순서를 변경하세요"
     },
     "duplicatePageJobType": {
         "duplicating": "복제 중",

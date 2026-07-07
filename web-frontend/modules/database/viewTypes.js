@@ -10,6 +10,7 @@ import { FileFieldType } from '@baserow/modules/database/fieldTypes'
 import {
   filterVisibleFieldsFunction,
   isAdhocFiltering,
+  isAdhocGroupBy,
   isAdhocSorting,
   newFieldMatchesActiveSearchTerm,
   sortFieldsByOrderAndIdFunction,
@@ -584,6 +585,12 @@ export class GridViewType extends ViewType {
       view,
       isPublic
     )
+    const adhocGrouping = isAdhocGroupBy(
+      this.app,
+      database.workspace,
+      view,
+      isPublic
+    )
 
     await store.dispatch(
       storePrefix + 'view/grid/setRowHeight',
@@ -594,6 +601,7 @@ export class GridViewType extends ViewType {
       fields,
       adhocFiltering,
       adhocSorting,
+      adhocGrouping,
     })
     // The grid view store keeps a copy of the group bys that must only be updated
     // after the refresh of the page. This is because the group by depends on the rows
@@ -640,12 +648,20 @@ export class GridViewType extends ViewType {
       view,
       isPublic
     )
+    const adhocGrouping = isAdhocGroupBy(
+      this.app,
+      database.workspace,
+      view,
+      isPublic
+    )
     await store.dispatch(storePrefix + 'view/grid/refresh', {
       view,
       fields,
       includeFieldOptions,
       adhocFiltering,
       adhocSorting,
+      adhocGrouping,
+      sourceEvent,
     })
   }
 
@@ -676,8 +692,8 @@ export class GridViewType extends ViewType {
       { field, fieldType, view: selectedView },
       { root: true }
     )
-    // Sync the grid store's activeGroupBys with the view's group_bys which
-    // may have been updated by the field restore above.
+    // Sync activeGroupBys with the view's group_bys which may have been updated
+    // by the field restore above.
     await dispatch(
       storePrefix + 'view/grid/updateActiveGroupBys',
       clone(selectedView.group_bys || []),
@@ -786,6 +802,17 @@ export class GridViewType extends ViewType {
     )
   }
 
+  // fetchAllFieldAggregationData refreshes the footer in flat mode and the per-group
+  // values + footer totals (one request) in grouped mode, so this works for both.
+  refreshAggregationsAfterRowChange(store, fields, storePrefix) {
+    store.dispatch(
+      storePrefix + 'view/grid/fetchAllFieldAggregationDataDebounced',
+      {
+        view: store.getters['view/getSelected'],
+      }
+    )
+  }
+
   async rowCreated(
     { store },
     tableId,
@@ -805,9 +832,7 @@ export class GridViewType extends ViewType {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
         fields,
       })
-      store.dispatch(storePrefix + 'view/grid/fetchAllFieldAggregationData', {
-        view: store.getters['view/getSelected'],
-      })
+      this.refreshAggregationsAfterRowChange(store, fields, storePrefix)
     }
   }
 
@@ -849,9 +874,7 @@ export class GridViewType extends ViewType {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
         fields,
       })
-      store.dispatch(storePrefix + 'view/grid/fetchAllFieldAggregationData', {
-        view: store.getters['view/getSelected'],
-      })
+      this.refreshAggregationsAfterRowChange(store, fields, storePrefix)
     }
   }
 
@@ -866,9 +889,7 @@ export class GridViewType extends ViewType {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
         fields,
       })
-      store.dispatch(storePrefix + 'view/grid/fetchAllFieldAggregationData', {
-        view: store.getters['view/getSelected'],
-      })
+      this.refreshAggregationsAfterRowChange(store, fields, storePrefix)
     }
   }
 

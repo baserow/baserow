@@ -25,12 +25,15 @@ class IntegrationsConfig(AppConfig):
 
         from baserow.contrib.integrations.local_baserow.service_types import (
             LocalBaserowAggregateRowsUserServiceType,
+            LocalBaserowCreateRowsServiceType,
             LocalBaserowDeleteRowServiceType,
+            LocalBaserowFieldsUpdatedServiceType,
             LocalBaserowGetRowUserServiceType,
             LocalBaserowListRowsUserServiceType,
             LocalBaserowRowsCreatedServiceType,
             LocalBaserowRowsDeletedServiceType,
             LocalBaserowRowsUpdatedServiceType,
+            LocalBaserowUpdateRowsServiceType,
             LocalBaserowUpsertRowServiceType,
         )
 
@@ -38,10 +41,13 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(LocalBaserowListRowsUserServiceType())
         service_type_registry.register(LocalBaserowAggregateRowsUserServiceType())
         service_type_registry.register(LocalBaserowUpsertRowServiceType())
+        service_type_registry.register(LocalBaserowCreateRowsServiceType())
+        service_type_registry.register(LocalBaserowUpdateRowsServiceType())
         service_type_registry.register(LocalBaserowDeleteRowServiceType())
         service_type_registry.register(LocalBaserowRowsCreatedServiceType())
         service_type_registry.register(LocalBaserowRowsUpdatedServiceType())
         service_type_registry.register(LocalBaserowRowsDeletedServiceType())
+        service_type_registry.register(LocalBaserowFieldsUpdatedServiceType())
 
         from baserow.contrib.integrations.slack.service_types import (
             SlackWriteMessageServiceType,
@@ -50,20 +56,26 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(SlackWriteMessageServiceType())
 
         from baserow.contrib.integrations.core.service_types import (
+            CoreCSVFileReaderServiceType,
             CoreHTTPRequestServiceType,
             CoreHTTPTriggerServiceType,
             CoreIteratorServiceType,
+            CoreManualTriggerServiceType,
             CorePeriodicServiceType,
             CoreRouterServiceType,
             CoreSMTPEmailServiceType,
+            CoreStartWorkflowServiceType,
         )
 
         service_type_registry.register(CoreHTTPRequestServiceType())
         service_type_registry.register(CoreSMTPEmailServiceType())
         service_type_registry.register(CoreRouterServiceType())
         service_type_registry.register(CoreHTTPTriggerServiceType())
+        service_type_registry.register(CoreManualTriggerServiceType())
         service_type_registry.register(CoreIteratorServiceType())
         service_type_registry.register(CorePeriodicServiceType())
+        service_type_registry.register(CoreCSVFileReaderServiceType())
+        service_type_registry.register(CoreStartWorkflowServiceType())
 
         from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 

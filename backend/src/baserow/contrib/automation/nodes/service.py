@@ -6,7 +6,6 @@ from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeMissingOutput,
-    AutomationNodeReferenceNodeInvalid,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
@@ -30,13 +29,14 @@ from baserow.contrib.automation.nodes.signals import (
 )
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeMove,
-    NodePositionType,
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
 from baserow.contrib.automation.workflows.constants import WORKFLOW_DIRTY_CACHE_KEY
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 from baserow.core.cache import global_cache
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.trash.handler import TrashHandler
@@ -104,7 +104,7 @@ class AutomationNodeService:
         self,
         workflow: AutomationWorkflow,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """
@@ -115,7 +115,7 @@ class AutomationNodeService:
             return
 
         if reference_node.workflow_id != workflow.id:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 f"The reference node {reference_node.id} doesn't exist"
             )
 
@@ -127,7 +127,7 @@ class AutomationNodeService:
             )
 
         if position == "child" and not reference_node.get_type().is_container:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 f"The reference node {reference_node.id} can't have child"
             )
 
@@ -137,7 +137,7 @@ class AutomationNodeService:
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
         reference_node_id: int | None = None,
-        position: NodePositionType = "south",  # south, child
+        position: GraphPointPositionType = "south",  # south, child
         output: str = "",
         **kwargs,
     ) -> AutomationNode:
@@ -161,12 +161,14 @@ class AutomationNodeService:
             context=workflow,
         )
 
+        node_type.raise_if_deactivated(workflow.automation.workspace)
+
         try:
             reference_node = (
                 self.handler.get_node(reference_node_id) if reference_node_id else None
             )
         except AutomationNodeDoesNotExist as e:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 f"The reference node {reference_node_id} doesn't exist"
             ) from e
 
@@ -174,7 +176,10 @@ class AutomationNodeService:
 
         node_type.before_create(workflow, reference_node, position, output)
 
-        prepared_values = node_type.prepare_values(kwargs, user)
+        prepared_values = node_type.prepare_values(
+            {**kwargs, "workflow": workflow},
+            user,
+        )
 
         # Preselect first integration if exactly one exists
         if node_type.get_service_type().integration_type:
@@ -190,7 +195,6 @@ class AutomationNodeService:
 
         new_node = self.handler.create_node(
             node_type,
-            workflow=workflow,
             **prepared_values,
         )
 
@@ -235,6 +239,8 @@ class AutomationNodeService:
             workspace=node.workflow.automation.workspace,
             context=node,
         )
+
+        node_type.raise_if_deactivated(node.workflow.automation.workspace)
 
         # Export the 'original' node values now, as `prepare_values`
         # will be changing the service first, and then `update_node`
@@ -332,6 +338,8 @@ class AutomationNodeService:
 
         source_node.get_type().before_create(workflow, source_node, "south", "")
 
+        source_node.get_type().raise_if_deactivated(workflow.automation.workspace)
+
         duplicated_node = self.handler.duplicate_node(source_node)
 
         workflow.get_graph().insert(duplicated_node, source_node, "south", "")
@@ -381,6 +389,7 @@ class AutomationNodeService:
 
         if not existing_node:
             new_node_type = automation_node_type_registry.get(new_node_type_str)
+            new_node_type.raise_if_deactivated(automation.workspace)
             node_type.before_replace(node_to_replace, new_node_type)
 
             prepared_values = new_node_type.prepare_values({}, user)
@@ -418,6 +427,9 @@ class AutomationNodeService:
             workflow.simulate_until_node = None
             workflow.save(update_fields=["simulate_until_node"])
 
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        global_cache.update(cache_key, lambda _: True)
+
         automation_node_deleted.send(
             self,
             workflow=workflow,
@@ -438,7 +450,7 @@ class AutomationNodeService:
         user: AbstractUser,
         node_id_to_move: int,
         reference_node_id: int | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ) -> AutomationNodeMove:
         """
@@ -469,14 +481,14 @@ class AutomationNodeService:
                 self.handler.get_node(reference_node_id) if reference_node_id else None
             )
         except AutomationNodeDoesNotExist as e:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 f"The reference node {reference_node_id} doesn't exist"
             ) from e
 
         self._check_position(workflow, reference_node, position, output)
 
         if reference_node.id == node_to_move.id:
-            raise AutomationNodeReferenceNodeInvalid(
+            raise GraphPointReferencePointInvalid(
                 "The reference node and the moved node must be different"
             )
 

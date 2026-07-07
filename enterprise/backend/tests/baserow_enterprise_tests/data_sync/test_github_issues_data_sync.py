@@ -819,6 +819,8 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
     assert response_json == {
         "id": data_sync.id,
         "type": "github_issues",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,
@@ -829,6 +831,7 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
         "last_sync": None,
         "last_error": None,
         "auto_add_new_properties": False,
+        "delete_unmatched_rows": True,
         "two_way_sync": False,
         # The `github_issues_api_token` should not be in here.
         "github_issues_owner": "baserow_owner",

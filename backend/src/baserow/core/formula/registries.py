@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, TypeVar
 
 from baserow.core.formula.argument_types import BaserowRuntimeFormulaArgumentType
 from baserow.core.formula.parser.exceptions import (
+    BaserowFormulaSyntaxError,
     FormulaFunctionTypeDoesNotExist,
     InvalidFormulaArgumentType,
 )
@@ -79,8 +80,11 @@ class RuntimeFormulaFunction(ABC, Instance):
         :raises InvalidFormulaArgumentType: If any of the arguments have a wrong type
         """
 
-        invalid_arg = self.validate_type_of_args(args)
-        if invalid_arg:
+        if result := self.validate_type_of_args(args):
+            index, invalid_arg = result[0]
+            if self.args:
+                if message := self.args[index].get_error_message(invalid_arg):
+                    raise BaserowFormulaSyntaxError(message)
             raise InvalidFormulaArgumentType(self, invalid_arg)
 
     def validate_number_of_args(self, args: FormulaArgs) -> bool:
@@ -99,26 +103,23 @@ class RuntimeFormulaFunction(ABC, Instance):
 
         return required_args <= len(args) <= total_args
 
-    def validate_type_of_args(self, args: FormulaArgs) -> Optional[FormulaArg]:
+    def validate_type_of_args(self, args: FormulaArgs) -> list[tuple[int, FormulaArg]]:
         """
         This function validates that the type of all args is correct.
         If a type is incorrect it will return that arg.
 
-        :param args: The args that are being checked
-        :return: The arg that has the wrong type, if any
+        :param args: The args that are being checked.
+        :return: A list of tuples of the index and the arg that has the wrong type.
         """
 
         if self.args is None:
-            return None
+            return []
 
-        return next(
-            (
-                arg
-                for arg, index in zip(args, range(len(args)))
-                if not self.args[index].test(arg)
-            ),
-            None,
-        )
+        return [
+            (index, arg)
+            for index, arg in enumerate(args)
+            if not self.args[index].test(arg)
+        ]
 
     def parse_args(self, args: FormulaArgs) -> FormulaArgs:
         """

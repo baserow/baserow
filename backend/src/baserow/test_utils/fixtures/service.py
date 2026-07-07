@@ -2,16 +2,21 @@ from uuid import uuid4
 
 from baserow.contrib.integrations.ai.models import AIAgentService
 from baserow.contrib.integrations.core.models import (
+    CoreCSVFileReaderService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
+    CoreManualTriggerService,
     CorePeriodicService,
     CoreRouterService,
     CoreSMTPEmailService,
+    CoreStartWorkflowService,
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
+    LocalBaserowCreateRows,
     LocalBaserowDeleteRow,
+    LocalBaserowFieldsUpdated,
     LocalBaserowGetRow,
     LocalBaserowListRows,
     LocalBaserowRowsCreated,
@@ -19,6 +24,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowRowsUpdated,
     LocalBaserowTableServiceFilter,
     LocalBaserowTableServiceSort,
+    LocalBaserowUpdateRows,
     LocalBaserowUpsertRow,
 )
 from baserow.contrib.integrations.slack.models import SlackWriteMessageService
@@ -38,6 +44,18 @@ class ServiceFixtures:
         self, **kwargs
     ) -> LocalBaserowUpsertRow:
         service = self.create_service(LocalBaserowUpsertRow, **kwargs)
+        return service
+
+    def create_local_baserow_create_rows_service(
+        self, **kwargs
+    ) -> LocalBaserowCreateRows:
+        service = self.create_service(LocalBaserowCreateRows, **kwargs)
+        return service
+
+    def create_local_baserow_update_rows_service(
+        self, **kwargs
+    ) -> LocalBaserowUpdateRows:
+        service = self.create_service(LocalBaserowUpdateRows, **kwargs)
         return service
 
     def create_local_baserow_delete_row_service(
@@ -68,6 +86,14 @@ class ServiceFixtures:
         self, **kwargs
     ) -> LocalBaserowRowsDeleted:
         service = self.create_service(LocalBaserowRowsDeleted, **kwargs)
+        return service
+
+    def create_local_baserow_fields_updated_service(
+        self, fields=None, **kwargs
+    ) -> LocalBaserowFieldsUpdated:
+        service = self.create_service(LocalBaserowFieldsUpdated, **kwargs)
+        if fields:
+            service.fields.set(fields)
         return service
 
     def create_local_baserow_table_service_filter(
@@ -112,6 +138,12 @@ class ServiceFixtures:
     def create_core_iterator_service(self, **kwargs):
         return self.create_service(CoreIteratorService, **kwargs)
 
+    def create_core_csv_file_reader_service(self, **kwargs):
+        return self.create_service(CoreCSVFileReaderService, **kwargs)
+
+    def create_core_start_workflow_service(self, **kwargs):
+        return self.create_service(CoreStartWorkflowService, **kwargs)
+
     def create_core_router_service(self, **kwargs):
         return self.create_service(CoreRouterService, **kwargs)
 
@@ -140,6 +172,9 @@ class ServiceFixtures:
             kwargs["uid"] = uuid4()
 
         return self.create_service(CoreHTTPTriggerService, **kwargs)
+
+    def create_core_manual_trigger_service(self, **kwargs):
+        return self.create_service(CoreManualTriggerService, **kwargs)
 
     def create_core_periodic_service(self, **kwargs) -> CorePeriodicService:
         return self.create_service(CorePeriodicService, **kwargs)

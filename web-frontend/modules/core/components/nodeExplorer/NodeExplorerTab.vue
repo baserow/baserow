@@ -83,8 +83,9 @@ export default {
       default: null,
     },
     allowNodeSelection: {
-      type: Boolean,
+      type: String,
       required: true,
+      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
     },
   },
   emits: ['node-selected', 'reset-search', 'toggle', 'update:modelValue'],

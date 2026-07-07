@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Restores real-time updates when returning to an idle tab instead of asking to refresh",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-01"
+}

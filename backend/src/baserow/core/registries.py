@@ -237,6 +237,16 @@ class Plugin(APIUrlsInstanceMixin, Instance):
 
         return queryset
 
+    def get_automation_workflow_history_plugin_data(
+        self, user: "AbstractUser", workflow_id: int, workflow_histories: List[Any]
+    ) -> Dict[int, Any]:
+        """
+        Provides plugin-specific data for serialized automation workflow history
+        entries. The returned dict must be keyed by workflow history id.
+        """
+
+        return {}
+
 
 class PluginRegistry(APIUrlsRegistryMixin, Registry[Plugin]):
     """
@@ -627,6 +637,21 @@ class ApplicationType(
 
         return None
 
+    def serialize_for_regression_testing(
+        self, application: "Application"
+    ) -> dict | None:
+        """
+        Optionally serialize the application state for regression snapshot testing.
+
+        Override in subclasses to capture a human-readable, ID-free representation of
+        the application structure. Return None to opt this application type out.
+
+        :param application: The specific application instance.
+        :return: A serializable dict, or None to skip this application type.
+        """
+
+        return None
+
 
 ApplicationSubClassInstance = TypeVar(
     "ApplicationSubClassInstance", bound="Application"
@@ -1009,11 +1034,29 @@ class ObjectScopeType(Instance, ModelInstanceMixin):
                 parent_scope_types.add(object_scope_type)
 
         if parent_scopes:
-            query_result = list(
-                self.get_enhanced_queryset().filter(
-                    self.get_filter_for_scopes(parent_scopes)
+            scopes_by_type = defaultdict(list)
+            for scope in parent_scopes:
+                scopes_by_type[object_scope_type_registry.get_by_model(scope)].append(
+                    scope
                 )
+
+            enhanced_queryset = self.get_enhanced_queryset()
+            ordering = (
+                enhanced_queryset.query.order_by
+                or enhanced_queryset.model._meta.ordering
             )
+
+            branches = [
+                enhanced_queryset.filter(
+                    self.get_filter_for_scope_type(scope_type, typed_scopes)
+                ).order_by()
+                for scope_type, typed_scopes in scopes_by_type.items()
+            ]
+            combined = (
+                branches[0] if len(branches) == 1 else branches[0].union(*branches[1:])
+            )
+            combined = combined.order_by(*ordering)
+            query_result = list(combined)
 
             # We have all the objects in the queryset, but now we want to sort them
             # into buckets per original scope they are a child of.

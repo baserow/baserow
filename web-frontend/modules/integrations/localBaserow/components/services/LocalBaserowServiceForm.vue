@@ -25,14 +25,15 @@
     <FormGroup
       v-if="enableRowId && values.integration_id"
       small-label
-      :label="$t('localBaserowServiceForm.rowIdLabel')"
+      :label="$t(rowIdLabel)"
+      :helper-text="rowIdHelperText"
       class="margin-bottom-2"
       required
     >
       <InjectedFormulaInput
         v-model="values.row_id"
         :disabled="values.table_id === null"
-        :placeholder="$t('localBaserowServiceForm.rowIdPlaceholder')"
+        :placeholder="$t(rowIdPlaceholder)"
       />
     </FormGroup>
   </form>
@@ -72,6 +73,21 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    rowIdLabel: {
+      type: String,
+      required: false,
+      default: 'localBaserowServiceForm.rowIdLabel',
+    },
+    rowIdPlaceholder: {
+      type: String,
+      required: false,
+      default: 'localBaserowServiceForm.rowIdPlaceholder',
+    },
+    rowIdHelperText: {
+      type: String,
+      required: false,
+      default: '',
     },
     /**
      * Whether to show the view picker or not.

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix airtable import when CDN omits Content-Length",
+    "issue_origin": "github",
+    "issue_number": 5472,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-06-08"
+}

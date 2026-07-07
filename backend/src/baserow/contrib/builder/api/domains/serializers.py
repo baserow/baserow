@@ -117,10 +117,6 @@ class PublicElementSerializer(serializers.ModelSerializer):
             "id",
             "page_id",
             "type",
-            "order",
-            "page_id",
-            "parent_element_id",
-            "place_in_container",
             "css_classes",
             "visibility",
             "visibility_condition",
@@ -179,11 +175,13 @@ class PublicPageSerializer(serializers.ModelSerializer):
             "role_type",
             "roles",
             "query_params",
+            "graph",
         )
         extra_kwargs = {
             "id": {"read_only": True},
             "builder_id": {"read_only": True},
             "order": {"help_text": "Lowest first."},
+            "graph": {"read_only": True},
         }
 
 

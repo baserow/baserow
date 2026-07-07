@@ -359,6 +359,7 @@ def list_views(
         decorations=False,
         group_bys=False,
         limit=100,
+        prefetch_field_options=False,
     )
 
     return {"views": [ViewItem.from_django_orm(view).model_dump() for view in views]}

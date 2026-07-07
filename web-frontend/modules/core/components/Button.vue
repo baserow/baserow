@@ -28,6 +28,7 @@
 
 <script>
 import { hasRealNodes } from '@baserow/modules/core/utils/dom.js'
+import { getUrlScheme } from '@baserow/modules/core/utils/url'
 
 export default {
   name: 'Button',
@@ -197,7 +198,11 @@ export default {
     customBind() {
       const attr = {}
       if (this.tag === 'a') {
-        attr.href = this.href
+        // Escape the href to prevent potential XSS attacks.
+        const scheme = getUrlScheme(this.href)
+        const isExecutable =
+          scheme && ['javascript:', 'vbscript:'].includes(scheme)
+        attr.href = isExecutable ? null : this.href
         attr.target = this.target
         attr.rel = this.rel
         attr.download = this.download

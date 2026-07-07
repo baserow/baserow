@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Adds options to leave out the row ID and primary field columns when exporting data",
+    "issue_origin": "github",
+    "issue_number": 4680,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-06-10"
+}

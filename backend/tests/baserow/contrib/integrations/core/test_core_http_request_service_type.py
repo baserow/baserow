@@ -7,7 +7,10 @@ from requests import exceptions as request_exceptions
 
 from baserow.contrib.integrations.core.models import BODY_TYPE, HTTP_METHOD
 from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
-from baserow.core.services.exceptions import UnexpectedDispatchException
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
@@ -107,6 +110,39 @@ def test_core_http_request_request_error(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "timeout_exception",
+    [
+        request_exceptions.ReadTimeout(),
+        request_exceptions.ConnectTimeout(),
+        request_exceptions.Timeout(),
+    ],
+)
+def test_core_http_request_timeout_returns_504(data_fixture, timeout_exception):
+    """
+    When the request times out, instead of failing we return a 504
+    status code so that the caller can decide the next step to take.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://foo.localhost/'", timeout=1, http_method=HTTP_METHOD.POST
+    )
+    service_type = service.get_type()
+
+    dispatch_context = FakeDispatchContext()
+
+    with mock_advocate_request(raise_exception=timeout_exception):
+        dispatch_data = service_type.dispatch(service, dispatch_context)
+
+    assert dispatch_data.data == {
+        "raw_body": "",
+        "body": "",
+        "headers": {},
+        "status_code": 504,
+    }
+
+
+@pytest.mark.django_db
 def test_core_http_request_basic_body_raw(
     data_fixture,
 ):
@@ -156,6 +192,145 @@ def test_core_http_request_basic_body_json(
             **{
                 "headers": {"user-agent": AnyStr()},
                 "json": {"test": "2"},
+                "method": HTTP_METHOD.GET,
+                "params": {},
+                "timeout": 30,
+                "url": "http://example.notexist/",
+            }
+        )
+
+
+@pytest.mark.django_db
+def test_core_http_request_body_json_invalid_static_body(data_fixture):
+    """
+    A static body that isn't valid JSON should fail with the plain error
+    message, without the extra hint.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'",
+        # `{"value1": }` is missing a value, so it's invalid JSON.
+        body_content="""'{"value1": }'""",
+        body_type=BODY_TYPE.JSON,
+    )
+    service_type = service.get_type()
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
+        service_type.dispatch(service, FakeDispatchContext())
+
+    assert str(exc.value) == "The body is not a valid JSON"
+
+
+@pytest.mark.django_db
+def test_core_http_request_body_json_invalid_with_data_provider_hint(data_fixture):
+    """
+    When the body interpolates a formula value without `to_json(...)` and
+    the result isn't valid JSON, the error should hint at wrapping the value.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'",
+        # The value isn't wrapped in quotes/`to_json`, so a string value
+        # produces invalid JSON, e.g. `{"value1": hello}`.
+        body_content="""concat('{"value1": ', get('page_parameter.id'), '}')""",
+        body_type=BODY_TYPE.JSON,
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(context={"page_parameter": {"id": "hello"}})
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
+        service_type.dispatch(service, dispatch_context)
+
+    assert "The body is not a valid JSON" in str(exc.value)
+    assert "to_json(" in str(exc.value)
+
+
+@pytest.mark.django_db
+def test_core_http_request_body_json_invalid_with_formula_function_hint(data_fixture):
+    """
+    The hint should also be shown for formula functions as well (e.g. `now()`).
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'",
+        # `now()` produces an unquoted value, e.g. `{"id":  2026-06-22 03:52:07.130000+00:00}`.
+        body_content="""concat('{"id": ', now(), '}')""",
+        body_type=BODY_TYPE.JSON,
+    )
+    service_type = service.get_type()
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
+        service_type.dispatch(service, FakeDispatchContext())
+
+    assert "The body is not a valid JSON" in str(exc.value)
+    assert "wrap it with to_json()" in str(exc.value)
+
+
+@pytest.mark.django_db
+def test_core_http_request_body_json_with_to_json_escapes_data_source(data_fixture):
+    """
+    Wrapping a data source value with `to_json(...)` produces a valid JSON body
+    even when the value contains characters that would otherwise break it.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'",
+        body_content=(
+            """concat('{"value1": ', to_json(get('page_parameter.id')), '}')"""
+        ),
+        body_type=BODY_TYPE.JSON,
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={"page_parameter": {"id": 'foo "bar"'}}
+    )
+
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
+        service_type.dispatch(service, dispatch_context)
+
+        mock_request.assert_called_once_with(
+            **{
+                "headers": {"user-agent": AnyStr()},
+                "json": {"value1": 'foo "bar"'},
+                "method": HTTP_METHOD.GET,
+                "params": {},
+                "timeout": 30,
+                "url": "http://example.notexist/",
+            }
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("control_char", ["\n", "\t", "\r"])
+def test_core_http_request_basic_body_json_with_control_characters(
+    data_fixture, control_char
+):
+    """
+    Raw control characters (e.g. newlines, tabs) inside JSON string values
+    should be accepted. The body can be the resolved output of a formula, so
+    such characters are legitimate content and shouldn't fail the request.
+    """
+
+    value = f"line1{control_char}line2"
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'",
+        # A *raw* control character inside the JSON string (not an escaped
+        # `\n` sequence), which `json.loads` rejects unless `strict=False`.
+        body_content="'" + f'{{"test": "{value}"}}' + "'",
+        body_type=BODY_TYPE.JSON,
+    )
+    service_type = service.get_type()
+
+    dispatch_context = FakeDispatchContext()
+
+    # Use the patch context manager to mock `advocate.request`
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
+        service_type.dispatch(service, dispatch_context)
+
+        mock_request.assert_called_once_with(
+            **{
+                "headers": {"user-agent": AnyStr()},
+                "json": {"test": value},
                 "method": HTTP_METHOD.GET,
                 "params": {},
                 "timeout": 30,

@@ -3,6 +3,7 @@ import typing
 from django.db import models
 
 from baserow.contrib.builder.pages.validators import path_validation
+from baserow.core.graph.models import GraphModelMixin
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -20,14 +21,24 @@ if typing.TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
 
 
-class PageWithoutSharedManager(models.Manager):
+class PageNoTrashManager(models.Manager):
     """
-    Manager for the Page model.
-    Excludes by default the shared page.
+    Default manager for Page: excludes trashed pages.
+    Uses models.Manager (not CTEManager) as the base so that Django can safely
+    use it as the _base_manager for reverse FK relations (e.g. builder.page_set).
     """
 
     def get_queryset(self):
-        return super().get_queryset().filter(shared=False)
+        return super().get_queryset().filter(trashed=False)
+
+
+class PageWithoutSharedManager(models.Manager):
+    """
+    Excludes both the shared page and trashed pages.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(shared=False, trashed=False)
 
 
 class Page(
@@ -35,6 +46,7 @@ class Page(
     TrashableModelMixin,
     CreatedAndUpdatedOnMixin,
     OrderableMixin,
+    GraphModelMixin,
     models.Model,
 ):
     class VISIBILITY_TYPES(models.TextChoices):
@@ -46,7 +58,7 @@ class Page(
         ALLOW_ALL_EXCEPT = "allow_all_except"
         DISALLOW_ALL_EXCEPT = "disallow_all_except"
 
-    objects = models.Manager()
+    objects = PageNoTrashManager()
     objects_without_shared = PageWithoutSharedManager()
 
     builder = models.ForeignKey("builder.Builder", on_delete=models.CASCADE)
@@ -91,7 +103,7 @@ class Page(
             "-shared",  # First page is the shared one if any.
             "order",
         )
-        unique_together = [["builder", "name"], ["builder", "path"]]
+        unique_together = [["builder", "path"]]
         indexes = [
             models.Index(fields=["-shared", "order"]),
             models.Index(fields=["builder", "-shared", "order"]),
@@ -104,6 +116,11 @@ class Page(
     def get_last_order(cls, builder: "Builder"):
         queryset = Page.objects_without_shared.filter(builder=builder)
         return cls.get_highest_order_of_queryset(queryset) + 1
+
+    def get_graph_handler(self):
+        from baserow.contrib.builder.pages.graph_handler import PageGraphHandler
+
+        return PageGraphHandler
 
     def __str__(self):
         return f"<Page id={self.id} name={self.name}/>"

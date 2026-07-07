@@ -18,8 +18,10 @@ from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
 from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
+from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow_premium.api.row_comments.errors import (
@@ -117,6 +119,7 @@ class RowCommentsView(APIView):
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
                     "ERROR_ROW_DOES_NOT_EXIST",
+                    "ERROR_VIEW_DOES_NOT_EXIST",
                 ]
             ),
         },
@@ -125,6 +128,7 @@ class RowCommentsView(APIView):
         {
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
@@ -176,7 +180,11 @@ class RowCommentsView(APIView):
                 ["ERROR_USER_NOT_IN_GROUP", "ERROR_INVALID_COMMENT_MENTION"]
             ),
             404: get_error_schema(
-                ["ERROR_TABLE_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
+                [
+                    "ERROR_TABLE_DOES_NOT_EXIST",
+                    "ERROR_ROW_DOES_NOT_EXIST",
+                    "ERROR_VIEW_DOES_NOT_EXIST",
+                ]
             ),
         },
     )
@@ -184,6 +192,7 @@ class RowCommentsView(APIView):
         {
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             InvalidRowCommentMentionException: ERROR_INVALID_COMMENT_MENTION,
         }
@@ -233,7 +242,11 @@ class RowCommentView(APIView):
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
             404: get_error_schema(
-                ["ERROR_TABLE_DOES_NOT_EXIST", "ERROR_ROW_COMMENT_DOES_NOT_EXIST"]
+                [
+                    "ERROR_TABLE_DOES_NOT_EXIST",
+                    "ERROR_ROW_COMMENT_DOES_NOT_EXIST",
+                    "ERROR_VIEW_DOES_NOT_EXIST",
+                ]
             ),
         },
     )
@@ -241,6 +254,7 @@ class RowCommentView(APIView):
         {
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowCommentDoesNotExist: ERROR_ROW_COMMENT_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             UserNotRowCommentAuthorException: ERROR_USER_NOT_COMMENT_AUTHOR,
             InvalidRowCommentMentionException: ERROR_INVALID_COMMENT_MENTION,
@@ -285,7 +299,11 @@ class RowCommentView(APIView):
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
             404: get_error_schema(
-                ["ERROR_TABLE_DOES_NOT_EXIST", "ERROR_ROW_COMMENT_DOES_NOT_EXIST"]
+                [
+                    "ERROR_TABLE_DOES_NOT_EXIST",
+                    "ERROR_ROW_COMMENT_DOES_NOT_EXIST",
+                    "ERROR_VIEW_DOES_NOT_EXIST",
+                ]
             ),
         },
     )
@@ -293,6 +311,7 @@ class RowCommentView(APIView):
         {
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowCommentDoesNotExist: ERROR_ROW_COMMENT_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             UserNotRowCommentAuthorException: ERROR_USER_NOT_COMMENT_AUTHOR,
         }
@@ -340,6 +359,7 @@ class RowCommentsNotificationModeView(APIView):
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
                     "ERROR_ROW_DOES_NOT_EXIST",
+                    "ERROR_VIEW_DOES_NOT_EXIST",
                 ]
             ),
         },
@@ -348,6 +368,7 @@ class RowCommentsNotificationModeView(APIView):
         {
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )

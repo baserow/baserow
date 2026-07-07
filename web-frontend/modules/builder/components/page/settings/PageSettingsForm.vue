@@ -282,9 +282,6 @@ export default {
     addQueryParam(newParam) {
       this.localQueryParams.push(newParam)
     },
-    isNameUnique(name) {
-      return !this.pageNames.includes(name) || name === this.page?.name
-    },
     isPathUnique(path) {
       const pathGeneralised = this.generalisePath(path)
       return (
@@ -339,10 +336,6 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             required
-          ),
-          isUnique: helpers.withMessage(
-            this.$t('pageErrors.errorNameNotUnique'),
-            this.isNameUnique
           ),
           maxLength: helpers.withMessage(
             this.$t('error.maxLength', { max: 255 }),

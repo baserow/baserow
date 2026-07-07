@@ -11,7 +11,7 @@ from loguru import logger
 from rest_framework.throttling import SimpleRateThrottle
 
 from baserow.api.exceptions import ThrottledAPIException
-from baserow.api.sessions import get_user_remote_ip_address_from_request
+from baserow.core.utils import get_user_remote_ip_address_from_request
 
 from .blacklist import blacklist_ip, blacklist_token
 from .exceptions import RateLimitExceededException

@@ -605,6 +605,57 @@ def test_ai_agent_service_export_import(data_fixture, settings):
 
 
 @pytest.mark.django_db
+def test_ai_agent_service_import_unregistered_ai_type(data_fixture, settings):
+    """
+    An app exported from another instance (e.g. Baserow SaaS) can reference a
+    generative AI model type that isn't registered here. On import the provider
+    and model should be cleared rather than importing a dangling reference.
+    """
+
+    settings.BASEROW_OPENAI_API_KEY = "sk-test"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-4"]
+
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+
+    integration_type = AIIntegrationType()
+    integration = (
+        IntegrationService()
+        .create_integration(user, integration_type, application=application)
+        .specific
+    )
+
+    serialized = {
+        "id": 1,
+        "integration_id": integration.id,
+        "sample_data": None,
+        "type": "ai_agent",
+        "ai_generative_ai_type": "Baserow",
+        "ai_generative_ai_model": "baserow-model",
+        "ai_output_type": "text",
+        "ai_temperature": 0.5,
+        "ai_prompt": {
+            "formula": "'Tell me a joke'",
+            "mode": "simple",
+            "version": "0.1",
+        },
+        "ai_choices": [],
+    }
+
+    service_type = AIAgentServiceType()
+    new_service = service_type.import_serialized(
+        None, serialized, {integration.id: integration}, lambda x, d: x
+    )
+
+    assert new_service.ai_generative_ai_type is None
+    assert new_service.ai_generative_ai_model is None
+    # The rest of the configuration is preserved.
+    assert new_service.ai_output_type == "text"
+    assert new_service.ai_temperature == 0.5
+    assert new_service.ai_prompt["formula"] == "'Tell me a joke'"
+
+
+@pytest.mark.django_db
 def test_ai_agent_service_dispatch_in_published_workflow(data_fixture, settings):
     """
     Test that AI agent services work correctly when a workflow is published.

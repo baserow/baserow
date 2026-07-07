@@ -561,6 +561,116 @@ def test_combined_foreign_key_and_many_to_many_multiple_field_prefetch(
 
 
 @pytest.mark.django_db
+def test_combined_prefetch_query_count_is_constant_with_many_fields(
+    data_fixture, django_assert_num_queries
+):
+    """
+    The prefetch must resolve in a fixed number of queries (fetch rows, fetch the
+    many-to-many relations, fetch the target instances) regardless of how many
+    fields and rows are involved, and accessing the prefetched cells must not issue
+    additional queries. This guards against re-introducing per-cell queryset work in
+    `set_prefetched_values_on_result_set`.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(name="Wide", user=user)
+
+    multiple_select_fields = []
+    first_option_per_field = {}
+    for i in range(5):
+        field = data_fixture.create_multiple_select_field(
+            table=table, name=f"option_field_{i}", order=i
+        )
+        options = [
+            data_fixture.create_select_option(
+                field=field, value=v, color="blue", order=o
+            )
+            for o, v in enumerate(["A", "B", "C"])
+        ]
+        multiple_select_fields.append(field)
+        first_option_per_field[field.id] = options[0]
+
+    handler = RowHandler()
+    handler.create_rows(
+        user=user,
+        table=table,
+        rows_values=[
+            {
+                f"field_{field.id}": [first_option_per_field[field.id].id]
+                for field in multiple_select_fields
+            }
+            for _ in range(5)
+        ],
+    )
+
+    model = table.get_model()
+    prefetch = CombinedForeignKeyAndManyToManyMultipleFieldPrefetch(
+        SelectOption, skip_target_check=True
+    ).add_field_names([f"field_{field.id}" for field in multiple_select_fields])
+
+    # One query for the rows, one for the many-to-many relations, one for the
+    # select options. The field and row counts must not change this.
+    with django_assert_num_queries(3):
+        rows = list(model.objects.all().multi_field_prefetch(prefetch))
+
+    # Reading every prefetched cell must not trigger any additional query.
+    with django_assert_num_queries(0):
+        for row in rows:
+            for field in multiple_select_fields:
+                assert [
+                    option.id for option in getattr(row, f"field_{field.id}").all()
+                ] == [first_option_per_field[field.id].id]
+
+
+@pytest.mark.django_db
+def test_combined_prefetch_many_to_many_lazy_result(
+    data_fixture, django_assert_num_queries
+):
+    """
+    A prefetched many-to-many relation must iterate without hitting the database,
+    but re-querying it (order_by/filter) must lazily build a queryset scoped to
+    that row's relation rather than the whole target table.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table)
+    a = data_fixture.create_select_option(field=field, value="A", order=0)
+    b = data_fixture.create_select_option(field=field, value="B", order=1)
+    c = data_fixture.create_select_option(field=field, value="C", order=2)
+
+    RowHandler().create_rows(
+        user=user,
+        table=table,
+        rows_values=[{f"field_{field.id}": [a.id, b.id]}, {f"field_{field.id}": []}],
+    )
+
+    model = table.get_model()
+    rows = list(
+        model.objects.all()
+        .order_by("id")
+        .multi_field_prefetch(
+            CombinedForeignKeyAndManyToManyMultipleFieldPrefetch(
+                SelectOption, [f"field_{field.id}"], skip_target_check=True
+            )
+        )
+    )
+    rel = getattr(rows[0], f"field_{field.id}")
+    empty = getattr(rows[1], f"field_{field.id}")
+
+    with django_assert_num_queries(0):
+        assert [o.id for o in rel.all()] == [a.id, b.id]
+        assert len(rel.all()) == 2
+        assert bool(rel.all()) is True
+        assert bool(empty.all()) is False
+
+    # Re-querying scopes to this row's relation (c is not selected on this row).
+    assert [o.id for o in rel.order_by("-order")] == [b.id, a.id]
+    assert list(rel.filter(value="A")) == [a]
+    assert c.id not in [o.id for o in rel.all()]
+
+
+@pytest.mark.django_db
 def test_combined_multiple_field_prefetch_different_foreign_key_target(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(name="Car", user=user)

@@ -23,9 +23,11 @@ Then inspect the nearest existing test file in the same module area.
 
 Useful searches:
 
-- `rg --files backend/tests premium/backend/tests enterprise/backend/tests | rg 'test_.*\.py$'`
-- `rg -n "@pytest\\.mark\\.django_db|api_client|data_fixture|premium_data_fixture|enterprise_data_fixture" backend/tests premium/backend/tests enterprise/backend/tests`
-- `rg -n "pytest\\.raises|@patch\\(|override_settings|django_assert_num_queries" backend/tests premium/backend/tests enterprise/backend/tests`
+Use `rg` as a faster equivalent when it is available.
+
+- `find backend/tests premium/backend/tests enterprise/backend/tests -type f | grep 'test_.*\.py$'`
+- `grep -RInE "@pytest\\.mark\\.django_db|api_client|data_fixture|premium_data_fixture|enterprise_data_fixture" backend/tests premium/backend/tests enterprise/backend/tests`
+- `grep -RInE "pytest\\.raises|@patch\\(|override_settings|django_assert_num_queries" backend/tests premium/backend/tests enterprise/backend/tests`
 
 ## Tooling Used In This Repo
 
@@ -141,8 +143,8 @@ Run the narrowest relevant test command first.
 
 Examples:
 
-- `just b test backend/tests/baserow/core/test_core_handler.py`
-- `just b test backend/tests/baserow/api/groups/test_workspace_views.py`
+- `just b test baserow/core/test_core_handler.py`
+- `just b test baserow/api/groups/test_workspace_views.py`
 - `just b test premium/backend/tests/baserow_premium_tests/api/license/test_premium_license_views.py`
 - `just b test enterprise/backend/tests/baserow_enterprise_tests/teams/test_team_handler.py`
 

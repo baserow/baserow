@@ -5,7 +5,7 @@
       style-key="menu"
       :config-block-types="['button', 'link']"
       :theme="builder.theme"
-      :extra-args="{ noAlignment: true, noWidth: true }"
+      :extra-args="{ noAlignment: true, noWidth: true, onlyBody: true }"
     />
     <FormGroup
       :label="$t('orientations.label')"
@@ -29,6 +29,59 @@
       class="margin-bottom-2"
     >
       <HorizontalAlignmentsSelector v-model="values.alignment" />
+    </FormGroup>
+
+    <CustomStyleButton
+      v-model="values.styles"
+      style-key="burger"
+      :config-block-types="['typography']"
+      :theme="builder.theme"
+      :extra-args="{
+        onlyBody: true,
+        noAlignment: true,
+        noFontSelector: true,
+        noFontWeight: true,
+      }"
+    />
+    <FormGroup
+      :label="$t('menuElementForm.variant')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <DeviceSelector
+        :device-type-selected="deviceTypeSelected"
+        direction="row"
+        @selected="actionSetDeviceTypeSelected"
+      >
+        <template #deviceTypeControl="{ deviceType }">
+          <RadioButton
+            v-for="variant in menuVariants"
+            :key="variant.value"
+            v-model="values.variant[deviceType.getType()]"
+            :icon="variant.icon"
+            :value="variant.value"
+          >
+            {{ variant.label }}
+          </RadioButton>
+        </template>
+      </DeviceSelector>
+    </FormGroup>
+    <FormGroup
+      v-if="isCompactMenuSelected"
+      small-label
+      required
+      class="margin-bottom-2"
+      :label="$t('menuElementForm.previewCompactMenuLabel')"
+      :helper-text="$t('menuElementForm.previewCompactMenuHelper')"
+    >
+      <Button
+        :icon="editorCompactMenuToggleIcon"
+        size="small"
+        @click="toggleEditorCompactMenu"
+      >
+        {{ editorCompactMenuToggleLabel }}
+      </Button>
     </FormGroup>
 
     <div
@@ -101,11 +154,12 @@ import {
   HORIZONTAL_ALIGNMENTS,
   ORIENTATIONS,
 } from '@baserow/modules/builder/enums'
+import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import {
   getNextAvailableNameInSequence,
   uuid,
 } from '@baserow/modules/core/utils/string'
-import { mapGetters } from 'vuex'
+import { mapGetters, mapActions } from 'vuex'
 import MenuElementItemForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementItemForm'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
@@ -116,6 +170,7 @@ export default {
     MenuElementItemForm,
     CustomStyleButton,
     HorizontalAlignmentsSelector,
+    DeviceSelector,
   },
   mixins: [elementForm],
   data() {
@@ -126,6 +181,7 @@ export default {
         orientation: ORIENTATIONS.VERTICAL,
         alignment: HORIZONTAL_ALIGNMENTS.LEFT,
         menu_items: [],
+        variant: {},
       },
       allowedValues: [
         'value',
@@ -133,6 +189,19 @@ export default {
         'menu_items',
         'orientation',
         'alignment',
+        'variant',
+      ],
+      menuVariants: [
+        {
+          icon: 'iconoir-enlarge-round-arrow',
+          label: this.$t('menuElementForm.expanded'),
+          value: 'expanded',
+        },
+        {
+          icon: 'iconoir-menu',
+          label: this.$t('menuElementForm.compact'),
+          value: 'compact',
+        },
       ],
       addMenuItemTypes: [
         {
@@ -161,12 +230,27 @@ export default {
   computed: {
     ...mapGetters({
       getElementSelected: 'element/getSelected',
+      deviceTypeSelected: 'page/getDeviceTypeSelected',
     }),
     ORIENTATIONS() {
       return ORIENTATIONS
     },
     element() {
       return this.getElementSelected(this.builder)
+    },
+    editorCompactMenuOpen() {
+      return this.element._.compactMenuOpen
+    },
+    isCompactMenuSelected() {
+      return this.values.variant?.[this.deviceTypeSelected] === 'compact'
+    },
+    editorCompactMenuToggleIcon() {
+      return this.editorCompactMenuOpen ? 'iconoir-cancel' : 'iconoir-menu'
+    },
+    editorCompactMenuToggleLabel() {
+      return this.editorCompactMenuOpen
+        ? this.$t('menuElementForm.closeEditorCompactMenu')
+        : this.$t('menuElementForm.openEditorCompactMenu')
     },
     orientationOptions() {
       return [
@@ -186,6 +270,23 @@ export default {
   methods: {
     getIcon(itemType) {
       return this.addMenuItemTypes.find(({ type }) => type === itemType).icon
+    },
+    ...mapActions({
+      actionSetDeviceTypeSelected: 'page/setDeviceTypeSelected',
+      actionForceUpdateElement: 'element/forceUpdate',
+    }),
+    toggleEditorCompactMenu() {
+      this.actionForceUpdateElement({
+        builder: this.builder,
+        page: this.elementPage,
+        element: this.element,
+        values: {
+          _: {
+            ...this.element._,
+            compactMenuOpen: !this.element._.compactMenuOpen,
+          },
+        },
+      })
     },
     addMenuItem(type) {
       const name = getNextAvailableNameInSequence(

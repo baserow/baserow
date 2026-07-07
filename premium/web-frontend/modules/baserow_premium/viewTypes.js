@@ -13,6 +13,7 @@ import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import {
   isAdhocFiltering,
+  isAdhocSorting,
   maxPossibleOrderValue,
 } from '@baserow/modules/database/utils/view'
 import CalendarCreateIcalSharedViewLink from '@baserow_premium/components/views/calendar/CalendarCreateIcalSharedViewLink'
@@ -76,7 +77,7 @@ export class KanbanViewType extends PremiumViewType {
   }
 
   canSort() {
-    return false
+    return true
   }
 
   canShare() {
@@ -107,6 +108,12 @@ export class KanbanViewType extends PremiumViewType {
       view,
       isPublic
     )
+    const adhocSorting = isAdhocSorting(
+      this.app,
+      database.workspace,
+      view,
+      isPublic
+    )
     // If the single select field is `null` we can't fetch the initial data anyway,
     // we don't have to do anything. The KanbanView component will handle it by
     // showing a form to choose or create a single select field.
@@ -117,6 +124,7 @@ export class KanbanViewType extends PremiumViewType {
         kanbanId: view.id,
         singleSelectFieldId: view.single_select_field,
         adhocFiltering,
+        adhocSorting,
       })
     }
   }
@@ -137,12 +145,19 @@ export class KanbanViewType extends PremiumViewType {
       view,
       isPublic
     )
+    const adhocSorting = isAdhocSorting(
+      this.app,
+      database.workspace,
+      view,
+      isPublic
+    )
     try {
       await store.dispatch(storePrefix + 'view/kanban/fetchInitial', {
         kanbanId: view.id,
         singleSelectFieldId: view.single_select_field,
         includeFieldOptions,
         adhocFiltering,
+        adhocSorting,
       })
     } catch (error) {
       if (

@@ -2,7 +2,8 @@ import _ from 'lodash'
 
 import { trueValues, falseValues } from '@baserow/modules/core/utils/constants'
 import moment from '@baserow/modules/core/moment'
-import { DateOnly } from '@baserow/modules/core/utils/date'
+import { DateOnly, Timedelta } from '@baserow/modules/core/utils/date'
+import { parseDurationString } from '@baserow/modules/core/utils/duration'
 
 const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/
 const isoDateFormat = 'YYYY-MM-DD HH:mm:ss'
@@ -46,6 +47,9 @@ export const ensureInteger = (value) => {
     if (/^(-|\+)?(\d+|Infinity)$/.test(value)) {
       return Number(value)
     }
+  }
+  if (value instanceof Timedelta) {
+    return Math.floor(value.ms / 1000)
   }
   throw new Error(
     `Value '${value}' is not a valid integer or convertible to an integer.`
@@ -102,6 +106,8 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
     if (!isNaN(value)) {
       return moment(value).format(isoDateFormat)
     }
+  } else if (value instanceof Timedelta) {
+    return `${Math.floor(value.ms / 1000)}`
   } else if (typeof value === 'object') {
     // If it's a file we just extract the name
     if (value.__file__) {
@@ -284,4 +290,88 @@ export const ensureObject = (value) => {
   throw new TypeError(
     'Value is not a valid object or convertible to an object.'
   )
+}
+
+/**
+ * Ensures that the value is a valid duration or converts it to one.
+ * @param {*} value - The value to ensure as a duration.
+ * @returns {Timedelta} - The converted value as a Timedelta.
+ * @throws {TypeError} if `value` is not convertable to a Timedelta.
+ */
+export const ensureDuration = (value) => {
+  if (value instanceof Timedelta) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const result = parseDurationString(value)
+    if (result !== null) return result
+
+    try {
+      return new Timedelta(ensureInteger(value) * 1000)
+    } catch {
+      throw new TypeError(
+        `'${value}' is not a valid duration. Expected format: e.g. '1 day', '2 hours'.`
+      )
+    }
+  }
+
+  if (typeof value === 'number') {
+    return new Timedelta(value * 1000)
+  }
+
+  throw new TypeError('Value cannot be converted to a duration.')
+}
+
+/**
+ * Normalizes a value into a JSON-serializable counterpart, mirroring the
+ * backend `ensure_json_serializable`. Special runtime types are converted to
+ * the same representation the backend uses, so `to_json` produces identical
+ * output on both sides: a `Timedelta` becomes its number of seconds. Arrays and
+ * plain objects are normalized recursively; every other value is returned
+ * unchanged so native JSON types pass through untouched.
+ *
+ * @param {*} value - The value to normalize.
+ * @returns {*} The JSON-serializable value.
+ */
+export const ensureJsonSerializable = (value) => {
+  if (value instanceof Timedelta) {
+    return Math.floor(value.ms / 1000)
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => ensureJsonSerializable(item))
+  }
+
+  if (_.isPlainObject(value)) {
+    return _.mapValues(value, (item) => ensureJsonSerializable(item))
+  }
+
+  return value
+}
+
+/**
+ * Decodes a JSON string if possible, otherwise returns the value unchanged,
+ * mirroring the backend `ensure_deserialized_json`. Values that are not strings
+ * are already deserialized and are returned as-is, even when `strict` is true.
+ *
+ * @param {*} value - The value to decode if it is a valid JSON string.
+ * @param {Boolean} strict - If true, throw when `value` is a string that cannot
+ *   be decoded as JSON, instead of returning it unchanged.
+ * @returns {*} The decoded JSON value, or `value` when it is not a JSON string.
+ * @throws {Error} If `strict` is true and `value` is a string that is not valid
+ *   JSON.
+ */
+export const ensureDeserializedJson = (value, { strict = false } = {}) => {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value)
+    } catch (e) {
+      if (strict) {
+        throw new Error('Value is not valid JSON.', { cause: e })
+      }
+    }
+  }
+
+  return value
 }

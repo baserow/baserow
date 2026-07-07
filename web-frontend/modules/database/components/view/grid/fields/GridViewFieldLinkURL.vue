@@ -3,7 +3,7 @@
     <div class="grid-field-text">
       <a
         v-if="selected && isValid(value)"
-        :href="value && value.url"
+        :href="getHref(value)"
         target="_blank"
         rel="nofollow noopener noreferrer"
       >

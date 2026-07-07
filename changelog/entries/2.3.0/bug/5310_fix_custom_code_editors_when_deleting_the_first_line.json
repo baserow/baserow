@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix custom code editors when deleting the first line",
+    "issue_origin": "github",
+    "issue_number": 5310,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-05-05"
+}

@@ -262,6 +262,58 @@ def test_ai_field_text_output_supports_contains_word_filter(premium_data_fixture
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
+def test_ai_field_text_output_supports_starts_with_filter(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+    premium_data_fixture.register_fake_generate_ai_type()
+
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="AI Text",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_output_type="text",
+        ai_prompt="'test'",
+    )
+
+    handler = RowHandler()
+
+    row_1 = handler.create_row(
+        user=user, table=table, values={f"field_{ai_field.id}": "Hello world"}
+    )
+    row_2 = handler.create_row(
+        user=user, table=table, values={f"field_{ai_field.id}": "Goodbye world"}
+    )
+    row_3 = handler.create_row(
+        user=user, table=table, values={f"field_{ai_field.id}": "Hello there"}
+    )
+
+    # Create a starts_with filter
+    view_handler = ViewHandler()
+    view_handler.create_filter(
+        user=user,
+        view=grid_view,
+        field=ai_field,
+        type_name="starts_with",
+        value="Hello",
+    )
+
+    # Apply the filter. Without the AIFieldType.starts_with_query delegation the
+    # base implementation returns Q() and every row would match, so guard against
+    # that regression here.
+    queryset = view_handler.get_queryset(None, grid_view)
+
+    # Should return only rows starting with "Hello"
+    assert queryset.count() == 2
+    assert row_1 in queryset
+    assert row_3 in queryset
+    assert row_2 not in queryset
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
 def test_ai_field_text_output_supports_equal_filter(premium_data_fixture):
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
@@ -481,6 +533,7 @@ def test_ai_field_is_compatible_with_text_filters(premium_data_fixture):
         "contains_not",
         "contains_word",
         "doesnt_contain_word",
+        "starts_with",
         "equal",
         "not_equal",
         "length_is_lower_than",

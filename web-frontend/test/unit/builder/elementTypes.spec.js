@@ -22,7 +22,10 @@ import {
 } from '@baserow/modules/builder/enums'
 
 describe('elementTypes tests', () => {
-  const testApp = useNuxtApp()
+  let testApp
+  beforeAll(() => {
+    testApp = useNuxtApp()
+  })
   const contextBlankParam = { page: { parameters: { id: '' } } }
 
   const misconfiguredOpenPageWorkflowActionPage = {
@@ -45,8 +48,8 @@ describe('elementTypes tests', () => {
         id: 789,
         type: 'heading',
         page_id: page.id,
-        parent_element_id: elementParent.id,
       }
+      page.graph = { 0: 456, 456: { children: { '': [789] } }, 789: {} }
       page.elementMap = { 456: elementParent, 789: element }
       const elementType = testApp.$registry.get('element', element.type)
       expect(elementType.hasAncestorOfType(page, element, 'column')).toBe(true)
@@ -60,8 +63,8 @@ describe('elementTypes tests', () => {
         id: 222,
         type: 'table',
         page_id: page.id,
-        parent_element_id: repeatAncestor.id,
       }
+      page.graph = { 0: 111, 111: { children: { '': [222] } }, 222: {} }
       page.elementMap = { 111: repeatAncestor, 222: tableElement }
       const repeatElementType = testApp.$registry.get(
         'element',
@@ -766,7 +769,6 @@ describe('elementTypes tests', () => {
         id: 112,
         type: 'column',
         page_id: page.id,
-        parent_element_id: 111,
       }
       const columnAncestor2 = {
         id: 113,
@@ -774,6 +776,13 @@ describe('elementTypes tests', () => {
         page_id: page.id,
       }
 
+      // formAncestor (root) → next → columnAncestor2; formAncestor → child → columnAncestor1
+      page.graph = {
+        0: 111,
+        111: { next: { '': [113] }, children: { '': [112] } },
+        112: {},
+        113: {},
+      }
       page.elementMap = {
         111: formAncestor,
         112: columnAncestor1,
@@ -866,9 +875,13 @@ describe('elementTypes tests', () => {
         id: 112,
         type: 'repeat',
         page_id: page.id,
-        parent_element_id: repeatElement.id,
       }
 
+      page.graph = {
+        0: 111,
+        111: { children: { content: [112] } },
+        112: {},
+      }
       page.elementMap = {
         111: repeatElement,
         112: nestedRepeatElement,
@@ -910,9 +923,14 @@ describe('elementTypes tests', () => {
         id: 113,
         type: 'form_container',
         page_id: page.id,
-        parent_element_id: columnElement.id,
       }
 
+      page.graph = {
+        0: 111,
+        111: { next: { '': [112] } },
+        112: { children: { '': [113] } },
+        113: {},
+      }
       page.elementMap = {
         111: destinationFormContainer,
         112: columnElement,
@@ -1216,7 +1234,6 @@ describe('elementTypes tests', () => {
         id: 51,
         type: 'input_text',
         page_id: page.id,
-        parent_element_id: element.id,
       }
       page.elementMap = { 50: element, 51: childElement }
       page.orderedElements = [element, childElement]
@@ -1268,8 +1285,8 @@ describe('elementTypes tests', () => {
         id: 51,
         type: 'input_text',
         page_id: page.id,
-        parent_element_id: element.id,
       }
+      page.graph = { 0: 50, 50: { children: { '': [51] } }, 51: {} }
       page.elementMap = { 50: element, 51: childElement }
       page.orderedElements = [element, childElement]
       expect(elementType.isInError(element, { page, element, builder })).toBe(
@@ -1381,6 +1398,43 @@ describe('elementTypes tests', () => {
     })
   })
 
+  describe('ElementType getDefaultValues tests', () => {
+    test('returns values unchanged when no parent element', () => {
+      const elementType = testApp.$registry.get('element', 'heading')
+      const page = { id: 1 }
+      const values = { style_padding_top: 20 }
+      expect(elementType.getDefaultValues(page, values, null)).toEqual({
+        style_padding_top: 20,
+      })
+    })
+
+    test('merges parent container child defaults when parent provided', () => {
+      const elementType = testApp.$registry.get('element', 'heading')
+      const page = { id: 1 }
+      const parentElement = { id: 10, type: 'column' }
+      const values = { style_padding_top: 20 }
+      expect(elementType.getDefaultValues(page, values, parentElement)).toEqual(
+        {
+          style_padding_top: 20,
+          style_padding_left: 0,
+          style_padding_right: 0,
+        }
+      )
+    })
+
+    test('parent whose getDefaultChildValues returns {} leaves values unchanged', () => {
+      const elementType = testApp.$registry.get('element', 'heading')
+      const page = { id: 1 }
+      const parentElement = { id: 10, type: 'simple_container' }
+      const values = { style_padding_top: 20 }
+      expect(elementType.getDefaultValues(page, values, parentElement)).toEqual(
+        {
+          style_padding_top: 20,
+        }
+      )
+    })
+  })
+
   describe('elementType elementAround tests', () => {
     let page, sharedPage, builder
     beforeEach(async () => {
@@ -1411,7 +1465,6 @@ describe('elementTypes tests', () => {
             page,
             element: {
               place_in_container: null,
-              parent_element_id: null,
               ...element,
               page_id: page.id,
               order: `${index}.0000`,
@@ -1445,7 +1498,6 @@ describe('elementTypes tests', () => {
             page: sharedPage,
             element: {
               place_in_container: null,
-              parent_element_id: null,
               ...element,
               page_id: sharedPage.id,
               order: `${index}.0000`,
@@ -1613,6 +1665,470 @@ describe('elementTypes tests', () => {
       expect(elementsAround.after?.id).toEqual(113)
       expect(elementsAround.left).toBeNull()
       expect(elementsAround.right).toBeNull()
+    })
+  })
+
+  describe('HeaderElementType isDisallowedReason tests', () => {
+    // Use distinct IDs to avoid colliding with the elementAround suite above.
+    let page, sharedPage, builder
+    let heading1, heading2, heading3
+
+    beforeEach(async () => {
+      page = {
+        id: 300,
+        elements: [],
+        orderedElements: [],
+        elementMap: {},
+        graph: {},
+      }
+      sharedPage = {
+        id: 301,
+        shared: true,
+        elements: [],
+        orderedElements: [],
+        elementMap: {},
+        graph: {},
+      }
+      builder = { id: 10, pages: [sharedPage, page] }
+
+      heading1 = { id: 310, type: 'heading' }
+      heading2 = { id: 320, type: 'heading' }
+      heading3 = { id: 330, type: 'heading' }
+
+      for (const [i, el] of [heading1, heading2, heading3].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page,
+          element: {
+            place_in_container: null,
+            ...el,
+            page_id: page.id,
+            order: `${i + 1}.0000`,
+          },
+        })
+      }
+    })
+
+    test('allowed north of first content element when no header exists', async () => {
+      const headerType = testApp.$registry.get('element', 'header')
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: heading1,
+          afterElement: null,
+          pagePlace: 'content',
+        })
+      ).toBeNull()
+    })
+
+    test('disallowed north of non-first content element', async () => {
+      const headerType = testApp.$registry.get('element', 'header')
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: heading2,
+          afterElement: null,
+          pagePlace: 'content',
+        })
+      ).not.toBeNull()
+    })
+
+    test('disallowed south of any element (afterElement set)', async () => {
+      const headerType = testApp.$registry.get('element', 'header')
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: null,
+          afterElement: heading3,
+          pagePlace: 'content',
+        })
+      ).not.toBeNull()
+    })
+
+    test('allowed north of first content element even when a header already exists', async () => {
+      const headerEl = { id: 340, type: 'header' }
+      await testApp.$store.dispatch('element/forceCreate', {
+        page: sharedPage,
+        element: {
+          place_in_container: null,
+          ...headerEl,
+          page_id: sharedPage.id,
+          order: '1.0000',
+        },
+      })
+
+      const headerType = testApp.$registry.get('element', 'header')
+      // The first content element is always a valid north-of-first position for a header,
+      // regardless of how many headers already exist on the shared page.
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: heading1,
+          afterElement: null,
+          pagePlace: 'content',
+        })
+      ).toBeNull()
+    })
+
+    test('allowed north of the existing header itself (on shared page)', async () => {
+      const headerEl = { id: 340, type: 'header' }
+      await testApp.$store.dispatch('element/forceCreate', {
+        page: sharedPage,
+        element: {
+          place_in_container: null,
+          ...headerEl,
+          page_id: sharedPage.id,
+          order: '1.0000',
+        },
+      })
+      const storedHeader = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], headerEl.id)
+
+      const headerType = testApp.$registry.get('element', 'header')
+      // ElementPreview for a shared element opens the modal with page = sharedPage
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: storedHeader,
+          afterElement: null,
+          pagePlace: 'header',
+        })
+      ).toBeNull()
+    })
+
+    test('allowed south of the existing header (on shared page)', async () => {
+      const headerEl = { id: 340, type: 'header' }
+      await testApp.$store.dispatch('element/forceCreate', {
+        page: sharedPage,
+        element: {
+          place_in_container: null,
+          ...headerEl,
+          page_id: sharedPage.id,
+          order: '1.0000',
+        },
+      })
+      const storedHeader = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], headerEl.id)
+
+      const headerType = testApp.$registry.get('element', 'header')
+      // The entire header zone is valid for adding more headers — south is allowed.
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: null,
+          afterElement: storedHeader,
+          pagePlace: 'header',
+        })
+      ).toBeNull()
+    })
+
+    test('allowed north of second header — header zone allows any position', async () => {
+      const header1 = { id: 340, type: 'header' }
+      const header2 = { id: 341, type: 'header' }
+      for (const [i, h] of [header1, header2].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page: sharedPage,
+          element: {
+            place_in_container: null,
+            ...h,
+            page_id: sharedPage.id,
+            order: `${i + 1}.0000`,
+          },
+        })
+      }
+      const storedHeader2 = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], header2.id)
+
+      const headerType = testApp.$registry.get('element', 'header')
+      // The entire header zone is valid — north of the second header is allowed.
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: storedHeader2,
+          afterElement: null,
+          pagePlace: 'header',
+        })
+      ).toBeNull()
+    })
+
+    test('drag-and-drop is unaffected: afterElement absent means modal guard does not fire', () => {
+      // useDropElementTarget never passes afterElement, so it remains undefined.
+      const headerType = testApp.$registry.get('element', 'header')
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined)
+          pagePlace: 'header',
+          referencePagePlace: 'header',
+        })
+      ).toBeNull()
+    })
+
+    test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {
+      // The empty content drop zone supplies referencePagePlace=content via
+      // targetPagePlace, which must keep a header out of the content zone.
+      const headerType = testApp.$registry.get('element', 'header')
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined) → D&D context
+          pagePlace: 'header',
+          referencePagePlace: 'content',
+        })
+      ).not.toBeNull()
+    })
+  })
+
+  describe('FooterElementType isDisallowedReason tests', () => {
+    let page, sharedPage, builder
+    let heading1, heading2, heading3
+
+    beforeEach(async () => {
+      page = {
+        id: 400,
+        elements: [],
+        orderedElements: [],
+        elementMap: {},
+        graph: {},
+      }
+      sharedPage = {
+        id: 401,
+        shared: true,
+        elements: [],
+        orderedElements: [],
+        elementMap: {},
+        graph: {},
+      }
+      builder = { id: 20, pages: [sharedPage, page] }
+
+      heading1 = { id: 410, type: 'heading' }
+      heading2 = { id: 420, type: 'heading' }
+      heading3 = { id: 430, type: 'heading' }
+
+      for (const [i, el] of [heading1, heading2, heading3].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page,
+          element: {
+            place_in_container: null,
+            ...el,
+            page_id: page.id,
+            order: `${i + 1}.0000`,
+          },
+        })
+      }
+    })
+
+    test('allowed south of last content element when no footer exists', async () => {
+      const footerType = testApp.$registry.get('element', 'footer')
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: null,
+          afterElement: heading3,
+          pagePlace: 'content',
+        })
+      ).toBeNull()
+    })
+
+    test('disallowed south of non-last content element', async () => {
+      const footerType = testApp.$registry.get('element', 'footer')
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: null,
+          afterElement: heading2,
+          pagePlace: 'content',
+        })
+      ).not.toBeNull()
+    })
+
+    test('disallowed north of any element (beforeElement set)', async () => {
+      const footerType = testApp.$registry.get('element', 'footer')
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: heading1,
+          afterElement: null,
+          pagePlace: 'content',
+        })
+      ).not.toBeNull()
+    })
+
+    test('allowed south of last content element even when a footer already exists', async () => {
+      const footerEl = { id: 440, type: 'footer' }
+      await testApp.$store.dispatch('element/forceCreate', {
+        page: sharedPage,
+        element: {
+          place_in_container: null,
+          ...footerEl,
+          page_id: sharedPage.id,
+          order: '1.0000',
+        },
+      })
+
+      const footerType = testApp.$registry.get('element', 'footer')
+      // The last content element is always a valid south-of-last position for a footer,
+      // regardless of how many footers already exist on the shared page.
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: null,
+          afterElement: heading3,
+          pagePlace: 'content',
+        })
+      ).toBeNull()
+    })
+
+    test('allowed south of the existing footer itself (on shared page)', async () => {
+      const footerEl = { id: 440, type: 'footer' }
+      await testApp.$store.dispatch('element/forceCreate', {
+        page: sharedPage,
+        element: {
+          place_in_container: null,
+          ...footerEl,
+          page_id: sharedPage.id,
+          order: '1.0000',
+        },
+      })
+      const storedFooter = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], footerEl.id)
+
+      const footerType = testApp.$registry.get('element', 'footer')
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: null,
+          afterElement: storedFooter,
+          pagePlace: 'footer',
+        })
+      ).toBeNull()
+    })
+
+    test('allowed north of the existing footer (on shared page)', async () => {
+      const footerEl = { id: 440, type: 'footer' }
+      await testApp.$store.dispatch('element/forceCreate', {
+        page: sharedPage,
+        element: {
+          place_in_container: null,
+          ...footerEl,
+          page_id: sharedPage.id,
+          order: '1.0000',
+        },
+      })
+      const storedFooter = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], footerEl.id)
+
+      const footerType = testApp.$registry.get('element', 'footer')
+      // The entire footer zone is valid for adding more footers — north is allowed.
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: storedFooter,
+          afterElement: null,
+          pagePlace: 'footer',
+        })
+      ).toBeNull()
+    })
+
+    test('allowed south of first footer when two footers exist — footer zone allows any position', async () => {
+      const footer1 = { id: 440, type: 'footer' }
+      const footer2 = { id: 441, type: 'footer' }
+      for (const [i, f] of [footer1, footer2].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page: sharedPage,
+          element: {
+            place_in_container: null,
+            ...f,
+            page_id: sharedPage.id,
+            order: `${i + 1}.0000`,
+          },
+        })
+      }
+      const storedFooter1 = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], footer1.id)
+
+      const footerType = testApp.$registry.get('element', 'footer')
+      // The entire footer zone is valid — south of the first footer is allowed.
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: null,
+          afterElement: storedFooter1,
+          pagePlace: 'footer',
+        })
+      ).toBeNull()
+    })
+
+    test('drag-and-drop is unaffected: afterElement absent means modal guard does not fire', () => {
+      // useDropElementTarget never passes afterElement, so it remains undefined.
+      const footerType = testApp.$registry.get('element', 'footer')
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined)
+          pagePlace: 'footer',
+          referencePagePlace: 'footer',
+        })
+      ).toBeNull()
+    })
+
+    test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {
+      // The empty content drop zone supplies referencePagePlace=content via
+      // targetPagePlace, which must keep a footer out of the content zone.
+      const footerType = testApp.$registry.get('element', 'footer')
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined) → D&D context
+          pagePlace: 'footer',
+          referencePagePlace: 'content',
+        })
+      ).not.toBeNull()
     })
   })
 })

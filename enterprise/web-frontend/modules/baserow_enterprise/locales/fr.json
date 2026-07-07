@@ -4,9 +4,10 @@
         "rbac": "RBAC",
         "sso": "SSO",
         "deactivated": "Disponible dans la version avancée/entreprise",
-        "licenseDescription": "Avoir le rôle de spectateur est inclus dans Baserow Entreprise. Si un utilisateur a un tout autre rôle, dans n'importe quel projet, il utilisera automatiquement un siège payant.",
+        "licenseDescription": "Les rôles de « Spectateur » et « Commentateurs » sont inclus gratuitement dans Baserow Entreprise. Si un utilisateur a un autre rôle, dans n'importe quel projet, il utilisera automatiquement un siège payant.",
         "sidebarTooltip": "Votre compte a un accès global aux fonctions entreprise",
-        "overflowWarning": "Vous avez trop d'utilisateurs non-spectateurs et avez utilisé tous vos sièges payants. Changez les utilisateurs pour qu'ils deviennent des spectateurs sur la page des membres de chaque projet."
+        "overflowWarning": "Vous avez trop d'utilisateurs non-spectateurs/Commentateurs et avez épuisé tous vos sièges payants. Changez les utilisateurs pour qu'ils deviennent des spectateurs/Commentateurs sur la page des membres de chaque Projet.",
+        "enterpriseOnlyDeactivated": "Disponible dans la version Entreprise"
     },
     "trashType": {
         "team": "équipe"
@@ -227,7 +228,14 @@
             "warningTitle": "D'autres utilisateurs pourraient hériter de l'accès !",
             "warningMessage": "D'autres utilisateurs peuvent hériter de l'accès par leurs rôles respectifs sur la table parente, la base de données ou le projet.",
             "headerTooltip": "Les rôles de Vue remplacent les rôles du projet, de la base de données et de la table."
-        }
+        },
+        "title": "{name} {type}",
+        "selectMembers": "Sélectionner des membres",
+        "everyoneHasAccess": "Tous les utilisateurs du Projet {name} peuvent accéder à ce(tte) {type}.",
+        "onlyYouHaveAccess": "Vous êtes le seul à pouvoir accéder à ce(tte) {type}.",
+        "warningTitle": "D'autres utilisateurs peuvent avoir hérité de l'accès !",
+        "warningMessage": "D'autres utilisateurs pourraient hériter de ces droits d'accès via leurs rôles respectifs au sein de l'entité parente : {parent}.",
+        "headerTooltip": "Les rôles associés à ce(tte) {type} remplaceront les rôles sur : {overrides}."
     },
     "memberRolesShareToggle": {
         "label": "Partager avec tout le monde dans {name}",
@@ -308,7 +316,7 @@
         "dataSync": "Synchronisation de données",
         "chartWidget": "Graphique",
         "advancedWebhooks": "Webhooks avancés",
-        "rbacContent": "Gérer les permissions avec précision. Assigner des rôles comme administrateur, architecte, éditeur, commentateur ou spectateur à l'espace de travail, base de données ou niveau de table. Vous pouvez également gérer l'accès par équipe.",
+        "rbacContent": "Gérer les permissions avec précision. Assigner des rôles comme administrateur, architecte, éditeur, commentateur ou spectateur au Projet, à la base de données, à la table, ou à la vue. Vous pouvez également gérer l'accès par équipe.",
         "auditLogsContent": "Suivez tout ce qui se passe. Affichez un historique complet des actions dans votre instance ou votre Projet, filtrable par utilisateur, par action, etc.",
         "coBrandingContent": "Personnalisez l'interface de Baserow avec votre propre logo. Notez que la mention \"Propulsé par Baserow\" est ajoutée.",
         "supportContent": "Obtenez de l'aide quand vous en avez besoin. Contactez l'équipe de Baserow directement depuis la plateforme.",
@@ -328,7 +336,11 @@
         "dateDependency": "Dépendance de date",
         "dateDependencyContent": "Vous pouvez définir une dépendance entre deux dates et une durée sous la forme d'une date de début/fin et d'une durée. Avec la dépendance de date, si une valeur change, les autres valeurs seront ajustées en conséquence.",
         "dataScanner": "Détecteur de données",
-        "dataScannerContent": "Analysez toutes les données de votre instance Baserow à la recherche de données sensibles telles que les numéros IBAN ou les identifiants médicaux, ou comparez-les à des listes de valeurs connues. Configurez des calendriers d'analyse automatique et consultez les résultats détaillés."
+        "dataScannerContent": "Analysez toutes les données de votre instance Baserow à la recherche de données sensibles telles que les numéros IBAN ou les identifiants médicaux, ou comparez-les à des listes de valeurs connues. Configurez des calendriers d'analyse automatique et consultez les résultats détaillés.",
+        "codeRunner": "Exécution de code",
+        "codeRunnerContent": "Exécuter du code JavaScript dans les nœuds d'automatisation et les actions de l'éditeur d'applications.",
+        "xlsFileReader": "Lecture des fichiers XLS",
+        "xlsFileReaderContent": "Lire des lignes à partir de fichiers XLS et XLSX dans les nœuds d'automatisation et les actions de l'éditeur d'applications."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Assistance"
@@ -587,7 +599,8 @@
         "label": "Modifier les droits d'accès"
     },
     "advanced": {
-        "license": "Avancé"
+        "license": "Avancé",
+        "openSubscriptions": "Ouvrir la page d'abonnement pour plus de sièges"
     },
     "builderSettingTypes": {
         "customCode": "CSS/JS personnalisés"
@@ -820,7 +833,7 @@
         "resultsCountColumn": "Résultats",
         "viewResults": "Voir les résultats",
         "results": "Afficher {count} résultat|Afficher {count} résultats",
-        "noResults": "Aucun résultat pour le moment",
+        "noResults": "Aucun résultat trouvé",
         "resolveResult": "Résoudre",
         "resultResolved": "Résolu",
         "exportToCsv": "Exporter au format CSV",
@@ -833,7 +846,10 @@
         "emptyTitle": "Aucun détecteur pour le moment",
         "emptyDescription": "Un détecteur de données vous permet d'analyser automatiquement l'ensemble de l'instance ou des Projets spécifiques afin de vérifier si des séquences (comme les numéros IBAN) ou des textes prédéfinis (comme les identifiants médicaux) sont utilisés quelque part.",
         "emptyResultsTitle": "Aucun résultat trouvé",
-        "emptyResultsDescription": "Il n'y a pas encore de résultats de détection. Les résultats s'afficheront ici dès qu'une détection de données aura été effectuée et que des correspondances auront été trouvées."
+        "emptyResultsDescription": "Il n'y a pas encore de résultats de détection. Les résultats s'afficheront ici dès qu'une détection de données aura été effectuée et que des correspondances auront été trouvées.",
+        "wholeWordsLabel": "Mot entier",
+        "wholeWordsCheckbox": "Correspondance de mots entiers uniquement",
+        "wholeWordsHelp": "Lorsque cette option est activée, le scanner ne trouve que des mots ou des tokens complets. Par exemple, « DDDD » correspond à « 1234 », mais pas à « 12345 »."
     },
     "deleteDataScanModal": {
         "title": "Supprimer le détecteur",
@@ -844,5 +860,47 @@
         "titleSingular": "{count} nouveau résultat trouvé pour {scanName}",
         "titlePlural": "{count} nouveaux résultats trouvés pour {scanName}",
         "description": "Consultez les résultats dans l'admininstration des détecteurs de données."
+    },
+    "serviceType": {
+        "coreCode": "Exécuter un code",
+        "coreCodeDescription": "Exécute un script JavaScript.",
+        "coreXLSFileReader": "Lire un fichier XLS(x)",
+        "coreXLSFileReaderDescription": "Lit les lignes d'un fichier XLS ou XLSX.",
+        "errorCodeMissing": "Propriété code manquante",
+        "errorXLSFileMissing": "Fichier XLS manquant"
+    },
+    "coreCodeServiceForm": {
+        "codeLabel": "Code",
+        "codeHelperText": "Baserow appelle la fonction `main(context)` lorsque l'action s'exécute. Utilisez `context` pour lire les valeurs injectées et renvoyer un objet dont les propriétés pourront être utilisées par les actions suivantes.",
+        "codePlaceholder": "Saisissez le code à exécuter",
+        "editCode": "Modifier le code",
+        "injectionsLabel": "Injections de données",
+        "injectionsHelperText": "Les injections sont des formules évaluées avant l'exécution du code. Chaque nom d'injection devient une propriété de `context`. Par exemple, une injection nommée `customerName` est accessible sous la forme `context.customerName`.",
+        "nameLabel": "Nom",
+        "namePlaceholder": "Nom de la variable",
+        "valueLabel": "Valeur",
+        "valuePlaceholder": "Valeur...",
+        "addInjection": "Ajouter une injection",
+        "nameFieldRequired": "Le champ « Nom » est obligatoire.",
+        "nameFieldInvalid": "Le nom doit être un nom de variable valide."
+    },
+    "coreXLSFileReaderServiceForm": {
+        "file": "Fichier XLS",
+        "filePlaceholder": "Sélectionnez un fichier XLS ou XLSX...",
+        "sheetName": "Nom de la feuille",
+        "sheetNamePlaceholder": "Première feuille",
+        "firstLineIsHeader": "La première ligne est l'en-tête"
+    },
+    "nodeType": {
+        "codeLabel": "Exécuter un code",
+        "xlsFileReaderLabel": "Lire un fichier XLS"
+    },
+    "restrictedViewFilterContext": {
+        "matchTitle": "Les valeurs par défaut correspondent aux filtres",
+        "matchSubtitle": "Les éditeurs verront les lignes qu'ils créent.",
+        "mismatchTitle": "Les valeurs par défaut ne correspondent pas aux filtres",
+        "mismatchSubtitle": "Les éditeurs pourront créer des lignes, mais ne les verront pas.",
+        "removeDefaultValue": "Supprimer la valeur par défaut",
+        "removeDefaultValueHelper": "Ce champ possède une valeur par défaut, mais aucun filtre. Vous pouvez le supprimer ici, ou gérer toutes les valeurs par défaut en cliquant sur les trois points situés à côté de la vue, puis sur « Valeurs par défaut des lignes »."
     }
 }

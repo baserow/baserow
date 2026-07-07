@@ -1,9 +1,8 @@
-from typing import Any, Dict, List, Optional, Tuple, Type
-from zipfile import ZipFile
+from contextlib import ExitStack, contextmanager
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Type
 
-from django.core.files.storage import Storage
 from django.db import IntegrityError
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
@@ -17,6 +16,7 @@ from baserow.contrib.builder.api.elements.serializers import (
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
+    ElementNotMovable,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
@@ -36,20 +36,85 @@ from baserow.contrib.builder.elements.types import (
     CollectionElementSubClass,
     ElementSubClass,
 )
-from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import merge_dicts_no_duplicates
 
 
 class ContainerElementTypeMixin:
-    # Container element types are imported first.
-    import_element_priority = 1
+    # Yes we're a container.
+    is_container = True
 
     class SerializedDict(ElementDict):
         pass
+
+    def get_places(self, instance: ContainerElement) -> Dict[str, Dict[str, str]]:
+        """
+        Returns the child slots available for this container element.
+        """
+
+        return {"": {"label": ""}}
+
+    @contextmanager
+    def wrap_move(
+        self,
+        element: ContainerElement,
+        reference_element: Element | None,
+        position: GraphPointPositionType,
+        target_page,
+        place_in_container: str,
+    ) -> Generator[None, None, None]:
+        """
+        Check the container node is not moved inside itself.
+        """
+
+        if reference_element and element in reference_element.get_parent_points():
+            raise ElementNotMovable("A container element cannot be moved inside itself")
+
+        source_graph = element.page.get_graph()
+        children_to_move = [
+            (
+                child.specific,
+                source_graph.get_position(child)[2],
+            )
+            for child in Element.objects.only("page_id").filter(
+                pk__in=[c.id for c in source_graph.get_children(element)]
+            )
+        ]
+
+        with super().wrap_move(
+            element,
+            reference_element,
+            position,
+            target_page,
+            place_in_container,
+        ):
+            with ExitStack() as child_move_stack:
+                for child, child_place_in_container in children_to_move:
+                    # Keep every child move wrapper active until all page
+                    # updates are done, so their after-move hooks see the final
+                    # moved state.
+                    child_move_stack.enter_context(
+                        child.get_type().wrap_move(
+                            child,
+                            None,
+                            GraphPointPosition.SOUTH,
+                            target_page,
+                            child_place_in_container,
+                        )
+                    )
+
+                yield
+
+                target_page = element.page
+                for child, _ in children_to_move:
+                    if child.page_id != target_page.id:
+                        child.page_id = target_page.id
+                        child.save()
+                        child.page = target_page
 
     @property
     def child_types_allowed(self) -> List[str]:
@@ -93,16 +158,6 @@ class ContainerElementTypeMixin:
 
         return []
 
-    def apply_order_by_children(self, queryset: QuerySet[Element]) -> QuerySet[Element]:
-        """
-        Defines the order of the children inside the container.
-
-        :param queryset: The queryset that the order is applied to.
-        :return: A queryset with the order applied to
-        """
-
-        return queryset.order_by("place_in_container", "order")
-
     def prepare_value_for_db(
         self, values: Dict, instance: Optional[ContainerElement] = None
     ):
@@ -118,7 +173,7 @@ class ContainerElementTypeMixin:
 
         return super().prepare_value_for_db(values, instance)
 
-    def validate_place_in_container(
+    def validate_position_as_child(
         self, place_in_container: str, instance: ContainerElement
     ):
         """
@@ -130,22 +185,6 @@ class ContainerElementTypeMixin:
         """
 
         return True
-
-    def after_move(self, instance: ElementSubClass):
-        """
-        If the instance page has changed, we ensure that all children are on the same
-        page (pun intended).
-        """
-
-        target_page_id = instance.page_id
-        parent_ids = [instance.id]
-
-        for child in Element.objects.filter(parent_element_id__in=parent_ids).all():
-            if child.page_id != target_page_id:
-                child.page_id = target_page_id
-                child.save()
-
-            child.get_type().after_move(child.specific)
 
 
 class CollectionElementTypeMixin:
@@ -225,11 +264,28 @@ class CollectionElementTypeMixin:
                     raise CollectionElementPropertyOptionsNotUnique()
                 raise e
 
-    def after_move(self, element: ElementSubClass):
+    @contextmanager
+    def wrap_move(
+        self,
+        element: ElementSubClass,
+        reference_element: Element | None,
+        position: GraphPointPositionType,
+        target_page,
+        place_in_container: str,
+    ) -> Generator[None, None, None]:
         """
         Unlink the data source if we moved to shared page and the data source isn't
         on shared page.
         """
+        with super().wrap_move(
+            element,
+            reference_element,
+            position,
+            target_page,
+            place_in_container,
+        ):
+            yield
+
         if (
             element.data_source_id is not None
             and element.page.id == element.page.builder.shared_page.id
@@ -462,7 +518,7 @@ class CollectionElementTypeMixin:
 
         return results
 
-    def create_instance_from_serialized(
+    def before_import(
         self,
         serialized_values: Dict[str, Any],
         id_mapping,
@@ -470,9 +526,12 @@ class CollectionElementTypeMixin:
         storage=None,
         cache=None,
         **kwargs,
-    ) -> CollectionElementSubClass:
+    ) -> Optional[
+        Callable[[CollectionElementSubClass, Dict[str, Any], Dict[str, Any]], None]
+    ]:
         """
-        Responsible for creating the property options from the serialized values.
+        Extracts property options before the element instance is created and returns
+        a callback to import them once the import context is available.
 
         :param serialized_values: The serialized values of the element.
         :param id_mapping: A dictionary containing the mapping of the old and new ids.
@@ -480,12 +539,13 @@ class CollectionElementTypeMixin:
         :param storage: The storage that can be used to store files.
         :param cache: A dictionary that can be used to cache data.
         :param kwargs: Additional keyword arguments.
-        :return: The created instance.
+        :return: A callable that imports the property options, or None if there is
+            no deferred work.
         """
 
         property_options_values = serialized_values.pop("property_options", [])
-
-        instance = super().create_instance_from_serialized(
+        schema_property_value = serialized_values.get("schema_property")
+        parent_callback = super().before_import(
             serialized_values,
             id_mapping,
             files_zip=files_zip,
@@ -494,53 +554,57 @@ class CollectionElementTypeMixin:
             **kwargs,
         )
 
-        service = None
-        import_context = ElementHandler().get_import_context_addition(instance.id)
-        if import_context["data_source_id"]:
-            data_source = DataSourceHandler().get_data_source(
-                import_context["data_source_id"]
+        if not property_options_values and not schema_property_value:
+            return parent_callback
+
+        def import_property_options(
+            instance: CollectionElementSubClass,
+            id_mapping: Dict[str, Any],
+            import_context: Dict[str, Any],
+        ):
+            if parent_callback is not None:
+                parent_callback(instance, id_mapping, import_context)
+
+            data_source_id = import_context.get("data_source_id")
+            service = None
+            if data_source_id:
+                data_source = DataSourceHandler().get_data_source(data_source_id)
+                service = data_source.service.specific
+
+            service_type = (
+                service_type_registry.get_by_model(service) if service else None
             )
-            service = data_source.service.specific
 
-        # If we have a data source set, we'll find out what its service type is, and
-        # use it to map the `schema_property` and `property_options` value `field_id`
-        # to the new ID.
-        service_type = service_type_registry.get_by_model(service) if service else None
-
-        if service_type:
-            # Use the service type to convert the `schema_property`
-            # value if it's present in the ID mapping.
-            if instance.schema_property:
-                imported_schema_property = service_type.import_property_name(
-                    instance.schema_property, id_mapping
-                )
-                if instance.schema_property != imported_schema_property:
-                    instance.schema_property = imported_schema_property
-                    instance.save(update_fields=["schema_property"])
-
-            # Use the service type to convert the `property_options` list's
-            # `schema_property` value if they're present in the ID mapping.
-            property_options = []
-            for po in property_options_values:
-                imported_field_dbname = service_type.import_property_name(
-                    po["schema_property"], id_mapping
-                )
-                # Trashed fields won't be included in the deserialized
-                # property options, we'll skip it altogether.
-                if imported_field_dbname is not None:
-                    property_options.append(
-                        {**po, "schema_property": imported_field_dbname}
+            if service_type:
+                # Map the schema_property to the new ID.
+                if instance.schema_property:
+                    imported_schema_property = service_type.import_property_name(
+                        instance.schema_property, id_mapping
                     )
+                    if instance.schema_property != imported_schema_property:
+                        instance.schema_property = imported_schema_property
+                        instance.save(update_fields=["schema_property"])
 
-            # Create property options
-            options = [
-                CollectionElementPropertyOptions(**po, element=instance)
-                for po in property_options
-            ]
-            CollectionElementPropertyOptions.objects.bulk_create(options)
-            instance.property_options.add(*options)
+                # Map property_options schema_property values to new IDs.
+                property_options = []
+                for po in property_options_values:
+                    imported_field_dbname = service_type.import_property_name(
+                        po["schema_property"], id_mapping
+                    )
+                    # Trashed fields won't be included — skip them.
+                    if imported_field_dbname is not None:
+                        property_options.append(
+                            {**po, "schema_property": imported_field_dbname}
+                        )
 
-        return instance
+                options = [
+                    CollectionElementPropertyOptions(**po, element=instance)
+                    for po in property_options
+                ]
+                CollectionElementPropertyOptions.objects.bulk_create(options)
+                instance.property_options.add(*options)
+
+        return import_property_options
 
     def extract_properties(self, instance: Element, **kwargs) -> Dict[int, List[str]]:
         """
@@ -733,74 +797,46 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
             **kwargs,
         )
 
-        import_field_context = ElementHandler().get_import_context_addition(
-            instance.id, cache.get("imported_element_map")
-        )
-
-        fields = [
+        # Create fields immediately — they don't need import context.
+        created_fields = [
             collection_field_type_registry.get(f["type"]).import_serialized(
-                f, id_mapping, **(kwargs | import_field_context)
+                f, id_mapping, **kwargs
             )
             for f in fields
         ]
 
-        # Add the field order
-        for i, f in enumerate(fields):
+        for i, f in enumerate(created_fields):
             f.order = i
 
-        # Create fields
-        created_fields = CollectionField.objects.bulk_create(fields)
-
+        CollectionField.objects.bulk_create(created_fields)
         instance.fields.add(*created_fields)
 
         return instance
 
-    def import_serialized(
+    def import_formulas(
         self,
-        page: Any,
-        serialized_values: Dict[str, Any],
-        id_mapping: Dict[str, Dict[int, int]],
-        files_zip: ZipFile | None = None,
-        storage: Storage | None = None,
-        cache: Dict[str, Any] | None = None,
-        **kwargs,
-    ) -> ElementSubClass:
-        """
-        This method is overridden to ensure that the import_context contains
-        the data sources and correctly imports formulas.
-        """
-
-        # Import the element itself
-        created_instance = super().import_serialized(
-            page,
-            serialized_values,
+        instance,
+        id_mapping: Dict[str, Any],
+        import_formula,
+        **import_context,
+    ):
+        updated_models = super().import_formulas(
+            instance,
             id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
+            import_formula,
+            **import_context,
         )
 
-        # For collection fields, import_context should include the current element
-        import_context = ElementHandler().get_import_context_addition(
-            created_instance.id,
-            element_map=cache.get("imported_element_map", None) if cache else None,
-        )
-
-        # Import the collection field formulas
-        updated_models = []
-        for collection_field in created_instance.fields.all():
-            collection_field.get_type().import_formulas(
+        for collection_field in instance.fields.all():
+            updated_models |= collection_field.get_type().import_formulas(
                 collection_field,
                 id_mapping,
                 import_formula,
-                **(kwargs | import_context),
+                **import_context,
             )
-            updated_models.append(collection_field)
+            updated_models.add(collection_field)
 
-        [m.save() for m in updated_models]
-
-        return created_instance
+        return updated_models
 
     def extract_properties(
         self,
@@ -856,6 +892,33 @@ class FormElementTypeMixin:
 
 class MultiPageElementTypeMixin:
     is_multi_page_element = True
+
+    def validate_position(
+        self,
+        page,
+        reference_element,
+        place_in_container: str,
+        position: GraphPointPositionType = None,
+    ):
+        parent_element = (
+            reference_element
+            if position == GraphPointPosition.CHILD
+            else reference_element.get_parent_point()
+            if reference_element is not None
+            else None
+        )
+
+        if parent_element is not None:
+            raise DRFValidationError(
+                "This element type can't be added as child of another element."
+            )
+
+        if not page.shared:
+            raise DRFValidationError(
+                "This element type can't be added as root of an unshared page."
+            )
+
+        return None
 
     @property
     def serializer_field_names(self):

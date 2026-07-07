@@ -37,7 +37,7 @@
     },
     "accountForm": {
         "nameLabel": "Tu nombre",
-        "languageLabel": "Lenguaje de interfaz"
+        "languageLabel": "Idioma de la interfaz"
     },
     "accountSettings": {
         "title": "Cuenta",
@@ -68,7 +68,7 @@
         "invalidEmail": "Por favor, introduce un correo electrónico válido.",
         "disabledAccountTitle": "Cuenta deshabilitada",
         "disabledAccountMessage": "Esta cuenta de usuario ha sido deshabilitada.",
-        "incorrectCredentialTitle": "credenciales incorrectas",
+        "incorrectCredentialTitle": "Credenciales incorrectas",
         "incorrectCredentialMessage": "La dirección de correo electrónico o la contraseña proporcionadas son incorrectas.",
         "inputRequired": "Se requiere entrada.",
         "disabledPasswordProviderTitle": "La autentificación por contraseña está deshabilitada.",
@@ -125,7 +125,7 @@
         "createWorkspace": "Crea un grupo"
     },
     "workspaceContext": {
-        "renameWorkspace": "Renombrar grupo",
+        "renameWorkspace": "Renombrar espacio de trabajo",
         "members": "Miembros",
         "viewTrash": "Ver papelera",
         "leaveWorkspace": "Salir del área de trabajo",
@@ -197,8 +197,8 @@
         "retry": "Volver a intentar"
     },
     "createApplicationContext": {
-        "fromTemplate": "De la plantilla",
-        "fromTemplateDesc": "Empieza rápidamente con una de nuestras plantillas recomendadas",
+        "fromTemplate": "Desde una plantilla",
+        "fromTemplateDesc": "Empezar rápidamente con una de nuestras plantillas recomendadas",
         "table": "Tabla",
         "tableDesc": "Crea un nuevo espacio para gestionar los datos en tu base de datos.",
         "importWorkspace": "Importar datos",
@@ -231,7 +231,7 @@
     "dashboard": {
         "title": "Tablero",
         "alertTitle": "¡Necesitamos tu ayuda!",
-        "alertText": "Al compartir Baserow, nos está ayudando a mejorar el producto y a hacerlo más útil para ti.",
+        "alertText": "Al compartir Baserow, nos ayudas a mejorar el producto y a hacerlo más útil para ti.",
         "tweetContent": "¡Eche un vistazo a {'@'}baserow, una herramienta de base de datos sin código de código abierto y una alternativa a Airtable!",
         "redditTitle": "'Baserow: una base de datos sin código de código abierto",
         "noWorkspaceTitle": "No se encontraron grupos",
@@ -257,7 +257,7 @@
         "emptyWorkspaceMessage": "Empieza por crear una nueva base de datos o aplicación.",
         "addNew": "Añadir nuevo...",
         "noWorkspace": "Sin espacio de trabajo",
-        "starOnGitHub": "Apóyanos con una estrella en GitHub"
+        "starOnGitHub": "Apóyanos en GitHub"
     },
     "login": {
         "title": "Bienvenido de nuevo",
@@ -281,7 +281,10 @@
         "errorLinkExpiredMessage": "El enlace de restablecimiento de contraseña ha caducado. Solicite otro.",
         "disabled": "El restablecimiento de la contraseña está desactivado",
         "disabledMessage": "No es posible restablecer la contraseña porque ha sido desactivada.",
-        "message": "Ya puede iniciar sesión en Baserow con su nueva contraseña."
+        "message": "Ya puede iniciar sesión en Baserow con su nueva contraseña.",
+        "repeatPasswordPlaceholder": "Repite tu nueva contraseña",
+        "errorLinkAlreadyUsedTitle": "Enlace ya utilizado",
+        "errorLinkAlreadyUsedMessage": "Este enlace de restablecimiento de contraseña ya ha sido utilizado. Por favor, solicita uno nuevo."
     },
     "signup": {
         "headTitle": "Crear una cuenta",
@@ -490,7 +493,7 @@
     },
     "datetime": {
         "daysAgo": "Hace 0 días | Hace 1 día | Hace {n} días",
-        "monthsAgo": "Hace 0 meses | Hace 1 mes | Hace {n} meses",
+        "monthsAgo": "hace 0 meses | hace 1 mes | hace {n} meses",
         "yearsAgo": "Hace 0 años | Hace 1 año | Hace {n} años",
         "minutesAgo": "Hace 0 minutos | Hace 1 minuto | Hace {n} minutos",
         "hoursAgo": "Hace 0 horas | Hace 1 hora | Hace {n} horas",
@@ -587,14 +590,14 @@
     "failedConnectingToast": {
         "title": "Fallido",
         "content": "No se pudieron restablecer las actualizaciones en tiempo real. Por favor, actualiza para continuar.",
-        "action": "Refrescar página"
+        "action": "Recargar página"
     },
     "userSessionExpiredToast": {
         "title": "Sesión expirada",
         "content": "Se ha cerrado la sesión porque tu token de autenticación ha expirado. Vuelva a iniciar sesión."
     },
     "authorizationErrorToast": {
-        "action": "Refrescar página",
+        "action": "Recargar página",
         "title": "Error de autorización",
         "content": "Parece que no tienes permiso de ver este recurso."
     },

@@ -2,7 +2,7 @@
   <div class="card-text">
     <a
       v-if="isValid(value)"
-      :href="value && value.url"
+      :href="getHref(value)"
       target="_blank"
       rel="nofollow noopener noreferrer"
       class="forced-pointer-events-auto"

@@ -49,9 +49,15 @@ function baserowModuleConfig(
 }
 
 const baserow = baserowModuleConfig()
+const frontendCookiePrefix =
+  process.env.BASEROW_FRONTEND_COOKIE_PREFIX ||
+  process.env.NUXT_PUBLIC_BASEROW_FRONTEND_COOKIE_PREFIX ||
+  ''
 
 export default defineNuxtConfig({
-  compatibilityDate: '2025-07-15',
+  compatibilityDate: '2025-11-15',
+  // Nuxt 4 defaults to srcDir "app/"; keep v3-style layout (app.vue and modules at project root).
+  srcDir: '.',
   alias: {
     '@baserow': '',
   },
@@ -70,7 +76,7 @@ export default defineNuxtConfig({
     trailingSlash: true,
     detectBrowserLanguage: {
       useCookie: true,
-      cookieKey: 'i18n-language',
+      cookieKey: `${frontendCookiePrefix}i18n-language`,
       redirectOn: 'root',
     },
     vueI18n: './i18n.config.ts',
@@ -124,8 +130,94 @@ export default defineNuxtConfig({
       },
     },
     optimizeDeps: {
-      // Pre-bundle moment-guess to avoid missing source map warning
-      include: ['moment-guess'],
+      // Pre-bundle to avoid page reloads
+      include: [
+        'moment-guess',
+        '@vue/devtools-core',
+        '@vue/devtools-kit',
+        'vuex',
+        'vuejs3-datepicker',
+        'posthog-js',
+        'flush-promises', // CJS
+        'papaparse', // CJS
+        'mitt',
+        'axios',
+        'lodash', // CJS
+        'bignumber.js',
+        'path-to-regexp', // CJS
+        'lodash/get', // CJS
+        'lodash/debounce', // CJS
+        'ulid',
+        'jwt-decode',
+        'tldjs', // CJS
+        'moment-timezone', // CJS
+        'moment/dist/locale/fr',
+        'moment/dist/locale/nl',
+        'moment/dist/locale/de',
+        'moment/dist/locale/es',
+        'moment/dist/locale/it',
+        'moment/dist/locale/pl',
+        'moment/dist/locale/ko',
+        'moment/dist/locale/uk',
+        'markdown-it',
+        '@vuelidate/validators',
+        '@tiptap/vue-3',
+        '@tiptap/core',
+        '@vuelidate/core',
+        'thenby', // CJS
+        'js-sha256', // CJS
+        'async-mutex',
+        'tiptap-markdown',
+        '@tiptap/extension-placeholder',
+        '@tiptap/extension-document',
+        '@tiptap/extension-paragraph',
+        '@tiptap/extension-hard-break',
+        '@tiptap/extension-heading',
+        '@tiptap/extension-list-item',
+        '@tiptap/extension-bullet-list',
+        '@tiptap/extension-ordered-list',
+        '@tiptap/extension-bold',
+        '@tiptap/extension-italic',
+        '@tiptap/extension-strike',
+        '@tiptap/extension-link',
+        '@tiptap/extension-underline',
+        '@tiptap/extension-subscript',
+        '@tiptap/extension-superscript',
+        '@tiptap/extension-blockquote',
+        '@tiptap/extension-code-block',
+        '@tiptap/extension-horizontal-rule',
+        '@tiptap/extension-task-item',
+        '@tiptap/extension-task-list',
+        '@tiptap/extension-text',
+        '@tiptap/extension-dropcursor',
+        '@tiptap/extension-gapcursor',
+        '@tiptap/extension-history',
+        'markdown-it-task-lists', // CJS
+        'antlr4', // CJS
+        'lowlight',
+        'highlight.js/lib/languages/javascript',
+        'highlight.js/lib/languages/css',
+        '@tiptap/extension-code-block-lowlight',
+        'moment',
+        '@tiptap/vue-3/menus',
+        'markdown-it-regexp', // CJS
+        '@tiptap/extension-mention',
+        '@tiptap/pm/state',
+        '@tiptap/extension-image',
+        'tippy.js',
+        'lodash/extend', // CJS
+        'prosemirror-state',
+        '@tiptap/pm/model',
+        '@vue-flow/core',
+        '@vue-flow/background',
+        '@vue-flow/controls',
+        '@zip.js/zip.js',
+        'chartjs-adapter-moment',
+        'xlsx',
+        '@tiptap/pm/transform',
+        '@sentry/core',
+        'lodash/isObject',
+      ],
     },
   },
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',

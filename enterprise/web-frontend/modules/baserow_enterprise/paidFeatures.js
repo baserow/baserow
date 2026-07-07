@@ -286,6 +286,58 @@ export class BuilderCustomCodePaidFeature extends PaidFeature {
   }
 }
 
+export class CodeRunnerPaidFeature extends PaidFeature {
+  static getType() {
+    return 'code_runner'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-code'
+  }
+
+  getName() {
+    return this.app.$i18n.t('enterpriseFeatures.codeRunner')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t('enterpriseFeatures.codeRunnerContent')
+  }
+}
+
+export class XLSFileReaderPaidFeature extends PaidFeature {
+  static getType() {
+    return 'xls_file_reader'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-page'
+  }
+
+  getName() {
+    return this.app.$i18n.t('enterpriseFeatures.xlsFileReader')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t('enterpriseFeatures.xlsFileReaderContent')
+  }
+}
+
 export class DataScannerPaidFeature extends PaidFeature {
   static getType() {
     return 'data_scanner'

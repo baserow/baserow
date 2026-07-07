@@ -1,6 +1,8 @@
-from typing import List, NewType, TypedDict, TypeVar, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, NewType, TypedDict, TypeVar, Union
 
 from baserow.contrib.builder.types import ElementDict
+from baserow.core.graph.types import GraphPointPositionType
 
 from ..workflow_actions.models import BuilderWorkflowAction
 from .models import Element, RecordSelectorElement, RepeatElement, TableElement
@@ -16,3 +18,18 @@ CollectionElementSubClass = Union[TableElement, RepeatElement, RecordSelectorEle
 class ElementsAndWorkflowActions(TypedDict):
     elements: List[Element]
     workflow_actions: List[BuilderWorkflowAction]
+
+
+@dataclass
+class ElementMove:
+    element: Element
+    previous_output: str
+    previous_reference_element: Element | None
+    previous_position: GraphPointPositionType
+
+
+@dataclass
+class UpdatedElement:
+    element: Element
+    original_values: Dict[str, Any]
+    new_values: Dict[str, Any]

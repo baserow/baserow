@@ -1,4 +1,9 @@
 <template>
+  <!--
+    Presence focus is disabled because the client never table-subscribes to
+    the foreign table's presence space, so emitted focus could never be
+    rendered anywhere.
+  -->
   <RowEditModal
     ref="modal"
     :read-only="readOnly"
@@ -9,6 +14,7 @@
     :visible-fields="fields"
     :fields-sortable="fieldsSortable"
     :can-modify-fields="canModifyFields"
+    :presence-focus-enabled="false"
     @hidden="$emit('hidden', $event)"
     @update="update"
   ></RowEditModal>
@@ -16,6 +22,7 @@
 
 <script>
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
+import modal from '@baserow/modules/core/mixins/modal'
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
@@ -34,6 +41,7 @@ import {
 export default {
   name: 'ForeignRowEditModal',
   components: { RowEditModal },
+  mixins: [modal],
   props: {
     tableId: {
       type: Number,

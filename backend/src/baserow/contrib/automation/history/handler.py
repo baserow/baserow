@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Union
 
 from django.db.models import Prefetch, QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
+    AutomationNodeHistoryDoesNotExist,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
 )
@@ -15,6 +16,9 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.db import specific_iterator
+from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 
 
 class AutomationHistoryHandler:
@@ -33,15 +37,6 @@ class AutomationHistoryHandler:
         return base_queryset.filter(
             original_workflow=workflow,
             simulate_until_node__isnull=True,
-        ).prefetch_related(
-            Prefetch(
-                "node_histories",
-                queryset=AutomationNodeHistory.objects.select_related(
-                    "node", "node__workflow"
-                )
-                .prefetch_related("node_results")
-                .order_by("started_on"),
-            ),
         )
 
     def get_workflow_history(
@@ -143,3 +138,136 @@ class AutomationHistoryHandler:
             raise AutomationWorkflowHistoryNodeResultDoesNotExist()
 
         return node_result.result
+
+    def get_node_history(
+        self,
+        node_history_id: int,
+        base_queryset: Optional[QuerySet] = None,
+    ) -> AutomationNodeHistory:
+        """Returns an AutomationNodeHistory by its ID."""
+
+        if base_queryset is None:
+            base_queryset = AutomationNodeHistory.objects.all()
+
+        try:
+            return base_queryset.select_related(
+                "workflow_history__original_workflow__automation__workspace",
+            ).get(id=node_history_id)
+        except AutomationNodeHistory.DoesNotExist:
+            raise AutomationNodeHistoryDoesNotExist(node_history_id)
+
+    def _query_node_histories(
+        self, base_queryset: QuerySet[AutomationNodeHistory]
+    ) -> QuerySet[AutomationNodeHistory]:
+        return (
+            base_queryset.select_related("node", "node__workflow")
+            .prefetch_related(
+                Prefetch(
+                    "node_results",
+                    queryset=AutomationNodeResult.objects.only(
+                        "id", "node_history_id", "iteration_path"
+                    ),
+                )
+            )
+            .order_by("workflow_history_id", "started_on", "id")
+        )
+
+    def _with_specific_nodes(
+        self, node_histories: QuerySet[AutomationNodeHistory]
+    ) -> List[AutomationNodeHistory]:
+        """
+        Resolves the related nodes to their specific model instances in batches.
+        """
+
+        node_histories = list(node_histories)
+        nodes = [node_history.node for node_history in node_histories]
+        specific_nodes = {
+            node.id: node
+            for node in specific_iterator(
+                nodes,
+                base_model=AutomationNode,
+                select_related=["workflow"],
+            )
+        }
+        service_ids = [
+            node.service_id
+            for node in specific_nodes.values()
+            if node.service_id is not None
+        ]
+        specific_services_map = {
+            service.id: service
+            for service in ServiceHandler().get_services(
+                base_queryset=Service.objects.filter(id__in=service_ids)
+            )
+        }
+        for node in specific_nodes.values():
+            service_id = node.service_id
+            if service_id is not None and service_id in specific_services_map:
+                node.service = specific_services_map[service_id]
+
+        for node_history in node_histories:
+            node_history.node = specific_nodes[node_history.node_id]
+        return node_histories
+
+    def get_node_histories(
+        self,
+        workflow_history: AutomationWorkflowHistory,
+        specific: bool = False,
+    ) -> QuerySet[AutomationNodeHistory] | List[AutomationNodeHistory]:
+        """Returns a queryset of AutomationNodeHistory by the workflow history."""
+
+        node_histories = self._query_node_histories(
+            AutomationNodeHistory.objects.filter(workflow_history=workflow_history)
+        )
+        if specific:
+            return self._with_specific_nodes(node_histories)
+        return node_histories
+
+    def get_node_histories_for_workflow_histories(
+        self,
+        workflow_history_ids: Iterable[int],
+        specific: bool = False,
+    ) -> QuerySet[AutomationNodeHistory] | List[AutomationNodeHistory]:
+        """Returns node histories for the given workflow history ids."""
+
+        node_histories = self._query_node_histories(
+            AutomationNodeHistory.objects.filter(
+                workflow_history_id__in=workflow_history_ids
+            )
+        )
+        if specific:
+            return self._with_specific_nodes(node_histories)
+        return node_histories
+
+    def get_node_history_result(
+        self, node_history: AutomationNodeHistory
+    ) -> AutomationNodeResult:
+        """Returns the AutomationNodeResult for the given node history."""
+
+        try:
+            return AutomationNodeResult.objects.only("result").get(
+                node_history=node_history
+            )
+        except AutomationNodeResult.DoesNotExist:
+            raise AutomationWorkflowHistoryNodeResultDoesNotExist()
+
+    def get_edge_labels(
+        self, node_histories: List[AutomationNodeHistory]
+    ) -> Dict[int, str]:
+        """
+        For each node history whose result has an edge label, return a
+        mapping of `node_history_id -> label` of the edge taken.
+        """
+
+        if not node_histories:
+            return {}
+
+        results = AutomationNodeResult.objects.filter(
+            node_history_id__in=[nh.id for nh in node_histories],
+        ).only("node_history_id", "result")
+
+        return {
+            nr.node_history_id: label
+            for nr in results
+            if (label := nr.result.get("edge", {}).get("label"))
+        }

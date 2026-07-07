@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes a crash when typing into inputs that unmount during an event",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-05-13"
+}

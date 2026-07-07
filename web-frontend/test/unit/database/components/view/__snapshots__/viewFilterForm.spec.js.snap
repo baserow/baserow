@@ -461,6 +461,34 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
                         <!--v-if-->
                         <span
                           class="select__item-name-text"
+                          title="viewFilter.startsWith"
+                        >
+                          viewFilter.startsWith
+                        </span>
+                        
+                      </div>
+                      <!--v-if-->
+                    </a>
+                    <i
+                      class="select__item-active-icon iconoir-check"
+                    />
+                  </li>
+                  <li
+                    class="select__item select__item--no-options visible"
+                    role="listitem"
+                  >
+                    <a
+                      class="select__item-link"
+                    >
+                      <div
+                        class="select__item-name"
+                      >
+                        <!--v-if-->
+                        
+                        <!--v-if-->
+                        <!--v-if-->
+                        <span
+                          class="select__item-name-text"
                           title="viewFilter.lengthIsLowerThan"
                         >
                           viewFilter.lengthIsLowerThan
@@ -558,6 +586,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
                   type="text"
                   value="test"
                 />
+                <!--v-if-->
                 <!--v-if-->
               </div>
               <!--v-if-->
@@ -1105,6 +1134,8 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
     
     
     
+    
+    
   </div>
   <div
     class="context__footer"
@@ -1601,6 +1632,8 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
         </div>
       </div>
     </div>
+    
+    
     
     
     

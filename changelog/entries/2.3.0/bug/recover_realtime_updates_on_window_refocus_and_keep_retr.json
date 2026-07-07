@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Real-time updates now recover when the window is refocused and keep retrying after repeated failures, instead of getting stuck asking to refresh",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-01"
+}

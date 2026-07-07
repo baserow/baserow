@@ -54,6 +54,10 @@
   border: solid 1px $palette-neutral-200;
 
   @include rounded($rounded-md);
+
+  &--drag-over {
+    border-color: $palette-neutral-500;
+  }
 }
 
 .kanban-view__stack-head {

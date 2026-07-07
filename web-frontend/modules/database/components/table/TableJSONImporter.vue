@@ -10,16 +10,14 @@
           <pre>
 [
   {
-    "to": "Tove",
-    "from": "Jani",
-    "heading": "Reminder",
-    "body": "Don't forget me this weekend!"
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "123-456-7890"
   },
   {
-    "to": "Bram",
-    "from": "Nigel",
-    "heading": "Reminder",
-    "body": "Don't forget about the export feature this week"
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "phone": "987-654-3210"
   }
 ]
         </pre

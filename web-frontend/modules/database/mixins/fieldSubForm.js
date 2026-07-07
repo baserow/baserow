@@ -31,6 +31,15 @@ export default {
     },
   },
   computed: {
+    hasViewLevelDefaultValue() {
+      const fieldId = this.defaultValues?.id
+      if (!fieldId || !this.view?.default_row_values) {
+        return false
+      }
+      return this.view.default_row_values.some(
+        (item) => item.field === fieldId && item.enabled
+      )
+    },
     isDefaultValueFieldDisabled() {
       if (!this.fieldConstraints || this.fieldConstraints.length === 0) {
         return false

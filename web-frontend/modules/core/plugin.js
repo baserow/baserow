@@ -84,6 +84,7 @@ import {
   RuntimeLower,
   RuntimeCapitalize,
   RuntimeRound,
+  RuntimeAbs,
   RuntimeIsEven,
   RuntimeIsOdd,
   RuntimeDateTimeFormat,
@@ -94,6 +95,10 @@ import {
   RuntimeMinute,
   RuntimeSecond,
   RuntimeNow,
+  RuntimeNull,
+  RuntimeNumberFormat,
+  RuntimeToDuration,
+  RuntimeDurationFormat,
   RuntimeToday,
   RuntimeGetProperty,
   RuntimeRandomInt,
@@ -114,7 +119,11 @@ import {
   RuntimeSum,
   RuntimeAvg,
   RuntimeAt,
+  RuntimeRange,
   RuntimeToArray,
+  RuntimeToJson,
+  RuntimeFromJson,
+  RuntimeToDatetime,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import {
@@ -257,6 +266,7 @@ export default defineNuxtPlugin({
     registry.register('runtimeFormulaFunction', new RuntimeLower(context))
     registry.register('runtimeFormulaFunction', new RuntimeCapitalize(context))
     registry.register('runtimeFormulaFunction', new RuntimeRound(context))
+    registry.register('runtimeFormulaFunction', new RuntimeAbs(context))
     registry.register('runtimeFormulaFunction', new RuntimeIsEven(context))
     registry.register('runtimeFormulaFunction', new RuntimeIsOdd(context))
     registry.register(
@@ -294,6 +304,20 @@ export default defineNuxtPlugin({
     registry.register('runtimeFormulaFunction', new RuntimeAvg(context))
     registry.register('runtimeFormulaFunction', new RuntimeAt(context))
     registry.register('runtimeFormulaFunction', new RuntimeToArray(context))
+    registry.register('runtimeFormulaFunction', new RuntimeRange(context))
+    registry.register('runtimeFormulaFunction', new RuntimeToJson(context))
+    registry.register('runtimeFormulaFunction', new RuntimeFromJson(context))
+    registry.register('runtimeFormulaFunction', new RuntimeNull(context))
+    registry.register(
+      'runtimeFormulaFunction',
+      new RuntimeNumberFormat(context)
+    )
+    registry.register('runtimeFormulaFunction', new RuntimeToDuration(context))
+    registry.register(
+      'runtimeFormulaFunction',
+      new RuntimeDurationFormat(context)
+    )
+    registry.register('runtimeFormulaFunction', new RuntimeToDatetime(context))
     registry.register('errorPage', new DefaultErrorPageType(context))
 
     const fns = [

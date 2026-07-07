@@ -1,0 +1,30 @@
+// Project-level Zed settings for Baserow.
+// Copied into `<repo>/.zed/settings.json` by
+// `config/zed/apply_standard_baserow_zed_config.sh`.
+{
+  "languages": {
+    "Python": {
+      "language_servers": ["pyright", "ruff"],
+      "formatter": [
+        { "language_server": { "name": "ruff" } }
+      ],
+      "format_on_save": "on"
+    }
+  },
+  "lsp": {
+    "pyright": {
+      "settings": {
+        "python": {
+          "pythonPath": ".venv/bin/python"
+        },
+        "python.analysis": {
+          "extraPaths": [
+            "backend/src",
+            "premium/backend/src",
+            "enterprise/backend/src"
+          ]
+        }
+      }
+    }
+  }
+}

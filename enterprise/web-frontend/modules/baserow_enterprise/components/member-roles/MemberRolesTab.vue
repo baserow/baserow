@@ -2,13 +2,11 @@
   <div>
     <div class="member-roles-tab__header">
       <h2 class="member-roles-tab__header-title">
-        {{
-          $t(`memberRolesTab.${translationPrefix}.title`, { name: scope.name })
-        }}
+        {{ $t('memberRolesTab.title', translationParams) }}
       </h2>
       <div>
         <HelpIcon
-          :tooltip="$t(`memberRolesTab.${translationPrefix}.headerTooltip`)"
+          :tooltip="$t('memberRolesTab.headerTooltip', translationParams)"
           class="margin-right-1"
         ></HelpIcon>
         <Button
@@ -16,17 +14,17 @@
           :disabled="loading"
           :loading="loading"
           @click="loading ? null : $refs.roleAssignmentModal.show()"
-          >{{ $t(`memberRolesTab.${translationPrefix}.selectMembers`) }}</Button
+          >{{ $t('memberRolesTab.selectMembers') }}</Button
         >
       </div>
     </div>
     <div v-if="loading" class="loading"></div>
     <div v-else>
       <Alert type="warning">
-        <template #title>{{
-          $t(`memberRolesTab.${translationPrefix}.warningTitle`)
-        }}</template>
-        <p>{{ $t(`memberRolesTab.${translationPrefix}.warningMessage`) }}</p>
+        <template #title>{{ $t('memberRolesTab.warningTitle') }}</template>
+        <p>
+          {{ $t('memberRolesTab.warningMessage', translationParams) }}
+        </p>
       </Alert>
       <MemberRolesMembersList
         :role-assignments="roleAssignments"
@@ -57,6 +55,24 @@
 import { mapGetters } from 'vuex'
 import MemberRolesMembersList from '@baserow_enterprise/components/member-roles/MemberRolesMembersList'
 import RoleAssignmentModal from '@baserow_enterprise/components/member-roles/RoleAssignmentModal'
+
+const MEMBER_ROLE_SCOPE_CONFIG = {
+  application: {
+    type: 'application',
+    parent: ['workspace'],
+    overrides: ['workspace'],
+  },
+  database_table: {
+    type: 'table',
+    parent: ['database', 'workspace'],
+    overrides: ['workspace', 'database'],
+  },
+  database_view: {
+    type: 'view',
+    parent: ['table', 'database', 'workspace'],
+    overrides: ['workspace', 'database', 'table'],
+  },
+}
 
 export default {
   name: 'MemberRolesTab',
@@ -94,37 +110,33 @@ export default {
       default: false,
     },
   },
-  data() {
-    return {
-      isSharedWithEveryone: true,
-    }
-  },
   computed: {
     ...mapGetters({ userId: 'auth/getUserId' }),
     scopeId() {
       return this.scope.id || null
     },
-    translationPrefix() {
-      switch (this.scopeType) {
-        case 'database':
-          return 'database'
-        case 'database_table':
-          return 'table'
-        case 'database_view':
-          return 'view'
-        default:
-          return 'database'
+    memberRoleScope() {
+      const config =
+        MEMBER_ROLE_SCOPE_CONFIG[this.scopeType] ||
+        MEMBER_ROLE_SCOPE_CONFIG.application
+
+      return {
+        ...config,
+        type: this.scopeLabel(config.type),
+        parent: this.formatScopeLabels(config.parent, 'disjunction'),
+        overrides: this.formatScopeLabels(config.overrides, 'conjunction'),
       }
     },
-    descriptionText() {
-      return this.isSharedWithEveryone
-        ? this.$t(
-            `memberRolesTab.${this.translationPrefix}.everyoneHasAccess`,
-            {
-              name: this.scope.name,
-            }
-          )
-        : this.$t(`memberRolesTab.${this.translationPrefix}.onlyYouHaveAccess`)
+    translationParams() {
+      return {
+        name: this.scope.name,
+        type: this.memberRoleScope.type,
+        parent: this.memberRoleScope.parent,
+        overrides: this.memberRoleScope.overrides,
+      }
+    },
+    locale() {
+      return this.$i18n.locale?.value || this.$i18n.locale
     },
     userRoleAssignments() {
       return this.roleAssignments.filter(
@@ -150,6 +162,35 @@ export default {
     teamsNotInvited() {
       const teamIds = this.teamRoleAssignments.map(({ subject }) => subject.id)
       return this.teams.filter(({ id }) => !teamIds.includes(id))
+    },
+  },
+  methods: {
+    scopeLabel(scope) {
+      let label = null
+
+      switch (scope) {
+        case 'application':
+          label = this.$registry.get('application', this.scope.type).getName()
+          break
+        case 'table':
+          label = this.$t('trashType.table')
+          break
+        case 'view':
+          label = this.$t('trashType.view')
+          break
+        case 'workspace':
+          label = this.$t('common.workspace')
+          break
+      }
+
+      return label?.toLocaleLowerCase(this.locale) || scope
+    },
+    formatScopeLabels(scopes, type) {
+      const labels = scopes.map((scope) => this.scopeLabel(scope))
+      return new Intl.ListFormat(this.locale, {
+        style: 'long',
+        type,
+      }).format(labels)
     },
   },
 }

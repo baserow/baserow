@@ -4,13 +4,20 @@ import flushPromises from 'flush-promises'
 
 import ViewFilterForm from '@baserow/modules/database/components/view/ViewFilterForm.vue'
 
-// Mock the uuid functions to return a predictable value
+// Mock UUID helpers predictably while keeping exports the store/tests need (`generateUUID` for undo).
 let nextFilterUuid = 100
 const mockUuid = () => nextFilterUuid++
 
-vi.mock('@baserow/modules/core/utils/string', () => ({
-  uuid: () => mockUuid(),
-}))
+vi.mock('@baserow/modules/core/utils/string', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    uuid: () => mockUuid(),
+    // Used by createNewUndoRedoActionGroupId in createFilter
+    generateUUID: () =>
+      `00000000-0000-4000-a000-${mockUuid().toString().padStart(12, '0')}`,
+  }
+})
 
 vi.mock('uuid', () => ({
   v1: () => mockUuid(),
@@ -90,6 +97,8 @@ const view = {
   ownership_type: 'collaborative',
 }
 
+const database = { id: 1, workspace_id: 1 }
+
 describe('ViewFilterForm match snapshots', () => {
   let testApp = null
   let mockServer = null
@@ -109,6 +118,7 @@ describe('ViewFilterForm match snapshots', () => {
     props = {
       fields: [],
       view: { filters: [], _: {}, filter_type: 'AND' },
+      database,
       readOnly: false,
     },
     listeners = {}
@@ -130,6 +140,7 @@ describe('ViewFilterForm match snapshots', () => {
     const wrapper = await mountViewFilterForm({
       fields,
       view,
+      database,
       readOnly: false,
     })
     expect(wrapper.element).toMatchSnapshot()
@@ -167,6 +178,7 @@ describe('ViewFilterForm match snapshots', () => {
       {
         fields,
         view: viewClone,
+        database,
         readOnly: false,
       },
       { changed: onChange }
@@ -195,7 +207,6 @@ describe('ViewFilterForm can add/update/remove filters and filter groups', () =>
   let mockServer
 
   const workspace = { id: 1, users: [] }
-  const database = { id: 1, workspace_id: 1 }
   const table = { id: 2, database_id: 1 }
   const fields = [
     {

@@ -92,10 +92,11 @@ export const actions = {
   },
   /**
    * Called when we receive a real time row update event. It loops over all the rows
-   * we have in memory here and checks if the updated row exists and if it's not
-   * managed by the `rows` prop in the row edit modal. If so, it will make the
-   * update. If the row is managed by the `rows` prop we don't have to do the update
-   * because it will be done via `rows` property.
+   * we have in memory here and updates matching rows directly. When a realtime
+   * update removes a row from the grid buffer because it no longer matches filters,
+   * the row can still be marked as existing until the modal's rows watcher runs.
+   * Updating the cached row here prevents the modal from missing that transition
+   * event.
    */
   updated({ commit, getters }, { tableId, values }) {
     const rows = getters.getRows
@@ -104,8 +105,7 @@ export const actions = {
       if (
         value !== null &&
         value.tableId === tableId &&
-        value.id === values.id &&
-        !value.exists
+        value.id === values.id
       ) {
         commit('UPDATE_ROW', { componentId: key, row: values })
       }

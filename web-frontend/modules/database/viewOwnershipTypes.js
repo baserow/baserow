@@ -96,6 +96,15 @@ export class ViewOwnershipType extends Registerable {
   }
 
   /**
+   * Whether this ownership type supports presence focus (cell/row highlights).
+   * Restricted views override this to disable focus when the user lacks full
+   * table-level realtime access.
+   */
+  supportsPresenceFocus(database, table, view) {
+    return true
+  }
+
+  /**
    * Hook that can be used to change the realtime page payload before subscribing to
    * the page. This can be used to subscribe to a different page with different
    * real-time events, if needed.
@@ -155,6 +164,19 @@ export class ViewOwnershipType extends Registerable {
    * @returns {string|null}
    */
   getDecoratorContextWarning(view, fields, visibleFields, database) {
+    return null
+  }
+
+  /**
+   * Returns a component to display below the filter form, or `null` if nothing extra
+   * is needed. This lets ownership types inject contextual UI (e.g. default-value
+   * warnings) into the filter context menu.
+   *
+   * @param {Object} view - The view object.
+   * @param {Object} database - The database object.
+   * @returns {Object|null} A Vue component or null.
+   */
+  getFilterContextComponent(view, database) {
     return null
   }
 }

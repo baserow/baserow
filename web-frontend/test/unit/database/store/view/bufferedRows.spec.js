@@ -1495,6 +1495,91 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[11].id).toBe(14)
   })
 
+  test('updated existing row with a skeleton before row in a filtered view', async () => {
+    // Realtime events for rows changed by a dependency cascade only carry the
+    // row id as the before state; the buffered values must be used instead.
+    const view = {
+      id: 1,
+      filters_disabled: false,
+      filter_type: 'AND',
+      filters: [
+        {
+          id: 1,
+          view: 1,
+          field: 1,
+          type: ContainsViewFilterType.getType(),
+          value: 'value',
+        },
+      ],
+      sortings: [],
+      ownership_type: 'collaborative',
+    }
+    const fields = [
+      {
+        id: 1,
+        name: 'Test 1',
+        type: 'text',
+        primary: true,
+      },
+    ]
+    const populateRow = (row) => {
+      row._ = {}
+      return row
+    }
+
+    const state = {
+      visibleRange: {
+        startIndex: 0,
+        endIndex: 0,
+      },
+      requestSize: 4,
+      viewId: 1,
+      rows: [
+        { id: 1, order: '1.00000000000000000000', field_1: 'Row 1 value' },
+        { id: 2, order: '2.00000000000000000000', field_1: 'Row 2 value' },
+      ],
+    }
+
+    const store = createStore({ service: null, populateRow }, state)
+
+    // The row still matches the filters, so it must be updated in place
+    // instead of being dropped because the skeleton evaluates as empty.
+    await store.dispatch('test/afterExistingRowUpdated', {
+      view,
+      fields,
+      row: { id: 2 },
+      values: { field_1: 'Row 2 value updated' },
+    })
+    let rowsInStore = store.getters['test/getRows']
+    expect(rowsInStore.length).toBe(2)
+    expect(rowsInStore[1].id).toBe(2)
+    expect(rowsInStore[1].field_1).toBe('Row 2 value updated')
+
+    // The new values stop matching the filters, so the row must be removed
+    // from the buffer.
+    await store.dispatch('test/afterExistingRowUpdated', {
+      view,
+      fields,
+      row: { id: 2 },
+      values: { field_1: 'nope' },
+    })
+    rowsInStore = store.getters['test/getRows']
+    expect(rowsInStore.length).toBe(1)
+    expect(rowsInStore[0].id).toBe(1)
+
+    // A skeleton before row for a row outside the buffer has no usable old
+    // state, so the event must be ignored instead of inserting a duplicate.
+    await store.dispatch('test/afterExistingRowUpdated', {
+      view,
+      fields,
+      row: { id: 99 },
+      values: { field_1: 'Row 99 value' },
+    })
+    rowsInStore = store.getters['test/getRows']
+    expect(rowsInStore.length).toBe(1)
+    expect(rowsInStore[0].id).toBe(1)
+  })
+
   test('updated existing row with sorting', async () => {
     const view = {
       id: 1,

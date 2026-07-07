@@ -4,9 +4,12 @@ from zipfile import ZipFile
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 
+from rest_framework.exceptions import PermissionDenied
+
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
     ModelRegistryMixin,
@@ -31,6 +34,17 @@ class BuilderWorkflowActionType(
 
     parent_property_name = "page"
     id_mapping_name = "builder_workflow_actions"
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """
+        Returns whether this workflow action type is deactivated for the workspace.
+        """
+
+        return False
+
+    def raise_if_deactivated(self, workspace: Workspace) -> None:
+        if self.is_deactivated(workspace):
+            raise PermissionDenied("This workflow action type is deactivated.")
 
     def prepare_values(
         self,

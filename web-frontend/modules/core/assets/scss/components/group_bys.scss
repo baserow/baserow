@@ -45,18 +45,23 @@
 
   @include rounded($rounded);
   @include flex-align-items(10px);
+}
 
-  &.group-bys__item--loading {
-    &::before {
-      content: '';
-      margin: 0 4px;
+.group-bys__handle {
+  width: 8px;
+  height: 16px;
+  background-image: radial-gradient($color-neutral-200 40%, transparent 40%);
+  background-size: 4px 4px;
+  background-repeat: repeat;
+  cursor: grab;
 
-      @include loading(14px);
-    }
+  &:hover {
+    background-image: radial-gradient($color-neutral-500 40%, transparent 40%);
   }
 }
 
 .group-bys__remove {
+  position: relative;
   font-size: 20px;
   color: $color-neutral-900;
   justify-content: center;
@@ -69,8 +74,24 @@
     color: $color-neutral-500;
   }
 
+  // While the row is loading, hide the cancel icon and overlay a spinner of
+  // the same width inside the existing `.group-bys__remove` slot. This keeps
+  // the row's flex layout at the exact same widths as the non-loading
+  // state, avoiding any horizontal shift when toggling loading on or off.
   .group-bys__item--loading & {
-    display: none;
+    pointer-events: none;
+
+    > i {
+      visibility: hidden;
+    }
+
+    &::after {
+      content: '';
+      margin: -7px 0 0 -7px;
+
+      @include loading(14px);
+      @include absolute(50%, auto, auto, 50%);
+    }
   }
 }
 
@@ -151,4 +172,14 @@
 
 .group-bys__add {
   @include absolute(calc(100% + 4px), auto, auto, 0);
+}
+
+.group-bys__footer {
+  justify-content: space-between;
+}
+
+.group-bys__footer-actions {
+  margin-left: auto;
+
+  @include flex-align-items(20px);
 }

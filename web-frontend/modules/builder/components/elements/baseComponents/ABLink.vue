@@ -1,5 +1,6 @@
 <template>
-  <a
+  <component
+    :is="url !== null ? 'a' : 'div'"
     :class="[
       {
         'ab-link': variant !== 'button',
@@ -15,7 +16,7 @@
     @click="handleClick"
   >
     <slot></slot>
-  </a>
+  </component>
 </template>
 
 <script>
@@ -62,7 +63,8 @@ export default {
      */
     url: {
       type: String,
-      required: true,
+      required: false,
+      default: null,
     },
     /**
      * @type {Boolean} - Whether the active class should be applied to the link.
@@ -75,6 +77,9 @@ export default {
   },
   computed: {
     isExternalLink() {
+      if (this.url === null) {
+        return false
+      }
       return !this.url.startsWith('/')
     },
     forceActiveClass() {
@@ -83,6 +88,10 @@ export default {
   },
   methods: {
     handleClick(event) {
+      if (this.url === null) {
+        return
+      }
+
       if (this.mode === 'editing' || !this.url) {
         event.preventDefault()
         return

@@ -117,7 +117,7 @@
         </FormGroup>
       </template>
       <template #preview>
-        <ABLink url="">{{ $t('linkThemeConfigBlock.link') }}</ABLink>
+        <ABLink>{{ $t('linkThemeConfigBlock.link') }}</ABLink>
       </template>
     </ThemeConfigBlockSection>
     <ThemeConfigBlockSection :title="$t('linkThemeConfigBlock.hoverState')">
@@ -158,7 +158,7 @@
         </FormGroup>
       </template>
       <template #preview>
-        <ABLink url="" class="ab-link--force-hover">
+        <ABLink class="ab-link--force-hover">
           {{ $t('linkThemeConfigBlock.link') }}
         </ABLink>
       </template>
@@ -203,7 +203,7 @@
         </FormGroup>
       </template>
       <template #preview>
-        <ABLink url="" class="ab-link--force-active">
+        <ABLink class="ab-link--force-active">
           {{ $t('linkThemeConfigBlock.link') }}
         </ABLink>
       </template>

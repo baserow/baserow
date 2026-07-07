@@ -227,8 +227,7 @@ export default {
   computed: {
     ...mapGetters({ deviceTypeSelected: 'page/getDeviceTypeSelected' }),
     isCollapsed() {
-      const { element } = this.applicationContext
-      return this.$store.getters['element/getRepeatElementCollapsed'](element)
+      return this.element._.collapsed
     },
     deviceTypes() {
       return Object.values(this.$registry.getOrderedList('device'))
@@ -307,12 +306,20 @@ export default {
   methods: {
     ...mapActions({
       actionSetDeviceTypeSelected: 'page/setDeviceTypeSelected',
+      actionForceUpdateElement: 'element/forceUpdate',
     }),
     emitToggleRepetitions(value) {
       const { element } = this.applicationContext
-      this.$store.dispatch('element/setRepeatElementCollapsed', {
-        element,
-        collapsed: value,
+      this.actionForceUpdateElement({
+        builder: this.builder,
+        page: this.elementPage,
+        element: this.element,
+        values: {
+          _: {
+            ...this.element._,
+            collapsed: value,
+          },
+        },
       })
     },
     handlePerRowInput(event, deviceTypeType) {

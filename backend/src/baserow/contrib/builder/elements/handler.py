@@ -1,4 +1,5 @@
 from collections import defaultdict
+from copy import deepcopy
 from typing import (
     Any,
     Callable,
@@ -14,14 +15,17 @@ from typing import (
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
+from django.db import transaction
 from django.db.models import QuerySet
 
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
-    ElementNotInSamePage,
     ElementTypeDeactivated,
 )
 from baserow.contrib.builder.elements.models import ContainerElement, Element
+from baserow.contrib.builder.elements.permission_manager import (
+    ElementVisibilityPermissionManager,
+)
 from baserow.contrib.builder.elements.registries import (
     ElementType,
     ElementTypeSubClass,
@@ -31,25 +35,31 @@ from baserow.contrib.builder.elements.types import (
     ElementForUpdate,
     ElementsAndWorkflowActions,
 )
+from baserow.contrib.builder.formula_importer import import_formula
+from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
-from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.graph.handler import BaseGraphHandler
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import MirrorDict, extract_allowed
 
 old_element_type_map = {"dropdown": "choice"}
 
+DeferredImportCallback = Callable[[Element, Dict[str, Any], Dict[str, Any]], None]
+
 
 class ElementHandler:
     allowed_fields_create = [
-        "parent_element_id",
-        "place_in_container",
         "visibility",
         "visibility_condition",
+        "role_type",
+        "roles",
         "css_classes",
         "styles",
         "style_border_top_color",
@@ -80,7 +90,6 @@ class ElementHandler:
 
     allowed_fields_update = [
         "parent_element_id",
-        "place_in_container",
         "css_classes",
         "visibility",
         "visibility_condition",
@@ -158,7 +167,7 @@ class ElementHandler:
 
     def get_ancestors(
         self,
-        element_id: int,
+        element: Element,
         page: Page,
         use_element_cache: bool = True,
         predicate: Optional[Callable[[Element], bool]] = None,
@@ -168,7 +177,7 @@ class ElementHandler:
         results are cached in the dispatch context to avoid multiple queries in
         the same HTTP request.
 
-        :param element_id: The ID of the element.
+        :param element: The element we want to query.
         :param page: The page that holds the elements.
         :param use_element_cache: Whether to use the cached elements on the page or not.
         :param predicate: An optional predicate to filter the ancestors.
@@ -176,8 +185,13 @@ class ElementHandler:
         """
 
         elements = self.get_elements(page, use_cache=use_element_cache)
-        grouped_elements = {element.id: element for element in elements}
-        element = grouped_elements[element_id]
+        grouped_elements = {}
+        for element in elements:
+            # Pre-populate the page relation so that parent_element_id lookups
+            # (which call _get_graph() → self.page) don't trigger extra queries.
+            element.page = page
+            grouped_elements[element.id] = element
+        element = grouped_elements[element.id]
 
         ancestry = []
         while element.parent_element_id is not None:
@@ -191,24 +205,25 @@ class ElementHandler:
 
     def get_first_ancestor_of_type(
         self,
-        element_id: int,
+        element: Element,
         target_type: Type[ElementTypeSubClass],
     ) -> Optional[Element]:
         """
         Returns the first ancestor of the given type belonging to this element.
 
-        :param element_id: The ID of the element.
+        :param element: The element we want to query.
         :param target_type: The type of the element to find.
         :return: The first ancestor of the given type or None if not found.
         """
 
-        element = ElementHandler().get_element(element_id)
         if isinstance(element.get_type(), target_type):
             return element
 
-        for ancestor in self.get_ancestors(element_id, element.page):
+        for ancestor in self.get_ancestors(element, element.page):
             if isinstance(ancestor.get_type(), target_type):
                 return ancestor
+
+        return None
 
     def get_element_for_update(
         self, element_id: int, base_queryset: Optional[QuerySet] = None
@@ -255,6 +270,9 @@ class ElementHandler:
 
         return elements
 
+    def _get_elements_cache_key(self, page: Page, specific: bool) -> str:
+        return f"ab_get_{page.id}_elements_{specific}"
+
     def get_elements(
         self,
         page: Page,
@@ -273,60 +291,229 @@ class ElementHandler:
         :return: The elements of that page.
         """
 
-        # Our cache key varies if we're using specific or generic elements.
-        cache_key = "_page_elements" if not specific else "_page_elements_specific"
+        def _get_elements(base_queryset=base_queryset):
+            if base_queryset is None:
+                base_queryset = Element.objects.all()
 
-        # If a `base_queryset` is given, we can't use caching, clear
-        # both cache keys in case the specific argument has changed.
-        if base_queryset is not None:
-            use_cache = False
-            page._page_elements = None
-            page._page_elements_specific = None
+            queryset = base_queryset.filter(page=page)
+            return self._query_elements(queryset, specific=specific)
 
-        elements_cache = getattr(page, cache_key, None)
-        if use_cache and elements_cache is not None:
-            return elements_cache
+        if use_cache and base_queryset is None:
+            return local_cache.get(
+                self._get_elements_cache_key(page, specific),
+                _get_elements,
+            )
+        return _get_elements()
 
-        queryset = base_queryset if base_queryset is not None else Element.objects.all()
+    def heal_orphan_elements(self, page: Page) -> Dict[str, Any]:
+        """
+        Reconcile `page.graph` with the elements that actually exist in the
+        database, repairing drift that can appear during a non-zero-downtime deploy
+        when older code mutates element rows without touching the graph. Keeping the
+        graph the single source of truth means downstream operations (move, delete,
+        …) never have to special-case a missing or dangling graph entry.
 
-        queryset = queryset.filter(page=page)
+        Two kinds of drift are reconciled:
 
-        elements = self._query_elements(queryset, specific=specific)
+        - "orphans": rows present in the DB but absent from the graph (e.g. created
+          by old code). They are inserted where a newly added element would land:
 
-        if use_cache:
-            setattr(page, cache_key, list(elements))
+          - Unshared page: appended to the end of the page's root chain.
+          - Shared page: appended to the end of the first shared element (the
+            Header/Footer container at the root of the shared page).
 
-        return elements
+        - "stale points": ids still referenced by the graph whose row no longer
+          exists (e.g. hard-deleted by old code). They are spliced out via
+          `prune_points` so a traversal can never resolve a missing point (which
+          would otherwise raise and 500 the editor's element list).
+
+        :param page: The page whose graph should be reconciled.
+        :return: A graph "patch" — the top-level graph entries that changed, keyed by
+            point id, each holding its full new value. Empty when nothing changed.
+            Because the graph is a flat dict, a client can apply it with a shallow
+            merge (`{...graph, ...patch}`). Note a pruned stale key is not in the
+            patch (a shallow merge can't express a deletion), but its now-relinked
+            predecessor is, so the stale key is left unreferenced — harmless, and the
+            client drops it on the next full graph sync.
+        """
+
+        root_key = page.get_graph().GRAPH_ROOT_KEY
+
+        def compute_drift(graph) -> tuple[set, set]:
+            graph_ids = {int(k) for k in graph if k != root_key}
+            db_ids = set(Element.objects.filter(page=page).values_list("id", flat=True))
+            # (orphans missing from the graph, stale points missing from the DB).
+            return db_ids - graph_ids, graph_ids - db_ids
+
+        # Fast path: nothing to reconcile (the steady state). Avoid locking/writes.
+        orphan_ids, stale_ids = compute_drift(page.get_graph().graph)
+        if not orphan_ids and not stale_ids:
+            return {}
+
+        # Re-check under a row lock so concurrent reads can't race on the same graph.
+        with transaction.atomic():
+            locked_page = Page.objects.select_for_update().get(id=page.id)
+            graph_handler = locked_page.get_graph()
+            orphan_ids, stale_ids = compute_drift(graph_handler.graph)
+            if not orphan_ids and not stale_ids:
+                return {}
+
+            # Snapshot before mutating so we can return only what changed.
+            before = deepcopy(graph_handler.graph)
+
+            # Prune stale points first so orphan placement (which traverses the
+            # graph, e.g. append → get_last_position) can't walk into a missing
+            # point part-way through.
+            if stale_ids:
+                graph_handler.prune_points(stale_ids)
+
+            # On a shared page, append orphans to the first shared element (the root
+            # Header/Footer container); otherwise append to the end of the page.
+            container = None
+            if locked_page.shared:
+                root_id = graph_handler.graph.get(root_key)
+                container = (
+                    graph_handler.get_point(root_id) if root_id is not None else None
+                )
+
+            for orphan in Element.objects.filter(id__in=orphan_ids).order_by("id"):
+                if container is not None:
+                    graph_handler.insert(
+                        orphan, container, GraphPointPosition.CHILD, ""
+                    )
+                else:
+                    graph_handler.append(orphan)
+
+            after = graph_handler.graph
+            patch = {k: v for k, v in after.items() if before.get(k) != v}
+
+        # Reflect the healed graph on the caller's page and drop any cached elements.
+        page.graph = locked_page.graph
+        self.invalidate_element_cache(page)
+
+        self._report_graph_heal(page, orphan_ids, stale_ids, patch)
+
+        return patch
+
+    def _report_graph_heal(
+        self,
+        page: Page,
+        healed_ids: set,
+        pruned_ids: set,
+        graph_patch: Dict[str, Any],
+    ) -> None:
+        """
+        Surface a graph reconciliation in Sentry so we know it happened. Drift means
+        the page graph diverged from the DB — typically element rows written or
+        hard-deleted by older code during a non-zero-downtime deploy — and has now
+        been repaired. Reported at "warning" level (it signals an upstream
+        inconsistency, even though it's self-corrected), with the counts, ids and
+        the applied patch.
+        """
+
+        import sentry_sdk
+
+        with sentry_sdk.new_scope() as scope:
+            scope.set_context(
+                "graph_heal",
+                {
+                    "page_id": page.id,
+                    "builder_id": page.builder_id,
+                    "shared": page.shared,
+                    "healed_element_count": len(healed_ids),
+                    "healed_element_ids": sorted(healed_ids),
+                    "pruned_stale_count": len(pruned_ids),
+                    "pruned_stale_ids": sorted(pruned_ids),
+                    "graph_patch": graph_patch,
+                },
+            )
+            sentry_sdk.capture_message(
+                f"Healed {len(healed_ids)} orphan element(s) and pruned "
+                f"{len(pruned_ids)} stale point(s) from the graph of builder "
+                f"page {page.id}.",
+                level="warning",
+            )
+
+    def _get_builder_elements_cache_key(self, builder_id: int, specific: bool) -> str:
+        return f"ab_get_{builder_id}_builder_elements_{specific}"
 
     def get_builder_elements(
         self,
-        builder: List[Page],
+        builder: Builder | int,
         base_queryset: Optional[QuerySet] = None,
         specific: bool = True,
+        use_cache: bool = True,
     ) -> Union[QuerySet[Element], Iterable[Element]]:
         """
         Gets all the elements of a given builder.
 
-        :param builder: The builder that holds the pages that hold the elements.
+        :param builder: The builder (or builder Id) that holds the pages that hold
+          the elements.
         :param base_queryset: The base queryset to use to build the query.
         :param specific: Whether to return the generic elements or the specific
             instances.
         :return: The elements of that builder.
         """
 
-        queryset = base_queryset if base_queryset is not None else Element.objects.all()
+        def _get_elements():
+            queryset = (
+                base_queryset if base_queryset is not None else Element.objects.all()
+            )
+            queryset = queryset.filter(page__builder=builder).select_related(
+                "page__builder__workspace"
+            )
+            elements = self._query_elements(queryset, specific=specific)
 
-        queryset = queryset.filter(page__builder=builder)
+            if use_cache and base_queryset is None:
+                # We populate the per page cache with the result
+                elements_per_page = defaultdict(list)
+                grouped_elements = []
+                for element in elements:
+                    grouped_elements.append(element)
+                    elements_per_page[element.page].append(element)
 
-        elements = self._query_elements(queryset, specific=specific)
+                for page, page_elements in elements_per_page.items():
+                    local_cache.get(
+                        self._get_elements_cache_key(page, specific),
+                        page_elements,
+                    )
 
-        return elements
+            return elements
+
+        if use_cache and base_queryset is None:
+            return local_cache.get(
+                self._get_builder_elements_cache_key(
+                    builder.id if not isinstance(builder, int) else builder, specific
+                ),
+                _get_elements,
+            )
+
+        return _get_elements()
+
+    def invalidate_element_cache(self, page: Page):
+        """
+        Invalidates the element, graph parent and visibility cache. To be used when we
+        add or remove an element from the page (and from the graph).
+
+        :param page: The target page cache.
+        """
+
+        local_cache.delete(self._get_elements_cache_key(page, True))
+        local_cache.delete(self._get_elements_cache_key(page, False))
+        local_cache.delete(
+            BaseGraphHandler.generate_previous_position_map_cache_key(page)
+        )
+        ElementVisibilityPermissionManager.invalidate_builder_element_visibility_cache(
+            page.builder_id
+        )
 
     def create_element(
         self,
         element_type: ElementType,
         page: Page,
-        before: Optional[Element] = None,
+        reference_element: Element | None = None,
+        position: GraphPointPositionType = "south",
+        place_in_container: str = "",
         **kwargs,
     ) -> Element:
         """
@@ -334,54 +521,31 @@ class ElementHandler:
 
         :param element_type: The type of the element.
         :param page: The page the element exists in.
-        :param before: If provided and no order is provided, will place the new element
-            before the given element.
+        :param reference_element: The element reference element for the position.
+        :param position: The position relative to the reference element.
+        :param place_in_container: The place inside a container element, if any.
         :param kwargs: Additional attributes of the element.
-        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
-            intermediate order. The full order of the element of the page must be
-            recalculated in this case before calling this method again.
         :return: The created element.
         """
 
         if element_type.is_deactivated(page.builder.workspace):
             raise ElementTypeDeactivated()
 
-        parent_element_id = kwargs.get("parent_element_id", None)
-        place_in_container = kwargs.get("place_in_container", None)
-
-        if before:
-            order = Element.get_unique_order_before_element(
-                before, parent_element_id, place_in_container
-            )
-        else:
-            order = Element.get_last_order(page, parent_element_id, place_in_container)
-
         allowed_values = extract_allowed(
             kwargs, self.allowed_fields_create + element_type.allowed_fields
         )
-
         allowed_values["page"] = page
         allowed_values = element_type.prepare_value_for_db(allowed_values)
 
         model_class = cast(Element, element_type.model_class)
-
-        element = model_class(order=order, **allowed_values)
+        element = model_class(**allowed_values)
         element.save()
 
         element_type.after_create(element, kwargs)
 
+        self.invalidate_element_cache(page)
+
         return element
-
-    def delete_element(self, element: Element):
-        """
-        Deletes an element.
-
-        :param element: The to-be-deleted element.
-        """
-
-        element.get_type().before_delete(element)
-
-        element.delete()
 
     def update_element(self, element: ElementForUpdate, **kwargs) -> Element:
         """
@@ -414,81 +578,11 @@ class ElementHandler:
 
         element.save()
 
+        self.invalidate_element_cache(element.page)
+
         element.get_type().after_update(element, kwargs, element_changes)
 
         return element
-
-    def move_element(
-        self,
-        target_page: Page,
-        element: ElementForUpdate,
-        parent_element: Optional[Element],
-        place_in_container: str,
-        before: Optional[Element] = None,
-    ) -> Element:
-        """
-        Moves the given element before the specified `before` element in the same page.
-
-        :param element: The element to move.
-        :param before: The element before which to move the `element`. If before is not
-            specified, the element is moved at the end of the list.
-        :param parent_element: The new parent element of the element.
-        :param place_in_container: The new place in container of the element.
-        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
-            intermediate order. The full order of the element of the page must be
-            recalculated in this case before calling this method again.
-        :return: The moved element.
-        """
-
-        if parent_element is not None:
-            parent_element = parent_element.specific
-
-        parent_element_id = getattr(parent_element, "id", None)
-
-        element.get_type().validate_place(
-            target_page, parent_element, place_in_container
-        )
-
-        if before:
-            element.order = Element.get_unique_order_before_element(
-                before, parent_element_id, place_in_container
-            )
-        else:
-            element.order = Element.get_last_order(
-                target_page, parent_element_id, place_in_container
-            )
-
-        element.page = target_page
-        element.parent_element = parent_element
-        element.place_in_container = place_in_container
-
-        element.save()
-
-        element.get_type().after_move(element)
-
-        return element
-
-    def order_elements(self, page: Page, order: List[int], base_qs=None) -> List[int]:
-        """
-        Assigns a new order to the elements on a page.
-        You can provide a base_qs for pre-filter the elements affected by this change
-
-        :param page: The page that the elements belong to
-        :param order: The new order of the elements
-        :param base_qs: A QS that can have filters already applied
-        :raises ElementNotInSamePage: If the element is not part of the provided page
-        :return: The new order of the elements
-        """
-
-        if base_qs is None:
-            base_qs = Element.objects.filter(page=page)
-
-        try:
-            full_order = Element.order_objects(base_qs, order)
-        except IdDoesNotExist:
-            raise ElementNotInSamePage()
-
-        return full_order
 
     def before_places_in_container_removed(
         self, container_element: ContainerElement, places: List[str]
@@ -505,52 +599,13 @@ class ElementHandler:
 
         element_type = element_type_registry.get_by_model(container_element)
 
-        elements_being_moved = Element.objects.filter(
-            parent_element=container_element,
-            place_in_container__in=places,
+        new_place_in_container = str(
+            element_type.get_new_place_in_container(container_element, places)
         )
 
-        element_count = elements_being_moved.count()
-
-        if element_count == 0:
-            return []
-
-        new_place_in_container = element_type.get_new_place_in_container(
-            container_element, places
+        return container_element.page.get_graph().merge_children_into_place(
+            container_element, places, new_place_in_container
         )
-
-        new_order_values = Element.get_last_orders(
-            container_element.page,
-            container_element.id,
-            new_place_in_container,
-            amount=element_count,
-        )
-
-        elements_being_moved = element_type.apply_order_by_children(
-            elements_being_moved
-        )
-        elements_being_moved = list(elements_being_moved)
-
-        to_update = []
-        for element in elements_being_moved:
-            # Add order values in the same order
-            element.order = new_order_values.pop(0)
-            element.place_in_container = new_place_in_container
-            to_update.append(element)
-
-        Element.objects.bulk_update(to_update, ["order", "place_in_container"])
-
-        return elements_being_moved
-
-    def recalculate_full_orders(
-        self,
-        page: Page,
-    ):
-        """
-        Recalculates the order to whole numbers of all elements of the given page.
-        """
-
-        Element.recalculate_full_orders(queryset=Element.objects.filter(page=page))
 
     def get_element_workflow_actions(
         self, element: Element
@@ -576,10 +631,19 @@ class ElementHandler:
         # We are just creating new elements here so other data id should remain
         id_mapping = defaultdict(lambda: MirrorDict())
 
-        return self._duplicate_element_recursive(element, id_mapping)
+        duplication = self._duplicate_element_recursive(
+            element, id_mapping, element, GraphPointPosition.SOUTH
+        )
+        self.invalidate_element_cache(element.page)
+
+        return duplication
 
     def _duplicate_element_recursive(
-        self, element: Element, id_mapping
+        self,
+        element: Element,
+        id_mapping,
+        reference_element: Element | None = None,
+        position: GraphPointPosition = GraphPointPosition.SOUTH,
     ) -> ElementsAndWorkflowActions:
         """
         Duplicates an element and all of its children.
@@ -592,52 +656,51 @@ class ElementHandler:
         :return: A list of duplicated elements
         """
 
+        page = element.page
         element_type = element_type_registry.get_by_model(element)
 
         serialized = element_type.export_serialized(element)
 
-        next_element = (
-            element.page.element_set.filter(
-                parent_element_id=element.parent_element_id,
-                place_in_container=element.place_in_container,
-                order__gt=element.order,
-            )
-            .exclude(id=element.id)
-            .first()
+        element_duplicated = self.import_element(
+            element.page,
+            serialized,
+            id_mapping,
         )
-
-        if next_element:
-            # The duplicated element will be inserted right after the current one
-            serialized["order"] = Element.get_unique_order_before_element(
-                next_element,
-                element.parent_element_id,
-                element.place_in_container,
-            )
-        else:
-            # The duplicated element will be inserted at the end of the page
-            serialized["order"] = Element.get_last_order(
-                element.page,
-                element.parent_element_id,
-                element.place_in_container,
-            )
-
-        element_duplicated = element_type.import_serialized(
-            element.page, serialized, id_mapping
+        page.get_graph().insert(
+            element_duplicated,
+            reference_element,
+            position,
+            element.place_in_container if position == GraphPointPosition.CHILD else "",
         )
 
         workflow_actions_duplicated = self._duplicate_workflow_actions_of_element(
             element, id_mapping
         )
 
-        elements_and_workflow_actions_duplicated = {
-            "elements": [element_duplicated],
-            "workflow_actions": workflow_actions_duplicated,
-        }
+        elements_and_workflow_actions_duplicated = ElementsAndWorkflowActions(
+            elements=[element_duplicated],
+            workflow_actions=workflow_actions_duplicated,
+        )
 
-        for child in element.children.all():
+        # The first child duplicated into a given place becomes the head of that
+        # slot (inserted as a CHILD of the duplicated parent); every subsequent
+        # child in the same place chains SOUTH of the previously duplicated
+        # sibling. This reproduces the original slot order faithfully and is
+        # independent of how insert(..., CHILD, ...) orders multiple children
+        # (which prepends, to stay the inverse of get_position).
+        last_duplicated_in_place: Dict[str, Element] = {}
+        for child in element.get_child_points():
+            place = child.place_in_container
+            if place in last_duplicated_in_place:
+                child_reference = last_duplicated_in_place[place]
+                child_position = GraphPointPosition.SOUTH
+            else:
+                child_reference = element_duplicated
+                child_position = GraphPointPosition.CHILD
             children_duplicated = self._duplicate_element_recursive(
-                child.specific, id_mapping
+                child.specific, id_mapping, child_reference, child_position
             )
+            last_duplicated_in_place[place] = children_duplicated["elements"][0]
             elements_and_workflow_actions_duplicated["elements"] += children_duplicated[
                 "elements"
             ]
@@ -730,6 +793,37 @@ class ElementHandler:
             current_element.parent_element_id, element_map
         ) | current_element.get_type().import_context_addition(current_element)
 
+    def _postprocess_imported_element(
+        self,
+        element_type: ElementType,
+        created_instance: Element,
+        id_mapping: Dict[str, Dict[int, int]],
+        deferred_import_callback: Optional[DeferredImportCallback] = None,
+    ):
+        """
+        Run the import post-processing for direct element imports.
+
+        The bulk page import path calls these hooks centrally after all elements have
+        been created and the graph has been migrated. Direct callers don't have that
+        later phase, so the handler owns it here.
+        """
+
+        import_context = self.get_import_context_addition(
+            created_instance.id, {created_instance.id: created_instance}
+        )
+
+        if deferred_import_callback is not None:
+            deferred_import_callback(created_instance, id_mapping, import_context)
+
+        updated_models = element_type.import_formulas(
+            created_instance,
+            id_mapping,
+            import_formula,
+            **import_context,
+        )
+        for model in updated_models:
+            model.save()
+
     def import_element(
         self,
         page: Page,
@@ -738,6 +832,7 @@ class ElementHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
+        deferred_import_callbacks: Optional[Dict[int, DeferredImportCallback]] = None,
         **kwargs,
     ) -> Element:
         """
@@ -750,17 +845,29 @@ class ElementHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param deferred_import_callbacks: When provided, import post-processing is
+            deferred and callbacks are collected in this dict keyed by element id.
         :return: the newly created instance.
         """
 
         if "builder_page_elements" not in id_mapping:
             id_mapping["builder_page_elements"] = {}
 
-        element_type = element_type_registry.get(serialized_element["type"])
-
-        if element_type in old_element_type_map:
+        element_type_name = serialized_element["type"]
+        if element_type_name in old_element_type_map:
             # We met an old element type name. Let's migrate it.
-            element_type = old_element_type_map[element_type]
+            element_type_name = old_element_type_map[element_type_name]
+
+        element_type = element_type_registry.get(element_type_name)
+
+        deferred_import_callback = element_type.before_import(
+            serialized_element,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
 
         created_instance = element_type.import_serialized(
             page,
@@ -775,5 +882,15 @@ class ElementHandler:
         id_mapping["builder_page_elements"][serialized_element["id"]] = (
             created_instance.id
         )
+
+        if deferred_import_callbacks is None:
+            self._postprocess_imported_element(
+                element_type,
+                created_instance,
+                id_mapping,
+                deferred_import_callback=deferred_import_callback,
+            )
+        elif deferred_import_callback is not None:
+            deferred_import_callbacks[created_instance.id] = deferred_import_callback
 
         return created_instance

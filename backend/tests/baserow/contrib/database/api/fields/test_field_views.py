@@ -767,6 +767,54 @@ def test_update_field_number_type_deprecation_error(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_and_update_number_field_preserves_prefix_suffix_spaces(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Duration",
+            "type": "number",
+            "number_prefix": "$ ",
+            "number_suffix": " Days",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["number_prefix"] == "$ "
+    assert response_json["number_suffix"] == " Days"
+
+    number_field = NumberField.objects.get(id=response_json["id"])
+    assert number_field.number_prefix == "$ "
+    assert number_field.number_suffix == " Days"
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": number_field.id}),
+        {
+            "number_prefix": " about ",
+            "number_suffix": " days ",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["number_prefix"] == " about "
+    assert response_json["number_suffix"] == " days "
+
+    number_field.refresh_from_db()
+    assert number_field.number_prefix == " about "
+    assert number_field.number_suffix == " days "
+
+
+@pytest.mark.django_db
 def test_change_field_type_with_active_sort_on_field(api_client, data_fixture):
     import uuid
 
@@ -879,6 +927,32 @@ def test_unique_row_values(api_client, data_fixture):
     url = reverse("api:database:fields:unique_row_values", kwargs={"field_id": 9999})
     response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
     assert response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_unique_row_values_user_not_in_workspace(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    other_user, other_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, order=0, name="Letter")
+    model = table.get_model()
+    model.objects.create(**{f"field_{text_field.id}": "secret"})
+
+    url = reverse(
+        "api:database:fields:unique_row_values", kwargs={"field_id": text_field.id}
+    )
+
+    # A user that is not a member of the field's workspace must not be able to read
+    # the unique row values of that field.
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {other_token}")
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+    # The member of the workspace can still read the values.
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["values"] == ["secret"]
 
 
 @pytest.mark.django_db

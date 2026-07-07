@@ -64,7 +64,15 @@ export default {
      * it is outside of the current viewport.
      */
     focusOnError() {
-      const error = this.$el.querySelector('[data-error]')
+      // In Vue 3 a component can have multiple root nodes or a root-level
+      // `v-if`, in which case `this.$el` is a comment/text placeholder node
+      // that doesn't expose `querySelector`. Fall back to the parent element
+      // so we can still locate and scroll to the error message.
+      const root =
+        typeof this.$el?.querySelector === 'function'
+          ? this.$el
+          : this.$el?.parentElement
+      const error = root?.querySelector('[data-error]')
       if (error) {
         error.scrollIntoView({ behavior: 'smooth' })
       }

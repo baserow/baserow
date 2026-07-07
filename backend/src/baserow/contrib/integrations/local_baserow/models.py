@@ -144,6 +144,22 @@ class LocalBaserowUpsertRow(LocalBaserowTableService):
     row_id = FormulaField()
 
 
+class LocalBaserowCreateRows(LocalBaserowTableService):
+    """
+    A model for the local baserow create rows service configuration data.
+    """
+
+    rows = FormulaField()
+
+
+class LocalBaserowUpdateRows(LocalBaserowTableService):
+    """
+    A model for the local baserow update rows service configuration data.
+    """
+
+    rows = FormulaField()
+
+
 class LocalBaserowDeleteRow(LocalBaserowTableService):
     """
     A model for the local baserow delete row service configuration data.
@@ -168,6 +184,26 @@ class LocalBaserowRowsDeleted(LocalBaserowTableService):
     """
     A model for the local baserow rows deleted trigger service.
     """
+
+
+class LocalBaserowFieldsUpdated(LocalBaserowTableService):
+    """
+    A model for the local baserow field updated trigger service. Unlike
+    `LocalBaserowRowsUpdated`, which triggers when any field of a row changes,
+    this service only triggers when one of the watched `fields` changes.
+    """
+
+    fields = models.ManyToManyField(
+        "database.Field",
+        help_text="Only trigger when one of these fields' values changes.",
+        related_name="+",
+    )
+
+    @property
+    def field_ids(self) -> list[int]:
+        """The ids of the watched fields, sorted for a stable representation."""
+
+        return sorted(field.id for field in self.fields.all())
 
 
 class LocalBaserowTableServiceRefinementManager(models.Manager):

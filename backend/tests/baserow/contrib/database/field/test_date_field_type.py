@@ -8,9 +8,12 @@ from pytest_unordered import unordered
 
 from baserow.contrib.database.fields.field_types import DateFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import DateField, TextField
+from baserow.contrib.database.fields.models import DateField, FormulaField, TextField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
+from baserow.contrib.database.formula.types.formula_types import (
+    BaserowFormulaDateType,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.psycopg import is_psycopg3
@@ -840,3 +843,54 @@ def test_datetime_field_overflow(on_db_connection, data_fixture):
     assert len(out) == 1
 
     assert getattr(out[0], date_field.db_column, None) is None
+
+
+def test_baserow_formula_date_type_normalizes_null_non_nullable_options():
+    # `FormulaField` allows every date option to be NULL. When existing rows
+    # violate invariants, `construct_type_from_formula_field` normalizes NULLs
+    # to prevent downstream crashes.
+    corrupt = FormulaField(
+        formula="TODAY()",
+        formula_type="date",
+        date_format=None,
+        date_include_time=None,
+        date_time_format=None,
+        date_show_tzinfo=None,
+        date_force_timezone=None,
+        version=0,
+        requires_refresh_after_insert=False,
+        nullable=True,
+    )
+
+    formula_type = BaserowFormulaDateType.construct_type_from_formula_field(corrupt)
+
+    assert formula_type.date_format == "ISO"
+    assert formula_type.date_include_time is False
+    assert formula_type.date_time_format == "24"
+    assert formula_type.date_show_tzinfo is False
+    assert formula_type.date_force_timezone is None
+
+
+def test_baserow_formula_date_type_preserves_user_set_options():
+    formula_field = FormulaField(
+        formula="TODAY()",
+        formula_type="date",
+        date_format="EU",
+        date_include_time=True,
+        date_time_format="12",
+        date_show_tzinfo=True,
+        date_force_timezone="Europe/Amsterdam",
+        version=0,
+        requires_refresh_after_insert=False,
+        nullable=True,
+    )
+
+    formula_type = BaserowFormulaDateType.construct_type_from_formula_field(
+        formula_field
+    )
+
+    assert formula_type.date_format == "EU"
+    assert formula_type.date_include_time is True
+    assert formula_type.date_time_format == "12"
+    assert formula_type.date_show_tzinfo is True
+    assert formula_type.date_force_timezone == "Europe/Amsterdam"

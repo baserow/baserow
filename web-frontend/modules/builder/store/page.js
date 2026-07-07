@@ -9,6 +9,7 @@ import { BUILDER_ACTION_SCOPES } from '@baserow/modules/builder/utils/undoRedoCo
 export function populatePage(page) {
   return {
     ...page,
+    graph: page.graph || {},
     _: {
       selected: false,
       dataSourceContentLoading: false,
@@ -25,7 +26,7 @@ export function populatePage(page) {
   }
 }
 
-const state = {
+const state = () => ({
   // Holds the value of which page is currently selected
   selected: {},
   // By default, the device type will be desktop. This will be overridden
@@ -35,7 +36,7 @@ const state = {
   deviceTypeSelected: 'desktop',
   // A job object that tracks the progress of a page duplication currently running
   duplicateJob: null,
-}
+})
 
 const mutations = {
   ADD_ITEM(state, { builder, page }) {
@@ -46,6 +47,7 @@ const mutations = {
   },
   DELETE_ITEM(state, { builder, id }) {
     const index = builder.pages.findIndex((item) => item.id === id)
+    if (index === -1) return
     // Clear the elements to void the page and prevent errors
     builder.pages[index].elements = []
     builder.pages[index].elementMap = {}
@@ -100,9 +102,13 @@ const actions = {
     // Check if the provided page id is found in the just selected builder.
     const page = getters.getById(builder, pageId)
 
+    // Send the shared page id alongside the content page id so that edits to
+    // shared (header/footer) elements remain undoable while editing this page.
+    const sharedPage = getters.getSharedPage(builder)
+
     dispatch(
       'undoRedo/updateCurrentScopeSet',
-      BUILDER_ACTION_SCOPES.page(page.id),
+      BUILDER_ACTION_SCOPES.page(page.id, sharedPage?.id ?? null),
       { root: true }
     )
 

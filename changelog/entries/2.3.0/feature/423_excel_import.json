@@ -1,0 +1,9 @@
+{
+  "type": "feature",
+  "message": "Add support for importing Excel files into database tables",
+  "issue_origin": "github",
+  "domain": "database",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2026-04-26"
+}

@@ -25,3 +25,7 @@ class ReadPageOperationType(BuilderPageOperationType):
 
 class DuplicatePageOperationType(BuilderPageOperationType):
     type = "builder.page.duplicate"
+
+
+class RestorePageOperationType(BuilderPageOperationType):
+    type = "builder.page.restore"

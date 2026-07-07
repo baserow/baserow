@@ -217,7 +217,10 @@ def test_create_data_sync(data_fixture, api_client):
         "data_sync": {
             "id": data_sync.id,
             "type": "ical_calendar",
+            "table_id": data_sync.table_id,
+            "database_id": data_sync.table.database_id,
             "auto_add_new_properties": False,
+            "delete_unmatched_rows": True,
             "two_way_sync": False,
             "synced_properties": [
                 {
@@ -294,7 +297,10 @@ def test_create_data_sync_with_auto_add_new_properties(data_fixture, api_client)
         "data_sync": {
             "id": data_sync.id,
             "type": "ical_calendar",
+            "table_id": data_sync.table_id,
+            "database_id": data_sync.table.database_id,
             "auto_add_new_properties": True,
+            "delete_unmatched_rows": True,
             "two_way_sync": False,
             "synced_properties": [
                 {
@@ -517,7 +523,10 @@ def test_update_data_sync_not_providing_anything(data_fixture, api_client):
     assert response_json == {
         "id": data_sync.id,
         "type": "ical_calendar",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "auto_add_new_properties": False,
+        "delete_unmatched_rows": True,
         "two_way_sync": False,
         "synced_properties": [
             {
@@ -565,7 +574,10 @@ def test_update_data_sync(data_fixture, api_client):
     assert response.json() == {
         "id": data_sync.id,
         "type": "ical_calendar",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "auto_add_new_properties": False,
+        "delete_unmatched_rows": True,
         "two_way_sync": False,
         "synced_properties": [
             {
@@ -629,6 +641,98 @@ def test_update_data_sync_auto_add_new_properties(data_fixture, api_client):
 
     assert response.status_code == HTTP_200_OK
     assert response.json()["auto_add_new_properties"] is False
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_create_data_sync_with_delete_unmatched_rows(data_fixture, api_client):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "ical_calendar",
+            "synced_properties": ["uid"],
+            "delete_unmatched_rows": False,
+            "ical_url": "https://baserow.io/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["data_sync"]["delete_unmatched_rows"] is False
+
+    data_sync = DataSync.objects.get().specific
+    assert data_sync.delete_unmatched_rows is False
+
+
+@pytest.mark.django_db
+def test_create_data_sync_delete_unmatched_rows_defaults_true(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid"],
+        ical_url="https://baserow.io",
+    )
+    assert data_sync.delete_unmatched_rows is True
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["delete_unmatched_rows"] is True
+
+
+@pytest.mark.django_db
+def test_update_data_sync_delete_unmatched_rows(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid"],
+        ical_url="https://baserow.io",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.patch(
+        url,
+        {"delete_unmatched_rows": False},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["delete_unmatched_rows"] is False
+    data_sync.refresh_from_db()
+    assert data_sync.delete_unmatched_rows is False
+
+    response = api_client.patch(
+        url,
+        {"delete_unmatched_rows": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["delete_unmatched_rows"] is True
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1324,7 +1428,10 @@ def test_get_data_sync(data_fixture, api_client):
     assert response_json == {
         "id": data_sync.id,
         "type": "ical_calendar",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "auto_add_new_properties": False,
+        "delete_unmatched_rows": True,
         "two_way_sync": False,
         "synced_properties": [
             {

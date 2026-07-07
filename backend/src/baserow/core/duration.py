@@ -1,0 +1,543 @@
+import re
+from datetime import timedelta
+from typing import List, Optional, Tuple, Union
+
+H_M = "h:mm"
+H_M_S = "h:mm:ss"
+H_M_S_S = "h:mm:ss.s"
+H_M_S_SS = "h:mm:ss.ss"
+H_M_S_SSS = "h:mm:ss.sss"
+D_H = "d h"
+D_H_M = "d h:mm"  # 1d 11:11
+D_H_M_S = "d h:mm:ss"
+D_H_M_NO_COLONS = "d h mm"  # 1d 2h 3m, 1d 3m
+D_H_M_S_NO_COLONS = "d h mm ss"  # 1d2h3m4s, 1h 2m
+
+MOST_ACCURATE_DURATION_FORMAT = H_M_S_SSS
+
+# Keep in sync with duration.js::tokenizeDurationFormat
+DURATION_FORMAT_TOKENS = [
+    ("hh", "hours"),
+    ("mm", "minutes"),
+    ("ss", "seconds"),
+    ("d", "days"),
+    ("h", "hours"),
+    ("m", "minutes"),
+    ("s", "seconds"),
+]
+
+
+def tokenize_duration_format(
+    format_str: str,
+) -> Optional[Tuple[re.Pattern[str], List[str]]]:
+    """
+    Compile a duration format string into a (regex, fields) pair.
+
+    The format string is a template like "h:mm" or "d h:mm:ss". Each
+    duration unit ("d", "hh", etc) can appear at most once. All other
+    characters are matched literally.
+
+    E.g. given a format_str like "h:mm:ss", the return value would be:
+    (
+        re.compile("^-?(\\d+):(\\d+):(\\d+)$"),
+        ["hours", "minutes", "seconds"]
+    )
+
+    Returns None if the format_str is invalid.
+    """
+
+    if not isinstance(format_str, str) or not format_str:
+        return None
+
+    pattern = ["^-?"]
+    fields = []
+    seen = set()
+    i = 0
+    while i < len(format_str):
+        # A backslash escapes the next character so it is matched/emitted as a
+        # literal, even token letters (d/h/m/s/f) or the backslash itself. This
+        # lets formats carry literal unit suffixes, e.g. `d\d h\h` -> "1d 2h".
+        # A trailing backslash has nothing to escape and is invalid. Keep in
+        # sync with duration.js::tokenizeDurationFormat.
+        if format_str[i] == "\\":
+            if i + 1 >= len(format_str):
+                return None
+            pattern.append(re.escape(format_str[i + 1]))
+            i += 2
+            continue
+
+        # The fractional-seconds token "f" is consumed as a run ("f", "ff",
+        # "fff", …) whose length is the precision (mirrors the hh/mm/ss width
+        # semantics). It is a distinct field that may appear at most once, and
+        # the separator before it stays a literal so arbitrary delimiters work
+        # ("ss.fff", "s fff", "mm:ss,ff").
+        if format_str[i] == "f":
+            if "fraction" in seen:
+                return None
+            seen.add("fraction")
+            precision = 0
+            while i < len(format_str) and format_str[i] == "f":
+                precision += 1
+                i += 1
+            fields.append("fraction")
+            # capture up to `precision` digits; extra digits won't match
+            pattern.append(rf"(\d{{1,{precision}}})")
+            continue
+
+        matched = False
+        for token, field in DURATION_FORMAT_TOKENS:
+            if format_str.startswith(token, i):
+                # If the token was already seen, it means that the token
+                # was repeated, which is invalid. E.g. for "h:mm:h", the
+                # "h" token is repeated.
+                if field in seen:
+                    return None
+                else:
+                    seen.add(field)
+
+                fields.append(field)
+                pattern.append(r"(\d+)")
+                # moves the index to the end of the token, e.g.
+                # if the format is "h:mm:s" and the current token is "mm",
+                # we move on to the "s" token.
+                i += len(token)
+                matched = True
+                break
+
+        if not matched:
+            # If there is no match, that means it's a literal char, like an
+            # empty space, colon, etc, which we add to the regex as-is.
+            pattern.append(re.escape(format_str[i]))
+            i += 1
+
+    if not fields:
+        return None
+
+    pattern.append("$")
+    return re.compile("".join(pattern)), fields
+
+
+def is_valid_duration_format(value: object) -> bool:
+    """Return True if the value is a valid duration format string."""
+
+    return tokenize_duration_format(value) is not None
+
+
+def parse_value_with_duration_format(
+    value: object, format_str: object
+) -> Optional[timedelta]:
+    """
+    Parse value against format_str using token-based matching.
+
+    Returns a timedelta, or None if the value or format_str are invalid.
+    """
+
+    if not isinstance(value, str):
+        return None
+
+    tokenized = tokenize_duration_format(format_str)
+    if tokenized is None:
+        return None
+
+    regex, fields = tokenized
+    stripped = value.strip()
+    negative = stripped.startswith("-")
+    match = regex.match(stripped)
+    if match is None:
+        return None
+
+    parts = {"days": 0, "hours": 0, "minutes": 0, "seconds": 0}
+    fraction_seconds = 0.0
+    for field, group in zip(fields, match.groups()):
+        if field == "fraction":
+            # The captured digits are a positional decimal: "5" -> 0.5,
+            # "05" -> 0.05, "234" -> 0.234.
+            fraction_seconds = int(group) / 10 ** len(group)
+        else:
+            parts[field] = int(group)
+
+    delta = timedelta(
+        days=parts["days"],
+        hours=parts["hours"],
+        minutes=parts["minutes"],
+        seconds=parts["seconds"] + fraction_seconds,
+    )
+    return -delta if negative else delta
+
+
+def _fraction_precision(format_str: str) -> int:
+    """
+    Return the precision (length of the `f` run) of a validated token format,
+    or 0 if it has no fractional token. Walks the format honoring backslash
+    escapes so an escaped `\\f` literal is not mistaken for the fraction token.
+    Keep in sync with duration.js::fractionPrecision.
+    """
+
+    i = 0
+    while i < len(format_str):
+        if format_str[i] == "\\":
+            i += 2
+            continue
+        if format_str[i] == "f":
+            precision = 0
+            while i < len(format_str) and format_str[i] == "f":
+                precision += 1
+                i += 1
+            return precision
+        i += 1
+    return 0
+
+
+# Keep in sync with duration.js::formatValueWithDurationFormat
+def format_value_with_duration_format(
+    duration: timedelta, format_str: object
+) -> Optional[str]:
+    """
+    Format a timedelta into a string using a token-based format.
+
+    Returns the formatted string, or None if format_str is invalid or
+    duration is not a timedelta.
+    """
+
+    if not isinstance(duration, timedelta):
+        return None
+
+    tokenized = tokenize_duration_format(format_str)
+    if tokenized is None:
+        return None
+
+    _, fields = tokenized
+    field_set = set(fields)
+
+    negative = duration < timedelta(0)
+    abs_duration = -duration if negative else duration
+
+    # Precision is the number of `f`s in the format, or 0 for integer-second
+    # formats (no fraction token).
+    precision = _fraction_precision(format_str) if "fraction" in field_set else 0
+
+    # Round the total to the target precision *before* decomposing, so a
+    # rounded-up value carries across fields: 59.9996 at precision 3 -> 60.000
+    # rolls seconds into minutes, and 59.6 at precision 0 -> 60 rolls into a
+    # minute. We round half away from zero on the absolute value (matching the
+    # database field's `rround` and JS `Math.round` on positives, keeping the
+    # backend and frontend formatters byte-identical). Keep in sync with duration.js.
+    factor = 10**precision
+    total = int(abs_duration.total_seconds() * factor + 0.5) / factor
+    total_seconds = int(total)
+    fraction_value = total - total_seconds
+
+    if "days" in field_set:
+        days = total_seconds // 86400
+    else:
+        days = 0
+
+    if "hours" in field_set:
+        if "days" in field_set:
+            hours = (total_seconds % 86400) // 3600
+        else:
+            hours = total_seconds // 3600
+    else:
+        hours = 0
+
+    if "minutes" in field_set:
+        if "hours" in field_set or "days" in field_set:
+            minutes = (total_seconds % 3600) // 60
+        else:
+            minutes = total_seconds // 60
+    else:
+        minutes = 0
+
+    if "seconds" in field_set:
+        if "minutes" in field_set or "hours" in field_set or "days" in field_set:
+            seconds = total_seconds % 60
+        else:
+            seconds = total_seconds
+    else:
+        seconds = 0
+
+    field_values = {
+        "days": days,
+        "hours": hours,
+        "minutes": minutes,
+        "seconds": seconds,
+    }
+
+    out = []
+    i = 0
+    while i < len(format_str):
+        if format_str[i] == "\\":
+            # Escaped literal — emit the next character verbatim. The format is
+            # already validated (tokenize succeeded), so a following char exists.
+            out.append(format_str[i + 1])
+            i += 2
+            continue
+
+        if format_str[i] == "f":
+            # Render the fractional component as `precision` zero-padded digits
+            # (mirrors printf's %0width.Nf).
+            digits = round(fraction_value * (10**precision))
+            out.append(f"{digits:0{precision}d}")
+            i += precision
+            continue
+
+        matched = False
+        for token, field in DURATION_FORMAT_TOKENS:
+            if format_str.startswith(token, i):
+                value = field_values[field]
+                if len(token) == 2:
+                    out.append(f"{value:02d}")
+                else:
+                    out.append(str(value))
+                i += len(token)
+                matched = True
+                break
+
+        if not matched:
+            out.append(format_str[i])
+            i += 1
+
+    result = "".join(out)
+    return f"-{result}" if negative else result
+
+
+DURATION_PATTERNS = [
+    (re.compile(r"^(\d+)\s+years?$", re.IGNORECASE), "days", 365),
+    (re.compile(r"^(\d+)\s+months?$", re.IGNORECASE), "days", 30),
+    (re.compile(r"^(\d+)\s+weeks?$", re.IGNORECASE), "weeks", 1),
+    (re.compile(r"^(\d+)\s+days?$", re.IGNORECASE), "days", 1),
+    (re.compile(r"^(\d+)\s+hours?$", re.IGNORECASE), "hours", 1),
+    (re.compile(r"^(\d+)\s+minutes?$", re.IGNORECASE), "minutes", 1),
+    (re.compile(r"^(\d+)\s+seconds?$", re.IGNORECASE), "seconds", 1),
+]
+
+
+def total_secs(
+    days: Optional[int] = None,
+    hours: Optional[int] = None,
+    mins: Optional[int] = None,
+    secs: Optional[Union[int, float]] = None,
+) -> float:
+    """
+    Calculate number of seconds from higher-order units.
+
+    :param days: number of days
+    :param hours: number of hours
+    :param mins: number of minutes
+    :param secs: number of seconds (with milliseconds if provided as a float)
+
+    :return: number of seconds
+    """
+
+    return (
+        int(days or 0) * 86400
+        + int(hours or 0) * 3600
+        + int(mins or 0) * 60
+        + float(secs or 0.0)
+    )
+
+
+POSTGRES_INTERVAL_FORMAT = re.compile(
+    r"""
+    (?P<years>-?\d+)\s+years?\s*|
+    (?P<months>-?\d+)\s+mons?\s*|
+    (?P<days>-?\d+)\s+days?\s*|
+    (?P<time>(-?\d{1,2}):(\d{2}):(\d{2}))?
+""",
+    re.VERBOSE,
+)
+
+
+def postgres_interval_to_seconds(interval_str: str) -> Optional[float]:
+    matches = POSTGRES_INTERVAL_FORMAT.finditer(interval_str)
+
+    params = {
+        "days": 0,
+        "seconds": 0,
+        "microseconds": 0,
+        "milliseconds": 0,
+        "minutes": 0,
+        "hours": 0,
+        "weeks": 0,
+    }
+
+    valid = False
+    for match in matches:
+        if match.group("years"):
+            params["days"] += int(match.group("years")) * 365
+            valid = True
+        if match.group("months"):
+            params["days"] += int(match.group("months")) * 30
+            valid = True
+        if match.group("days"):
+            params["days"] += int(match.group("days"))
+            valid = True
+        if match.group("time"):
+            time_parts = match.group("time").split(":")
+            params["hours"] += int(time_parts[0])
+            params["minutes"] += int(time_parts[1])
+            params["seconds"] += int(time_parts[2])
+            valid = True
+
+    return timedelta(**params).total_seconds() if valid else None
+
+
+# These regexps are supposed to tokenize the provided duration value and to return a
+# proper number of seconds based on format and the tokens. NOTE: Keep these in sync with
+# web-frontend/modules/core/utils/duration.js:DURATION_REGEXPS
+DURATION_REGEXPS = {
+    # 1d 10h 20m 30s
+    # 1d 30m 40.50s
+    # 1d 30s
+    re.compile(  # optionally capture `1d`
+        r"^((?P<days>\d+)(?:d\s*))?"
+        # optionally capture 1h
+        r"((?P<hours>\d+)(?:h\s*))?"
+        # optionally capture 1m
+        r"((?P<mins>\d+)(?:m\s*|\s+))?"
+        # optionally capture 1.2s
+        r"((?P<secs>\d+|\d+.\d+)?(?:s\s*))?$"
+    ): {
+        "default": lambda days, hours, mins, secs: total_secs(
+            days=days, hours=hours, mins=mins, secs=secs
+        ),
+    },
+    # 1d 11:12:13.14
+    # 1 11:12:13.14
+    re.compile(r"^(\d+)(?:d\s*|\s+)(\d+):(\d+):(\d+|\d+.\d+)$"): {
+        "default": lambda d, h, m, s: total_secs(days=d, hours=h, mins=m, secs=s),
+    },
+    # 11:12:13.14
+    re.compile(r"^(\d+):(\d+):(\d+|\d+.\d+)$"): {
+        "default": lambda h, m, s: total_secs(hours=h, mins=m, secs=s),
+    },
+    # 1d 12h
+    # 1 12h
+    re.compile(r"^(\d+)(?:d\s*|\s+)(\d+)h$"): {
+        "default": lambda d, h: total_secs(days=d, hours=h),
+    },
+    # 1234h
+    re.compile(r"^(\d+)h$"): {
+        "default": lambda h: total_secs(hours=h),
+    },
+    # 123d
+    re.compile(r"^(\d+)d$"): {
+        "default": lambda d: total_secs(days=d),
+    },
+    # 1d 11:12
+    # 1 11:12
+    re.compile(r"^(\d+)(?:d\s*|\s+)(\d+):(\d+)$"): {
+        H_M: lambda d, h, m: total_secs(days=d, hours=h, mins=m),
+        D_H: lambda d, h, m: total_secs(days=d, hours=h, mins=m),
+        D_H_M: lambda d, h, m: total_secs(days=d, hours=h, mins=m),
+        D_H_M_NO_COLONS: lambda d, h, m: total_secs(days=d, hours=h, mins=m),
+        "default": lambda d, m, s: total_secs(days=d, mins=m, secs=s),
+    },
+    # 1d 11:12.23
+    # 1 11:12.23
+    re.compile(r"^(\d+)(?:d\s*|\s+)(\d+):(\d+.\d+)$"): {
+        "default": lambda d, m, s: total_secs(days=d, mins=m, secs=s),
+    },
+    # 11:12
+    re.compile(r"^(\d+):(\d+)$"): {
+        H_M: lambda h, m: total_secs(hours=h, mins=m),
+        D_H: lambda h, m: total_secs(hours=h, mins=m),
+        D_H_M: lambda h, m: total_secs(hours=h, mins=m),
+        "default": lambda m, s: total_secs(mins=m, secs=s),
+    },
+    # 11:12.134
+    re.compile(r"^(\d+):(\d+.\d+)$"): {
+        "default": lambda m, s: total_secs(mins=m, secs=s),
+    },
+    # 1d 123
+    # 1 123
+    re.compile(r"^(\d+)(?:d\s*|\s+)(\d+)$"): {
+        H_M: lambda d, m: total_secs(days=d, mins=m),
+        D_H: lambda d, h: total_secs(days=d, hours=h),
+        D_H_M: lambda d, m: total_secs(days=d, mins=m),
+        D_H_M_NO_COLONS: lambda d, m: total_secs(days=d, mins=m),
+        "default": lambda d, s: total_secs(days=d, secs=s),
+    },
+    # 1d 12.134
+    # 1 12.134
+    re.compile(r"^(\d+)(?:d\s*|\s+)(\d+.\d+)$"): {
+        "default": lambda d, s: total_secs(days=d, secs=s),
+    },
+    # 123
+    re.compile(r"^(\d+)$"): {
+        H_M: lambda m: total_secs(mins=float(m)),
+        D_H: lambda h: total_secs(hours=float(h)),
+        D_H_M: lambda m: total_secs(mins=float(m)),
+        D_H_M_NO_COLONS: lambda m: total_secs(mins=m),
+        "default": lambda s: total_secs(secs=s),
+    },
+    # 11.123
+    re.compile(r"^(\d+.\d+)$"): {
+        "default": lambda s: total_secs(secs=s),
+    },
+}
+
+
+def parse_duration_value(formatted_value: str, format: str) -> float:
+    """
+    Parses a formatted duration string into a number of seconds according to the
+    provided format. If the format doesn't match exactly, it will still try to
+    parse it as best as possible.
+
+    :param formatted_value: The formatted duration string.
+    :param format: The format of the duration string.
+    :return: The total number of seconds for the given formatted duration.
+    :raises ValueError: If the format is invalid.
+    """
+
+    # support for negative values
+    multiplier = 1
+    if formatted_value.startswith("-"):
+        formatted_value = formatted_value[1:]
+        multiplier = -1
+
+    for regex, format_funcs in DURATION_REGEXPS.items():
+        match = regex.match(formatted_value)
+        if match:
+            format_func = format_funcs.get(format, format_funcs["default"])
+            # handle named groups in regexps
+            captured = match.groupdict()
+            if any(v for v in captured.values()):
+                return format_func(**captured) * multiplier
+            # if no named groups, use standard args
+            try:
+                return format_func(*match.groups()) * multiplier
+            # invalid number of args
+            except TypeError:
+                pass
+
+    # If it's not one of the known formats, try to parse it as a postgres interval
+    # Lookups formula save duration in the postgres interval format in the database.
+    total_seconds = postgres_interval_to_seconds(formatted_value)
+    if total_seconds is not None:
+        return total_seconds
+
+    raise ValueError(f"{formatted_value} is not a valid duration string.")
+
+
+def parse_duration_string(value: str) -> Optional[timedelta]:
+    """Parse a duration string into a timedelta, or None if invalid."""
+
+    if not isinstance(value, str):
+        return None
+    if value.strip() == "":
+        return None
+
+    try:
+        total_seconds = parse_duration_value(value, MOST_ACCURATE_DURATION_FORMAT)
+        return timedelta(seconds=round(total_seconds, 3))
+    except (ValueError, OverflowError):
+        pass
+
+    for pattern, unit, factor in DURATION_PATTERNS:
+        match = pattern.match(value.strip())
+        if match:
+            amount = int(match.group(1)) * factor
+            return timedelta(**{unit: amount})
+
+    return None

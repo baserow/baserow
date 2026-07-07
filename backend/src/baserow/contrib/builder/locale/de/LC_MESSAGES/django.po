@@ -3,16 +3,15 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-01-18 13:32+0000\n"
+"POT-Creation-Date: 2025-11-25 13:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -20,39 +19,186 @@ msgstr ""
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:45
 msgid "Homepage"
-msgstr ""
+msgstr "Startseite"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:46
 msgid "Examples"
-msgstr ""
+msgstr "Beispiele"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:47
 msgid "Customers"
-msgstr ""
+msgstr "Kunden"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:48
 msgid "List rows"
-msgstr ""
+msgstr "Zeilen auflisten"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:49
 msgid "Local Baserow"
-msgstr ""
+msgstr "Lokales Baserow"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:50
 msgid "Name"
-msgstr ""
+msgstr "Name"
 
 #: src/baserow/contrib/builder/builder_beta_init_application.py:51
 msgid "Last name"
-msgstr ""
+msgstr "Nachname"
 
-#: src/baserow/contrib/builder/data_sources/service.py:128
+#: src/baserow/contrib/builder/data_providers/data_provider_types.py:621
+#, python-format
+msgid "%(user_source_name)s member"
+msgstr "%(user_source_name)s-Mitglied"
+
+#: src/baserow/contrib/builder/data_sources/service.py:158
 msgid "Data source"
-msgstr ""
+msgstr "Datenquelle"
 
-#: src/baserow/contrib/builder/elements/element_types.py:184
-#: src/baserow/contrib/builder/elements/element_types.py:189
-#: src/baserow/contrib/builder/elements/element_types.py:194
+#: src/baserow/contrib/builder/elements/mixins.py:612
+#: src/baserow/contrib/builder/elements/mixins.py:617
+#: src/baserow/contrib/builder/elements/mixins.py:622
 #, python-format
 msgid "Column %(count)s"
+msgstr "Spalte %(count)s"
+
+#: src/baserow/contrib/builder/action_scopes.py:10
+#, python-format
+msgid ""
+"of type \"%(element_type)s\" on page (%(page_id)s) in builder "
+"\"%(builder_name)s\" (%(builder_id)s)."
 msgstr ""
+"vom Typ \"%(element_type)s\" auf Seite (%(page_id)s) in Builder "
+"\"%(builder_name)s\" (%(builder_id)s)."
+
+#: src/baserow/contrib/builder/elements/actions.py:48
+msgid "Create element"
+msgstr "Element erstellen"
+
+#: src/baserow/contrib/builder/elements/actions.py:49
+#, python-format
+msgid "Element (%(element_id)s) created"
+msgstr "Element (%(element_id)s) erstellt"
+
+#: src/baserow/contrib/builder/elements/actions.py:107
+msgid "Update element"
+msgstr "Element aktualisieren"
+
+#: src/baserow/contrib/builder/elements/actions.py:108
+#, python-format
+msgid "Element (%(element_id)s) updated"
+msgstr "Element (%(element_id)s) aktualisiert"
+
+#: src/baserow/contrib/builder/elements/actions.py:161
+msgid "Delete element"
+msgstr "Element löschen"
+
+#: src/baserow/contrib/builder/elements/actions.py:162
+#, python-format
+msgid "Element (%(element_id)s) deleted"
+msgstr "Element (%(element_id)s) gelöscht"
+
+#: src/baserow/contrib/builder/elements/actions.py:217
+msgid "Duplicate element"
+msgstr "Element duplizieren"
+
+#: src/baserow/contrib/builder/elements/actions.py:218
+#, python-format
+msgid "Element (%(element_id)s) duplicated"
+msgstr "Element (%(element_id)s) dupliziert"
+
+#: src/baserow/contrib/builder/elements/actions.py:278
+msgid "Move element"
+msgstr "Element verschieben"
+
+#: src/baserow/contrib/builder/elements/actions.py:279
+#, python-format
+msgid "Element (%(element_id)s) moved"
+msgstr "Element (%(element_id)s) verschoben"
+
+#: src/baserow/contrib/builder/elements/element_types.py:137
+msgid "Column"
+msgstr "Spalten"
+
+#: src/baserow/contrib/builder/elements/element_types.py:220
+msgid "Form"
+msgstr "Formular"
+
+#: src/baserow/contrib/builder/elements/element_types.py:292
+msgid "Container"
+msgstr "Container"
+
+#: src/baserow/contrib/builder/elements/element_types.py:304
+msgid "Table"
+msgstr "Tabelle"
+
+#: src/baserow/contrib/builder/elements/element_types.py:369
+msgid "Repeat"
+msgstr "Wiederholen"
+
+#: src/baserow/contrib/builder/elements/element_types.py:437
+msgid "Record selector"
+msgstr "Datensatz-Auswahl"
+
+#: src/baserow/contrib/builder/elements/element_types.py:686
+msgid "Heading"
+msgstr "Überschrift"
+
+#: src/baserow/contrib/builder/elements/element_types.py:753
+msgid "Text"
+msgstr "Paragraph"
+
+#: src/baserow/contrib/builder/elements/element_types.py:975
+msgid "Link"
+msgstr "Verknüpfung"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1113
+msgid "Image"
+msgstr "Bild"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1277
+msgid "Rating"
+msgstr "Bewertung"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1324
+msgid "Rating input"
+msgstr "Bewertungseingabefeld"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1410
+msgid "Input text"
+msgstr "Dateneingabe"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1550
+msgid "Button"
+msgstr "Button"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1595
+msgid "Checkbox"
+msgstr "Kontrollkästchen"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1669
+msgid "Choice"
+msgstr "Auswahl"
+
+#: src/baserow/contrib/builder/elements/element_types.py:1982
+msgid "Iframe"
+msgstr "iFrame"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2041
+msgid "Date time picker"
+msgstr "Datums- und Zeitauswahl"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2185
+msgid "Shared header"
+msgstr "Gemeinsamer Kopfbereich"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2195
+msgid "Shared footer"
+msgstr "Gemeinsamer Fussbereich"
+
+#: src/baserow/contrib/builder/elements/element_types.py:2205
+msgid "Menu"
+msgstr "Menü"
+
+#: src/baserow/contrib/builder/elements/registries.py:68
+msgid "Unnamed element"
+msgstr "Unbenanntes Element"

@@ -141,6 +141,80 @@ export default (client) => {
       const url = publicUrl ? 'public/rows/' : ''
       return client.get(`/database/views/grid/${gridId}/${url}`, config)
     },
+    fetchGroupByData({
+      gridId,
+      search = '',
+      searchMode = '',
+      signal = null,
+      publicUrl = false,
+      publicAuthToken = null,
+      filters = {},
+      parents = null,
+      depth = null,
+      offset = 0,
+      limit = 40,
+      includeDescendants = false,
+      descendantLimit = null,
+      descendantRowBudget = null,
+      groupBy = '',
+      aggregationsOnly = false,
+      includeTotals = false,
+    }) {
+      const params = new URLSearchParams()
+      params.append('offset', offset)
+      params.append('limit', limit)
+      if (groupBy) {
+        params.append('group_by', groupBy)
+      }
+      if (includeDescendants) {
+        params.append('include_descendants', 'true')
+      }
+      if (aggregationsOnly) {
+        params.append('aggregations_only', 'true')
+      }
+      if (includeTotals) {
+        params.append('include_totals', 'true')
+      }
+      if (descendantLimit !== null) {
+        params.append('descendant_limit', descendantLimit)
+      }
+      if (descendantRowBudget !== null) {
+        params.append('descendant_row_budget', descendantRowBudget)
+      }
+      if (depth !== null) {
+        params.append('depth', depth)
+      }
+
+      if (search) {
+        params.append('search', search)
+        if (searchMode) {
+          params.append('search_mode', searchMode)
+        }
+      }
+
+      if (parents !== null) {
+        params.append('parents', JSON.stringify(parents))
+      }
+
+      Object.keys(filters).forEach((key) => {
+        filters[key].forEach((value) => {
+          params.append(key, value)
+        })
+      })
+
+      const config = { params }
+
+      if (signal !== null) {
+        config.signal = signal
+      }
+
+      if (publicAuthToken) {
+        addPublicAuthTokenHeader(config, publicAuthToken)
+      }
+
+      const url = publicUrl ? 'public/group-by-data/' : 'group-by-data/'
+      return client.get(`/database/views/grid/${gridId}/${url}`, config)
+    },
     filterRows({ gridId, rowIds, fieldIds = null }) {
       const data = { row_ids: rowIds }
 

@@ -1,0 +1,408 @@
+import json
+import os
+import selectors
+import subprocess  # nosec
+import time
+from typing import Any
+
+from django.conf import settings
+
+from baserow.core.code_runner.exceptions import (
+    CodeRunnerExecutionError,
+    CodeRunnerImproperlyConfigured,
+    CodeRunnerResultError,
+)
+from baserow.core.code_runner.registries import (
+    CodeRunnerType,
+)
+
+_MSGPACK_MIN_INTEGER = -(2**63)
+_MSGPACK_MAX_INTEGER = 2**64 - 1
+
+
+class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
+    """
+    Runs user JavaScript in a QuickJS WASI module launched by wasmtime.
+    """
+
+    type = "wasmtime_quickjs"
+    output_size_limit_bytes = 1024 * 1024
+    fuel_exhausted_error_message = "The code instruction limit was reached."
+    memory_or_stack_limit_error_message = (
+        "The code exceeded the runtime memory or stack limit."
+    )
+    wasm_trap_error_message = "The code stopped because of a runtime execution error."
+
+    def __init__(
+        self,
+        wasmtime_executable: str | None = None,
+        quickjs_wasm_path: str | None = None,
+        timeout_seconds: int | None = None,
+        memory_limit_bytes: int | None = None,
+        fuel_limit: int | None = None,
+        output_size_limit_bytes: int | None = None,
+    ):
+        self.wasmtime_executable = wasmtime_executable or getattr(
+            settings,
+            "ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE",
+            "wasmtime",
+        )
+        self.quickjs_wasm_path = quickjs_wasm_path or getattr(
+            settings,
+            "ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH",
+            "",
+        )
+        self.timeout_seconds = timeout_seconds or getattr(
+            settings,
+            "ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS",
+            5,
+        )
+        self.memory_limit_bytes = memory_limit_bytes or getattr(
+            settings,
+            "ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES",
+            16 * 1024 * 1024,
+        )
+        self.fuel_limit = (
+            fuel_limit
+            if fuel_limit is not None
+            else getattr(settings, "ENTERPRISE_CODE_RUNNER_FUEL_LIMIT", 1_000_000_000)
+        )
+        self.output_size_limit_bytes = (
+            output_size_limit_bytes or self.output_size_limit_bytes
+        )
+
+    def run(self, context_data: dict[str, Any], code: str) -> dict[str, Any]:
+        if not self.quickjs_wasm_path:
+            raise CodeRunnerImproperlyConfigured(
+                "The QuickJS WASM runtime path is not configured."
+            )
+
+        completed_process = self._run_process(context_data, code)
+
+        try:
+            payload = json.loads(completed_process.stdout)
+        except json.JSONDecodeError as exc:
+            raise CodeRunnerExecutionError(
+                "The code returned an invalid response."
+            ) from exc
+
+        if "error" in payload:
+            raise CodeRunnerExecutionError(f"Code execution failed: {payload['error']}")
+
+        result = payload.get("result")
+        if not isinstance(result, dict):
+            raise CodeRunnerResultError("The code must return an object.")
+
+        self._validate_result(result)
+
+        return result
+
+    def _validate_result(self, value: Any) -> None:
+        """
+        Validate that the returned JSON value can be sent through Channels Redis.
+
+        Channels Redis serializes websocket payloads with msgpack. Python can
+        parse JSON integers with arbitrary precision, but msgpack can only
+        encode integers in the 64-bit signed/unsigned range.
+        """
+
+        if isinstance(value, bool):
+            return
+
+        if isinstance(value, int):
+            if value < _MSGPACK_MIN_INTEGER or value > _MSGPACK_MAX_INTEGER:
+                raise CodeRunnerResultError(
+                    "The code returned an integer outside the supported range."
+                )
+            return
+
+        if isinstance(value, dict):
+            for child_value in value.values():
+                self._validate_result(child_value)
+            return
+
+        if isinstance(value, list):
+            for child_value in value:
+                self._validate_result(child_value)
+
+    def _run_process(
+        self, context_data: dict[str, Any], code: str
+    ) -> subprocess.CompletedProcess:
+        # Using wastime with no host access at all for best security
+        command = [
+            self.wasmtime_executable,
+            "run",
+            "-W",
+            f"timeout={self.timeout_seconds}s",  # Limits the execution time
+            "-W",
+            f"max-memory-size={self.memory_limit_bytes}",  # Limits memory consumption
+            "-W",
+            "trap-on-grow-failure=true",  # Ensure a proper exception on memory limit
+        ]
+        # Fuel limit allow a precise number of instruction to be executed
+        # Extra security in addition to memory and timeout.
+        if self.fuel_limit > 0:
+            command.extend(["-W", f"fuel={self.fuel_limit}"])
+
+        command.extend(
+            [
+                self.quickjs_wasm_path,
+                "--std",  # Give access to STD but it's removed in JS code
+                "--eval",
+                self._runner_source(),
+            ]
+        )
+        # We send the context data and the code through STDIN to the js process
+        payload = json.dumps({"context": context_data, "code": code})
+
+        try:
+            completed_process = self._communicate_with_output_limit(command, payload)
+        except subprocess.TimeoutExpired as exc:
+            raise CodeRunnerExecutionError("The code timed out.") from exc
+        except subprocess.CalledProcessError as exc:
+            message = exc.stderr.strip() or exc.stdout.strip() or str(exc)
+            raise CodeRunnerExecutionError(
+                self._format_process_error_message(message)
+            ) from exc
+        except OSError as exc:
+            raise CodeRunnerExecutionError(
+                self._format_process_error_message(str(exc))
+            ) from exc
+
+        if completed_process.returncode != 0:
+            message = (
+                completed_process.stderr.strip()
+                or completed_process.stdout.strip()
+                or f"Command returned non-zero exit status {completed_process.returncode}."
+            )
+            raise CodeRunnerExecutionError(self._format_process_error_message(message))
+
+        return completed_process
+
+    def _format_process_error_message(self, message: str) -> str:
+        if self._is_fuel_exhausted_error(message):
+            return self.fuel_exhausted_error_message
+
+        if self._is_memory_or_stack_limit_error(message):
+            return self.memory_or_stack_limit_error_message
+
+        if self._is_wasm_trap_error(message):
+            return self.wasm_trap_error_message
+
+        return self._sanitize_process_error_message(message)
+
+    def _is_fuel_exhausted_error(self, message: str) -> bool:
+        return "all fuel consumed" in message.lower()
+
+    def _is_memory_or_stack_limit_error(self, message: str) -> bool:
+        lower_message = message.lower()
+        return (
+            "memory fault at wasm address" in lower_message
+            or "out of bounds memory access" in lower_message
+        )
+
+    def _is_wasm_trap_error(self, message: str) -> bool:
+        return "wasm trap:" in message.lower()
+
+    def _sanitize_process_error_message(self, message: str) -> str:
+        """
+        Remove configured host paths from runtime errors before exposing them.
+
+        Wasmtime can include the executable and WASM module paths in trap
+        messages, for example when fuel is exhausted. Those paths are host
+        implementation details and must not be visible to code-runner callers.
+        """
+
+        for path in (self.wasmtime_executable, self.quickjs_wasm_path):
+            if path and os.path.sep in path:
+                message = message.replace(path, os.path.basename(path))
+        return message
+
+    def _communicate_with_output_limit(
+        self, command: list[str], payload: str
+    ) -> subprocess.CompletedProcess:
+        """
+        Run the code runner command with the given stdin payload.
+
+        This intentionally avoids subprocess.communicate() so stdout and stderr can
+        be read incrementally by _read_bounded_process_output(), enforcing both the
+        execution timeout and per-stream output size limit while the process is
+        still running. If setup, writing, reading, or waiting fails, the child
+        process is killed before the original exception is re-raised.
+        """
+
+        process = subprocess.Popen(  # noqa: S603
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        try:
+            deadline = time.monotonic() + self.timeout_seconds
+
+            self._write_process_input(process, payload, deadline)
+            stdout, stderr = self._read_bounded_process_output(process, deadline)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(process.args, self.timeout_seconds)
+
+            return subprocess.CompletedProcess(
+                command,
+                process.wait(timeout=remaining),
+                stdout=stdout.decode(errors="replace"),
+                stderr=stderr.decode(errors="replace"),
+            )
+        except Exception:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+            raise
+
+    def _write_process_input(
+        self, process: subprocess.Popen, payload: str, deadline: float
+    ) -> None:
+        """
+        Write stdin without allowing a full stdin pipe to bypass the timeout.
+        """
+
+        if process.stdin is None:
+            raise CodeRunnerExecutionError("The code stdin pipe was not created.")
+
+        selector = selectors.DefaultSelector()
+        stdin_fd = process.stdin.fileno()
+        os.set_blocking(stdin_fd, False)
+        selector.register(process.stdin, selectors.EVENT_WRITE)
+
+        data = payload.encode()
+        written = 0
+
+        try:
+            while written < len(data):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(process.args, self.timeout_seconds)
+
+                for _, _ in selector.select(timeout=remaining):
+                    try:
+                        written += os.write(stdin_fd, data[written:])
+                    except BlockingIOError:
+                        continue
+                    except BrokenPipeError:
+                        return
+        finally:
+            selector.unregister(process.stdin)
+            try:
+                process.stdin.close()
+            except BrokenPipeError:
+                pass
+
+    def _read_bounded_process_output(
+        self, process: subprocess.Popen, deadline: float
+    ) -> tuple[bytes, bytes]:
+        """
+        Read stdout and stderr from a running process without blocking indefinitely.
+
+        Both streams are switched to nonblocking mode and monitored together so a
+        full stderr pipe cannot block stdout, or vice versa. Reading continues
+        until both streams close, the configured timeout expires, or either stream
+        exceeds the configured output size limit.
+        """
+
+        if process.stdout is None or process.stderr is None:
+            raise CodeRunnerExecutionError("The code output pipes were not created.")
+
+        selector = selectors.DefaultSelector()
+        streams = {
+            process.stdout: bytearray(),
+            process.stderr: bytearray(),
+        }
+
+        for stream in streams:
+            os.set_blocking(stream.fileno(), False)
+            selector.register(stream, selectors.EVENT_READ)
+
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(process.args, self.timeout_seconds)
+
+            for key, _ in selector.select(timeout=remaining):
+                stream = key.fileobj
+                chunk = stream.read(8192)
+                if not chunk:
+                    selector.unregister(stream)
+                    continue
+
+                output = streams[stream]
+                output.extend(chunk)
+                if len(output) > self.output_size_limit_bytes:
+                    raise CodeRunnerExecutionError("The code produced too much output.")
+
+        return bytes(streams[process.stdout]), bytes(streams[process.stderr])
+
+    def _runner_source(self) -> str:
+        """
+        Build the JavaScript wrapper that QuickJS evaluates before running
+        user-submitted code.
+
+        Security model
+        --------------
+        The real isolation boundary is Wasmtime + WASI: the guest is launched
+        with no --dir, no --env, and no inherit-network/env capabilities, so
+        user code has no host I/O surface even with arbitrary JS execution
+        inside the guest. Do not weaken those flags on the assumption that the
+        scrubbing in this wrapper provides containment — it does not.
+
+        Defense in depth (this wrapper)
+        -------------------------------
+        qjs --std injects bridge globals (std, os, bjson, print, console,
+        scriptArgs, ...) that connect JS to host capabilities. We capture the
+        I/O we need into closure-local references and then ``delete`` those
+        globals so user code cannot reach them, even after recovering a real
+        ``Function`` via tricks like ``(function(){}).constructor``. This is
+        safe because this QuickJS build does NOT register std/os/bjson as
+        importable modules either (dynamic ``import("std")`` raises
+        "could not load module"), so deletion from globalThis is sufficient at
+        the JS layer.
+
+        We intentionally do NOT shadow ECMAScript intrinsics such as
+        ``Function``, ``eval``, or ``globalThis``: such shadowing is bypassed
+        in one line via the constructor-escape trick, and pretending otherwise
+        creates a false sense of security. Those intrinsics are harmless on
+        their own — they grant no host access without bridge globals.
+        """
+        return """
+const _stdOutPuts = std.out.puts.bind(std.out);
+try {
+  const _input = JSON.parse(std.in.getline());
+  const _createFunction = Function;
+
+  // Delete the qjs --std bridge globals so user code cannot reach host I/O.
+  // Wasmtime + WASI is the real isolation boundary; this is defense in
+  // depth. Keep this list in sync with what qjs --std injects.
+  const _HOST_GLOBALS = [
+    "std", "os", "bjson",
+    "print", "console",
+    "scriptArgs", "execArgv", "argv0",
+    "gc", "queueMicrotask", "performance", "navigator",
+    "atob", "btoa",
+  ];
+  for (const _name of _HOST_GLOBALS) {
+    delete globalThis[_name];
+  }
+
+  const run = _createFunction("context", `
+    "use strict";
+    ${_input.code}
+    if (typeof main !== "function") {
+      throw new Error("The code must define a main function.");
+    }
+    return main(context);
+  `);
+  const result = run(_input.context);
+  _stdOutPuts(JSON.stringify({ result }) + "\\n");
+} catch (error) {
+  _stdOutPuts(JSON.stringify({ error: String(error && error.message || error) }) + "\\n");
+}
+""".strip()

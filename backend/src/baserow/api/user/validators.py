@@ -4,6 +4,24 @@ from django.core.exceptions import ValidationError
 
 from rest_framework import serializers
 
+from baserow.api.validators import EMAIL_LIKE_NAME_REGEX, no_url_validation
+
+
+def name_validation(value):
+    """
+    Rejects names containing URL-like content or control characters to prevent
+    abuse of transactional emails for phishing, and email addresses because
+    they're not a name.
+    """
+
+    if EMAIL_LIKE_NAME_REGEX.match(value):
+        raise serializers.ValidationError(
+            "Please enter your name, not your email address.",
+            code="name_is_email",
+        )
+
+    return no_url_validation(value)
+
 
 def password_validation(value):
     """

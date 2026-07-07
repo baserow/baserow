@@ -74,7 +74,7 @@
 
 <script>
 import { uuid } from '@baserow/modules/core/utils/string'
-import { isElement } from '@baserow/modules/core/utils/dom'
+import { isInsideTeleportedElement } from '@baserow/modules/core/utils/dom'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import UserFilesModal from '@baserow/modules/core/components/files/UserFilesModal'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
@@ -87,7 +87,7 @@ export default {
   name: 'GridViewFieldFile',
   components: { UserFilesModal, FileFieldModal },
   mixins: [gridField, fileField],
-  emits: ['add-keep-alive', 'remove-keep-alive', 'select'],
+  emits: ['add-keep-alive', 'remove-keep-alive', 'select', 'editing-changed'],
   data() {
     return {
       modalOpen: false,
@@ -97,6 +97,11 @@ export default {
       // Event handler reference for cleanup
       keydownEvent: null,
     }
+  },
+  watch: {
+    modalOpen(editing) {
+      this.$emit('editing-changed', editing)
+    },
   },
   methods: {
     /**
@@ -181,9 +186,8 @@ export default {
      */
     canUnselectByClickingOutside(event) {
       return (
-        (!this.$refs.uploadModal ||
-          !isElement(this.$refs.uploadModal.$el, event.target)) &&
-        !isElement(this.$refs.fileModal.$el, event.target)
+        !isInsideTeleportedElement(this.$refs.uploadModal, event) &&
+        !isInsideTeleportedElement(this.$refs.fileModal, event)
       )
     },
     /**

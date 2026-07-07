@@ -66,6 +66,7 @@ class BuilderConfig(AppConfig):
             DeletePageOperationType,
             DuplicatePageOperationType,
             ReadPageOperationType,
+            RestorePageOperationType,
             UpdatePageOperationType,
         )
 
@@ -74,6 +75,7 @@ class BuilderConfig(AppConfig):
         operation_type_registry.register(UpdatePageOperationType())
         operation_type_registry.register(ReadPageOperationType())
         operation_type_registry.register(DuplicatePageOperationType())
+        operation_type_registry.register(RestorePageOperationType())
 
         from baserow.contrib.builder.domains.operations import (
             CreateDomainOperationType,
@@ -122,6 +124,7 @@ class BuilderConfig(AppConfig):
             ListElementsPageOperationType,
             OrderElementsPageOperationType,
             ReadElementOperationType,
+            RestoreElementOperationType,
             UpdateElementOperationType,
         )
 
@@ -131,6 +134,7 @@ class BuilderConfig(AppConfig):
         operation_type_registry.register(ReadElementOperationType())
         operation_type_registry.register(UpdateElementOperationType())
         operation_type_registry.register(DeleteElementOperationType())
+        operation_type_registry.register(RestoreElementOperationType())
 
         from baserow.contrib.builder.workflow_actions.operations import (
             CreateBuilderWorkflowActionOperationType,
@@ -223,8 +227,35 @@ class BuilderConfig(AppConfig):
         domain_type_registry.register(SubDomainType())
 
         from .domains.trash_types import DomainTrashableItemType
+        from .elements.trash_types import ElementTrashableItemType
+        from .pages.trash_types import PageTrashableItemType
 
         trash_item_type_registry.register(DomainTrashableItemType())
+        trash_item_type_registry.register(PageTrashableItemType())
+        trash_item_type_registry.register(ElementTrashableItemType())
+
+        from baserow.core.action.registries import (
+            action_scope_registry,
+            action_type_registry,
+        )
+
+        from .action_scopes import PageActionScopeType, SharedPageActionScopeType
+        from .elements.actions import (
+            CreateElementActionType,
+            DeleteElementActionType,
+            DuplicateElementActionType,
+            MoveElementActionType,
+            UpdateElementActionType,
+        )
+
+        action_scope_registry.register(PageActionScopeType())
+        action_scope_registry.register(SharedPageActionScopeType())
+
+        action_type_registry.register(CreateElementActionType())
+        action_type_registry.register(UpdateElementActionType())
+        action_type_registry.register(DeleteElementActionType())
+        action_type_registry.register(DuplicateElementActionType())
+        action_type_registry.register(MoveElementActionType())
 
         from baserow.contrib.builder.data_providers.registries import (
             builder_data_provider_type_registry,
@@ -278,10 +309,14 @@ class BuilderConfig(AppConfig):
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
             AIAgentWorkflowActionType,
+            CoreCSVFileReaderActionType,
             CoreHttpRequestActionType,
             CoreSMTPEmailActionType,
+            CoreStartWorkflowActionType,
             CreateRowWorkflowActionType,
             DeleteRowWorkflowActionType,
+            LocalBaserowCreateRowsWorkflowActionType,
+            LocalBaserowUpdateRowsWorkflowActionType,
             LogoutWorkflowActionType,
             NotificationWorkflowActionType,
             OpenPageWorkflowActionType,
@@ -293,7 +328,13 @@ class BuilderConfig(AppConfig):
         builder_workflow_action_type_registry.register(NotificationWorkflowActionType())
         builder_workflow_action_type_registry.register(OpenPageWorkflowActionType())
         builder_workflow_action_type_registry.register(CreateRowWorkflowActionType())
+        builder_workflow_action_type_registry.register(
+            LocalBaserowCreateRowsWorkflowActionType()
+        )
         builder_workflow_action_type_registry.register(UpdateRowWorkflowActionType())
+        builder_workflow_action_type_registry.register(
+            LocalBaserowUpdateRowsWorkflowActionType()
+        )
         builder_workflow_action_type_registry.register(DeleteRowWorkflowActionType())
         builder_workflow_action_type_registry.register(LogoutWorkflowActionType())
         builder_workflow_action_type_registry.register(
@@ -301,6 +342,8 @@ class BuilderConfig(AppConfig):
         )
         builder_workflow_action_type_registry.register(CoreHttpRequestActionType())
         builder_workflow_action_type_registry.register(CoreSMTPEmailActionType())
+        builder_workflow_action_type_registry.register(CoreCSVFileReaderActionType())
+        builder_workflow_action_type_registry.register(CoreStartWorkflowActionType())
         builder_workflow_action_type_registry.register(AIAgentWorkflowActionType())
         builder_workflow_action_type_registry.register(
             SlackWriteMessageWorkflowActionType()

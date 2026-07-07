@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Use the real client IP address in OpenTelemetry request traces when proxy headers are present.",
+    "issue_origin": "github",
+    "issue_number": 5277,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-04-29"
+}

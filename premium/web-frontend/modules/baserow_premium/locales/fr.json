@@ -139,7 +139,7 @@
         "rowUsage": "Nombre de ligne",
         "storeUsage": "Espace disponible",
         "disconnectLicense": "Déconnecter la licence",
-        "disconnectDescription": "Si vous déconnectez la licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence. Veuillez contacter notre support via {contact} si vous souhaitez utiliser cette licence sur une autre instance hébergée.",
+        "disconnectDescription": "Êtes-vous sûr.e de vouloir désactiver cette licence ? Si vous désactivez cette licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence pour cette instance. Vous pouvez changer l'identifiant d'instance via la page de gestion des abbonements sur {subscriptions} ou via notre support {contact} si vous disposez d'une licence Entreprise.",
         "moreSeatsNeededTitle": "Besoin de plus d´utilisateurs",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} utilisateurs payants et {free_users_count} utilisateurs gratuits",
         "contactSalesMoreSeats": "Contacter un Vendeur pour plus d´utilisateurs",

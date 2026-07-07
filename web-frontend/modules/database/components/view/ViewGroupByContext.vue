@@ -22,12 +22,27 @@
         <div
           v-for="(groupBy, index) in view.group_bys"
           :key="groupBy.id"
+          v-sortable="{
+            id: groupBy.id,
+            update: prioritizeGroupBys,
+            handle: '[data-group-by-handle]',
+            enabled: !disableGroupBy,
+            marginTop: -8,
+            marginTopLast: 8,
+            marginLeft: 16,
+            marginRight: 16,
+          }"
           class="group-bys__item"
           :class="{
             'group-bys__item--loading': groupBy._.loading,
           }"
           :set="field = getField(groupBy.field)"
         >
+          <a
+            v-if="!disableGroupBy"
+            class="group-bys__handle"
+            data-group-by-handle
+          ></a>
           <a
             v-if="!disableGroupBy"
             class="group-bys__remove"
@@ -78,16 +93,28 @@
         </div>
       </div>
       <div
-        v-if="view.group_bys.length < availableFieldsLength && !disableGroupBy"
-        class="context__footer"
+        v-if="canAddGroupBy || view.group_bys.length > 0"
+        class="context__footer group-bys__footer"
       >
-        <ButtonText
-          ref="addDropdownToggle"
-          icon="iconoir-plus"
-          @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
+        <span
+          v-if="canAddGroupBy"
+          v-tooltip="
+            atGroupByLimit
+              ? $t('viewGroupByContext.maxGroupBysReached', {
+                  count: maxGroupBys,
+                })
+              : null
+          "
         >
-          {{ $t('viewGroupByContext.addGroupBy') }}</ButtonText
-        >
+          <ButtonText
+            ref="addDropdownToggle"
+            icon="iconoir-plus"
+            :disabled="atGroupByLimit"
+            @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
+          >
+            {{ $t('viewGroupByContext.addGroupBy') }}</ButtonText
+          >
+        </span>
         <div class="group-bys__add">
           <Dropdown
             ref="addDropdown"
@@ -104,6 +131,14 @@
             ></DropdownItem>
           </Dropdown>
         </div>
+        <div v-if="view.group_bys.length > 0" class="group-bys__footer-actions">
+          <ButtonText @click.prevent="setGroupByCollapseAll(true)">
+            {{ $t('viewGroupByContext.collapseAllGroups') }}
+          </ButtonText>
+          <ButtonText @click.prevent="setGroupByCollapseAll(false)">
+            {{ $t('viewGroupByContext.expandAllGroups') }}
+          </ButtonText>
+        </div>
       </div>
     </div>
   </Context>
@@ -112,7 +147,10 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import context from '@baserow/modules/core/mixins/context'
-import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
+import {
+  DEFAULT_SORT_TYPE_KEY,
+  MAX_GROUP_BYS,
+} from '@baserow/modules/database/constants'
 import ViewSortOrder from '@baserow/modules/database/components/view/ViewSortOrder.vue'
 
 export default {
@@ -147,7 +185,20 @@ export default {
     },
   },
   emits: ['changed'],
+  data() {
+    return {
+      maxGroupBys: MAX_GROUP_BYS,
+    }
+  },
   computed: {
+    /**
+     * Soft cap: once a view reaches the maximum number of group-bys, the add button
+     * is disabled (existing group-bys can still be removed). Views that already have
+     * more keep working.
+     */
+    atGroupByLimit() {
+      return this.view.group_bys.length >= this.maxGroupBys
+    },
     /**
      * Calculates the total amount of available fields.
      */
@@ -156,6 +207,12 @@ export default {
     },
     availableFields() {
       return this.fields.filter((f) => this.isFieldAvailable(f))
+    },
+    canAddGroupBy() {
+      return (
+        this.view.group_bys.length < this.availableFieldsLength &&
+        !this.disableGroupBy
+      )
     },
     contextWarning() {
       const ownershipType = this.$registry.get(
@@ -207,6 +264,23 @@ export default {
         notifyIf(error, 'view')
       }
     },
+    async prioritizeGroupBys(viewGroupByIds, oldViewGroupByIds) {
+      if (this.disableGroupBy) {
+        return
+      }
+
+      try {
+        await this.$store.dispatch('view/prioritizeGroupBys', {
+          view: this.view,
+          viewGroupByIds,
+          oldViewGroupByIds,
+          readOnly: this.readOnly,
+        })
+        this.$emit('changed')
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
+    },
     async deleteGroupBy(groupBy) {
       try {
         await this.$store.dispatch('view/deleteGroupBy', {
@@ -249,6 +323,21 @@ export default {
     },
     getSortTypes(field) {
       return this.getFieldType(field).getSortTypes(field)
+    },
+    async setGroupByCollapseAll(collapse) {
+      try {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/setGroupByCollapseAll',
+          {
+            view: this.view,
+            fields: this.fields,
+            collapse,
+          }
+        )
+        this.$refs.context.hide()
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
     },
   },
 }

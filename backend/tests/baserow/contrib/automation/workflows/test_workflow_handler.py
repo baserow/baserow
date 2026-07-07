@@ -16,6 +16,7 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.nodes.node_types import (
+    CoreManualTriggerNodeType,
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
@@ -150,6 +151,18 @@ def test_export_workflow_excludes_notification_recipients_when_not_duplicating(
     )
 
     assert exported_workflow["notification_recipient_emails"] == []
+
+
+@pytest.mark.django_db
+def test_export_workflow_with_manual_trigger(data_fixture):
+    workflow = data_fixture.create_automation_workflow(
+        trigger_type=CoreManualTriggerNodeType.type
+    )
+
+    exported_workflow = AutomationWorkflowHandler().export_workflow(workflow)
+
+    assert exported_workflow["nodes"][0]["type"] == CoreManualTriggerNodeType.type
+    assert exported_workflow["nodes"][0]["service"]["type"] == "manual"
 
 
 @pytest.mark.django_db

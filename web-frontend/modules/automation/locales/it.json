@@ -5,5 +5,198 @@
     "automationWelcomeGuidedTourStep": {
         "title": "Benvenuto in Baserow Automations!",
         "content": "Facciamo un breve tour. Vedrai come impostare i trigger, aggiungere azioni, testare il tuo flusso di lavoro e pubblicarlo — nessuna codifica richiesta."
+    },
+    "automationGraphGuidedTourStep": {
+        "title": "Gestisci il tuo grafo del flusso di lavoro qui",
+        "content": "Crea un trigger e azioni qui per definire cosa dovrebbe fare il flusso di lavoro. Seleziona un trigger o un'azione per configurarlo nel pannello laterale."
+    },
+    "automationTestRunGuidedTourStep": {
+        "title": "Testa il tuo flusso di lavoro",
+        "content": "Quando sei pronto, avvia una prova per vedere il tuo flusso di lavoro in azione. Il trigger verrà eseguito una sola volta per simulare un'esecuzione completa."
+    },
+    "automationHistoryGuidedTourStep": {
+        "title": "Visualizza la cronologia del flusso di lavoro",
+        "content": "Utilizza il pannello Cronologia per rivedere le esecuzioni di test precedenti e quelle pubblicate. È un ottimo modo per eseguire il debug o confermare i risultati."
+    },
+    "automationPublishGuidedTourStep": {
+        "title": "Pubblica il tuo flusso di lavoro",
+        "content": "Dopo aver testato e perfezionato la configurazione, pubblica il flusso di lavoro per renderlo operativo. Il suo trigger si avvierà automaticamente secondo la pianificazione."
+    },
+    "automationWorkflowStateGuidedTourStep": {
+        "title": "Controllare lo stato del flusso di lavoro",
+        "content": "Da qui, puoi mettere in pausa o riprendere il tuo flusso di lavoro in qualsiasi momento. Hai sempre il controllo su se è attivo o disattivato."
+    },
+    "automationDocsGuidedTourStep": {
+        "title": "Esplora la documentazione",
+        "content": "Se dovessi riscontrare difficoltà o desiderassi saperne di più, fai clic sul pulsante evidenziato per accedere a guide dettagliate e domande frequenti sulla creazione di automazioni in Baserow."
+    },
+    "sidebarComponentAutomation": {
+        "createAutomationWorkflow": "Nuovo flusso di lavoro"
+    },
+    "createAutomationWorkflowModal": {
+        "header": "Creare un flusso di lavoro",
+        "submit": "Aggiungi flusso di lavoro"
+    },
+    "automationWorkflowForm": {
+        "defaultName": "Flusso di lavoro",
+        "nameTitle": "Nome",
+        "nameSubtitle": "Nome univoco del flusso di lavoro",
+        "namePlaceholder": "Inserisci un nome..."
+    },
+    "duplicateAutomationWorkflowJobType": {
+        "name": "Duplicare il flusso di lavoro di automazione",
+        "duplicating": "Duplicazione",
+        "duplicatedTitle": "Flusso di lavoro duplicato"
+    },
+    "trashType": {
+        "workflow": "flusso di lavoro",
+        "automation": "automazione"
+    },
+    "generalSettings": {
+        "titleOverview": "Generale",
+        "nameLabel": "Nome automazione",
+        "notificationLabel": "Notifiche",
+        "notificationCheckboxLabel": "Ricevi una notifica quando questa automazione fallisce",
+        "cantUpdateAutomationTitle": "Impossibile aggiornare l'automazione",
+        "cantUpdateAutomationDescription": "Spiacenti, non è stato possibile aggiornare l'automazione."
+    },
+    "workflowGeneralSettings": {
+        "titleOverview": "Impostazioni del flusso di lavoro",
+        "nameLabel": "Nome del flusso di lavoro",
+        "workflowDisabledRecipientsLabel": "Destinatari della notifica",
+        "workflowDisabledRecipientsHelp": "I membri di questo spazio di lavoro riceveranno una notifica in-app se questo flusso di lavoro viene disabilitato automaticamente.",
+        "selectWorkflowDisabledRecipients": "Selezionare i destinatari",
+        "noWorkflowDisabledRecipients": "Nessun destinatario selezionato.",
+        "cantUpdateWorkflowTitle": "Impossibile aggiornare il flusso di lavoro",
+        "cantUpdateWorkflowDescription": "Spiacenti, non è stato possibile aggiornare il flusso di lavoro."
+    },
+    "workflowDisabledNotification": {
+        "body": "Il flusso di lavoro {name} è stato disabilitato."
+    },
+    "integrationSettings": {
+        "title": "Integrazioni",
+        "noIntegrationMessage": "Non hai ancora creato alcuna integrazione. Puoi crearle aggiungendo un'origine dati, un'azione o l'autenticazione dell'utente.",
+        "integrationMessage": "È possibile creare nuove integrazioni aggiungendo un'origine dati, un'azione o l'autenticazione dell'utente."
+    },
+    "automationHeader": {
+        "startTestRun": "Avviare l'esecuzione del test",
+        "stopTestRun": "Interrompi test",
+        "publishBtn": "Pubblica",
+        "settingsBtn": "Impostazioni",
+        "historyBtn": "Cronologia",
+        "docsBtn": "Documenti",
+        "switchLabelDraft": "Bozze",
+        "switchLabelDisabled": "Disattivo",
+        "switchLabelPaused": "In pausa",
+        "switchLabelLive": "Attiva",
+        "lastPublished": "Ultimo aggiornamento"
+    },
+    "dataProviderType": {
+        "currentIteration": "Iterazione attuale",
+        "item": "Elemento",
+        "previousNode": "Nodo precedente"
+    },
+    "nodeSidePanel": {
+        "labelTitle": "Etichetta"
+    },
+    "historySidePanel": {
+        "title": "Cronologia",
+        "noRunsTitle": "Nessuna esecuzione",
+        "noRunsDescription": "Una volta eseguito questo flusso di lavoro, i risultati verranno visualizzati qui.",
+        "statusStarted": "In elaborazione...",
+        "statusSuccess": "Eseguito con successo",
+        "statusError": "Impossibile eseguire",
+        "statusSuccessBadge": "Completato",
+        "statusErrorBadge": "Fallito",
+        "statusDisabled": "Disabilitato da Baserow",
+        "successfulRuns": "Esecuzioni riuscite",
+        "completedInSeconds": "Completato in {s} secondi.",
+        "completedInLessThanSecond": "Completato in meno di 1 secondo.",
+        "running": "In esecuzione per {at}s",
+        "failedRuns": "Esecuzioni fallite",
+        "errorHideDetails": "Nascondi i dettagli",
+        "errorShowDetails": "Mostra i dettagli",
+        "runNumber": "Eseguire {n}",
+        "runCount": "{n} esecuzioni",
+        "testRun": "Test",
+        "showResult": "Mostra risultati"
+    },
+    "nodeType": {
+        "triggerDeletionError": "I trigger non possono essere eliminati, ma solo sostituiti.",
+        "localBaserowRowsCreatedLabel": "Vengono create righe in {tableName}",
+        "localBaserowRowsUpdatedLabel": "Le righe vengono aggiornate in {tableName}",
+        "localBaserowRowsDeletedLabel": "Le righe vengono eliminate in {tableName}",
+        "localBaserowCreateRowLabel": "Crea una riga in {tableName}",
+        "localBaserowUpdateRowLabel": "Aggiorna una riga in {tableName}",
+        "localBaserowDeleteRowLabel": "Elimina una riga in {tableName}",
+        "localBaserowGetRowLabel": "Leggi una riga in {tableName}",
+        "localBaserowListRowsLabel": "Elenca le righe in {tableName}",
+        "localBaserowAggregateRowsLabel": "Riepiloga le righe in {tableName}",
+        "httpRequestLabel": "Invia una richiesta HTTP",
+        "smtpEmailLabel": "Invia un'e-mail",
+        "routerLabel": "Segui 1 dei {edgeCount} rami",
+        "iterationLabel": "Iterare sugli elementi",
+        "defaultEdgeLabelFallback": "Predefinito",
+        "routerWithOutputNodesDeleteError": "Non può essere eliminato finché non vengono rimossi i suoi {outputCount} nodi di output.",
+        "routerWithOutputNodesReplaceError": "Non può essere sostituito finché non vengono rimossi i suoi {outputCount} nodi di output.",
+        "iteratorWithChildrenNodesDeleteError": "Non può essere eliminato finché non vengono rimossi i suoi nodi figli.",
+        "iteratorWithChildrenNodesReplaceError": "Non può essere sostituito finché non vengono rimossi i suoi nodi figli.",
+        "periodicTriggerLabel": "Trigger periodico",
+        "aiAgent": "prompt dell'IA",
+        "slackWriteMessageName": "Invia un messaggio su Slack",
+        "slackWriteMessageLabel": "Invia un messaggio a #{channel}"
+    },
+    "workflowNode": {
+        "actionDelete": "Cancella",
+        "actionReplace": "Sostituisci",
+        "actionDuplicate": "Duplica",
+        "actionConfigure": "Configura",
+        "beforeLabelTrigger": "Inizia quando",
+        "beforeLabelAction": "Allora",
+        "beforeLabelCondition": "Se la condizione è soddisfatta",
+        "beforeLabelConditionDefault": "Se nessuna delle condizioni è soddisfatta",
+        "beforeLabelRepeat": "Per ogni elemento",
+        "moreEdit": "Modifica",
+        "moreReplace": "Sostituisci",
+        "nodeOptions": "Opzioni nodo",
+        "displayLabelDebug": "ID: {id} | Precedente: {previousNodeId} | {outputUid}",
+        "moreDuplicate": "Duplica"
+    },
+    "workflowAddNode": {
+        "displayTitle": "Crea nodo di automazione"
+    },
+    "workflowNodeContext": {
+        "searchPlaceholderTrigger": "Cerca un trigger...",
+        "searchPlaceholderActions": "Cerca azioni...",
+        "noResults": "Nessun risultato trovato"
+    },
+    "serviceType": {
+        "periodicTrigger": "Trigger periodico",
+        "periodicTriggerDescription": "Attiva il flusso di lavoro periodicamente a intervalli specificati",
+        "periodicTriggerTriggeredAt": "Attivato alle",
+        "errorIntervalMissing": "È necessario un intervallo.",
+        "coreHTTPTrigger": "Trigger HTTP",
+        "coreHTTPTriggerDescription": "Ricevere richieste HTTP per attivare flussi di lavoro"
+    },
+    "workflowEditor": {
+        "chooseEvent": "Scegli un evento..."
+    },
+    "simulateDispatch": {
+        "sampleDataLabel": "Risultato",
+        "triggerNodeAwaitingEvent": "Il nodo è in attesa. Si prega di attivare manualmente l'evento per popolare il payload e completare il test.",
+        "simulationInProgress": "Il test del nodo è in corso...",
+        "errorNodeNotConfigured": "Il nodo deve essere configurato prima di poter essere testato.",
+        "errorPreviousNodeNotConfigured": "Il nodo precedente \"{node}\" deve essere configurato.",
+        "errorPreviousNodesNotTested": "Il nodo precedente \"{node}\" deve essere testato per primo.",
+        "buttonLabelTest": "Testa evento",
+        "buttonLabelTestAgain": "Testa nuovamente evento",
+        "testNodeDescription": "Esegui questo test per confermare che la configurazione sia corretta. I dati ottenuti da questo test potranno essere utilizzati nelle fasi successive.",
+        "buttonLabelShowPayload": "Mostra payload",
+        "buttonLabelShowError": "Mostra errore",
+        "sampleDataModalTitle": "Payload per {nodeLabel}",
+        "sampleDataModalSubTitle": "Payload JSON",
+        "sampleDataCopy": "Copia",
+        "errorOccurred": "Si è verificato un errore...",
+        "sampleDataCopied": "Il payload è stato copiato negli appunti"
     }
 }

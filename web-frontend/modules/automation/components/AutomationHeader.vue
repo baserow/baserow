@@ -60,6 +60,13 @@
           }}</span>
         </a>
       </li>
+      <li
+        v-for="(component, index) in automationHeaderComponents"
+        :key="index"
+        class="header__filter-item"
+      >
+        <component :is="component" :workspace="automation.workspace" />
+      </li>
     </ul>
 
     <div
@@ -161,6 +168,7 @@ export default defineComponent({
     const app = useNuxtApp()
     const isDev = inject('isDev')
     const workflow = inject('workflow')
+    const workspace = inject('workspace')
 
     const debug = ref(false)
     const isPublishing = ref(false)
@@ -186,7 +194,10 @@ export default defineComponent({
 
       const _nodes = workflow.value.nodes.filter((node) => {
         const nodeType = app.$registry.get('node', node.type)
-        const isInError = nodeType.isInError({ service: node.service })
+        const isInError = nodeType.isInError({
+          service: node.service,
+          workspace: workspace.value,
+        })
         return nodeType.isWorkflowAction === true && !isInError
       })
 
@@ -224,6 +235,16 @@ export default defineComponent({
 
     const activeSidePanel = computed(() => {
       return store.getters['automationWorkflow/getActiveSidePanel']
+    })
+
+    const automationHeaderComponents = computed(() => {
+      return Object.values(app.$registry.getAll('plugin')).reduce(
+        (components, plugin) =>
+          components.concat(
+            plugin.getAutomationHeaderComponents(props.automation.workspace)
+          ),
+        []
+      )
     })
 
     const toggleTestRun = async () => {
@@ -309,6 +330,7 @@ export default defineComponent({
       testRunDisabled,
       openSettingsModal,
       workflowSettingsModal,
+      automationHeaderComponents,
     }
   },
 })

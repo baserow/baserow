@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add batch operations for create/update/delete rows",
+    "issue_origin": "github",
+    "issue_number": 5543,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-06-18"
+}

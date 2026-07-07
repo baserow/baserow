@@ -1,6 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import UsersAdminTable from '@baserow/modules/core/components/admin/users/UsersAdminTable'
 import UserForm from '@baserow/modules/core/components/admin/users/forms/UserForm'
+import DisableTwoFactorAuthModal from '@baserow/modules/core/components/admin/users/modals/DisableTwoFactorAuthModal'
 import moment from '@baserow/modules/core/moment'
 import flushPromises from 'flush-promises'
 import UserAdminUserHelpers from '@baserow/test/helpers/userAdminHelpers'
@@ -48,7 +49,7 @@ describe('User Admin Component Tests', () => {
     expect(userAdmin.html()).toMatchSnapshot()
 
     const cells = ui.findCells()
-    expect(cells.length).toBe(7)
+    expect(cells.length).toBe(8)
     const {
       usernameCell,
       nameCell,
@@ -56,6 +57,7 @@ describe('User Admin Component Tests', () => {
       lastLoginCell,
       signedUpCell,
       isActiveCell,
+      twoFactorAuthCell,
     } = ui.getRow(cells, 0)
 
     // Username matches with correct initials and has an admin icon
@@ -91,8 +93,99 @@ describe('User Admin Component Tests', () => {
     expect(lastLoginCell.text()).toMatch(/^04\/26\/2021 \d+:50 (AM|PM)$/)
     expect(signedUpCell.text()).toMatch(/^04\/21\/2021 \d+:04 (AM|PM)$/)
 
-    // Shown as active
-    expect(isActiveCell.text()).toBe('user.active')
+    // Shown as active via the icon only (no text label)
+    expect(isActiveCell.find('.iconoir-check').exists()).toBe(true)
+
+    // 2FA is shown as disabled when not configured
+    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.disabled')
+  })
+
+  test('A users 2FA enabled status is displayed', async () => {
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
+      twoFactorAuth: { type: 'totp', is_enabled: true },
+    })
+
+    const cells = ui.findCells()
+    const { twoFactorAuthCell } = ui.getRow(cells, 0)
+    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.enabled')
+  })
+
+  test('edit user modal shows 2FA provider and remove option when enabled', async () => {
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
+      twoFactorAuth: { type: 'totp', is_enabled: true },
+    })
+
+    const editUserContext = await ui.openFirstUserActionsMenu()
+    await ui.clickEditUser(editUserContext)
+
+    const userForm = ui.c.findComponent(UserForm)
+    expect(userForm.find('.user-admin-edit__remove-2fa').exists()).toBe(true)
+  })
+
+  test('edit user modal hides remove 2FA option when disabled', async () => {
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({})
+
+    const editUserContext = await ui.openFirstUserActionsMenu()
+    await ui.clickEditUser(editUserContext)
+
+    const userForm = ui.c.findComponent(UserForm)
+    expect(userForm.find('.user-admin-edit__remove-2fa').exists()).toBe(false)
+  })
+
+  test('admin can remove a users 2FA', async () => {
+    // whenThereIsAUserAndYouOpenUserAdmin creates the user with id 1 by
+    // default — register the delete mock for that id before opening the UI.
+    testApp.mock.onDelete(`/admin/users/1/two-factor-auth/`).reply(204)
+
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
+      twoFactorAuth: { type: 'totp', is_enabled: true },
+    })
+    const editUserContext = await ui.openFirstUserActionsMenu()
+    await ui.clickEditUser(editUserContext)
+
+    const userForm = ui.c.findComponent(UserForm)
+    await userForm.find('.user-admin-edit__remove-2fa').trigger('click')
+    await flushPromises()
+
+    const disableModal = ui.c.findComponent(DisableTwoFactorAuthModal)
+    // the danger button is the confirm action
+    await disableModal.find('button.button--danger').trigger('click')
+    await flushPromises()
+
+    const cells = ui.findCells()
+    const { twoFactorAuthCell } = ui.getRow(cells, 0)
+    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.disabled')
+  })
+
+  test('a failed 2FA removal shows an error and leaves the row unchanged', async () => {
+    testApp.mock.onDelete(`/admin/users/1/two-factor-auth/`).reply(400, {
+      error: 'ERROR_TWO_FACTOR_AUTH_NOT_CONFIGURED',
+      detail: 'Two-factor authentication is not configured.',
+    })
+
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
+      twoFactorAuth: { type: 'totp', is_enabled: true },
+    })
+    testApp.dontFailOnErrorResponses()
+
+    const editUserContext = await ui.openFirstUserActionsMenu()
+    await ui.clickEditUser(editUserContext)
+
+    const userForm = ui.c.findComponent(UserForm)
+    await userForm.find('.user-admin-edit__remove-2fa').trigger('click')
+    await flushPromises()
+
+    const disableModal = ui.c.findComponent(DisableTwoFactorAuthModal)
+    await disableModal.find('button.button--danger').trigger('click')
+    await flushPromises()
+
+    // The error is surfaced inside the modal instead of silently swallowed.
+    expect(ui.getErrorText(disableModal).length).toBeGreaterThan(0)
+
+    // The optimistic clear must NOT be applied: the row still shows 2FA enabled.
+    const cells = ui.findCells()
+    const { twoFactorAuthCell } = ui.getRow(cells, 0)
+    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.enabled')
   })
 
   test('A user with no workspaces is displayed without any', async () => {
@@ -103,7 +196,7 @@ describe('User Admin Component Tests', () => {
     await flushPromises()
 
     const cells = ui.findCells()
-    expect(cells.length).toBe(7)
+    expect(cells.length).toBe(8)
     const { usernameCell, workspacesCell } = ui.getRow(cells, 0)
 
     expect(usernameCell.text()).toContain(user.username)
@@ -114,7 +207,7 @@ describe('User Admin Component Tests', () => {
   test('A user can be deleted', async () => {
     const { user, userAdmin, ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
-    expect(userAdmin.html()).toContain(user.username)
+    expect(userAdmin.find('tbody').html()).toContain(user.username)
 
     const editUserContext = await ui.openFirstUserActionsMenu()
     await ui.clickDeleteUser(editUserContext)
@@ -125,7 +218,7 @@ describe('User Admin Component Tests', () => {
 
     await flushPromises()
 
-    expect(userAdmin.html()).not.toContain(user.username)
+    expect(userAdmin.find('tbody').html()).not.toContain(user.username)
   })
 
   test('An active user can be deactivated', async () => {
@@ -145,7 +238,7 @@ describe('User Admin Component Tests', () => {
 
     const cells = ui.findCells()
     const { isActiveCell } = ui.getRow(cells, 0)
-    expect(isActiveCell.text()).toContain('user.deactivated')
+    expect(isActiveCell.find('.iconoir-cancel').exists()).toBe(true)
   })
 
   test('A deactivated user can be activated', async () => {
@@ -165,7 +258,7 @@ describe('User Admin Component Tests', () => {
 
     const cells = ui.findCells()
     const { isActiveCell } = ui.getRow(cells, 0)
-    expect(isActiveCell.text()).toContain('user.active')
+    expect(isActiveCell.find('.iconoir-check').exists()).toBe(true)
   })
 
   // eslint-disable-next-line vitest/expect-expect
@@ -182,49 +275,43 @@ describe('User Admin Component Tests', () => {
     await flushPromises()
   })
 
-  test('users password cant be changed if not entered the same twice', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
+  test.each([
+    {
+      description: 'cant be changed if not entered the same twice',
+      password: '1'.repeat(8),
+      passwordConfirm: '1'.repeat(8) + 'DifferentFromFirst',
+      property: 'passwordConfirm',
+      validator: 'sameAsPassword',
+    },
+    {
+      description: 'cant be changed to less than 8 characters',
+      password: '1'.repeat(7),
+      passwordConfirm: '1'.repeat(7),
+      property: 'password',
+      validator: 'minLength',
+    },
+    {
+      description: 'cant be changed to more than 256 characters',
+      password: '1'.repeat(257),
+      passwordConfirm: '1'.repeat(257),
+      property: 'password',
+      validator: 'maxLength',
+    },
+  ])(
+    'a users password $description',
+    async ({ password, passwordConfirm, property, validator }) => {
+      const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
-    const validPassword = '1'.repeat(8)
+      const errors = await ui.attemptToChangePasswordReturningModalError(
+        password,
+        passwordConfirm
+      )
 
-    const errors = await ui.attemptToChangePasswordReturningModalError(
-      validPassword,
-      validPassword + 'DifferentFromFirst'
-    )
-    expect(errors.length).toBeGreaterThan(0)
-    const error = errors.find((obj) => obj.$property === 'passwordConfirm')
-    expect(error.$validator).toMatch('sameAsPassword')
-  })
-
-  test('users password cant be changed less than 8 characters', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
-
-    const tooShortPassword = '1'.repeat(7)
-
-    const errors = await ui.attemptToChangePasswordReturningModalError(
-      tooShortPassword,
-      tooShortPassword
-    )
-
-    expect(errors.length).toBeGreaterThan(0)
-    const error = errors.find((obj) => obj.$property === 'password')
-    expect(error.$validator).toMatch('minLength')
-  })
-
-  test('users password cant be changed to more than 256 characters', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
-
-    const tooLongPassword = '1'.repeat(257)
-
-    const errors = await ui.attemptToChangePasswordReturningModalError(
-      tooLongPassword,
-      tooLongPassword
-    )
-
-    expect(errors.length).toBeGreaterThan(0)
-    const error = errors.find((obj) => obj.$property === 'password')
-    expect(error.$validator).toMatch('maxLength')
-  })
+      expect(errors.length).toBeGreaterThan(0)
+      const error = errors.find((obj) => obj.$property === property)
+      expect(error.$validator).toMatch(validator)
+    }
+  )
 
   // eslint-disable-next-line vitest/expect-expect
   test('users password can be changed to 256 characters', async () => {
@@ -299,24 +386,23 @@ describe('User Admin Component Tests', () => {
     expect(ui.getErrorText(modal)).toBe('clientHandler.notCompletedDescription')
   })
 
-  test('a users full name cant be changed to less than 2 characters', async () => {
+  test.each([
+    {
+      description: 'cant be changed to less than 2 characters',
+      name: '1',
+      rule: 'minLength',
+    },
+    {
+      description: 'cant be changed to more than 150 characters',
+      name: '1'.repeat(151),
+      rule: 'maxLength',
+    },
+  ])('a users full name $description', async ({ name, rule }) => {
     const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
-    const tooShortFullName = '1'
-
-    const editUserModal = await ui.changeFullName(tooShortFullName)
+    const editUserModal = await ui.changeFullName(name)
     const userFormComponent = editUserModal.findComponent(UserForm)
-    expect(userFormComponent.vm.v$.values.name.minLength.$invalid).toBe(true)
-  })
-
-  test('a users full name cant be changed to more than 150 characters', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
-
-    const tooLongFullName = '1'.repeat(151)
-
-    const editUserModal = await ui.changeFullName(tooLongFullName)
-    const userFormComponent = editUserModal.findComponent(UserForm)
-    expect(userFormComponent.vm.v$.values.name.maxLength.$invalid).toBe(true)
+    expect(userFormComponent.vm.v$.values.name[rule].$invalid).toBe(true)
   })
 
   test('a users username be changed', async () => {
@@ -467,7 +553,7 @@ describe('User Admin Component Tests', () => {
     const userAdmin = await testApp.mount(UsersAdminTable, {})
     const ui = new UserAdminUserHelpers(userAdmin)
 
-    const cells = ui.findCells(14)
+    const cells = ui.findCells(16)
     const { usernameCell: firstUsernameCell } = ui.getRow(cells, 0)
     expect(firstUsernameCell.text()).toContain('firstUser@example.com')
     const { usernameCell: secondUsernameCell } = ui.getRow(cells, 1)
@@ -498,7 +584,7 @@ describe('User Admin Component Tests', () => {
     const userAdmin = await testApp.mount(UsersAdminTable, {})
     const ui = new UserAdminUserHelpers(userAdmin)
 
-    const cells = ui.findCells(14)
+    const cells = ui.findCells(16)
     const { usernameCell: firstUsernameCell } = ui.getRow(cells, 0)
     expect(firstUsernameCell.text()).toContain('firstUser@example.com')
     const { usernameCell: secondUsernameCell } = ui.getRow(cells, 1)
@@ -612,9 +698,11 @@ describe('User Admin Component Tests', () => {
 
     let cells = ui.findCells()
     const { isActiveCell } = ui.getRow(cells, 0)
-    expect(isActiveCell.text()).toBe(
-      startingIsActive ? 'user.active' : 'user.deactivated'
-    )
+    expect(
+      isActiveCell
+        .find(startingIsActive ? '.iconoir-check' : '.iconoir-cancel')
+        .exists()
+    ).toBe(true)
 
     mockServer.expectUserUpdated(user, {
       is_active: !startingIsActive,
@@ -630,9 +718,11 @@ describe('User Admin Component Tests', () => {
 
     cells = ui.findCells()
     const { isActiveCell: updatedIsActiveCell } = ui.getRow(cells, 0)
-    expect(updatedIsActiveCell.text()).toBe(
-      startingIsActive ? 'user.deactivated' : 'user.active'
-    )
+    expect(
+      updatedIsActiveCell
+        .find(startingIsActive ? '.iconoir-cancel' : '.iconoir-check')
+        .exists()
+    ).toBe(true)
   }
 
   async function whenThereIsAUserAndYouOpenUserAdmin(userSetup = {}) {

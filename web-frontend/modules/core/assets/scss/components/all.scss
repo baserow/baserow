@@ -49,6 +49,8 @@
 @import 'card';
 @import 'card/all';
 @import 'views/grid';
+@import 'views/grid/presence_highlight';
+@import 'views/grid/presence_badge';
 @import 'views/grid/button';
 @import 'views/grid/text';
 @import 'views/grid/long_text';
@@ -203,8 +205,11 @@
 @import 'guided_tour_step';
 @import 'mcp_endpoint';
 @import 'code_editor';
+@import 'sample_data_modal';
+@import 'sample_data_viewer';
 @import 'field_constraints';
 @import 'workspace_search';
 @import 'formula_input_explorer_context';
 @import 'formula_input_error_context';
 @import 'tabs_body';
+@import 'presence';

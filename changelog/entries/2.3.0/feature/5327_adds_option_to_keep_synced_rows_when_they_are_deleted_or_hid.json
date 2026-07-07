@@ -1,0 +1,9 @@
+{
+  "type": "feature",
+  "message": "Adds option to keep synced rows when they are deleted or hidden in the source table.",
+  "issue_origin": "github",
+  "issue_number": 5327,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-06-29"
+}

@@ -146,6 +146,7 @@ def test_service_type_prepare_values(data_fixture):
     ) == {"integration": integration_c}
 
 
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "field_names,expected_field_names",
     [
@@ -196,7 +197,8 @@ def test_extract_properties():
     mock_service = MagicMock()
     result = service_type.extract_properties(mock_service, ["foo"])
 
-    assert result == []
+    assert result == ["foo"]
+    assert service_type.extract_properties(mock_service, []) == []
 
 
 def test_get_sample_data():
@@ -240,6 +242,7 @@ def test_dispatch_returns_sample_data_when_simulated():
     assert result.data == {"foo": "bar"}
 
 
+@pytest.mark.django_db
 def test_dispatch_even_if_simulated_when_updated():
     """
     Ensure that when dispatch_context.is_simulated is True, the cached sample
@@ -271,6 +274,7 @@ def test_dispatch_even_if_simulated_when_updated():
     assert result.data == {"someother": "data"}
 
 
+@pytest.mark.django_db
 def test_dispatch_even_if_simulated_without_sample_data():
     """
     Ensure that when dispatch_context.is_simulated is True, the cached sample

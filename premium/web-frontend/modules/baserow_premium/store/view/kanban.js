@@ -6,15 +6,18 @@ import KanbanService from '@baserow_premium/services/views/kanban'
 import {
   extractRowMetadata,
   getFilters,
+  getOrderBy,
   getRowSortFunction,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import FieldService from '@baserow/modules/database/services/field'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
+import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 import {
   extractChangedFields,
   getRowMetadata,
+  resolveBeforeRow,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
@@ -54,6 +57,8 @@ export const state = () => ({
   draggingOriginalBefore: null,
   // If true, ad hoc filtering is used instead of persistent one
   adhocFiltering: false,
+  // If true, ad hoc sorting is used
+  adhocSorting: false,
   // Indicates whether row(s) are currently being created.
   creating: false,
 })
@@ -201,6 +206,9 @@ export const mutations = {
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering
   },
+  SET_ADHOC_SORTING(state, adhocSorting) {
+    state.adhocSorting = adhocSorting
+  },
   SET_CREATING(state, value) {
     state.creating = value
   },
@@ -224,10 +232,12 @@ export const actions = {
       kanbanId,
       singleSelectFieldId,
       adhocFiltering,
+      adhocSorting,
       includeFieldOptions = true,
     }
   ) {
     commit('SET_ADHOC_FILTERING', adhocFiltering)
+    commit('SET_ADHOC_SORTING', adhocSorting)
     commit('SET_LAST_KANBAN_ID', kanbanId)
     const { $client } = this
     const view = rootGetters['view/get'](kanbanId)
@@ -239,6 +249,7 @@ export const actions = {
       selectOptions: [],
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+      orderBy: getOrderBy(view, adhocSorting),
       filters: getFilters(view, adhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
@@ -283,6 +294,7 @@ export const actions = {
       ],
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+      orderBy: getOrderBy(view, getters.getAdhocSorting),
       filters: getFilters(view, getters.getAdhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
@@ -454,6 +466,10 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, values, fields }
   ) {
+    if (getters.findStackIdAndIndex(values.id) !== undefined) {
+      return
+    }
+
     const { $registry } = this
     const row = clone(values)
     populateRow(row)
@@ -474,7 +490,7 @@ export const actions = {
 
     const sortedRows = clone(stack.results)
     sortedRows.push(row)
-    sortedRows.sort(getRowSortFunction($registry, [], fields))
+    sortedRows.sort(getRowSortFunction($registry, view.sortings, fields))
     const index = sortedRows.findIndex((r) => r.id === row.id)
     const isLast = index === sortedRows.length - 1
 
@@ -592,15 +608,25 @@ export const actions = {
     const singleSelectFieldId = getters.getSingleSelectFieldId
     const fieldName = `field_${singleSelectFieldId}`
 
+    // An unbuffered skeleton before row has no usable old stack, so no move
+    // can be computed safely.
+    const baseRow = resolveBeforeRow(row, (id) => {
+      const found = getters.findStackIdAndIndex(id)
+      return found !== undefined ? found[2] : undefined
+    })
+    if (baseRow === null) {
+      return
+    }
+
     // First, we virtually need to figure out if the row was in the old stack.
-    const oldRow = populateRow(clone(row))
+    const oldRow = populateRow(clone(baseRow))
     const oldRowMatchesFilters = await dispatch('rowMatchesFilters', {
       view,
       row: oldRow,
       fields,
     })
     const oldOption = oldRow[fieldName]
-    const oldStackId = oldOption !== null ? oldOption.id : 'null'
+    const oldStackId = oldOption != null ? oldOption.id : 'null'
     const oldStackResults = clone(getters.getStack(oldStackId).results)
     const oldExistingIndex = oldStackResults.findIndex(
       (r) => r.id === oldRow.id
@@ -608,14 +634,14 @@ export const actions = {
     const oldExists = oldExistingIndex > -1 && oldRowMatchesFilters
 
     // Second, we need to figure out if the row should be visible in the new stack.
-    const newRow = Object.assign(populateRow(clone(row)), values)
+    const newRow = Object.assign(populateRow(clone(baseRow)), values)
     const newRowMatchesFilters = await dispatch('rowMatchesFilters', {
       view,
       row: newRow,
       fields,
     })
     const newOption = newRow[fieldName]
-    const newStackId = newOption !== null ? newOption.id : 'null'
+    const newStackId = newOption != null ? newOption.id : 'null'
     const newStack = getters.getStack(newStackId)
     const newStackResults = clone(newStack.results)
     const newRowCurrentIndex = newStackResults.findIndex(
@@ -628,7 +654,7 @@ export const actions = {
     }
     newStackResults.push(newRow)
     newStackCount++
-    newStackResults.sort(getRowSortFunction($registry, [], fields))
+    newStackResults.sort(getRowSortFunction($registry, view.sortings, fields))
     const newIndex = newStackResults.findIndex((r) => r.id === newRow.id)
     const newIsLast = newIndex === newStackResults.length - 1
     const newExists =
@@ -712,13 +738,19 @@ export const actions = {
    * need to updated and will make a call to the backend. If something goes wrong,
    * the row is moved back to the original stack and position.
    */
-  async stopRowDrag({ dispatch, commit, getters }, { table, fields }) {
+  async stopRowDrag({ dispatch, commit, getters }, { table, fields, view }) {
     const row = getters.getDraggingRow
 
     if (row === null) {
       return
     }
     const { $client, $registry } = this
+    // Bundle the value update and the move into a single undo/redo step.
+    const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
+    // When the view has one or more sortings the vertical position of cards is
+    // determined by the sort, so we must not push a manual position to the
+    // backend; the row's `order` field is left untouched.
+    const sortingsActive = view.sortings.length > 0
 
     // First we need to figure out what the current position of the row is and how
     // that should be communicated to the backend later. The backend expects another
@@ -778,34 +810,54 @@ export const actions = {
           table.id,
           row.id,
           newValuesForUpdate,
-          getters.getLastKanbanId
+          getters.getLastKanbanId,
+          undoRedoActionGroupId
         )
         commit('UPDATE_ROW', { row, values: data })
       } catch (error) {
         // If for whatever reason updating the value fails, we need to undo the
         // things that have changed in the store.
         commit('UPDATE_ROW', { row, values: oldValues })
-        dispatch('cancelRowDrag', { row, originalStackId })
+        dispatch('cancelRowDrag', { row, originalStackId, view, fields })
         throw error
       }
     }
 
     // If the row is not before the same or if the stack has changed, we must update
-    // the position.
+    // the position. With sortings active the position is determined by the sort,
+    // so we skip the move call entirely and let the row stay where the local
+    // sort placed it.
     if (
-      (before || { id: null }).id !== (originalBefore || { id: null }).id ||
-      originalStackId !== currentStackId
+      !sortingsActive &&
+      ((before || { id: null }).id !== (originalBefore || { id: null }).id ||
+        originalStackId !== currentStackId)
     ) {
       try {
         const { data } = await RowService($client).move(
           table.id,
           row.id,
-          before !== null ? before.id : null
+          before !== null ? before.id : null,
+          getters.getLastKanbanId,
+          undoRedoActionGroupId
         )
         commit('UPDATE_ROW', { row, values: data })
       } catch (error) {
-        dispatch('cancelRowDrag', { row, originalStackId })
+        dispatch('cancelRowDrag', { row, originalStackId, view, fields })
         throw error
+      }
+    }
+
+    const rowMovedToAnotherStack = originalStackId !== currentStackId
+    if (sortingsActive && rowMovedToAnotherStack) {
+      const targetStack = getters.getStack(currentStackId)
+      const droppedRowIsLast = currentIndex === targetStack.results.length - 1
+      const targetStackHasUnloadedRows =
+        targetStack.results.length < targetStack.count
+
+      if (droppedRowIsLast && targetStackHasUnloadedRows) {
+        // The sorted position might be among the unloaded rows. Remove the
+        // optimistic card until the next page fetch returns its real position.
+        commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
       }
     }
   },
@@ -813,7 +865,10 @@ export const actions = {
    * Cancels the current row drag action by reverting back to the original position
    * while respecting any new rows that have been moved into there in the mean time.
    */
-  cancelRowDrag({ dispatch, getters, commit }, { row, originalStackId }) {
+  cancelRowDrag(
+    { dispatch, getters, commit },
+    { row, originalStackId, view = null, fields = [] }
+  ) {
     const current = getters.findStackIdAndIndex(row.id)
 
     if (current !== undefined) {
@@ -825,7 +880,8 @@ export const actions = {
         sortedRows.push(row)
       }
       const { $registry } = this
-      sortedRows.sort(getRowSortFunction($registry, [], [], null))
+      const sortings = view?.sortings || []
+      sortedRows.sort(getRowSortFunction($registry, sortings, fields))
       const targetIndex = sortedRows.findIndex((r) => r.id === row.id)
 
       dispatch('forceMoveRowTo', {
@@ -1155,6 +1211,9 @@ export const getters = {
   },
   getAdhocFiltering(state) {
     return state.adhocFiltering
+  },
+  getAdhocSorting(state) {
+    return state.adhocSorting
   },
   getCreating(state) {
     return state.creating

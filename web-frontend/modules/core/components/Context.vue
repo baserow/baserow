@@ -1,28 +1,48 @@
 <template>
-  <div
-    v-auto-overflow-scroll="open && overflowScroll"
-    class="context"
-    :class="{
-      'visibility-hidden': !open || !updatedOnce,
-      'context--overflow-scroll': overflowScroll,
-    }"
-  >
-    <slot v-if="openedOnce"></slot>
-  </div>
+  <Teleport to="body">
+    <div
+      ref="contextEl"
+      v-auto-overflow-scroll="open && overflowScroll"
+      v-bind="$attrs"
+      class="context"
+      :class="{
+        'visibility-hidden': !open || !updatedOnce,
+        'context--overflow-scroll': overflowScroll,
+      }"
+    >
+      <slot v-if="openedOnce"></slot>
+    </div>
+  </Teleport>
 </template>
 
 <script>
 import {
-  isElement,
+  collectTeleportRootsForOutsideClick,
+  getTeleportedElementFromRef,
   isDomElement,
+  isElement,
   onClickOutside,
 } from '@baserow/modules/core/utils/dom'
 
-import MoveToBody from '@baserow/modules/core/mixins/moveToBody'
-
 export default {
   name: 'Context',
-  mixins: [MoveToBody],
+  provide() {
+    return {
+      registerChild: this.registerChild,
+      unregisterChild: this.unregisterChild,
+    }
+  },
+  inject: {
+    parentRegisterChild: {
+      from: 'registerChild',
+      default: null,
+    },
+    parentUnregisterChild: {
+      from: 'unregisterChild',
+      default: null,
+    },
+  },
+  inheritAttrs: false,
   props: {
     hideOnClickOutside: {
       type: Boolean,
@@ -69,7 +89,19 @@ export default {
       // If opened once, should stay in DOM to keep nested content
       openedOnce: false,
       maxHeightOffset: 10,
+      children: [],
     }
+  },
+  mounted() {
+    if (this.parentRegisterChild) {
+      this.parentRegisterChild(this)
+    }
+  },
+  beforeUnmount() {
+    if (this.parentUnregisterChild) {
+      this.parentUnregisterChild(this)
+    }
+    this.hide(false)
   },
   methods: {
     /**
@@ -131,6 +163,7 @@ export default {
     ) {
       const isElementOrigin = isDomElement(target)
       const updatePosition = () => {
+        const el = this.$refs.contextEl
         const css = isElementOrigin
           ? this.calculatePositionElement(
               target,
@@ -160,11 +193,10 @@ export default {
           return
         }
 
-        // Set the calculated positions of the context.
         for (const key in css) {
           const cssValue =
             css[key] !== null ? Math.ceil(css[key]) + 'px' : 'auto'
-          this.$el.style[key] = cssValue
+          el.style[key] = cssValue
         }
 
         // The max height can optionally be automatically to prevent the context from
@@ -178,7 +210,7 @@ export default {
                   this.getWindowScrollHeight()
                 }px)`
               : 'none'
-          this.$el.style['max-height'] = maxHeight
+          el.style['max-height'] = maxHeight
         }
 
         this.updatedOnce = true
@@ -195,54 +227,62 @@ export default {
       await this.$nextTick()
       updatePosition()
 
-      this.$el.cancelOnClickOutside = onClickOutside(this.$el, (target) => {
-        if (
-          this.open &&
-          // If the prop allows it to be closed by clicking outside.
-          this.hideOnClickOutside &&
-          // If the click was not on the opener because they can trigger the toggle
-          // method.
-          !isElement(this.opener, target) &&
-          // If the click was not inside one of the context children of this context
-          // menu.
-          !this.moveToBody.children.some((child) => {
-            return isElement(child.$el, target)
-          })
-        ) {
-          this.hide()
-        }
-      })
+      // Cancel any previous handlers before setting up new ones
+      this._cleanupEventHandlers()
 
-      this.$el.updatePositionViaScrollEvent = (event) => {
+      const el = this.getTeleportedElement()
+
+      const ignoreElements = () => {
+        const childRoots = []
+        for (const child of this.children) {
+          childRoots.push(...collectTeleportRootsForOutsideClick(child))
+        }
+        return [
+          this.opener,
+          ...new Set(childRoots.filter((el) => el instanceof HTMLElement)),
+        ].filter(Boolean)
+      }
+
+      this._cancelOnClickOutside = onClickOutside(
+        el,
+        () => {
+          if (this.open && this.hideOnClickOutside) {
+            this.hide()
+          }
+        },
+        {
+          ignoreElements,
+        }
+      )
+
+      this._updatePositionViaScrollEvent = (event) => {
         if (this.hideOnScroll) {
           this.hide()
         } else if (
-          // The context menu itself can have a scrollbar, and resizing everytime you
-          // scroll internally doesn't make sense because it can't influence the position.
-          !isElement(this.$el, event.target) &&
-          // If the scroll was not inside one of the context children of this context
-          // menu.
-          !this.moveToBody.children.some((child) => {
-            return isElement(child.$el, target)
-          })
+          !isElement(this.getTeleportedElement(), event.target) &&
+          !this.children.some((child) =>
+            collectTeleportRootsForOutsideClick(child).some((root) =>
+              isElement(root, event.target)
+            )
+          )
         ) {
           updatePosition()
         }
       }
       window.addEventListener(
         'scroll',
-        this.$el.updatePositionViaScrollEvent,
+        this._updatePositionViaScrollEvent,
         true
       )
 
-      this.$el.updatePositionViaResizeEvent = () => {
+      this._updatePositionViaResizeEvent = () => {
         if (this.hideOnResize) {
           this.hide()
         } else {
           updatePosition()
         }
       }
-      window.addEventListener('resize', this.$el.updatePositionViaResizeEvent)
+      window.addEventListener('resize', this._updatePositionViaResizeEvent)
 
       this.$emit('shown')
     },
@@ -309,22 +349,25 @@ export default {
         this.$emit('hidden')
       }
 
-      // If the context menu was never opened, it doesn't have the
-      // `cancelOnClickOutside`, so we can't call it.
-      if (
-        Object.prototype.hasOwnProperty.call(this.$el, 'cancelOnClickOutside')
-      ) {
-        this.$el.cancelOnClickOutside()
+      this._cleanupEventHandlers()
+    },
+    _cleanupEventHandlers() {
+      if (this._cancelOnClickOutside) {
+        this._cancelOnClickOutside()
+        this._cancelOnClickOutside = null
       }
-      window.removeEventListener(
-        'scroll',
-        this.$el.updatePositionViaScrollEvent,
-        true
-      )
-      window.removeEventListener(
-        'resize',
-        this.$el.updatePositionViaResizeEvent
-      )
+      if (this._updatePositionViaScrollEvent) {
+        window.removeEventListener(
+          'scroll',
+          this._updatePositionViaScrollEvent,
+          true
+        )
+        this._updatePositionViaScrollEvent = null
+      }
+      if (this._updatePositionViaResizeEvent) {
+        window.removeEventListener('resize', this._updatePositionViaResizeEvent)
+        this._updatePositionViaResizeEvent = null
+      }
     },
     /**
      * Calculates the absolute position of the context based on the original clicked
@@ -483,11 +526,9 @@ export default {
       verticalOffset,
       horizontalOffset
     ) {
-      const contextRect = this.$el.getBoundingClientRect()
-      // We need to use the scrollHeight in the calculations because we need to work
-      // with the full height of the element without scrollbar to calculate the optimal
-      // position.
-      const scrollHeight = this.$el.scrollHeight
+      const el = this.$refs.contextEl
+      const contextRect = el.getBoundingClientRect()
+      const scrollHeight = el.scrollHeight
       const canTop =
         targetRect.top -
           scrollHeight -
@@ -542,6 +583,23 @@ export default {
     },
     isOpen() {
       return this.open
+    },
+    /**
+     * Root element rendered inside `<Teleport>` (not the anchor `this.$el`).
+     *
+     * @returns {HTMLElement|null}
+     */
+    getTeleportedElement() {
+      return getTeleportedElementFromRef(this.$refs, 'contextEl')
+    },
+    registerChild(child) {
+      this.children.push(child)
+    },
+    unregisterChild(child) {
+      const index = this.children.indexOf(child)
+      if (index !== -1) {
+        this.children.splice(index, 1)
+      }
     },
   },
 }

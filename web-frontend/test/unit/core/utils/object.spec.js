@@ -1,5 +1,6 @@
 import {
   clone,
+  deleteValueAtPath,
   isPromise,
   mappingToStringifiedJSONLines,
   getValueAtPath,
@@ -70,6 +71,41 @@ describe('test utils object', () => {
     // but it does. Unfortunately this is as close to a good promise detection
     // as we can get
     expect(isPromise({ then: () => null, catch: () => null })).toBeTruthy()
+  })
+
+  test('deleteValueAtPath deletes object properties', () => {
+    const obj = {
+      a: { b: { c: 123, d: 456 } },
+    }
+
+    deleteValueAtPath(obj, 'a.b.c')
+
+    expect(obj).toStrictEqual({
+      a: { b: { d: 456 } },
+    })
+  })
+
+  test('deleteValueAtPath removes array entries', () => {
+    const obj = {
+      list: [{ d: 456 }, { d: 789 }, { d: 111 }],
+    }
+
+    deleteValueAtPath(obj, 'list.1')
+
+    expect(obj.list).toStrictEqual([{ d: 456 }, { d: 111 }])
+  })
+
+  test('deleteValueAtPath ignores missing paths', () => {
+    const obj = {
+      a: { b: { c: 123 } },
+    }
+
+    deleteValueAtPath(obj, 'a.x.c')
+    deleteValueAtPath(obj, 'a.b.c.x')
+
+    expect(obj).toStrictEqual({
+      a: { b: { c: 123 } },
+    })
   })
 
   test.each([

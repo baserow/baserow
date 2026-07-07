@@ -1,5 +1,5 @@
 <template>
-  <div class="long-text-field" :title="row[column.key]" v-on="$attrs">
+  <div class="long-text-field" :title="row[column.key]">
     {{ row[column.key] }}
   </div>
 </template>

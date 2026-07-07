@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Prefetch
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -25,15 +26,20 @@ from baserow.api.admin.views import AdminListingView
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.pagination import PageNumberPaginationWithApproximateCount
 from baserow.api.schemas import get_error_schema
+from baserow.api.two_factor_auth.errors import ERROR_TWO_FACTOR_AUTH_NOT_CONFIGURED
 from baserow.api.user.registries import member_data_registry
 from baserow.api.user.schemas import authenticate_user_schema
 from baserow.api.user.serializers import get_all_user_data_serialized
+from baserow.core.admin.users.actions import AdminDisableTwoFactorAuthActionType
 from baserow.core.admin.users.exceptions import (
     CannotDeactivateYourselfException,
     CannotDeleteYourselfException,
     UserDoesNotExistException,
 )
 from baserow.core.admin.users.handler import UserAdminHandler
+from baserow.core.db import specific_queryset
+from baserow.core.two_factor_auth.exceptions import TwoFactorAuthNotConfigured
+from baserow.core.two_factor_auth.models import TwoFactorAuthProviderModel
 from baserow.core.user.exceptions import DeactivatedUserException, UserAlreadyExist
 from baserow.core.user.utils import generate_session_tokens_for_user
 
@@ -57,7 +63,12 @@ class UsersAdminView(AdminListingView):
 
     def get_queryset(self, request):
         return User.objects.prefetch_related(
-            "workspaceuser_set", "workspaceuser_set__workspace"
+            "workspaceuser_set",
+            "workspaceuser_set__workspace",
+            Prefetch(
+                "two_factor_auth_provider",
+                queryset=specific_queryset(TwoFactorAuthProviderModel.objects.all()),
+            ),
         ).all()
 
     @extend_schema(
@@ -213,6 +224,57 @@ class UserAdminView(APIView):
 
         handler = UserAdminHandler()
         handler.delete_user(request.user, user_id)
+
+        return Response(status=204)
+
+
+class UserAdminTwoFactorAuthView(APIView):
+    permission_classes = (IsAdminUser,)
+
+    @extend_schema(
+        tags=["Admin"],
+        operation_id="admin_disable_user_two_factor_auth",
+        description=(
+            "Removes the configured two-factor authentication of the specified "
+            "user, if the requesting user is staff. This can be used to restore "
+            "access for users that lost their two-factor device and backup "
+            "codes. The user will be able to log in with just their password "
+            "and can configure two-factor authentication again afterwards."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="user_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the user whose two-factor authentication "
+                "must be removed.",
+            ),
+        ],
+        responses={
+            204: None,
+            400: get_error_schema(
+                [
+                    "USER_ADMIN_UNKNOWN_USER",
+                    "ERROR_TWO_FACTOR_AUTH_NOT_CONFIGURED",
+                ]
+            ),
+            401: None,
+            403: None,
+        },
+    )
+    @map_exceptions(
+        {
+            UserDoesNotExistException: USER_ADMIN_UNKNOWN_USER,
+            TwoFactorAuthNotConfigured: ERROR_TWO_FACTOR_AUTH_NOT_CONFIGURED,
+        }
+    )
+    @transaction.atomic
+    def delete(self, request, user_id):
+        """
+        Removes the two-factor authentication of the specified user.
+        """
+
+        AdminDisableTwoFactorAuthActionType.do(request.user, int(user_id))
 
         return Response(status=204)
 

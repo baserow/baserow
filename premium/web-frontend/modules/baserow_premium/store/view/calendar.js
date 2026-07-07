@@ -19,6 +19,7 @@ import {
 import {
   extractChangedFields,
   getRowMetadata,
+  resolveBeforeRow,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
@@ -584,6 +585,10 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, values, fields }
   ) {
+    if (getters.findStackIdAndIndex(values.id) !== undefined) {
+      return
+    }
+
     const { $registry } = this
     const row = clone(values)
     populateRow(row)
@@ -716,8 +721,18 @@ export const actions = {
     const dateFieldId = getters.getDateFieldIdIfNotTrashed(fields)
     const fieldName = `field_${dateFieldId}`
 
+    // An unbuffered skeleton before row has no usable old stack, so no move
+    // can be computed safely.
+    const baseRow = resolveBeforeRow(row, (id) => {
+      const found = getters.findStackIdAndIndex(id)
+      return found !== undefined ? found[2] : undefined
+    })
+    if (baseRow === null) {
+      return
+    }
+
     // First, we virtually need to figure out if the row was in the old stack.
-    const oldRow = populateRow(clone(row))
+    const oldRow = populateRow(clone(baseRow))
     const oldRowMatchesFilters = await dispatch('rowMatchesFilters', {
       view,
       row: oldRow,
@@ -739,7 +754,7 @@ export const actions = {
     }
 
     // Second, we need to figure out if the row should be visible in the new stack.
-    const newRow = Object.assign(populateRow(clone(row)), values)
+    const newRow = Object.assign(populateRow(clone(baseRow)), values)
     const newRowMatchesFilters = await dispatch('rowMatchesFilters', {
       view,
       row: newRow,

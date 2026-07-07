@@ -24,23 +24,48 @@ export default {
       type: Object,
       required: true,
     },
+    visible: {
+      type: Boolean,
+      required: true,
+    },
+    target: {
+      type: Object,
+      default: null,
+      validator: (value) => value == null || value instanceof HTMLElement,
+    },
+  },
+  watch: {
+    visible: {
+      handler(isVisible) {
+        if (isVisible) {
+          this.show(this.target)
+        } else {
+          this.hide()
+        }
+      },
+    },
   },
   methods: {
     show(
-      targetElement,
-      verticalPosition = 'bottom',
+      targetElement = null,
+      verticalPosition = 'top',
       horizontalPosition = 'left',
-      verticalOffset = 0,
-      horizontalOffset = 0,
-      width = null
+      verticalOffset = 10,
+      horizontalOffset = 0
     ) {
+      const el = targetElement ?? this.target
+      if (!el || !this.$refs.context) {
+        return
+      }
       // Ensure that the context's width is dynamically set
       // to the targetElement's width, as it can be variable.
-      if (width !== null) {
-        this.$refs.context.$el.style.width = `${width}px`
+      const contextEl = this.$refs.context?.getTeleportedElement()
+      if (contextEl) {
+        const { width } = el.getBoundingClientRect()
+        contextEl.style.width = `${width}px`
       }
       return this.$refs.context.show(
-        targetElement,
+        el,
         verticalPosition,
         horizontalPosition,
         verticalOffset,
@@ -49,7 +74,6 @@ export default {
     },
     hide() {
       this.$refs.context.hide()
-      this.hideTooltip()
     },
   },
 }

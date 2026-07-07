@@ -42,7 +42,10 @@ describe('Context.vue', () => {
       },
     })
 
-    expect(wrapper.classes()).toContain('visibility-hidden')
+    const contextEl = wrapper.find('[ref="contextEl"]').exists()
+      ? wrapper.find('[ref="contextEl"]')
+      : wrapper.find('.context')
+    expect(contextEl.classes()).toContain('visibility-hidden')
   })
 
   it('does not add the visibility-hidden class when open and updatedOnce are true', () => {
@@ -55,7 +58,8 @@ describe('Context.vue', () => {
       },
     })
 
-    expect(wrapper.classes()).not.toContain('visibility-hidden')
+    const contextEl = wrapper.find('.context')
+    expect(contextEl.classes()).not.toContain('visibility-hidden')
   })
 
   it('adds the context--overflow-scroll class when overflowScroll prop is true', () => {
@@ -65,7 +69,8 @@ describe('Context.vue', () => {
       },
     })
 
-    expect(wrapper.classes()).toContain('context--overflow-scroll')
+    const contextEl = wrapper.find('.context')
+    expect(contextEl.classes()).toContain('context--overflow-scroll')
   })
 
   it('does not add the context--overflow-scroll class when overflowScroll prop is false', () => {
@@ -75,7 +80,8 @@ describe('Context.vue', () => {
       },
     })
 
-    expect(wrapper.classes()).not.toContain('context--overflow-scroll')
+    const contextEl = wrapper.find('.context')
+    expect(contextEl.classes()).not.toContain('context--overflow-scroll')
   })
 
   it('sets the correct default props', () => {

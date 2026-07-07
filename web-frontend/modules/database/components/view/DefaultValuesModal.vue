@@ -177,10 +177,7 @@ export default {
           this.enabledFieldIds.push(field.id)
         }
 
-        if (
-          item.value != null &&
-          (!item.field_type || item.field_type === field.type)
-        ) {
+        if (item.value != null && item.field_type === field.type) {
           this.rowValues[name] = fieldType.parseDefaultRowValue(
             field,
             item.value

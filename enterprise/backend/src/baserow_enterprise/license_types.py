@@ -8,6 +8,7 @@ from baserow_enterprise.features import (
     BUILDER_FILE_INPUT,
     BUILDER_NO_BRANDING,
     BUILDER_SSO,
+    CODE_RUNNER,
     DATA_SCANNER,
     DATA_SYNC,
     DATE_DEPENDENCY,
@@ -18,6 +19,7 @@ from baserow_enterprise.features import (
     SSO,
     SUPPORT,
     TEAMS,
+    XLS_FILE_READER,
 )
 from baserow_enterprise.role.seat_usage_calculator import (
     RoleBasedSeatUsageSummaryCalculator,
@@ -104,6 +106,8 @@ class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
         ENTERPRISE_SETTINGS,
         SECURE_FILE_SERVE,
         DATA_SCANNER,
+        CODE_RUNNER,
+        XLS_FILE_READER,
     ]
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):

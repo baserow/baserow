@@ -61,20 +61,21 @@ def test_get_builder_select_related_theme_config(
             MagicMock(is_anonymous=True, spec=["is_anonymous"]),
             f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100",
         ),
-        # An authenticated User
+        # An authenticated User with no role attribute must be keyed apart from
+        # the anonymous one (and must not raise on the missing attribute).
         (
             MagicMock(is_anonymous=False, spec=["is_anonymous"]),
-            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100",
+            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100_auth_",
         ),
         # A UserSourceUser, with no role.
         (
             fake_user_source_user(role=""),
-            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100_",
+            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100_auth_",
         ),
         # A UserSourceUser, with a role.
         (
             fake_user_source_user(role="admin"),
-            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100_admin",
+            f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_100_auth_admin",
         ),
     ],
 )
@@ -144,7 +145,7 @@ def test_public_allowed_properties_is_cached(data_fixture, django_assert_num_que
     }
 
     # Initially calling the property should cause a bunch of DB queries.
-    with django_assert_num_queries(10):
+    with django_assert_num_queries(14):
         result = handler.get_builder_public_properties(user_source_user, builder)
         assert result == expected_results
 

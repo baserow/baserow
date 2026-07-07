@@ -4,12 +4,16 @@ import OpenPageWorkflowActionForm from '@baserow/modules/builder/components/work
 import WorkflowActionWithService from '@baserow/modules/builder/components/workflowAction/WorkflowActionWithService.vue'
 import RefreshDataSourceWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/RefreshDataSourceWorkflowActionForm.vue'
 import {
+  CoreCSVFileReaderServiceType,
   CoreHTTPRequestServiceType,
   CoreSMTPEmailServiceType,
+  CoreStartWorkflowServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowCreateRowsWorkflowServiceType,
   LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowUpdateRowsWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
@@ -24,6 +28,10 @@ import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slac
 export class NotificationWorkflowActionType extends WorkflowActionType {
   static getType() {
     return 'notification'
+  }
+
+  getOrder() {
+    return 10
   }
 
   get icon() {
@@ -53,6 +61,10 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
 export class OpenPageWorkflowActionType extends WorkflowActionType {
   static getType() {
     return 'open_page'
+  }
+
+  getOrder() {
+    return 15
   }
 
   get icon() {
@@ -147,6 +159,10 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
     return 'logout'
   }
 
+  getOrder() {
+    return 20
+  }
+
   get icon() {
     return 'iconoir-log-out'
   }
@@ -173,6 +189,10 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
 export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
   static getType() {
     return 'refresh_data_source'
+  }
+
+  getOrder() {
+    return 25
   }
 
   get icon() {
@@ -291,11 +311,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 
     const serviceSchema = this.serviceType.getDataSchema(workflowAction.service)
 
-    if (serviceSchema?.properties) {
+    if (serviceSchema) {
       return {
+        ...serviceSchema,
         title: this.label,
-        type: 'object',
-        properties: serviceSchema.properties,
       }
     }
     return null
@@ -317,8 +336,24 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return this.serviceType.prepareValuePath(workflowAction.service, path)
   }
 
+  get returnsList() {
+    return Boolean(this.serviceType.returnsList)
+  }
+
   get serviceType() {
     throw new Error('This method must be implemented')
+  }
+
+  isDeactivatedReason({ workspace }) {
+    const serviceReason = this.serviceType.isDeactivatedReason({ workspace })
+    if (serviceReason) {
+      return serviceReason
+    }
+    return null
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    return this.serviceType.getDeactivatedClickModal({ workspace })
   }
 }
 
@@ -335,7 +370,7 @@ export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType
   }
 
   getOrder() {
-    return 10
+    return 47
   }
 }
 
@@ -349,13 +384,51 @@ export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
   }
 
   getOrder() {
-    return 11
+    return 48
+  }
+}
+
+export class CoreCSVFileReaderWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'csv_file_reader'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreCSVFileReaderServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 75
+  }
+}
+
+export class CoreStartWorkflowWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'start_workflow'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreStartWorkflowServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 46
   }
 }
 
 export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'create_row'
+  }
+
+  getOrder() {
+    return 30
   }
 
   get serviceType() {
@@ -366,9 +439,34 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
+export class LocalBaserowCreateRowsWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'local_baserow_create_rows'
+  }
+
+  getOrder() {
+    return 35
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowCreateRowsWorkflowServiceType.getType()
+    )
+  }
+
+  get returnsList() {
+    return true
+  }
+}
+
 export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'update_row'
+  }
+
+  getOrder() {
+    return 40
   }
 
   get serviceType() {
@@ -379,9 +477,34 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
+export class LocalBaserowUpdateRowsWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'local_baserow_update_rows'
+  }
+
+  getOrder() {
+    return 42
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowUpdateRowsWorkflowServiceType.getType()
+    )
+  }
+
+  get returnsList() {
+    return true
+  }
+}
+
 export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'delete_row'
+  }
+
+  getOrder() {
+    return 45
   }
 
   get serviceType() {
@@ -397,6 +520,10 @@ export class AIAgentWorkflowActionType extends WorkflowActionServiceType {
     return 'ai_agent'
   }
 
+  getOrder() {
+    return 70
+  }
+
   get serviceType() {
     return this.app.$registry.get('service', AIAgentServiceType.getType())
   }
@@ -405,6 +532,10 @@ export class AIAgentWorkflowActionType extends WorkflowActionServiceType {
 export class SlackWriteMessageWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'slack_write_message'
+  }
+
+  getOrder() {
+    return 90
   }
 
   get serviceType() {

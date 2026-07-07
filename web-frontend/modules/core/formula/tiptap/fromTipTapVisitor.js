@@ -1,3 +1,8 @@
+import {
+  ZWS,
+  ZWS_REGEX,
+} from '@baserow/modules/core/components/formula/extensions/helpers'
+
 const ZWS_MARKER = Symbol('zws_marker')
 
 export class FromTipTapVisitor {
@@ -171,14 +176,17 @@ export class FromTipTapVisitor {
   }
 
   visitText(node) {
-    if (node.text === '\u200B') {
+    if (node.text === ZWS) {
       return ZWS_MARKER
     }
     // Remove zero-width spaces used for cursor positioning
-    const cleanText = node.text.replace(/\u200B/g, '')
+    const cleanText = node.text.replace(ZWS_REGEX, '')
 
     if (this.mode === 'simple') {
-      return `'${cleanText.replace(/'/g, "\\'")}'`
+      // Escape backslashes first, then single quotes. Order matters: a lone
+      // trailing backslash would otherwise escape the closing quote and produce
+      // an unterminated, invalid string literal (e.g. typing `\` -> `'\'`).
+      return `'${cleanText.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
     }
 
     // In advanced mode, we need to escape actual newlines in the text

@@ -88,11 +88,10 @@ export default {
     this.v$.$touch()
   },
   validations() {
-    const self = this
     return {
       aggregationGroupBy: {
         isValidGroupBy: (value) => {
-          const validGroupByValues = self.groupByOptions.map(
+          const validGroupByValues = this.groupByOptions.map(
             (item) => item.value
           )
           return includesIfSet(validGroupByValues)(value)

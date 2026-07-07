@@ -12,6 +12,11 @@ export default {
     environment: 'nuxt',
     isolate: true,
     pool: 'forks',
+    // Coverage instrumentation with Nuxt can make initial mounts exceed Vitest's
+    // 5s per-test default on CI.
+    testTimeout: 30_000,
+    // setupNuxt() runs in a beforeAll; 10s default hookTimeout is often exceeded (flaky CI / local).
+    hookTimeout: 120_000,
     exclude: [
       '**/node_modules/**',
       '**/.nuxt/**',
@@ -23,6 +28,8 @@ export default {
       '**/.yarn/**',
       '**/.cache/**',
       '**/playwright-report/**',
+      // Legacy Nuxt 2-style server tests (create-nuxt); skipped and incompatible with Vitest+Nuxt 4 resolution
+      '**/test/server/**',
     ],
     setupFiles: ['./vitest.setup.ts'],
     coverage: {

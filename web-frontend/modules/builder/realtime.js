@@ -73,22 +73,69 @@ export const registerRealtimeEvents = (realtime) => {
     const ctx = getPageContext(store, data.element.page_id)
     if (!ctx) return
 
+    // Update the graph first so forceCreate's fallback sees the element already
+    // in the correct position and skips the end-of-chain append.
+    if (data.graph) {
+      store.dispatch('page/forceUpdate', {
+        page: ctx.page,
+        values: { graph: data.graph },
+      })
+    }
+
     store.dispatch('element/forceCreate', {
       page: ctx.page,
       element: data.element,
-      beforeId: data.before_id,
     })
+  })
+
+  realtime.registerEvent('elements_created', ({ store }, data) => {
+    const ctx = getPageContext(store, data.page_id)
+    if (!ctx) return
+
+    if (data.graph) {
+      store.dispatch('page/forceUpdate', {
+        page: ctx.page,
+        values: { graph: data.graph },
+      })
+    }
+
+    for (const element of data.elements) {
+      store.dispatch('element/forceCreate', {
+        page: ctx.page,
+        element,
+      })
+    }
+
+    for (const workflowAction of data.workflow_actions || []) {
+      store.dispatch('builderWorkflowAction/forceCreate', {
+        page: ctx.page,
+        workflowAction,
+      })
+    }
   })
 
   realtime.registerEvent('element_deleted', ({ store }, data) => {
     const ctx = getPageContext(store, data.page_id)
     if (!ctx) return
 
-    store.dispatch('element/forceDelete', {
-      builder: ctx.builder,
-      page: ctx.page,
-      elementId: data.element_id,
-    })
+    // Remove the deleted element and its whole subtree's records...
+    const elementIds = data.element_ids ?? [data.element_id]
+    for (const elementId of elementIds) {
+      store.dispatch('element/forceDelete', {
+        builder: ctx.builder,
+        page: ctx.page,
+        elementId,
+      })
+    }
+
+    // ...then apply the relinked graph so the remaining siblings/children of the
+    // deleted element stay connected (forceDelete doesn't touch the graph).
+    if (data.graph) {
+      store.dispatch('page/forceUpdate', {
+        page: ctx.page,
+        values: { graph: data.graph },
+      })
+    }
   })
 
   realtime.registerEvent('element_updated', ({ store }, { element }) => {
@@ -104,50 +151,78 @@ export const registerRealtimeEvents = (realtime) => {
   })
 
   realtime.registerEvent('element_moved', ({ store }, data) => {
+    // Cross-page move: the element (and any descendants that travelled with it)
+    // left the source page for the target page. Relocate the records and apply
+    // both pages' refreshed graphs. Same-page moves omit these fields.
+    if (data.source_page_id != null && data.source_page_id !== data.page_id) {
+      const sourceCtx = getPageContext(store, data.source_page_id)
+      const targetCtx = getPageContext(store, data.page_id)
+
+      // Remove the moved elements from the source page (only if it's loaded —
+      // a client viewing another page won't have it) and refresh its graph.
+      if (sourceCtx) {
+        for (const element of data.elements) {
+          store.dispatch('element/forceDelete', {
+            builder: sourceCtx.builder,
+            page: sourceCtx.page,
+            elementId: element.id,
+          })
+        }
+        // The moved elements' workflow actions travel with them, so remove them
+        // from the source page too (their page foreign key now points elsewhere).
+        for (const workflowAction of data.workflow_actions || []) {
+          store.dispatch('builderWorkflowAction/forceDelete', {
+            page: sourceCtx.page,
+            workflowActionId: workflowAction.id,
+          })
+        }
+        store.dispatch('page/forceUpdate', {
+          page: sourceCtx.page,
+          values: { graph: data.source_graph },
+        })
+      }
+
+      // Add the moved elements to the target page. Apply the graph first so
+      // forceCreate sees them already positioned and skips the root-chain append.
+      if (targetCtx) {
+        store.dispatch('page/forceUpdate', {
+          page: targetCtx.page,
+          values: { graph: data.graph },
+        })
+        for (const element of data.elements) {
+          store.dispatch('element/forceCreate', {
+            page: targetCtx.page,
+            element,
+          })
+        }
+        // Re-add the workflow actions on the target page so they stay associated
+        // with their (now relocated) elements.
+        for (const workflowAction of data.workflow_actions || []) {
+          store.dispatch('builderWorkflowAction/forceCreate', {
+            page: targetCtx.page,
+            workflowAction,
+          })
+        }
+      }
+      return
+    }
+
     const ctx = getPageContext(store, data.page_id)
     if (!ctx) return
 
-    store.dispatch('element/forceMove', {
-      builder: ctx.builder,
+    store.dispatch('page/forceUpdate', {
       page: ctx.page,
-      elementId: data.element_id,
-      beforeElementId: data.before_id,
-      parentElementId: data.parent_element_id,
-      placeInContainer: data.place_in_container,
+      values: { graph: data.graph },
     })
+    store.dispatch('element/refreshCachedValues', { page: ctx.page })
   })
 
-  realtime.registerEvent(
-    'element_orders_recalculated',
-    ({ store, app }, data) => {
-      const selectedPage = store.getters['page/getSelected']
-      const builder = store.getters['application/getById'](
-        selectedPage.builder_id
-      )
-      if (generateHash(selectedPage.id) === data.page_id) {
-        store.dispatch('element/fetch', {
-          builder,
-          page: selectedPage,
-        })
-      }
-    }
-  )
+  realtime.registerEvent('elements_moved', ({ store }, { page_id, graph }) => {
+    const ctx = getPageContext(store, page_id)
+    if (!ctx) return
 
-  realtime.registerEvent('elements_moved', ({ store }, { elements }) => {
-    elements.forEach((element) => {
-      const ctx = getPageContext(store, element.page_id)
-      if (!ctx) return
-
-      store.dispatch('element/forceUpdate', {
-        builder: ctx.builder,
-        page: ctx.page,
-        element,
-        values: {
-          order: element.order,
-          place_in_container: element.place_in_container,
-        },
-      })
-    })
+    store.dispatch('page/forceUpdate', { page: ctx.page, values: { graph } })
+    store.dispatch('element/refreshCachedValues', { page: ctx.page })
   })
 
   // Data source events

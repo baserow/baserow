@@ -4,19 +4,55 @@
     "cannotDisableAllAuthProvidersDescription": "It is not possible to disable or delete last enabled provider."
   },
   "advanced": {
-    "license": "Advanced"
+    "license": "Advanced",
+    "openSubscriptions": "Open subscriptions for more seats"
   },
   "enterprise": {
     "license": "Enterprise",
     "sidebarTooltip": "Your account has access to the enterprise features globally",
     "rbac": "RBAC",
     "sso": "SSO",
-    "licenseDescription": "Viewers are free with Baserow Enterprise. If a user has any other role, in any workspace then they will use a paid seat automatically.",
-    "overflowWarning": "You have too many non-viewer users and have used up all of your paid seats. Change users to become viewers on each workspaces members page.",
-    "deactivated": "Available in the advanced/enterprise version"
+    "licenseDescription": "Viewers and commenters free in this plan. If a user has any other role, in any workspace then they will use a paid seat automatically.",
+    "overflowWarning": "You have too many non-viewer/commenter users and have used up all of your paid seats. Change users to become viewers on each workspaces members page.",
+    "deactivated": "Available in the advanced/enterprise version",
+    "enterpriseOnlyDeactivated": "Available in the enterprise version"
   },
   "trashType": {
     "team": "team"
+  },
+  "serviceType": {
+    "coreCode": "Execute code",
+    "coreCodeDescription": "Runs arbitrary JavaScript code.",
+    "coreXLSFileReader": "Read an XLS file",
+    "coreXLSFileReaderDescription": "Reads rows from an XLS or XLSX file.",
+    "errorCodeMissing": "Missing code property",
+    "errorXLSFileMissing": "Missing XLS file property"
+  },
+  "coreCodeServiceForm": {
+    "codeLabel": "Code",
+    "codeHelperText": "Baserow calls the main(context) function when the action runs. Use context to read injected values and return an object whose properties can be used by later actions.",
+    "codePlaceholder": "Enter the code to execute",
+    "editCode": "Edit code",
+    "injectionsLabel": "Data injections",
+    "injectionsHelperText": "Injections are formulas evaluated before the code runs. Each injection name becomes a property of context. For example an injection named customerName is available as context.customerName.",
+    "nameLabel": "Name",
+    "namePlaceholder": "Variable name",
+    "valueLabel": "Value",
+    "valuePlaceholder": "Value formula",
+    "addInjection": "Add injection",
+    "nameFieldRequired": "The name field is required.",
+    "nameFieldInvalid": "The name must be a valid variable name."
+  },
+  "coreXLSFileReaderServiceForm": {
+    "file": "XLS file",
+    "filePlaceholder": "Choose an XLS or XLSX file...",
+    "sheetName": "Sheet name",
+    "sheetNamePlaceholder": "First sheet",
+    "firstLineIsHeader": "First line is header"
+  },
+  "nodeType": {
+    "codeLabel": "Execute code",
+    "xlsFileReaderLabel": "Read an XLS file"
   },
   "createTeamModal": {
     "title": "Create team",
@@ -290,33 +326,13 @@
     }
   },
   "memberRolesTab": {
-    "database": {
-      "title": "{name} database",
-      "selectMembers": "Select members",
-      "everyoneHasAccess": "Everyone at {name} workspace can access this database.",
-      "onlyYouHaveAccess": "Only you can access this database.",
-      "warningTitle": "Other users might inherit access!",
-      "warningMessage": "Other users might inherit access via their respective roles on the parent workspace.",
-      "headerTooltip": "Database roles will override workspace roles."
-    },
-    "table": {
-      "title": "{name} table",
-      "selectMembers": "Select members",
-      "everyoneHasAccess": "Everyone at {name} workspace can access this table.",
-      "onlyYouHaveAccess": "Only you can access this table.",
-      "warningTitle": "Other users might inherit access!",
-      "warningMessage": "Other users might inherit access via their respective roles on the parent database or workspace.",
-      "headerTooltip": "Table roles will override workspace and database roles."
-    },
-    "view": {
-      "title": "{name} view",
-      "selectMembers": "Select members",
-      "everyoneHasAccess": "Everyone at {name} workspace can access this view.",
-      "onlyYouHaveAccess": "Only you can access this view.",
-      "warningTitle": "Other users might inherit access!",
-      "warningMessage": "Other users might inherit access via their respective roles on the parent table, database or workspace.",
-      "headerTooltip": "View roles will override workspace, database, and table roles."
-    }
+    "title": "{name} {type}",
+    "selectMembers": "Select members",
+    "everyoneHasAccess": "Everyone at {name} workspace can access this {type}.",
+    "onlyYouHaveAccess": "Only you can access this {type}.",
+    "warningTitle": "Other users might inherit access!",
+    "warningMessage": "Other users might inherit access via their respective roles on the parent {parent}.",
+    "headerTooltip": "Roles on this {type} will override {overrides} roles."
   },
   "memberRolesShareToggle": {
     "label": "Share with everyone at {name}",
@@ -414,6 +430,10 @@
     "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
     "builderCustomCode": "Custom code for applications",
     "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media.",
+    "codeRunner": "Code runner",
+    "codeRunnerContent": "Run JavaScript code in automation nodes and application builder workflow actions.",
+    "xlsFileReader": "XLS file reader",
+    "xlsFileReaderContent": "Read rows from XLS and XLSX files in automation nodes and application builder workflow actions.",
     "dateDependency": "Date dependency",
     "dateDependencyContent": "You can define a dependency between two dates and a duration as start/end date and duration. With date dependency, if one value change, other values will be adjusted accordingly.",
     "dataScanner": "Data scanner",
@@ -800,6 +820,14 @@
   "viewOwnershipType": {
     "restricted": "Restricted",
     "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It's possible to manage the members."
+  },
+  "restrictedViewFilterContext": {
+    "matchTitle": "Default view values match the filters",
+    "matchSubtitle": "Editors will see the rows they create.",
+    "mismatchTitle": "Default values don't match the filters",
+    "mismatchSubtitle": "Editors will be able to create rows but won't see them.",
+    "removeDefaultValue": "Remove default value",
+    "removeDefaultValueHelper": "This field has a default value but no filter. You can remove it here, or manage all default values by clicking the three dots next to the view and then on \"Default row values\"."
   },
   "databaseStep": {
     "ai": "Kuma AI"

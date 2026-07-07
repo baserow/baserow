@@ -89,7 +89,7 @@
 import { mapGetters } from 'vuex'
 
 import { getPersistentFieldOptionsKey } from '@baserow/modules/database/utils/field'
-import { isElement } from '@baserow/modules/core/utils/dom'
+import { isInsideTeleportedElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import linkRowField from '@baserow/modules/database/mixins/linkRowField'
 import arrayLoading from '@baserow/modules/database/mixins/arrayLoading'
@@ -103,7 +103,7 @@ export default {
   name: 'GridViewFieldLinkRow',
   components: { ForeignRowEditModal, SelectRowModal },
   mixins: [gridField, linkRowField, arrayLoading],
-  emits: ['refresh-row'],
+  emits: ['refresh-row', 'editing-changed'],
   data() {
     return {
       modalOpen: false,
@@ -115,6 +115,11 @@ export default {
   computed: {
     publicGrid() {
       return this.$store.getters['page/view/public/getIsPublic']
+    },
+  },
+  watch: {
+    modalOpen(editing) {
+      this.$emit('editing-changed', editing)
     },
   },
   methods: {
@@ -169,26 +174,9 @@ export default {
         return true
       }
 
-      const openModals = [
-        ...this.$refs.selectModal.$refs.modal.moveToBody.children.map(
-          (child) => child.$el
-        ),
-        this.$refs.selectModal.$el,
-        ...this.$refs.rowEditModal.$refs.modal.$refs.modal.moveToBody.children.map(
-          (child) => child.$el
-        ),
-        this.$refs.rowEditModal.$refs.modal.$el,
-      ]
-
       return (
-        // If the user clicks inside the select or row edit modal, we don't want to
-        // allow unselecting.
-        !openModals.some((modal) => {
-          return isElement(modal, event.target)
-        }) &&
-        // If an element is not part of the body anymore, then it was deleted, and then
-        // we don't have to unselect. This can for example happen when the user clicks
-        // on something that will deleted because of it.
+        !isInsideTeleportedElement(this.$refs.selectModal, event) &&
+        !isInsideTeleportedElement(this.$refs.rowEditModal, event) &&
         document.body.contains(event.target)
       )
     },

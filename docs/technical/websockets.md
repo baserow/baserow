@@ -120,3 +120,54 @@ async_to_sync(send_message_to_channel_group)(channel_layer, group, message)
 Websocket connections are automatically established for each user, including anonymous users, in the main page layout `web-frontend/modules/core/layouts/app.vue` when the Baserow web-frontend is loaded. Interacting with the backend using websocket connections is abstracted in `RealTimeHandler` class which is available in Vue components under `this.$realtime` property.
 
 Consult client-side documentation in `docs/apis/web-socket-api.md` for implementing webscocket clients for Baserow.
+
+## Web Socket ID
+
+The **web socket id** is a UUID generated once at application boot and stored in the auth store. The client sends it as a query parameter on the WebSocket URL and as a `WebSocketId` HTTP header on REST API requests. The backend uses it to exclude the originating client from the broadcast of its own mutations, so a client never receives an echo of a change it just made.
+
+The ID persists across reconnects within the same page load. A new tab or page refresh generates a fresh UUID.
+
+## Reliability and Event Replay
+
+WebSocket connections drop, and when they do, a client may miss broadcasts sent while it was offline. The reliability layer exists to detect that gap and either fill it (replay the missed events) or flag it (tell the client to refresh).
+
+### Persisted Events
+
+Every broadcast that goes through the channel layer is **persisted** to the database before being sent. This creates a sequential log of all events, keyed by channel group, stored in the `ws_realtime_events` table:
+
+| Field | Type | Purpose |
+|---|---|---|
+| `id` | `BigAutoField` | Sequential, monotonically increasing. Sent to clients as `_event_id`. |
+| `channel_group` | `TextField` | Which channel group this event targeted (e.g., `table-42`, `users`). |
+| `payload` | `JSONField` | The full broadcast message including type, user filters, and inner payload. |
+| `created_at` | `DateTimeField` | When the event was recorded. Used for retention cleanup. |
+
+The `id` returned on insert is injected into the payload as `_event_id` before the message is sent.
+
+The table is created as a PostgreSQL `UNLOGGED` table. This skips write-ahead log (WAL) entries, significantly reducing write overhead for high-throughput event recording. The trade-offs are that contents are lost on unclean shutdown (acceptable — events are ephemeral and clients handle the can't-replay path gracefully) and that the table is invisible to streaming replication, so the database router routes all reads of unlogged models to the primary database. Any new unlogged model should follow the same convention.
+
+### Last Seen Event ID
+
+The frontend tracks the highest `_event_id` it has observed and advances it on every incoming message. This value is global and monotonic because event IDs come from a single database sequence. It persists continuously across the page load and is not reset on workspace or page changes.
+
+### Replay on Reconnect
+
+When a client reconnects, it re-authenticates, sends a `replay_events` message carrying its last seen event ID as `last_seen_id`, and re-subscribes to the pages it was tracking. The `last_seen_id` tells the server "I've seen everything up to this point", and the server responds with one of three outcomes:
+
+1. **Nothing missed** — The replay window contains only the client's `last_seen_id`. The client is already up to date for the channel groups being restored.
+2. **Events replayed** — The server fetches the missed events for the client's page channel groups and implicit `users` group, filters out the client's own broadcasts (via its web socket id) and any events not relevant to that user, and re-invokes them through the consumer's handlers in order — exactly as if they had arrived live. The client catches up without a page reload.
+3. **Can't replay** — Either too many events were missed (more than `BASEROW_REALTIME_REPLAY_MAX_EVENTS`), the client's `last_seen_id` has already been cleaned up by retention, or the server finds a persisted event it cannot safely re-deliver through a websocket broadcast handler. The server responds with `force_refresh=true` and the client shows a "workspace data is outdated" toast with a refresh action.
+
+Every `replay_events_result` with `force_refresh=false` includes `latest_event_id`, the latest event ID the server can safely acknowledge for that replay decision. If a client connects without a `last_seen_id` (a fresh page load), the server returns the latest persisted event ID as the new baseline because there is nothing to replay. When replay succeeds, `latest_event_id` is the last event in the replay window and might be lower than the global latest persisted ID if newer events were irrelevant to that client. If the server responds with `force_refresh=true`, `latest_event_id` is not meaningful and the client should refresh instead.
+
+### Event Cleanup
+
+A periodic Celery task removes events older than the retention window every 60 minutes. Retention is coupled to `REFRESH_TOKEN_LIFETIME` (default 7 days): clients with tokens older than that will re-authenticate and receive fresh state anyway, so their replay baseline is never needed.
+
+### Configuration
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `BASEROW_REALTIME_REPLAY_MAX_EVENTS` | 0 (disabled) | Maximum number of missed events the server will replay. Beyond this, the client is told to refresh. Set to `0` to disable event recording and replay entirely; clients that request replay while replay is disabled are told to refresh because the server cannot verify or fill missed events. |
+
+See [configuration.md](../installation/configuration.md) for the full settings reference.

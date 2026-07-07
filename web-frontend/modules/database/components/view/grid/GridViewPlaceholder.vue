@@ -23,8 +23,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
-
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 
 export default {
@@ -81,11 +79,6 @@ export default {
     placeholderHeight() {
       return this.$store.getters[
         this.storePrefix + 'view/grid/getPlaceholderHeight'
-      ]
-    },
-    activeGroupBys() {
-      return this.$store.getters[
-        this.storePrefix + 'view/grid/getActiveGroupBys'
       ]
     },
   },

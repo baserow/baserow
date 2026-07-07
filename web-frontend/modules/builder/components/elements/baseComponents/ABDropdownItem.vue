@@ -2,6 +2,7 @@
   <li
     class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
     :class="{
+      'ab-dropdownitem__item--single': !multiple.value,
       hidden: !isVisible(query),
       active: isActive(value),
       disabled: disabled,
@@ -15,7 +16,7 @@
       @mousemove="hover(value, disabled)"
     >
       <div class="ab-dropdownitem__item-name">
-        <div v-if="multiple.value">
+        <div v-if="multiple.value" class="ab-dropdownitem__item-name-checkbox">
           <Checkbox :disabled="disabled" :checked="isActive(value)"></Checkbox>
         </div>
         <slot>

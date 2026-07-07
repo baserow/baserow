@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Show the 2FA status in the admin user list and allow instance admins to remove a user's two-factor authentication.",
+    "issue_origin": "github",
+    "issue_number": 5492,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-06-13"
+}

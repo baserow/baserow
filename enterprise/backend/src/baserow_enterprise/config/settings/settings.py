@@ -75,6 +75,27 @@ def setup(settings):
         or 4
     )
 
+    settings.ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE = os.getenv(
+        "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE", "wasmtime"
+    )
+    settings.ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE = os.getenv(
+        "BASEROW_ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE", "wasmtime_quickjs"
+    )
+    settings.ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH = os.getenv(
+        "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH",
+        "/usr/local/lib/baserow/qjs.wasm",
+    )
+    settings.ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS = int(
+        os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS", "") or 5
+    )
+    settings.ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES = int(
+        os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES", "")
+        or 16 * 1024 * 1024
+    )
+    settings.ENTERPRISE_CODE_RUNNER_FUEL_LIMIT = int(
+        os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_FUEL_LIMIT", "") or 1_000_000_000
+    )
+
     # AI Assistant settings
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = os.getenv(
         "BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL", ""

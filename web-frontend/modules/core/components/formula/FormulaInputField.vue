@@ -1,6 +1,10 @@
 <template>
   <div ref="formulaInputRoot">
-    <div class="formula-input-field__editor" @click="handleEditorClick">
+    <div
+      ref="formulaEditorSurface"
+      class="formula-input-field__editor"
+      @click="handleEditorClick"
+    >
       <EditorContent
         :id="forInput"
         ref="editor"
@@ -9,14 +13,13 @@
         :class="classes"
         :editor="editor"
         :style="{ '--formula-placeholder': `'${placeholder}'` }"
-        @data-node-clicked="dataNodeClicked"
       />
     </div>
 
     <FormulaInputErrorContext
-      v-if="isFocused && !readOnly && isFormulaInvalid"
-      ref="formulaInputErrorContext"
+      :visible="showErrorContext"
       :formula-error-context="formulaErrorContext"
+      :target="$refs.formulaEditorSurface"
       @mousedown="onContextMouseDown"
     />
 
@@ -54,6 +57,7 @@ import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/fo
 import { SmartDeletionExtension } from '@baserow/modules/core/components/formula/extensions/SmartDeletionExtension'
 import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/extensions/ZWSManagementExtension'
 import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/extensions/FunctionHelpTooltipExtension'
+import { ParenMatchHighlightExtension } from '@baserow/modules/core/components/formula/extensions/ParenMatchHighlightExtension'
 import {
   FormulaInsertionExtension,
   FunctionFormulaComponentNode,
@@ -65,9 +69,8 @@ import {
 } from '@baserow/modules/core/components/formula/extensions/FormulaNodes'
 import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/extensions/NodeSelectionExtension'
 import { ContextManagementExtension } from '@baserow/modules/core/components/formula/extensions/ContextManagementExtension'
-import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/extensions/FunctionDetectionExtension'
-import { GroupDetectionExtension } from '@baserow/modules/core/components/formula/extensions/GroupDetectionExtension'
-import { OperatorDetectionExtension } from '@baserow/modules/core/components/formula/extensions/OperatorDetectionExtension'
+import { InputDetectionExtension } from '@baserow/modules/core/components/formula/extensions/InputDetectionExtension'
+import { FunctionDowngradeExtension } from '@baserow/modules/core/components/formula/extensions/FunctionDowngradeExtension'
 import {
   createClipboardTextSerializer,
   createPasteHandler,
@@ -83,6 +86,56 @@ import FormulaInputExplorerContext from '@baserow/modules/core/components/formul
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
+
+/**
+ * The ANTLR lexer's INTEGER_LITERAL / NUMERIC_LITERAL rules include an
+ * optional leading '-', so the lexer greedily tokenizes e.g. ")-200" as
+ * CLOSE_PAREN INTEGER_LITERAL(-200) instead of CLOSE_PAREN MINUS
+ * INTEGER_LITERAL(200). This inserts a space before '-' when it acts as a
+ * binary operator (preceded by a character that ends an expression) so the
+ * lexer produces a separate MINUS token.
+ */
+export function disambiguateMinusOperator(formula) {
+  let result = ''
+  let inString = false
+  let quoteChar = null
+
+  for (let i = 0; i < formula.length; i++) {
+    const ch = formula[i]
+
+    if (inString) {
+      result += ch
+      if (ch === '\\' && i + 1 < formula.length) {
+        result += formula[++i]
+      } else if (ch === quoteChar) {
+        inString = false
+      }
+      continue
+    }
+
+    if (ch === "'" || ch === '"') {
+      inString = true
+      quoteChar = ch
+      result += ch
+      continue
+    }
+
+    if (
+      ch === '-' &&
+      i + 1 < formula.length &&
+      /\d/.test(formula[i + 1]) &&
+      i > 0 &&
+      /[)\d\w]/.test(formula[i - 1])
+    ) {
+      result += ' - '
+      continue
+    }
+
+    result += ch
+  }
+
+  return result
+}
 
 export default {
   name: 'FormulaInputField',
@@ -134,9 +187,10 @@ export default {
       default: () => [],
     },
     allowNodeSelection: {
-      type: Boolean,
+      type: String,
       required: false,
-      default: false,
+      default: 'none',
+      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
     },
     mode: {
       type: String,
@@ -169,7 +223,7 @@ export default {
       default: () => ({}),
     },
   },
-  emits: ['input', 'update:mode', 'data-node-clicked'],
+  emits: ['input', 'update:mode'],
   data() {
     return {
       editor: null,
@@ -185,6 +239,9 @@ export default {
     }
   },
   computed: {
+    showErrorContext() {
+      return this.isFocused && !this.readOnly && this.isFormulaInvalid
+    },
     isFormulaEmpty() {
       if (!this.editor) return true
       const formula = this.toFormula(this.wrapperContent)
@@ -219,69 +276,27 @@ export default {
         },
       })
     },
-    functionNames() {
+    formulaRegistry() {
+      const names = []
+      const definitions = {}
+      const operators = []
+
       const extract = (nodes) => {
-        let names = []
-        if (!nodes) {
-          return names
-        }
+        if (!nodes) return
         for (const node of nodes) {
           if (node.type === 'function' && node.signature) {
             names.push(node.name)
-          }
-          const children = node.nodes
-          if (children) {
-            names = names.concat(extract(children))
-          }
-        }
-
-        return names
-      }
-
-      return extract(this.nodesHierarchy)
-    },
-    functionDefinitions() {
-      const definitions = {}
-      const extract = (nodes) => {
-        if (!nodes) {
-          return
-        }
-        for (const node of nodes) {
-          if (node.type === 'function' && node.signature) {
             definitions[node.name.toLowerCase()] = node
           }
-          const children = node.nodes
-          if (children) {
-            extract(children)
+          if (node.type === 'operator' && node.signature?.operator) {
+            operators.push(node.signature.operator)
           }
+          if (node.nodes) extract(node.nodes)
         }
       }
 
       extract(this.nodesHierarchy)
-      return definitions
-    },
-    operators() {
-      const extract = (nodes) => {
-        let operators = []
-        if (!nodes) {
-          return operators
-        }
-        for (const node of nodes) {
-          if (
-            node.type === 'operator' &&
-            node.signature &&
-            node.signature.operator
-          ) {
-            operators.push(node.signature.operator)
-          }
-          const children = node.nodes
-          if (children) {
-            operators = operators.concat(extract(children))
-          }
-        }
-        return operators
-      }
-      return extract(this.nodesHierarchy)
+      return { names, definitions, operators }
     },
     extensions() {
       const DocumentNode = Document.extend()
@@ -297,21 +312,40 @@ export default {
         History.configure({
           depth: 100,
         }),
-        FormulaInsertionExtension.configure({
-          vueComponent: this,
-        }),
-        NodeSelectionExtension.configure({
-          vueComponent: this,
-        }),
+        FormulaInsertionExtension,
+        NodeSelectionExtension,
         ContextManagementExtension.configure({
-          vueComponent: this,
-          contextPosition: this.contextPosition,
-          disabled: this.disabled,
-          readOnly: this.readOnly,
+          getState: () => ({
+            isFocused: this.isFocused,
+            disabled: this.disabled,
+            readOnly: this.readOnly,
+          }),
+          setFocused: (val) => {
+            this.isFocused = val
+          },
+          getRootEl: () => this.$el,
+          getContextEl: () =>
+            this.$refs.formulaInputExplorerContext?.getTeleportedElement(),
+          showExplorerContextMenu: () => {
+            this.$nextTick(() => {
+              if (!this.isFocused) return
+              this.positionAndShowExplorerContext()
+            })
+          },
+          hideContextMenu: () => {
+            this.$refs.formulaInputExplorerContext?.hide()
+          },
         }),
         FunctionHelpTooltipExtension.configure({
-          vueComponent: this,
-          functionDefinitions: this.functionDefinitions,
+          functionDefinitions: this.formulaRegistry.definitions,
+          onShowTooltip: (el, node) => {
+            this.hoveredFunctionNode = node
+            this.$refs.nodeHelpTooltip?.show(el, 'bottom', 'right', 6, 10)
+          },
+          onHideTooltip: () => {
+            this.$refs.nodeHelpTooltip?.hide()
+            this.hoveredFunctionNode = null
+          },
         }),
         ...this.formulaComponents,
       ]
@@ -333,18 +367,14 @@ export default {
           })
         )
         extensions.push(
-          FunctionDetectionExtension.configure({
-            functionNames: this.functionNames,
-            functionDefinitions: this.functionDefinitions,
-          }),
-          GroupDetectionExtension.configure({
-            functionNames: this.functionNames,
-          }),
-          OperatorDetectionExtension.configure({
-            operators: this.operators,
-            vueComponent: this,
+          InputDetectionExtension.configure({
+            functionNames: this.formulaRegistry.names,
+            functionDefinitions: this.formulaRegistry.definitions,
+            operators: this.formulaRegistry.operators,
           })
         )
+        extensions.push(FunctionDowngradeExtension)
+        extensions.push(ParenMatchHighlightExtension)
       }
 
       return extensions
@@ -387,6 +417,8 @@ export default {
         if (!this.isFormulaInvalid) {
           this.content = content
         }
+        // A newly displayed formula must reflect its own validity.
+        this.validateFormula(value)
       }
     },
     content: {
@@ -403,6 +435,9 @@ export default {
   },
   mounted() {
     this.createEditor()
+    // Reflect the validity of the initially-displayed formula so an
+    // already-invalid stored value shows its error state without an edit.
+    this.validateFormula(this.value)
     this.setupIntersectionObserver()
   },
   beforeUnmount() {
@@ -460,6 +495,8 @@ export default {
         },
       })
       this.isEditorInitialized = true
+
+      this.editor.on('data-node-clicked', this.dataNodeClicked)
     },
     recreateEditor(formula = null) {
       const currentFormula =
@@ -469,16 +506,17 @@ export default {
       this.editor?.destroy()
       this.createEditor(currentFormula)
     },
-    emitChange() {
-      this.formulaErrorContext = { scope: null, title: '', message: '' }
-      this.errorExpanded = false
-
+    /**
+     * Validate a formula string, updating the error state (and the error
+     * context shown to the user). Returns whether the formula is valid.
+     *
+     * Kept separate from emitChange() so it can also run when a formula is
+     * merely *displayed* (on mount and when the value prop changes), not only
+     * when the user edits it. Otherwise an already-invalid stored formula
+     * renders without any error styling until the field is touched.
+     */
+    validateFormula(formula) {
       const functions = new RuntimeFunctionCollection(this.$registry)
-      // this.wrapperContent can be stale content, so get the data
-      // directly from the editor.
-      const editorContent = this.editor.getJSON()
-      const formula = this.toFormula(editorContent)
-
       // Validate the syntax, and assuming it's valid, then validate the arguments.
       const validationResult = isFormulaValid(
         formula,
@@ -488,14 +526,29 @@ export default {
         this.$t('formulaInputField.invalidSyntax')
       )
       this.isFormulaInvalid = !validationResult.valid
-      if (this.isFormulaInvalid) {
-        this.formulaErrorContext = {
-          scope: validationResult.scope,
-          title: this.$t('formulaInputField.invalidFormulaTitle'),
-          message: validationResult.errors[0],
-        }
-      } else {
+      this.formulaErrorContext = this.isFormulaInvalid
+        ? {
+            scope: validationResult.scope,
+            title: this.$t('formulaInputField.invalidFormulaTitle'),
+            message: validationResult.errors[0],
+          }
+        : { scope: null, title: '', message: '' }
+      return validationResult.valid
+    },
+    emitChange() {
+      this.errorExpanded = false
+
+      // this.wrapperContent can be stale content, so get the data
+      // directly from the editor.
+      const editorContent = this.editor.getJSON()
+      const formula = this.toFormula(editorContent)
+
+      if (this.validateFormula(formula)) {
         this.$emit('input', formula)
+      } else {
+        this.$nextTick(() => {
+          this.editor.commands.repositionContext()
+        })
       }
     },
     onUpdate() {
@@ -504,12 +557,6 @@ export default {
     handleNodeSelected(data) {
       const { path, node } = data
       switch (node.type) {
-        case 'data':
-          this.editor.commands.insertDataComponent(path)
-          break
-        case 'array':
-          this.editor.commands.insertDataComponent(path)
-          break
         case 'function':
           this.editor.commands.insertFunction(node)
           break
@@ -517,11 +564,69 @@ export default {
           this.editor.commands.insertOperator(node)
           break
         default:
+          this.editor.commands.insertDataComponent(path)
           break
       }
     },
     onContextMouseDown() {
       this.editor?.commands.handleContextMouseDown()
+    },
+    positionAndShowExplorerContext() {
+      let config
+      switch (this.contextPosition) {
+        case 'left':
+          config = {
+            vertical: 'bottom',
+            horizontal: 'left',
+            needsDynamicOffset: true,
+          }
+          break
+        case 'right':
+          config = {
+            vertical: 'bottom',
+            horizontal: 'left',
+            needsDynamicOffset: true,
+          }
+          break
+        case 'bottom':
+        default:
+          config = {
+            vertical: 'bottom',
+            horizontal: 'left',
+            verticalOffset: 10,
+            horizontalOffset: 0,
+          }
+          break
+      }
+
+      const { vertical, horizontal } = config
+      let { verticalOffset = 0, horizontalOffset = 0 } = config
+
+      if (config.needsDynamicOffset) {
+        const inputRect = this.$el?.getBoundingClientRect()
+        const contextRect = this.$refs.formulaInputExplorerContext
+          ?.getTeleportedElement()
+          ?.getBoundingClientRect()
+
+        switch (this.contextPosition) {
+          case 'left':
+            verticalOffset = -inputRect?.height || 0
+            horizontalOffset = -(contextRect?.width || 0) - 10
+            break
+          case 'right':
+            verticalOffset = -inputRect?.height || 0
+            horizontalOffset = (inputRect?.width || 0) + 10
+            break
+        }
+      }
+
+      this.$refs.formulaInputExplorerContext?.show(
+        this.$refs.editor.$el,
+        vertical,
+        horizontal,
+        verticalOffset,
+        horizontalOffset
+      )
     },
     toContent(formula) {
       if (!formula) {
@@ -537,7 +642,10 @@ export default {
       }
 
       try {
-        const tree = parseBaserowFormula(formula)
+        const tree = parseBaserowFormula(
+          disambiguateMinusOperator(formula),
+          false
+        )
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
         const result = new ToTipTapVisitor(functionCollection, this.mode).visit(
           tree

@@ -21,6 +21,7 @@ from baserow.contrib.automation.history.exceptions import (
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
+    AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
@@ -32,7 +33,11 @@ from baserow.contrib.automation.nodes.node_types import (
     AutomationNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.nodes.signals import automation_node_updated
+from baserow.contrib.automation.nodes.signals import (
+    automation_node_dispatch_completed,
+    automation_node_dispatch_started,
+    automation_node_updated,
+)
 from baserow.contrib.automation.nodes.tasks import (
     dispatch_node_celery_task,
 )
@@ -127,15 +132,20 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         local_cache.delete(self._get_node_cache_key(workflow, True))
         local_cache.delete(self._get_node_cache_key(workflow, False))
 
-    def get_children(self, node: AutomationNode) -> List[AutomationNode]:
+    def get_children(
+        self, node: AutomationNode, first_only: bool = False
+    ) -> List[AutomationNode]:
         """
-        Returns the direct children of the given node.
+        Returns the children of the given node.
 
         :param node: The parent node.
+        :param first_only: When True, return only the entry-point child of each
+            edge/slot without following the next[""] chain. Use this when the
+            caller handles chaining via get_next_points itself.
         :return: A list of node instances that are the children of the given node.
         """
 
-        return node.workflow.get_graph().get_children(node)
+        return node.workflow.get_graph().get_children(node, first_only=first_only)
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -405,6 +415,32 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         return False
 
+    def _before_node_dispatch(
+        self, node: AutomationNode, workflow_history: AutomationWorkflowHistory
+    ) -> None:
+        """
+        Sends a signal before a node is dispatched.
+        """
+
+        automation_node_dispatch_started.send(
+            sender=self,
+            node=node,
+            workflow_history=workflow_history,
+        )
+
+    def _after_node_dispatch(
+        self, node: AutomationNode, node_history: AutomationNodeHistory
+    ) -> None:
+        """
+        Sends a signal after a node is dispatched.
+        """
+
+        automation_node_dispatch_completed.send(
+            sender=self,
+            node=node,
+            node_history=node_history,
+        )
+
     def dispatch_node(
         self,
         node_id: int,
@@ -444,7 +480,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         try:
             simulate_until_node = (
-                node.workflow.get_graph().get_node(
+                node.workflow.get_graph().get_point(
                     workflow_history.simulate_until_node_id
                 )
                 if workflow_history.simulate_until_node_id
@@ -456,7 +492,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         if simulate_until_node:
             allowed_nodes = {
-                *simulate_until_node.get_previous_nodes(),
+                *simulate_until_node.get_previous_points(),
                 simulate_until_node,
             }
             if node not in allowed_nodes:
@@ -481,9 +517,10 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         node_type: Type[AutomationNodeActionNodeType] = node.get_type()
 
         try:
+            self._before_node_dispatch(node, workflow_history)
             dispatch_result = node_type.dispatch(node, dispatch_context)
         except ServiceImproperlyConfiguredDispatchException as e:
-            error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
+            error = f"The node is misconfigured and cannot be dispatched. {str(e)}"
             self._handle_workflow_error(node_history, iteration_path, error)
             self._handle_simulation_notify(simulate_until_node, node)
             return None
@@ -513,14 +550,26 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         if self._handle_simulation_notify(simulate_until_node, node):
             return None
 
+        # Mark the node history as completed, so that post-dispatch hooks
+        # can accurately rely on the completed_on field.
+        now = timezone.now()
+        node_history.completed_on = now
+        node_history.status = HistoryStatusChoices.SUCCESS
+        node_history.save()
+
+        # The post-dispatch hook should also be able to safely access the
+        # node result, since the dispatch is considered completed, so this
+        # should also come before the post-dispatch hook.
         history_handler.create_node_result(
             node_history=node_history,
             result=dispatch_result.data,
             iteration_path=iteration_path,
         )
 
+        self._after_node_dispatch(node, node_history)
+
         to_chain = []
-        if children := node.get_children():
+        if children := node.get_children(first_only=True):
             node_data = dispatch_result.data["results"]
 
             # For simulations, we only need the first iteration.
@@ -550,13 +599,8 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 canvas = chain(*groups_to_chain)
                 to_chain.append(canvas)
 
-        now = timezone.now()
-        node_history.completed_on = now
-        node_history.status = HistoryStatusChoices.SUCCESS
-        node_history.save()
-
         # Handle non-iterator nodes, including iterator children.
-        next_nodes = node.get_next_nodes(dispatch_result.output_uid)
+        next_nodes = node.get_next_points(dispatch_result.output_uid)
         if next_nodes:
             to_chain.append(
                 group(

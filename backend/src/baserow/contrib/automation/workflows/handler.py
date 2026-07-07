@@ -47,6 +47,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_before_run,
     automation_workflow_dispatch_started,
     automation_workflow_updated,
 )
@@ -824,9 +825,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         if simulate_until_node is None:  # Full test
             AutomationWorkflowHandler().set_workflow_temporary_states(workflow)
-            if workflow.can_immediately_be_tested():
-                # If the service related to the trigger can immediately be tested
-                # we immediately trigger the workflow run
+            if workflow.can_be_immediately_dispatched():
+                # If the service related to the trigger can immediately dispatch,
+                # we immediately trigger the workflow run.
                 self.async_start_workflow(workflow)
         else:
             AutomationWorkflowHandler().set_workflow_temporary_states(
@@ -842,7 +843,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 history=None,
                 simulate_until_node=simulate_until_node,
             )
-            if workflow.can_immediately_be_tested() or (
+            if workflow.can_be_immediately_dispatched() or (
                 trigger.service.get_type().get_sample_data(
                     trigger.service.specific, dispatch_context
                 )
@@ -859,7 +860,10 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         Clears any old history entries across all workflows.
 
         It will delete any history entries that are older than MAX_HISTORY_DAYS
-        and only keep the most recent MAX_HISTORY_ENTRIES entries.
+        and only keep the most recent MAX_HISTORY_ENTRIES entries, but only for
+        entries older than MIN_RETENTION_DAYS. This ensures that recent history
+        is always preserved for investigation, even when a workflow is misbehaving
+        (e.g. running in a tight loop) and the MAX_ENTRIES limit is exceeded.
         """
 
         # Delete all history entries older than max days
@@ -870,8 +874,14 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             status=HistoryStatusChoices.STARTED
         ).filter(started_on__lt=oldest_history_date).delete()
 
-        # Delete all history entries older than max entries
+        # Delete history entries beyond max entries, but only if they are also
+        # older than min retention days. Entries within the retention window are
+        # always kept regardless of count, so that recent history is available
+        # for investigation even when a workflow runs excessively.
         max_entries = settings.AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES
+        recent_threshold = timezone.now() - timedelta(
+            days=settings.AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS
+        )
         cutoff_date = Subquery(
             AutomationWorkflowHistory.objects.filter(
                 original_workflow_id=OuterRef("original_workflow_id")
@@ -884,7 +894,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         )
         AutomationWorkflowHistory.objects.exclude(
             status=HistoryStatusChoices.STARTED
-        ).filter(started_on__lt=cutoff_date).delete()
+        ).filter(
+            Q(started_on__lt=cutoff_date) & Q(started_on__lt=recent_threshold),
+        ).delete()
 
         # Clean up published automations that no longer have any history entries
         empty_published = (
@@ -1118,6 +1130,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         self._check_is_rate_limited(workflow)
 
+        automation_workflow_before_run.send(sender=self, workflow=workflow)
+
     def async_start_workflow(
         self,
         workflow: AutomationWorkflow,
@@ -1135,7 +1149,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         create_history_entry = True
 
         simulate_until_node = (
-            workflow.get_graph().get_node(workflow.simulate_until_node_id)
+            workflow.get_graph().get_point(workflow.simulate_until_node_id)
             if workflow.simulate_until_node_id
             else None
         )

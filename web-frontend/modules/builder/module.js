@@ -13,9 +13,6 @@ export default defineNuxtModule({
   meta: {
     name: '@baserow/builder',
     configKey: 'builder',
-    compatibility: {
-      nuxt: '^3.0.0',
-    },
   },
   dependsOn: ['core'],
   async setup(options, nuxt) {

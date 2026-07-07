@@ -80,4 +80,8 @@ export const FORMULA_CATEGORY = {
     category: 'categoryCondition',
     iconClass: 'iconoir-code-brackets-square',
   },
+  UTILITY: {
+    category: 'categoryUtility',
+    iconClass: 'iconoir-tools',
+  },
 }

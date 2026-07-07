@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
 from django.conf import settings
-from django.db import connection
+from django.db import connection, transaction
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -529,3 +529,78 @@ def test_two_way_sync_update_without_valid_license(
         result = cursor.fetchone()
         # Should be equal to the old number because no rows should have been created.
         assert result[0] == 2
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+def test_two_way_sync_kept_row_can_be_deleted_and_updated_when_source_gone(
+    enterprise_data_fixture, create_postgresql_test_table, api_client, synced_roles
+):
+    enterprise_data_fixture.enable_enterprise()
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        two_way_sync=True,
+        delete_unmatched_rows=False,
+        synced_properties=["id", "text_col"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    id_field = fields[0]
+    text_field = fields[1]
+    model = data_sync.table.get_model()
+    assert model.objects.count() == 2
+
+    # Delete a row from the source. Because `delete_unmatched_rows` is disabled, the
+    # corresponding row in the synced table must be kept after the next sync.
+    with connection.cursor() as cursor:
+        cursor.execute(f"DELETE FROM {create_postgresql_test_table} WHERE id = 2;")
+    transaction.commit()
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert model.objects.count() == 2
+
+    kept_row = model.objects.get(**{f"field_{id_field.id}": 2})
+    serialized_rows = serialize_rows_for_response([kept_row], model)
+    data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+    two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+        data_sync_type.two_way_sync_strategy_type
+    )
+
+    mock_task_context = Mock()
+    mock_task_context.request.retries = 0
+    mock_task_context.retry = Mock()
+
+    # Editing the kept row must be a no-op against the source, without error or retry.
+    two_way_sync_strategy.rows_updated(
+        mock_task_context, serialized_rows, data_sync, [text_field.id]
+    )
+    # Deleting the kept row must be a no-op against the source, without error or retry.
+    two_way_sync_strategy.rows_deleted(mock_task_context, serialized_rows, data_sync)
+
+    mock_task_context.retry.assert_not_called()
+    data_sync.refresh_from_db()
+    assert data_sync.two_way_sync is True
+    assert data_sync.two_way_sync_consecutive_failures == 0
+    assert (
+        Notification.objects.filter(
+            broadcast=False,
+        ).count()
+        == 0
+    )

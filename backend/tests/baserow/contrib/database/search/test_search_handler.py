@@ -5,7 +5,6 @@ from django.db import ProgrammingError, transaction
 
 import pytest
 from freezegun import freeze_time
-from pytest_unordered import unordered
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
@@ -328,43 +327,31 @@ def test_update_rows_process_update_entries(mock, data_fixture):
 
     PendingSearchValueUpdate.objects.bulk_create(
         [
-            PendingSearchValueUpdate(
-                table_id=table.id, field_id=text_field.id, row_id=1
-            ),
-            PendingSearchValueUpdate(
-                table_id=table.id, field_id=text_field.id, row_id=2
-            ),
-            PendingSearchValueUpdate(
-                table_id=table.id, field_id=formula_field.id, row_id=1
-            ),
-            PendingSearchValueUpdate(
-                table_id=table.id, field_id=formula_field.id, row_id=2
-            ),
+            PendingSearchValueUpdate(field_id=text_field.id, row_id=1),
+            PendingSearchValueUpdate(field_id=text_field.id, row_id=2),
+            PendingSearchValueUpdate(field_id=formula_field.id, row_id=1),
+            PendingSearchValueUpdate(field_id=formula_field.id, row_id=2),
         ]
     )
 
     mock.reset_mock()
     SearchHandler.process_search_data_updates(table)
+    # Both fields fit in a single chunk, so one batched call with field_ids and
+    # row_ids.
     assert mock.call_count == 1
     assert mock.call_args[0][0] == table
-    assert mock.call_args[1] == {
-        "field_ids": unordered([text_field.id, formula_field.id]),
-        "row_ids": unordered([1, 2]),
-    }
+    assert set(mock.call_args[1]["field_ids"]) == {text_field.id, formula_field.id}
+    assert set(mock.call_args[1]["row_ids"]) == {1, 2}
 
-    PendingSearchValueUpdate.objects.count() == 0
+    assert PendingSearchValueUpdate.objects.count() == 0
 
     # If there's an update for all the rows (row_id=None), all other individual
     # updates are ignored.
     PendingSearchValueUpdate.objects.bulk_create(
         [
-            PendingSearchValueUpdate(table_id=table.id, field_id=text_field.id),
-            PendingSearchValueUpdate(
-                table_id=table.id, field_id=text_field.id, row_id=2
-            ),
-            PendingSearchValueUpdate(
-                table_id=table.id, field_id=text_field.id, row_id=3
-            ),
+            PendingSearchValueUpdate(field_id=text_field.id),
+            PendingSearchValueUpdate(field_id=text_field.id, row_id=2),
+            PendingSearchValueUpdate(field_id=text_field.id, row_id=3),
         ]
     )
 
@@ -373,7 +360,7 @@ def test_update_rows_process_update_entries(mock, data_fixture):
     assert mock.call_count == 1
     assert mock.call_args[0][0] == table
     assert mock.call_args[1] == {"field_ids": [text_field.id]}
-    PendingSearchValueUpdate.objects.count() == 0
+    assert PendingSearchValueUpdate.objects.count() == 0
 
 
 @pytest.mark.django_db(transaction=True)

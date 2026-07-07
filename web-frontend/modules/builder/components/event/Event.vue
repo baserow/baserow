@@ -29,18 +29,35 @@
       </ButtonText>
       <Context ref="workflowActionAddContext" :hide-on-click-outside="true">
         <div class="event__add-action-context">
-          <ButtonText
+          <span
             v-for="workflowActionType in availableWorkflowActionTypes"
             :key="workflowActionType.getType()"
-            :value="workflowActionType.getType()"
-            :icon="workflowActionType.icon"
-            :image="workflowActionType.image"
-            type="primary"
-            size="small"
-            @click="addWorkflowAction(workflowActionType.getType())"
+            v-tooltip="workflowActionType.isDeactivatedReason({ workspace })"
+            tooltip-position="bottom-left"
           >
-            {{ workflowActionType.label }}
-          </ButtonText>
+            <ButtonText
+              :value="workflowActionType.getType()"
+              :icon="workflowActionType.icon"
+              :image="workflowActionType.image"
+              type="primary"
+              size="small"
+              :disabled="
+                workflowActionType.isDeactivated({ workspace }) &&
+                getDeactivatedClickModal(workflowActionType) === null
+              "
+              @click="addWorkflowAction(workflowActionType)"
+            >
+              {{ workflowActionType.label }}
+            </ButtonText>
+            <component
+              :is="getDeactivatedClickModal(workflowActionType)[0]"
+              v-if="getDeactivatedClickModal(workflowActionType) !== null"
+              :ref="`deactivatedClickModal_${workflowActionType.getType()}`"
+              v-bind="getDeactivatedClickModal(workflowActionType)[1]"
+              :name="workflowActionType.label"
+              :workspace="workspace"
+            ></component>
+          </span>
         </div>
       </Context>
     </div>
@@ -146,13 +163,24 @@ export default {
         [workflow.id]: !this.expanded[workflow.id],
       }
     },
-    async addWorkflowAction(type) {
+    async addWorkflowAction(workflowActionType) {
+      if (workflowActionType.isDeactivated({ workspace: this.workspace })) {
+        const deactivatedClickModal =
+          this.getDeactivatedClickModal(workflowActionType)
+        if (deactivatedClickModal !== null) {
+          this.$refs[
+            `deactivatedClickModal_${workflowActionType.getType()}`
+          ][0].show()
+        }
+        return
+      }
+
       this.addingAction = true
       this.$refs.workflowActionAddContext.hide()
       try {
         await this.actionCreateWorkflowAction({
           page: this.elementPage,
-          workflowActionType: type,
+          workflowActionType: workflowActionType.getType(),
           eventType: this.event.name,
           configuration: {
             element_id: this.element.id,
@@ -183,6 +211,11 @@ export default {
       } catch (error) {
         notifyIf(error)
       }
+    },
+    getDeactivatedClickModal(workflowActionType) {
+      return workflowActionType.getDeactivatedClickModal({
+        workspace: this.workspace,
+      })
     },
   },
 }

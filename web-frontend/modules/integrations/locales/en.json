@@ -23,7 +23,7 @@
     "slackBotNoToken": "Slack Bot - Not configured"
   },
   "serviceType": {
-    "localBaserowGetRow": "Get single row",
+    "localBaserowGetRow": "Get a single row",
     "localBaserowGetRowDescription": "Read a single row from a Baserow table.",
     "localBaserowListRows": "List multiple rows",
     "localBaserowListRowsDescription": "Reads multiple rows from a Baserow table.",
@@ -31,18 +31,26 @@
     "localBaserowAggregateRowsDescription": "Summarizes a field in a Baserow table.",
     "localBaserowCreateRow": "Create a row",
     "localBaserowCreateRowDescription": "Creates a new row in a Baserow table.",
+    "localBaserowCreateRows": "Batch create rows",
+    "localBaserowCreateRowsDescription": "Creates multiple new rows in a Baserow table.",
     "localBaserowUpdateRow": "Update a row",
     "localBaserowUpdateRowDescription": "Updates an existing row in a Baserow table.",
-    "localBaserowDeleteRow": "Delete a row",
-    "localBaserowDeleteRowDescription": "Deletes a row in a Baserow table.",
+    "localBaserowUpdateRows": "Batch update rows",
+    "localBaserowUpdateRowsDescription": "Updates multiple existing rows in a Baserow table.",
+    "localBaserowDeleteRow": "Delete rows",
+    "localBaserowDeleteRowDescription": "Deletes one or more rows in a Baserow table.",
     "localBaserowRowsCreated": "Rows are created",
     "localBaserowRowsCreatedDescription": "Triggered when rows are created in a Baserow table.",
     "localBaserowRowsUpdated": "Rows are updated",
-    "localBaserowRowsUpdatedDescription": "Triggered when rows are updated in a Baserow table.",
+    "localBaserowRowsUpdatedDescription": "Triggered when rows are updated in any fields of a Baserow table.",
     "localBaserowRowsDeleted": "Rows are deleted",
     "localBaserowRowsDeletedDescription": "Triggered when rows are deleted in a Baserow table.",
+    "localBaserowFieldsUpdated": "Specific field values are updated",
+    "localBaserowFieldsUpdatedDescription": "Triggered when rows are updated in specific fields of a Baserow table.",
     "coreHTTPTrigger": "Receive an HTTP Request",
     "coreHTTPTriggerDescription": "Triggered when an HTTP request is received.",
+    "coreManualTrigger": "Manual trigger",
+    "coreManualTriggerDescription": "Starts only when another workflow action starts this workflow.",
     "coreHTTPRequest": "Send an HTTP request",
     "coreHTTPRequestDescription": "Sends an HTTP request to a specified endpoint.",
     "coreSMTPEmail": "Send Email",
@@ -54,6 +62,10 @@
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
     "coreIteration": "Iterator",
     "coreIterationDescription": "Iterate on items.",
+    "coreCSVFileReader": "Read a CSV file",
+    "coreCSVFileReaderDescription": "Reads rows from a CSV file.",
+    "coreStartWorkflow": "Start workflow",
+    "coreStartWorkflowDescription": "Starts an automation workflow.",
     "errorFromEmailMissing": "Missing From Email property",
     "errorToEmailsMissing": "Missing To Emails property",
     "misconfigured": "Misconfigured",
@@ -62,12 +74,17 @@
     "errorNoTableSelected": "No table selected",
     "errorFilterInError": "At least one filter is misconfigured",
     "errorSortingInError": "At least one sort is misconfigured",
-    "errorNoFieldSelected": "No field selected",
+    "errorNoFieldSelected": "No fields selected",
+    "errorNoRowsSelected": "No rows selected",
     "errorNoAggregationTypeSelected": "No aggregation type selected",
     "corePeriodic": "Periodic trigger",
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",
     "corePeriodicErrorIntervalMissing": "An interval is required.",
     "errorIterationSourceMissing": "Missing source property",
+    "errorCSVFileMissing": "Missing CSV file property",
+    "errorCSVContentMissing": "Missing CSV data property",
+    "errorNoWorkflowSelected": "No workflow selected",
+    "errorWorkflowNotImmediateDispatch": "The selected workflow must use a trigger that can start immediately.",
     "aiAgent": "AI prompt",
     "aiAgentDescription": "Execute AI prompts using configured generative AI models.",
     "errorNoIntegrationSelected": "No integration selected",
@@ -149,6 +166,10 @@
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters."
   },
+  "localBaserowFieldsUpdatedForm": {
+    "fieldLabel": "Fields",
+    "fieldHelper": "The workflow only triggers when one of these fields' values changes."
+  },
   "localBaserowTableServiceConditionalForm": {
     "addFilter": "Add additional filter",
     "noFilterTitle": "You have not yet created a data source filter",
@@ -197,6 +218,30 @@
     "seconds": "seconds",
     "nameFieldInvalid": "The name must contain only alphanumeric characters, dashes, or underscores, and must not start with a dash or an underscore.",
     "timeout": "Timeout"
+  },
+  "coreCSVFileReaderServiceForm": {
+    "inputType": "Source",
+    "inputTypeFile": "File",
+    "inputTypeContent": "Content",
+    "file": "CSV file",
+    "filePlaceholder": "Choose a CSV file...",
+    "csv": "CSV data",
+    "csvPlaceholder": "Enter CSV data...",
+    "separator": "Separator",
+    "encoding": "Encoding",
+    "firstLineIsHeader": "First line is header",
+    "comma": "Comma",
+    "semicolon": "Semicolon",
+    "tab": "Tab",
+    "pipe": "Pipe",
+    "utf8": "UTF-8",
+    "utf8Bom": "UTF-8 with BOM",
+    "latin1": "Latin-1"
+  },
+  "coreStartWorkflowServiceForm": {
+    "automation": "Automation",
+    "workflow": "Workflow",
+    "workflowHelperText": "Only published workflows with a manual trigger can be started. If this workflow has unpublished changes, the latest published version will run."
   },
   "slackBotForm": {
     "tokenLabel": "Bot User Token",
@@ -329,5 +374,20 @@
     "fieldMappingPlaceholderDuration": "Choose a duration value, e.g. 1:23:40",
     "noTableSelectedMessage": "Choose a table to begin configuring your fields.",
     "noWritableFields": "This table does not contain any writable fields."
+  },
+  "localBaserowDeleteRowServiceForm": {
+    "rowIdLabel": "Row ID(s)",
+    "rowIdPlaceholder": "Choose a row ID or an array of row IDs",
+    "rowIdHelper": "Choose one row ID or an array of row IDs. Up to {limit} rows can be deleted at once."
+  },
+  "localBaserowCreateRowsServiceForm": {
+    "rowsLabel": "Rows",
+    "rowsPlaceholder": "Choose a list of row objects",
+    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Use field names or field IDs as object keys. Up to {limit} rows can be created at once."
+  },
+  "localBaserowUpdateRowsServiceForm": {
+    "rowsLabel": "Rows",
+    "rowsPlaceholder": "Choose a list of row objects with IDs",
+    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
   }
 }

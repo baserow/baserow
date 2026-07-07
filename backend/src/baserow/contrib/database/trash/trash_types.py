@@ -359,8 +359,8 @@ class RowTrashableItemType(TrashableItemType):
 
         updated_fields = [f["field"] for f in model._field_objects.values()]
 
-        _, dependant_fields = RowHandler().update_dependencies_of_rows_created(
-            model, rows_to_restore
+        _, dependant_fields, dependant_rows_updates = (
+            RowHandler().update_dependencies_of_rows_created(model, rows_to_restore)
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
@@ -379,6 +379,7 @@ class RowTrashableItemType(TrashableItemType):
             fields=updated_fields,
             dependant_fields=dependant_fields,
         )
+        RowHandler().send_dependant_rows_updated(None, table, dependant_rows_updates)
 
     def permanently_delete_item(self, row, trash_item_lookup_cache=None):
         RichTextFieldMention.objects.filter(
@@ -482,8 +483,8 @@ class RowsTrashableItemType(TrashableItemType):
         trashed_item.delete()
 
         updated_fields = [f["field"] for f in model._field_objects.values()]
-        _, dependant_fields = RowHandler().update_dependencies_of_rows_created(
-            model, rows_to_restore
+        _, dependant_fields, dependant_rows_updates = (
+            RowHandler().update_dependencies_of_rows_created(model, rows_to_restore)
         )
 
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
@@ -509,6 +510,7 @@ class RowsTrashableItemType(TrashableItemType):
             # Use table signal here instead of row signal because we don't want
             # to send too many ids in the signal
             table_updated.send(self, table=table, user=None, force_table_refresh=True)
+        RowHandler().send_dependant_rows_updated(None, table, dependant_rows_updates)
 
     def trash(self, item_to_trash, requesting_user, trash_entry: TrashEntry):
         """

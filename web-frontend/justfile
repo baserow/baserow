@@ -47,10 +47,7 @@ help:
 frontend *ARGS:
     @just {{ ARGS }}
 
-alias f := frontend
-
 # Common shortcuts
-alias l := lint
 alias t := test
 alias dev := run-dev-server
 alias serve := run-dev-server
@@ -78,15 +75,104 @@ install:
 # Code Quality & Linting
 # =============================================================================
 
-# Run all linters (eslint + stylelint + prettier)
+# Run all linters (eslint + stylelint + prettier). Pass file paths to lint only those files
+# (repo-root-relative, e.g. web-frontend/modules/foo.js). Paths outside the three
+# frontend trees are silently skipped.
+#
+# Each tool is invoked in the same cwd as the matching yarn script:
+#   - eslint runs from the repo root (where eslint.config.mjs lives and where
+#     "files: [premium/web-frontend/**/*]" path patterns can match correctly)
+#   - stylelint and prettier run from web-frontend/ so their .stylelintignore and
+#     .prettierignore files (which live there) get auto-discovered
+# Per-file results therefore match the no-args path, with one intentional
+# difference: eslint is invoked with `--no-warn-ignored` so that when
+# pre-commit (or a manual diff-driven invocation) passes a file that lives in
+# an eslint-ignored location, we don't emit a noisy warning per file. The
+# no-args path doesn't need this flag because it walks directories.
 [group('4 - code-quality')]
-lint:
-    yarn run lint
+[positional-arguments]
+check *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
 
-# Fix code style issues
+    if [ $# -eq 0 ]; then
+        yarn run lint
+        exit 0
+    fi
+
+    JS_FILES=()      # repo-root-relative, for eslint (run from repo root)
+    SCSS_FILES=()    # web-frontend-relative, for stylelint (run from web-frontend/)
+    PRETTIER_FILES=()  # web-frontend-relative, for prettier (run from web-frontend/)
+    for f in "$@"; do
+        case "$f" in
+            web-frontend/*) rel="${f#web-frontend/}" ;;
+            premium/web-frontend/*|enterprise/web-frontend/*) rel="../$f" ;;
+            *) continue ;;
+        esac
+        case "$f" in
+            *.js|*.jsx|*.ts|*.tsx|*.vue|*.mjs|*.cjs) JS_FILES+=("$f"); PRETTIER_FILES+=("$rel") ;;
+            *.scss) SCSS_FILES+=("$rel"); PRETTIER_FILES+=("$rel") ;;
+            *.css|*.json|*.md|*.html|*.yml|*.yaml) PRETTIER_FILES+=("$rel") ;;
+        esac
+    done
+
+    if [ ${#JS_FILES[@]} -gt 0 ]; then
+        [ -f .nuxt/eslint.config.mjs ] || yarn postinstall
+        (cd .. && web-frontend/node_modules/.bin/eslint --no-warn-ignored --cache --cache-location=web-frontend/.cache/eslint "${JS_FILES[@]}")
+    fi
+    if [ ${#SCSS_FILES[@]} -gt 0 ]; then
+        ./node_modules/.bin/stylelint --cache --cache-location=.cache/stylelint "${SCSS_FILES[@]}"
+    fi
+    if [ ${#PRETTIER_FILES[@]} -gt 0 ]; then
+        ./node_modules/.bin/prettier --check --log-level=warn --cache --cache-location=.cache/prettier "${PRETTIER_FILES[@]}"
+    fi
+
+alias lint := check
+alias l := check
+
+# Fix code style issues. Pass file paths to fix only those files (repo-root-relative,
+# e.g. web-frontend/modules/foo.js). Paths outside the three frontend trees are
+# silently skipped. See `lint` above for the per-tool cwd rationale.
 [group('4 - code-quality')]
-fix:
-    yarn run fix
+[positional-arguments]
+fix *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ $# -eq 0 ]; then
+        yarn run fix
+        exit 0
+    fi
+
+    JS_FILES=()
+    SCSS_FILES=()
+    PRETTIER_FILES=()
+    for f in "$@"; do
+        case "$f" in
+            web-frontend/*) rel="${f#web-frontend/}" ;;
+            premium/web-frontend/*|enterprise/web-frontend/*) rel="../$f" ;;
+            *) continue ;;
+        esac
+        case "$f" in
+            *.js|*.jsx|*.ts|*.tsx|*.vue|*.mjs|*.cjs) JS_FILES+=("$f"); PRETTIER_FILES+=("$rel") ;;
+            *.scss) SCSS_FILES+=("$rel"); PRETTIER_FILES+=("$rel") ;;
+            *.css|*.json|*.md|*.html|*.yml|*.yaml) PRETTIER_FILES+=("$rel") ;;
+        esac
+    done
+
+    if [ ${#JS_FILES[@]} -gt 0 ]; then
+        [ -f .nuxt/eslint.config.mjs ] || yarn postinstall
+        (cd .. && web-frontend/node_modules/.bin/eslint --no-warn-ignored --cache --cache-location=web-frontend/.cache/eslint --fix "${JS_FILES[@]}")
+    fi
+    if [ ${#SCSS_FILES[@]} -gt 0 ]; then
+        ./node_modules/.bin/stylelint --cache --cache-location=.cache/stylelint --fix "${SCSS_FILES[@]}"
+    fi
+    if [ ${#PRETTIER_FILES[@]} -gt 0 ]; then
+        ./node_modules/.bin/prettier --write --log-level=warn --cache --cache-location=.cache/prettier "${PRETTIER_FILES[@]}"
+    fi
+
+alias format := fix
+alias f := fix
 
 # =============================================================================
 # Testing
@@ -117,12 +203,19 @@ run-dev-server:
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    yarn run dev
+    NUXT_HOST="${BASEROW_NUXT_HOST:-0.0.0.0}"
+    NUXT_PORT="${BASEROW_NUXT_PORT:-3000}"
+    yarn run dev --host "$NUXT_HOST" --port "$NUXT_PORT"
 
 # Run Storybook
 [group('2 - development')]
 storybook:
-    yarn run storybook
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    STORYBOOK_HOST="${BASEROW_STORYBOOK_HOST:-0.0.0.0}"
+    STORYBOOK_PORT="${BASEROW_STORYBOOK_PORT:-6006}"
+    yarn run storybook --host "$STORYBOOK_HOST" -p "$STORYBOOK_PORT"
 
 # Build Nuxt for production
 [group('5 - build')]

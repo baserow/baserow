@@ -8,6 +8,9 @@ export default (client) => {
     delete(userId) {
       return client.delete(`/admin/users/${userId}/`)
     },
+    disableTwoFactorAuth(userId) {
+      return client.delete(`/admin/users/${userId}/two-factor-auth/`)
+    },
     impersonate(userId) {
       return client.post(`/admin/users/impersonate/`, {
         user: userId,

@@ -43,6 +43,10 @@ SORT_ORDER_ASC = "ASC"
 SORT_ORDER_DESC = "DESC"
 SORT_ORDER_CHOICES = ((SORT_ORDER_ASC, "Ascending"), (SORT_ORDER_DESC, "Descending"))
 
+# Max value of a smallint, used as the default "place last" priority/order sentinel.
+# Must match `maxPossibleOrderValue` in `modules/database/utils/view.js`.
+MAX_ORDER_VALUE = 32767
+
 FORM_VIEW_SUBMIT_TEXT = "Submit"
 FORM_VIEW_SUBMIT_ACTION_MESSAGE = "MESSAGE"
 FORM_VIEW_SUBMIT_ACTION_REDIRECT = "REDIRECT"
@@ -487,7 +491,7 @@ class ViewSortManager(models.Manager):
         return super().get_queryset().filter(~trashed_Q)
 
 
-class ViewSort(HierarchicalModelMixin, models.Model):
+class ViewSort(HierarchicalModelMixin, OrderableMixin, models.Model):
     objects = ViewSortManager()
 
     view = models.ForeignKey(
@@ -515,12 +519,18 @@ class ViewSort(HierarchicalModelMixin, models.Model):
         help_text=f"Indicates the sort type. Will automatically fall back to `"
         f"{DEFAULT_SORT_TYPE_KEY}` if incompatible with field type.",
     )
+    priority = models.PositiveSmallIntegerField(
+        default=MAX_ORDER_VALUE,
+        db_default=MAX_ORDER_VALUE,
+        help_text="Position of this sorting in the ordering chain. The sorting with "
+        "the lowest priority is applied first.",
+    )
 
     def get_parent(self):
         return self.view
 
     class Meta:
-        ordering = ("id",)
+        ordering = ("priority", "id")
 
 
 class ViewGroupByManager(models.Manager):
@@ -529,7 +539,7 @@ class ViewGroupByManager(models.Manager):
         return super().get_queryset().filter(~trashed_Q)
 
 
-class ViewGroupBy(HierarchicalModelMixin, models.Model):
+class ViewGroupBy(HierarchicalModelMixin, OrderableMixin, models.Model):
     objects = ViewGroupByManager()
 
     view = models.ForeignKey(
@@ -561,12 +571,18 @@ class ViewGroupBy(HierarchicalModelMixin, models.Model):
         default=200,
         help_text="The pixel width of the group by in the related view.",
     )
+    priority = models.PositiveSmallIntegerField(
+        default=MAX_ORDER_VALUE,
+        db_default=MAX_ORDER_VALUE,
+        help_text="Position of this group by in the ordering chain. The group by with "
+        "the lowest priority is applied first.",
+    )
 
     def get_parent(self):
         return self.view
 
     class Meta:
-        ordering = ("id",)
+        ordering = ("priority", "id")
 
 
 class GridView(View):

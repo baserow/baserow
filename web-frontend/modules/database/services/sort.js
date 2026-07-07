@@ -15,5 +15,10 @@ export default (client) => {
     delete(viewSortId) {
       return client.delete(`/database/views/sort/${viewSortId}/`)
     },
+    prioritize(viewId, viewSortIds) {
+      return client.post(`/database/views/${viewId}/sortings/prioritize/`, {
+        view_sort_ids: viewSortIds,
+      })
+    },
   }
 }

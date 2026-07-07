@@ -29,8 +29,14 @@ export default (client) => {
 
       return client.post(`/database/tables/database/${databaseId}/`, values)
     },
-    importData(tableId, data, config = null, importConfiguration = null) {
-      const payload = { data }
+    importData(
+      tableId,
+      data,
+      config = null,
+      importConfiguration = null,
+      metadata = {}
+    ) {
+      const payload = { data, ...metadata }
       if (importConfiguration) {
         payload.configuration = importConfiguration
       }

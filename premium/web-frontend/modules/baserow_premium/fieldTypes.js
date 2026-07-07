@@ -119,6 +119,10 @@ export class AIFieldType extends FieldType {
     return this.getBaserowFieldType(field).getContainsWordFilterFunction(field)
   }
 
+  getStartsWithFilterFunction(field) {
+    return this.getBaserowFieldType(field).getStartsWithFilterFunction(field)
+  }
+
   toHumanReadableString(field, value) {
     return this.getBaserowFieldType(field).toHumanReadableString(field, value)
   }

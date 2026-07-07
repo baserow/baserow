@@ -6,7 +6,8 @@
         "sso": "SSO",
         "deactivated": "Beschikbaar in enterprise-versie",
         "licenseDescription": "Kijkers zijn gratis met Baserow Enterprise. Als een gebruiker een andere rol heeft, in een werkruimte, dan gebruikt hij automatisch een betaalde seat.",
-        "overflowWarning": "Je hebt te veel niet-kijkers en hebt al je betaalde plaatsen opgebruikt. Verander gebruikers in kijkers op de ledenpagina van elke werkruimte."
+        "overflowWarning": "Je hebt te veel niet-kijkers en hebt al je betaalde plaatsen opgebruikt. Verander gebruikers in kijkers op de ledenpagina van elke werkruimte.",
+        "enterpriseOnlyDeactivated": "Beschikbaar in enterprise-versie"
     },
     "trashType": {
         "team": "team"
@@ -211,7 +212,14 @@
             "warningTitle": "Andere gebruikers kunnen toegang overerven!",
             "warningMessage": "Andere gebruikers kunnen toegang overerven via hun rollen op de bovenliggende tabel, database of workspace.",
             "headerTooltip": "Rollen voor weergaven hebben voorrang op rollen voor workspace, database en tabel."
-        }
+        },
+        "title": "{name} {type}",
+        "selectMembers": "Selecteer leden",
+        "everyoneHasAccess": "Iedereen in de werkruimte {name} heeft toegang tot deze {type}.",
+        "onlyYouHaveAccess": "Alleen jij hebt toegang tot deze {type}.",
+        "warningTitle": "Andere gebruikers kunnen mogelijk toegang erven!",
+        "warningMessage": "Andere gebruikers kunnen mogelijk toegang erven via hun respectievelijke rollen op de bovenliggende {parent}.",
+        "headerTooltip": "Rollen op deze {type} overschrijven de rollen van de {overrides}."
     },
     "memberRolesMembersList": {
         "remove": "Verwijder",
@@ -298,7 +306,11 @@
         "dateDependency": "Datum afhankelijkheid",
         "dateDependencyContent": "Je kunt een afhankelijkheid definiëren tussen twee datums en een duur als begin/einddatum en duur. Met datumafhankelijkheid worden andere waarden aangepast als een waarde verandert.",
         "dataScanner": "Datascanner",
-        "dataScannerContent": "Scan alle gegevens in uw Baserow-instantie op gevoelige patronen zoals IBAN-nummers of medische ID's, of vergelijk met lijsten van bekende waarden. Stel automatische scanschema's in en bekijk gedetailleerde resultaten."
+        "dataScannerContent": "Scan alle gegevens in uw Baserow-instantie op gevoelige patronen zoals IBAN-nummers of medische ID's, of vergelijk met lijsten van bekende waarden. Stel automatische scanschema's in en bekijk gedetailleerde resultaten.",
+        "codeRunner": "Code runner",
+        "codeRunnerContent": "Voer JavaScript-code uit in automatiseringsknooppunten en workflow-acties van de application builder.",
+        "xlsFileReader": "XLS-bestandslezer",
+        "xlsFileReaderContent": "Lees rijen uit XLS- en XLSX-bestanden in automatiseringsknooppunten en workflow-acties van de application builder."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Directe ondersteuning"
@@ -587,7 +599,8 @@
         "label": "Veldmachtigingen bewerken"
     },
     "advanced": {
-        "license": "Advanced"
+        "license": "Advanced",
+        "openSubscriptions": "Open abonnementen voor meer seats"
     },
     "builderSettingTypes": {
         "customCode": "Aangepaste CSS/JS"
@@ -846,5 +859,47 @@
         "titleSingular": "{count} nieuw resultaat gevonden voor {scanName}",
         "titlePlural": "{count} nieuwe resultaten gevonden voor {scanName}",
         "description": "Bekijk de resultaten in de admin-datascanner."
+    },
+    "serviceType": {
+        "coreCode": "Code uitvoeren",
+        "coreCodeDescription": "Voert willekeurige JavaScript-code uit.",
+        "coreXLSFileReader": "Een XLS-bestand lezen",
+        "coreXLSFileReaderDescription": "Leest rijen uit een XLS- of XLSX-bestand.",
+        "errorCodeMissing": "Code-eigenschap ontbreekt",
+        "errorXLSFileMissing": "XLS-bestand-eigenschap ontbreekt"
+    },
+    "coreCodeServiceForm": {
+        "codeLabel": "Code",
+        "codeHelperText": "Baserow roept de functie main(context) aan wanneer de actie wordt uitgevoerd. Gebruik context om geïnjecteerde waarden te lezen en geef een object terug waarvan de eigenschappen door latere acties kunnen worden gebruikt.",
+        "codePlaceholder": "Voer de uit te voeren code in",
+        "editCode": "Code bewerken",
+        "injectionsLabel": "Gegevensinjecties",
+        "injectionsHelperText": "Injecties zijn formules die worden geëvalueerd voordat de code wordt uitgevoerd. Elke injectienaam wordt een eigenschap van context. Een injectie met de naam customerName is bijvoorbeeld beschikbaar als context.customerName.",
+        "nameLabel": "Naam",
+        "namePlaceholder": "Variabelenaam",
+        "valueLabel": "Waarde",
+        "valuePlaceholder": "Waardeformule",
+        "addInjection": "Injectie toevoegen",
+        "nameFieldRequired": "Het naamveld is verplicht.",
+        "nameFieldInvalid": "De naam moet een geldige variabelenaam zijn."
+    },
+    "coreXLSFileReaderServiceForm": {
+        "file": "XLS-bestand",
+        "filePlaceholder": "Kies een XLS- of XLSX-bestand...",
+        "sheetName": "Werkbladnaam",
+        "sheetNamePlaceholder": "Eerste werkblad",
+        "firstLineIsHeader": "Eerste regel is header"
+    },
+    "nodeType": {
+        "codeLabel": "Code uitvoeren",
+        "xlsFileReaderLabel": "Een XLS-bestand lezen"
+    },
+    "restrictedViewFilterContext": {
+        "matchTitle": "Standaardwaarden van de weergave komen overeen met de filters",
+        "matchSubtitle": "Editors zien de rijen die ze aanmaken.",
+        "mismatchTitle": "Standaardwaarden komen niet overeen met de filters",
+        "mismatchSubtitle": "Editors kunnen rijen aanmaken, maar zien ze niet.",
+        "removeDefaultValue": "Standaardwaarde verwijderen",
+        "removeDefaultValueHelper": "Dit veld heeft een standaardwaarde maar geen filter. Je kunt deze hier verwijderen, of alle standaardwaarden beheren door op de drie puntjes naast de weergave te klikken en vervolgens op \"Standaard rijwaarden\"."
     }
 }

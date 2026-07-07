@@ -74,7 +74,10 @@ from .exceptions import (
 )
 from .fields import DurationFieldUsingPostgresFormatting
 from .models import Field, FieldConstraint, LinkRowField
-from .utils import DeferredForeignKeyUpdater
+from .utils import (
+    DeferredForeignKeyUpdater,
+    guess_json_type_from_response_serializer_field,
+)
 
 if TYPE_CHECKING:
     from baserow.contrib.database.fields.dependencies.handler import FieldDependants
@@ -502,6 +505,25 @@ class FieldType(
         :type field: Field
         :return: A Q or AnnotatedQ filter.
             given value.
+        :rtype: OptionallyAnnotatedQ
+        """
+
+        return Q()
+
+    def starts_with_query(self, field_name, value, model_field, field):
+        """
+        Returns a Q or AnnotatedQ filter which performs a starts with filter over the
+        provided field for this specific type of field.
+
+        :param field_name: The name of the field.
+        :type field_name: str
+        :param value: The value to check if this field starts with or not.
+        :type value: str
+        :param model_field: The field's actual django field model instance.
+        :type model_field: models.Field
+        :param field: The related field's instance.
+        :type field: Field
+        :return: A Q or AnnotatedQ filter for the given value.
         :rtype: OptionallyAnnotatedQ
         """
 
@@ -950,6 +972,35 @@ class FieldType(
             field_order_by = field_expr.desc(nulls_last=True)
 
         return OptionallyAnnotatedOrderBy(order=field_order_by, can_be_indexed=True)
+
+    def get_group_by_order(
+        self,
+        field: Type[Field],
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Returns the ordering used to sort the groups of a group-by data query. By
+        default this is identical to `get_order`, so groups are sorted exactly like
+        the rows are. Field types whose group-by collapses the column into a different
+        shape (for example the many-to-many types that aggregate the relation into an
+        array of ids) override this to recompute the same ordering against the
+        aggregated queryset.
+
+        :param field: The related field object instance.
+        :param field_name: The name of the field.
+        :param order_direction: The sort order direction (either "ASC" or "DESC").
+        :param sort_type: The sort type that must be used.
+        :param table_model: The table model instance that the field is part of,
+            if available.
+        :return: The ordering applied to the group-by data groups.
+        """
+
+        return self.get_order(
+            field, field_name, order_direction, sort_type, table_model=table_model
+        )
 
     def force_same_type_alter_column(self, from_field, to_field):
         """
@@ -1869,6 +1920,36 @@ class FieldType(
 
         return self.get_response_serializer_field(instance, **kwargs)
 
+    def get_group_by_display_values(
+        self,
+        field: Field,
+        field_name: str,
+        raw_values: List[Any],
+    ) -> Optional[List[Any]]:
+        """
+        Given the raw group values for this field (one per group on a page, in the
+        same order), returns a parallel list of display representations that the
+        frontend renders in the group-by header, matching the row API value shape
+        (for example ``[{"id", "name"}]`` for collaborators or ``[{"id", "value"}]``
+        for link rows).
+
+        Returns ``None`` when the raw serialized value is already what the client
+        renders (scalars, dates, durations, ...), in which case no ``display`` entry
+        is added for this field and the client falls back to the ``path`` value.
+
+        Reference field types (whose group value is a bare id or list of ids) override
+        this to resolve those ids to their display objects, batching the lookups
+        across the whole page.
+
+        :param field: The group-by field.
+        :param field_name: The ``db_column`` of the field.
+        :param raw_values: The raw group values, one per group on the page.
+        :return: A parallel list of display values, or ``None`` if no display is
+            needed.
+        """
+
+        return None
+
     def before_field_options_update(
         self,
         field: Field,
@@ -2183,10 +2264,49 @@ class ManyToManyGroupByMixin:
     def get_group_by_field_unique_value(
         self, field: Field, field_name: str, value: Any
     ) -> Any:
-        return tuple([v.id for v in value.all()])
+        if value is None:
+            return tuple()
+        # `value` is the M2M manager when derived from a row (read related ids from it),
+        # or already the list of related ids when it comes from a deserialized group-by
+        # path (a parent path of a nested group request).
+        if hasattr(value, "all"):
+            ids = [related.id for related in value.all()]
+        else:
+            ids = list(value)
+        # Sort so a group is identified by its set of ids, not their order.
+        return tuple(sorted(ids))
 
     def get_group_by_aggregated_order(self, related_field):
+        # Order by related id so the aggregated group value is set-based (stable
+        # regardless of insertion order), matching get_group_by_field_unique_value.
         return (f"{related_field}_id",)
+
+    def get_group_by_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
+        order = self.get_order(
+            field, field_name, order_direction, sort_type, table_model=table_model
+        )
+        if order.annotation is None or table_model is None:
+            return order
+
+        # In a group-by data query an aggregated ArrayField annotation shadows the
+        # relation column (see `get_group_by_field_filters_and_annotations`), so joins
+        # `get_order` relies on aren't reachable. Recompute the same ordering as per-row
+        # correlated subqueries against the table model, where the relation exists, so
+        # groups and rows order identically.
+        wrapped_annotation = {
+            alias: Subquery(
+                table_model.objects.filter(id=OuterRef("id"))
+                .values("id")
+                .annotate(_group_by_order_value=expression)
+                .values("_group_by_order_value")[:1]
+            )
+            for alias, expression in order.annotation.items()
+        }
+        return OptionallyAnnotatedOrderBy(
+            order=order.order, annotation=wrapped_annotation
+        )
 
     def get_group_by_field_filters_and_annotations(
         self, field, field_name, base_queryset, value, cte, rows
@@ -2394,10 +2514,14 @@ class FieldAggregationType(Instance):
     attributes.
     """
 
-    result_type = "string"
+    result_type = "field"
     """Informs features which use field aggregation types what the aggregation
-    result type be. At the moment the result is always a string, but in the future
-    if we generated an array for example, the result type would be 'array'."""
+    result type is.
+
+    The value is used as the single source of truth for both schema generation
+    and serializer selection. Use "field" to reuse the underlying field
+    serializer, or a primitive result type such as "integer" or "float".
+    """
 
     with_total = False
     """Determines if the result of the aggregation needs to
@@ -2513,6 +2637,35 @@ class FieldAggregationType(Instance):
                 return 0
             return (raw_aggregation_result / total_count) * 100
         return raw_aggregation_result
+
+    def get_result_schema(self, field: Field) -> Dict[str, Any]:
+        """
+        Returns the JSON schema fragment describing the aggregation result.
+        """
+
+        serializer_field = self.get_result_serializer_field(field)
+        return guess_json_type_from_response_serializer_field(serializer_field)
+
+    def get_result_serializer_field(self, field: Field):
+        """
+        Returns the DRF serializer field used to serialize the aggregation result.
+        """
+
+        if self.result_type == "field":
+            return field.get_type().get_serializer_field(field)
+        if self.result_type == "integer":
+            return serializers.IntegerField()
+        if self.result_type == "float":
+            return serializers.FloatField()
+        if self.result_type == "boolean":
+            return serializers.BooleanField()
+        if self.result_type == "string":
+            return serializers.CharField()
+
+        raise ValueError(
+            f"Unsupported aggregation result type '{self.result_type}' "
+            f"for field aggregation type '{self.type}'."
+        )
 
 
 class FieldAggregationTypeRegistry(Registry):

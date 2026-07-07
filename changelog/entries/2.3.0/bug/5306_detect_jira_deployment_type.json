@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Detect Jira deployment type",
+    "issue_origin": "github",
+    "issue_number": 5306,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-05-05"
+}

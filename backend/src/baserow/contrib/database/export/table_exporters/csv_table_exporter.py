@@ -36,12 +36,14 @@ class CsvTableExporter(TableExporter):
 
 
 class CsvQuerysetSerializer(QuerysetSerializer):
-    def __init__(self, queryset, ordered_field_objects):
-        super().__init__(queryset, ordered_field_objects)
+    def __init__(self, queryset, ordered_field_objects, **kwargs):
+        super().__init__(queryset, ordered_field_objects, **kwargs)
 
-        self.headers = OrderedDict({"id": "id"})
+        self.headers = OrderedDict()
+        if self.include_row_id:
+            self.headers["id"] = "id"
 
-        for field_object in ordered_field_objects:
+        for field_object in self.ordered_field_objects:
             field_database_name = field_object["name"]
             field_display_name = field_object["field"].name
             self.headers[field_database_name] = field_display_name
@@ -77,7 +79,11 @@ class CsvQuerysetSerializer(QuerysetSerializer):
         )
 
         if csv_include_header:
-            csv_dict_writer.writerow(self.headers)
+            # Escape the header row too, the field names are user defined and a
+            # "="-leading name would otherwise be a live formula (CWE-1236).
+            csv_dict_writer.writerow(
+                {key: escape_csv_cell(value) for key, value in self.headers.items()}
+            )
 
         def write_row(row, _):
             data = {}

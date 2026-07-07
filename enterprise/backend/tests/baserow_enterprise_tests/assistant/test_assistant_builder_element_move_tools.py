@@ -68,52 +68,53 @@ def _create_two_headings(data_fixture):
         thought="test",
     )
 
-    id1 = result["ref_to_id_map"]["h1"]
-    id2 = result["ref_to_id_map"]["h2"]
-    return ctx, page, id1, id2
+    return ctx, page, result["ref_to_id_map"]
 
 
 @pytest.mark.django_db(transaction=True)
 def test_move_element_before_another(data_fixture):
-    ctx, page, id1, id2 = _create_two_headings(data_fixture)
+    ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
 
     # Move h2 before h1
-    result = move_elements(
+    move_elements(
         ctx,
         page_id=page.id,
-        moves=[ElementMove(element_id=id2, before_id=id1)],
+        moves=[
+            ElementMove(element_id=ref_to_id_map["h2"], before_id=ref_to_id_map["h1"])
+        ],
         thought="reorder",
     )
 
-    assert len(result["moved_elements"]) == 1
-    assert result["moved_elements"][0]["element_id"] == id2
-    assert "errors" not in result
-
-    # Verify order: h2 should now come before h1
-    elements = list(ElementHandler().get_elements(page))
-    ids_in_order = [e.id for e in elements]
-    assert ids_in_order.index(id2) < ids_in_order.index(id1)
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "Second-1",
+            "First-0": {},
+            "Second-1": {"next": {"": ["First-0"]}},
+        }
+    )
 
 
 @pytest.mark.django_db(transaction=True)
 def test_move_element_to_end(data_fixture):
-    ctx, page, id1, id2 = _create_two_headings(data_fixture)
+    ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
 
     # Move h1 to end (before_id=None)
-    result = move_elements(
+    move_elements(
         ctx,
         page_id=page.id,
-        moves=[ElementMove(element_id=id1, before_id=None)],
+        moves=[ElementMove(element_id=ref_to_id_map["h1"], before_id=None)],
         thought="move to end",
     )
 
-    assert len(result["moved_elements"]) == 1
-    assert result["moved_elements"][0]["element_id"] == id1
-
-    # h1 should now be after h2
-    elements = list(ElementHandler().get_elements(page))
-    ids_in_order = [e.id for e in elements]
-    assert ids_in_order.index(id1) > ids_in_order.index(id2)
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "Second-1",
+            "Second-1": {"next": {"": ["First-0"]}},
+            "First-0": {},
+        }
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -147,7 +148,7 @@ def test_move_element_into_container(data_fixture):
     h1_id = display_result["ref_to_id_map"]["h1"]
 
     # Move heading into column container, slot "1"
-    result = move_elements(
+    move_elements(
         ctx,
         page_id=page.id,
         moves=[
@@ -160,11 +161,14 @@ def test_move_element_into_container(data_fixture):
         thought="move into container",
     )
 
-    assert len(result["moved_elements"]) == 1
-    moved = result["moved_elements"][0]
-    assert moved["element_id"] == h1_id
-    assert moved["parent_element_id"] == col_id
-    assert moved["place_in_container"] == "1"
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "column-0",
+            "column-0": {"children": {"1": ["Hello-1"]}},
+            "Hello-1": {},
+        }
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -208,14 +212,18 @@ def test_move_element_to_root(data_fixture):
     assert el.parent_element_id == col_id
 
     # Move it to root (parent_element_id=None)
-    result = move_elements(
+    move_elements(
         ctx,
         page_id=page.id,
         moves=[ElementMove(element_id=h1_id, parent_element_id=None)],
         thought="move to root",
     )
 
-    assert len(result["moved_elements"]) == 1
-    moved = result["moved_elements"][0]
-    assert moved["element_id"] == h1_id
-    assert moved["parent_element_id"] is None
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "column-0",
+            "column-0": {"next": {"": ["Inside-1"]}},
+            "Inside-1": {},
+        }
+    )

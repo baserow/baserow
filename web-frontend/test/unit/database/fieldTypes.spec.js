@@ -744,6 +744,34 @@ describe('FieldType tests', () => {
   afterEach(() => {
     testApp.afterEach()
   })
+
+  test.each([
+    { name: 'single select', FieldType: SingleSelectFieldType },
+    { name: 'multiple select', FieldType: MultipleSelectFieldType },
+  ])(
+    'getDocsDescription escapes HTML in $name option value and color',
+    ({ FieldType }) => {
+      const fieldType = new FieldType({ app: testApp._app })
+      const field = {
+        select_options: [
+          {
+            id: 1,
+            value: '<img src=x onerror=alert(1)>',
+            color: '"><img src=x onerror=alert(2)>',
+          },
+        ],
+      }
+
+      const description = fieldType.getDocsDescription(field)
+
+      expect(description).not.toContain('<img')
+      expect(description).toContain('&lt;img src=x onerror=alert(1)&gt;')
+      expect(description).toContain(
+        '&quot;&gt;&lt;img src=x onerror=alert(2)&gt;'
+      )
+    }
+  )
+
   test.each(valuesToCall)(
     'Verify that calling prepareValueForCopy will not throw when value is %s',
     (valueType) => {
@@ -780,6 +808,68 @@ describe('FieldType tests', () => {
         value.fieldValue
       )
       expect(result).toBe(value.expectedValue)
+    }
+  )
+
+  test.each([
+    '',
+    'SPACE_COMMA',
+    'SPACE_PERIOD',
+    'COMMA_PERIOD',
+    'PERIOD_COMMA',
+  ])(
+    'Verify that NumberFieldType preserves canonical decimal values when duplicating rows with %s formatting',
+    (numberSeparator) => {
+      const field = {
+        number_decimal_places: 2,
+        number_negative: false,
+        number_prefix: '',
+        number_suffix: '',
+        number_separator: numberSeparator,
+      }
+      const fieldType = new NumberFieldType()
+
+      const duplicatedValue = fieldType.prepareValueForDuplicate(field, '78.40')
+      const requestValue = fieldType.prepareValueForUpdate(
+        field,
+        duplicatedValue
+      )
+
+      expect(requestValue.toString()).toBe('78.4')
+    }
+  )
+
+  test('NumberFieldType startsWithFilter matches the raw value despite formatting', () => {
+    // The field is formatted with a prefix, suffix and thousands separator, so its
+    // human readable form ($12,345.00 USD) differs from the raw stored value. The
+    // real-time filter must match the raw value to stay consistent with the backend.
+    const field = {
+      number_decimal_places: 2,
+      number_negative: false,
+      number_prefix: '$',
+      number_suffix: 'USD',
+      number_separator: 'COMMA_PERIOD',
+    }
+    const fieldType = new NumberFieldType()
+
+    expect(fieldType.startsWithFilter('12345', '123', field)).toBe(true)
+    expect(fieldType.startsWithFilter('12345', '$', field)).toBe(false)
+    expect(fieldType.startsWithFilter('12345', '999', field)).toBe(false)
+  })
+
+  test.each([null, ''])(
+    'Verify that NumberFieldType prepareValueForDuplicate returns null for %s',
+    (emptyValue) => {
+      const field = {
+        number_decimal_places: 2,
+        number_negative: false,
+        number_prefix: '',
+        number_suffix: '',
+        number_separator: 'PERIOD_COMMA',
+      }
+      const fieldType = new NumberFieldType()
+
+      expect(fieldType.prepareValueForDuplicate(field, emptyValue)).toBeNull()
     }
   )
 

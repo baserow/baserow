@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="elementPreviewRef"
     :key="element.id"
     class="element-preview"
     :class="{
@@ -15,6 +16,7 @@
     }"
     :draggable="isDraggable"
     @click="onSelect"
+    @mousedown="canUpdate && isSelected && onDragHandleMouseDown($event)"
     @dragstart.stop="onDragStart"
     @dragend="onDragEnd"
     @dragenter="onDragEnter"
@@ -48,8 +50,10 @@
       @duplicate="duplicateElement"
       @select-parent="selectParentElement()"
       @drag-handle-mousedown="onDragHandleMouseDown"
+      @mousedown.stop
     />
     <PageElement
+      ref="elementRef"
       :element="element"
       :mode="mode"
       class="element--read-only"
@@ -72,7 +76,7 @@
 </template>
 
 <script>
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useStore, mapActions, mapGetters } from 'vuex'
 import ElementMenu from '@baserow/modules/builder/components/elements/ElementMenu'
 import InsertElementButton from '@baserow/modules/builder/components/elements/InsertElementButton'
@@ -113,29 +117,82 @@ export default {
   },
   emits: ['move'],
   setup(props) {
+    const elementPreviewRef = ref(null)
+    const elementRef = ref(null)
     const store = useStore()
     const builder = inject('builder')
 
     const elementPage = computed(() =>
       store.getters['page/getById'](builder, props.element.page_id)
     )
-    const parentElement = computed(() => {
-      if (!props.element.parent_element_id) {
-        return null
+    const parentElement = computed(() =>
+      store.getters['element/getParent'](elementPage.value, props.element)
+    )
+
+    function getDragImageScale(rect) {
+      const defaultDragImageScale = 0.5
+      const maxHeightRatioBeforeScalingDown = 0.3
+      const viewportHeight =
+        window.innerHeight || document.documentElement.clientHeight
+      const maxHeightBeforeScalingDown =
+        viewportHeight * maxHeightRatioBeforeScalingDown
+      const defaultScaledHeight = rect.height * defaultDragImageScale
+
+      if (
+        !viewportHeight ||
+        defaultScaledHeight <= maxHeightBeforeScalingDown
+      ) {
+        return defaultDragImageScale
       }
 
-      return store.getters['element/getElementById'](
-        elementPage.value,
-        props.element.parent_element_id
-      )
-    })
+      return maxHeightBeforeScalingDown / rect.height
+    }
+
+    function createDragImage() {
+      const source = elementRef.value.$el
+      const rect = source.getBoundingClientRect()
+      const dragImageScale = getDragImageScale(rect)
+
+      const clone = source.cloneNode(true)
+
+      Object.assign(clone.style, {
+        boxSizing: 'border-box',
+        width: `${rect.width}px`,
+        minWidth: `${rect.width}px`,
+        maxWidth: `${rect.width}px`,
+        transform: `scale(${dragImageScale})`,
+        transformOrigin: 'top left',
+      })
+
+      const container = document.createElement('div')
+      Object.assign(container.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        pointerEvents: 'none',
+      })
+      container.appendChild(clone)
+      elementPreviewRef.value.appendChild(container)
+      requestAnimationFrame(() => {
+        // immediately remove the cloned element
+        elementPreviewRef.value.removeChild(container)
+      })
+
+      return container
+    }
+
     return {
-      ...useElementDraggable({ element: props.element }),
+      ...useElementDraggable({
+        element: props.element,
+        getDragImage: createDragImage,
+      }),
       ...useDropElementTarget({
         parentElement,
         referenceElement: props.element,
         placeInContainer: props.element.place_in_container,
       }),
+      elementPreviewRef,
+      elementRef,
       parentElement,
       elementPage,
     }
@@ -183,12 +240,9 @@ export default {
       ]
     },
     parentOfElementSelected() {
-      if (!this.elementSelected?.parent_element_id) {
-        return null
-      }
-      return this.$store.getters['element/getElementById'](
+      return this.$store.getters['element/getParent'](
         this.elementPage,
-        this.elementSelected.parent_element_id
+        this.elementSelected
       )
     },
     elementsAround() {
@@ -277,8 +331,7 @@ export default {
     element: {
       handler(newValue, old) {
         if (
-          (newValue.place_in_container !== old.place_in_container ||
-            newValue.order !== old.order) &&
+          newValue.place_in_container !== old.place_in_container &&
           this.isSelected
         ) {
           this.$el.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -361,17 +414,28 @@ export default {
       const rootElementType = this.$registry.get('element', rootElement.type)
       const pagePlace = rootElementType.getPagePlace()
 
+      // elementsAround uses withSharedPage:true, so nextEl may be a footer element
+      // from the shared page. Restrict to same-page elements so AddElementModal's
+      // cross-page filter doesn't end up with both beforeId and afterId null.
+      const nextEl = this.elementsAround[DIRECTIONS.AFTER]
+      const samePageNextEl =
+        nextEl?.page_id === this.elementPage.id ? nextEl : null
+      const beforeId =
+        direction === DIRECTIONS.BEFORE
+          ? this.element.id
+          : samePageNextEl?.id || null
+      const afterId =
+        direction === DIRECTIONS.AFTER && !samePageNextEl
+          ? this.element.id
+          : null
+
       this.$refs.addElementModal.show({
         placeInContainer: this.element.place_in_container,
-        parentElementId: this.element.parent_element_id,
-        beforeId: this.getBeforeId(direction),
+        parentElementId: this.parentElement?.id ?? null,
+        beforeId,
+        afterId,
         pagePlace,
       })
-    },
-    getBeforeId(direction) {
-      return direction === DIRECTIONS.BEFORE
-        ? this.element.id
-        : this.elementsAround[DIRECTIONS.AFTER]?.id || null
     },
     async duplicateElement() {
       this.isDuplicating = true

@@ -174,6 +174,7 @@ def test_get_builder_application(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
     ]
     assert response_json["login_page_id"] is None
@@ -228,6 +229,7 @@ def test_list_builder_applications(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
     ]
     assert response_json[0]["login_page_id"] is None

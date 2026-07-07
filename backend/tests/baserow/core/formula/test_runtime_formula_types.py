@@ -1,11 +1,13 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
 from freezegun import freeze_time
 
+from baserow.core.formula import BaserowFormulaSyntaxError
 from baserow.core.formula.runtime_formula_types import (
+    RuntimeAbs,
     RuntimeAdd,
     RuntimeAnd,
     RuntimeAt,
@@ -16,7 +18,9 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeDateTimeFormat,
     RuntimeDay,
     RuntimeDivide,
+    RuntimeDurationFormat,
     RuntimeEqual,
+    RuntimeFromJson,
     RuntimeGenerateUUID,
     RuntimeGet,
     RuntimeGetProperty,
@@ -38,10 +42,13 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeMultiply,
     RuntimeNotEqual,
     RuntimeNow,
+    RuntimeNull,
+    RuntimeNumberFormat,
     RuntimeOr,
     RuntimeRandomBool,
     RuntimeRandomFloat,
     RuntimeRandomInt,
+    RuntimeRange,
     RuntimeReplace,
     RuntimeReverse,
     RuntimeRound,
@@ -50,7 +57,10 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeStrip,
     RuntimeSum,
     RuntimeToArray,
+    RuntimeToDatetime,
     RuntimeToday,
+    RuntimeToDuration,
+    RuntimeToJson,
     RuntimeUpper,
     RuntimeYear,
 )
@@ -83,14 +93,14 @@ def test_runtime_concat_execute(args, expected):
 @pytest.mark.parametrize(
     "arg,expected",
     [
-        ("foo", None),
-        (101, None),
-        (3.14, None),
-        (True, None),
-        (False, None),
-        ({}, None),
-        (None, None),
-        (datetime.now(), None),
+        ("foo", []),
+        (101, []),
+        (3.14, []),
+        (True, []),
+        (False, []),
+        ({}, []),
+        (None, []),
+        (datetime.now(), []),
     ],
 )
 def test_runtime_concat_validate_type_of_args(arg, expected):
@@ -144,20 +154,20 @@ def test_runtime_add_execute(args, expected):
     "arg,expected",
     [
         # These are invalid
-        ("foo", "foo"),
-        (True, True),
-        (None, None),
-        ({}, {}),
-        ([], []),
+        ("foo", [(0, "foo")]),
+        (True, [(0, True)]),
+        (None, [(0, None)]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
         (
             datetime(year=2025, month=11, day=6, hour=12, minute=30),
-            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            [(0, datetime(year=2025, month=11, day=6, hour=12, minute=30))],
         ),
         # These are valid
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_add_validate_type_of_args(arg, expected):
@@ -197,20 +207,20 @@ def test_runtime_minus_execute(args, expected):
     "arg,expected",
     [
         # These are invalid
-        ("foo", "foo"),
-        (True, True),
-        (None, None),
-        ({}, {}),
-        ([], []),
+        ("foo", [(0, "foo")]),
+        (True, [(0, True)]),
+        (None, [(0, None)]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
         (
             datetime(year=2025, month=11, day=6, hour=12, minute=30),
-            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            [(0, datetime(year=2025, month=11, day=6, hour=12, minute=30))],
         ),
         # These are valid
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_minus_validate_type_of_args(arg, expected):
@@ -250,20 +260,20 @@ def test_runtime_multiply_execute(args, expected):
     "arg,expected",
     [
         # These are invalid
-        ("foo", "foo"),
-        (True, True),
-        (None, None),
-        ({}, {}),
-        ([], []),
+        ("foo", [(0, "foo")]),
+        (True, [(0, True)]),
+        (None, [(0, None)]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
         (
             datetime(year=2025, month=11, day=6, hour=12, minute=30),
-            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            [(0, datetime(year=2025, month=11, day=6, hour=12, minute=30))],
         ),
         # These are valid
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_multiply_validate_type_of_args(arg, expected):
@@ -303,20 +313,20 @@ def test_runtime_divide_execute(args, expected):
     "arg,expected",
     [
         # These are invalid
-        ("foo", "foo"),
-        (True, True),
-        (None, None),
-        ({}, {}),
-        ([], []),
+        ("foo", [(0, "foo")]),
+        (True, [(0, True)]),
+        (None, [(0, None)]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
         (
             datetime(year=2025, month=11, day=6, hour=12, minute=30),
-            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            [(0, datetime(year=2025, month=11, day=6, hour=12, minute=30))],
         ),
         # These are valid
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_divide_validate_type_of_args(arg, expected):
@@ -357,16 +367,16 @@ def test_runtime_equal_execute(args, expected):
     "arg,expected",
     [
         # All types are allowed
-        ("foo", None),
-        (True, None),
-        (None, None),
-        ({}, None),
-        ([], None),
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        ("foo", []),
+        (True, []),
+        (None, []),
+        ({}, []),
+        ([], []),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_equal_validate_type_of_args(arg, expected):
@@ -407,16 +417,16 @@ def test_runtime_not_equal_execute(args, expected):
     "arg,expected",
     [
         # All types are allowed
-        ("foo", None),
-        (True, None),
-        (None, None),
-        ({}, None),
-        ([], None),
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        ("foo", []),
+        (True, []),
+        (None, []),
+        ({}, []),
+        ([], []),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_not_equal_validate_type_of_args(arg, expected):
@@ -494,16 +504,16 @@ def test_runtime_greater_than_execute(args, expected):
     "arg,expected",
     [
         # All types are allowed
-        ("foo", None),
-        (True, None),
-        (None, None),
-        ({}, None),
-        ([], None),
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        ("foo", []),
+        (True, []),
+        (None, []),
+        ({}, []),
+        ([], []),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_greater_than_validate_type_of_args(arg, expected):
@@ -581,16 +591,16 @@ def test_runtime_less_than_execute(args, expected):
     "arg,expected",
     [
         # All types are allowed
-        ("foo", None),
-        (True, None),
-        (None, None),
-        ({}, None),
-        ([], None),
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        ("foo", []),
+        (True, []),
+        (None, []),
+        ({}, []),
+        ([], []),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_less_than_validate_type_of_args(arg, expected):
@@ -670,16 +680,16 @@ def test_runtime_greater_than_or_equal_execute(args, expected):
     "arg,expected",
     [
         # All types are allowed
-        ("foo", None),
-        (True, None),
-        (None, None),
-        ({}, None),
-        ([], None),
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        ("foo", []),
+        (True, []),
+        (None, []),
+        ({}, []),
+        ([], []),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_greater_than_or_equal_validate_type_of_args(arg, expected):
@@ -759,16 +769,16 @@ def test_runtime_less_than_or_equal_execute(args, expected):
     "arg,expected",
     [
         # All types are allowed
-        ("foo", None),
-        (True, None),
-        (None, None),
-        ({}, None),
-        ([], None),
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        (1, None),
-        (3.14, None),
-        ("23", None),
-        ("23.33", None),
+        ("foo", []),
+        (True, []),
+        (None, []),
+        ({}, []),
+        ([], []),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        (1, []),
+        (3.14, []),
+        ("23", []),
+        ("23.33", []),
     ],
 )
 def test_runtime_less_than_or_equal_validate_type_of_args(arg, expected):
@@ -808,13 +818,13 @@ def test_runtime_upper_execute(args, expected):
     "arg,expected",
     [
         # Text (or convertable to text) types are allowed
-        ("foo", None),
-        (123, None),
-        (123.45, None),
-        (None, None),
-        ({}, None),
-        ([], None),
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
+        ("foo", []),
+        (123, []),
+        (123.45, []),
+        (None, []),
+        ({}, []),
+        ([], []),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
     ],
 )
 def test_runtime_upper_validate_type_of_args(arg, expected):
@@ -853,13 +863,13 @@ def test_runtime_lower_execute(args, expected):
     "arg,expected",
     [
         # Text (or convertable to text) types are allowed
-        ("foo", None),
-        (123, None),
-        (123.45, None),
-        (None, None),
-        ({}, None),
-        ([], None),
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
+        ("foo", []),
+        (123, []),
+        (123.45, []),
+        (None, []),
+        ({}, []),
+        ([], []),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
     ],
 )
 def test_runtime_lower_validate_type_of_args(arg, expected):
@@ -898,13 +908,13 @@ def test_runtime_capitalize_execute(args, expected):
     "arg,expected",
     [
         # Text (or convertable to text) types are allowed
-        ("foo", None),
-        (123, None),
-        (123.45, None),
-        (None, None),
-        ({}, None),
-        ([], None),
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
+        ("foo", []),
+        (123, []),
+        (123.45, []),
+        (None, []),
+        ({}, []),
+        ([], []),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
     ],
 )
 def test_runtime_capitalize_validate_type_of_args(arg, expected):
@@ -945,16 +955,16 @@ def test_runtime_round_execute(args, expected):
     "arg,expected",
     [
         # Number (or convertable to number) types are allowed
-        ("23.34", None),
-        (123, None),
-        (123.45, None),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", []),
+        (123, []),
+        (123.45, []),
+        (None, [(0, None)]),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
         (
             datetime(year=2025, month=11, day=6, hour=12, minute=30),
-            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            [(0, datetime(year=2025, month=11, day=6, hour=12, minute=30))],
         ),
     ],
 )
@@ -980,6 +990,58 @@ def test_runtime_round_validate_number_of_args(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
+        ([5], 5),
+        ([-5], 5),
+        ([0], 0),
+        ([-3.14], 3.14),
+        ([3.14], 3.14),
+        (["23.45"], 23.45),
+        (["-23.45"], 23.45),
+    ],
+)
+def test_runtime_abs_execute(args, expected):
+    parsed_args = RuntimeAbs().parse_args(args)
+    result = RuntimeAbs().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "arg,expected",
+    [
+        ("23.34", []),
+        (123, []),
+        (123.45, []),
+        (None, [(0, None)]),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
+        (
+            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            [(0, datetime(year=2025, month=11, day=6, hour=12, minute=30))],
+        ),
+    ],
+)
+def test_runtime_abs_validate_type_of_args(arg, expected):
+    result = RuntimeAbs().validate_type_of_args([arg])
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_abs_validate_number_of_args(args, expected):
+    result = RuntimeAbs().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
         (["23.45"], False),
         (["24"], True),
         ([33.4567], False),
@@ -997,16 +1059,16 @@ def test_runtime_is_even_execute(args, expected):
     "arg,expected",
     [
         # Number (or convertable to number) types are allowed
-        ("23.34", None),
-        (123, None),
-        (123.45, None),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", []),
+        (123, []),
+        (123.45, []),
+        (None, [(0, None)]),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
         (
             datetime(year=2025, month=11, day=6, hour=12, minute=30),
-            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            [(0, datetime(year=2025, month=11, day=6, hour=12, minute=30))],
         ),
     ],
 )
@@ -1048,16 +1110,16 @@ def test_runtime_is_odd_execute(args, expected):
     "arg,expected",
     [
         # Number (or convertable to number) types are allowed
-        ("23.34", None),
-        (123, None),
-        (123.45, None),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", []),
+        (123, []),
+        (123.45, []),
+        (None, [(0, None)]),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
         (
             datetime(year=2025, month=11, day=6, hour=12, minute=30),
-            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            [(0, datetime(year=2025, month=11, day=6, hour=12, minute=30))],
         ),
     ],
 )
@@ -1088,7 +1150,7 @@ def test_runtime_is_odd_validate_number_of_args(args, expected):
             ["2025-11-06 11:30:30.861096+00:00", "DD/MM/YYYY HH:mm:ss"],
             "06/11/2025 11:30:30",
         ),
-        (["2025-11-06 11:30:30.861096+00:00", "%f"], "861096"),
+        (["2025-11-06 11:30:30.861096+00:00", "SSS"], "861"),
     ],
 )
 def test_runtime_datetime_format_execute(args, expected):
@@ -1104,17 +1166,17 @@ def test_runtime_datetime_format_execute(args, expected):
     "arg,expected",
     [
         # Date like values are valid
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        ("2025-11-06", None),
-        ("2025-11-06 11:30:30.861096+00:00", None),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        ("2025-11-06", []),
+        ("2025-11-06 11:30:30.861096+00:00", []),
         # Otherwise the type is invalid
-        ("23.34", "23.34"),
-        (123, 123),
-        (123.45, 123.45),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", [(0, "23.34")]),
+        (123, [(0, 123)]),
+        (123.45, [(0, 123.45)]),
+        (None, []),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
     ],
 )
 def test_runtime_datetime_format_validate_type_of_args(arg, expected):
@@ -1137,6 +1199,22 @@ def test_runtime_datetime_format_validate_number_of_args(args, expected):
     assert result is expected
 
 
+def test_runtime_datetime_format_validate_args_raises_for_invalid_timezone():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeDateTimeFormat().validate_args(
+            [datetime(2025, 11, 6, 12, 30), "YYYY-MM-DD", "Europe/Foo"]
+        )
+    assert "'Europe/Foo' is not a valid timezone" in str(exc_info.value)
+
+
+def test_runtime_datetime_format_validate_args_raises_for_unsupported_format_token():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeDateTimeFormat().validate_args(
+            [datetime(2025, 11, 6, 12, 30), "YYYY/MM/DD HH:mm:SS"]
+        )
+    assert "'YYYY/MM/DD HH:mm:SS' is not a valid datetime format" in str(exc_info.value)
+
+
 @pytest.mark.parametrize(
     "args,expected",
     [
@@ -1155,17 +1233,17 @@ def test_runtime_day_execute(args, expected):
     "arg,expected",
     [
         # Date like values are valid
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        ("2025-11-06", None),
-        ("2025-11-06 11:30:30.861096+00:00", None),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        ("2025-11-06", []),
+        ("2025-11-06 11:30:30.861096+00:00", []),
         # Otherwise the type is invalid
-        ("23.34", "23.34"),
-        (123, 123),
-        (123.45, 123.45),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", [(0, "23.34")]),
+        (123, [(0, 123)]),
+        (123.45, [(0, 123.45)]),
+        (None, []),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
     ],
 )
 def test_runtime_day_validate_type_of_args(arg, expected):
@@ -1204,17 +1282,17 @@ def test_runtime_month_execute(args, expected):
     "arg,expected",
     [
         # Date like values are valid
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        ("2025-11-06", None),
-        ("2025-11-06 11:30:30.861096+00:00", None),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        ("2025-11-06", []),
+        ("2025-11-06 11:30:30.861096+00:00", []),
         # Otherwise the type is invalid
-        ("23.34", "23.34"),
-        (123, 123),
-        (123.45, 123.45),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", [(0, "23.34")]),
+        (123, [(0, 123)]),
+        (123.45, [(0, 123.45)]),
+        (None, []),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
     ],
 )
 def test_runtime_month_validate_type_of_args(arg, expected):
@@ -1253,17 +1331,17 @@ def test_runtime_year_execute(args, expected):
     "arg,expected",
     [
         # Date like values are valid
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        ("2025-11-06", None),
-        ("2025-11-06 11:30:30.861096+00:00", None),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        ("2025-11-06", []),
+        ("2025-11-06 11:30:30.861096+00:00", []),
         # Otherwise the type is invalid
-        ("23.34", "23.34"),
-        (123, 123),
-        (123.45, 123.45),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", [(0, "23.34")]),
+        (123, [(0, 123)]),
+        (123.45, [(0, 123.45)]),
+        (None, []),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
     ],
 )
 def test_runtime_year_validate_type_of_args(arg, expected):
@@ -1303,17 +1381,17 @@ def test_runtime_hour_execute(args, expected):
     "arg,expected",
     [
         # Date like values are valid
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        ("2025-11-06", None),
-        ("2025-11-06 11:30:30.861096+00:00", None),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        ("2025-11-06", []),
+        ("2025-11-06 11:30:30.861096+00:00", []),
         # Otherwise the type is invalid
-        ("23.34", "23.34"),
-        (123, 123),
-        (123.45, 123.45),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", [(0, "23.34")]),
+        (123, [(0, 123)]),
+        (123.45, [(0, 123.45)]),
+        (None, []),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
     ],
 )
 def test_runtime_hour_validate_type_of_args(arg, expected):
@@ -1353,17 +1431,17 @@ def test_runtime_minute_execute(args, expected):
     "arg,expected",
     [
         # Date like values are valid
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        ("2025-11-06", None),
-        ("2025-11-06 11:30:30.861096+00:00", None),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        ("2025-11-06", []),
+        ("2025-11-06 11:30:30.861096+00:00", []),
         # Otherwise the type is invalid
-        ("23.34", "23.34"),
-        (123, 123),
-        (123.45, 123.45),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", [(0, "23.34")]),
+        (123, [(0, 123)]),
+        (123.45, [(0, 123.45)]),
+        (None, []),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
     ],
 )
 def test_runtime_minute_validate_type_of_args(arg, expected):
@@ -1403,17 +1481,17 @@ def test_runtime_second_execute(args, expected):
     "arg,expected",
     [
         # Date like values are valid
-        (datetime(year=2025, month=11, day=6, hour=12, minute=30), None),
-        ("2025-11-06", None),
-        ("2025-11-06 11:30:30.861096+00:00", None),
+        (datetime(year=2025, month=11, day=6, hour=12, minute=30), []),
+        ("2025-11-06", []),
+        ("2025-11-06 11:30:30.861096+00:00", []),
         # Otherwise the type is invalid
-        ("23.34", "23.34"),
-        (123, 123),
-        (123.45, 123.45),
-        (None, None),
-        ("foo", "foo"),
-        ({}, {}),
-        ([], []),
+        ("23.34", [(0, "23.34")]),
+        (123, [(0, 123)]),
+        (123.45, [(0, 123.45)]),
+        (None, []),
+        ("foo", [(0, "foo")]),
+        ({}, [(0, {})]),
+        ([], [(0, [])]),
     ],
 )
 def test_runtime_second_validate_type_of_args(arg, expected):
@@ -1489,18 +1567,18 @@ def test_runtime_get_property_execute(args, expected):
     "args,expected",
     [
         # Dict (or convertable to dict) types are allowed
-        (['{"foo": "bar"}', "foo"], None),
-        ([{"foo": "bar"}, "foo"], None),
+        (['{"foo": "bar"}', "foo"], []),
+        ([{"foo": "bar"}, "foo"], []),
         # Invalid types for 1st arg (2nd arg is cast to string)
-        (["foo", "foo"], "foo"),
-        ([100, "foo"], 100),
-        ([12.34, "foo"], 12.34),
+        (["foo", "foo"], [(0, "foo")]),
+        ([100, "foo"], [(0, 100)]),
+        ([12.34, "foo"], [(0, 12.34)]),
         (
             [datetime(year=2025, month=11, day=6, hour=12, minute=30), "foo"],
-            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            [(0, datetime(year=2025, month=11, day=6, hour=12, minute=30))],
         ),
-        ([None, "foo"], None),
-        ([[], "foo"], []),
+        ([None, "foo"], [(0, None)]),
+        ([[], "foo"], [(0, [])]),
     ],
 )
 def test_runtime_get_property_validate_type_of_args(args, expected):
@@ -1540,15 +1618,15 @@ def test_runtime_random_int_execute(args, expected):
     "args,expected",
     [
         # numeric types are allowed
-        ([1, 100], None),
-        ([2.5, 56.64], None),
-        (["3", "4.5"], None),
+        ([1, 100], []),
+        ([2.5, 56.64], []),
+        (["3", "4.5"], []),
         # Invalid types for 1st arg
-        ([{}, 5], {}),
-        (["foo", 5], "foo"),
+        ([{}, 5], [(0, {})]),
+        (["foo", 5], [(0, "foo")]),
         # Invalid types for 2nd arg
-        ([5, {}], {}),
-        ([5, "foo"], "foo"),
+        ([5, {}], [(1, {})]),
+        ([5, "foo"], [(1, "foo")]),
     ],
 )
 def test_runtime_random_int_validate_type_of_args(args, expected):
@@ -1588,15 +1666,15 @@ def test_runtime_random_float_execute(args, expected):
     "args,expected",
     [
         # numeric types are allowed
-        ([1, 100], None),
-        ([2.5, 56.64], None),
-        (["3", "4.5"], None),
+        ([1, 100], []),
+        ([2.5, 56.64], []),
+        (["3", "4.5"], []),
         # Invalid types for 1st arg
-        ([{}, 5], {}),
-        (["foo", 5], "foo"),
+        ([{}, 5], [(0, {})]),
+        (["foo", 5], [(0, "foo")]),
         # Invalid types for 2nd arg
-        ([5, {}], {}),
-        ([5, "foo"], "foo"),
+        ([5, {}], [(1, {})]),
+        ([5, "foo"], [(1, "foo")]),
     ],
 )
 def test_runtime_random_float_validate_type_of_args(args, expected):
@@ -1676,12 +1754,12 @@ def test_runtime_if_execute(args, expected):
     "args,expected",
     [
         # Valid types for 1st arg (2nd and 3rd args can be Any)
-        ([True, "foo", "bar"], None),
-        ([False, "foo", "bar"], None),
-        (["true", "foo", "bar"], None),
-        (["false", "foo", "bar"], None),
-        (["True", "foo", "bar"], None),
-        (["False", "foo", "bar"], None),
+        ([True, "foo", "bar"], []),
+        ([False, "foo", "bar"], []),
+        (["true", "foo", "bar"], []),
+        (["false", "foo", "bar"], []),
+        (["True", "foo", "bar"], []),
+        (["False", "foo", "bar"], []),
     ],
 )
 def test_runtime_if_validate_type_of_args(args, expected):
@@ -1722,28 +1800,28 @@ def test_runtime_and_execute(args, expected):
     "args,expected",
     [
         # Valid types for 1st arg
-        ([True, True], None),
-        (["true", True], None),
-        (["True", True], None),
-        ([False, True], None),
-        (["false", True], None),
-        (["False", True], None),
+        ([True, True], []),
+        (["true", True], []),
+        (["True", True], []),
+        ([False, True], []),
+        (["false", True], []),
+        (["False", True], []),
         # Valid types for 2nd arg
-        ([True, True], None),
-        ([True, "true"], None),
-        ([True, "True"], None),
-        ([True, False], None),
-        ([True, "false"], None),
-        ([True, "False"], None),
+        ([True, True], []),
+        ([True, "true"], []),
+        ([True, "True"], []),
+        ([True, False], []),
+        ([True, "false"], []),
+        ([True, "False"], []),
         # With strict=False, all values are valid (converted via bool())
-        (["foo", True], None),
-        ([{}, True], None),
-        (["", True], None),
-        ([True, "foo"], None),
-        ([True, {}], None),
-        ([True, ""], None),
-        ([100, True], None),
-        ([True, 100], None),
+        (["foo", True], []),
+        ([{}, True], []),
+        (["", True], []),
+        ([True, "foo"], []),
+        ([True, {}], []),
+        ([True, ""], []),
+        ([100, True], []),
+        ([True, 100], []),
     ],
 )
 def test_runtime_and_validate_type_of_args(args, expected):
@@ -1783,28 +1861,28 @@ def test_runtime_or_execute(args, expected):
     "args,expected",
     [
         # Valid types for 1st arg
-        ([True, True], None),
-        (["true", True], None),
-        (["True", True], None),
-        ([False, True], None),
-        (["false", True], None),
-        (["False", True], None),
+        ([True, True], []),
+        (["true", True], []),
+        (["True", True], []),
+        ([False, True], []),
+        (["false", True], []),
+        (["False", True], []),
         # Valid types for 2nd arg
-        ([True, True], None),
-        ([True, "true"], None),
-        ([True, "True"], None),
-        ([True, False], None),
-        ([True, "false"], None),
-        ([True, "False"], None),
+        ([True, True], []),
+        ([True, "true"], []),
+        ([True, "True"], []),
+        ([True, False], []),
+        ([True, "false"], []),
+        ([True, "False"], []),
         # With strict=False, all values are valid (converted via bool())
-        (["foo", True], None),
-        ([{}, True], None),
-        (["", True], None),
-        ([True, "foo"], None),
-        ([True, {}], None),
-        ([True, ""], None),
-        ([100, True], None),
-        ([True, 100], None),
+        (["foo", True], []),
+        ([{}, True], []),
+        (["", True], []),
+        ([True, "foo"], []),
+        ([True, {}], []),
+        ([True, ""], []),
+        ([100, True], []),
+        ([True, 100], []),
     ],
 )
 def test_runtime_or_validate_type_of_args(args, expected):
@@ -1843,8 +1921,8 @@ def test_runtime_replace_execute(args, expected):
     "args,expected",
     [
         # Valid types for all args
-        (["foo", "bar", "baz"], None),
-        ([100, 200, 300], None),
+        (["foo", "bar", "baz"], []),
+        ([100, 200, 300], []),
     ],
 )
 def test_runtime_replace_validate_type_of_args(args, expected):
@@ -1892,9 +1970,9 @@ def test_runtime_length_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (["foo"], None),
-        (['{"foo": "bar"}'], None),
-        (['["foo", "bar"]'], None),
+        (["foo"], []),
+        (['{"foo": "bar"}'], []),
+        (['["foo", "bar"]'], []),
     ],
 )
 def test_runtime_length_validate_type_of_args(args, expected):
@@ -1941,9 +2019,9 @@ def test_runtime_contains_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (["foo"], None),
-        (['{"foo": "bar"}'], None),
-        (['["foo", "bar"]'], None),
+        (["foo"], []),
+        (['{"foo": "bar"}'], []),
+        (['["foo", "bar"]'], []),
     ],
 )
 def test_runtime_contains_validate_type_of_args(args, expected):
@@ -1990,9 +2068,9 @@ def test_runtime_reverse_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (["foo"], None),
-        (["😀💙🚀"], None),
-        (['["foo", "bar"]'], None),
+        (["foo"], []),
+        (["😀💙🚀"], []),
+        (['["foo", "bar"]'], []),
     ],
 )
 def test_runtime_reverse_validate_type_of_args(args, expected):
@@ -2037,8 +2115,8 @@ def test_runtime_join_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (['["foo", "bar"]'], None),
-        (['["foo", "bar"]', "baz"], None),
+        (['["foo", "bar"]'], []),
+        (['["foo", "bar"]', "baz"], []),
     ],
 )
 def test_runtime_join_validate_type_of_args(args, expected):
@@ -2076,8 +2154,8 @@ def test_runtime_split_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (['["foo", "bar"]'], None),
-        (['["foo", "bar"]', "baz"], None),
+        (['["foo", "bar"]'], []),
+        (['["foo", "bar"]', "baz"], []),
     ],
 )
 def test_runtime_split_validate_type_of_args(args, expected):
@@ -2129,10 +2207,10 @@ def test_runtime_is_empty_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ([""], None),
-        (["foo"], None),
-        ([[]], None),
-        ([{}], None),
+        ([""], []),
+        (["foo"], []),
+        ([[]], []),
+        ([{}], []),
     ],
 )
 def test_runtime_is_empty_validate_type_of_args(args, expected):
@@ -2171,8 +2249,8 @@ def test_runtime_strip_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ([""], None),
-        (["foo"], None),
+        ([""], []),
+        (["foo"], []),
     ],
 )
 def test_runtime_strip_validate_type_of_args(args, expected):
@@ -2208,9 +2286,9 @@ def test_runtime_sum_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ([""], None),
-        (['["1", "foo"]'], '["1", "foo"]'),
-        ([["1", 2]], None),
+        ([""], []),
+        (['["1", "foo"]'], [(0, '["1", "foo"]')]),
+        ([["1", 2]], []),
     ],
 )
 def test_runtime_sum_validate_type_of_args(args, expected):
@@ -2246,9 +2324,9 @@ def test_runtime_avg_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        ([""], None),
-        (['["1", "foo"]'], '["1", "foo"]'),
-        ([["1", 2]], None),
+        ([""], []),
+        (['["1", "foo"]'], [(0, '["1", "foo"]')]),
+        ([["1", 2]], []),
     ],
 )
 def test_runtime_avg_validate_type_of_args(args, expected):
@@ -2292,8 +2370,8 @@ def test_runtime_at_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (["[]", "2"], None),
-        ([[], 2], None),
+        (["[]", "2"], []),
+        ([[], 2], []),
     ],
 )
 def test_runtime_at_validate_type_of_args(args, expected):
@@ -2333,9 +2411,9 @@ def test_runtime_to_array_execute(args, expected):
 @pytest.mark.parametrize(
     "args,expected",
     [
-        (["[]"], None),
-        ([[]], None),
-        (["foo,bar"], None),
+        (["[]"], []),
+        ([[]], []),
+        (["foo,bar"], []),
     ],
 )
 def test_runtime_to_array_validate_type_of_args(args, expected):
@@ -2354,3 +2432,713 @@ def test_runtime_to_array_validate_type_of_args(args, expected):
 def test_runtime_to_array_validate_number_of_args(args, expected):
     result = RuntimeToArray().validate_number_of_args(args)
     assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # range(stop)
+        ([4], [0, 1, 2, 3]),
+        ([0], []),
+        # range(start, stop)
+        ([1, 5], [1, 2, 3, 4]),
+        ([5, 5], []),
+        ([5, 1], []),
+        # range(start, stop, step)
+        ([0, 10, 2], [0, 2, 4, 6, 8]),
+        ([10, 0, -1], [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]),
+        ([0, 10, -1], []),
+        # arguments are coerced to integers
+        (["1", "5"], [1, 2, 3, 4]),
+        ([1.9, 4.9], [1, 2, 3]),
+    ],
+)
+def test_runtime_range_execute(args, expected):
+    parsed_args = RuntimeRange().parse_args(args)
+    result = RuntimeRange().execute({}, parsed_args)
+    assert result == expected
+
+
+def test_runtime_range_execute_with_zero_step_raises():
+    parsed_args = RuntimeRange().parse_args([0, 5, 0])
+    with pytest.raises(BaserowFormulaSyntaxError):
+        RuntimeRange().execute({}, parsed_args)
+
+
+def test_runtime_range_execute_respects_max_items(settings):
+    settings.FORMULA_RANGE_MAX_ITEMS = 5
+
+    # At the limit it still works.
+    parsed_args = RuntimeRange().parse_args([0, 5])
+    assert RuntimeRange().execute({}, parsed_args) == [0, 1, 2, 3, 4]
+
+    # Beyond the limit it raises.
+    parsed_args = RuntimeRange().parse_args([0, 6])
+    with pytest.raises(BaserowFormulaSyntaxError):
+        RuntimeRange().execute({}, parsed_args)
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # numeric types are allowed
+        ([4], []),
+        ([1, 5], []),
+        ([0, 10, 2], []),
+        (["1", "5", "2"], []),
+        # Invalid types
+        ([{}], [(0, {})]),
+        ([5, "foo"], [(1, "foo")]),
+        ([0, 10, {}], [(2, {})]),
+    ],
+)
+def test_runtime_range_validate_type_of_args(args, expected):
+    result = RuntimeRange().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["a"], True),
+        (["a", "b"], True),
+        (["a", "b", "c"], True),
+        (["a", "b", "c", "d"], False),
+    ],
+)
+def test_runtime_range_validate_number_of_args(args, expected):
+    result = RuntimeRange().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["foo"], '"foo"'),
+        ([123], "123"),
+        ([True], "true"),
+        ([None], "null"),
+        ([{"a": 1}], '{"a":1}'),
+        ([[1, 2]], "[1,2]"),
+        # Quotes, backslashes and control characters are escaped so the result
+        # is safe to embed inside a larger JSON document.
+        ([r'foo "bar"'], r'"foo \"bar\""'),
+        (["a\nb"], r'"a\nb"'),
+    ],
+)
+def test_runtime_to_json_execute(args, expected):
+    parsed_args = RuntimeToJson().parse_args(args)
+    result = RuntimeToJson().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), object()])
+def test_runtime_to_json_raises_for_non_serializable_value(value):
+    parsed_args = RuntimeToJson().parse_args([value])
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToJson().execute({}, parsed_args)
+    assert "cannot be" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([123], []),
+        (["foo"], []),
+        ([{"a": 1}], []),
+    ],
+)
+def test_runtime_to_json_validate_type_of_args(args, expected):
+    result = RuntimeToJson().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_to_json_validate_number_of_args(args, expected):
+    result = RuntimeToJson().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["[1, 2, 3]"], [1, 2, 3]),
+        (['{"a": 1}'], {"a": 1}),
+        (['"foo"'], "foo"),
+        (["123"], 123),
+        # Invalid JSON degrades gracefully to None instead of raising.
+        (["not json"], None),
+        ([""], None),
+    ],
+)
+def test_runtime_from_json_execute(args, expected):
+    parsed_args = RuntimeFromJson().parse_args(args)
+    result = RuntimeFromJson().execute({}, parsed_args)
+    assert result == expected
+
+
+def test_runtime_to_json_from_json_round_trip():
+    value = {"value1": 'foo "bar"\nbaz'}
+    dumped = RuntimeToJson().execute({}, RuntimeToJson().parse_args([value]))
+    result = RuntimeFromJson().execute({}, RuntimeFromJson().parse_args([dumped]))
+    assert result == value
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_from_json_validate_number_of_args(args, expected):
+    result = RuntimeFromJson().validate_number_of_args(args)
+    assert result is expected
+
+
+def test_runtime_null_execute():
+    parsed_args = RuntimeNull().parse_args([])
+    result = RuntimeNull().execute({}, parsed_args)
+    assert result is None
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], True),
+        (["foo"], False),
+    ],
+)
+def test_runtime_null_validate_number_of_args(args, expected):
+    result = RuntimeNull().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([1000000], "1,000,000"),
+        ([1000000, 2], "1,000,000.00"),
+        ([1000000, 2, " ", ","], "1 000 000,00"),
+        ([1000000, 2, ".", ","], "1.000.000,00"),
+        ([212590.18, 2], "212,590.18"),
+        ([212590.18, 2, " "], "212 590.18"),
+        ([212590.18, 2, " ", ","], "212 590,18"),
+        ([-1234567.89, 2], "-1,234,567.89"),
+        ([1000, 0, ""], "1000"),
+        ([1000, 3], "1,000.000"),
+        ([0, 2], "0.00"),
+    ],
+)
+def test_runtime_number_format_execute(args, expected):
+    parsed_args = RuntimeNumberFormat().parse_args(args)
+    result = RuntimeNumberFormat().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([1000], []),
+        ([1000, 2], []),
+        ([1000, 2, ","], []),
+        ([1000, 2, " ", ","], []),
+        (["foo"], [(0, "foo")]),
+        ([1000, "bar"], [(1, "bar")]),
+        ([1000, 2, ";"], [(2, ";")]),
+        ([1000, 2, ",", ";"], [(3, ";")]),
+    ],
+)
+def test_runtime_number_format_validate_type_of_args(args, expected):
+    result = RuntimeNumberFormat().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        ([1000], True),
+        ([1000, 2], True),
+        ([1000, 2, ","], True),
+        ([1000, 2, ",", "."], True),
+        ([1000, 2, ",", ".", "extra"], False),
+    ],
+)
+def test_runtime_number_format_validate_number_of_args(args, expected):
+    result = RuntimeNumberFormat().validate_number_of_args(args)
+    assert result is expected
+
+
+def test_runtime_number_format_validate_args_raises_when_separators_are_same():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeNumberFormat().validate_args([1000, 2, ",", ","])
+    assert "thousand separator and decimal separator cannot be the same" in str(
+        exc_info.value
+    )
+
+
+def test_runtime_number_format_execute_raises_when_separators_are_same():
+    with pytest.raises(BaserowFormulaSyntaxError):
+        RuntimeNumberFormat().validate_args([1000, 2, ",", ","])
+
+
+def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad_thousand_sep():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeNumberFormat().validate_args([1000, 2, ";"])
+    assert "';' is not a valid thousand separator" in str(exc_info.value)
+
+
+def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad_decimal_sep():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeNumberFormat().validate_args([1000, 2, ",", ";"])
+    assert "';' is not a valid decimal separator" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # Single-arg form: delegates to DurationBaserowRuntimeFormulaArgumentType.parse()
+        (["1 day"], timedelta(days=1)),
+        (["2 days"], timedelta(days=2)),
+        (["3 weeks"], timedelta(weeks=3)),
+        (["4 hours"], timedelta(hours=4)),
+        (["30 minutes"], timedelta(minutes=30)),
+        (["45 seconds"], timedelta(seconds=45)),
+        (["1 year"], timedelta(days=365)),
+        (["1 month"], timedelta(days=30)),
+        (["1:30"], timedelta(seconds=90)),
+        (["1:30:00"], timedelta(hours=1, minutes=30)),
+        (["11:12:13.14"], timedelta(hours=11, minutes=12, seconds=13.14)),
+        (["1d"], timedelta(days=1)),
+        (["5h"], timedelta(hours=5)),
+        (["1d 12h"], timedelta(days=1, hours=12)),
+        (["1d 2h 3m"], timedelta(days=1, hours=2, minutes=3)),
+        (["12.5"], timedelta(seconds=12.5)),
+        (["0 days"], timedelta(0)),
+        (["-1:30"], timedelta(seconds=-90)),
+        # Two-arg form: value + format string
+        (["1:30", "h:mm"], timedelta(hours=1, minutes=30)),
+        (
+            ["1:23:45", "h:mm:ss"],
+            timedelta(hours=1, minutes=23, seconds=45),
+        ),
+        (
+            ["2 3:04:05", "d h:mm:ss"],
+            timedelta(days=2, hours=3, minutes=4, seconds=5),
+        ),
+        (["-1:30", "h:mm"], -timedelta(hours=1, minutes=30)),
+    ],
+)
+def test_runtime_to_duration_execute(args, expected):
+    parsed_args = RuntimeToDuration().parse_args(args)
+    result = RuntimeToDuration().execute({}, parsed_args)
+    assert result == expected
+
+
+def test_runtime_to_duration_execute_raises_for_timedelta_with_format():
+    # At runtime, arg 0 may resolve to a timedelta (e.g. via a get() on a
+    # duration field), in which case applying a format doesn't make sense.
+    parsed_args = RuntimeToDuration().parse_args([timedelta(hours=1), "h:mm"])
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDuration().execute({}, parsed_args)
+    assert "A duration format cannot be applied to a timedelta" in str(exc_info.value)
+
+
+def test_runtime_to_duration_execute_raises_when_value_does_not_match_format():
+    parsed_args = RuntimeToDuration().parse_args(["not a duration", "h:mm"])
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDuration().execute({}, parsed_args)
+    assert "could not be parsed using format 'h:mm'" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # Single-arg form
+        (["1 day"], []),
+        (["2 days"], []),
+        ([1], []),
+        # Invalid single-arg — arg is returned as invalid
+        (["foo"], [(0, "foo")]),
+        ([""], [(0, "")]),
+        ([None], [(0, None)]),
+        # Two-arg form: arg 0 check is deferred to validate_args(), so any
+        # arg 0 is accepted at this stage when the format is valid.
+        (["1:30", "h:mm"], []),
+        (["whatever", "h:mm"], []),
+        # Invalid format strings → arg 1 reported as invalid
+        (["1:30", ":::"], [(1, ":::")]),
+        (["1:30", "h h"], [(1, "h h")]),
+        (["1:30", ""], [(1, "")]),
+        (["1:30", 123], [(1, 123)]),
+    ],
+)
+def test_runtime_to_duration_validate_type_of_args(args, expected):
+    result = RuntimeToDuration().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["1 day"], True),
+        (["1 day", "h:mm"], True),
+        (["1 day", "h:mm", "extra"], False),
+    ],
+)
+def test_runtime_to_duration_validate_number_of_args(args, expected):
+    result = RuntimeToDuration().validate_number_of_args(args)
+    assert result is expected
+
+
+def test_runtime_to_duration_validate_args_raises_when_value_does_not_match_format():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDuration().validate_args(["not a duration", "h:mm"])
+    assert "could not be parsed using format 'h:mm'" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([timedelta(hours=1, minutes=30), "h:mm"], "1:30"),
+        (
+            [timedelta(hours=1, minutes=23, seconds=45), "h:mm:ss"],
+            "1:23:45",
+        ),
+        (
+            [timedelta(days=2, hours=3, minutes=4, seconds=5), "d h:mm:ss"],
+            "2 3:04:05",
+        ),
+        # rollup variations
+        ([timedelta(hours=1, minutes=30), "mm:ss"], "90:00"),
+        ([timedelta(hours=25, minutes=30), "h:mm"], "25:30"),
+        ([timedelta(hours=25, minutes=30), "d h:mm"], "1 1:30"),
+        # negative durations
+        ([-timedelta(hours=1, minutes=30), "h:mm"], "-1:30"),
+        # zero duration
+        ([timedelta(0), "h:mm"], "0:00"),
+    ],
+)
+def test_runtime_duration_format_execute(args, expected):
+    parsed_args = RuntimeDurationFormat().parse_args(args)
+    result = RuntimeDurationFormat().execute({}, parsed_args)
+    assert result == expected
+
+
+def test_runtime_duration_format_execute_returns_none_for_null_duration():
+    result = RuntimeDurationFormat().execute({}, [None, "h:mm"])
+    assert result is None
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([timedelta(hours=1), "h:mm"], []),
+        ([timedelta(0), "d h:mm:ss"], []),
+        # arg 0 must be a duration/timedelta-coercible value
+        (["not a duration", "h:mm"], [(0, "not a duration")]),
+        ([123, "h:mm"], []),
+        ([None, "h:mm"], [(0, None)]),
+        # arg 1 must be a valid format string
+        ([timedelta(hours=1), ":::"], [(1, ":::")]),
+        ([timedelta(hours=1), "h h"], [(1, "h h")]),
+        ([timedelta(hours=1), ""], [(1, "")]),
+        ([timedelta(hours=1), 123], [(1, 123)]),
+    ],
+)
+def test_runtime_duration_format_validate_type_of_args(args, expected):
+    result = RuntimeDurationFormat().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        ([timedelta(hours=1)], False),
+        ([timedelta(hours=1), "h:mm"], True),
+        ([timedelta(hours=1), "h:mm", "extra"], False),
+    ],
+)
+def test_runtime_duration_format_validate_number_of_args(args, expected):
+    result = RuntimeDurationFormat().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (
+            [datetime(2025, 1, 1, 12, 0, 0), timedelta(days=1)],
+            datetime(2025, 1, 2, 12, 0, 0),
+        ),
+        (
+            [timedelta(days=1), datetime(2025, 1, 1, 12, 0, 0)],
+            datetime(2025, 1, 2, 12, 0, 0),
+        ),
+        (
+            [datetime(2025, 6, 15), timedelta(hours=3)],
+            datetime(2025, 6, 15, 3, 0, 0),
+        ),
+        # timedelta + timedelta
+        (
+            [timedelta(hours=1), timedelta(minutes=30)],
+            timedelta(hours=1, minutes=30),
+        ),
+        # timedelta + number (number = seconds)
+        ([timedelta(hours=1), 60], timedelta(hours=1, seconds=60)),
+        # number + timedelta (number = seconds)
+        ([60, timedelta(hours=1)], timedelta(hours=1, seconds=60)),
+        # fractional seconds
+        ([timedelta(seconds=1), 1.5], timedelta(seconds=2, microseconds=500000)),
+    ],
+)
+def test_runtime_add_with_datetime_and_timedelta(args, expected):
+    parsed_args = RuntimeAdd().parse_args(args)
+    result = RuntimeAdd().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([datetime(2025, 1, 1, 12, 0, 0), timedelta(days=1)], []),
+        ([timedelta(days=1), datetime(2025, 1, 1, 12, 0, 0)], []),
+        ([timedelta(days=1), timedelta(days=2)], []),
+        ([timedelta(days=1), 60], []),
+        ([60, timedelta(days=1)], []),
+        (["foo", timedelta(days=1)], [(0, "foo")]),
+        ([timedelta(days=1), "foo"], [(1, "foo")]),
+        # datetime + datetime is invalid
+        (
+            [datetime(2025, 1, 1), datetime(2025, 1, 2)],
+            [(0, datetime(2025, 1, 1))],
+        ),
+    ],
+)
+def test_runtime_add_validate_type_of_args_with_timedelta(args, expected):
+    result = RuntimeAdd().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (
+            [datetime(2025, 1, 2, 12, 0, 0), timedelta(days=1)],
+            datetime(2025, 1, 1, 12, 0, 0),
+        ),
+        (
+            [datetime(2025, 6, 15, 3, 0, 0), timedelta(hours=3)],
+            datetime(2025, 6, 15, 0, 0, 0),
+        ),
+        # timedelta - timedelta
+        (
+            [timedelta(hours=2), timedelta(minutes=30)],
+            timedelta(hours=1, minutes=30),
+        ),
+        # timedelta - number (number = seconds)
+        ([timedelta(seconds=30), 1], timedelta(seconds=29)),
+        # number - timedelta (number = seconds)
+        ([90, timedelta(seconds=30)], timedelta(seconds=60)),
+    ],
+)
+def test_runtime_minus_with_datetime_and_timedelta(args, expected):
+    parsed_args = RuntimeMinus().parse_args(args)
+    result = RuntimeMinus().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([datetime(2025, 1, 2, 12, 0, 0), timedelta(days=1)], []),
+        (
+            [timedelta(days=1), datetime(2025, 1, 1, 12, 0, 0)],
+            [(1, datetime(2025, 1, 1, 12, 0, 0))],
+        ),
+        ([timedelta(days=1), timedelta(days=2)], []),
+        ([timedelta(days=1), 60], []),
+        ([60, timedelta(days=1)], []),
+        (["foo", timedelta(days=1)], [(0, "foo")]),
+        ([timedelta(days=1), "foo"], [(1, "foo")]),
+        # datetime - datetime is invalid
+        (
+            [datetime(2025, 1, 2), datetime(2025, 1, 1)],
+            [(1, datetime(2025, 1, 1))],
+        ),
+        # datetime - number is invalid
+        ([datetime(2025, 1, 1), 5], [(1, 5)]),
+        # number - datetime is invalid
+        ([5, datetime(2025, 1, 1)], [(1, datetime(2025, 1, 1))]),
+    ],
+)
+def test_runtime_minus_validate_type_of_args_with_timedelta(args, expected):
+    result = RuntimeMinus().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # timedelta * number
+        ([timedelta(hours=1), 2], timedelta(hours=2)),
+        # number * timedelta
+        ([2, timedelta(hours=1)], timedelta(hours=2)),
+        # fractional scaling
+        ([timedelta(minutes=10), 0.5], timedelta(minutes=5)),
+    ],
+)
+def test_runtime_multiply_with_timedelta(args, expected):
+    parsed_args = RuntimeMultiply().parse_args(args)
+    result = RuntimeMultiply().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([1, 2], []),
+        ([timedelta(hours=1), 2], []),
+        ([2, timedelta(hours=1)], []),
+        # timedelta * timedelta is invalid
+        (
+            [timedelta(hours=1), timedelta(hours=1)],
+            [(1, timedelta(hours=1))],
+        ),
+        (["foo", timedelta(hours=1)], [(0, "foo")]),
+        ([timedelta(hours=1), "foo"], [(1, "foo")]),
+        # datetime operands are invalid for multiply
+        ([datetime(2025, 1, 1), 2], [(0, datetime(2025, 1, 1))]),
+        ([2, datetime(2025, 1, 1)], [(1, datetime(2025, 1, 1))]),
+        (
+            [datetime(2025, 1, 1), timedelta(hours=1)],
+            [(0, datetime(2025, 1, 1))],
+        ),
+    ],
+)
+def test_runtime_multiply_validate_type_of_args_with_timedelta(args, expected):
+    result = RuntimeMultiply().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # timedelta / number
+        ([timedelta(hours=1), 2], timedelta(minutes=30)),
+        ([timedelta(seconds=30), 2], timedelta(seconds=15)),
+    ],
+)
+def test_runtime_divide_with_timedelta(args, expected):
+    parsed_args = RuntimeDivide().parse_args(args)
+    result = RuntimeDivide().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([1, 2], []),
+        ([timedelta(hours=1), 2], []),
+        # number / timedelta is invalid
+        ([2, timedelta(hours=1)], [(1, timedelta(hours=1))]),
+        # timedelta / timedelta is invalid
+        (
+            [timedelta(hours=1), timedelta(hours=1)],
+            [(1, timedelta(hours=1))],
+        ),
+        (["foo", timedelta(hours=1)], [(0, "foo")]),
+        ([timedelta(hours=1), "foo"], [(1, "foo")]),
+        # datetime operands are invalid for divide
+        ([datetime(2025, 1, 1), 2], [(0, datetime(2025, 1, 1))]),
+        ([2, datetime(2025, 1, 1)], [(1, datetime(2025, 1, 1))]),
+        (
+            [datetime(2025, 1, 1), timedelta(hours=1)],
+            [(0, datetime(2025, 1, 1))],
+        ),
+    ],
+)
+def test_runtime_divide_validate_type_of_args_with_timedelta(args, expected):
+    result = RuntimeDivide().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["2024-01-15"], datetime(2024, 1, 15, 0, 0, 0)),
+        (["2024-01-15T12:30:00"], datetime(2024, 1, 15, 12, 30, 0)),
+        (["2024-01-15T12:30:00.123456"], datetime(2024, 1, 15, 12, 30, 0, 123456)),
+        (["15/01/2024", "DD/MM/YYYY"], datetime(2024, 1, 15, 0, 0, 0)),
+        (["01-15-2024", "MM-DD-YYYY"], datetime(2024, 1, 15, 0, 0, 0)),
+        (["2024-01-15 12:30", "YYYY-MM-DD HH:mm"], datetime(2024, 1, 15, 12, 30, 0)),
+    ],
+)
+def test_runtime_to_datetime_execute(args, expected):
+    parsed_args = RuntimeToDatetime().parse_args(args)
+    result = RuntimeToDatetime().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["2024-01-15"], []),
+        (["not-a-date"], []),
+        (["2024-01-15", "YYYY-MM-DD"], []),
+    ],
+)
+def test_runtime_to_datetime_validate_type_of_args(args, expected):
+    result = RuntimeToDatetime().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["2024-01-15"], True),
+        (["2024-01-15", "YYYY-MM-DD"], True),
+        (["2024-01-15", "YYYY-MM-DD", "extra"], False),
+    ],
+)
+def test_runtime_to_datetime_validate_number_of_args(args, expected):
+    result = RuntimeToDatetime().validate_number_of_args(args)
+    assert result is expected
+
+
+def test_runtime_to_datetime_validate_args_raises_for_invalid_iso_string():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDatetime().validate_args(["not-a-date"])
+    assert "is not a valid ISO datetime string" in str(exc_info.value)
+
+
+def test_runtime_to_datetime_validate_args_raises_for_string_not_matching_format():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDatetime().validate_args(["2024-01-15", "DD/MM/YYYY"])
+    assert "could not be parsed using format" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["2025/06/04 12:23:45", "YYYY/MM/DD HH:mm:SS"],
+        ["2025/06/04 12:23:45", ""],
+    ],
+)
+def test_runtime_to_datetime_validate_args_raises_for_unsupported_format_token(args):
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDatetime().validate_args(args)
+    assert "is not a valid datetime format" in str(exc_info.value)

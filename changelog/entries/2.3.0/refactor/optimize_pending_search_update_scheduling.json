@@ -1,0 +1,8 @@
+{
+    "type": "refactor",
+    "message": "Optimize pending search update scheduling for large imports and syncs.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "created_at": "2026-04-22"
+}

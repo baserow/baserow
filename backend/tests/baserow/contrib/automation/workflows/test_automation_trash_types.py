@@ -21,7 +21,7 @@ def test_workflow_trashable_get_name(data_fixture):
 
     result = AutomationWorkflowTrashableItemType().get_name(workflow)
 
-    assert result == workflow.name
+    assert result == f"{workflow.name} ({workflow.id})"
 
 
 def get_trash_entry(user, workflow):

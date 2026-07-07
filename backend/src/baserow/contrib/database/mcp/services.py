@@ -461,7 +461,8 @@ def create_rows(
     table = get_table(user, workspace, table_id)
     model = table.get_model()
     rows_values = _map_user_field_names(model, rows)
-    created = CreateRowsActionType.do(user, table, rows_values, model=model)
+    with transaction.atomic():
+        created = CreateRowsActionType.do(user, table, rows_values, model=model)
     return list(serialize_rows_for_response(created, model, user_field_names=True))
 
 

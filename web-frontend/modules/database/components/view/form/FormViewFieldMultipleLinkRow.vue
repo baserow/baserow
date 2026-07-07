@@ -9,11 +9,13 @@
         <PaginatedDropdown
           :fetch-page="fetchPage"
           :value="value[index].id"
-          :initial-display-name="value[index].value"
+          :add-empty-item="false"
+          :initial-display-name="rowDisplayName(value[index])"
           :error="touched && !valid && isInvalidValue(value[index])"
           :fetch-on-open="lazyLoad"
           :disabled="readOnly"
           :include-display-name-in-selected-event="true"
+          :value-name="rowDisplayName"
           @input="updateValue($event, index)"
         ></PaginatedDropdown>
       </div>
@@ -42,32 +44,15 @@
 
 <script>
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
+import baseField from '@baserow/modules/database/mixins/baseField'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
-import ViewService from '@baserow/modules/database/services/view'
+import formViewLinkRowField from '@baserow/modules/database/mixins/formViewLinkRowField'
 import { clone } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'FormViewFieldMultipleLinkRow',
   components: { PaginatedDropdown },
-  mixins: [rowEditField],
-  props: {
-    slug: {
-      type: String,
-      required: true,
-    },
-    /**
-     * In some cases, for example in the form view preview, we only want to fetch the
-     * first related rows after the user has opened the dropdown. This will prevent a
-     * race condition where the enabled state of the field might not yet been updated
-     * before we fetch the related rows. If the state has not yet been changed in the
-     * backend, it will result in an error.
-     */
-    lazyLoad: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-  },
+  mixins: [rowEditField, formViewLinkRowField],
   emits: ['update'],
   created() {
     if (this.value.length === 0 && this.required) {
@@ -76,31 +61,22 @@ export default {
   },
   methods: {
     getValidationError(value) {
-      const error = rowEditField.methods.getValidationError.call(this, value)
-
-      if (!this.required && error === null) {
-        const empty = value.some((v) => this.isInvalidValue(v))
-        if (empty) {
-          return this.$t('error.requiredField')
-        }
+      // A slot counts as filled only if it holds a row with a real id. This also
+      // flags a placeholder slot (added but never picked) as invalid, even when
+      // the field is optional.
+      const valueArr = Array.isArray(value) ? value : []
+      const hasInvalidSlot = valueArr.some((v) => this.isInvalidValue(v))
+      // A placeholder slot is always invalid, and a required field also needs at
+      // least one slot.
+      if (hasInvalidSlot || (this.required && valueArr.length === 0)) {
+        return this.$t('error.requiredField')
       }
-
-      return error
+      // Delegate to baseField, not rowEditField (the other mixin): rowEditField
+      // would re-run its own required check, which we've already handled above.
+      return baseField.methods.getValidationError.call(this, value)
     },
     isInvalidValue(value) {
       return !Number.isInteger(value.id)
-    },
-    fetchPage(page, search) {
-      const publicAuthToken =
-        this.$store.getters['page/view/public/getAuthToken']
-      return ViewService(this.$client).linkRowFieldLookup(
-        this.slug,
-        this.field.id,
-        page,
-        search,
-        100,
-        publicAuthToken
-      )
     },
     add() {
       const newValue = clone(this.value)
@@ -115,9 +91,16 @@ export default {
       newValue.splice(index, 1)
       this.$emit('update', newValue, this.value)
     },
-    updateValue({ value, displayName }, index) {
+    updateValue({ value, displayName, item }, index) {
       const newValue = clone(this.value)
-      newValue[index] = { id: value, value: displayName }
+      if (value === null || value === '') {
+        newValue[index] = { id: value, value: '' }
+      } else {
+        newValue[index] = {
+          id: value,
+          value: this.resolveRowValue(item, displayName),
+        }
+      }
       this.$emit('update', newValue, this.value)
     },
   },

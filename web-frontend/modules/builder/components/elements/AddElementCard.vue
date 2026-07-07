@@ -60,6 +60,11 @@ export default {
       required: false,
       default: undefined,
     },
+    afterElement: {
+      type: Object,
+      required: false,
+      default: undefined,
+    },
     pagePlace: {
       type: String,
       required: false,
@@ -86,6 +91,7 @@ export default {
         placeInContainer: this.placeInContainer,
         parentElement: this.parentElement,
         beforeElement: this.beforeElement,
+        afterElement: this.afterElement,
         pagePlace: this.pagePlace,
       })
     },

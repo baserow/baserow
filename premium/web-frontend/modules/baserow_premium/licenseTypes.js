@@ -54,6 +54,13 @@ export class LicenseType extends Registerable {
   getLicenseSeatOverflowWarning(license) {
     throw new Error('Must be set by the implementing sub class.')
   }
+
+  /**
+   * Can optionally return an object like `{"href": "https://", "text": "Click here"}`.
+   */
+  getLicenseSeatOverflowButton(license) {
+    return null
+  }
 }
 
 export class PremiumLicenseType extends LicenseType {

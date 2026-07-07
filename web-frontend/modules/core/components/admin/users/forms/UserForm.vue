@@ -24,7 +24,13 @@
           {{ $t('error.minLength', { min: 2 }) }}
         </span>
         <span v-else-if="v$.values.name.maxLength.$invalid">
-          {{ $t('error.maxLength', { max: 150 }) }}
+          {{ $t('error.maxLength', { max: 60 }) }}
+        </span>
+        <span v-else-if="v$.values.name.nameIsNotEmail.$invalid">
+          {{ $t('error.nameCantBeEmail') }}
+        </span>
+        <span v-else-if="v$.values.name.nameContainsNoUrl.$invalid">
+          {{ $t('error.nameContainsUrl') }}
         </span>
       </template>
     </FormGroup>
@@ -96,6 +102,32 @@
       </template>
     </FormGroup>
 
+    <FormGroup
+      small-label
+      :label="$t('userForm.twoFactorAuth')"
+      class="margin-top-2"
+    >
+      <div class="user-admin-edit__two-factor">
+        <Badge
+          :color="twoFactorAuthEnabled ? 'green' : 'neutral'"
+          :rounded="true"
+        >
+          {{
+            twoFactorAuthEnabled
+              ? twoFactorAuthProviderName
+              : $t('twoFactorAuthField.disabled')
+          }}
+        </Badge>
+        <a
+          v-if="twoFactorAuthEnabled"
+          class="user-admin-edit__remove-2fa"
+          @click.prevent="$emit('remove-two-factor-auth')"
+        >
+          {{ $t('userForm.removeTwoFactorAuth') }}
+        </a>
+      </div>
+    </FormGroup>
+
     <div class="actions">
       <slot></slot>
       <div class="align-right">
@@ -118,6 +150,10 @@ import { reactive } from 'vue'
 import { email, maxLength, minLength, required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
+import {
+  nameContainsNoUrl,
+  nameIsNotEmail,
+} from '@baserow/modules/core/validators'
 
 export default {
   name: 'UserForm',
@@ -132,6 +168,7 @@ export default {
       required: true,
     },
   },
+  emits: ['remove-two-factor-auth'],
   setup() {
     const values = reactive({
       values: {
@@ -147,7 +184,9 @@ export default {
         name: {
           required,
           minLength: minLength(2),
-          maxLength: maxLength(150),
+          maxLength: maxLength(60),
+          nameIsNotEmail,
+          nameContainsNoUrl,
         },
         username: {
           required,
@@ -167,6 +206,16 @@ export default {
     return {
       allowedValues: ['username', 'name', 'is_active', 'is_staff'],
     }
+  },
+  computed: {
+    twoFactorAuthEnabled() {
+      return Boolean(this.user.two_factor_auth?.is_enabled)
+    },
+    twoFactorAuthProviderName() {
+      const type = this.user.two_factor_auth?.type
+      const registered = this.$registry.getAll('twoFactorAuth')
+      return registered[type] ? registered[type].name : type
+    },
   },
 }
 </script>

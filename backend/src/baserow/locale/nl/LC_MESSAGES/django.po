@@ -20,8 +20,300 @@ msgstr ""
 
 #: src/baserow/api/authentication.py:25
 msgid "Token contained no recognizable user identification"
-msgstr ""
+msgstr "Token bevatte geen herkenbare gebruikersidentificatie"
 
 #: src/baserow/api/authentication.py:33
 msgid "User not found"
+msgstr "Gebruiker niet gevonden"
+
+#: src/baserow/contrib/automation/action_scopes.py:10
+#: src/baserow/contrib/automation/actions.py:4
+#, python-format
+msgid "in automation \"%(automation_name)s\" (%(automation_id)s)."
+msgstr "in automatisering \"%(automation_name)s\" (%(automation_id)s)."
+
+#: src/baserow/contrib/automation/action_scopes.py:14
+#, python-format
+msgid ""
+"of type (%(node_type)s) in automation \"%(automation_name)s\" "
+"(%(automation_id)s)."
 msgstr ""
+"van type (%(node_type)s) in automatisering \"%(automation_name)s\" "
+"(%(automation_id)s)."
+
+#: src/baserow/contrib/automation/actions.py:8
+#, python-format
+msgid ""
+"in workflow (%(workflow_id)s) in automation \"%(automation_name)s\" "
+"(%(automation_id)s)."
+msgstr ""
+"in workflow (%(workflow_id)s) in automatisering \"%(automation_name)s\" "
+"(%(automation_id)s)."
+
+#: src/baserow/contrib/automation/automation_init_application.py:29
+msgid "Workflow"
+msgstr "Workflow"
+
+#: src/baserow/contrib/automation/automation_init_application.py:30
+msgid "Local Baserow"
+msgstr "Lokaal Baserow"
+
+#: src/baserow/contrib/automation/nodes/actions.py:25
+msgid "Create automation node"
+msgstr "Automatiseringsknooppunt maken"
+
+#: src/baserow/contrib/automation/nodes/actions.py:26
+#, python-format
+msgid "Node (%(node_id)s) created"
+msgstr "Knooppunt (%(node_id)s) aangemaakt"
+
+#: src/baserow/contrib/automation/nodes/actions.py:90
+msgid "Update automation node"
+msgstr "Automatiseringsknooppunt bijwerken"
+
+#: src/baserow/contrib/automation/nodes/actions.py:91
+#, python-format
+msgid "Node (%(node_id)s) updated"
+msgstr "Knooppunt (%(node_id)s) bijgewerkt"
+
+#: src/baserow/contrib/automation/nodes/actions.py:159
+msgid "Delete automation node"
+msgstr "Automatiseringsknooppunt verwijderen"
+
+#: src/baserow/contrib/automation/nodes/actions.py:160
+#, python-format
+msgid "Node (%(node_id)s) deleted"
+msgstr "Knooppunt (%(node_id)s) verwijderd"
+
+#: src/baserow/contrib/automation/nodes/actions.py:217
+msgid "Duplicate automation node"
+msgstr "Automatiseringsknooppunt dupliceren"
+
+#: src/baserow/contrib/automation/nodes/actions.py:218
+#, python-format
+msgid "Node (%(node_id)s) duplicated"
+msgstr "Knooppunt (%(node_id)s) gedupliceerd"
+
+#: src/baserow/contrib/automation/nodes/actions.py:289
+msgid "Replace automation node"
+msgstr "Automatiseringsknooppunt vervangen"
+
+#: src/baserow/contrib/automation/nodes/actions.py:291
+#, python-format
+msgid ""
+"Node (%(node_id)s) changed from a type of %(original_node_type)s to "
+"%(node_type)s"
+msgstr ""
+"Knooppunt (%(node_id)s) gewijzigd van type %(original_node_type)s naar "
+"%(node_type)s"
+
+#: src/baserow/contrib/automation/nodes/actions.py:377
+msgid "Moved automation node"
+msgstr "Automatiseringsknooppunt verplaatst"
+
+#: src/baserow/contrib/automation/nodes/actions.py:378
+#, python-format
+msgid "Node (%(node_id)s) moved"
+msgstr "Knooppunt (%(node_id)s) verplaatst"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:133
+msgid "Local Baserow create row"
+msgstr "Lokaal Baserow rij aanmaken"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:140
+msgid "Local Baserow update row"
+msgstr "Lokaal Baserow rij bijwerken"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:147
+msgid "Local Baserow delete row"
+msgstr "Lokaal Baserow rij verwijderen"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:155
+msgid "Local Baserow get row"
+msgstr "Lokaal Baserow rij ophalen"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:163
+msgid "Local Baserow list rows"
+msgstr "Lokaal Baserow rijen ophalen"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:171
+msgid "Local Baserow aggregate rows"
+msgstr "Lokaal Baserow rijen samenvatten"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:179
+msgid "HTTP request"
+msgstr "HTTP-verzoek"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:186
+msgid "Iterator"
+msgstr "Iterator"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:199
+msgid "Send email"
+msgstr "E-mail versturen"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:206
+msgid "AI agent"
+msgstr "AI-agent"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:213
+msgid "Router"
+msgstr "Router"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:279
+msgid "Branch"
+msgstr "Vertakking"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:408
+msgid "Local Baserow rows created"
+msgstr "Lokaal Baserow rijen aangemaakt"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:416
+msgid "Local Baserow rows updated"
+msgstr "Lokaal Baserow rijen bijgewerkt"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:424
+msgid "Local Baserow rows deleted"
+msgstr "Lokaal Baserow rijen verwijderd"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:434
+msgid "Periodic trigger"
+msgstr "Periodieke activering"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:441
+msgid "HTTP trigger"
+msgstr "HTTP-activering"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:448
+msgid "Slack write message"
+msgstr "Slack-bericht schrijven"
+
+#: src/baserow/contrib/automation/nodes/registries.py:47
+msgid "Unnamed node"
+msgstr "Naamloos knooppunt"
+
+#: src/baserow/contrib/automation/notification_types.py:57
+#, python-format
+msgid "%(name)s workflow was disabled."
+msgstr "De workflow %(name)s is uitgeschakeld."
+
+#: src/baserow/contrib/automation/workflows/actions.py:28
+msgid "Create automation workflow"
+msgstr "Automatiseringsworkflow maken"
+
+#: src/baserow/contrib/automation/workflows/actions.py:29
+#, python-format
+msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) created"
+msgstr "Workflow \"%(workflow_name)s\" (%(workflow_id)s) aangemaakt"
+
+#: src/baserow/contrib/automation/workflows/actions.py:90
+msgid "Update automation workflow"
+msgstr "Automatiseringsworkflow bijwerken"
+
+#: src/baserow/contrib/automation/workflows/actions.py:91
+#, python-format
+msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) updated"
+msgstr "Workflow \"%(workflow_name)s\" (%(workflow_id)s) bijgewerkt"
+
+#: src/baserow/contrib/automation/workflows/actions.py:170
+msgid "Delete workflow"
+msgstr "Workflow verwijderen"
+
+#: src/baserow/contrib/automation/workflows/actions.py:171
+#, python-format
+msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) deleted"
+msgstr "Workflow \"%(workflow_name)s\" (%(workflow_id)s) verwijderd"
+
+#: src/baserow/contrib/automation/workflows/actions.py:227
+msgid "Duplicate automation workflow"
+msgstr "Automatiseringsworkflow dupliceren"
+
+#: src/baserow/contrib/automation/workflows/actions.py:229
+#, python-format
+msgid ""
+"Workflow \"%(workflow_name)s\" (%(workflow_id)s) duplicated "
+"from\"%(original_workflow_name)s\" (%(original_workflow_id)s) "
+msgstr ""
+"Workflow \"%(workflow_name)s\" (%(workflow_id)s) gedupliceerd van "
+"\"%(original_workflow_name)s\" (%(original_workflow_id)s) "
+
+#: src/baserow/contrib/automation/workflows/actions.py:299
+msgid "Order workflows"
+msgstr "Workflows ordenen"
+
+#: src/baserow/contrib/automation/workflows/actions.py:300
+msgid "Workflow order changed"
+msgstr "Workflowvolgorde gewijzigd"
+
+#: src/baserow/contrib/dashboard/actions.py:3
+#, python-format
+msgid "in dashboard \"%(dashboard_name)s\" (%(dashboard_id)s)."
+msgstr "in dashboard \"%(dashboard_name)s\" (%(dashboard_id)s)."
+
+#: src/baserow/contrib/dashboard/data_sources/actions.py:19
+msgid "Update dashboard data source"
+msgstr "Dashboard-gegevensbron bijwerken"
+
+#: src/baserow/contrib/dashboard/data_sources/actions.py:20
+#, python-format
+msgid "Data source \"%(data_source_name)s\" (%(data_source_id)s) updated"
+msgstr "Gegevensbron \"%(data_source_name)s\" (%(data_source_id)s) bijgewerkt"
+
+#: src/baserow/contrib/dashboard/data_sources/service.py:148
+msgid "Data source"
+msgstr "Gegevensbron"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:20
+msgid "Create widget"
+msgstr "Widget maken"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:21
+#, python-format
+msgid "Widget \"%(widget_title)s\" (%(widget_id)s) created"
+msgstr "Widget \"%(widget_title)s\" (%(widget_id)s) aangemaakt"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:83
+msgid "Update widget"
+msgstr "Widget bijwerken"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:84
+#, python-format
+msgid "Widget \"%(widget_title)s\" (%(widget_id)s) updated"
+msgstr "Widget \"%(widget_title)s\" (%(widget_id)s) bijgewerkt"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:154
+msgid "Delete widget"
+msgstr "Widget verwijderen"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:155
+#, python-format
+msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
+msgstr "Widget \"%(widget_title)s\" (%(widget_id)s) verwijderd"
+
+#: src/baserow/contrib/integrations/core/service_types.py:1137
+msgid "Branch taken"
+msgstr "Genomen vertakking"
+
+#: src/baserow/contrib/integrations/core/service_types.py:1142
+msgid "Label"
+msgstr "Label"
+
+#: src/baserow/contrib/integrations/core/service_types.py:1144
+msgid "The label of the branch that matched the condition."
+msgstr "Het label van de vertakking die aan de voorwaarde voldeed."
+
+#: src/baserow/contrib/integrations/core/service_types.py:1555
+msgid "Previous scheduled run"
+msgstr "Vorige geplande uitvoering"
+
+#: src/baserow/contrib/integrations/core/service_types.py:1559
+msgid "Next scheduled run"
+msgstr "Volgende geplande uitvoering"
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:1700
+msgid "No rows found"
+msgstr "Geen rijen gevonden"
+
+#: src/baserow/contrib/integrations/slack/service_types.py:166
+msgid "OK"
+msgstr "OK"

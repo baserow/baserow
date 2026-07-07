@@ -306,7 +306,7 @@
         "supportPairingHeading": "2. Slack 앱과 페어링",
         "supportPairingStep1": "앱이 새로 설치된 경우 '설정' > '앱 설치'로 이동하세요. 녹색 버튼을 클릭하여 앱을 작업 공간에 설치합니다.",
         "supportPairingStep2": "'봇 사용자 OAuth 토큰'을 복사하여 이 양식의 '봇 사용자 토큰' 필드에 저장하세요.",
-        "supportPairingStep3": "마지막으로, 앱이 새로 개발된 경우 Slack에서 {command} 명령어를 사용하여 원하는 채널에 앱을 초대하세요.",
+        "supportPairingStep3": "마지막으로, 앱이 새로 개발된 경우 Slack에서 {command} 명령어를 사용하여 원하는 채널에 앱을 초대하세요",
         "supportSetupStep1Link": "앱 페이지"
     },
     "slackWriteMessageServiceForm": {

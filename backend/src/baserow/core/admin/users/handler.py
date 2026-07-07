@@ -12,6 +12,7 @@ from baserow.core.admin.users.exceptions import (
 )
 from baserow.core.exceptions import IsNotAdminError
 from baserow.core.signals import before_user_deleted
+from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
 from baserow.core.user.exceptions import (
     PasswordDoesNotMatchValidation,
     UserAlreadyExist,
@@ -165,6 +166,33 @@ class UserAdminHandler:
             user.delete()
         except User.DoesNotExist:
             raise UserDoesNotExistException()
+
+    def disable_user_two_factor_auth(self, requesting_user: User, user_id: int):
+        """
+        Removes the configured two-factor authentication of the specified user.
+        This can be used to restore access for users that lost their two-factor
+        device and backup codes.
+
+        :param requesting_user: The user who is making the request, the user
+            must be a staff member or else an exception will be raised.
+        :param user_id: The id of the user whose two-factor authentication must
+            be removed, if they do not exist raises a UserDoesNotExistException.
+        :raises TwoFactorAuthNotConfigured: If the user has no two-factor
+            authentication configured.
+        :return: The user whose two-factor authentication was removed.
+        """
+
+        self._raise_if_not_permitted(requesting_user)
+
+        # Unlike deactivating or deleting, an admin removing their own two-factor
+        # authentication can't lock them out, so self-removal is allowed here.
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise UserDoesNotExistException()
+
+        TwoFactorAuthHandler().disable_for_user(user)
+        return user
 
     @staticmethod
     def _raise_if_not_permitted(requesting_user):

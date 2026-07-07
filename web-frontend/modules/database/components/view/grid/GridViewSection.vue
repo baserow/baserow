@@ -41,6 +41,7 @@
           includeGridViewIdentifierDropdown
         "
         :include-group-by="includeGroupBy"
+        :show-group-by-field-background="!useGroupByRows"
         :read-only="readOnly"
         :store-prefix="storePrefix"
         @field-created="$emit('field-created', $event)"
@@ -62,20 +63,57 @@
       >
         <div class="grid-view__body-inner">
           <GridViewPlaceholder
+            v-if="!useGroupByRows"
             :visible-fields="visibleFields"
             :view="view"
             :include-row-details="includeRowDetails"
             :include-group-by="includeGroupBy"
             :store-prefix="storePrefix"
           ></GridViewPlaceholder>
-          <GridViewGroups
-            v-if="includeGroupBy && activeGroupBys.length > 0"
+          <GridViewGroupByRows
+            v-if="useGroupByRows"
+            ref="rows"
+            :view="view"
+            :rendered-fields="fieldsToRender"
+            :visible-fields="visibleFields"
+            :all-visible-fields="allVisibleFields"
             :all-fields-in-table="allFieldsInTable"
-            :group-by-value-sets="groupByValueSets"
+            :workspace-id="database.workspace.id"
+            :decorations-by-place="decorationsByPlace"
+            :left-offset="fieldsLeftOffset"
+            :include-row-details="includeRowDetails"
+            :read-only="readOnly"
+            :can-add-row="canCreateRow"
+            :focus-entries-by-cell="focusEntriesByCell"
+            :focus-entries-by-row="focusEntriesByRow"
             :store-prefix="storePrefix"
-          ></GridViewGroups>
+            @editing-changed="$emit('editing-changed', $event)"
+            @update="$emit('update', $event)"
+            @paste="$emit('paste', $event)"
+            @edit="$emit('edit', $event)"
+            @cell-mousedown-left="$emit('cell-mousedown-left', $event)"
+            @cell-mouseover="$emit('cell-mouseover', $event)"
+            @cell-mouseup-left="$emit('cell-mouseup-left', $event)"
+            @cell-shift-click="$emit('cell-shift-click', $event)"
+            @cell-selected="$emit('cell-selected', $event)"
+            @selected="$emit('selected', $event)"
+            @unselected="$emit('unselected', $event)"
+            @select="$emit('select', $event)"
+            @unselect="$emit('unselect', $event)"
+            @select-next="$emit('select-next', $event)"
+            @add-row="$emit('add-row', $event)"
+            @add-rows="$emit('add-rows', $event)"
+            @add-row-after="$emit('add-row-after', $event)"
+            @edit-modal="$emit('edit-modal', $event)"
+            @refresh-row="$emit('refresh-row', $event)"
+            @row-dragging="$emit('row-dragging', $event)"
+            @row-hover="$emit('row-hover', $event)"
+            @row-context="$emit('row-context', $event)"
+          ></GridViewGroupByRows>
           <GridViewRows
-            v-if="includeRowDetails || visibleFields.length > 0"
+            v-else-if="
+              !useGroupByRows && (includeRowDetails || visibleFields.length > 0)
+            "
             ref="rows"
             :view="view"
             :rendered-fields="fieldsToRender"
@@ -87,7 +125,6 @@
             :left-offset="fieldsLeftOffset"
             :include-row-details="includeRowDetails"
             :include-group-by="includeGroupBy"
-            :rows-at-end-of-groups="rowsAtEndOfGroups"
             :read-only="readOnly"
             :can-drag="
               $hasPermission(
@@ -96,6 +133,8 @@
                 database.workspace.id
               )
             "
+            :focus-entries-by-cell="focusEntriesByCell"
+            :focus-entries-by-row="focusEntriesByRow"
             :store-prefix="storePrefix"
             @update="$emit('update', $event)"
             @paste="$emit('paste', $event)"
@@ -111,6 +150,7 @@
             @unselect="$emit('unselect', $event)"
             @select-next="$emit('select-next', $event)"
             @add-row-after="$emit('add-row-after', $event)"
+            @editing-changed="$emit('editing-changed', $event)"
             @edit-modal="$emit('edit-modal', $event)"
             @refresh-row="$emit('refresh-row', $event)"
             @row-dragging="$emit('row-dragging', $event)"
@@ -119,19 +159,9 @@
           ></GridViewRows>
           <GridViewRowAdd
             v-if="
-              !readOnly &&
-              (!table.data_sync || table.data_sync.two_way_sync) &&
-              (includeRowDetails || visibleFields.length > 0) &&
-              ($hasPermission(
-                'database.table.create_row',
-                table,
-                database.workspace.id
-              ) ||
-                $hasPermission(
-                  'database.table.view.create_row',
-                  view,
-                  database.workspace.id
-                ))
+              !useGroupByRows &&
+              canCreateRow &&
+              (includeRowDetails || visibleFields.length > 0)
             "
             :visible-fields="visibleFields"
             :include-row-details="includeRowDetails"
@@ -139,7 +169,10 @@
             @add-row="$emit('add-row', $event)"
             @add-rows="$emit('add-rows', $event)"
           ></GridViewRowAdd>
-          <div v-else class="grid-view__row-placeholder"></div>
+          <div
+            v-else-if="!useGroupByRows"
+            class="grid-view__row-placeholder"
+          ></div>
         </div>
       </div>
       <div class="grid-view__foot">
@@ -168,13 +201,12 @@ import debounce from 'lodash/debounce'
 
 import GridViewHead from '@baserow/modules/database/components/view/grid/GridViewHead'
 import GridViewPlaceholder from '@baserow/modules/database/components/view/grid/GridViewPlaceholder'
-import GridViewGroups from '@baserow/modules/database/components/view/grid/GridViewGroups'
 import GridViewRows from '@baserow/modules/database/components/view/grid/GridViewRows'
+import GridViewGroupByRows from '@baserow/modules/database/components/view/grid/GridViewGroupByRows'
 import GridViewRowAdd from '@baserow/modules/database/components/view/grid/GridViewRowAdd'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewFieldFooter from '@baserow/modules/database/components/view/grid/GridViewFieldFooter'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
-import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
 
 export default {
   name: 'GridViewSection',
@@ -182,8 +214,8 @@ export default {
     HorizontalResize,
     GridViewHead,
     GridViewPlaceholder,
-    GridViewGroups,
     GridViewRows,
+    GridViewGroupByRows,
     GridViewRowAdd,
     GridViewFieldFooter,
   },
@@ -242,6 +274,16 @@ export default {
       required: false,
       default: () => false,
     },
+    focusEntriesByCell: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
+    },
+    focusEntriesByRow: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
+    },
     readOnly: {
       type: Boolean,
       required: true,
@@ -265,6 +307,7 @@ export default {
     'add-rows',
     'add-row-after',
     'edit-modal',
+    'editing-changed',
     'refresh-row',
     'row-dragging',
     'row-hover',
@@ -299,6 +342,9 @@ export default {
       if (this.includeRowDetails) {
         width += this.gridViewRowDetailsWidth
       }
+      if (this.includeGroupBy) {
+        width += this.activeGroupByWidth
+      }
 
       // The add button has a width of 100 and we reserve 100 at the right side.
       if (this.includeAddField) {
@@ -322,139 +368,24 @@ export default {
 
       return dividers
     },
-    /**
-     * Computes an object that can be used by the `GridViewGroups` and `GridViewRows`
-     * components to correctly visualize the groups. Even though both components need
-     * different data, we're computing it in the same function because having only one
-     * loop is more efficient.
-     *
-     * groupBySets:
-     *
-     * Every entry in the array represents a group, and contains a list of spans, which
-     * are essentially a row span of the rows in that group.
-     *
-     * [
-     *   {
-     *     "groupBy": object,
-     *     "groupSpans": [
-     *       {
-     *         "rowSpan": 10,
-     *         "value": any,
-     *       },
-     *       ...
-     *     ]
-     *   },
-     *   ...
-     * ]
-     *
-     * rowsAtEndOfGroups:
-     *
-     * Indicates whether the row is the start or end of the last group. This is needed
-     * to add a visual divider
-     *
-     * [1, 2]
-     *
-     */
-    groupBySetsAndRowsAtEndOfGroups() {
-      const groupBys = this.activeGroupBys
-      const metadata = this.groupByMetadata
-      const rows = this.allRows
-      const rowsAtEndOfGroups = new Set()
-
-      const groupBySets = groupBys.map((groupBy, groupByIndex) => {
-        const groupSpans = []
-        let lastGroup = null
-
-        rows.forEach((row, index) => {
-          const previousRow = rows[index - 1]
-          const nextRow = rows[index + 1]
-
-          /**
-           * Helper function that checks whether the value is the same for both rows in
-           * this group, but also the previous ones. This is needed because we need to
-           * start a new group if the previous value doesn't match.
-           */
-          const checkIfInSameGroup = (row1, row2) => {
-            if (row1 === undefined || row2 === undefined) {
-              return false
-            }
-            return groupBys.slice(0, groupByIndex + 1).every((groupBy) => {
-              const groupByField = this.allFieldsInTable.find(
-                (f) => f.id === groupBy.field
-              )
-              if (!groupByField) {
-                return false
-              }
-              const groupByFieldType = this.$registry.get(
-                'field',
-                groupByField.type
-              )
-              return groupByFieldType.isEqual(
-                groupByField,
-                row1[`field_${groupBy.field}`],
-                row2[`field_${groupBy.field}`]
-              )
-            })
-          }
-
-          if (!checkIfInSameGroup(previousRow, row)) {
-            // The group by metadata is a dict where the key is equal to the group by,
-            // and the value an array containing the count for each unique value
-            // combination. Below we're looking through the entries to find the
-            // matching count for the row values.
-            const count =
-              (metadata[`field_${groupBy.field}`] || []).find((entry) => {
-                const groupByFields = groupBys
-                  .slice(0, groupByIndex + 1)
-                  .map((groupBy) =>
-                    this.allFieldsInTable.find((f) => f.id === groupBy.field)
-                  )
-                  .filter(Boolean)
-                return fieldValuesAreEqualInObjects(
-                  groupByFields,
-                  this.$registry,
-                  entry,
-                  row,
-                  true
-                )
-              })?.count || -1
-
-            // If the start of a group, then create a new span object in the last.
-            lastGroup = {
-              rowSpan: 1,
-              value: row[`field_${groupBy.field}`],
-              count,
-            }
-          } else {
-            // If the value hasn't changed, it means that this row falls within the
-            // already started group, to we have to increase the row span.
-            lastGroup.rowSpan += 1
-          }
-
-          if (!checkIfInSameGroup(row, nextRow)) {
-            // If the group ends, it must be added to the array.
-            groupSpans.push(lastGroup)
-            lastGroup = null
-
-            // If we're at the last group, we want to store whether the row is last so
-            // that we can visually show divider. This is only needed for the last group
-            // because that's where the divider must match the one with the group.
-            if (groupByIndex === groupBys.length - 1) {
-              rowsAtEndOfGroups.add(row.id)
-            }
-          }
-        })
-
-        return { groupBy, groupSpans }
-      })
-
-      return { groupBySets, rowsAtEndOfGroups }
+    useGroupByRows() {
+      return this.activeGroupBys.length > 0
     },
-    groupByValueSets() {
-      return this.groupBySetsAndRowsAtEndOfGroups.groupBySets
-    },
-    rowsAtEndOfGroups() {
-      return this.groupBySetsAndRowsAtEndOfGroups.rowsAtEndOfGroups
+    canCreateRow() {
+      return (
+        !this.readOnly &&
+        (!this.table.data_sync || this.table.data_sync.two_way_sync) &&
+        (this.$hasPermission(
+          'database.table.create_row',
+          this.table,
+          this.database.workspace.id
+        ) ||
+          this.$hasPermission(
+            'database.table.view.create_row',
+            this.view,
+            this.database.workspace.id
+          ))
+      )
     },
     isMultiSelectHolding() {
       return this.$store.getters[
@@ -463,14 +394,6 @@ export default {
     },
     count() {
       return this.$store.getters[this.storePrefix + 'view/grid/getCount']
-    },
-    allRows() {
-      return this.$store.getters[this.storePrefix + 'view/grid/getAllRows']
-    },
-    groupByMetadata() {
-      return this.$store.getters[
-        this.storePrefix + 'view/grid/getGroupByMetadata'
-      ]
     },
   },
   watch: {
@@ -487,20 +410,6 @@ export default {
       },
     },
   },
-  /*beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        isMultiSelectHolding:
-          this.$options.propsData.storePrefix +
-          'view/grid/isMultiSelectHolding',
-        count: this.$options.propsData.storePrefix + 'view/grid/getCount',
-        allRows: this.$options.propsData.storePrefix + 'view/grid/getAllRows',
-        groupByMetadata:
-          this.$options.propsData.storePrefix + 'view/grid/getGroupByMetadata',
-      }),
-    }
-  },*/
   mounted() {
     // When the component first loads, we need to check
     this.updateVisibleFieldsInRow()

@@ -1,7 +1,7 @@
 import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import ChatwootSupportSidebarWorkspace from '@baserow_enterprise/components/ChatwootSupportSidebarWorkspace'
 import AuditLogSidebarWorkspace from '@baserow_enterprise/components/AuditLogSidebarWorkspace'
-import MemberRolesDatabaseContextItem from '@baserow_enterprise/components/member-roles/MemberRolesDatabaseContextItem'
+import MemberRolesApplicationContextItem from '@baserow_enterprise/components/member-roles/MemberRolesApplicationContextItem'
 import MemberRolesTableContextItem from '@baserow_enterprise/components/member-roles/MemberRolesTableContextItem'
 import MemberRolesViewContextItem from '@baserow_enterprise/components/member-roles/MemberRolesViewContextItem'
 import EnterpriseFeatures from '@baserow_enterprise/features'
@@ -33,36 +33,39 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   getAdditionalApplicationContextComponents(workspace, application) {
-    const additionalComponents = []
+    const applicationComponents = []
     const hasReadRolePermission = this.app.$hasPermission(
       'application.read_role',
       application,
       workspace.id
     )
-    if (
-      hasReadRolePermission &&
-      application.type === DatabaseApplicationType.getType()
-    ) {
-      additionalComponents.push(MemberRolesDatabaseContextItem)
+    if (hasReadRolePermission) {
+      applicationComponents.push(MemberRolesApplicationContextItem)
     }
-    return additionalComponents
+
+    return applicationComponents
+  }
+
+  getAdditionalApplicationChildContextComponents(workspace, application, item) {
+    if (application.type !== DatabaseApplicationType.getType()) {
+      return []
+    }
+
+    const databaseComponents = []
+    if (
+      this.app.$hasPermission('database.table.read_role', item, workspace.id)
+    ) {
+      databaseComponents.push(MemberRolesTableContextItem)
+    }
+    databaseComponents.push(DateDependencyMenuItem)
+
+    return databaseComponents
   }
 
   getRightSidebarWorkspaceComponents(workspace) {
     const rightSidebarItems = []
     rightSidebarItems.push(AssistantPanel)
     return rightSidebarItems
-  }
-
-  getAdditionalTableContextComponents(workspace, table) {
-    const out = []
-    if (
-      this.app.$hasPermission('database.table.read_role', table, workspace.id)
-    ) {
-      out.push(MemberRolesTableContextItem)
-    }
-    out.push(DateDependencyMenuItem)
-    return out
   }
 
   getGridViewFieldTypeIconsBefore(workspace, view, field) {
@@ -170,7 +173,7 @@ export class EnterprisePlugin extends BaserowPlugin {
           crossorigin,
           defer: s.load_type === 'defer',
           async: s.load_type === 'async',
-          body: true,
+          tagPosition: 'bodyClose',
         })
       }
 
@@ -179,7 +182,7 @@ export class EnterprisePlugin extends BaserowPlugin {
           rel: 'stylesheet',
           href: s.url,
           crossorigin,
-          body: true,
+          tagPosition: 'bodyClose',
         })
       }
     })
@@ -188,14 +191,14 @@ export class EnterprisePlugin extends BaserowPlugin {
       link.push({
         rel: 'stylesheet',
         href: css,
-        body: true,
+        tagPosition: 'bodyClose',
       })
     }
     if (builder.custom_code.js) {
       script.push({
         src: js,
         defer: true,
-        body: true,
+        tagPosition: 'bodyClose',
       })
     }
 

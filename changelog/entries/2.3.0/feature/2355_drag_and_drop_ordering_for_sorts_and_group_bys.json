@@ -1,0 +1,9 @@
+{
+  "type": "feature",
+  "message": "Drag and drop ordering of sortings and group bys.",
+  "issue_origin": "github",
+  "issue_number": 2355,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-05-07"
+}

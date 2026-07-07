@@ -313,9 +313,12 @@ def test_list_tables_with_data_sync(api_client, data_fixture):
         assert response_json[0]["data_sync"] == {
             "id": data_sync_1.id,
             "type": "ical_calendar",
+            "table_id": data_sync_1.table_id,
+            "database_id": data_sync_1.table.database_id,
             "last_sync": None,
             "last_error": None,
             "auto_add_new_properties": False,
+            "delete_unmatched_rows": True,
             "two_way_sync": False,
             "synced_properties": [
                 {"field_id": fields[0].id, "key": "uid", "unique_primary": True},
@@ -481,6 +484,56 @@ def test_create_table_with_data(
                 ["2-1", "2-2", "2-3"],
                 ["3-1", "3-2"],
             ]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "invalid_data",
+    [[None], [1], ["string"], [[]]],
+)
+def test_create_table_with_invalid_data_shape_async(
+    api_client, data_fixture, patch_filefield_storage, invalid_data
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    url = reverse(
+        "api:database:tables:async_create", kwargs={"database_id": database.id}
+    )
+
+    with patch_filefield_storage():
+        response = api_client.post(
+            url,
+            {"name": "Test", "data": invalid_data, "first_row_header": False},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "invalid_data",
+    [[None], [1], ["string"], [[]]],
+)
+def test_create_table_with_invalid_data_shape_sync(
+    api_client, data_fixture, patch_filefield_storage, invalid_data
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    url = reverse("api:database:tables:list", kwargs={"database_id": database.id})
+
+    with patch_filefield_storage():
+        response = api_client.post(
+            url,
+            {"name": "Test", "data": invalid_data, "first_row_header": False},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1016,3 +1069,27 @@ def test_import_table_call(api_client, data_fixture):
             },
         },
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "invalid_data",
+    [[None], [1], ["string"], [[]]],
+)
+def test_import_table_with_invalid_data_shape(api_client, data_fixture, invalid_data):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, user=user)
+
+    url = reverse("api:database:tables:import_async", kwargs={"table_id": table.id})
+
+    response = api_client.post(
+        url,
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        data={"data": invalid_data},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

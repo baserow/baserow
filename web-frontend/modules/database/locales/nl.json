@@ -73,7 +73,8 @@
         "lastSynced": "Laatst gesynchroniseerd",
         "notSynced": "niet gesynchroniseerd",
         "sync": "Sync tabel",
-        "updateSyncConfig": "Sync-configuratie bijwerken"
+        "updateSyncConfig": "Sync-configuratie bijwerken",
+        "importFile": "Bestand importeren"
     },
     "apiToken": {
         "create": "aanmaken",
@@ -278,7 +279,8 @@
         "dbIndexError": "Dit veldtype kan geen index hebben. Verwijder deze voordat u het veldtype opslaat of wijzigt.",
         "dbIndexDescription": "Indexeren kan de filterprestaties aanzienlijk verbeteren, maar vertraagt het maken, bijwerken en verwijderen.",
         "defaultValueDisabledByConstraint": "Kan geen standaardwaarde instellen met een unieke beperking",
-        "dbIndexDisabledTooltip": "Indexering is niet beschikbaar voor dit veldtype."
+        "dbIndexDisabledTooltip": "Indexering is niet beschikbaar voor dit veldtype.",
+        "defaultValueOverriddenByView": "Er is een standaardwaarde op weergaveniveau ingesteld voor dit veld; die krijgt voorrang op deze standaardwaarde."
     },
     "fieldLookupSubForm": {
         "noTable": "Je hebt minstens één link-rij veld nodig om een lookup veld te maken.",
@@ -396,7 +398,8 @@
         "changeImporterType": "Importtype wijzigen",
         "defaultName": "Tabel",
         "useUpsertField": "Rijen bijwerken als ze al bestaan",
-        "upsertTooltip": "Overeenkomen met bestaande rijen met behulp van een uniek veld om gegevens met geïmporteerde waarden te overschrijven."
+        "upsertTooltip": "Overeenkomen met bestaande rijen met behulp van een uniek veld om gegevens met geïmporteerde waarden te overschrijven.",
+        "restoredFile": "Bestand \"{name}\" wordt geïmporteerd..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Klik om de formule te bewerken",
@@ -591,7 +594,9 @@
     },
     "exportTableForm": {
         "viewLabel": "Selecteer de weergave die je wil exporteren:",
-        "typeError": "Geen exporttype beschikbaar, kies een andere weergave of een volledige tabel."
+        "typeError": "Geen exporttype beschikbaar, kies een andere weergave of een volledige tabel.",
+        "includeRowId": "Rij-ID opnemen",
+        "includePrimaryField": "Primair veld opnemen"
     },
     "exportTableLoadingBar": {
         "export": "Exporteren",
@@ -912,7 +917,10 @@
         "addGroupBy": "kies een veld om op te sorteren",
         "noGroupByTitle": "Je hebt nog geen groepen gemaakt",
         "noGroupByText": "Groepeer rijen op een veld.",
-        "hiddenFieldWarning": "Een of meer groeperingen verwijzen naar verborgen velden die niet zichtbaar zijn voor editors en gebruikers met een lagere rol."
+        "hiddenFieldWarning": "Een of meer groeperingen verwijzen naar verborgen velden die niet zichtbaar zijn voor editors en gebruikers met een lagere rol.",
+        "maxGroupBysReached": "Je kunt op maximaal {count} velden groeperen.",
+        "collapseAllGroups": "Alles inklappen",
+        "expandAllGroups": "Alles uitklappen"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} heeft u toegewezen aan {fieldName} in rij {rowId} in {tableName}",
@@ -1077,7 +1085,8 @@
         "statePreValidation": "Valideren van gegevens...",
         "importError": "Er is iets misgegaan tijdens het importeren van het bestand",
         "preparing": "Voorbereiden van data...",
-        "stateCreateTable": "Tabel maken..."
+        "stateCreateTable": "Tabel maken...",
+        "importingTable": "Tabel \"{name}\" wordt geïmporteerd..."
     },
     "importErrorReport": {
         "reportTitleFailure": "Mislukte rijen",
@@ -1100,7 +1109,10 @@
         "next": "Volgende",
         "autoAddLabel": "Automatisch nieuwe eigenschappen toevoegen",
         "autoAddHelper": "Voegt automatisch nieuw beschikbare eigenschappen toe aan de tabel en synchroniseert deze. Merk op dat om dit te laten werken, alle eigenschappen gesynchroniseerd moeten zijn.",
-        "twoWaySyncLabel": "Bidirectionele synchronisatie"
+        "twoWaySyncLabel": "Bidirectionele synchronisatie",
+        "deleteUnmatchedRowsLabel": "Verwijder rijen wanneer ze in de bron worden verwijderd of verborgen",
+        "deleteUnmatchedRowsHelper": "Indien ingeschakeld worden rijen die in de bron zijn verwijderd of niet meer zichtbaar zijn, bij elke synchronisatie ook uit deze tabel verwijderd. Indien uitgeschakeld blijven die rijen behouden en worden ze hergebruikt als de bronrij opnieuw verschijnt.",
+        "syncing": "Gegevens synchroniseren..."
     },
     "syncTableModal": {
         "title": "Sync {name}",
@@ -1222,5 +1234,25 @@
     "gridViewFreezeHandle": {
         "freeze": "0 kolommen vastzetten | 1 kolom vastzetten | {count} kolommen vastzetten",
         "hoverHint": "Sleep om kolommen vast te zetten"
+    },
+    "tableExcelImporter": {
+        "chooseFileLabel": "Kies Excel-bestand",
+        "chooseFileDescription": "Je kunt een bestaande spreadsheet importeren door een .xlsx-, .xls- of .ods-bestand te uploaden. Als het bestand meerdere werkbladen bevat, kun je kiezen welk werkblad je wilt importeren.",
+        "chooseFile": "Kies Excel-bestand",
+        "sheet": "Werkblad",
+        "firstRowHeader": "Eerste rij is header",
+        "limitFileSize": "De maximale bestandsgrootte is {limit}MB.",
+        "limitError": "Het is niet mogelijk om meer dan {limit} rijen te importeren.",
+        "processingError": "Er is een fout opgetreden tijdens het verwerken van het Excel-bestand: {error}",
+        "emptyError": "Dit Excel-bestand bevat geen werkbladen.",
+        "emptySheetError": "Het geselecteerde werkblad is leeg."
+    },
+    "viewSearch": {
+        "clearSearch": "Zoekopdracht wissen"
+    },
+    "gridViewGroupByBanner": {
+        "emptyValue": "(Leeg)",
+        "expandGroup": "Groep uitklappen",
+        "collapseGroup": "Groep inklappen"
     }
 }

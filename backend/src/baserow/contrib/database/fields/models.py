@@ -730,18 +730,17 @@ class FormulaField(Field):
         return FormulaHandler.get_formula_type_from_field(self)
 
     def clear_cached_properties(self):
-        try:
-            # noinspection PyPropertyAccess
-            del self.cached_untyped_expression
-        except AttributeError:
-            # It has not been cached yet so nothing to deleted.
-            pass
-        try:
-            # noinspection PyPropertyAccess
-            del self.cached_formula_type
-        except AttributeError:
-            # It has not been cached yet so nothing to deleted.
-            pass
+        for attr in (
+            "cached_untyped_expression",
+            "cached_typed_internal_expression",
+            "cached_formula_type",
+        ):
+            try:
+                # noinspection PyPropertyAccess
+                delattr(self, attr)
+            except AttributeError:
+                # It has not been cached yet so nothing to delete.
+                pass
 
     def recalculate_internal_fields(self, raise_if_invalid=False, field_cache=None):
         self.clear_cached_properties()
@@ -781,6 +780,9 @@ class FormulaField(Field):
                 field_cache=field_cache, raise_if_invalid=raise_if_invalid
             )
         super().save(*args, **kwargs)
+        # Keep field_cache consistent to avoid stale type info downstream. See GH #5371.
+        if field_cache is not None:
+            field_cache.cache_field(self)
 
     def refresh_from_db(self, *args, **kwargs) -> None:
         super().refresh_from_db(*args, **kwargs)

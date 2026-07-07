@@ -79,7 +79,7 @@ class AutomationDispatchContext(DispatchContext):
         """
         Compute the current iteration path for the given node.
         """
-        parent_nodes = node.get_parent_nodes()
+        parent_nodes = node.get_parent_points()
 
         return ".".join([str(self.current_iterations[p.id]) for p in parent_nodes])
 

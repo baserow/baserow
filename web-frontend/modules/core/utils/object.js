@@ -183,3 +183,34 @@ export function setValueAtPath(obj, path, value) {
     }
   }
 }
+
+/**
+ * Deeply deletes a value in an object (or array) from a dotted path string.
+ * Missing intermediate parts are ignored.
+ *
+ * @param {Object} obj - The object we want to update.
+ * @param {String} path - The path, delimited by periods, to the value.
+ */
+export function deleteValueAtPath(obj, path) {
+  const keys = path.split('.')
+  const lastKey = keys.pop()
+  let current = obj
+
+  for (const key of keys) {
+    if (current === null || typeof current !== 'object' || !(key in current)) {
+      return
+    }
+
+    current = current[key]
+  }
+
+  if (current === null || typeof current !== 'object') {
+    return
+  }
+
+  if (Array.isArray(current) && /^\d+$/.test(lastKey)) {
+    current.splice(Number(lastKey), 1)
+  } else {
+    delete current[lastKey]
+  }
+}

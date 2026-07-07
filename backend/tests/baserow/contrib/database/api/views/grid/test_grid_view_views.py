@@ -297,7 +297,9 @@ def test_list_rows_with_group_by(api_client, data_fixture):
     )
 
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
-    response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})
+    response = api_client.get(
+        f"{url}?include=group_by_metadata", **{"HTTP_AUTHORIZATION": f"JWT {token}"}
+    )
     response_json = response.json()
 
     assert response_json["group_by_metadata"] == {
@@ -454,7 +456,9 @@ def test_list_rows_with_group_by_with_filter(api_client, data_fixture):
     )
 
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
-    response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})
+    response = api_client.get(
+        f"{url}?include=group_by_metadata", **{"HTTP_AUTHORIZATION": f"JWT {token}"}
+    )
     response_json = response.json()
 
     assert response_json["group_by_metadata"] == {
@@ -3315,6 +3319,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "order": "ASC",
                     "type": "default",
                     "view": grid_view.slug,
+                    "priority": hidden_sort.priority,
                 },
                 {
                     "field": visible_sort.field.id,
@@ -3322,6 +3327,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "order": "DESC",
                     "type": "default",
                     "view": grid_view.slug,
+                    "priority": visible_sort.priority,
                 },
             ],
             "group_bys": [
@@ -3332,6 +3338,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "view": grid_view.slug,
                     "width": 200,
                     "type": "default",
+                    "priority": hidden_group_by.priority,
                 },
                 {
                     "field": visible_group_by.field.id,
@@ -3340,6 +3347,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "view": grid_view.slug,
                     "width": 200,
                     "type": "default",
+                    "priority": visible_group_by.priority,
                 },
             ],
             "table": {
@@ -3858,7 +3866,7 @@ def test_list_rows_public_with_query_param_group_by(api_client, data_fixture):
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     response = api_client.get(
-        f"{url}?group_by=field_{public_field.id}",
+        f"{url}?group_by=field_{public_field.id}&include=group_by_metadata",
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -3948,7 +3956,7 @@ def test_list_rows_public_with_query_param_group_by_hidden_field_with_stored_gro
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     response = api_client.get(
-        f"{url}?group_by=field_{hidden_field.id}",
+        f"{url}?group_by=field_{hidden_field.id}&include=group_by_metadata",
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4009,7 +4017,7 @@ def test_list_rows_public_with_query_param_group_by_and_empty_order_by(
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     response = api_client.get(
-        f"{url}?group_by=field_{public_field.id}&order_by=",
+        f"{url}?group_by=field_{public_field.id}&order_by=&include=group_by_metadata",
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK

@@ -8,7 +8,7 @@ export class Field {
     public name: string,
     public type: string,
     public table: Table,
-    public fieldSettings: any
+    public fieldSettings: any,
   ) {}
 
   get primary(): boolean {
@@ -21,7 +21,7 @@ export async function createField(
   fieldName: string,
   type: string,
   fieldSettings: any,
-  table: Table
+  table: Table,
 ): Promise<Field> {
   const response: any = await getClient(user).post(
     `database/fields/table/${table.id}/`,
@@ -29,16 +29,15 @@ export async function createField(
       name: fieldName,
       type: type,
       ...fieldSettings,
-    }
+    },
   );
   const field1 = new Field(
     response.data.id,
     response.data.name,
     response.data.type,
     table,
-    response.data
+    response.data,
   );
-  console.log(`created field ${field1.name} in ${field1.table.name}`);
   return field1;
 }
 
@@ -47,7 +46,7 @@ export async function updateField(
   fieldName: string,
   type: string,
   fieldSettings: any,
-  field: Field
+  field: Field,
 ): Promise<Field> {
   const data = {
     name: fieldName,
@@ -56,30 +55,28 @@ export async function updateField(
   };
   const response: any = await getClient(user).patch(
     `database/fields/${field.id}/`,
-    data
+    data,
   );
   const f = new Field(
     response.data.id,
     response.data.name,
     response.data.type,
     field.table,
-    response.data
+    response.data,
   );
-  console.log(`update field ${field.name} in ${f.name} in ${f.table.name}`);
   return f;
 }
 
 export async function deleteField(user: User, field: Field): Promise<void> {
-  console.log(`deleting field ${field.name} in ${field.table.name}`);
   await getClient(user).delete(`database/fields/${field.id}/`);
 }
 
 export async function getFieldsForTable(
   user: User,
-  table: Table
+  table: Table,
 ): Promise<Field[]> {
   const response: any = await getClient(user).get(
-    `database/fields/table/${table.id}/`
+    `database/fields/table/${table.id}/`,
   );
   return response.data.map((f) => {
     return new Field(f.id, f.name, f.type, table, f);
@@ -88,9 +85,10 @@ export async function getFieldsForTable(
 
 export async function deleteAllNonPrimaryFieldsFromTable(
   user: User,
-  table: Table
+  table: Table,
 ): Promise<void> {
-  (await getFieldsForTable(user, table))
-    .filter((f) => !f.primary)
-    .forEach((f) => deleteField(user, f));
+  const fields = (await getFieldsForTable(user, table)).filter(
+    (f) => !f.primary,
+  );
+  await Promise.all(fields.map((f) => deleteField(user, f)));
 }

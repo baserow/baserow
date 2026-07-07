@@ -9,6 +9,7 @@ import {
 } from '@baserow/modules/database/utils/duration'
 import {
   collatedStringCompare,
+  escapeHtml,
   getFilenameFromUrl,
   isInteger,
   isSimplePhoneNumber,
@@ -114,7 +115,10 @@ import RowCardFieldEmail from '@baserow/modules/database/components/card/RowCard
 import RowCardFieldFile from '@baserow/modules/database/components/card/RowCardFieldFile'
 import RowCardFieldFormula from '@baserow/modules/database/components/card/RowCardFieldFormula'
 import RowCardFieldLinkRow from '@baserow/modules/database/components/card/RowCardFieldLinkRow'
+import GridViewGroupValueBoolean from '@baserow/modules/database/components/view/grid/GridViewGroupValueBoolean'
 import GridViewGroupValueLinkRow from '@baserow/modules/database/components/view/grid/GridViewGroupValueLinkRow'
+import GridViewGroupValueMultipleCollaborators from '@baserow/modules/database/components/view/grid/GridViewGroupValueMultipleCollaborators'
+import GridViewGroupValueMultipleSelect from '@baserow/modules/database/components/view/grid/GridViewGroupValueMultipleSelect'
 import RowCardFieldMultipleSelect from '@baserow/modules/database/components/card/RowCardFieldMultipleSelect'
 import RowCardFieldNumber from '@baserow/modules/database/components/card/RowCardFieldNumber'
 import RowCardFieldRating from '@baserow/modules/database/components/card/RowCardFieldRating'
@@ -159,6 +163,7 @@ import {
   genericContainsFilter,
   genericContainsWordFilter,
   genericHasValueEqualFilter,
+  genericStartsWithFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
 import GridViewFieldFormula from '@baserow/modules/database/components/view/grid/fields/GridViewFieldFormula'
 import FieldFormulaSubForm from '@baserow/modules/database/components/field/FieldFormulaSubForm'
@@ -411,7 +416,8 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Should return true if the provided value is empty.
+   * Returns true if the value is empty. Shared by the conditional-visibility
+   * filters and required form validation so the two stay in sync.
    */
   isEmpty(field, value) {
     const isEmptyValue = (v) => {
@@ -763,6 +769,13 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Should return a starts with filter function unique for this field type.
+   */
+  getStartsWithFilterFunction(field) {
+    return (rowValue, humanReadableRowValue, filterValue) => false
+  }
+
+  /**
    * Converts rowValue to its human readable form first before applying the
    * filter returned from getContainsFilterFunction.
    */
@@ -802,6 +815,25 @@ export class FieldType extends Registerable {
       this.getContainsWordFilterFunction(field)(
         rowValue,
         this.toHumanReadableString(field, rowValue),
+        filterValue
+      )
+    )
+  }
+
+  /**
+   * Converts rowValue to its searchable form first before applying the filter
+   * returned from getStartsWithFilterFunction. We use `toSearchableString` rather
+   * than `toHumanReadableString` so the real-time match stays consistent with the
+   * backend, which filters on the raw value and knows nothing about display
+   * formatting (e.g. a number's prefix or thousands separator would otherwise
+   * break the start-anchored match).
+   */
+  startsWithFilter(rowValue, filterValue, field) {
+    return (
+      filterValue === '' ||
+      this.getStartsWithFilterFunction(field)(
+        rowValue,
+        this.toSearchableString(field, rowValue),
         filterValue
       )
     )
@@ -1204,6 +1236,10 @@ export class TextFieldType extends FieldType {
     return genericContainsWordFilter
   }
 
+  getStartsWithFilterFunction() {
+    return genericStartsWithFilter
+  }
+
   canBeReferencedByFormulaField() {
     return true
   }
@@ -1322,6 +1358,10 @@ export class LongTextFieldType extends FieldType {
 
   getContainsWordFilterFunction(field) {
     return genericContainsWordFilter
+  }
+
+  getStartsWithFilterFunction() {
+    return genericStartsWithFilter
   }
 
   canBeReferencedByFormulaField() {
@@ -1719,16 +1759,17 @@ export class LinkRowFieldType extends FieldType {
     return true
   }
 
+  /**
+   * A link_row is empty only when no row is selected. A picked row counts as
+   * filled even when its primary is empty, which matches the backend, where the
+   * field is a many-to-many relation. Slots without a real id stay empty.
+   */
   isEmpty(field, value) {
-    if (super.isEmpty(field, value)) {
-      return true
-    }
-
-    if (value.some((v) => !Number.isInteger(v.id))) {
-      return true
-    }
-
-    return false
+    return (
+      !Array.isArray(value) ||
+      value.length === 0 ||
+      value.every((v) => !Number.isInteger(v.id))
+    )
   }
 
   shouldRefetchFieldData(field, rows) {
@@ -1931,6 +1972,10 @@ export class NumberFieldType extends FieldType {
     return genericContainsFilter
   }
 
+  getStartsWithFilterFunction() {
+    return genericStartsWithFilter
+  }
+
   canBeReferencedByFormulaField() {
     return true
   }
@@ -1957,6 +2002,13 @@ export class NumberFieldType extends FieldType {
 
   prepareValueForUpdate(field, value) {
     return parseNumberValue(field, value)
+  }
+
+  prepareValueForDuplicate(field, value) {
+    if (value == null || value === '') {
+      return null
+    }
+    return parseNumberValue(field, new BigNumber(value))
   }
 
   parseFromLinkedRowItemValue(field, value) {
@@ -2198,6 +2250,10 @@ export class BooleanFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldBoolean
+  }
+
+  getGroupByComponent() {
+    return GridViewGroupValueBoolean
   }
 
   getRowHistoryEntryComponent() {
@@ -3270,6 +3326,10 @@ export class URLFieldType extends FieldType {
     return genericContainsWordFilter
   }
 
+  getStartsWithFilterFunction() {
+    return genericStartsWithFilter
+  }
+
   canParseQueryParameter() {
     return true
   }
@@ -3374,6 +3434,10 @@ export class EmailFieldType extends FieldType {
 
   getContainsWordFilterFunction(field) {
     return genericContainsWordFilter
+  }
+
+  getStartsWithFilterFunction() {
+    return genericStartsWithFilter
   }
 
   canBeReferencedByFormulaField() {
@@ -3790,7 +3854,9 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
           // @TODO move this template to a component.
           `<div class="select-options-listing">
               <div class="select-options-listing__id">${option.id}</div>
-              <div class="select-options-listing__value background-color--${option.color}">${option.value}</div>
+              <div class="select-options-listing__value background-color--${escapeHtml(
+                option.color
+              )}">${escapeHtml(option.value)}</div>
            </div>
           `
       )
@@ -3821,6 +3887,10 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
 
   getContainsWordFilterFunction(field) {
     return genericContainsWordFilter
+  }
+
+  getStartsWithFilterFunction() {
+    return genericStartsWithFilter
   }
 
   canBeReferencedByFormulaField() {
@@ -3939,6 +4009,10 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
 
   getCardComponent() {
     return RowCardFieldMultipleSelect
+  }
+
+  getGroupByComponent() {
+    return GridViewGroupValueMultipleSelect
   }
 
   getRowHistoryEntryComponent() {
@@ -4080,7 +4154,9 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
           // @TODO move this template to a component.
           `<div class="select-options-listing">
               <div class="select-options-listing__id">${option.id}</div>
-              <div class="select-options-listing__value background-color--${option.color}">${option.value}</div>
+              <div class="select-options-listing__value background-color--${escapeHtml(
+                option.color
+              )}">${escapeHtml(option.value)}</div>
            </div>
           `
       )
@@ -4289,6 +4365,10 @@ export class PhoneNumberFieldType extends FieldType {
     return genericContainsFilter
   }
 
+  getStartsWithFilterFunction() {
+    return genericStartsWithFilter
+  }
+
   canBeReferencedByFormulaField() {
     return true
   }
@@ -4381,6 +4461,14 @@ export class FormulaFieldType extends mix(
     return RowCardFieldFormula
   }
 
+  getGroupByComponent(field) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this._mapFormulaTypeToFieldType(field.formula_type)
+    )
+    return underlyingFieldType.getGroupByComponent(field)
+  }
+
   getFilterInputComponent(field, filterType) {
     return this.getFormulaType(field)?.getFilterInputComponent(
       field,
@@ -4446,6 +4534,19 @@ export class FormulaFieldType extends mix(
       this._mapFormulaTypeToFieldType(field.formula_type)
     )
     return underlyingFieldType.getContainsWordFilterFunction()
+  }
+
+  /**
+   * Delegate to the underlying field type so the searchable-string conversion
+   * (e.g. a number's raw value vs its formatted display) stays consistent with
+   * the backend, matching how starts_with_query is delegated on the backend.
+   */
+  startsWithFilter(rowValue, filterValue, field) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this._mapFormulaTypeToFieldType(field.formula_type)
+    )
+    return underlyingFieldType.startsWithFilter(rowValue, filterValue, field)
   }
 
   toHumanReadableString(field, value) {
@@ -4651,6 +4752,10 @@ export class MultipleCollaboratorsFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldMultipleCollaborators
+  }
+
+  getGroupByComponent() {
+    return GridViewGroupValueMultipleCollaborators
   }
 
   getRowHistoryEntryComponent() {
@@ -5050,6 +5155,10 @@ export class AutonumberFieldType extends FieldType {
 
   getContainsFilterFunction() {
     return genericContainsFilter
+  }
+
+  getStartsWithFilterFunction() {
+    return genericStartsWithFilter
   }
 
   canBeReferencedByFormulaField() {

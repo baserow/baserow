@@ -1,4 +1,6 @@
 import {
+  ensureUrlProtocol,
+  getUrlScheme,
   isRelativeUrl,
   parseHostnamesFromUrls,
 } from '@baserow/modules/core/utils/url'
@@ -117,6 +119,58 @@ describe('test url utils', () => {
       expect(isValidAbsoluteURL(url)).toBe(false)
     })
   })
+  describe('getUrlScheme', () => {
+    test.each([
+      ['https://example.com', 'https:'],
+      ['HTTP://example.com', 'http:'],
+      ['mailto:a@b.com', 'mailto:'],
+      ['javascript:alert(1)', 'javascript:'],
+      ['JavaScript:alert(1)', 'javascript:'],
+      [' javascript:alert(1)', 'javascript:'],
+      ['\tjavascript:alert(1)', 'javascript:'],
+      ['java\tscript:alert(1)', 'javascript:'],
+      ['data:text/html,x', 'data:'],
+      ['example.com', null],
+      ['/relative/path', null],
+      ['#anchor', null],
+      ['', null],
+    ])('getUrlScheme(%j)', (input, expected) => {
+      expect(getUrlScheme(input)).toBe(expected)
+    })
+  })
+
+  describe('ensureUrlProtocol', () => {
+    test.each([
+      ['example.com', 'https://example.com'],
+      ['www.example.com/path?q=1', 'https://www.example.com/path?q=1'],
+      ['http://example.com', 'http://example.com'],
+      ['https://example.com', 'https://example.com'],
+      ['ftp://example.com/file.txt', 'ftp://example.com/file.txt'],
+      ['ftps://example.com/file.txt', 'ftps://example.com/file.txt'],
+      ['mailto:a@b.com', 'mailto:a@b.com'],
+      ['tel:+123456', 'tel:+123456'],
+      ['sms:+123456', 'sms:+123456'],
+      ['//cdn.example.com/lib.js', 'https://cdn.example.com/lib.js'],
+    ])('keeps safe/relative URL %j -> %j', (input, expected) => {
+      expect(ensureUrlProtocol(input)).toBe(expected)
+    })
+
+    test.each([
+      'javascript:alert(document.cookie)',
+      'javascript://%0aalert(1)',
+      'JavaScript:alert(1)',
+      ' javascript:alert(1)',
+      '\tjavascript:alert(1)',
+      'java\tscript:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'vbscript:msgbox(1)',
+    ])('neutralizes dangerous scheme %j', (input) => {
+      const result = ensureUrlProtocol(input)
+      expect(result.startsWith('https://')).toBe(true)
+      expect(getUrlScheme(result)).toBe('https:')
+    })
+  })
+
   describe('test parseHostnamesFromUrls', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 

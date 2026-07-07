@@ -24,6 +24,16 @@ export class ServiceType extends Registerable {
   }
 
   /**
+   * Allow to hook into default values for this service type.
+   * @param {object} service the service being edited.
+   * @param {object} values the current default values for the service form.
+   * @returns an object containing values updated with the default values.
+   */
+  getDefaultValues(service, values) {
+    return values
+  }
+
+  /**
    * Whether the service is valid.
    * @param service - The service object.
    * @returns {String} - The error message
@@ -77,6 +87,25 @@ export class ServiceType extends Registerable {
     return path
   }
 
+  /**
+   * Whether the service returns a collection of records.
+   */
+  get returnsList() {
+    return false
+  }
+
+  isDeactivatedReason({ workspace }) {
+    return null
+  }
+
+  isDeactivated({ workspace }) {
+    return !!this.isDeactivatedReason({ workspace })
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    return null
+  }
+
   getOrder() {
     return 0
   }
@@ -85,13 +114,6 @@ export class ServiceType extends Registerable {
 export const DataSourceServiceTypeMixin = (Base) =>
   class extends Base {
     isDataSource = true
-
-    /**
-     * Whether the service returns a collection of records.
-     */
-    get returnsList() {
-      return false
-    }
 
     /**
      * In a service which returns a list, this method is used to
@@ -134,4 +156,8 @@ export const WorkflowActionServiceTypeMixin = (Base) =>
 export const TriggerServiceTypeMixin = (Base) =>
   class extends Base {
     isTrigger = true
+
+    canBeImmediatelyDispatched(service) {
+      return false
+    }
   }

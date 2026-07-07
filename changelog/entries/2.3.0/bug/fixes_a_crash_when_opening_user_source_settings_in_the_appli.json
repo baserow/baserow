@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes a crash when opening user source settings in the application builder",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-05-19"
+}

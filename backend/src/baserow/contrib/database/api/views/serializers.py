@@ -235,8 +235,11 @@ class UpdateViewFilterGroupSerializer(serializers.ModelSerializer):
 class ViewSortSerializer(serializers.ModelSerializer):
     class Meta:
         model = ViewSort
-        fields = ("id", "view", "field", "order", "type")
-        extra_kwargs = {"id": {"read_only": True}}
+        fields = ("id", "view", "field", "order", "type", "priority")
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "priority": {"read_only": True},
+        }
 
 
 class CreateViewSortSerializer(serializers.ModelSerializer):
@@ -270,8 +273,12 @@ class ViewGroupBySerializer(serializers.ModelSerializer):
             "order",
             "width",
             "type",
+            "priority",
         )
-        extra_kwargs = {"id": {"read_only": True}}
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "priority": {"read_only": True},
+        }
 
 
 class CreateViewGroupBySerializer(serializers.ModelSerializer):
@@ -612,6 +619,28 @@ class OrderViewsSerializer(serializers.Serializer):
     )
 
 
+class PrioritizeViewSortingsSerializer(serializers.Serializer):
+    view_sort_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text=(
+            "View sort ids in the desired priority order. The sort with the lowest "
+            "position in the list is applied first."
+        ),
+        min_length=1,
+    )
+
+
+class PrioritizeViewGroupBysSerializer(serializers.Serializer):
+    view_group_by_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text=(
+            "View group by ids in the desired priority order. The group by with the "
+            "lowest position in the list is applied first."
+        ),
+        min_length=1,
+    )
+
+
 class PublicViewAuthRequestSerializer(serializers.Serializer):
     password = serializers.CharField()
 
@@ -625,8 +654,11 @@ class PublicViewSortSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ViewSort
-        fields = ("id", "view", "field", "order", "type")
-        extra_kwargs = {"id": {"read_only": True}}
+        fields = ("id", "view", "field", "order", "type", "priority")
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "priority": {"read_only": True},
+        }
 
 
 class PublicViewGroupBySerializer(serializers.ModelSerializer):
@@ -641,8 +673,12 @@ class PublicViewGroupBySerializer(serializers.ModelSerializer):
             "order",
             "width",
             "type",
+            "priority",
         )
-        extra_kwargs = {"id": {"read_only": True}}
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "priority": {"read_only": True},
+        }
 
 
 class PublicViewTableSerializer(serializers.Serializer):

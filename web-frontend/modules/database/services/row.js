@@ -112,8 +112,14 @@ export default (client) => {
         config
       )
     },
-    update(tableId, rowId, values, viewId = null) {
-      const config = { params: {} }
+    update(
+      tableId,
+      rowId,
+      values,
+      viewId = null,
+      undoRedoActionGroupId = null
+    ) {
+      const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
 
       if (viewId !== null) {
         config.params.view = viewId
@@ -144,11 +150,21 @@ export default (client) => {
      * parameters. If the before id is not provided then the row will be moved
      * to the end.
      */
-    move(tableId, rowId, beforeRowId = null) {
-      const config = { params: {} }
+    move(
+      tableId,
+      rowId,
+      beforeRowId = null,
+      viewId = null,
+      undoRedoActionGroupId = null
+    ) {
+      const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
 
       if (beforeRowId !== null) {
         config.params.before_id = beforeRowId
+      }
+
+      if (viewId !== null) {
+        config.params.view = viewId
       }
 
       return client.patch(

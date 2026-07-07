@@ -945,7 +945,8 @@
     },
     "workspaceSearch": {
         "title": "Cerca",
-        "searchEverything": "Ricerca..."
+        "searchEverything": "Ricerca...",
+        "searching": "Cerco..."
     },
     "importWorkspaceModal": {
         "upload": "Carica",
@@ -956,11 +957,14 @@
         "uploading": "caricamento…",
         "databases": "Databases",
         "applications": "Applicazioni",
-        "importingState": "Importazione…"
+        "importingState": "Importazione…",
+        "untrustedPublicKeyMessage": "Il file fornito è firmato con una chiave pubblica non affidabile. Chiedi al tuo amministratore di aggiungere la chiave pubblica alla lista delle chiavi affidabili o disabilitare la verifica della firma per poter importare questo file."
     },
     "mcpEndpoint": {
         "windsurfInstructions": "Due passaggi semplici per impostare MCP con Cascase in Windsurf.\n\n1. Vai a Windsurf - Impostazioni -> Impostazioni Avanzate o Command Palette -> Apri la pagina delle impostazioni di Windsurf.\n2. Scorri verso il basso fino alla sezione Cascade e troverai l'opzione per aggiungere un nuovo server, visualizzare i server esistenti e un pulsante per visualizzare il file di configurazione JSON grezzo a `mcp_config.json`. Aggiungi quanto segue ad esso:",
-        "claudeInstructions": "Tre passaggi semplici per iniziare con Claude Desktop e il Baserow MCP.\n\n1. Apri le impostazioni di Claude Desktop dalla barra di navigazione. (⌘+,)\n2. Vai alla scheda \"Develop\" e clicca su \"Edit Config\".\n3. Includi la seguente configurazione JSON in `claude_desktop_config.json`."
+        "claudeInstructions": "Tre passaggi semplici per iniziare con Claude Desktop e il Baserow MCP.\n\n1. Apri le impostazioni di Claude Desktop dalla barra di navigazione. (⌘+,)\n2. Vai alla scheda \"Develop\" e clicca su \"Edit Config\".\n3. Includi la seguente configurazione JSON in `claude_desktop_config.json`.",
+        "endpointURLIntro": "L'URL del server MCP (Model Context Protocol) può essere aggiunto a qualsiasi client che supporta i server MCP. È un endpoint unico che dà all'LLM accesso diretto per eseguire azioni nello spazio di lavoro per tuo conto.",
+        "cursorInstructions": "Tre passaggi semplici per iniziare con Cursor e il Baserow MCP.\n\n1. Apri le impostazioni di Cursor (⇧+⌘+J)\n2. Naviga alla scheda 'MCP' e clicca su 'Add MCP Server'\n3. Aggiungi la seguente configurazione JSON."
     },
     "saveBackupCode": {
         "description": "Se perdi l'accesso alla tua app di autenticazione o al telefono e non puoi ricevere o generare codici di autenticazione, puoi usare questo backup. Puoi usarlo solo una volta. Assicurati di scriverlo o copiarlo in un luogo sicuro in modo da poterlo accedere senza effettuare l'accesso."

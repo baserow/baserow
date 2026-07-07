@@ -1,0 +1,208 @@
+// Zed debugger configurations for Baserow — shared/public baseline.
+//
+// ─── How to install ───────────────────────────────────────────────────────────
+//   Run the following from the repository root:
+//     config/zed/apply_standard_baserow_zed_config.sh
+//   This copies config/zed/.zed/ → .zed/ (overwriting any existing file).
+//
+// ─── Personal customisations ──────────────────────────────────────────────────
+//   After running the script, open .zed/debug.json and add:
+//     • Extra env vars specific to your environment (BASEROW_PUBLIC_URL, etc.)
+//     • Additional launch configs for your own workflows (frontend, gunicorn, …)
+//   .zed/ at the worktree root is git-ignored, so your edits are private.
+//
+//   NO SECRETS are stored in this file — it is tracked in git and shared with
+//   all Baserow contributors. Add any personal or sensitive env vars only to
+//   .zed/debug.json after the script has copied it.
+//
+// ─── Adapter ──────────────────────────────────────────────────────────────────
+//   All configs below use the Debugpy adapter. Zed will auto-install it on
+//   first use. Open the Debug panel (Cmd-Shift-D / Ctrl-Shift-D) or run
+//   `debugger: start` from the command palette to pick a configuration.
+[
+  {
+    // ── backend: django runserver (launch) ─────────────────────────────────
+    //
+    // Starts the Django dev server under Debugpy so you can set breakpoints
+    // directly in the editor and have them hit on incoming requests.
+    //
+    // WHY --noreload IS REQUIRED FOR BREAKPOINTS
+    //   Django's autoreloader works by forking a child process (identified by
+    //   the RUN_MAIN env var) that actually handles HTTP requests, while the
+    //   parent process monitors source files for changes.  Debugpy is attached
+    //   to the *parent* at launch time, so any breakpoints you set in view or
+    //   model code are in the wrong process — they are never reached.
+    //
+    //   --noreload disables the fork entirely: Django runs single-process, and
+    //   Debugpy (plus your breakpoints) lives in the same process that handles
+    //   every request.  The trade-off is that you must restart this config
+    //   manually after editing Python source files.
+    //
+    // WHY `program` AND NOT `module`
+    //   Using `module: "baserow"` tells Debugpy to run `python -m baserow`.
+    //   The baserow __main__.py hands control to Django's execute_from_command_
+    //   line(), which then re-invokes the autoreloader machinery *before*
+    //   Debugpy can intercept the fork.  Pointing `program` at the entry-point
+    //   script bypasses that re-invocation path.
+    //
+    // ALTERNATIVE — if you need hot-reloading or are using Docker:
+    //   Use the "backend: django (attach to :5678)" config below instead.
+    //   It attaches *inside* the RUN_MAIN child where requests are handled,
+    //   so breakpoints work even with the autoreloader enabled.
+    "label": "backend: django runserver (launch)",
+    "adapter": "Debugpy",
+    "request": "launch",
+    "program": "$ZED_WORKTREE_ROOT/backend/baserow",
+    "args": ["runserver", "--noreload", "0.0.0.0:8000"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "python": "$ZED_WORKTREE_ROOT/.venv/bin/python",
+    "django": true,
+    "justMyCode": false,
+    "console": "integratedTerminal",
+    "env": {
+      // Relative paths work because cwd is the worktree root.
+      "PYTHONPATH": "backend/src:premium/backend/src:enterprise/backend/src",
+      "DJANGO_SETTINGS_MODULE": "baserow.config.settings.dev",
+      // Point at your local Postgres. Override in .zed/debug.json if needed.
+      "DATABASE_HOST": "localhost",
+    },
+  },
+  {
+    // ── backend: django (attach to :5678) ──────────────────────────────────
+    //
+    // Attaches Zed's debugger to a Django dev-server that is already listening
+    // for a Debugpy client on port 5678.  This is the recommended approach
+    // when you want breakpoints *and* hot-reloading at the same time.
+    //
+    // HOW TO USE (local venv)
+    //   1. Start the backend with the debugger enabled:
+    //        BASEROW_BACKEND_DEBUGGER_ENABLED=1 just b run-dev-server
+    //      With that env var set, manage.py calls `debugpy.listen(5678)` and
+    //      then `debugpy.wait_for_client()` inside the RUN_MAIN child process
+    //      — the process that actually handles HTTP requests.
+    //   2. Wait until you see "Debugpy waiting for client…" in the terminal.
+    //   3. Launch this config from the Debug panel.  Debugpy will resume the
+    //      server and breakpoints will be hit on the next request.
+    //
+    // HOW TO USE (Docker dev env)
+    //   Works identically with `just dc-dev up` once you set
+    //   BASEROW_BACKEND_DEBUGGER_ENABLED=1 in your docker-compose override.
+    //   The backend container already maps container port 5678 → host 5678.
+    //   The pathMappings below translate container paths to your local
+    //   worktree so that editor breakpoints resolve correctly.
+    "label": "backend: django (attach to :5678)",
+    "adapter": "Debugpy",
+    "request": "attach",
+    "tcp_connection": { "host": "127.0.0.1", "port": 5678 },
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "django": true,
+    "justMyCode": false,
+    "pathMappings": [
+      {
+        "localRoot": "$ZED_WORKTREE_ROOT",
+        "remoteRoot": "/baserow",
+      },
+    ],
+  },
+  {
+    // ── backend: celery worker (launch) ────────────────────────────────────
+    //
+    // Starts a Celery worker under Debugpy. Set breakpoints inside task
+    // functions and they will be hit when a task is dispatched.
+    //
+    // --pool=solo runs Celery in single-threaded mode (no subprocess pool),
+    // which is required for Debugpy breakpoints to work reliably — the pool
+    // strategies that use forked sub-processes suffer the same issue as the
+    // Django autoreloader.
+    //
+    // Queues consumed by this worker:
+    //   celery              — default / general task queue
+    //   export              — file-export tasks (spreadsheet, PDF, …)
+    //   automation_workflow — automation trigger / action tasks
+    "label": "backend: celery worker (launch)",
+    "adapter": "Debugpy",
+    "request": "launch",
+    "module": "celery",
+    "args": [
+      "-A",
+      "baserow",
+      "worker",
+      "-Q",
+      "celery,export,automation_workflow",
+      "-l",
+      "INFO",
+      "--pool=solo",
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "python": "$ZED_WORKTREE_ROOT/.venv/bin/python",
+    "justMyCode": false,
+    "console": "integratedTerminal",
+    "env": {
+      "PYTHONPATH": "backend/src:premium/backend/src:enterprise/backend/src",
+      "DJANGO_SETTINGS_MODULE": "baserow.config.settings.dev",
+      "DATABASE_HOST": "localhost",
+    },
+  },
+  {
+    // ── backend: pytest current file ───────────────────────────────────────
+    //
+    // Runs pytest against whichever test file is currently open/focused in Zed.
+    // Make sure the test file is the active editor tab before launching.
+    //
+    // -v  one line per test with pass/fail status
+    // -s  disable output capture so print() calls and logging appear inline
+    //     (useful when debugging a single failing test)
+    "label": "backend: pytest current file",
+    "adapter": "Debugpy",
+    "request": "launch",
+    "module": "pytest",
+    "args": ["$ZED_FILE", "-v", "-s"],
+    "cwd": "$ZED_WORKTREE_ROOT/backend",
+    "python": "$ZED_WORKTREE_ROOT/.venv/bin/python",
+    "justMyCode": false,
+    "console": "integratedTerminal",
+    "env": {
+      // Absolute paths are required here because cwd is the backend sub-directory,
+      // not the worktree root, so relative paths would not resolve correctly.
+      "PYTHONPATH": "$ZED_WORKTREE_ROOT/backend/src:$ZED_WORKTREE_ROOT/premium/backend/src:$ZED_WORKTREE_ROOT/enterprise/backend/src:$ZED_WORKTREE_ROOT/backend/flake8_plugins",
+      "DJANGO_SETTINGS_MODULE": "baserow.config.settings.test",
+      "DATABASE_HOST": "localhost",
+    },
+  },
+  {
+    // ── backend: pytest all (with coverage) ────────────────────────────────
+    //
+    // Runs the complete backend test suite across core, premium, and enterprise
+    // packages and produces an XML coverage report.
+    //
+    // This can take several minutes on a full run.  The report is written to:
+    //   <worktree-root>/html_coverage/cov.xml
+    //
+    // -n=auto  parallelises test collection and execution across all available
+    //          CPU cores via pytest-xdist, significantly reducing wall-clock
+    //          time.  Note: parallel runs disable Debugpy breakpoints — remove
+    //          this flag if you need to step through code during a full run.
+    "label": "backend: pytest all (with coverage)",
+    "adapter": "Debugpy",
+    "request": "launch",
+    "module": "pytest",
+    "args": [
+      "-n=auto",
+      "--cov-report=xml:html_coverage/cov.xml",
+      "--cov-config=$ZED_WORKTREE_ROOT/backend/.coveragerc",
+      "--cov=baserow",
+      "backend/tests/",
+      "premium/backend/tests/",
+      "enterprise/backend/tests/",
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "python": "$ZED_WORKTREE_ROOT/.venv/bin/python",
+    "justMyCode": false,
+    "console": "integratedTerminal",
+    "env": {
+      "PYTHONPATH": "backend/src:premium/backend/src:enterprise/backend/src",
+      "DJANGO_SETTINGS_MODULE": "baserow.config.settings.test",
+      "DATABASE_HOST": "localhost",
+    },
+  },
+]

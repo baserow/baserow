@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Fixes a 403 error that could appear when impersonating a user from the admin area",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2026-05-23"
+}

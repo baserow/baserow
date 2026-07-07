@@ -2,7 +2,7 @@
   <div class="control__elements">
     <a
       v-if="isValidLinkURL"
-      :href="copy && copy.url"
+      :href="getHref(copy)"
       target="_blank"
       rel="nofollow noopener noreferrer"
     >

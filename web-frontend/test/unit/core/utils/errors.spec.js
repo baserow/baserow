@@ -83,6 +83,27 @@ describe('test error handling', () => {
       }
     }
   )
+  test('a 400 response with a string detail and no matching error map entry shows the detail as the message', async () => {
+    try {
+      await errorInterceptorWithStubAppAndStore()({
+        response: {
+          data: {
+            error: 'noMatchingEntryInSpecificErrorMap',
+            detail: 'The `minute` value must be greater or equal to 2.',
+          },
+          status: 400,
+        },
+      })
+    } catch (error) {
+      const message = error.handler.getMessage('name', {
+        doesntMatch: new ResponseErrorMessage('title', 'message'),
+      })
+      expect(message.title).toBe('clientHandler.notCompletedTitle')
+      expect(message.message).toBe(
+        'The `minute` value must be greater or equal to 2.'
+      )
+    }
+  })
   test('an 429 response results in a too many requests error', async () => {
     try {
       await errorInterceptorWithStubAppAndStore()({

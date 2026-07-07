@@ -23,6 +23,30 @@
     }
   },
   {
+    "formula": "'\\\\'",
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "wrapper",
+          "content": [{ "text": "\\", "type": "text" }]
+        }
+      ]
+    }
+  },
+  {
+    "formula": "'a\\\\b'",
+    "content": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "wrapper",
+          "content": [{ "text": "a\\b", "type": "text" }]
+        }
+      ]
+    }
+  },
+  {
     "formula": "concat('hello', 'there')",
     "content": {
       "type": "doc",

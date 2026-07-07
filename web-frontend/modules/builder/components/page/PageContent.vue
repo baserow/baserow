@@ -85,6 +85,8 @@ export default {
     },
   },
   mounted() {
+    const device = this.closestDeviceType(window.innerWidth)
+    this.$store.dispatch('page/setDeviceTypeSelected', device.getType())
     this.dimensions.targetElement = document.documentElement
   },
   methods: {

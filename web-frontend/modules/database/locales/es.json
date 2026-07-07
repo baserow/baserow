@@ -91,8 +91,8 @@
         "title": "Tokens de bases de datos",
         "createToken": "Crear token",
         "noTokensMessage": "Aún no ha creado un token de base de datos. Puede usar tokens de base de datos para autenticarse con los puntos finales de la API REST donde puede crear, leer, actualizar y eliminar filas. Es posible establecer permisos a nivel de tabla.",
-        "hasFullPermissions": "Tiene permisos completos, también para todos los niños.",
-        "hasOnlySelectedPermissions": "Solo tiene permisos para los niños seleccionados.",
+        "hasFullPermissions": "Tiene permisos completos, también para todos los elementos hijos.",
+        "hasOnlySelectedPermissions": "Solo tiene permisos para los elementos hijos seleccionados.",
         "noPermissions": "No tiene permisos.",
         "createNewTitle": "Crear nuevo token de la base de datos",
         "backToOverview": "De regreso a la visión general"
@@ -649,7 +649,7 @@
     },
     "databaseForm": {
         "importLabel": "¿Le gustaría importar datos existentes?",
-        "emptyLabel": "Empezar desde el principio",
+        "emptyLabel": "Empezar desde cero",
         "airtableLabel": "Importar desde Airtable"
     },
     "importFromAirtable": {
@@ -739,7 +739,7 @@
         "apiDocumentation": "Documentación del API"
     },
     "formViewField": {
-        "required": "requerido",
+        "required": "obligatorio",
         "showWhenMatchingConditions": "mostrar cuando se cumplen las condiciones",
         "addCondition": "Añadir condición",
         "descriptionPlaceholder": "Descripción",
@@ -1218,5 +1218,9 @@
     },
     "editRowLink": {
         "editRow": "Editar fila"
+    },
+    "gridViewFreezeHandle": {
+        "hoverHint": "Arrastrar para congelar columnas",
+        "freeze": "Congelar 0 columnas | Congelar 1 columna | Congelar {count} columnas"
     }
 }

@@ -62,6 +62,15 @@ describe('test number formatting and parsing', () => {
     expect(formatNumberValue(field, -1234.56)).toBe('-$1 234,56 USD')
   })
 
+  test('number formatting preserves prefix and suffix spaces', () => {
+    const field = { ...baseField }
+    field.number_prefix = ' about '
+    field.number_suffix = ' days '
+
+    expect(formatNumberValue(field, 2)).toBe(' about 2.00 days ')
+    expect(formatNumberValue(field, -2)).toBe('- about 2.00 days ')
+  })
+
   test('number formatting with different decimal places', () => {
     const field = { ...baseField }
     field.number_decimal_places = 0

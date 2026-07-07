@@ -53,10 +53,16 @@ import FieldSelectOptionsDropdown from '@baserow/modules/database/components/fie
 export default {
   components: { FieldSelectOptionsDropdown },
   mixins: [gridField, multipleSelectField],
+  emits: ['editing-changed'],
   data() {
     return {
       editing: false,
     }
+  },
+  watch: {
+    editing(editing) {
+      this.$emit('editing-changed', editing)
+    },
   },
 }
 </script>

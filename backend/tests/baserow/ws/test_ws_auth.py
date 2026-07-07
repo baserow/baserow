@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from channels.testing import WebsocketCommunicator
 
@@ -26,61 +28,85 @@ async def test_get_user(data_fixture):
 async def test_token_auth_middleware(data_fixture, settings):
     user, token = data_fixture.create_user_and_token()
 
-    communicator = WebsocketCommunicator(application, f"ws/core/")
+    communicator = WebsocketCommunicator(application, "ws/core/")
     connected, subprotocol = await communicator.connect()
     assert connected
     json = await communicator.receive_json_from()
     assert json["type"] == "authentication"
     assert json["success"] is False
-    assert json["web_socket_id"] is None
     await communicator.disconnect()
 
-    communicator = WebsocketCommunicator(application, f"ws/core/?jwt_token=random")
+    communicator = WebsocketCommunicator(
+        application, "ws/core/?jwt_token=random&web_socket_id=ws-1"
+    )
     connected, subprotocol = await communicator.connect()
     assert connected
     json = await communicator.receive_json_from()
     assert json["type"] == "authentication"
     assert json["success"] is False
-    assert json["web_socket_id"] is not None
     await communicator.disconnect()
 
-    communicator = WebsocketCommunicator(application, f"ws/core/?jwt_token={token}")
+    communicator = WebsocketCommunicator(
+        application, f"ws/core/?jwt_token={token}&web_socket_id=ws-2"
+    )
     connected, subprotocol = await communicator.connect()
     assert connected
     json = await communicator.receive_json_from()
     assert json["type"] == "authentication"
     assert json["success"] is True
-    assert json["web_socket_id"] is not None
-    await communicator.disconnect()
-
-    communicator = WebsocketCommunicator(application, f"ws/core/?jwt_token={token}")
-    connected, subprotocol = await communicator.connect()
-    assert connected
-    json = await communicator.receive_json_from()
-    assert json["type"] == "authentication"
-    assert json["web_socket_id"] is not None
+    # The client-provided web socket id is adopted verbatim.
+    assert json["web_socket_id"] == "ws-2"
     await communicator.disconnect()
 
     # Test anonymous connections
     communicator = WebsocketCommunicator(
-        application, f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}"
+        application,
+        f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}&web_socket_id=ws-3",
     )
     connected, subprotocol = await communicator.connect()
     assert connected
     json = await communicator.receive_json_from()
     assert json["type"] == "authentication"
     assert json["success"]
-    assert json["web_socket_id"] is not None
     await communicator.disconnect()
 
     # Test cant connect as anonymous user if feature disabled.
     settings.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS = True
     communicator = WebsocketCommunicator(
-        application, f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}"
+        application,
+        f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}&web_socket_id=ws-4",
     )
     connected, subprotocol = await communicator.connect()
     assert connected
     json = await communicator.receive_json_from()
     assert json["type"] == "authentication"
     assert not json["success"]
+    await communicator.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_web_socket_id_generated_when_absent_or_blank(data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    # No web_socket_id query param -> a random UUID is generated.
+    communicator = WebsocketCommunicator(application, f"ws/core/?jwt_token={token}")
+    connected, _ = await communicator.connect()
+    assert connected
+    json = await communicator.receive_json_from()
+    assert json["success"] is True
+    # Parses as a UUID, i.e. it was server-generated rather than left empty.
+    uuid.UUID(json["web_socket_id"])
+    await communicator.disconnect()
+
+    # Blank web_socket_id is treated as absent and also gets a generated UUID.
+    communicator = WebsocketCommunicator(
+        application, f"ws/core/?jwt_token={token}&web_socket_id="
+    )
+    connected, _ = await communicator.connect()
+    assert connected
+    json = await communicator.receive_json_from()
+    assert json["success"] is True
+    uuid.UUID(json["web_socket_id"])
     await communicator.disconnect()

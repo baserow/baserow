@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Improved the performance of the Automation Workflow and Node history.",
+    "issue_origin": "github",
+    "issue_number": 5239,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-05-21"
+}

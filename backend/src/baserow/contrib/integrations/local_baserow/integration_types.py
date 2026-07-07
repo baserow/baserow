@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
@@ -17,6 +18,7 @@ from baserow.core.integrations.types import IntegrationDict
 from baserow.core.models import Application
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class LocalBaserowIntegrationType(IntegrationType):
@@ -131,11 +133,19 @@ class LocalBaserowIntegrationType(IntegrationType):
         return queryset.select_related("authorized_user")
 
     def get_context_data(self, instance: LocalBaserowIntegration) -> Optional[Dict]:
-        return {
-            "databases": LocalBaserowIntegrationType.get_local_baserow_databases(
+        try:
+            databases = LocalBaserowIntegrationType.get_local_baserow_databases(
                 instance
             )
-        }
+        except Exception:
+            logger.exception(
+                "Failed to compute context_data for integration %s; "
+                "returning empty databases list.",
+                instance.id,
+                exc_info=True,
+            )
+            databases = []
+        return {"databases": databases}
 
     @staticmethod
     def get_local_baserow_databases(integration: LocalBaserowIntegration) -> List:

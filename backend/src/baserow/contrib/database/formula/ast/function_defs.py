@@ -2423,10 +2423,10 @@ class BaserowCount(OneArgumentBaserowFunction):
         func_call: BaserowFunctionCall[UnTyped],
         arg: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaType]:
-        if BaserowGetFileCount().can_accept_arg(arg):
+        if BaserowGetFileCount().can_accept_arg(arg) and not arg.many:
             return BaserowGetFileCount()(arg)
 
-        if isinstance(arg.expression_type, BaserowFormulaArrayType):
+        if isinstance(arg.expression_type, BaserowFormulaArrayType) and not arg.many:
             return BaserowArrayLength()(arg)
 
         return arg.expression_type.count(func_call, arg).with_valid_type(
@@ -3107,8 +3107,12 @@ class BaserowIndex(BaserowFunctionDefinition):
         args: List["WrappedExpressionWithMetadata"],
         context: BaserowExpressionContext,
     ) -> "WrappedExpressionWithMetadata":
-        mode = _unwrap_literal_value(args[2].expression) or "text"
-        value_sql = _unwrap_literal_value(args[3].expression) or "{elem} ->> 'value'"
+        # Fall back to text defaults if args weren't augmented at type time.
+        mode = "text"
+        value_sql = "{elem} ->> 'value'"
+        if len(args) >= 4:
+            mode = _unwrap_literal_value(args[2].expression) or mode
+            value_sql = _unwrap_literal_value(args[3].expression) or value_sql
         safe_index = handle_arg_being_nan(
             args[1].expression,
             Value(None, output_field=fields.IntegerField()),

@@ -135,7 +135,8 @@
         "moveUp": "Monter",
         "moveRight": "Déplacer à droite",
         "moveLeft": "Déplacer à gauche",
-        "selectParent": "Sélectionner le parent"
+        "selectParent": "Sélectionner le parent",
+        "drag": "Faites glisser pour réorganiser"
     },
     "addElementButton": {
         "label": "Élément"
@@ -394,7 +395,14 @@
         "columnGapTitle": "Espace entre colonnes",
         "columnAmountTitle": "Mise en page",
         "columnAmountName": "pas de colonnes | 1 colonne | {columnAmount} colonnes",
-        "verticalAlignment": "Alignement vertical"
+        "verticalAlignment": "Alignement vertical",
+        "customLayout": "Personnalisé",
+        "customWeightsTitle": "Pondérations personnalisées des colonnes",
+        "customWeightsHelper": "Utilisez la valeur 0 lorsqu'une colonne doit avoir une largeur égale à celle de son contenu. Les autres colonnes se partageront l'espace restant.",
+        "errorCustomWeightsMinimum": "Les poids des colonnes doivent être égaux ou supérieurs à 0",
+        "columnStackingTitle": "Disposition des colonnes par type d'appareil",
+        "columnStackingHorizontal": "Côte à côte",
+        "columnStackingStacked": "Empilées"
     },
     "tableElementForm": {
         "addField": "ajouter un champ",
@@ -695,7 +703,7 @@
         "loggedInVisitors": "Visiteurs connectés",
         "notLoggedInVisitors": "Visiteurs déconnectés",
         "warningTitle": "C'est un dispositif de sécurité",
-        "warningMessage": "Veuillez consulter la &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'&gt;documentation&lt;/a&gt; pour plus d'informations sur la sécurité des données.",
+        "warningMessage": "Veuillez consulter la {link} pour plus d'informations sur la sécurité des données.",
         "excludedRolesLabel": "tous les rôles sauf",
         "switchAllowLabel": "Autoriser",
         "switchDisallowLabel": "Interdir",
@@ -786,7 +794,7 @@
         "primaryColor": "Primaire",
         "secondaryColor": "Secondaire",
         "borderColor": "Bordure",
-        "successColor": "Succès",
+        "successColor": "Succés",
         "warningColor": "Avertissement",
         "errorColor": "Erreur",
         "transparent": "Transparent",
@@ -802,7 +810,7 @@
     "colorThemeConfigBlockType": {
         "primary": "Primaire",
         "secondary": "Secondaire",
-        "success": "Succès",
+        "success": "Succés",
         "warning": "Avertissement",
         "border": "Bordure",
         "error": "Erreur",
@@ -1126,7 +1134,14 @@
         "menuItemTypeSeparator": "Séparateur",
         "menuItemVariantButton": "Bouton",
         "addSubLink": "Ajouter un lien enfant",
-        "eventDescription": "Pour configurer les actions de ce bouton, ouvrez l'onglet « Événements » de l'élément courant."
+        "eventDescription": "Pour configurer les actions de ce bouton, ouvrez l'onglet « Événements » de l'élément courant.",
+        "variant": "Variante par type d'appareil",
+        "expanded": "Normale",
+        "compact": "Compacte",
+        "previewCompactMenuLabel": "Aperçu du menu compact",
+        "previewCompactMenuHelper": "Afficher/masquer l'aperçu du menu compact.",
+        "openEditorCompactMenu": "Ouvrir le menu",
+        "closeEditorCompactMenu": "Fermer le menu"
     },
     "simpleContainerElementForm": {
         "noConfigurationOptions": "L'élément conteneur n'a pas de configuration."
@@ -1208,5 +1223,10 @@
         "serviceMisconfiguredMessage": "Veuillez vérifier la configuration.",
         "errorWorkflowActionDispatch": "L'action « {nom} » a échoué : ",
         "errorDataSourceDispatch": "Échec du chargement de « {name} » : "
+    },
+    "workflowAction": {
+        "sampleDataModalTitle": "Données pour {actionLabel}",
+        "sampleDataModalSubTitle": "Données JSON",
+        "testActionDescription": "Exécutez cette action en mode aperçu pour enregistrer son résultat et le mettre à la disposition des actions suivantes."
     }
 }

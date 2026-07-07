@@ -25,6 +25,15 @@
   "copied": {
     "label": "Copied!"
   },
+  "sampleDataViewer": {
+    "payloadLabel": "Output",
+    "errorLabel": "An error occurred...",
+    "showPayloadLabel": "Show payload",
+    "showErrorLabel": "Show error",
+    "downloadFullPayload": "Download full payload",
+    "truncatedLabel": "[Output truncated]",
+    "truncatedPayloadWarning": "Only the first {size} characters are shown. Download the full payload to inspect it on your computer."
+  },
   "action": {
     "cancel": "Cancel",
     "submit": "Submit"
@@ -211,6 +220,9 @@
   "invitationMessage": "{invitedBy} has invited you to join {workspace}.",
   "workspaceForm": {
     "nameLabel": "Name"
+  },
+  "editWorkspace": {
+    "invalidNameTitle": "Workspace name not allowed"
   },
   "leaveWorkspaceModal": {
     "title": "Leave {workspace}",
@@ -449,6 +461,12 @@
     "title": "Failed",
     "content": "Real-time updates could not be reestablished. Please refresh to continue.",
     "action": "Refresh page"
+  },
+  "workspaceOutdatedToast": {
+    "title": "Too many changes",
+    "content": "Too many changes occurred while you were away. Refresh to see the latest data.",
+    "action": "Refresh data",
+    "dismiss": "Dismiss"
   },
   "authorizationErrorToast": {
     "title": "Authorization error",
@@ -866,7 +884,8 @@
   "formulaParserErrors": {
     "invalidArgCountMin": "The '{funcType}' function expects a minimum of {minArgs} arguments.",
     "invalidArgCountExact": "The '{funcType}' function expects exactly {minArgs} arguments.",
-    "invalidArgCountRange": "The '{funcType}' function expects between {minArgs} and {maxArgs} arguments."
+    "invalidArgCountRange": "The '{funcType}' function expects between {minArgs} and {maxArgs} arguments.",
+    "invalidArgumentType": "'{value}' is not a valid argument for the '{funcType}' function."
   },
   "dataExplorer": {
     "noMatchingNodesText": "No matching results were found.",
@@ -1000,7 +1019,8 @@
     "workspaces": "Workspaces",
     "lastLogin": "Last login",
     "dateJoined": "Signed up",
-    "active": "Active"
+    "active": "Active",
+    "twoFactorAuth": "2FA"
   },
   "editUserContext": {
     "changePassword": "Change password",
@@ -1019,6 +1039,8 @@
     "fullName": "Full name",
     "email": "Email",
     "isActive": "Is active",
+    "twoFactorAuth": "Two-factor authentication",
+    "removeTwoFactorAuth": "Remove two-factor authentication",
     "warning": {
       "changeEmail": "Changing this users email address means when they sign in they must use the new email address to do so. This must be communicated with that user.",
       "inactiveUser": "When a user is marked as inactive they are prevented from signing in.",
@@ -1038,6 +1060,12 @@
     "comment1": "The user account will be deleted, however the workspaces that user is a member of will continue existing. The users workspace will not be deleted, even if this user is the last user in the workspace. Deleting the last user in a workspace prevents anyone being able to access that workspace.",
     "comment2": "After deleting a user it is possible for a new user to sign up again using the deleted users email address. To ensure they cannot sign up again instead deactivate the user and do not delete them.",
     "delete": "Delete user {username}"
+  },
+  "disableTwoFactorAuthModal": {
+    "title": "Remove two-factor authentication",
+    "confirmation": "Are you sure you want to remove two-factor authentication for {name}?",
+    "comment": "They will be able to sign in with just their password and can set up two-factor authentication again afterwards.",
+    "remove": "Remove two-factor authentication"
   },
   "editUserModal": {
     "delete": "Delete user",

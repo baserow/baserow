@@ -10,6 +10,7 @@
       :loading="loading"
       :default-values="user"
       @submitted="editUser"
+      @remove-two-factor-auth="$refs.disableTwoFactorAuthModal.show()"
     >
       <div class="align-left">
         <a
@@ -25,6 +26,11 @@
       :user="user"
       @delete-user="$emit('delete-user', $event)"
     ></DeleteUserModal>
+    <DisableTwoFactorAuthModal
+      ref="disableTwoFactorAuthModal"
+      :user="user"
+      @two-factor-auth-disabled="onTwoFactorAuthDisabled"
+    ></DisableTwoFactorAuthModal>
   </Modal>
 </template>
 
@@ -34,10 +40,11 @@ import error from '@baserow/modules/core/mixins/error'
 import UserAdminService from '@baserow/modules/core/services/admin/users'
 import UserForm from '@baserow/modules/core/components/admin/users/forms/UserForm'
 import DeleteUserModal from '@baserow/modules/core/components/admin/users/modals/DeleteUserModal'
+import DisableTwoFactorAuthModal from '@baserow/modules/core/components/admin/users/modals/DisableTwoFactorAuthModal'
 
 export default {
   name: 'EditUserModal',
-  components: { DeleteUserModal, UserForm },
+  components: { DeleteUserModal, DisableTwoFactorAuthModal, UserForm },
   mixins: [modal, error],
   props: {
     user: {
@@ -68,6 +75,9 @@ export default {
         this.loading = false
         this.handleError(error, 'application')
       }
+    },
+    onTwoFactorAuthDisabled() {
+      this.$emit('update', { ...this.user, two_factor_auth: null })
     },
   },
 }

@@ -13,34 +13,37 @@ export default {
       content: 'telephone=no, email=no, address=no, date=no',
     },
   ],
+  // The `key` on each favicon is what allows other parts of the app (e.g. the
+  // application builder's custom favicon) to override these defaults. unhead
+  // dedupes `link` tags by `key`.
   link: [
     {
       rel: 'icon',
       type: 'image/png',
       href: '/img/favicon_16.png',
       sizes: '16x16',
-      hid: true,
+      key: 'favicon-16',
     },
     {
       rel: 'icon',
       type: 'image/png',
       href: '/img/favicon_32.png',
       sizes: '32x32',
-      hid: true,
+      key: 'favicon-32',
     },
     {
       rel: 'icon',
       type: 'image/png',
       href: '/img/favicon_48.png',
       sizes: '64x64',
-      hid: true,
+      key: 'favicon-64',
     },
     {
       rel: 'icon',
       type: 'image/png',
       href: '/img/favicon_192.png',
       sizes: '192x192',
-      hid: true,
+      key: 'favicon-192',
     },
   ],
 }

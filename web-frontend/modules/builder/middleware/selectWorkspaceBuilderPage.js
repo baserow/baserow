@@ -1,4 +1,5 @@
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
+import { normalizeError } from '@baserow/modules/database/utils/errors'
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const { $store, $i18n } = useNuxtApp()
@@ -18,13 +19,24 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       pageId,
     })
   } catch (e) {
-    if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
+    const isStoreLookupError = e instanceof StoreItemLookupError
+    if (e.response === undefined && !isStoreLookupError) {
       throw e
     }
 
+    const errorStatus =
+      isStoreLookupError || !e.response?.status ? 404 : e.response.status
+
     throw createError({
-      statusCode: 404,
-      message: $i18n.t('pageEditor.pageNotFound'),
+      statusCode: errorStatus,
+      message:
+        errorStatus === 404
+          ? $i18n.t('pageEditor.pageNotFound')
+          : normalizeError(e).message,
+      data: {
+        report: errorStatus !== 404,
+      },
+      fatal: true,
     })
   }
 })

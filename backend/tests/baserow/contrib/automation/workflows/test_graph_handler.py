@@ -2,10 +2,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from baserow.contrib.automation.workflows.graph_handler import NodeGraphHandler
+from baserow.contrib.automation.workflows.graph_handler import (
+    AutomationWorkflowGraphHandler,
+)
 
 
-class FakeNode:
+class FakePoint:
     def __init__(self, nid):
         self.id = int(nid)
 
@@ -19,7 +21,7 @@ class FakeNode:
         return f"Node {self.id}"
 
     def __repr__(self):
-        return f"FakeNode({self.id})"
+        return f"FakePoint({self.id})"
 
     def get_label(self):
         return str(self)
@@ -41,9 +43,11 @@ class FakeNode:
         (9, "child", "", "Node 10"),
     ],
 )
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
-def test_graph_handler_get_node_at_position(
-    mock_get_nodes, reference_node_id, position, output, expected_result
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
+def test_graph_handler_get_point_at_position(
+    mock_get_points, reference_node_id, position, output, expected_result
 ):
     workflow = MagicMock()
     workflow.graph = {
@@ -60,32 +64,36 @@ def test_graph_handler_get_node_at_position(
         "10": {},
     }
 
-    mock_get_nodes.side_effect = lambda n: f"Node {n}"
+    mock_get_points.side_effect = lambda n: f"Node {n}"
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
     assert (
-        graph_handler.get_node_at_position(reference_node_id, position, output)
+        graph_handler.get_point_at_position(reference_node_id, position, output)
         == expected_result
     )
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
-def test_graph_handler_get_node_at_position_empty_graph(mock_get_nodes):
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
+def test_graph_handler_get_point_at_position_empty_graph(mock_get_points):
     workflow = MagicMock()
     workflow.graph = {}
 
-    mock_get_nodes.side_effect = lambda n: f"Node {n}"
+    mock_get_points.side_effect = lambda n: f"Node {n}"
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
-    assert graph_handler.get_node_at_position(None, "south", "") is None
+    assert graph_handler.get_point_at_position(None, "south", "") is None
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
-def test_graph_handler_get_last_position(mock_get_nodes):
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
+def test_graph_handler_get_last_position(mock_get_points):
     workflow = MagicMock()
     workflow.graph = {
         "0": 1,
@@ -101,9 +109,9 @@ def test_graph_handler_get_last_position(mock_get_nodes):
         "10": {},
     }
 
-    mock_get_nodes.side_effect = lambda n: f"Node {n}"
+    mock_get_points.side_effect = lambda n: f"Node {n}"
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
     assert graph_handler.get_last_position() == (
         "Node 6",
@@ -116,7 +124,7 @@ def test_graph_handler_get_last_position(mock_get_nodes):
 @pytest.mark.parametrize(
     "node_id,  expected_result",
     [
-        (1, (None, "south", "")),
+        (1, (None, "north", "")),
         (2, ("1", "south", "")),
         (3, ("2", "south", "")),
         (4, ("3", "south", "")),
@@ -128,8 +136,10 @@ def test_graph_handler_get_last_position(mock_get_nodes):
         (10, ("9", "child", "")),
     ],
 )
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
-def test_graph_handler_get_position(mock_get_nodes, node_id, expected_result):
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
+def test_graph_handler_get_position(mock_get_points, node_id, expected_result):
     workflow = MagicMock()
     workflow.graph = {
         "0": 1,
@@ -145,9 +155,9 @@ def test_graph_handler_get_position(mock_get_nodes, node_id, expected_result):
         "10": {},
     }
 
-    mock_get_nodes.side_effect = lambda n: f"Node {n}"
+    mock_get_points.side_effect = lambda n: f"Node {n}"
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
     node = MagicMock()
 
@@ -161,51 +171,53 @@ def test_graph_handler_get_position(mock_get_nodes, node_id, expected_result):
     "node_id,  expected_result",
     [
         (1, []),
-        (2, [(FakeNode(1), "south", "")]),
-        (3, [(FakeNode(1), "south", ""), (FakeNode(2), "south", "")]),
+        (2, [(FakePoint(1), "south", "")]),
+        (3, [(FakePoint(1), "south", ""), (FakePoint(2), "south", "")]),
         (
             6,
             [
-                (FakeNode(1), "south", ""),
-                (FakeNode(2), "south", ""),
-                (FakeNode(3), "south", ""),
-                (FakeNode(4), "south", ""),
-                (FakeNode(5), "south", ""),
+                (FakePoint(1), "south", ""),
+                (FakePoint(2), "south", ""),
+                (FakePoint(3), "south", ""),
+                (FakePoint(4), "south", ""),
+                (FakePoint(5), "south", ""),
             ],
         ),
         (
             8,
             [
-                (FakeNode(1), "south", ""),
-                (FakeNode(2), "south", ""),
-                (FakeNode(3), "child", ""),
-                (FakeNode(7), "south", ""),
+                (FakePoint(1), "south", ""),
+                (FakePoint(2), "south", ""),
+                (FakePoint(3), "child", ""),
+                (FakePoint(7), "south", ""),
             ],
         ),
         (
             9,
             [
-                (FakeNode(1), "south", ""),
-                (FakeNode(2), "south", ""),
-                (FakeNode(3), "south", ""),
-                (FakeNode(4), "south", "randomUid"),
+                (FakePoint(1), "south", ""),
+                (FakePoint(2), "south", ""),
+                (FakePoint(3), "south", ""),
+                (FakePoint(4), "south", "randomUid"),
             ],
         ),
         (
             10,
             [
-                (FakeNode(1), "south", ""),
-                (FakeNode(2), "south", ""),
-                (FakeNode(3), "south", ""),
-                (FakeNode(4), "south", "randomUid"),
-                (FakeNode(9), "child", ""),
+                (FakePoint(1), "south", ""),
+                (FakePoint(2), "south", ""),
+                (FakePoint(3), "south", ""),
+                (FakePoint(4), "south", "randomUid"),
+                (FakePoint(9), "child", ""),
             ],
         ),
         (11, None),
     ],
 )
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
-def test_graph_handler_get_previous_position(mock_get_nodes, node_id, expected_result):
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
+def test_graph_handler_get_previous_position(mock_get_points, node_id, expected_result):
     workflow = MagicMock()
     workflow.graph = {
         "0": 1,
@@ -221,29 +233,33 @@ def test_graph_handler_get_previous_position(mock_get_nodes, node_id, expected_r
         "10": {},
     }
 
-    mock_get_nodes.side_effect = FakeNode
+    mock_get_points.side_effect = FakePoint
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
-    assert graph_handler.get_previous_positions(FakeNode(node_id)) == expected_result
+    assert graph_handler.get_previous_positions(FakePoint(node_id)) == expected_result
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "node_id,  output, expected_result",
     [
-        (1, "", [FakeNode(2)]),
-        (2, "", [FakeNode(3)]),
-        (4, None, [FakeNode(5), FakeNode(9)]),
-        (4, "", [FakeNode(5)]),
-        (4, "randomUid", [FakeNode(9)]),
+        (1, "", [FakePoint(2)]),
+        (2, "", [FakePoint(3)]),
+        (4, None, [FakePoint(5), FakePoint(9)]),
+        (4, "", [FakePoint(5)]),
+        (4, "randomUid", [FakePoint(9)]),
         (4, "missing", []),
         (9, "", []),
         (10, "", []),
     ],
 )
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
-def test_graph_handler_get_next_nodes(mock_get_nodes, node_id, output, expected_result):
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
+def test_graph_handler_get_next_points(
+    mock_get_points, node_id, output, expected_result
+):
     workflow = MagicMock()
     workflow.graph = {
         "0": 1,
@@ -259,11 +275,11 @@ def test_graph_handler_get_next_nodes(mock_get_nodes, node_id, output, expected_
         "10": {},
     }
 
-    mock_get_nodes.side_effect = FakeNode
+    mock_get_points.side_effect = FakePoint
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
-    assert graph_handler.get_next_nodes(FakeNode(node_id), output) == expected_result
+    assert graph_handler.get_next_points(FakePoint(node_id), output) == expected_result
 
 
 @pytest.mark.django_db
@@ -271,14 +287,16 @@ def test_graph_handler_get_next_nodes(mock_get_nodes, node_id, output, expected_
     "node_id, expected_result",
     [
         (1, []),
-        (3, [FakeNode(7)]),
+        (3, [FakePoint(7), FakePoint(8)]),
         (8, []),
-        (9, [FakeNode(10)]),
+        (9, [FakePoint(10)]),
         (10, []),
     ],
 )
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
-def test_graph_handler_get_children(mock_get_nodes, node_id, expected_result):
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
+def test_graph_handler_get_children(mock_get_points, node_id, expected_result):
     workflow = MagicMock()
     workflow.graph = {
         "0": 1,
@@ -294,11 +312,48 @@ def test_graph_handler_get_children(mock_get_nodes, node_id, expected_result):
         "10": {},
     }
 
-    mock_get_nodes.side_effect = FakeNode
+    mock_get_points.side_effect = FakePoint
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
-    assert graph_handler.get_children(FakeNode(node_id)) == expected_result
+    assert graph_handler.get_children(FakePoint(node_id)) == expected_result
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_id, expected_result",
+    [
+        (1, []),
+        (7, [FakePoint(8)]),
+        (10, [FakePoint(11)]),
+        (11, []),
+    ],
+)
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
+def test_graph_handler_get_siblings(mock_get_points, node_id, expected_result):
+    workflow = MagicMock()
+    workflow.graph = {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {"children": [7], "next": {"": [4]}},
+        "4": {"next": {"": [5], "randomUid": [9]}},
+        "5": {"next": {"": [6]}},
+        "6": {"next": {"": []}},
+        "7": {"next": {"": [8]}},
+        "8": {"children": []},
+        "9": {"children": [10, 11]},
+        "10": {},
+        "11": {},
+    }
+
+    mock_get_points.side_effect = FakePoint
+
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
+
+    assert graph_handler.get_siblings(FakePoint(node_id)) == expected_result
 
 
 @pytest.mark.django_db
@@ -348,11 +403,13 @@ def test_graph_handler_get_children(mock_get_nodes, node_id, expected_result):
                 "0": 1,
                 "1": {"next": {"": [2]}},
                 "2": {"next": {"": [3]}},
-                "3": {"children": [11], "next": {"": [4]}},
+                # The new child is prepended as the head of the slot; the previous
+                # head (7) becomes its next.
+                "3": {"children": {"": [11]}, "next": {"": [4]}},
                 "11": {"next": {"": [7]}},
+                "4": {"next": {"": [5], "randomUid": [9]}},
                 "7": {"next": {"": [8]}},
                 "8": {"children": []},
-                "4": {"next": {"": [5], "randomUid": [9]}},
                 "9": {},
             },
         ),
@@ -424,11 +481,86 @@ def test_graph_handler_get_children(mock_get_nodes, node_id, expected_result):
                 "9": {},
             },
         ),
+        # position="north" test cases
+        # Insert north of the root node - new node becomes root
+        (
+            11,
+            1,
+            "north",
+            "",
+            {
+                "0": 11,
+                "11": {"next": {"": [1]}},
+                "1": {"next": {"": [2]}},
+                "2": {"next": {"": [3]}},
+                "3": {"children": [7], "next": {"": [4]}},
+                "4": {"next": {"": [5], "randomUid": [9]}},
+                "7": {"next": {"": [8]}},
+                "8": {"children": []},
+                "9": {},
+            },
+        ),
+        # Insert north of a middle node in the default output chain
+        (
+            11,
+            3,
+            "north",
+            "",
+            {
+                "0": 1,
+                "1": {"next": {"": [2]}},
+                "2": {"next": {"": [11]}},
+                "11": {"next": {"": [3]}},
+                "3": {"children": [7], "next": {"": [4]}},
+                "4": {"next": {"": [5], "randomUid": [9]}},
+                "7": {"next": {"": [8]}},
+                "8": {"children": []},
+                "9": {},
+            },
+        ),
+        # Insert north of a node on a non-default output (randomUid)
+        (
+            11,
+            9,
+            "north",
+            "",
+            {
+                "0": 1,
+                "1": {"next": {"": [2]}},
+                "2": {"next": {"": [3]}},
+                "3": {"children": [7], "next": {"": [4]}},
+                "4": {"next": {"": [5], "randomUid": [11]}},
+                "11": {"next": {"": [9]}},
+                "7": {"next": {"": [8]}},
+                "8": {"children": []},
+                "9": {},
+            },
+        ),
+        # Insert north of a child node
+        (
+            11,
+            7,
+            "north",
+            "",
+            {
+                "0": 1,
+                "1": {"next": {"": [2]}},
+                "2": {"next": {"": [3]}},
+                "3": {"children": {"": [11]}, "next": {"": [4]}},
+                "11": {"next": {"": [7]}},
+                "4": {"next": {"": [5], "randomUid": [9]}},
+                "7": {"next": {"": [8]}},
+                "8": {"children": []},
+                "9": {},
+            },
+        ),
     ],
 )
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
 def test_graph_handler_insert(
-    mock_get_nodes,
+    mock_get_points,
     node_id,
     reference_node_id,
     position,
@@ -447,13 +579,13 @@ def test_graph_handler_insert(
         "9": {},
     }
 
-    mock_get_nodes.side_effect = FakeNode
+    mock_get_points.side_effect = FakePoint
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
     graph_handler.insert(
-        FakeNode(node_id),
-        FakeNode(reference_node_id) if reference_node_id is not None else None,
+        FakePoint(node_id),
+        FakePoint(reference_node_id) if reference_node_id is not None else None,
         position,
         output,
     )
@@ -462,18 +594,20 @@ def test_graph_handler_insert(
 
 
 @pytest.mark.django_dbw
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
 def test_graph_handler_insert_first_node(
-    mock_get_nodes,
+    mock_get_points,
 ):
     workflow = MagicMock()
     workflow.graph = {}
 
-    mock_get_nodes.side_effect = FakeNode
+    mock_get_points.side_effect = FakePoint
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
-    graph_handler.insert(FakeNode(1), None, "south", "")
+    graph_handler.insert(FakePoint(1), None, "south", "")
 
     assert graph_handler.graph == {"1": {}, "0": 1}
 
@@ -511,10 +645,8 @@ def test_graph_handler_insert_first_node(
             {
                 "0": 1,
                 "1": {"next": {"": [2]}},
-                "2": {"next": {"": [4]}},  # yes we lose the child for now
+                "2": {"next": {"": [4]}},
                 "4": {"next": {"": [5], "randomUid": [9]}},
-                "7": {"next": {"": [8]}},
-                "8": {"children": []},
                 "9": {},
             },
         ),
@@ -532,9 +664,11 @@ def test_graph_handler_insert_first_node(
         ),
     ],
 )
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
 def test_graph_handler_remove(
-    mock_get_nodes,
+    mock_get_points,
     node_id,
     expected_result,
 ):
@@ -550,21 +684,23 @@ def test_graph_handler_remove(
         "9": {},
     }
 
-    mock_get_nodes.side_effect = FakeNode
+    mock_get_points.side_effect = FakePoint
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
     graph_handler.remove(
-        FakeNode(node_id),
+        FakePoint(node_id),
     )
 
     assert graph_handler.graph == expected_result
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
 def test_graph_handler_remove_last_node(
-    mock_get_nodes,
+    mock_get_points,
 ):
     workflow = MagicMock()
     workflow.graph = {
@@ -572,12 +708,12 @@ def test_graph_handler_remove_last_node(
         "1": {"next": {"": []}},
     }
 
-    mock_get_nodes.side_effect = FakeNode
+    mock_get_points.side_effect = FakePoint
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
     graph_handler.remove(
-        FakeNode(1),
+        FakePoint(1),
     )
 
     assert graph_handler.graph == {}
@@ -631,9 +767,11 @@ def test_graph_handler_remove_last_node(
         ),
     ],
 )
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
 def test_graph_handler_replace(
-    mock_get_nodes,
+    mock_get_points,
     node_id,
     replace_id,
     expected_result,
@@ -650,11 +788,11 @@ def test_graph_handler_replace(
         "9": {},
     }
 
-    mock_get_nodes.side_effect = FakeNode
+    mock_get_points.side_effect = FakePoint
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
-    graph_handler.replace(FakeNode(node_id), FakeNode(replace_id))
+    graph_handler.replace(FakePoint(node_id), FakePoint(replace_id))
 
     assert graph_handler.graph == expected_result
 
@@ -687,9 +825,11 @@ def test_graph_handler_replace(
             {
                 "0": 1,
                 "1": {"next": {"": [3]}},
-                "3": {"children": [2], "next": {"": [4]}},
-                "4": {"next": {"": [5], "randomUid": [9]}},
+                # Moved in as the head of node 3's child slot; the previous head (7)
+                # becomes the moved node's next.
+                "3": {"children": {"": [2]}, "next": {"": [4]}},
                 "2": {"next": {"": [7]}},
+                "4": {"next": {"": [5], "randomUid": [9]}},
                 "7": {"next": {"": [8]}},
                 "8": {"children": []},
                 "9": {},
@@ -720,7 +860,7 @@ def test_graph_handler_replace(
                 "0": 1,
                 "1": {"next": {"": [2]}},
                 "2": {"next": {"": [3]}},
-                "3": {"children": [8], "next": {"": [4], "randomUid": [7]}},
+                "3": {"children": {"": [8]}, "next": {"": [4], "randomUid": [7]}},
                 "4": {"next": {"": [5], "randomUid": [9]}},
                 "9": {},
                 "7": {},
@@ -745,9 +885,11 @@ def test_graph_handler_replace(
         ),
     ],
 )
-@patch("baserow.contrib.automation.workflows.graph_handler.NodeGraphHandler.get_node")
+@patch(
+    "baserow.contrib.automation.workflows.graph_handler.AutomationWorkflowGraphHandler.get_point"
+)
 def test_graph_handler_move(
-    mock_get_nodes,
+    mock_get_points,
     node_id,
     reference_node_id,
     position,
@@ -766,13 +908,13 @@ def test_graph_handler_move(
         "9": {},
     }
 
-    mock_get_nodes.side_effect = FakeNode
+    mock_get_points.side_effect = FakePoint
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
     graph_handler.move(
-        FakeNode(node_id),
-        FakeNode(reference_node_id) if reference_node_id is not None else None,
+        FakePoint(node_id),
+        FakePoint(reference_node_id) if reference_node_id is not None else None,
         position,
         output,
     )
@@ -794,7 +936,7 @@ def test_graph_handler_migrate():
         "9": {},
     }
 
-    graph_handler = NodeGraphHandler(workflow)
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
     graph_handler.migrate_graph(
         {
@@ -817,9 +959,9 @@ def test_graph_handler_migrate():
         "0": 41,
         "41": {"next": {"": [42]}},
         "42": {"next": {"": [43]}},
-        "43": {"next": {"": [44]}, "children": [47]},
+        "43": {"next": {"": [44]}, "children": {"": [47]}},
         "44": {"next": {"": [45], "anotherRandomUid": [49]}},
         "47": {"next": {"": [48]}},
-        "48": {"children": []},
+        "48": {"children": {"": []}},
         "49": {},
     }

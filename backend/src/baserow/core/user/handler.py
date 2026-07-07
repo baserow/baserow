@@ -10,7 +10,7 @@ from django.contrib.auth.models import AbstractUser, update_last_login
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import router, transaction
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, Exists, OuterRef, Q, QuerySet
 from django.db.utils import IntegrityError
 from django.utils import translation
 from django.utils.translation import gettext as _
@@ -823,17 +823,29 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
                 (u.id, u.username, u.email, u.profile.language, workspace_ids)
             )
 
-        # A workspace need to be deleted if there was an admin before and there is no
-        # *active* admin after the users deletion.
-        workspaces_to_be_deleted = Workspace.objects.annotate(
-            admin_count_after=Count(
-                "workspaceuser",
-                filter=(
-                    Q(workspaceuser__permissions="ADMIN")
-                    & ~Q(workspaceuser__user__in=users_to_delete)
+        # A workspace needs to be deleted if one of the deleted users was an admin
+        # and there is no *active* admin left after the deletion. Workspaces where
+        # none of the deleted users were admins are left untouched, even if they
+        # already had no admin.
+        had_deleted_admin = WorkspaceUser.objects.filter(
+            workspace=OuterRef("pk"),
+            permissions="ADMIN",
+            user__in=users_to_delete,
+        )
+        workspaces_to_be_deleted = (
+            Workspace.objects.filter(template=None)
+            .annotate(
+                had_deleted_admin=Exists(had_deleted_admin),
+                admin_count_after=Count(
+                    "workspaceuser",
+                    filter=(
+                        Q(workspaceuser__permissions="ADMIN")
+                        & ~Q(workspaceuser__user__in=users_to_delete)
+                    ),
                 ),
-            ),
-        ).filter(template=None, admin_count_after=0)
+            )
+            .filter(had_deleted_admin=True, admin_count_after=0)
+        )
 
         with transaction.atomic():
             for workspace in workspaces_to_be_deleted:
@@ -938,7 +950,10 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         signer = self._get_email_verification_signer()
-        token_data = signer.loads(token)
+        try:
+            token_data = signer.loads(token)
+        except BadSignature as ex:
+            raise InvalidVerificationToken() from ex
 
         if datetime.fromisoformat(token_data["expires_at"]) < datetime.now(
             tz=timezone.utc

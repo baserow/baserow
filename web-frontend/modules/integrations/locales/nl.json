@@ -109,7 +109,24 @@
         "slackWriteMessageDescription": "Stuurt een bericht naar een specifiek Slack #kanaal",
         "slackWriteMessageMissingChannel": "Een kanaal is vereist.",
         "slackWriteMessageMissingMessage": "Een bericht is vereist.",
-        "slackWriteMessageMissingIntegration": "Geen Slack-integratie geselecteerd."
+        "slackWriteMessageMissingIntegration": "Geen Slack-integratie geselecteerd.",
+        "localBaserowCreateRows": "Meerdere rijen aanmaken",
+        "localBaserowCreateRowsDescription": "Maakt meerdere nieuwe rijen aan in een Baserow-tabel.",
+        "localBaserowUpdateRows": "Meerdere rijen bijwerken",
+        "localBaserowUpdateRowsDescription": "Werkt meerdere bestaande rijen in een Baserow-tabel bij.",
+        "localBaserowFieldsUpdated": "Specifieke veldwaarden bijgewerkt",
+        "localBaserowFieldsUpdatedDescription": "Wordt geactiveerd wanneer rijen worden bijgewerkt in specifieke velden van een Baserow-tabel.",
+        "coreManualTrigger": "Handmatige activering",
+        "coreManualTriggerDescription": "Start alleen wanneer een andere workflow-actie deze workflow start.",
+        "coreCSVFileReader": "Een CSV-bestand lezen",
+        "coreCSVFileReaderDescription": "Leest rijen uit een CSV-bestand.",
+        "coreStartWorkflow": "Workflow starten",
+        "coreStartWorkflowDescription": "Start een automatiseringsworkflow.",
+        "errorNoRowsSelected": "Geen rijen geselecteerd",
+        "errorCSVFileMissing": "CSV-bestand-eigenschap ontbreekt",
+        "errorCSVContentMissing": "CSV-gegevens-eigenschap ontbreekt",
+        "errorNoWorkflowSelected": "Geen workflow geselecteerd",
+        "errorWorkflowNotImmediateDispatch": "De geselecteerde workflow moet een activering gebruiken die direct kan starten."
     },
     "userSourceType": {
         "localBaserow": "Baserow tabel authenticatie"
@@ -339,5 +356,48 @@
         "fieldMappingPlaceholderDuration": "Kies een tijdsduurwaarde, bijv. 1:23:40",
         "noTableSelectedMessage": "Kies een tabel om te beginnen met het configureren van je velden.",
         "noWritableFields": "Deze tabel bevat geen beschrijfbare velden."
+    },
+    "localBaserowFieldsUpdatedForm": {
+        "fieldLabel": "Velden",
+        "fieldHelper": "De workflow wordt alleen geactiveerd wanneer de waarde van een van deze velden verandert."
+    },
+    "coreCSVFileReaderServiceForm": {
+        "inputType": "Bron",
+        "inputTypeFile": "Bestand",
+        "inputTypeContent": "Inhoud",
+        "file": "CSV-bestand",
+        "filePlaceholder": "Kies een CSV-bestand...",
+        "csv": "CSV-gegevens",
+        "csvPlaceholder": "Voer CSV-gegevens in...",
+        "separator": "Scheidingsteken",
+        "encoding": "Codering",
+        "firstLineIsHeader": "Eerste regel is header",
+        "comma": "Komma",
+        "semicolon": "Puntkomma",
+        "tab": "Tab",
+        "pipe": "Pipe",
+        "utf8": "UTF-8",
+        "utf8Bom": "UTF-8 met BOM",
+        "latin1": "Latin-1"
+    },
+    "coreStartWorkflowServiceForm": {
+        "automation": "Automatisering",
+        "workflow": "Workflow",
+        "workflowHelperText": "Alleen gepubliceerde workflows met een handmatige activering kunnen worden gestart. Als deze workflow niet-gepubliceerde wijzigingen heeft, wordt de laatst gepubliceerde versie uitgevoerd."
+    },
+    "localBaserowDeleteRowServiceForm": {
+        "rowIdLabel": "Rij-ID('s)",
+        "rowIdPlaceholder": "Kies een rij-ID of een array van rij-ID's",
+        "rowIdHelper": "Kies één rij-ID of een array van rij-ID's. Er kunnen maximaal {limit} rijen tegelijk worden verwijderd."
+    },
+    "localBaserowCreateRowsServiceForm": {
+        "rowsLabel": "Rijen",
+        "rowsPlaceholder": "Kies een lijst met rij-objecten",
+        "rowsHelper": "De formule moet een array van rij-objecten teruggeven, of een JSON-string die daarnaar kan worden geparseerd. Gebruik veldnamen of veld-ID's als objectsleutels. Er kunnen maximaal {limit} rijen tegelijk worden aangemaakt."
+    },
+    "localBaserowUpdateRowsServiceForm": {
+        "rowsLabel": "Rijen",
+        "rowsPlaceholder": "Kies een lijst met rij-objecten met ID's",
+        "rowsHelper": "De formule moet een array van rij-objecten teruggeven, of een JSON-string die daarnaar kan worden geparseerd. Elk object moet een id-eigenschap bevatten. Gebruik veldnamen of veld-ID's als objectsleutels. Er kunnen maximaal {limit} rijen tegelijk worden bijgewerkt."
     }
 }

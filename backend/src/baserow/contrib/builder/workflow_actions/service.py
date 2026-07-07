@@ -39,6 +39,7 @@ from baserow.contrib.builder.workflow_actions.signals import (
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     BuilderWorkflowActionType,
 )
+from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.services.types import DispatchResult
 
@@ -96,7 +97,7 @@ class BuilderWorkflowActionService:
         user_workflow_actions = CoreHandler().filter_queryset(
             user,
             ListBuilderWorkflowActionsPageOperationType.type,
-            BuilderWorkflowAction.objects.all(),
+            BuilderWorkflowAction.objects.filter(page=page),
             workspace=page.builder.workspace,
         )
 
@@ -120,7 +121,7 @@ class BuilderWorkflowActionService:
         user_workflow_actions = CoreHandler().filter_queryset(
             user,
             ListBuilderWorkflowActionsPageOperationType.type,
-            BuilderWorkflowAction.objects.all(),
+            BuilderWorkflowAction.objects.filter(page__builder=builder),
             workspace=builder.workspace,
         )
 
@@ -149,6 +150,8 @@ class BuilderWorkflowActionService:
             workspace=page.builder.workspace,
             context=page,
         )
+
+        workflow_action_type.raise_if_deactivated(page.builder.workspace)
 
         prepared_values = workflow_action_type.prepare_values(kwargs, user)
 
@@ -194,6 +197,10 @@ class BuilderWorkflowActionService:
             )
         else:
             workflow_action_type = workflow_action.get_type()
+
+        workflow_action_type.raise_if_deactivated(
+            workflow_action.page.builder.workspace
+        )
 
         if has_type_changed:
             # When a workflow action's type changes, due our polymorphism, we need
@@ -321,9 +328,32 @@ class BuilderWorkflowActionService:
             context=workflow_action,
         )
 
-        result = self.handler.dispatch_workflow_action(
-            workflow_action, dispatch_context
+        workflow_action.get_type().raise_if_deactivated(
+            workflow_action.page.builder.workspace
         )
+
+        update_sample_data = self._can_update_sample_data(
+            user, workflow_action, dispatch_context
+        )
+        if update_sample_data:
+            dispatch_context.use_sample_data = True
+            dispatch_context.update_sample_data_for = [workflow_action.service.specific]
+
+        try:
+            result = self.handler.dispatch_workflow_action(
+                workflow_action, dispatch_context
+            )
+        except Exception:
+            if update_sample_data:
+                workflow_action_updated.send(
+                    self, workflow_action=workflow_action, user=user
+                )
+            raise
+
+        if update_sample_data:
+            workflow_action_updated.send(
+                self, workflow_action=workflow_action, user=user
+            )
 
         # Remove unfiltered fields
         allowed_field_names = dispatch_context.public_allowed_properties.get(
@@ -338,3 +368,34 @@ class BuilderWorkflowActionService:
             data=data,
             status=result.status,
         )
+
+    def _can_update_sample_data(
+        self,
+        user,
+        workflow_action: BuilderWorkflowServiceAction,
+        dispatch_context: BuilderDispatchContext,
+    ) -> bool:
+        """
+        Returns whether this dispatch may persist the service sample data.
+
+        Only authenticated dispatches against draft builders with workflow-action
+        update permission are allowed to refresh sample data. Published builder
+        copies must not mutate their service sample data.
+        """
+
+        builder = workflow_action.page.builder
+
+        if builder.is_published:
+            return False
+
+        try:
+            CoreHandler().check_permissions(
+                user,
+                UpdateBuilderWorkflowActionOperationType.type,
+                workspace=workflow_action.page.builder.workspace,
+                context=workflow_action,
+            )
+        except PermissionException:
+            return False
+
+        return True

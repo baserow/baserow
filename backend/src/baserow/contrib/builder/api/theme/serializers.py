@@ -1,10 +1,22 @@
 from functools import cache
+from typing import List
 
 from loguru import logger
 from rest_framework import serializers
 
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
+
+
+def get_theme_config_block_type_names_ref_name(theme_config_block_type_names):
+    def format_part(type_name):
+        if isinstance(type_name, list):
+            return "And".join(format_part(sub_type_name) for sub_type_name in type_name)
+        return type_name.capitalize()
+
+    return "".join(
+        format_part(type_name) for type_name in theme_config_block_type_names
+    )
 
 
 class DynamicConfigBlockSerializer(serializers.Serializer):
@@ -15,32 +27,32 @@ class DynamicConfigBlockSerializer(serializers.Serializer):
     def __init__(
         self,
         *args,
-        property_name=None,
-        theme_config_block_type_name=None,
+        property_names: List[str],
+        theme_config_block_type_names: List[List[str]],
         serializer_kwargs=None,
         request_serializer=False,
         **kwargs,
     ):
-        if property_name is None:
-            raise ValueError("Missing property_name parameter")
-        if theme_config_block_type_name is None:
-            raise ValueError("Missing theme_block_type parameter")
+        """
+        Create one nested style serializer per property name.
 
+        :param property_names: The style property names to expose, for example
+            ["menu", "burger"].
+        :param theme_config_block_type_names: The theme config block type names to
+            combine for each matching property. The outer list must match
+            property_names by index; each inner list contains the block types allowed
+            for that property, for example [["button", "link"], ["typography"]].
+        :param serializer_kwargs: Optional keyword arguments forwarded to every
+            generated nested serializer field.
+        :param request_serializer: Whether to use request serializer fields from the
+            theme config block types.
+        """
         super().__init__(*args, **kwargs)
 
         if serializer_kwargs is None:
             serializer_kwargs = {}
 
-        if not isinstance(property_name, list):
-            property_name = [property_name]
-
-        if not isinstance(theme_config_block_type_name, list):
-            theme_config_block_type_name = [theme_config_block_type_name]
-
-        for prop, type_names in zip(property_name, theme_config_block_type_name):
-            if not isinstance(type_names, list):
-                type_names = [type_names]
-
+        for prop, type_names in zip(property_names, theme_config_block_type_names):
             config_blocks = (
                 theme_config_block_registry.get(type_name) for type_name in type_names
             )
@@ -52,13 +64,8 @@ class DynamicConfigBlockSerializer(serializers.Serializer):
 
             self.fields[prop] = serializer_class(**serializer_kwargs)
 
-        all_type_names = "".join(
-            [
-                "And".join(sub.capitalize() for sub in p)
-                if isinstance(p, list)
-                else p.capitalize()
-                for p in theme_config_block_type_name
-            ]
+        all_type_names = get_theme_config_block_type_names_ref_name(
+            theme_config_block_type_names
         )
 
         # Dynamically create the Meta class with ref name to prevent collision

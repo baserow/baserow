@@ -23,20 +23,6 @@ class SharedPageIsReadOnly(Exception):
     """Raised when trying to do something on shared page."""
 
 
-class PageNameNotUnique(Exception):
-    """Raised when a page is trying to be created with a name that already exists"""
-
-    def __init__(self, name=None, builder_id=None, *args, **kwargs):
-        self.name = name
-        self.builder_id = builder_id
-        super().__init__(
-            f"A page with the name {name} already exists in the builder with id "
-            f"{builder_id}",
-            *args,
-            **kwargs,
-        )
-
-
 class PagePathNotUnique(Exception):
     """Raised when a page is trying to be created with a path that already exists"""
 

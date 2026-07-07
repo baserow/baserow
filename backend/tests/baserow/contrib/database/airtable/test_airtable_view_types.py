@@ -378,7 +378,12 @@ def test_import_grid_view_sorts():
         AirtableImportReport(),
     )
     assert serialized_view["sortings"] == [
-        {"id": "srtglUy98ghs5ou8D", "field_id": "fldwSc9PqedIhTSqhi1", "order": "ASC"}
+        {
+            "id": "srtglUy98ghs5ou8D",
+            "field_id": "fldwSc9PqedIhTSqhi1",
+            "order": "ASC",
+            "priority": 1,
+        }
     ]
 
     view_data["lastSortsApplied"]["sortSet"][0]["ascending"] = False
@@ -393,7 +398,12 @@ def test_import_grid_view_sorts():
         AirtableImportReport(),
     )
     assert serialized_view["sortings"] == [
-        {"id": "srtglUy98ghs5ou8D", "field_id": "fldwSc9PqedIhTSqhi1", "order": "DESC"}
+        {
+            "id": "srtglUy98ghs5ou8D",
+            "field_id": "fldwSc9PqedIhTSqhi1",
+            "order": "DESC",
+            "priority": 1,
+        }
     ]
 
 
@@ -462,7 +472,12 @@ def test_import_grid_view_group_bys():
         AirtableImportReport(),
     )
     assert serialized_view["group_bys"] == [
-        {"id": "glvvqP2okySUA2345", "field_id": "fldwSc9PqedIhTSqhi1", "order": "ASC"}
+        {
+            "id": "glvvqP2okySUA2345",
+            "field_id": "fldwSc9PqedIhTSqhi1",
+            "order": "ASC",
+            "priority": 1,
+        }
     ]
 
     view_data["groupLevels"][0]["order"] = "descending"
@@ -477,7 +492,12 @@ def test_import_grid_view_group_bys():
         AirtableImportReport(),
     )
     assert serialized_view["group_bys"] == [
-        {"id": "glvvqP2okySUA2345", "field_id": "fldwSc9PqedIhTSqhi1", "order": "DESC"}
+        {
+            "id": "glvvqP2okySUA2345",
+            "field_id": "fldwSc9PqedIhTSqhi1",
+            "order": "DESC",
+            "priority": 1,
+        }
     ]
 
 

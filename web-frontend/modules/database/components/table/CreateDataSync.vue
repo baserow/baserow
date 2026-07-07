@@ -1,5 +1,25 @@
 <template>
-  <div v-if="!loadedProperties">
+  <div v-if="restoredFromStore" class="margin-top-3 margin-bottom-3">
+    <p class="margin-bottom-2">{{ $t('createDataSync.syncing') }}</p>
+    <div class="modal-progress__actions">
+      <ProgressBar
+        v-if="jobIsRunning || jobIsFinished"
+        :value="job.progress_percentage"
+        :status="jobHumanReadableState"
+      />
+      <ButtonText
+        v-if="jobIsRunning || cancelLoading"
+        tag="a"
+        type="secondary"
+        class="modal-progress__cancel-button"
+        :loading="cancelLoading"
+        @click="cancelJob"
+      >
+        {{ $t('action.cancel') }}
+      </ButtonText>
+    </div>
+  </div>
+  <div v-else-if="!loadedProperties">
     <TableForm
       ref="tableForm"
       class="margin-top-3 margin-bottom-2"
@@ -34,7 +54,7 @@
           property.unique_primary ||
           autoAddNewProperties ||
           jobIsRunning ||
-          jobHasSucceeded
+          jobIsFinished
         "
         @input="toggleVisibleField(property.key)"
       >
@@ -51,9 +71,23 @@
         v-model="autoAddNewProperties"
         class="margin-top-2"
         small
-        :disabled="jobIsRunning || jobHasSucceeded"
+        :disabled="jobIsRunning || jobIsFinished"
       >
         {{ $t('createDataSync.autoAddLabel') }}</SwitchInput
+      >
+    </FormGroup>
+    <FormGroup
+      small-label
+      class="margin-top-2"
+      :helper-text="$t('createDataSync.deleteUnmatchedRowsHelper')"
+    >
+      <SwitchInput
+        v-model="deleteUnmatchedRows"
+        class="margin-top-2"
+        small
+        :disabled="jobIsRunning || jobIsFinished"
+      >
+        {{ $t('createDataSync.deleteUnmatchedRowsLabel') }}</SwitchInput
       >
     </FormGroup>
     <FormGroup
@@ -66,7 +100,7 @@
         v-model="twoWaySync"
         class="margin-top-2"
         small
-        :disabled="jobIsRunning || jobHasSucceeded || isTwoWaySyncDeactivated"
+        :disabled="jobIsRunning || jobIsFinished || isTwoWaySyncDeactivated"
         @click="clickTwoWaySync"
       >
         {{ $t('createDataSync.twoWaySyncLabel') }}
@@ -82,21 +116,31 @@
     <Error :error="error"></Error>
     <div class="modal-progress__actions margin-top-2">
       <ProgressBar
-        v-if="jobIsRunning || jobHasSucceeded"
+        v-if="jobIsRunning || jobIsFinished"
         :value="job.progress_percentage"
         :status="jobHumanReadableState"
       />
-      <div class="align-right">
-        <Button
-          type="primary"
-          size="large"
-          :disabled="creatingTable || jobIsRunning || jobHasSucceeded"
-          :loading="creatingTable || jobIsRunning || jobHasSucceeded"
-          @click="create"
-        >
-          {{ $t('createDataSync.create') }}
-        </Button>
-      </div>
+      <ButtonText
+        v-if="jobIsRunning || cancelLoading"
+        tag="a"
+        type="secondary"
+        class="modal-progress__cancel-button"
+        :loading="cancelLoading"
+        @click="cancelJob"
+      >
+        {{ $t('action.cancel') }}
+      </ButtonText>
+      <Button
+        type="primary"
+        size="large"
+        full-width
+        class="modal-progress__primary-button"
+        :disabled="creatingTable || jobIsFinished || jobIsRunning"
+        :loading="creatingTable || jobIsFinished || jobIsRunning"
+        @click="create"
+      >
+        {{ $t('createDataSync.create') }}
+      </Button>
     </div>
   </div>
 </template>
@@ -107,6 +151,7 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 import DataSyncService from '@baserow/modules/database/services/dataSync'
 import { clone } from '@baserow/modules/core/utils/object'
 import dataSync from '@baserow/modules/database/mixins/dataSync'
+import { SyncDataSyncTableJobType } from '@baserow/modules/database/jobTypes'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick, useNuxtApp } from '#imports'
 
@@ -124,33 +169,37 @@ export default {
       required: true,
     },
   },
-  emits: ['hide'],
+  emits: ['hide', 'import-in-progress', 'uploading-before-job-created'],
   setup() {
     const nuxtApp = useNuxtApp()
     return { nuxtApp }
   },
   data() {
     return {
+      restoredFromStore: false,
       formValues: null,
       properties: null,
       creatingTable: false,
       createdTable: null,
       autoAddNewProperties: false,
+      deleteUnmatchedRows: true,
       twoWaySync: false,
     }
   },
   computed: {
     dataSyncType() {
-      return this.chosenType === ''
-        ? null
-        : this.$registry.get('dataSync', this.chosenType)
+      if (this.chosenType === '') return null
+      try {
+        return this.$registry.get('dataSync', this.chosenType)
+      } catch {
+        return null
+      }
     },
     dataSyncComponent() {
-      return this.chosenType === ''
-        ? null
-        : this.$registry.get('dataSync', this.chosenType).getFormComponent()
+      return this.dataSyncType ? this.dataSyncType.getFormComponent() : null
     },
     twoWaySyncStrategy() {
+      if (!this.dataSyncType) return null
       const strategy = this.dataSyncType.getTwoWayDataSyncStrategy()
       if (!strategy) {
         return null
@@ -164,6 +213,14 @@ export default {
       }
       return this.twoWaySyncStrategy.isDeactivated(this.database.workspace.id)
     },
+    syncInProgress() {
+      return this.creatingTable || this.jobIsRunning
+    },
+    // True while creating the table before the sync job exists.
+    // Once created, the user can close the modal and the job will restore on reopen.
+    uploadingBeforeJobCreated() {
+      return this.creatingTable && this.job === null
+    },
     twoWaySyncDeactivatedModal() {
       if (!this.twoWaySyncStrategy) {
         return null
@@ -172,6 +229,18 @@ export default {
     },
   },
   watch: {
+    syncInProgress: {
+      handler(value) {
+        this.$emit('import-in-progress', value)
+      },
+      immediate: true,
+    },
+    uploadingBeforeJobCreated: {
+      handler(value) {
+        this.$emit('uploading-before-job-created', value)
+      },
+      immediate: true,
+    },
     chosenType(newValue, oldValue) {
       if (newValue !== oldValue) {
         this.hideError()
@@ -185,9 +254,22 @@ export default {
       }
     },
   },
+  mounted() {
+    this.loadRunningJob()
+  },
   methods: {
-    hide() {
-      this.stopPollIfRunning()
+    hide() {},
+    loadRunningJob() {
+      const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
+        (j) =>
+          j.type === SyncDataSyncTableJobType.getType() &&
+          j.data_sync?.database_id === this.database.id &&
+          j.data_sync?.last_sync === null
+      )
+      if (runningJob) {
+        this.job = runningJob
+        this.restoredFromStore = true
+      }
     },
     getDefaultName() {
       const excludeNames = this.database.tables.map((table) => table.name)
@@ -207,6 +289,7 @@ export default {
       formValues.table_name = formValues.name
       formValues.synced_properties = this.syncedProperties
       formValues.auto_add_new_properties = this.autoAddNewProperties
+      formValues.delete_unmatched_rows = this.deleteUnmatchedRows
       formValues.two_way_sync = this.twoWaySync
 
       this.creatingTable = true
@@ -237,17 +320,37 @@ export default {
         this.creatingTable = false
       }
     },
-    async onJobDone() {
-      await this.$router.push({
-        name: 'database-table',
-        params: {
-          databaseId: this.database.id,
-          tableId: this.createdTable.id,
-        },
-      })
-      await pageFinished(this.nuxtApp)
-      await nextTick()
+    async onJobFinished() {
+      const tableId = this.createdTable?.id || this.job?.data_sync?.table_id
+      if (tableId) {
+        await this.$router.push({
+          name: 'database-table',
+          params: {
+            databaseId: this.database.id,
+            tableId,
+          },
+        })
+        await pageFinished(this.nuxtApp)
+        await nextTick()
+      }
+      this.restoredFromStore = false
       this.$emit('hide')
+    },
+    onJobCancelled() {
+      // Optimistically delete the table since the backend may take time to cancel the job
+      const tableId = this.job.data_sync?.table_id
+      if (!tableId) return
+
+      const table = this.database.tables.find((t) => t.id === tableId)
+      if (!table) return
+
+      this.$store.dispatch('table/forceDelete', {
+        database: this.database,
+        table,
+      })
+
+      this.restoredFromStore = false
+      this.job = null
     },
     clickTwoWaySync() {
       if (this.isTwoWaySyncDeactivated) {

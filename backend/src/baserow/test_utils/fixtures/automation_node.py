@@ -7,17 +7,22 @@ from baserow.contrib.automation.nodes.models import (
     CoreIteratorActionNode,
     CoreRouterActionNode,
     LocalBaserowCreateRowActionNode,
+    LocalBaserowCreateRowsActionNode,
+    LocalBaserowUpdateRowsActionNode,
 )
 from baserow.contrib.automation.nodes.node_types import (
     CoreHTTPTriggerNodeType,
     CoreIteratorNodeType,
+    CoreManualTriggerNodeType,
     CorePeriodicTriggerNodeType,
     CoreRouterActionNodeType,
     LocalBaserowCreateRowNodeType,
+    LocalBaserowCreateRowsNodeType,
     LocalBaserowDeleteRowNodeType,
     LocalBaserowGetRowNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
     LocalBaserowUpdateRowNodeType,
+    LocalBaserowUpdateRowsNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
@@ -98,10 +103,28 @@ class AutomationNodeFixtures:
             **kwargs,
         )
 
+    def create_local_baserow_create_rows_action_node(
+        self, user=None, **kwargs
+    ) -> LocalBaserowCreateRowsActionNode:
+        return self.create_automation_node(
+            user=user,
+            type=LocalBaserowCreateRowsNodeType.type,
+            **kwargs,
+        )
+
     def create_local_baserow_update_row_action_node(self, user=None, **kwargs):
         return self.create_automation_node(
             user=user,
             type=LocalBaserowUpdateRowNodeType.type,
+            **kwargs,
+        )
+
+    def create_local_baserow_update_rows_action_node(
+        self, user=None, **kwargs
+    ) -> LocalBaserowUpdateRowsActionNode:
+        return self.create_automation_node(
+            user=user,
+            type=LocalBaserowUpdateRowsNodeType.type,
             **kwargs,
         )
 
@@ -157,11 +180,11 @@ class AutomationNodeFixtures:
             output_label="output edge 2",
         )
 
-        edge1_output = workflow.get_graph().get_node_at_position(
-            reference_node=router, position="south", output=edge1.uid
+        edge1_output = workflow.get_graph().get_point_at_position(
+            reference_point=router, position="south", output=edge1.uid
         )
-        edge2_output = workflow.get_graph().get_node_at_position(
-            reference_node=router, position="south", output=edge2.uid
+        edge2_output = workflow.get_graph().get_point_at_position(
+            reference_point=router, position="south", output=edge2.uid
         )
 
         fallback_output_node = self.create_local_baserow_create_row_action_node(
@@ -188,6 +211,13 @@ class AutomationNodeFixtures:
         return self.create_automation_node(
             user=user,
             type=CoreHTTPTriggerNodeType.type,
+            **kwargs,
+        )
+
+    def create_manual_trigger_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=CoreManualTriggerNodeType.type,
             **kwargs,
         )
 

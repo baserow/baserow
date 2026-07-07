@@ -20,7 +20,10 @@ from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GRO
 from baserow.api.pagination import LimitOffsetPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
-from baserow.api.sessions import set_client_undo_redo_action_group_id
+from baserow.api.sessions import (
+    set_client_undo_redo_action_group_id,
+    set_untrusted_client_session_id_from_request_or_raise_if_invalid,
+)
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow_enterprise.assistant.assistant import set_assistant_cancellation_key
@@ -161,6 +164,15 @@ class AssistantChatView(APIView):
 
         # Clearing the user websocket_id will make sure real-time updates are sent
         chat.user.web_socket_id = None
+
+        # The actions run by the assistant are registered against chat.user (a
+        # freshly fetched user that doesn't carry the request's session data).
+        # Copy the client session id from the request onto it so the actions are
+        # registered under the same session the client undoes with — otherwise
+        # undo can't find them ("No more actions to undo").
+        set_untrusted_client_session_id_from_request_or_raise_if_invalid(
+            chat.user, request
+        )
 
         # Used to group all the actions done to produce this message together
         # so they can be undone in one go.

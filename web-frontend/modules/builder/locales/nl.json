@@ -511,7 +511,14 @@
         "columnGapTitle": "Ruimte tussen kolommen",
         "columnAmountTitle": "Layout",
         "columnAmountName": "geen kolommen | 1 kolom | {columnAmount} kolommen",
-        "verticalAlignment": "Verticale uitlijning"
+        "verticalAlignment": "Verticale uitlijning",
+        "customLayout": "Aangepast",
+        "customWeightsTitle": "Aangepaste kolomgewichten",
+        "customWeightsHelper": "Gebruik 0 wanneer een kolom slechts zo breed moet zijn als de inhoud. Andere kolommen verdelen de resterende ruimte.",
+        "errorCustomWeightsMinimum": "Kolomgewichten moeten 0 of hoger zijn",
+        "columnStackingTitle": "Kolommen stapelen per apparaattype",
+        "columnStackingHorizontal": "Naast elkaar",
+        "columnStackingStacked": "Gestapeld"
     },
     "notificationWorkflowActionForm": {
         "descriptionLabel": "Beschrijving",
@@ -1120,7 +1127,14 @@
         "menuItemVariantButton": "Knop",
         "namePlaceholder": "Pagina",
         "menuItemAddSpacer": "Spacer",
-        "menuItemAddLink": "Link"
+        "menuItemAddLink": "Link",
+        "variant": "Variant per apparaattype",
+        "expanded": "Uitgeklapt",
+        "compact": "Compact",
+        "previewCompactMenuLabel": "Voorbeeld van compact menu",
+        "previewCompactMenuHelper": "Toon/verberg het voorbeeld van het compacte menu.",
+        "openEditorCompactMenu": "Menu openen",
+        "closeEditorCompactMenu": "Menu sluiten"
     },
     "simpleContainerElementForm": {
         "noConfigurationOptions": "Het container element heeft geen configuratieopties."
@@ -1207,5 +1221,10 @@
         "serviceMisconfiguredMessage": "Controleer de configuratie.",
         "errorWorkflowActionDispatch": "De actie \"{naam}\" is mislukt: ",
         "errorDataSourceDispatch": "Mislukt bij het laden van \"{name}\" gegevens: "
+    },
+    "workflowAction": {
+        "sampleDataModalTitle": "Payload voor {actionLabel}",
+        "sampleDataModalSubTitle": "JSON-payload",
+        "testActionDescription": "Voer deze actie uit in de voorbeeldweergave om de uitvoer vast te leggen en beschikbaar te maken voor volgende acties."
     }
 }

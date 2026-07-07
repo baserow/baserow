@@ -245,6 +245,67 @@ def test_dispatch_node_unexpected_error(mock_logger, mock_dispatch, data_fixture
 
 
 @pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_database_error_does_not_break_transaction(
+    mock_logger, data_fixture
+):
+    """
+    Regression test: when a service dispatch raises a *database* error, it
+    leaves the surrounding transaction in a "needs rollback" state. The service
+    dispatch wraps its work in a savepoint so the surrounding transaction stays
+    usable, allowing the error handling path to persist the failure
+    (workflow/node history) instead of crashing with a
+    TransactionManagementError on the broken transaction.
+    """
+
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    action_node = data["action_node"]
+    workflow_history = data["workflow_history"]
+
+    # First dispatch the trigger so the action node has its previous results.
+    result = AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+    assert_dispatches_next_node(result, (action_node, workflow_history, None))
+
+    def _broken_db_dispatch_data(*args, **kwargs):
+        # Run a failing query inside the dispatch so the connection is marked
+        # as needing a rollback, then let the resulting database error
+        # propagate, mimicking a real service dispatch hitting a DB error.
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM table_that_does_not_exist_xyz")
+
+    # Now dispatch the action node, whose service dispatch hits a DB error.
+    # This must not raise a TransactionManagementError.
+    with patch(
+        "baserow.contrib.integrations.local_baserow.service_types"
+        ".LocalBaserowUpsertRowServiceType.dispatch_data",
+        side_effect=_broken_db_dispatch_data,
+    ):
+        result = AutomationNodeHandler().dispatch_node(
+            action_node.id,
+            history_id=workflow_history.id,
+        )
+    assert result is None
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    assert "Unexpected error while running workflow" in workflow_history.message
+
+    node_history = (
+        AutomationNodeHistory.objects.filter(workflow_history=workflow_history)
+        .order_by("-id")
+        .first()
+    )
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert "Unexpected error while running workflow" in node_history.message
+
+
+@pytest.mark.django_db
 @patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
 @patch(f"{NODE_HANDLER_PATH}.logger")
 def test_dispatch_node_expected_error(mock_logger, mock_dispatch, data_fixture):
@@ -1578,3 +1639,133 @@ def test_handle_workflow_dispatch_done_sends_signal_on_error(
         mock_dispatch_done_signal.send.call_args.kwargs["workflow_history"].id
         == workflow_history.id
     )
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_started")
+@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_completed")
+def test_dispatch_node_sends_started_and_completed_signals_on_success(
+    mock_dispatch_completed,
+    mock_dispatch_started,
+    data_fixture,
+):
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    workflow_history = data["workflow_history"]
+
+    handler = AutomationNodeHandler()
+    handler.dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+
+    mock_dispatch_started.send.assert_called_once_with(
+        sender=handler,
+        node=trigger_node,
+        workflow_history=workflow_history,
+    )
+    mock_dispatch_completed.send.assert_called_once_with(
+        sender=handler,
+        node=trigger_node,
+        node_history=ANY,
+    )
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_completed")
+def test_dispatch_node_completed_signal_sent_after_node_history_created(
+    mock_dispatch_completed,
+    data_fixture,
+):
+    """
+    The post-dispatch hook (e.g. saas automation usage) relies on the node
+    history being fully finalized when the completed signal is sent: the
+    completed_on/status fields are persisted and the node result exists. This
+    is required for time-based usage costs, which read completed_on.
+    """
+
+    captured = {}
+
+    def capture_state(*args, **kwargs):
+        node_history = kwargs["node_history"]
+        captured["completed_on"] = node_history.completed_on
+        captured["status"] = node_history.status
+        captured["result_exists"] = AutomationNodeResult.objects.filter(
+            node_history=node_history
+        ).exists()
+
+    # Capture the node history's state when the signal fires
+    mock_dispatch_completed.send.side_effect = capture_state
+
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    workflow_history = data["workflow_history"]
+
+    assert AutomationNodeResult.objects.exists() is False
+
+    AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+
+    mock_dispatch_completed.send.assert_called_once()
+    assert captured["completed_on"] is not None
+    assert captured["status"] == HistoryStatusChoices.SUCCESS
+    # If the signal was run before the node history was saved, this
+    # would be False.
+    assert captured["result_exists"] is True
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_completed")
+@patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
+def test_dispatch_node_does_not_send_completed_signal_on_error(
+    mock_dispatch,
+    mock_dispatch_completed,
+    data_fixture,
+):
+    mock_dispatch.side_effect = ValueError("Foo error")
+
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    workflow_history = data["workflow_history"]
+
+    AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+
+    # completed signal should not be sent because the dispatch failed.
+    mock_dispatch_completed.send.assert_not_called()
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_started")
+@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_completed")
+@patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
+def test_dispatch_node_returns_early_if_started_signal_has_error(
+    mock_dispatch,
+    mock_dispatch_completed,
+    mock_dispatch_started,
+    data_fixture,
+):
+    # Simulate an exception raised when the started signal is sent.
+    mock_dispatch_started.send.side_effect = Exception("Foo error")
+
+    data = create_workflow(data_fixture)
+    trigger_node = data["trigger_node"]
+    workflow_history = data["workflow_history"]
+
+    result = AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+
+    assert result is None
+    node_history = AutomationNodeHistory.objects.get(node=trigger_node)
+    assert node_history.status == HistoryStatusChoices.ERROR
+
+    # Both node_dispatch() and the completed signal shouldn't be called
+    # because the started signal raised an error.
+    mock_dispatch.assert_not_called()
+    mock_dispatch_completed.send.assert_not_called()

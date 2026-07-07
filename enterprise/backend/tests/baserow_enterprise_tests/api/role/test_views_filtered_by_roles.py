@@ -2,6 +2,7 @@ from django.shortcuts import reverse
 
 import pytest
 
+from baserow.core.handler import CoreHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 
 
@@ -110,3 +111,167 @@ def test_get_database_application_with_tables_filtered_by_roles(
 
     assert len(response_json["tables"]) == 1
     assert [t["id"] for t in response_json["tables"]] == [table_1.id]
+
+
+@pytest.mark.django_db
+def test_get_builder_application_with_application_role_includes_pages(
+    api_client, data_fixture
+):
+    admin = data_fixture.create_user()
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Visible page")
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=builder.application_ptr
+    )
+
+    url = reverse("api:applications:item", kwargs={"application_id": builder.id})
+
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    response_json = response.json()
+
+    assert response.status_code == 200
+    assert response_json["id"] == builder.id
+    assert page.id in [p["id"] for p in response_json["pages"]]
+
+
+@pytest.mark.django_db
+def test_get_automation_application_with_application_role_includes_workflows(
+    api_client, data_fixture
+):
+    admin = data_fixture.create_user()
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="Visible workflow"
+    )
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=automation.application_ptr
+    )
+
+    url = reverse("api:applications:item", kwargs={"application_id": automation.id})
+
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    response_json = response.json()
+
+    assert response.status_code == 200
+    assert response_json["id"] == automation.id
+    assert workflow.id in [w["id"] for w in response_json["workflows"]]
+
+
+@pytest.mark.django_db
+def test_application_role_frontend_permissions_include_builder_elements(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_heading_element(page=page)
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=builder.application_ptr
+    )
+
+    permissions = CoreHandler().get_permissions(user, workspace)
+    role_permissions = next(
+        p["permissions"] for p in permissions if p["name"] == "role"
+    )
+
+    assert element.id in role_permissions["builder.page.element.update"]["exceptions"]
+
+
+@pytest.mark.django_db
+def test_application_role_frontend_permissions_include_builder_data_sources(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    data_source = data_fixture.create_builder_data_source(page=page)
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=builder.application_ptr
+    )
+
+    permissions = CoreHandler().get_permissions(user, workspace)
+    role_permissions = next(
+        p["permissions"] for p in permissions if p["name"] == "role"
+    )
+
+    assert (
+        data_source.id
+        in role_permissions["builder.page.data_source.update"]["exceptions"]
+    )
+
+
+@pytest.mark.django_db
+def test_application_role_frontend_permissions_include_automation_nodes(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+    node = workflow.automation_workflow_nodes.first()
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=automation.application_ptr
+    )
+
+    permissions = CoreHandler().get_permissions(user, workspace)
+    role_permissions = next(
+        p["permissions"] for p in permissions if p["name"] == "role"
+    )
+
+    assert node.id in role_permissions["automation.node.update"]["exceptions"]
+
+
+@pytest.mark.django_db
+def test_application_role_frontend_permissions_include_dashboard_data_sources(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    data_source = data_fixture.create_dashboard_data_source(dashboard=dashboard)
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=dashboard.application_ptr
+    )
+
+    permissions = CoreHandler().get_permissions(user, workspace)
+    role_permissions = next(
+        p["permissions"] for p in permissions if p["name"] == "role"
+    )
+
+    assert (
+        data_source.id in role_permissions["dashboard.data_source.update"]["exceptions"]
+    )

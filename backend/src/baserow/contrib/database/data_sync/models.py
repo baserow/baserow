@@ -42,6 +42,13 @@ class DataSync(
         help_text="If enabled and new properties are detected on sync, then they're "
         "automatically added. Note that this means all properties will always be added.",
     )
+    delete_unmatched_rows = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="If enabled, rows that are no longer present in the source are "
+        "deleted from the synced table on every sync. If disabled, those rows are "
+        "kept and reused if the matching source row reappears.",
+    )
     two_way_sync = models.BooleanField(
         default=False,
         db_default=False,

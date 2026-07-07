@@ -25,6 +25,7 @@ import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/
 import _ from 'lodash'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
 import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
+import { getCustomFaviconLinks } from '@baserow/modules/builder/utils/favicon'
 
 import {
   userSourceCookieTokenName,
@@ -131,18 +132,7 @@ const isAuthenticated = computed(() =>
   store.getters['userSourceUser/isAuthenticated'](props.builder)
 )
 
-const faviconLink = computed(() => {
-  if (props.builder.favicon_file?.url) {
-    return {
-      rel: 'icon',
-      type: props.builder.favicon_file.mime_type,
-      href: props.builder.favicon_file.url,
-      sizes: '128x128',
-      hid: true,
-    }
-  }
-  return null
-})
+const faviconLinks = computed(() => getCustomFaviconLinks(props.builder))
 
 const themeConfigBlocks = computed(() =>
   $registry.getOrderedList('themeConfigBlock')
@@ -166,11 +156,11 @@ const headConfig = computed(() => {
     bodyAttrs: {
       class: 'public-page',
     },
-    style: [{ children: `:root { ${cssVars} }`, type: 'text/css' }],
+    style: [{ innerHTML: `:root { ${cssVars} }`, type: 'text/css' }],
   }
 
-  if (faviconLink.value) {
-    header.link = [faviconLink.value]
+  if (faviconLinks.value) {
+    header.link = faviconLinks.value
   }
 
   const pluginHeaders = $registry.getList('plugin').map((plugin) =>

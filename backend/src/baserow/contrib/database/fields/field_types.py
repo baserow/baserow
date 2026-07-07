@@ -53,6 +53,7 @@ from django.db.models.functions import Cast, Coalesce, Left, RowNumber
 
 from dateutil import parser
 from dateutil.parser import ParserError
+from drf_spectacular.utils import extend_schema_serializer
 from loguru import logger
 from rest_framework import serializers
 
@@ -201,6 +202,7 @@ from .field_filters import (
     contains_word_filter,
     filename_contains_filter,
     parse_ids_from_csv_string,
+    starts_with_filter,
 )
 from .field_helpers import prepare_files_for_export
 from .field_sortings import OptionallyAnnotatedOrderBy
@@ -273,6 +275,18 @@ User = get_user_model()
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import FieldObject, GeneratedTableModel
+
+
+class SelectOptionIntegerOrStringField(IntegerOrStringField):
+    """
+    Accepts either a select option id/name, or a serialized select option object.
+    """
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            data = data.get("id", data)
+
+        return super().to_internal_value(data)
 
 
 class CollationSortMixin:
@@ -364,6 +378,9 @@ class TextFieldMatchingRegexFieldType(FieldType, ABC):
 
     def contains_query(self, *args):
         return contains_filter(*args)
+
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
 
     def contains_word_query(self, *args):
         return contains_word_filter(*args)
@@ -461,6 +478,9 @@ class TextFieldType(CollationSortMixin, FieldType):
     def contains_query(self, *args):
         return contains_filter(*args)
 
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
+
     def contains_word_query(self, *args):
         return contains_word_filter(*args)
 
@@ -531,6 +551,9 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     def contains_query(self, *args):
         return contains_filter(*args)
 
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
+
     def contains_word_query(self, *args):
         return contains_word_filter(*args)
 
@@ -599,7 +622,18 @@ class NumberFieldType(FieldType):
             "Instead set number_decimal_places to 0 for an integer or 1-5 for a "
             "decimal."
         ),
-        "_spectacular_annotation": {"exclude_fields": ["number_type"]},
+        "number_prefix": serializers.CharField(
+            max_length=10,
+            required=False,
+            allow_blank=True,
+            trim_whitespace=False,
+        ),
+        "number_suffix": serializers.CharField(
+            max_length=100,
+            required=False,
+            allow_blank=True,
+            trim_whitespace=False,
+        ),
     }
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
@@ -615,6 +649,12 @@ class NumberFieldType(FieldType):
                 value = str(value)
             serialized[field_name] = value
         return serialized
+
+    def get_serializer_class(self, *args, **kwargs) -> serializers.ModelSerializer:
+        serializer_class = super().get_serializer_class(*args, **kwargs)
+        return extend_schema_serializer(exclude_fields=["number_type"])(
+            serializer_class
+        )
 
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         if field.specific.number_decimal_places == 0:
@@ -727,7 +767,7 @@ class NumberFieldType(FieldType):
             f"{minus_sign}"
             f"{instance.number_prefix}"
             f"{integer_part_with_sep}{fractional_part}"
-            f"{instance.number_suffix}".strip()
+            f"{instance.number_suffix}"
         )
 
     def get_model_field(self, instance, **kwargs):
@@ -779,6 +819,9 @@ class NumberFieldType(FieldType):
 
     def contains_query(self, *args):
         return contains_filter(*args)
+
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
 
     def get_export_serialized_value(self, row, field_name, cache, files_zip, storage):
         value = self.get_internal_value_from_db(row, field_name)
@@ -1534,9 +1577,13 @@ class DateFieldType(FieldType):
         filters = {field_name: value}
         annotations = {}
 
-        if value and isinstance(value, datetime):
-            # DateTrunc cuts of every after the minute, so we can do a comparison
-            # with the provided value that doesn't have the seconds and microseconds.
+        # Shadow the column with a minute-truncated annotation so seconds and
+        # microseconds are ignored when grouping. Gate on the field, not the value,
+        # so the grouped-data query (which builds the shadow without a concrete
+        # value) truncates group keys the same way the per-row metadata query does;
+        # otherwise datetime groups key on the raw timestamp and drilling into them
+        # matches no rows. Date-only fields have no time component to truncate.
+        if field.date_include_time:
             annotations[field_name] = DateTrunc(
                 "minute", field_name, output_field=models.DateTimeField(null=True)
             )
@@ -1546,6 +1593,7 @@ class DateFieldType(FieldType):
 class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
     can_be_in_form_view = False
     field_data_is_derived_from_attrs = True
+    include_in_row_move_updated_fields = False
 
     source_field_name = None
     model_field_class = SyncedDateTimeField
@@ -2520,6 +2568,40 @@ class LinkRowFieldType(
             order=[linked_value, linked_order, linked_id],
         )
 
+    def get_group_by_display_values(self, field, field_name, raw_values):
+        ids = {row_id for value in raw_values for row_id in (value or [])}
+        related_model = field.link_row_table.get_model()
+        primary_field_object = next(
+            (
+                obj
+                for obj in related_model._field_objects.values()
+                if obj["field"].primary
+            ),
+            None,
+        )
+        id_to_value = {}
+        if ids and primary_field_object is not None:
+            primary_field_name = primary_field_object["name"]
+            queryset = related_model.objects.filter(id__in=ids)
+            # The linked table's primary can be an m2m field (e.g. multiple
+            # select), and `.only()` raises on non-concrete fields, so only
+            # defer columns when the primary is a concrete column.
+            if related_model._meta.get_field(primary_field_name).concrete:
+                queryset = queryset.only("id", primary_field_name)
+            for row in queryset:
+                id_to_value[row.id] = primary_field_object[
+                    "type"
+                ].get_human_readable_value(
+                    getattr(row, primary_field_name), primary_field_object
+                )
+        return [
+            [
+                {"id": row_id, "value": id_to_value.get(row_id)}
+                for row_id in (value or [])
+            ]
+            for value in raw_values
+        ]
+
     def get_search_expression(self, field: Field, queryset: QuerySet) -> Expression:
         remote_field = queryset.model._meta.get_field(field.db_column).remote_field
         remote_model = remote_field.model
@@ -2635,6 +2717,8 @@ class LinkRowFieldType(
         invalid_values = []
 
         def preprocess_value(val):
+            if isinstance(val, dict):
+                val = val.get("id", val)
             return val.strip() if isinstance(val, str) else val
 
         for row_index, values in values_by_row.items():
@@ -4049,6 +4133,16 @@ class SelectOptionBaseFieldType(FieldType):
     _can_group_by = True
     _db_column_fields = []
 
+    def _get_select_option_display_map(self, field):
+        return {
+            option.id: {
+                "id": option.id,
+                "value": option.value,
+                "color": option.color,
+            }
+            for option in field.select_options.all()
+        }
+
     def get_default_value(self, field: Field) -> Any:
         return getattr(field, self.get_default_options_field_name(), None)
 
@@ -4366,7 +4460,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             f" {self.get_select_options_help_text(instance)}."
         )
 
-        field_serializer = IntegerOrStringField(**serializer_kwargs)
+        field_serializer = SelectOptionIntegerOrStringField(**serializer_kwargs)
         return field_serializer
 
     def get_response_serializer_field(self, instance, **kwargs):
@@ -4424,6 +4518,12 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         for row_index, value in values_by_row.items():
             if value is None:
                 continue
+
+            if isinstance(value, dict):
+                value = value.get("id", value)
+                values_by_row[row_index] = value
+                if value is None:
+                    continue
 
             if isinstance(value, SelectOption):
                 continue
@@ -4529,6 +4629,10 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if value is None:
             return None if rich_value else ""
         return value.value
+
+    def get_group_by_display_values(self, field, field_name, raw_values):
+        options = self._get_select_option_display_map(field)
+        return [options.get(value) for value in raw_values]
 
     def get_model_field(self, instance, **kwargs):
         default = self.get_instance_default_value(
@@ -4684,6 +4788,13 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if value == "":
             return Q()
         return Q(**{f"{field_name}__value__icontains": value})
+
+    def starts_with_query(self, field_name, value, model_field, field):
+        value = value.strip()
+        # If an empty value has been provided we do not want to filter at all.
+        if value == "":
+            return Q()
+        return Q(**{f"{field_name}__value__istartswith": value})
 
     def contains_word_query(self, field_name, value, model_field, field):
         value = value.strip()
@@ -4885,7 +4996,7 @@ class MultipleSelectFieldType(
             if default:
                 kwargs["default"] = default
 
-        field_serializer = IntegerOrStringField(
+        field_serializer = SelectOptionIntegerOrStringField(
             **{
                 "required": required,
                 "allow_null": not required,
@@ -4952,6 +5063,13 @@ class MultipleSelectFieldType(
         invalid_values = []
         options_from_ids, options_from_names = [], []
         for row_index, values in values_by_row.items():
+            if isinstance(values, list):
+                values = [
+                    value.get("id", value) if isinstance(value, dict) else value
+                    for value in values
+                ]
+                values_by_row[row_index] = values
+
             for value in values:
                 if isinstance(value, int):
                     id_map[value].append(row_index)
@@ -5227,6 +5345,13 @@ class MultipleSelectFieldType(
             q={f"select_option_value_{field_name}__iregex": rf"\m{value}\M"},
         )
 
+    def get_group_by_display_values(self, field, field_name, raw_values):
+        options = self._get_select_option_display_map(field)
+        return [
+            [options[option_id] for option_id in (value or []) if option_id in options]
+            for value in raw_values
+        ]
+
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
     ):
@@ -5258,12 +5383,6 @@ class MultipleSelectFieldType(
             order = order.asc(nulls_first=True)
 
         return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
-
-    def get_group_by_aggregated_order(self, related_field):
-        # The multiple select field must be ordered by the id of the entry in the
-        # through table because it respects the insertion order. It respects the
-        # `MultipleSelectManyToManyDescriptor::related_manager_cls::_apply_rel_ordering`
-        return ("id",) + super().get_group_by_aggregated_order(related_field)
 
     def before_field_options_update(
         self, field, to_create=None, to_update=None, to_delete=None
@@ -5601,6 +5720,15 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         ) = self.get_field_instance_and_type_from_formula_field(field)
         return field_type.contains_query(field_name, value, model_field, field_instance)
 
+    def starts_with_query(self, field_name, value, model_field, field: FormulaField):
+        (
+            field_instance,
+            field_type,
+        ) = self.get_field_instance_and_type_from_formula_field(field)
+        return field_type.starts_with_query(
+            field_name, value, model_field, field_instance
+        )
+
     def contains_word_query(self, field_name, value, model_field, field):
         (
             field_instance,
@@ -5676,7 +5804,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             table__trashed=False,
             table__database__trashed=False,
             table__database__workspace__trashed=False,
-        )
+        ).exclude(formula_type=BaserowFormulaInvalidType.type)
 
     def run_periodic_update(
         self,
@@ -5734,19 +5862,27 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                     # LinkRowFields might depends on FormulaFields, but we can't update
                     # them here because this is only valid for FormulaFields.
                     continue
+                if dependant_field in updated_fields:
+                    continue
+                if table_id not in update_collectors:
+                    update_collectors[table_id] = FieldUpdateCollector(
+                        dependant_field.table, update_changes_only=True
+                    )
                 self._update_field_values(
                     dependant_field,
                     update_collectors[table_id],
                     field_cache,
                     via_path_to_starting_table,
                 )
-            updated_fields |= set(
-                update_collector.apply_updates_and_get_updated_fields(
-                    field_cache, skip_search_updates=skip_search_updates
+            for collector in update_collectors.values():
+                updated_fields |= set(
+                    collector.apply_updates_and_get_updated_fields(
+                        field_cache, skip_search_updates=skip_search_updates
+                    )
                 )
-            )
 
-        update_collector.send_force_refresh_signals_for_all_updated_tables()
+        for collector in update_collectors.values():
+            collector.send_force_refresh_signals_for_all_updated_tables()
 
         return list(updated_fields)
 
@@ -6215,13 +6351,22 @@ class RollupFieldType(FormulaFieldType):
         "target_field_id",
         "rollup_function",
     ]
-    serializer_field_names = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + [
+    request_serializer_field_names = (
+        BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES
+        + [
+            "through_field_id",
+            "target_field_id",
+            "rollup_function",
+            "formula_type",
+        ]
+    )
+    serializer_field_names = BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES + [
         "through_field_id",
         "target_field_id",
         "rollup_function",
         "formula_type",
     ]
-    serializer_field_overrides = {
+    request_serializer_field_overrides = {
         "through_field_id": serializers.IntegerField(
             required=False,
             allow_null=True,
@@ -6237,14 +6382,6 @@ class RollupFieldType(FormulaFieldType):
         ),
         "nullable": serializers.BooleanField(required=False, read_only=True),
     }
-
-    @property
-    def request_serializer_field_names(self):
-        return self.serializer_field_names
-
-    @property
-    def request_serializer_field_overrides(self):
-        return self.serializer_field_overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
@@ -7156,12 +7293,6 @@ class MultipleCollaboratorsFieldType(
 
         return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
 
-    def get_group_by_aggregated_order(self, related_field):
-        # The multiple select field must be ordered by the id of the entry in the
-        # through table because it respects the insertion order. It respects the
-        # `MultipleSelectManyToManyDescriptor::related_manager_cls::_apply_rel_ordering`
-        return ("id",) + super().get_group_by_aggregated_order(related_field)
-
     def get_value_for_filter(self, row: "GeneratedTableModel", field) -> any:
         related_objects = getattr(row, field.db_column)
         values = [related_object.first_name for related_object in related_objects.all()]
@@ -7175,6 +7306,18 @@ class MultipleCollaboratorsFieldType(
         sort_type: str,
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
+
+    def get_group_by_display_values(self, field, field_name, raw_values):
+        ids = {uid for value in raw_values for uid in (value or [])}
+        names = (
+            dict(User.objects.filter(id__in=ids).values_list("id", "first_name"))
+            if ids
+            else {}
+        )
+        return [
+            [{"id": uid, "name": names.get(uid)} for uid in (value or [])]
+            for value in raw_values
+        ]
 
     def to_baserow_formula_type(self, field: Field):
         return BaserowFormulaMultipleCollaboratorsType(nullable=True)
@@ -7190,7 +7333,7 @@ class MultipleCollaboratorsFieldType(
                 JSONBAgg(
                     get_collaborator_extractor(db_column, model_field),
                     filter=Q(**{f"{db_column}__isnull": False}),
-                    order=f"{db_column}__id",
+                    order_by=f"{db_column}__id",
                 ),
                 Value([], output_field=JSONField()),
             )
@@ -7199,7 +7342,7 @@ class MultipleCollaboratorsFieldType(
                 wrap_in_subquery(
                     JSONBAgg(
                         get_collaborator_extractor(db_column, model_field),
-                        order=f"{db_column}__id",
+                        order_by=f"{db_column}__id",
                     ),
                     db_column,
                     model_field.model,
@@ -7408,6 +7551,9 @@ class AutonumberFieldType(ReadOnlyFieldType):
 
     def contains_query(self, *args):
         return contains_filter(*args)
+
+    def starts_with_query(self, *args):
+        return starts_with_filter(*args)
 
     def update_rows_with_field_sequence(
         self, field: Field, view: Optional["View"] = None

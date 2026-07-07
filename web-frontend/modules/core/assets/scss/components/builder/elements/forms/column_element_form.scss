@@ -1,0 +1,5 @@
+.column-element-form__custom-weights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+  gap: 10px;
+}

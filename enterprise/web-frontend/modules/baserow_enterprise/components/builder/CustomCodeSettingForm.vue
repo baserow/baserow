@@ -16,6 +16,7 @@
         v-model="values.custom_code.css"
         language="css"
         :placeholder="$t('customCodeSettingForm.customCSSPlaceholder')"
+        :modal-title="$t('customCodeSettingForm.customCSS')"
       />
     </FormGroup>
     <FormGroup
@@ -28,6 +29,7 @@
         v-model="values.custom_code.js"
         language="javascript"
         :placeholder="$t('customCodeSettingForm.customJSPlaceholder')"
+        :modal-title="$t('customCodeSettingForm.customJS')"
       />
     </FormGroup>
     <hr class="margin-top-3 margin-bottom-3" />

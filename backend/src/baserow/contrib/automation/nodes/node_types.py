@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import router
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeFirstNodeMustBeTrigger,
@@ -19,49 +19,61 @@ from baserow.contrib.automation.nodes.models import (
     AIAgentActionNode,
     AutomationNode,
     AutomationTriggerNode,
+    CoreCSVFileReaderActionNode,
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
     CoreIteratorActionNode,
+    CoreManualTriggerNode,
     CorePeriodicTriggerNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
+    CoreStartWorkflowActionNode,
     LocalBaserowAggregateRowsActionNode,
     LocalBaserowCreateRowActionNode,
+    LocalBaserowCreateRowsActionNode,
     LocalBaserowDeleteRowActionNode,
+    LocalBaserowFieldsUpdatedTriggerNode,
     LocalBaserowGetRowActionNode,
     LocalBaserowListRowsActionNode,
     LocalBaserowRowsCreatedTriggerNode,
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
     LocalBaserowUpdateRowActionNode,
+    LocalBaserowUpdateRowsActionNode,
     SlackWriteMessageActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
-from baserow.contrib.automation.nodes.types import NodePositionType
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 from baserow.contrib.integrations.core.service_types import (
+    CoreCSVFileReaderServiceType,
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
     CoreIteratorServiceType,
+    CoreManualTriggerServiceType,
     CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
+    CoreStartWorkflowServiceType,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
+    LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
+    LocalBaserowFieldsUpdatedServiceType,
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
     LocalBaserowRowsCreatedServiceType,
     LocalBaserowRowsDeletedServiceType,
     LocalBaserowRowsUpdatedServiceType,
+    LocalBaserowUpdateRowsServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
 )
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.registry import Instance
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
@@ -102,14 +114,14 @@ class ContainerNodeTypeMixin:
         self,
         node: "ContainerNodeTypeMixin",
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """
         Check the container node is not moved inside itself.
         """
 
-        if node in reference_node.get_parent_nodes():
+        if node in reference_node.get_parent_points():
             raise AutomationNodeNotMovable(
                 "A container node cannot be moved inside itself"
             )
@@ -128,18 +140,41 @@ class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
 
 
 class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
+    display_name = _("Local Baserow create row")
     type = "local_baserow_create_row"
     compat_type = "create_row"
     model_class = LocalBaserowCreateRowActionNode
 
 
+class LocalBaserowCreateRowsNodeType(AutomationNodeActionNodeType):
+    type = "local_baserow_create_rows"
+    model_class = LocalBaserowCreateRowsActionNode
+    service_type = LocalBaserowCreateRowsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_local_baserow_create_rows_service()
+        return {"service": service}
+
+
 class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
+    display_name = _("Local Baserow update row")
     type = "local_baserow_update_row"
     compat_type = "update_row"
     model_class = LocalBaserowUpdateRowActionNode
 
 
+class LocalBaserowUpdateRowsNodeType(AutomationNodeActionNodeType):
+    type = "local_baserow_update_rows"
+    model_class = LocalBaserowUpdateRowsActionNode
+    service_type = LocalBaserowUpdateRowsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_local_baserow_update_rows_service()
+        return {"service": service}
+
+
 class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):
+    display_name = _("Local Baserow delete row")
     type = "local_baserow_delete_row"
     compat_type = "delete_row"
     model_class = LocalBaserowDeleteRowActionNode
@@ -147,6 +182,7 @@ class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):
 
 
 class LocalBaserowGetRowNodeType(AutomationNodeActionNodeType):
+    display_name = _("Local Baserow get row")
     type = "local_baserow_get_row"
     compat_type = "get_row"
     model_class = LocalBaserowGetRowActionNode
@@ -154,6 +190,7 @@ class LocalBaserowGetRowNodeType(AutomationNodeActionNodeType):
 
 
 class LocalBaserowListRowsNodeType(AutomationNodeActionNodeType):
+    display_name = _("Local Baserow list rows")
     type = "local_baserow_list_rows"
     compat_type = "list_rows"
     model_class = LocalBaserowListRowsActionNode
@@ -161,6 +198,7 @@ class LocalBaserowListRowsNodeType(AutomationNodeActionNodeType):
 
 
 class LocalBaserowAggregateRowsNodeType(AutomationNodeActionNodeType):
+    display_name = _("Local Baserow aggregate rows")
     type = "local_baserow_aggregate_rows"
     compat_type = "aggregate_rows"
     model_class = LocalBaserowAggregateRowsActionNode
@@ -168,30 +206,47 @@ class LocalBaserowAggregateRowsNodeType(AutomationNodeActionNodeType):
 
 
 class CoreHttpRequestNodeType(AutomationNodeActionNodeType):
+    display_name = _("HTTP request")
     type = "http_request"
     model_class = CoreHTTPRequestActionNode
     service_type = CoreHTTPRequestServiceType.type
 
 
 class CoreIteratorNodeType(ContainerNodeTypeMixin, AutomationNodeActionNodeType):
+    display_name = _("Iterator")
     type = "iterator"
     model_class = CoreIteratorActionNode
     service_type = CoreIteratorServiceType.type
 
 
+class CoreCSVFileReaderNodeType(AutomationNodeActionNodeType):
+    type = "csv_file_reader"
+    model_class = CoreCSVFileReaderActionNode
+    service_type = CoreCSVFileReaderServiceType.type
+
+
 class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
+    display_name = _("Send email")
     type = "smtp_email"
     model_class = CoreSMTPEmailActionNode
     service_type = CoreSMTPEmailServiceType.type
 
 
+class CoreStartWorkflowNodeType(AutomationNodeActionNodeType):
+    type = "start_workflow"
+    model_class = CoreStartWorkflowActionNode
+    service_type = CoreStartWorkflowServiceType.type
+
+
 class AIAgentActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("AI agent")
     type = "ai_agent"
     model_class = AIAgentActionNode
     service_type = AIAgentServiceType.type
 
 
 class CoreRouterActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Router")
     type = "router"
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
@@ -204,7 +259,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         """
 
         for edge_uid in node.service.get_type().get_edges(node.service.specific).keys():
-            if edge_uid != "" and node.workflow.get_graph().get_next_nodes(
+            if edge_uid != "" and node.workflow.get_graph().get_next_points(
                 node, edge_uid
             ):
                 return True
@@ -233,7 +288,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         self,
         node: AutomationTriggerNode,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """
@@ -287,7 +342,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
             removed_uids = list(set(persisted_uids) - set(prepared_uids))
 
             for removed_uid in removed_uids:
-                if instance.workflow.get_graph().get_node_at_position(
+                if instance.workflow.get_graph().get_point_at_position(
                     instance, "south", removed_uid
                 ):
                     raise AutomationNodeMisconfiguredService(
@@ -317,14 +372,14 @@ class AutomationNodeTriggerType(AutomationNodeType):
         position: str,
         output: str,
     ):
-        if workflow.get_graph().get_node_at_position(None, "south", ""):
+        if workflow.get_graph().get_point_at_position(None, "south", ""):
             raise AutomationNodeTriggerAlreadyExists()
 
         if reference_node is not None:
             raise AutomationNodeTriggerMustBeFirstNode()
 
     def before_delete(self, node: AutomationNode):
-        if node.workflow.get_graph().get_next_nodes(node):
+        if node.workflow.get_graph().get_next_points(node):
             raise AutomationNodeNotDeletable(
                 "Trigger nodes cannot be deleted if they are followed nodes."
             )
@@ -333,7 +388,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
         self,
         node: AutomationTriggerNode,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         raise AutomationNodeNotMovable("Trigger nodes cannot be moved.")
@@ -386,6 +441,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
+    display_name = _("Local Baserow rows created")
     type = "local_baserow_rows_created"
     compat_type = "rows_created"
     model_class = LocalBaserowRowsCreatedTriggerNode
@@ -393,6 +449,7 @@ class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
 
 
 class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
+    display_name = _("Local Baserow rows updated")
     type = "local_baserow_rows_updated"
     compat_type = "rows_updated"
     model_class = LocalBaserowRowsUpdatedTriggerNode
@@ -400,27 +457,43 @@ class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
 
 
 class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
+    display_name = _("Local Baserow rows deleted")
     type = "local_baserow_rows_deleted"
     compat_type = "rows_deleted"
     model_class = LocalBaserowRowsDeletedTriggerNode
     service_type = LocalBaserowRowsDeletedServiceType.type
 
 
+class LocalBaserowFieldsUpdatedNodeTriggerType(AutomationNodeTriggerType):
+    type = "local_baserow_fields_updated"
+    model_class = LocalBaserowFieldsUpdatedTriggerNode
+    service_type = LocalBaserowFieldsUpdatedServiceType.type
+
+
 class CorePeriodicTriggerNodeType(
     AutomationNodeTriggerType,
 ):
+    display_name = _("Periodic trigger")
     type = "periodic"
     model_class = CorePeriodicTriggerNode
     service_type = CorePeriodicServiceType.type
 
 
 class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
+    display_name = _("HTTP trigger")
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type
 
 
+class CoreManualTriggerNodeType(AutomationNodeTriggerType):
+    type = "manual"
+    model_class = CoreManualTriggerNode
+    service_type = CoreManualTriggerServiceType.type
+
+
 class SlackWriteMessageActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Slack write message")
     type = "slack_write_message"
     model_class = SlackWriteMessageActionNode
     service_type = SlackWriteMessageServiceType.type

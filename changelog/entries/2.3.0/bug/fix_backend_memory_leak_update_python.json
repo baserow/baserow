@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Fix backend memory leak by updating Python to 3.14.6",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2026-06-29"
+}

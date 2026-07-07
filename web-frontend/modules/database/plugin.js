@@ -72,6 +72,7 @@ import {
   LinkRowNotContainsFilterType,
   ContainsWordViewFilterType,
   DoesntContainWordViewFilterType,
+  StartsWithViewFilterType,
   UserIsFilterType,
   UserIsNotFilterType,
   DateIsEqualMultiStepViewFilterType,
@@ -142,6 +143,7 @@ import {
   PasteImporterType,
   XMLImporterType,
   JSONImporterType,
+  ExcelImporterType,
 } from '@baserow/modules/database/importerTypes'
 import {
   ICalCalendarDataSyncType,
@@ -542,6 +544,7 @@ export default defineNuxtPlugin({
       'viewFilter',
       new DoesntContainWordViewFilterType(context)
     )
+    $registry.register('viewFilter', new StartsWithViewFilterType(context))
     $registry.register(
       'viewFilter',
       new FilenameContainsViewFilterType(context)
@@ -715,6 +718,7 @@ export default defineNuxtPlugin({
     $registry.register('importer', new PasteImporterType(context))
     $registry.register('importer', new XMLImporterType(context))
     $registry.register('importer', new JSONImporterType(context))
+    $registry.register('importer', new ExcelImporterType(context))
     $registry.register('dataSync', new ICalCalendarDataSyncType(context))
     $registry.register('dataSync', new PostgreSQLDataSyncType(context))
     $registry.register('settings', new APITokenSettingsType(context))

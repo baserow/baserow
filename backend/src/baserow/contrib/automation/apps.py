@@ -19,21 +19,27 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.nodes.node_types import (
             AIAgentActionNodeType,
+            CoreCSVFileReaderNodeType,
             CoreHttpRequestNodeType,
             CoreHTTPTriggerNodeType,
             CoreIteratorNodeType,
+            CoreManualTriggerNodeType,
             CorePeriodicTriggerNodeType,
             CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
+            CoreStartWorkflowNodeType,
             LocalBaserowAggregateRowsNodeType,
             LocalBaserowCreateRowNodeType,
+            LocalBaserowCreateRowsNodeType,
             LocalBaserowDeleteRowNodeType,
+            LocalBaserowFieldsUpdatedNodeTriggerType,
             LocalBaserowGetRowNodeType,
             LocalBaserowListRowsNodeType,
             LocalBaserowRowsCreatedNodeTriggerType,
             LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
             LocalBaserowUpdateRowNodeType,
+            LocalBaserowUpdateRowsNodeType,
             SlackWriteMessageActionNodeType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
@@ -167,20 +173,28 @@ class AutomationConfig(AppConfig):
         )
 
         automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
+        automation_node_type_registry.register(LocalBaserowCreateRowsNodeType())
         automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
+        automation_node_type_registry.register(LocalBaserowUpdateRowsNodeType())
         automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
         automation_node_type_registry.register(LocalBaserowGetRowNodeType())
         automation_node_type_registry.register(LocalBaserowListRowsNodeType())
         automation_node_type_registry.register(LocalBaserowAggregateRowsNodeType())
         automation_node_type_registry.register(CoreHttpRequestNodeType())
         automation_node_type_registry.register(CoreIteratorNodeType())
+        automation_node_type_registry.register(CoreCSVFileReaderNodeType())
         automation_node_type_registry.register(CoreSMTPEmailNodeType())
         automation_node_type_registry.register(CoreRouterActionNodeType())
+        automation_node_type_registry.register(CoreStartWorkflowNodeType())
         automation_node_type_registry.register(LocalBaserowRowsCreatedNodeTriggerType())
         automation_node_type_registry.register(LocalBaserowRowsUpdatedNodeTriggerType())
         automation_node_type_registry.register(LocalBaserowRowsDeletedNodeTriggerType())
+        automation_node_type_registry.register(
+            LocalBaserowFieldsUpdatedNodeTriggerType()
+        )
         automation_node_type_registry.register(CorePeriodicTriggerNodeType())
         automation_node_type_registry.register(CoreHTTPTriggerNodeType())
+        automation_node_type_registry.register(CoreManualTriggerNodeType())
         automation_node_type_registry.register(AIAgentActionNodeType())
         automation_node_type_registry.register(SlackWriteMessageActionNodeType())
 

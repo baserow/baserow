@@ -541,7 +541,8 @@
         "noGroupByText": "필드별로 행을 그룹화합니다.",
         "groupBy": "그룹화 기준",
         "thenBy": "다음 기준",
-        "addGroupBy": "그룹화할 필드 선택"
+        "addGroupBy": "그룹화할 필드 선택",
+        "hiddenFieldWarning": "하나 이상의 그룹화 기준이 편집자 및 하위 권한 사용자에게 표시되지 않는 숨겨진 필드를 참조합니다."
     },
     "viewGroupBy": {
         "groupBy": "그룹 | 1개의 필드로 그룹화 | {count}개의 필드로 그룹화"
@@ -551,13 +552,15 @@
         "noSortText": "정렬을 사용하면 필드별로 행을 정렬할 수 있습니다.",
         "sortBy": "정렬 기준",
         "thenBy": "다음 기준",
-        "addSort": "정렬할 필드 선택"
+        "addSort": "정렬할 필드 선택",
+        "hiddenFieldWarning": "하나 이상의 정렬 항목이 편집자 및 하위 역할 사용자에게는 표시되지 않는 숨겨진 필드를 참조합니다."
     },
     "viewSort": {
         "sort": "정렬 | 1개의 정렬 | {count}개의 정렬"
     },
     "viewDecorator": {
-        "decorator": "색상 | 1개의 색상 | {count}개의 색상"
+        "decorator": "색상 | 1개의 색상 | {count}개의 색상",
+        "hiddenFieldWarning": "편집자 및 하위 직급 사용자의 경우 숨겨진 필드를 참조할 수 있는 장식 요소가 제거됩니다."
     },
     "viewRotateSlugModal": {
         "title": "URL 새로 고침",
@@ -616,7 +619,8 @@
         "toCollaborative": "협업으로",
         "webhooks": "웹훅",
         "importFile": "파일 가져오기",
-        "deleteView": "뷰 삭제"
+        "deleteView": "뷰 삭제",
+        "defaultRowValues": "기본값 행 값"
     },
     "deleteViewModal": {
         "title": "{name} 삭제",
@@ -1172,5 +1176,15 @@
     "rowEditFieldFormViewEditRow": {
         "copyLink": "링크 복사",
         "noFormView": "폼 뷰가 구성되지 않았습니다"
+    },
+    "defaultValuesModal": {
+        "title": "{name}의 기본값",
+        "setDefaultValue": "기본값 설정",
+        "removeDefaultValue": "기본값을 제거합니다",
+        "staticValue": "정적 값"
+    },
+    "gridViewFreezeHandle": {
+        "freeze": "0개 열 고정 | 1개 열 고정 | {count}개 열 고정",
+        "hoverHint": "드래그하여 열을 고정하세요"
     }
 }

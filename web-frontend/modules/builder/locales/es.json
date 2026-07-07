@@ -272,7 +272,8 @@
         "moveDown": "Bajar",
         "moveUp": "Subir",
         "moveLeft": "Mover a la izquierda",
-        "selectParent": "Seleccionar padre"
+        "selectParent": "Seleccionar padre",
+        "drag": "Arrastrar para reordenar"
     },
     "pageHeaderItemTypes": {
         "labelVariables": "Variables",
@@ -323,7 +324,7 @@
         "notificationLabel": "Mostrar notificación",
         "openPageLabel": "Abrir página",
         "logoutLabel": "Cerrar sesión",
-        "refreshDataSourceLabel": "Refrescar fuente de datos",
+        "refreshDataSourceLabel": "Recargar fuente de datos",
         "deleteRowLabel": "Borrar fila",
         "httpRequest": "Enviar solicitud HTTP",
         "errorNavigateToPageMissing": "Falta la propiedad «Navegar a»",
@@ -540,7 +541,7 @@
     },
     "styleBoxForm": {
         "borderLabel": "Tamaño",
-        "paddingLabel": "Acolchado",
+        "paddingLabel": "Margen interno",
         "error": "El valor debe ser un número entero entre 0 y 200.",
         "borderColor": "Color del borde",
         "marginLabel": "Margen"
@@ -602,16 +603,16 @@
     "checkboxElementForm": {
         "labelTitle": "Nombre de la opción",
         "valueTitle": "Valor por defecto",
-        "requiredTitle": "Requerido"
+        "requiredTitle": "Obligatorio"
     },
     "generalForm": {
-        "placeholderPlaceholder": "Introduce un marcador de posición",
-        "requiredTitle": "Requerido",
+        "placeholderPlaceholder": "Introduce un texto de ejemplo",
+        "requiredTitle": "Obligatorio",
         "labelTitle": "Etiqueta",
         "labelPlaceholder": "Introduce la etiqueta",
         "valueTitle": "Valor",
         "valuePlaceholder": "Introduce un valor",
-        "placeholderTitle": "Marcador de posición",
+        "placeholderTitle": "Texto de ejemplo",
         "validationTitle": "Validación",
         "defaultValueTitle": "Valor predeterminado",
         "defaultValuePlaceholder": "Introduce el valor predeterminado"
@@ -807,7 +808,7 @@
         "textAlignment": "Alineación del texto",
         "alignment": "Alineación",
         "width": "Anchura",
-        "padding": "Acolchado",
+        "padding": "Margen interno",
         "textColor": "Color del texto",
         "size": "Tamaño de letra",
         "borderRadius": "Radio del borde",
@@ -885,7 +886,7 @@
         "borderColor": "Color del borde",
         "borderSize": "Tamaño del borde",
         "borderRadius": "Radio del borde",
-        "padding": "Acolchado",
+        "padding": "Margen interno",
         "fontFamily": "Fuente tipográfica",
         "size": "Tamaño de letra",
         "label": "Etiqueta",
@@ -897,7 +898,7 @@
         "borderColor": "Color del borde",
         "backgroundColor": "Color de fondo",
         "textColor": "Color del texto",
-        "padding": "Acolchado",
+        "padding": "Margen interno",
         "fontFamily": "Fuente tipográfica",
         "size": "Tamaño",
         "fontSize": "Tamaño de letra",
@@ -1055,7 +1056,7 @@
         "errorDataSourceDispatch": "No se pudo cargar los datos de \"{name}\": "
     },
     "sidePanelGuidedTourStep": {
-        "content": "**Pestaña General** – Configura el elemento seleccionado.\n\n**Pestaña Estilo** – Personaliza el relleno, el margen, los bordes y más.\n\n**Pestaña Visibilidad** – Controla quién puede ver este elemento: usuarios conectados, usuarios desconectados o roles específicos.\n\n**Pestaña Eventos** – Si el elemento admite acciones, configúralas aquí para lograr interactividad dinámica.",
+        "content": "**Pestaña General** – Configura el elemento seleccionado.\n\n**Pestaña Estilo** – Personaliza el margen interno, el margen externo, los bordes y más.\n\n**Pestaña Visibilidad** – Controla quién puede ver este elemento: usuarios conectados, usuarios desconectados o roles específicos.\n\n**Pestaña Eventos** – Si el elemento admite acciones, configúralas aquí para lograr interactividad dinámica.",
         "title": "Panel lateral: Personaliza elementos"
     },
     "addElementCategory": {

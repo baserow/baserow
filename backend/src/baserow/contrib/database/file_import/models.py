@@ -51,6 +51,16 @@ class FileImportJob(JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds
     first_row_header = models.BooleanField(
         default=False, help_text="Is the first row of the provided data the header?"
     )
+    importer_type = models.TextField(
+        blank=True,
+        null=True,  # ZDM: remove null=True in a future migration
+        help_text="The frontend importer identifier used to parse the file.",
+    )
+    original_file_name = models.TextField(
+        blank=True,
+        null=True,  # ZDM: remove null=True in a future migration
+        help_text="The original name of the uploaded file.",
+    )
     report = models.JSONField(
         default=default_report,
         help_text="The import error report.",

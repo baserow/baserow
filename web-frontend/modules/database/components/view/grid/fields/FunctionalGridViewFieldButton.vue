@@ -6,7 +6,7 @@
         tag="a"
         type="secondary"
         size="tiny"
-        :href="value && value.url"
+        :href="getHref(value)"
         target="_blank"
         rel="nofollow noopener noreferrer"
       >

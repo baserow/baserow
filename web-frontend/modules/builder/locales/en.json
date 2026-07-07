@@ -55,8 +55,6 @@
     "submit": "Add page"
   },
   "pageErrors": {
-    "errorNameNotUnique": "A page with this name already exists",
-    "errorNameNotUniqueDescription": "Please enter a unique name for the page",
     "errorPathNotUnique": "A path with this name already exists",
     "errorStartingSlash": "A path needs to start with a '/'",
     "errorValidPathCharacters": "The path contains invalid characters",
@@ -270,6 +268,13 @@
     "namePlaceholder": "Page",
     "addSubLink": "Add sublink",
     "menuItemSubLinkDefaultName": "Sublink",
+    "variant": "Variant per device type",
+    "expanded": "Expanded",
+    "compact": "Compact",
+    "previewCompactMenuLabel": "Preview compact menu",
+    "previewCompactMenuHelper": "Show/hide the compact menu preview.",
+    "openEditorCompactMenu": "Open menu",
+    "closeEditorCompactMenu": "Close menu",
     "menuItemAddLink": "Link",
     "menuItemAddButton": "Button",
     "menuItemAddSeparator": "Separator",
@@ -342,7 +347,14 @@
     "verticalAlignment": "Vertical alignment",
     "columnAmountName": "no columns | 1 column | {columnAmount} columns",
     "columnGapTitle": "Space between columns",
-    "columnGapPlaceholder": "Enter space between columns..."
+    "columnGapPlaceholder": "Enter space between columns...",
+    "customLayout": "Custom",
+    "customWeightsTitle": "Custom column weights",
+    "customWeightsHelper": "Use 0 when a column should only be as wide as its content. Other columns will share the remaining space.",
+    "errorCustomWeightsMinimum": "Column weights must be 0 or greater",
+    "columnStackingTitle": "Stack columns per device type",
+    "columnStackingHorizontal": "Side by side",
+    "columnStackingStacked": "Stacked"
   },
   "domainSettings": {
     "titleOverview": "Domains",
@@ -812,6 +824,11 @@
     "index": "Index",
     "firstPartName": "Data source: {name}",
     "schemaProperty": "{prefixName}: {schemaProperty}"
+  },
+  "workflowAction": {
+    "sampleDataModalTitle": "Payload for {actionLabel}",
+    "sampleDataModalSubTitle": "JSON payload",
+    "testActionDescription": "Run this action in preview to capture its output and make it available to following actions."
   },
   "workflowActionTypes": {
     "notificationLabel": "Show Notification",

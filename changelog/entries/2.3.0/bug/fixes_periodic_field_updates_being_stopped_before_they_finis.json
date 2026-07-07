@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes periodic field updates being stopped before they finish",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-06-25"
+}

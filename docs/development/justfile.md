@@ -44,7 +44,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ### First Time Setup
 
 ```bash
-just init          # Install backend + frontend dependencies, create .env.local
+just init                 # Install backend + frontend dependencies, create .env.local
+                          # Also builds local code runner artifacts
+just b code-runtime       # Rebuild local Wasmtime + QuickJS runtime artifacts
+just pre-commit-install   # Install Git pre-commit hooks locally
 ```
 
 ### Local Development
@@ -67,7 +70,7 @@ just dcd down               # Stop containers
 just dcd ps                 # SHow running containers
 ```
 
-### Running Commands 
+### Running Commands
 
 ```bash
 # Backend (from root)
@@ -103,11 +106,11 @@ just test-db ps     # Check status
 
 ## Environment Files
 
-| File | Purpose |
-|------|---------|
-| `.env` | Production setup (created from `.env.example`) |
-| `.env.local` | Local development (created by `just init`) |
-| `.env.docker-dev` | Docker development (created by `just dc-dev`) |
+| File              | Purpose                                        |
+| ----------------- | ---------------------------------------------- |
+| `.env`            | Production setup (created from `.env.example`) |
+| `.env.local`      | Local development (created by `just init`)     |
+| `.env.docker-dev` | Docker development (created by `just dc-dev`)  |
 
 ## Personal Recipes
 

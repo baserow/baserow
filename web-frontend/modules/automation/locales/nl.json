@@ -101,7 +101,16 @@
         "completedInLessThanSecond": "Afgerond in minder dan 1 seconde.",
         "testRun": "Test",
         "statusStarted": "In uitvoering...",
-        "running": "Loopt sinds {at}s"
+        "running": "Loopt sinds {at}s",
+        "statusSuccessBadge": "Voltooid",
+        "statusErrorBadge": "Mislukt",
+        "successfulRuns": "Geslaagde uitvoeringen",
+        "failedRuns": "Mislukte uitvoeringen",
+        "errorHideDetails": "Verberg details",
+        "errorShowDetails": "Toon details",
+        "runNumber": "Uitvoering {n}",
+        "runCount": "{n} uitvoeringen",
+        "showResult": "Toon resultaat"
     },
     "nodeType": {
         "triggerDeletionError": "Activeringen kunnen niet worden verwijderd, alleen vervangen.",
@@ -126,7 +135,15 @@
         "periodicTriggerLabel": "Periodieke activering",
         "aiAgent": "AI-prompt",
         "slackWriteMessageName": "Stuur een Slack-bericht",
-        "slackWriteMessageLabel": "Stuur een bericht naar #{channel}"
+        "slackWriteMessageLabel": "Stuur een bericht naar #{channel}",
+        "localBaserowFieldsUpdatedLabel": "{fieldName} is bijgewerkt in {tableName}",
+        "localBaserowFieldsUpdatedMultipleLabel": "Waarden van {count} velden zijn bijgewerkt in {tableName}",
+        "localBaserowFieldsUpdatedNoFieldLabel": "Waarden van specifieke velden zijn bijgewerkt in een tabel",
+        "localBaserowCreateRowsLabel": "Maak meerdere rijen aan in {tableName}",
+        "localBaserowUpdateRowsLabel": "Werk meerdere rijen bij in {tableName}",
+        "csvFileReaderLabel": "Een CSV-bestand lezen",
+        "startWorkflowLabel": "Start {workflowName}",
+        "defaultEdgeLabelFallback": "Standaard"
     },
     "workflowNode": {
         "actionDelete": "Verwijderen",
@@ -158,7 +175,9 @@
         "periodicTriggerTriggeredAt": "Geactiveerd om",
         "errorIntervalMissing": "Er is een interval nodig.",
         "coreHTTPTrigger": "HTTP-activering",
-        "coreHTTPTriggerDescription": "Ontvang HTTP-verzoeken om workflows te activeren"
+        "coreHTTPTriggerDescription": "Ontvang HTTP-verzoeken om workflows te activeren",
+        "coreManualTrigger": "Handmatige activering",
+        "coreManualTriggerDescription": "Start alleen wanneer een andere workflow-actie deze workflow start"
     },
     "periodicTriggerServiceForm": {
         "intervalLabel": "Interval",
@@ -203,5 +222,18 @@
         "sampleDataCopy": "Kopiëren",
         "errorOccurred": "Er is een fout opgetreden...",
         "sampleDataCopied": "Payload gekopieerd naar klembord"
+    },
+    "workflowGeneralSettings": {
+        "titleOverview": "Workflow-instellingen",
+        "nameLabel": "Workflownaam",
+        "workflowDisabledRecipientsLabel": "Ontvangers van meldingen",
+        "workflowDisabledRecipientsHelp": "Deze werkruimteleden krijgen een melding in de app als deze workflow automatisch wordt uitgeschakeld.",
+        "selectWorkflowDisabledRecipients": "Selecteer ontvangers",
+        "noWorkflowDisabledRecipients": "Geen ontvangers geselecteerd.",
+        "cantUpdateWorkflowTitle": "Kon workflow niet bijwerken",
+        "cantUpdateWorkflowDescription": "Sorry, de workflow kon niet worden bijgewerkt."
+    },
+    "workflowDisabledNotification": {
+        "body": "De workflow {name} is uitgeschakeld."
     }
 }

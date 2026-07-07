@@ -7,20 +7,26 @@ import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
+  LocalBaserowCreateRowsWorkflowServiceType,
   LocalBaserowCreateRowWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
   LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowUpdateRowsWorkflowServiceType,
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsUpdatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
+  LocalBaserowFieldsUpdatedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import {
+  CoreCSVFileReaderServiceType,
   CoreHTTPRequestServiceType,
   PeriodicTriggerServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
+  CoreStartWorkflowServiceType,
+  CoreManualTriggerServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
@@ -50,7 +56,15 @@ export default defineNuxtPlugin({
     )
     $registry.register(
       'service',
+      new LocalBaserowCreateRowsWorkflowServiceType(context)
+    )
+    $registry.register(
+      'service',
       new LocalBaserowUpdateRowWorkflowServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowUpdateRowsWorkflowServiceType(context)
     )
     $registry.register(
       'service',
@@ -60,7 +74,10 @@ export default defineNuxtPlugin({
     $registry.register('service', new CoreSMTPEmailServiceType(context))
     $registry.register('service', new CoreRouterServiceType(context))
     $registry.register('service', new CoreHTTPTriggerServiceType(context))
+    $registry.register('service', new CoreManualTriggerServiceType(context))
     $registry.register('service', new CoreIteratorServiceType(context))
+    $registry.register('service', new CoreCSVFileReaderServiceType(context))
+    $registry.register('service', new CoreStartWorkflowServiceType(context))
     $registry.register('service', new AIAgentServiceType(context))
     $registry.register('service', new PeriodicTriggerServiceType(context))
     $registry.register('service', new SlackWriteMessageServiceType(context))
@@ -75,6 +92,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'service',
       new LocalBaserowRowsDeletedTriggerServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowFieldsUpdatedTriggerServiceType(context)
     )
   },
 })

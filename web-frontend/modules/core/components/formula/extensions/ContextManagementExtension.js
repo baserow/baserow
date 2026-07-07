@@ -7,19 +7,34 @@ const contextManagementPluginKey = new PluginKey('contextManagement')
 /**
  * @name ContextManagementExtension
  * @description Manages the visibility and positioning of the formula input's
- * context menu (the data explorer and function list). It handles focus and blur
- * events to automatically show or hide the context menu. It also provides commands
- * to control the menu programmatically and reposition it based on the surrounding UI.
+ * explorer context menu (data explorer and function list). It handles focus and blur
+ * events to show or hide that menu, and repositions it when the document changes.
+ *
+ * Validation error UI is owned by the Vue host, not this extension.
+ *
+ * This extension is fully decoupled from Vue: it interacts with the host
+ * component exclusively through the callback/accessor options listed below.
  */
 export const ContextManagementExtension = Extension.create({
   name: 'contextManagement',
 
   addOptions() {
     return {
-      vueComponent: null,
-      contextPosition: 'bottom', // 'bottom', 'left', 'right'
-      disabled: false,
-      readOnly: false,
+      // State accessors — return current reactive values from the host.
+      getState: () => ({
+        isFocused: false,
+        disabled: false,
+        readOnly: false,
+      }),
+      setFocused: (_val) => {},
+
+      // DOM element accessors for click-outside detection.
+      getRootEl: () => null,
+      getContextEl: () => null,
+
+      // Explorer context menu — the host decides positioning.
+      showExplorerContextMenu: () => {},
+      hideContextMenu: () => {},
     }
   },
 
@@ -35,138 +50,34 @@ export const ContextManagementExtension = Extension.create({
       repositionContext:
         () =>
         ({ editor }) => {
-          const { vueComponent } = this.options
+          const { isFocused } = this.options.getState()
+          if (!isFocused) return false
 
-          if (!vueComponent || !vueComponent.isFocused) {
-            return false
-          }
-
-          if (vueComponent && vueComponent.$nextTick) {
-            vueComponent.$nextTick(() => {
-              if (!vueComponent.isFocused) return
-
-              // Read directly from Vue component to get reactive value
-              const contextPosition =
-                vueComponent?.contextPosition ?? this.options.contextPosition
-              let config
-
-              switch (contextPosition) {
-                case 'left':
-                  config = {
-                    vertical: 'bottom',
-                    horizontal: 'left',
-                    needsDynamicOffset: true,
-                  }
-                  break
-                case 'bottom':
-                  config = {
-                    vertical: 'bottom',
-                    horizontal: 'left',
-                    verticalOffset: 10,
-                    horizontalOffset: 0,
-                  }
-                  break
-                case 'right':
-                  config = {
-                    vertical: 'bottom',
-                    horizontal: 'left',
-                    needsDynamicOffset: true,
-                  }
-                  break
-                default:
-                  config = {
-                    vertical: 'bottom',
-                    horizontal: 'left',
-                    verticalOffset: 0,
-                    horizontalOffset: -400,
-                  }
-              }
-
-              const { vertical, horizontal } = config
-              let { verticalOffset = 0, horizontalOffset = 0 } = config
-
-              // Calculate dynamic offsets if necessary
-              if (config.needsDynamicOffset) {
-                const inputRect = vueComponent.$el?.getBoundingClientRect()
-                const contextRect =
-                  vueComponent.$refs?.formulaInputExplorerContext?.$el?.getBoundingClientRect()
-
-                switch (contextPosition) {
-                  case 'left':
-                    verticalOffset = -inputRect?.height || 0
-                    horizontalOffset = -(contextRect?.width || 0) - 10
-                    break
-                  case 'right':
-                    verticalOffset = -inputRect?.height || 0
-                    horizontalOffset = (inputRect?.width || 0) + 10
-                    break
-                }
-              }
-
-              if (vueComponent.$refs?.formulaInputExplorerContext) {
-                vueComponent.$refs.formulaInputExplorerContext.show(
-                  vueComponent.$refs.editor.$el,
-                  vertical,
-                  horizontal,
-                  verticalOffset,
-                  horizontalOffset
-                )
-              }
-              if (vueComponent.$refs?.formulaInputErrorContext) {
-                const editorEl = vueComponent.$refs.editor.$el
-                const editorRect = editorEl.getBoundingClientRect()
-                vueComponent.$refs.formulaInputErrorContext.show(
-                  editorEl,
-                  'top',
-                  'left',
-                  10,
-                  0,
-                  editorRect.width
-                )
-              }
-            })
-          }
-
+          this.options.showExplorerContextMenu()
           return true
         },
       showContext:
         () =>
         ({ editor }) => {
-          const { vueComponent } = this.options
+          const { disabled, readOnly } = this.options.getState()
+          if (readOnly || disabled) return false
 
-          // Read directly from Vue component to get reactive values
-          const disabled = vueComponent?.disabled ?? this.options.disabled
-          const readOnly = vueComponent?.readOnly ?? this.options.readOnly
+          this.options.setFocused(true)
 
-          if (!vueComponent || readOnly || disabled) {
-            return false
-          }
+          editor.commands.unselectNode()
+          this.options.showExplorerContextMenu()
 
-          vueComponent.isFocused = true
-
-          if (vueComponent && vueComponent.$nextTick) {
-            vueComponent.$nextTick(() => {
-              if (!vueComponent.isFocused) return
-
-              editor.commands.unselectNode()
-
-              // Position the context
-              editor.commands.repositionContext()
-
-              if (vueComponent && vueComponent.$el) {
-                this.storage.clickOutsideEventCancel = onClickOutside(
-                  vueComponent.$el,
-                  (target, event) => {
-                    const isInsideContext = target.closest(
-                      '[data-formula-input-context]'
-                    )
-                    if (!isInsideContext) {
-                      editor.commands.hideContext()
-                    }
-                  }
-                )
+          const rootEl = this.options.getRootEl()
+          if (rootEl) {
+            this.storage.clickOutsideEventCancel = onClickOutside(
+              rootEl,
+              (target, _event) => {
+                const contextEl = this.options.getContextEl()
+                if (!contextEl || !isElement(contextEl, target)) {
+                  editor.commands.hideContext()
+                }
               }
-            })
+            )
           }
 
           return true
@@ -174,15 +85,8 @@ export const ContextManagementExtension = Extension.create({
       hideContext:
         () =>
         ({ editor }) => {
-          const { vueComponent } = this.options
-
-          if (vueComponent) {
-            vueComponent.isFocused = false
-          }
-
-          if (vueComponent?.$refs?.formulaInputExplorerContext) {
-            vueComponent.$refs.formulaInputExplorerContext.hide()
-          }
+          this.options.setFocused(false)
+          this.options.hideContextMenu()
 
           editor.commands.unselectNode()
 
@@ -207,13 +111,14 @@ export const ContextManagementExtension = Extension.create({
         key: contextManagementPluginKey,
         props: {
           handleDOMEvents: {
-            focus: (view, event) => {
-              if (!this.options.disabled && !this.options.readOnly) {
+            focus: (_view, _event) => {
+              const { disabled, readOnly } = this.options.getState()
+              if (!disabled && !readOnly) {
                 this.editor.commands.showContext()
               }
               return false
             },
-            blur: (view, event) => {
+            blur: (_view, _event) => {
               if (this.storage.ignoreNextBlur) {
                 this.storage.ignoreNextBlur = false
                 return false
@@ -225,9 +130,8 @@ export const ContextManagementExtension = Extension.create({
         },
         view: () => ({
           update: (view, prevState) => {
-            // Reposition context when the document changes and context is visible
-            const { vueComponent } = this.options
-            if (vueComponent?.isFocused && view.state.doc !== prevState.doc) {
+            const { isFocused } = this.options.getState()
+            if (isFocused && view.state.doc !== prevState.doc) {
               this.editor.commands.repositionContext()
             }
           },
@@ -242,7 +146,6 @@ export const ContextManagementExtension = Extension.create({
   },
 
   onDestroy() {
-    // Clean up listeners
     if (this.storage.clickOutsideEventCancel) {
       this.storage.clickOutsideEventCancel()
       this.storage.clickOutsideEventCancel = null

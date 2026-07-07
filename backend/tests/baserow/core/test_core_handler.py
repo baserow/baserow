@@ -534,7 +534,11 @@ def test_get_workspace_invitation(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_send_workspace_invitation_email(data_fixture, mailoutbox):
-    workspace_invitation = data_fixture.create_workspace_invitation()
+    user = data_fixture.create_user(first_name="Nikolas", email="inviter@example.com")
+    workspace = data_fixture.create_workspace(user=user, name="Test workspace")
+    workspace_invitation = data_fixture.create_workspace_invitation(
+        invited_by=user, workspace=workspace
+    )
     handler = CoreHandler()
 
     with pytest.raises(BaseURLHostnameNotAllowed):
@@ -551,14 +555,22 @@ def test_send_workspace_invitation_email(data_fixture, mailoutbox):
     assert len(mailoutbox) == 1
     email = mailoutbox[0]
 
-    assert (
-        email.subject == f"{workspace_invitation.invited_by.first_name} invited you "
-        f"to {workspace_invitation.workspace.name} - Baserow"
-    )
+    assert email.subject == "You've been invited to collaborate on Baserow"
     assert email.from_email == "no-reply@localhost"
     assert workspace_invitation.email in email.to
 
     html_body = email.alternatives[0][0]
+    assert "Nikolas" in html_body
+    # The displayed email address gets a zero-width space inserted after every
+    # dot to prevent email clients from linkifying it.
+    assert "(inviter@example.\u200bcom)" in html_body
+    assert "Test workspace" in html_body
+    assert (
+        "If you don't recognize this sender, you can safely ignore this email."
+        in html_body
+    )
+    assert "Nikolas" in email.body
+    assert "(inviter@example.\u200bcom)" in email.body
     search_url = "http://localhost:3000/workspace-invite/"
     start_url_index = html_body.index(search_url)
 
@@ -575,8 +587,11 @@ def test_send_workspace_invitation_email(data_fixture, mailoutbox):
 def test_send_workspace_invitation_email_in_different_language(
     data_fixture, mailoutbox
 ):
-    user = data_fixture.create_user(language="fr")
-    workspace_invitation = data_fixture.create_workspace_invitation(invited_by=user)
+    user = data_fixture.create_user(language="fr", first_name="InviterXyz")
+    workspace = data_fixture.create_workspace(user=user, name="WorkspaceXyz")
+    workspace_invitation = data_fixture.create_workspace_invitation(
+        invited_by=user, workspace=workspace
+    )
 
     handler = CoreHandler()
     handler.send_workspace_invitation_email(
@@ -585,11 +600,67 @@ def test_send_workspace_invitation_email_in_different_language(
     )
 
     assert len(mailoutbox) == 1
-    assert (
-        mailoutbox[0].subject
-        == f"{workspace_invitation.invited_by.first_name} vous a invité à "
-        f"{workspace_invitation.workspace.name} - Baserow"
+    # The subject must never contain user-controlled content, regardless of the
+    # language it is rendered in, because that can be abused for phishing.
+    subject = mailoutbox[0].subject
+    assert subject != ""
+    assert "InviterXyz" not in subject
+    assert "WorkspaceXyz" not in subject
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_workspace_invitation_email_truncates_long_names(data_fixture, mailoutbox):
+    user = data_fixture.create_user(first_name="x" * 150)
+    workspace = data_fixture.create_workspace(user=user, name="y" * 150)
+    workspace_invitation = data_fixture.create_workspace_invitation(
+        invited_by=user, workspace=workspace
     )
+
+    CoreHandler().send_workspace_invitation_email(
+        invitation=workspace_invitation,
+        base_url="http://localhost:3000/workspace-invite",
+    )
+
+    assert len(mailoutbox) == 1
+    html_body = mailoutbox[0].alternatives[0][0]
+    assert "x" * 59 + "…" in html_body
+    assert "x" * 150 not in html_body
+    assert "y" * 59 + "…" in html_body
+    assert "y" * 150 not in html_body
+
+
+@pytest.mark.django_db(transaction=True)
+def test_send_workspace_invitation_email_prevents_domain_linkification(
+    data_fixture, mailoutbox
+):
+    # Workspace names may legitimately contain domains, and pre-existing user
+    # names and unverified email addresses can too. A zero-width space must be
+    # inserted after every dot so that email clients don't turn them into
+    # clickable links.
+    user = data_fixture.create_user(
+        first_name="Nikolas", email="scammer@evil-domain.com"
+    )
+    workspace = data_fixture.create_workspace(user=user, name="poshmark-helps.com")
+    workspace_invitation = data_fixture.create_workspace_invitation(
+        invited_by=user, workspace=workspace
+    )
+
+    CoreHandler().send_workspace_invitation_email(
+        invitation=workspace_invitation,
+        base_url="http://localhost:3000/workspace-invite",
+    )
+
+    assert len(mailoutbox) == 1
+    email = mailoutbox[0]
+    html_body = email.alternatives[0][0]
+
+    assert "poshmark-helps.com" not in html_body
+    assert "poshmark-helps.\u200bcom" in html_body
+    assert "scammer@evil-domain.com" not in html_body
+    assert "scammer@evil-domain.\u200bcom" in html_body
+
+    assert "poshmark-helps.com" not in email.body
+    assert "poshmark-helps.\u200bcom" in email.body
 
 
 @pytest.mark.django_db
@@ -782,6 +853,7 @@ def test_accept_workspace_invitation(data_fixture):
     assert WorkspaceInvitation.objects.all().count() == 0
     assert WorkspaceUser.objects.all().count() == 1
 
+    # A second invitation must not change an existing member's permissions.
     workspace_invitation = data_fixture.create_workspace_invitation(
         email="test@test.nl", permissions="ADMIN", workspace=workspace
     )
@@ -789,7 +861,7 @@ def test_accept_workspace_invitation(data_fixture):
         user=user_1, invitation=workspace_invitation
     )
     assert workspace_user.workspace_id == workspace.id
-    assert workspace_user.permissions == "ADMIN"
+    assert workspace_user.permissions == "MEMBER"
     assert WorkspaceInvitation.objects.all().count() == 0
     assert WorkspaceUser.objects.all().count() == 1
 
@@ -803,6 +875,33 @@ def test_accept_workspace_invitation(data_fixture):
     assert workspace_user.permissions == "MEMBER"
     assert WorkspaceInvitation.objects.all().count() == 0
     assert WorkspaceUser.objects.all().count() == 2
+
+
+@pytest.mark.django_db
+def test_accept_workspace_invitation_does_not_downgrade_last_admin(data_fixture):
+    # Accepting a stale MEMBER invitation must not demote an existing admin.
+    workspace = data_fixture.create_workspace()
+    user = data_fixture.create_user(email="admin@test.nl")
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=user, permissions="ADMIN"
+    )
+    workspace_invitation = data_fixture.create_workspace_invitation(
+        email="admin@test.nl", permissions="MEMBER", workspace=workspace
+    )
+
+    handler = CoreHandler()
+
+    workspace_user = handler.accept_workspace_invitation(
+        user=user, invitation=workspace_invitation
+    )
+
+    assert workspace_user.permissions == "ADMIN"
+    assert (
+        WorkspaceUser.objects.filter(workspace=workspace, permissions="ADMIN").count()
+        == 1
+    )
+    assert WorkspaceUser.objects.filter(workspace=workspace).count() == 1
+    assert WorkspaceInvitation.objects.all().count() == 0
 
 
 @pytest.mark.django_db

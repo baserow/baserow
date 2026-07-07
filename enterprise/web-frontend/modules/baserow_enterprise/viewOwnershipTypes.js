@@ -3,6 +3,7 @@ import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { RBACPaidFeature } from '@baserow_enterprise/paidFeatures'
 import { FormViewType } from '@baserow/modules/database/viewTypes.js'
+import RestrictedViewFilterContext from '@baserow_enterprise/components/views/RestrictedViewFilterContext'
 
 export class RestrictedViewOwnershipType extends ViewOwnershipType {
   static getType() {
@@ -51,7 +52,21 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     return 30
   }
 
+  supportsPresenceFocus(database, table, view) {
+    return this._hasFullTableAccess(database, table, view)
+  }
+
   enhanceRealtimePagePayload(database, table, view, payload) {
+    if (this._hasFullTableAccess(database, table, view)) {
+      return super.enhanceRealtimePagePayload(database, table, view, payload)
+    }
+
+    payload.page = 'restricted_view'
+    payload.params = { restricted_view_id: view.id, table_id: table.id }
+    return payload
+  }
+
+  _hasFullTableAccess(database, table, view) {
     const canListenToTableEvents = this.app.$hasPermission(
       'database.table.listen_to_all',
       table,
@@ -62,13 +77,7 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
       view,
       database.workspace.id
     )
-    if (canListenToTableEvents && canCreateFilters) {
-      return super.enhanceRealtimePagePayload(database, table, view, payload)
-    }
-
-    payload.page = 'restricted_view'
-    payload.params = { restricted_view_id: view.id }
-    return payload
+    return canListenToTableEvents && canCreateFilters
   }
 
   fetchingFieldsRequiresViewId(database, table, view) {
@@ -81,6 +90,19 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     // list all the fields of the table. If the view param is added, it will only list
     // the fields related to this view.
     return !canListFields
+  }
+
+  getFilterContextComponent(view, database) {
+    if (
+      !this.app.$hasPermission(
+        'database.table.view.update_default_values',
+        view,
+        database.workspace.id
+      )
+    ) {
+      return null
+    }
+    return RestrictedViewFilterContext
   }
 
   _canUpdateFieldOptions(view, database) {

@@ -56,6 +56,10 @@ class UpdateViewRowOperationType(ViewRowOperationType):
     type = "database.table.view.update_row"
 
 
+class MoveViewRowOperationType(ViewRowOperationType):
+    type = "database.table.view.move_row"
+
+
 class DeleteViewRowOperationType(ViewRowOperationType):
     type = "database.table.view.delete_row"
 
@@ -80,6 +84,10 @@ class RestoreViewRowCommentOperationType(ViewRowOperationType):
     type = "database.table.view.restore_comment"
 
 
+class RestoreViewRowOperationType(ViewRowOperationType):
+    type = "database.table.view.restore_row"
+
+
 class CreateViewSortOperationType(ViewOperationType):
     type = "database.table.view.create_sort"
 
@@ -99,6 +107,11 @@ class UpdateViewSortOperationType(ViewSortOperationType):
 
 class DeleteViewSortOperationType(ViewSortOperationType):
     type = "database.table.view.sort.delete"
+
+
+class PrioritizeViewSortOperationType(ViewOperationType):
+    type = "database.table.view.prioritize_sortings"
+    object_scope_name = DatabaseViewSortObjectScopeType.type
 
 
 class ViewGroupByOperationType(OperationType, abc.ABC):
@@ -124,6 +137,11 @@ class UpdateViewGroupByOperationType(ViewGroupByOperationType):
 
 class DeleteViewGroupByOperationType(ViewGroupByOperationType):
     type = "database.table.view.group_by.delete"
+
+
+class PrioritizeViewGroupByOperationType(ViewOperationType):
+    type = "database.table.view.prioritize_group_bys"
+    object_scope_name = DatabaseViewGroupByObjectScopeType.type
 
 
 class UpdateViewSlugOperationType(ViewOperationType):

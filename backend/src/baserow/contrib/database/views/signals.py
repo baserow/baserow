@@ -20,10 +20,12 @@ view_filter_group_deleted = Signal()
 view_sort_created = Signal()
 view_sort_updated = Signal()
 view_sort_deleted = Signal()
+view_sortings_prioritized = Signal()
 
 view_group_by_created = Signal()
 view_group_by_updated = Signal()
 view_group_by_deleted = Signal()
+view_group_bys_prioritized = Signal()
 
 view_decoration_created = Signal()
 view_decoration_updated = Signal()
@@ -63,6 +65,13 @@ def update_view_index_if_view_sort_changes(sender, view_sort, **kwargs):
     ViewIndexingHandler.schedule_index_update(view_sort.view)
 
 
+@receiver(view_sortings_prioritized)
+def update_view_index_if_view_sortings_prioritized(sender, view, **kwargs):
+    from baserow.contrib.database.views.handler import ViewIndexingHandler
+
+    ViewIndexingHandler.schedule_index_update(view)
+
+
 @receiver(
     [
         view_group_by_created,
@@ -74,6 +83,13 @@ def update_view_index_if_view_group_by_changes(sender, view_group_by, **kwargs):
     from baserow.contrib.database.views.handler import ViewIndexingHandler
 
     ViewIndexingHandler.schedule_index_update(view_group_by.view)
+
+
+@receiver(view_group_bys_prioritized)
+def update_view_index_if_view_group_bys_prioritized(sender, view, **kwargs):
+    from baserow.contrib.database.views.handler import ViewIndexingHandler
+
+    ViewIndexingHandler.schedule_index_update(view)
 
 
 @receiver(view_loaded)

@@ -29,3 +29,9 @@ ERROR_ELEMENT_MOVE_NOT_ALLOWED = (
     HTTP_400_BAD_REQUEST,
     "The move destination is not allowed for this element.",
 )
+
+ERROR_ELEMENT_INVALID_FORMULA = (
+    "ERROR_ELEMENT_INVALID_FORMULA",
+    HTTP_400_BAD_REQUEST,
+    "Error with element formula: {e}.",
+)

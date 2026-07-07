@@ -140,7 +140,7 @@
         "rowUsage": "Uso de fila",
         "storeUsage": "Uso de almacenamiento",
         "disconnectLicense": "Desconectar licencia",
-        "disconnectDescription": "Si desconecta esta licencia mientras está activa, los usuarios relacionados ya no tendrán acceso al plan. Eliminará efectivamente la licencia. Comuníquese con nuestro equipo de soporte en {contacto} si desea utilizar esta licencia en otra instancia autohospedada.",
+        "disconnectDescription": "¿Estás seguro de que quieres desconectar esta licencia? Si desconectas esta licencia mientras está activa, los usuarios relacionados ya no tendrán acceso al plan. Esto eliminará efectivamente la licencia de esta instancia. Puedes cambiar el ID de instancia de tu suscripción a través de la página de suscripciones en {subscriptions} o contactando a nuestro equipo de soporte en {contact} si estás en el plan Corporativo.",
         "moreSeatsNeededTitle": "Se necesitan más asientos",
         "contactSalesMoreSeats": "Contacta el departamento de ventas para obtener más asientos",
         "automaticSeatsProgressBarStatus": "{asientos_ocupados} / {asientos} asientos pagados y {recuento_de_usuarios_libres} asientos libres en uso",

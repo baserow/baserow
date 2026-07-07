@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.conf import settings
 
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
@@ -15,7 +17,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.core.handler import CoreHandler
-from baserow.ws.registries import PageType
+from baserow.ws.registries import PageType, PresenceFocusType
 
 
 class TablePageType(PageType):
@@ -50,6 +52,33 @@ class TablePageType(PageType):
 
     def get_permission_channel_group_name(self, table_id, **kwargs):
         return f"permissions-table-{table_id}"
+
+    def get_presence_space_name(self, table_id: int | None, **kwargs) -> str | None:
+        """All table subscribers share one presence space per table."""
+
+        return table_presence_space_name(table_id)
+
+    def filter_focus_for_recipient(
+        self,
+        page_parameters: dict[str, Any],
+        focus: dict[str, Any] | None,
+        focus_type: PresenceFocusType | None,
+    ) -> bool:
+        # Table subscribers already have full row/field visibility; no filtering needed.
+        return True
+
+
+def table_presence_space_name(table_id: int) -> str | None:
+    """
+    Return the canonical presence space name for a table.
+
+    :param table_id: The database table id.
+    :return: The space name string, or None if table_id is falsy.
+    """
+
+    if table_id is None or table_id <= 0:
+        return None
+    return f"table-{table_id}"
 
 
 class PublicViewPageType(PageType):

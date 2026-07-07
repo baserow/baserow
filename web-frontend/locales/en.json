@@ -16,6 +16,7 @@
     "optional": "Optional",
     "or": "or",
     "and": "and",
+    "workspace": "workspace",
     "monday": "Monday",
     "tuesday": "Tuesday",
     "wednesday": "Wednesday",
@@ -114,6 +115,8 @@
     "minLength": "A minimum of {min} characters is required here.",
     "maxLength": "A maximum of {max} characters is allowed here.",
     "minMaxLength": "A minimum of {min} and a maximum of {max} characters is allowed here.",
+    "nameContainsUrl": "Names can't contain links, domains or web addresses.",
+    "nameCantBeEmail": "Please enter your name, not your email address.",
     "invalidCharacters": "This field contains invalid characters.",
     "requiredField": "This field is required.",
     "integerField": "The field must be an integer.",
@@ -256,6 +259,7 @@
     "containsNot": "doesn't contain",
     "containsWord": "contains word",
     "doesntContainWord": "doesn't contain word",
+    "startsWith": "starts with",
     "filenameContains": "filename contains",
     "has": "has",
     "hasNot": "doesn't have",
@@ -346,13 +350,15 @@
   "trashType": {
     "workspace": "workspace",
     "application": "application",
-    "automation_workflow": "automation workflow",
-    "automation_node": "automation node",
     "table": "table",
     "field": "field",
     "row": "row",
     "rows": "rows",
-    "view": "view"
+    "view": "view",
+    "automation_workflow": "automation workflow",
+    "automation_node": "automation node",
+    "builder_page": "builder page",
+    "builder_element": "builder element"
   },
   "webhook": {
     "request": "Request",
@@ -476,7 +482,8 @@
     "csv": "Import a CSV file",
     "paste": "Paste table data",
     "xml": "Import an XML file",
-    "json": "Import a JSON file"
+    "json": "Import a JSON file",
+    "excel": "Import an Excel file"
   },
   "apiDocs": {
     "intro": "Introduction",
@@ -665,6 +672,7 @@
     "lowerDescription": "Converts the argument to lower case.",
     "capitalizeDescription": "Capitalizes the argument's first letter.",
     "roundDescription": "Rounds the first argument to the number of decimal places specified by the second argument.",
+    "absDescription": "Returns the absolute value of the argument.",
     "evenDescription": "Return true if the argument is even, false otherwise.",
     "oddDescription": "Return true if the argument is odd, false otherwise.",
     "dateTimeDescription": "Formats the date time argument using the format and timezone arguments. If the timezone is left blank, it will default to the browser's timezone.",
@@ -695,6 +703,14 @@
     "avgDescription": "Averages the numbers inside the argument.",
     "atDescription": "Returns the item in the first argument at the index specified by the second argument.",
     "toArrayDescription": "Converts a comma-delimited string into an array.",
+    "rangeDescription": "Returns an array of numbers. Provide range(stop), range(start, stop), or range(start, stop, step).",
+    "toJsonDescription": "Serializes a value into a JSON-encoded string, escaping quotes, backslashes and control characters so it can be safely embedded inside a JSON document.",
+    "fromJsonDescription": "Parses a JSON-encoded string into a value such as an object, array or number. Returns null if the string is not valid JSON.",
+    "nullDescription": "Returns null, which can be used as a value or for comparison",
+    "numberFormatDescription": "Formats a number as a string with configurable decimal places, thousand separator, and decimal separator.",
+    "toDatetimeDescription": "Parses a string into a datetime object. An optional second argument specifies the format (e.g. 'DD/MM/YYYY'). If omitted, ISO 8601 format is assumed.",
+    "toDurationDescription": "Returns the duration corresponding to the provided argument.",
+    "durationFormatDescription": "Formats a duration as text using a format string with tokens 'd' (days), 'h' (hours), 'm' (minutes), 's' (seconds), e.g. 'h:mm', 'd h:mm:ss'.",
     "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
     "formulaTypeData": "Data",
@@ -703,7 +719,18 @@
     "categoryNumber": "Number",
     "categoryBoolean": "Boolean",
     "categoryDate": "Date",
-    "categoryCondition": "Condition"
+    "categoryCondition": "Condition",
+    "categoryUtility": "Utility"
+  },
+  "runtimeFormulaTypeErrors": {
+    "invalidNumber": "'{value}' is not a valid number.",
+    "invalidTimezone": "'{value}' is not a valid timezone. Use a valid IANA timezone (e.g. 'Europe/Amsterdam').",
+    "invalidThousandSeparator": "'{value}' is not a valid thousand separator. Valid options are: ',', '.', ' ', or '' (empty string).",
+    "invalidDecimalSeparator": "'{value}' is not a valid decimal separator. Valid options are: ',' or '.'.",
+    "sameSeparators": "The thousand separator and decimal separator cannot be the same.",
+    "invalidDuration": "'{value}' is not a valid duration. Valid options are: '1 day', '2 hours', etc.",
+    "invalidDatetimeFormat": "'{value}' is not a valid datetime format. Valid options are: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss', etc.",
+    "invalidDurationFormat": "'{value}' is not a valid duration format. Use 'd' (days), 'h' (hours), 'm' (minutes), 's' (seconds), e.g. 'd:h', 'd h:mm:ss'."
   },
   "runtimeGetErrors": {
     "invalidPath": "The 'get' argument '{path}' must be a dot-delimited path (e.g., 'provider.property').",

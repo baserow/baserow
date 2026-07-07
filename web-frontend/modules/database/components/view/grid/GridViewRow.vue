@@ -16,7 +16,9 @@
         'grid-view__row--hover': row._.hover,
         'grid-view__row--warning':
           !row._.matchFilters || !row._.matchSortings || !row._.matchSearch,
+        'grid-view__row--focus-highlight': rowFocusEntries.length > 0,
       }"
+      :style="rowFocusStyle"
       @mouseover="$emit('row-hover', { row, value: true })"
       @mouseleave="$emit('row-hover', { row, value: false })"
       @contextmenu.prevent="$emit('row-context', { row, event: $event })"
@@ -40,7 +42,6 @@
         </div>
         <div
           class="grid-view__column grid-view__column--no-border-right"
-          :class="{ 'grid-view__column--group-end': groupEnd }"
           :style="{ width: gridViewRowDetailsWidth + 'px' }"
         >
           <div
@@ -113,13 +114,14 @@
         :multi-select-position="getMultiSelectPosition(row.id, field)"
         :read-only="readOnly || !canWriteFieldValues(field)"
         :store-prefix="storePrefix"
-        :group-end="groupEnd"
         :style="{
           width: fieldWidths[field.id] + 'px',
           ...getSelectedCellStyle(field),
         }"
         :is-selected="isCellSelected(field.id)"
         :is-alive="isAlive(field.id)"
+        :focus-entries="getCellFocusEntries(field)"
+        :field-width="fieldWidths[field.id]"
         :add-keep-alive="addKeepAlive"
         :remove-keep-alive="removeKeepAlive"
         @update="$emit('update', $event)"
@@ -136,26 +138,41 @@
         @cell-mouseup-left="$emit('cell-mouseup-left', { row, field })"
         @cell-shift-click="$emit('cell-shift-click', { row, field })"
         @add-row-after="$emit('add-row-after', $event)"
+        @editing-changed="$emit('editing-changed', $event)"
         @edit-modal="$emit('edit-modal', row)"
         @select-cell="selectCell"
         @set-state="setState"
       ></GridViewCell>
+      <GridViewFocusBadge
+        v-if="rowFocusEntries.length > 0"
+        :entries="rowFocusEntries"
+        class="grid-view__row-focus-badge"
+      />
     </div>
   </RecursiveWrapper>
 </template>
 
 <script>
 import GridViewCell from '@baserow/modules/database/components/view/grid/GridViewCell'
+import GridViewFocusBadge from '@baserow/modules/database/components/view/grid/GridViewFocusBadge'
+import { computeMultiSelectPosition } from '@baserow/modules/database/utils/row'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
+import { getPresenceUserColorRgb } from '@baserow/modules/core/utils/presenceColors'
+import { activeFocusEntry } from '@baserow/modules/database/utils/presenceFocusEntries'
+
+// Shared identity for cells without focus entries so their `focusEntries` prop
+// keeps referential equality across renders and doesn't invalidate the cells.
+const EMPTY_ARRAY = Object.freeze([])
 
 export default {
   name: 'GridViewRow',
   components: {
     GridViewRowExpandButton,
     GridViewCell,
+    GridViewFocusBadge,
     RecursiveWrapper,
   },
   mixins: [gridViewHelpers],
@@ -176,11 +193,6 @@ export default {
     row: {
       type: Object,
       required: true,
-    },
-    groupEnd: {
-      type: Boolean,
-      required: false,
-      default: () => false,
     },
     renderedFields: {
       type: Array,
@@ -229,6 +241,16 @@ export default {
       required: false,
       default: 'count',
     },
+    focusEntriesByCell: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
+    },
+    focusEntriesByRow: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
+    },
     count: {
       type: Number,
       required: true,
@@ -250,6 +272,7 @@ export default {
     'select-next',
     'add-row-after',
     'edit-modal',
+    'editing-changed',
     'refresh-row',
     'row-dragging',
     'row-hover',
@@ -320,6 +343,18 @@ export default {
     wrapperDecorations() {
       return this.decorationsByPlace?.wrapper || []
     },
+    currentUserId() {
+      return this.$store.getters['auth/getUserId']
+    },
+    rowFocusEntries() {
+      const entries = this.focusEntriesByRow.get(this.row.id) || []
+      return entries.filter((e) => e.user_id !== this.currentUserId)
+    },
+    rowFocusStyle() {
+      const entry = activeFocusEntry(this.rowFocusEntries)
+      if (entry === null) return {}
+      return { '--focus-color-rgb': getPresenceUserColorRgb(entry.user_id) }
+    },
     rowIdentifier() {
       switch (this.rowIdentifierType) {
         case 'count':
@@ -367,62 +402,38 @@ export default {
     // Return an object that represents if a cell is selected,
     // and it's current position in the selection grid
     getMultiSelectPosition(rowId, field) {
-      const position = {
-        selected: false,
-        top: false,
-        right: false,
-        bottom: false,
-        left: false,
-      }
       const selectionType =
         this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
-      if (selectionType !== GRID_VIEW_MULTI_SELECT_AREA) {
-        if (this.isCheckboxSelected(rowId)) {
-          position.selected = true
-        }
-        return position
-      }
-
-      if (
+      const isAreaSelectionActive =
+        selectionType === GRID_VIEW_MULTI_SELECT_AREA &&
         this.$store.getters[this.storePrefix + 'view/grid/isMultiSelectActive']
-      ) {
-        const rowIndex =
+      if (!isAreaSelectionActive) {
+        return computeMultiSelectPosition({
+          isAreaSelectionActive: false,
+          // Checkbox highlight only shows outside area-selection mode, preserving
+          // the original behaviour where entering area-select hides it.
+          isCheckboxSelected:
+            selectionType !== GRID_VIEW_MULTI_SELECT_AREA &&
+            this.isCheckboxSelected(rowId),
+        })
+      }
+      return computeMultiSelectPosition({
+        isAreaSelectionActive: true,
+        isCheckboxSelected: false,
+        rowIndex:
           this.$store.getters[this.storePrefix + 'view/grid/getRowIndexById'](
             rowId
-          )
-
-        const fieldIndex = this.allVisibleFields.findIndex(
-          (f) => f.id === field.id
-        )
-
-        const [minRow, maxRow] =
+          ),
+        fieldIndex: this.allVisibleFields.findIndex((f) => f.id === field.id),
+        rowIndexRange:
           this.$store.getters[
             this.storePrefix + 'view/grid/getMultiSelectRowIndexSorted'
-          ]
-        const [minField, maxField] =
+          ],
+        fieldIndexRange:
           this.$store.getters[
             this.storePrefix + 'view/grid/getMultiSelectFieldIndexSorted'
-          ]
-
-        if (rowIndex >= minRow && rowIndex <= maxRow) {
-          if (fieldIndex >= minField && fieldIndex <= maxField) {
-            position.selected = true
-            if (rowIndex === minRow) {
-              position.top = true
-            }
-            if (rowIndex === maxRow) {
-              position.bottom = true
-            }
-            if (fieldIndex === minField) {
-              position.left = true
-            }
-            if (fieldIndex === maxField) {
-              position.right = true
-            }
-          }
-        }
-      }
-      return position
+          ],
+      })
     },
     setState(value) {
       this.state = value
@@ -502,6 +513,12 @@ export default {
     },
     canWriteFieldValues(field) {
       return this.$registry.get('field', field.type).canWriteFieldValues(field)
+    },
+    getCellFocusEntries(field) {
+      const entries = this.focusEntriesByCell.get(`${this.row.id}:${field.id}`)
+      if (!entries) return EMPTY_ARRAY
+      const filtered = entries.filter((e) => e.user_id !== this.currentUserId)
+      return filtered.length === 0 ? EMPTY_ARRAY : filtered
     },
     toggleRowCheckbox() {
       this.$store.dispatch(

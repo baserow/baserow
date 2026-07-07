@@ -204,3 +204,23 @@ def test_import_node_only(data_fixture):
         "automation_workflow_nodes": {node.id: new_node.id},
         "services": {node.service_id: new_node.service_id},
     }
+
+
+@pytest.mark.django_db
+def test_import_node_only_ignores_integration_from_another_application(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    trigger = workflow.get_trigger()
+    other_integration = data_fixture.create_local_baserow_integration()
+
+    exported_node = AutomationNodeHandler().export_node(trigger)
+    exported_node["service"]["integration_id"] = other_integration.id
+    id_mapping = {
+        "integrations": {},
+        "automation_workflow_nodes": MirrorDict(),
+    }
+
+    imported_node = AutomationNodeHandler().import_node_only(
+        workflow, exported_node, id_mapping
+    )
+
+    assert imported_node.service.specific.integration_id is None

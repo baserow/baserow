@@ -1,0 +1,9 @@
+{
+  "type": "feature",
+  "message": "Show matching restricted view filters and allow setting default values",
+  "issue_origin": "github",
+  "issue_number": 4926,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-04-08"
+}

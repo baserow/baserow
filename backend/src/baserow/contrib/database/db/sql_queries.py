@@ -1,6 +1,4 @@
-sql_drop_try_cast = "DROP FUNCTION IF EXISTS pg_temp.try_cast(text, int)"
-sql_create_try_cast = """
-    create or replace function pg_temp.try_cast(
+_try_cast_function_body = """(
         p_in text,
         p_default int default null
     )
@@ -19,3 +17,13 @@ sql_create_try_cast = """
     $FUNCTION$
     language plpgsql;
 """
+
+sql_drop_pg_temp_try_cast = "DROP FUNCTION IF EXISTS pg_temp.try_cast(text, int)"
+sql_create_pg_temp_try_cast = (
+    "create or replace function pg_temp.try_cast" + _try_cast_function_body
+)
+
+sql_drop_field_try_cast = "DROP FUNCTION IF EXISTS %(function_name)s(text, int)"
+sql_create_field_try_cast = (
+    "create or replace function %(function_name)s" + _try_cast_function_body
+)

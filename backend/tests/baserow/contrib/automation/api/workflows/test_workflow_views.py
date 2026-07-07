@@ -20,6 +20,7 @@ from baserow.contrib.automation.api.workflows.serializers import (
 )
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.cache import local_cache
@@ -64,6 +65,7 @@ def test_create_workflow(api_client, data_fixture):
         "published_on": None,
         "simulate_until_node_id": None,
         "graph": {},
+        "immediate_dispatch": False,
     }
 
     workflow = automation.workflows.get(id=response_json["id"])
@@ -152,7 +154,27 @@ def test_read_workflow(api_client, data_fixture):
         "published_on": None,
         "graph": {"0": trigger.id, str(trigger.id): {}},
         "notification_recipient_ids": [],
+        "immediate_dispatch": False,
     }
+
+
+@pytest.mark.django_db
+def test_read_workflow_with_immediate_dispatch_trigger(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, trigger_type=CorePeriodicTriggerNodeType.type
+    )
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["immediate_dispatch"] is True
 
 
 @pytest.mark.django_db
@@ -421,6 +443,7 @@ def test_duplicate_workflow(api_client, data_fixture):
             "published_on": None,
             "simulate_until_node_id": None,
             "graph": {"0": trigger.id, str(trigger.id): {}},
+            "immediate_dispatch": False,
         },
         "progress_percentage": 0,
         "state": "pending",
@@ -654,9 +677,8 @@ def test_get_workflow_histories(api_client, data_fixture):
                 "is_test_run": False,
                 "message": "",
                 "status": "success",
-                "event_payload": None,
-                "node_histories": [],
                 "simulate_until_node": None,
+                "plugin_data": {},
             },
         ],
     }
@@ -749,7 +771,7 @@ def test_get_workflow_histories_query_count(data_fixture, django_assert_num_quer
     _create_histories(3)
     local_cache.clear()
 
-    expected_queries = 10
+    expected_queries = 2
     with django_assert_num_queries(expected_queries):
         queryset = handler.get_workflow_histories(workflow)
         queryset.aggregate(
@@ -768,79 +790,6 @@ def test_get_workflow_histories_query_count(data_fixture, django_assert_num_quer
             fail_count=Count("id", filter=Q(status=HistoryStatusChoices.ERROR)),
         )
         AutomationWorkflowHistorySerializer(list(queryset), many=True).data
-
-
-@pytest.mark.django_db
-def test_get_workflow_histories_with_node_histories(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user=user)
-    trigger = workflow.get_trigger()
-    action_node = data_fixture.create_local_baserow_create_row_action_node(
-        user=user, workflow=workflow, label="My Action"
-    )
-
-    now = timezone.now()
-    workflow_history = data_fixture.create_automation_workflow_history(
-        user=user,
-        workflow=workflow,
-        status=HistoryStatusChoices.SUCCESS,
-        completed_on=now,
-    )
-    node_history_1 = data_fixture.create_automation_node_history(
-        user=user,
-        workflow_history=workflow_history,
-        node=trigger,
-        completed_on=now,
-    )
-    node_result_1 = data_fixture.create_automation_node_result(
-        user=user,
-        node_history=node_history_1,
-        result={"rows": [1, 2]},
-    )
-    node_history_2 = data_fixture.create_automation_node_history(
-        user=user,
-        workflow_history=workflow_history,
-        node=action_node,
-        completed_on=now,
-    )
-    node_result_2 = data_fixture.create_automation_node_result(
-        user=user,
-        node_history=node_history_2,
-        result={"created_row_id": 99},
-        iteration_path="0.2.1",
-    )
-
-    url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": workflow.id})
-    response = api_client.get(url, **get_api_kwargs(token))
-
-    assert response.status_code == HTTP_200_OK
-    data = response.json()
-
-    assert data["count"] == 1
-    assert data["success_count"] == 1
-    assert data["fail_count"] == 0
-
-    w_history = data["results"][0]
-    assert w_history["id"] == workflow_history.id
-    assert w_history["status"] == "success"
-    assert len(w_history["node_histories"]) == 2
-
-    n_history_1 = w_history["node_histories"][0]
-    assert n_history_1["node"] == trigger.id
-    assert n_history_1["workflow_history"] == workflow_history.id
-    assert n_history_1["node_type"] == trigger.get_type().type
-    assert n_history_1["node_label"] == trigger.label
-    assert n_history_1["parent_node_id"] is None
-    assert n_history_1["iteration"] == 0
-    assert n_history_1["result"] == {"rows": [1, 2]}
-
-    n_history_2 = w_history["node_histories"][1]
-    assert n_history_2["node"] == action_node.id
-    assert n_history_2["workflow_history"] == workflow_history.id
-    assert n_history_2["node_type"] == action_node.get_type().type
-    assert n_history_2["node_label"] == "My Action"
-    assert n_history_2["iteration"] == 1
-    assert n_history_2["result"] == {"created_row_id": 99}
 
 
 @pytest.mark.django_db

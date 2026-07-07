@@ -40,6 +40,13 @@
             {{ $t('fieldForm.defaultValueDisabledByConstraint') }}
           </p>
         </div>
+        <div v-if="hasViewLevelDefaultValue" class="control__messages">
+          <p
+            class="warning control__helper-text control__helper-text--warning field-context__inner-element-width"
+          >
+            {{ $t('fieldForm.defaultValueOverriddenByView') }}
+          </p>
+        </div>
       </FormGroup>
     </template>
   </div>

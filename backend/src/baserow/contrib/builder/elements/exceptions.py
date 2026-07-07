@@ -24,3 +24,10 @@ class ElementImproperlyConfigured(Exception):
     """
     Raised when we try to use an element that is misconfigured.
     """
+
+
+class ElementNotMovable(Exception):
+    """
+    Raised when an element is not movable. This can happen if
+    the element's type dictates that it cannot be moved due to its state.
+    """

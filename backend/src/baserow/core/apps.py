@@ -36,6 +36,7 @@ class CoreConfig(AppConfig):
 
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
+            RuntimeAbs,
             RuntimeAdd,
             RuntimeAnd,
             RuntimeAt,
@@ -46,7 +47,9 @@ class CoreConfig(AppConfig):
             RuntimeDateTimeFormat,
             RuntimeDay,
             RuntimeDivide,
+            RuntimeDurationFormat,
             RuntimeEqual,
+            RuntimeFromJson,
             RuntimeGenerateUUID,
             RuntimeGet,
             RuntimeGetProperty,
@@ -68,10 +71,13 @@ class CoreConfig(AppConfig):
             RuntimeMultiply,
             RuntimeNotEqual,
             RuntimeNow,
+            RuntimeNull,
+            RuntimeNumberFormat,
             RuntimeOr,
             RuntimeRandomBool,
             RuntimeRandomFloat,
             RuntimeRandomInt,
+            RuntimeRange,
             RuntimeReplace,
             RuntimeReverse,
             RuntimeRound,
@@ -80,7 +86,10 @@ class CoreConfig(AppConfig):
             RuntimeStrip,
             RuntimeSum,
             RuntimeToArray,
+            RuntimeToDatetime,
             RuntimeToday,
+            RuntimeToDuration,
+            RuntimeToJson,
             RuntimeUpper,
             RuntimeYear,
         )
@@ -101,6 +110,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeLower())
         formula_runtime_function_registry.register(RuntimeCapitalize())
         formula_runtime_function_registry.register(RuntimeRound())
+        formula_runtime_function_registry.register(RuntimeAbs())
         formula_runtime_function_registry.register(RuntimeIsEven())
         formula_runtime_function_registry.register(RuntimeIsOdd())
         formula_runtime_function_registry.register(RuntimeDateTimeFormat())
@@ -132,6 +142,14 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeAvg())
         formula_runtime_function_registry.register(RuntimeAt())
         formula_runtime_function_registry.register(RuntimeToArray())
+        formula_runtime_function_registry.register(RuntimeRange())
+        formula_runtime_function_registry.register(RuntimeToJson())
+        formula_runtime_function_registry.register(RuntimeFromJson())
+        formula_runtime_function_registry.register(RuntimeNull())
+        formula_runtime_function_registry.register(RuntimeNumberFormat())
+        formula_runtime_function_registry.register(RuntimeToDuration())
+        formula_runtime_function_registry.register(RuntimeDurationFormat())
+        formula_runtime_function_registry.register(RuntimeToDatetime())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,
@@ -374,6 +392,18 @@ class CoreConfig(AppConfig):
         action_type_registry.register(VerifyEmailAddressActionType())
         action_type_registry.register(SendChangeEmailConfirmationActionType())
         action_type_registry.register(ChangeEmailActionType())
+
+        from baserow.core.admin.users.actions import (
+            AdminDisableTwoFactorAuthActionType,
+        )
+        from baserow.core.two_factor_auth.actions import (
+            ConfigureTwoFactorAuthActionType,
+            DisableTwoFactorAuthActionType,
+        )
+
+        action_type_registry.register(ConfigureTwoFactorAuthActionType())
+        action_type_registry.register(DisableTwoFactorAuthActionType())
+        action_type_registry.register(AdminDisableTwoFactorAuthActionType())
 
         from baserow.core.action.scopes import (
             ApplicationActionScopeType,

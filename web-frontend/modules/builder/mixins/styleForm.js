@@ -103,16 +103,11 @@ export default {
         ? this.$registry.get('element', this.parentElement?.type)
         : null
 
-      let styles = elementType.styles
-
-      if (parentElementType) {
-        styles = _.difference(elementType.styles, [
-          ...parentElementType.childStylesForbidden,
-        ])
-      } else {
-        // If the element is a root element, style_width_child is not allowed.
-        styles = _.difference(elementType.styles, ['style_width_child'])
-      }
+      const styles = parentElementType
+        ? _.difference(elementType.styles, [
+            ...parentElementType.childStylesForbidden,
+          ])
+        : _.difference(elementType.styles, ['style_width_child'])
 
       return styles
     },

@@ -102,6 +102,10 @@ export default {
       this.selectedTemplate = template
       this.selectedTemplateCategory = category
     },
+    async hide(...args) {
+      modal.methods.hide.call(this, ...args)
+      this.selectedTemplate = null
+    },
   },
 }
 </script>

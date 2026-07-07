@@ -101,6 +101,7 @@ def clean_registry_cache():
 
     field_type_registry.get_for_class.cache_clear()
     yield
+    field_type_registry.get_for_class.cache_clear()
 
 
 def _test_can_convert_between_fields(data_fixture, field_type_to_test):
@@ -739,6 +740,111 @@ def test_update_field(send_mock, data_fixture):
         name=field_name_with_ok_length,
     )
     assert field_with_max_length_name.name == field_name_with_ok_length
+
+
+def _try_cast_function_count(field_id):
+    """
+    Returns how many functions named `field_{field_id}_try_cast` exist in the
+    database, regardless of schema.
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT count(*) FROM pg_proc WHERE proname = %s",
+            [f"field_{field_id}_try_cast"],
+        )
+        return cursor.fetchone()[0]
+
+
+@pytest.mark.django_db
+def test_lenient_alter_uses_field_scoped_try_cast_function(data_fixture):
+    """
+    During a field type change the lenient schema editor must use a function named
+    `field_{id}_try_cast` (created in the table's own schema, not `pg_temp`) so that
+    it is propagated by logical replication, and it must never be left behind.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{field.id}": "not a number"})
+    model.objects.create(**{f"field_{field.id}": "100"})
+
+    handler = FieldHandler()
+
+    # No leftover function before the conversion.
+    assert _try_cast_function_count(field.id) == 0
+
+    with CaptureQueriesContext(connection) as captured:
+        field = handler.update_field(
+            user=user,
+            field=field,
+            new_type_name="number",
+            number_decimal_places=0,
+            number_negative=False,
+        )
+
+    executed_sql = "\n".join(q["sql"] for q in captured.captured_queries)
+    # The field-scoped function must actually be used, and the old `pg_temp` variant
+    # (which isn't replicated) must not be used for the alter anymore.
+    assert f"field_{field.id}_try_cast" in executed_sql
+    assert "pg_temp.try_cast" not in executed_sql
+
+    # The conversion itself worked: the uncastable value became null, the castable
+    # one was converted. This proves the function was genuinely used to cast.
+    model = table.get_model()
+    row_0, row_1 = model.objects.all()
+    assert getattr(row_0, f"field_{field.id}") is None
+    assert getattr(row_1, f"field_{field.id}") == 100
+
+    # The one-time-use function must never linger after the alter.
+    assert _try_cast_function_count(field.id) == 0
+
+
+@pytest.mark.django_db
+def test_lenient_alter_drops_leftover_try_cast_function_before_recreating(
+    data_fixture,
+):
+    """
+    A function left behind by a previously crashed run (with an incompatible return
+    type) must not break a subsequent conversion: it is dropped before being
+    recreated, and is gone again afterwards.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{field.id}": "100"})
+
+    # Simulate a leftover from a crashed run. The `text` return type is incompatible
+    # with the `numeric` one the next conversion needs, so a bare `create or replace`
+    # without a preceding drop would fail with "cannot change return type".
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'CREATE FUNCTION "field_{field.id}_try_cast"(p_in text, '
+            f"p_default int default null) RETURNS text AS $$ BEGIN RETURN p_in; "
+            f"END; $$ LANGUAGE plpgsql;"
+        )
+    assert _try_cast_function_count(field.id) == 1
+
+    field = FieldHandler().update_field(
+        user=user,
+        field=field,
+        new_type_name="number",
+        number_decimal_places=0,
+        number_negative=False,
+    )
+
+    model = table.get_model()
+    (row_0,) = model.objects.all()
+    assert getattr(row_0, f"field_{field.id}") == 100
+
+    # The leftover was dropped and the freshly created function did not linger.
+    assert _try_cast_function_count(field.id) == 0
 
 
 @pytest.mark.django_db

@@ -77,36 +77,47 @@
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="row in rows"
-              :key="'row-' + row.id"
-              class="data-table__table-row"
+            <slot
+              name="rows"
+              :rows="rows"
+              :columns="columns"
+              :update-row="updateRow"
+              :delete-row="deleteRow"
+              :refresh="refresh"
             >
-              <td
-                v-for="col in columns"
-                :key="'col-' + col.key"
-                class="data-table__table-cell"
-                :class="{
-                  'data-table__table-cell--sticky-left': col.stickyLeft,
-                  'data-table__table-cell--sticky-right': col.stickyRight,
-                  [`data-table__table-cell--${col.key}`]: true,
-                }"
-                @contextmenu="$emit('row-context', { col, row, event: $event })"
+              <tr
+                v-for="row in rows"
+                :key="'row-' + row.id"
+                class="data-table__table-row"
               >
-                <div class="data-table__table-cell-content">
-                  <component
-                    :is="col.cellComponent"
-                    :row="row"
-                    :column="col"
-                    v-on="$attrs"
-                    @row-context="(payload) => $emit('row-context', payload)"
-                    @row-update="updateRow"
-                    @row-delete="deleteRow"
-                    @refresh="refresh"
-                  />
-                </div>
-              </td>
-            </tr>
+                <td
+                  v-for="col in columns"
+                  :key="'col-' + col.key"
+                  class="data-table__table-cell"
+                  :class="{
+                    'data-table__table-cell--sticky-left': col.stickyLeft,
+                    'data-table__table-cell--sticky-right': col.stickyRight,
+                    [`data-table__table-cell--${col.key}`]: true,
+                  }"
+                  @contextmenu="
+                    $emit('row-context', { col, row, event: $event })
+                  "
+                >
+                  <div class="data-table__table-cell-content">
+                    <component
+                      :is="col.cellComponent"
+                      :row="row"
+                      :column="col"
+                      v-bind="$attrs"
+                      @row-context="(payload) => $emit('row-context', payload)"
+                      @row-update="updateRow"
+                      @row-delete="deleteRow"
+                      @refresh="refresh"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </slot>
           </tbody>
         </table>
       </div>
@@ -145,6 +156,7 @@ import isObject from 'lodash/isObject'
  *          Two slot props are provided `updateRow` and `deleteRow` which are functions
  *          called when your menu has changed the row state which trigger the CrudTable
  *          to rerender the rows with the new data.
+ *  #rows: Can optionally replace the rows in the table.
  */
 export default {
   name: 'CrudTable',

@@ -1,10 +1,9 @@
-from typing import Iterable
-
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Manager
 
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.graph.models import GraphPointMixin
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
@@ -44,6 +43,7 @@ class AutomationNode(
     PolymorphicContentTypeMixin,
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
+    GraphPointMixin,
     WithRegistry,
 ):
     """
@@ -92,25 +92,11 @@ class AutomationNode(
 
         return automation_node_type_registry
 
+    def __str__(self):
+        return str(self.get_type().display_name)
+
     def get_parent(self):
         return self.workflow
-
-    def get_label(self):
-        if self.label:
-            return self.label
-        else:
-            return self.get_type().type
-
-    def get_previous_nodes(self):
-        """
-        Returns the nodes before the current node. A previous node can be a
-        `previous node` or a `parent node`.
-        """
-
-        return [
-            position[0]
-            for position in self.workflow.get_graph().get_previous_positions(self)
-        ]
 
     def get_previous_service_outputs(self):
         """
@@ -121,39 +107,18 @@ class AutomationNode(
 
         return {node.service_id: str(out) for [node, _, out] in previous_positions}
 
-    def get_parent_nodes(self):
+    def get_children(self, first_only: bool = False):
         """
-        Returns the ancestors of this node which are the container nodes that contain
-        the current node instance.
-        """
-
-        return [
-            position[0]
-            for position in self.workflow.get_graph().get_previous_positions(self)
-            if position[1] == "child"
-        ]
-
-    def get_next_nodes(
-        self, output_uid: str | None = None
-    ) -> Iterable["AutomationNode"]:
-        """
-        Returns all nodes which directly follow this node in the workflow.
-        A list of nodes is returned as there can be multiple nodes that follow this one,
-        for example when there are multiple branches in the workflow.
-
-        :param output_uid: filter nodes only for this output uid.
-        """
-
-        return self.workflow.get_graph().get_next_nodes(self, output_uid)
-
-    def get_children(self):
-        """
-        Returns the direct children of this node if any.
+        Returns the children of this node if any.
         """
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-        return AutomationNodeHandler().get_children(self)
+        return AutomationNodeHandler().get_children(self, first_only=first_only)
+
+    def graph_point_edge_label(self, uid: str) -> str:
+        edges = self.service.get_type().get_edges(self.service.specific)
+        return edges[uid]["label"]
 
 
 class AutomationActionNode(AutomationNode):
@@ -175,13 +140,25 @@ class LocalBaserowRowsUpdatedTriggerNode(AutomationTriggerNode): ...
 class LocalBaserowRowsDeletedTriggerNode(AutomationTriggerNode): ...
 
 
+class LocalBaserowFieldsUpdatedTriggerNode(AutomationTriggerNode): ...
+
+
 class CorePeriodicTriggerNode(AutomationTriggerNode): ...
 
 
 class CoreHTTPTriggerNode(AutomationTriggerNode): ...
 
 
+class CoreManualTriggerNode(AutomationTriggerNode): ...
+
+
 class LocalBaserowCreateRowActionNode(AutomationActionNode): ...
+
+
+class LocalBaserowCreateRowsActionNode(AutomationActionNode): ...
+
+
+class LocalBaserowUpdateRowsActionNode(AutomationActionNode): ...
 
 
 class LocalBaserowUpdateRowActionNode(AutomationActionNode): ...
@@ -209,6 +186,12 @@ class CoreRouterActionNode(AutomationActionNode): ...
 
 
 class CoreIteratorActionNode(AutomationActionNode): ...
+
+
+class CoreCSVFileReaderActionNode(AutomationActionNode): ...
+
+
+class CoreStartWorkflowActionNode(AutomationActionNode): ...
 
 
 class AIAgentActionNode(AutomationActionNode): ...

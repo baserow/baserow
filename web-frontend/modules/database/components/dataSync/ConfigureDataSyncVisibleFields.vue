@@ -45,6 +45,21 @@
         >
       </FormGroup>
       <FormGroup
+        small-label
+        class="margin-top-2"
+        :helper-text="$t('createDataSync.deleteUnmatchedRowsHelper')"
+      >
+        <SwitchInput
+          v-model="deleteUnmatchedRows"
+          class="margin-top-2"
+          small
+          :disabled="updateLoading"
+          @input="completed = false"
+        >
+          {{ $t('createDataSync.deleteUnmatchedRowsLabel') }}</SwitchInput
+        >
+      </FormGroup>
+      <FormGroup
         v-if="twoWaySyncStrategy"
         small-label
         class="margin-top-2"
@@ -71,7 +86,7 @@
       <Error :error="error"></Error>
       <div class="modal-progress__actions margin-top-2">
         <ProgressBar
-          v-if="jobIsRunning || jobHasSucceeded"
+          v-if="jobIsRunning || jobIsFinished"
           :value="job.progress_percentage"
           :status="jobHumanReadableState"
         />
@@ -130,6 +145,7 @@ export default {
       completed: false,
       syncTableValue: true,
       autoAddNewProperties: false,
+      deleteUnmatchedRows: true,
       twoWayDataSync: false,
     }
   },
@@ -164,13 +180,14 @@ export default {
       (p) => p.key
     )
     this.autoAddNewProperties = this.table.data_sync.auto_add_new_properties
+    this.deleteUnmatchedRows = this.table.data_sync.delete_unmatched_rows
     this.twoWayDataSync = this.isTwoWaySyncDeactivated
       ? false
       : this.table.data_sync.two_way_sync
     this.fetchExistingProperties(this.table)
   },
   methods: {
-    onJobDone() {
+    onJobFinished() {
       this.completed = true
     },
     async submit() {
@@ -179,6 +196,7 @@ export default {
         {
           synced_properties: this.syncedProperties,
           auto_add_new_properties: this.autoAddNewProperties,
+          delete_unmatched_rows: this.deleteUnmatchedRows,
           two_way_sync: this.twoWayDataSync,
         },
         this.syncTableValue

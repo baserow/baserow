@@ -71,6 +71,7 @@
       >
       </ViewFieldConditionGroup>
     </div>
+    <slot></slot>
   </div>
 </template>
 

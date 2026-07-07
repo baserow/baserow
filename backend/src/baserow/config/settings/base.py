@@ -443,7 +443,7 @@ if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
         "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
-BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 0))
+BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 120))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
 
@@ -494,7 +494,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.2.2",
+    "VERSION": "2.3.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -850,12 +850,27 @@ BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
 
+# Per table, how many rows changed by a dependency cascade (formulas, lookups,
+# link row display values in other tables) are broadcast as exact realtime row
+# updates. Above the limit subscribers receive a whole-table refresh event
+# instead. Zero disables realtime events for dependant rows entirely.
+DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT = int(
+    os.getenv("BASEROW_DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT", 200)
+)
+
+SEARCH_UPDATE_BATCH_SIZE = int(
+    os.getenv("BASEROW_SEARCH_UPDATE_BATCH_SIZE", 2000)
+)  # How many rows to process per batch in search index updates.
+
 # Maximum count of records considered as a 'small table' during field rule operations.
 FIELD_RULE_ROWS_LIMIT = int(os.getenv("FIELD_RULE_ROWS_LIMIT", BATCH_ROWS_SIZE_LIMIT))
 
 # Maximum count of records returned by local baserow data source
 INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)
+)
+INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT = int(
+    os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT", 1000)
 )
 INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = str_to_bool(
     os.getenv("BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS", "true")
@@ -946,6 +961,9 @@ AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS = int(
 )
 AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES", 200)
+)
+AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS", 2)
 )
 AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES", 60)
@@ -1121,6 +1139,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 FILE_UPLOAD_PERMISSIONS = None
 
 MAX_FORMULA_STRING_LENGTH = 10000
+FORMULA_RANGE_MAX_ITEMS = int(os.getenv("BASEROW_FORMULA_RANGE_MAX_ITEMS", 10000))
 MAX_FIELD_REFERENCE_DEPTH = 1000
 DONT_UPDATE_FORMULAS_AFTER_MIGRATION = bool(
     os.getenv("DONT_UPDATE_FORMULAS_AFTER_MIGRATION", "")
@@ -1212,6 +1231,8 @@ if bool(os.getenv("BASEROW_ENABLE_SECURE_PROXY_SSL_HEADER", False)):
 DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS = bool(
     os.getenv("DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS", "")
 )
+
+PRESENCE_VISIBLE_USERS = int(os.getenv("BASEROW_PRESENCE_VISIBLE_USERS") or 3)
 
 BASEROW_BACKEND_LOG_LEVEL = os.getenv("BASEROW_BACKEND_LOG_LEVEL", "INFO")
 BASEROW_BACKEND_DATABASE_LOG_LEVEL = os.getenv(
@@ -1432,8 +1453,14 @@ SENTRY_DSN = SENTRY_BACKEND_DSN or os.getenv("SENTRY_DSN")
 if SENTRY_DSN:
     import sentry_sdk
     import sentry_sdk.integrations as _sentry_integrations
+    from loguru import logger
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
+
+    from baserow.core.sentry import (
+        ConsoleSentryTransport,
+        drop_expected_asyncio_websocket_disconnect_events,
+    )
 
     # Exclude integrations whose module-level imports are incompatible:
     # - pydantic_ai: sentry-sdk patches ToolManager._call_tool which was
@@ -1446,13 +1473,31 @@ if SENTRY_DSN:
     ]
 
     SENTRY_DENYLIST = DEFAULT_DENYLIST + ["username", "email", "name"]
+    sentry_transport = None
+
+    if SENTRY_DSN == "fake":
+        logger.info(
+            "[SENTRY] Using fake backend Sentry DSN, events will be logged to the "
+            "console."
+        )
+        SENTRY_DSN = "https://public@example.invalid/1"
+        sentry_transport = ConsoleSentryTransport()
+
+    # Sample rate for performance tracing (transactions), disabled when the console transport is used
+    # (fake DSN in dev) to avoid spamming transaction envelopes to the console.
+    sentry_traces_sample_rate = (
+        0 if sentry_transport else float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", 0.1))
+    )
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
+        traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
+        before_send=drop_expected_asyncio_websocket_disconnect_events,
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
+        transport=sentry_transport,
     )
 else:
     BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
@@ -1629,4 +1674,8 @@ BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY = os.getenv(
 )
 BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY = os.getenv(
     "BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY", ""
+)
+
+BASEROW_REALTIME_REPLAY_MAX_EVENTS = int(
+    os.getenv("BASEROW_REALTIME_REPLAY_MAX_EVENTS", 0)
 )

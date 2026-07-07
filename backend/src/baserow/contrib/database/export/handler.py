@@ -355,15 +355,24 @@ def _open_file_and_run_export(job: ExportJob) -> ExportJob:
     filters = job.export_options.pop("filters", None)
     order_by = job.export_options.pop("order_by", None)
     visible_fields_in_order = job.export_options.pop("fields", None)
+    include_row_id = job.export_options.pop("include_row_id", True)
+    include_primary_field = job.export_options.pop("include_primary_field", True)
     only_by_field_ids = None
 
     with _create_storage_dir_if_missing_and_open(storage_location) as file:
         queryset_serializer_class = exporter.queryset_serializer_class
         if job.view is None:
-            serializer = queryset_serializer_class.for_table(job.table)
+            serializer = queryset_serializer_class.for_table(
+                job.table,
+                include_row_id=include_row_id,
+                include_primary_field=include_primary_field,
+            )
         else:
             serializer, visible_fields_in_view = queryset_serializer_class.for_view(
-                job.view, visible_fields_in_order
+                job.view,
+                visible_fields_in_order,
+                include_row_id=include_row_id,
+                include_primary_field=include_primary_field,
             )
             only_by_field_ids = [f["field"].id for f in visible_fields_in_view]
 

@@ -37,12 +37,12 @@
         "localBaserowCreateRowDescription": "Створює новий рядок у таблиці Baserow.",
         "localBaserowUpdateRow": "Оновити рядок",
         "localBaserowUpdateRowDescription": "Оновлює існуючий рядок у таблиці Baserow.",
-        "localBaserowDeleteRow": "Видалити рядок",
-        "localBaserowDeleteRowDescription": "Видаляє рядок у таблиці Baserow.",
+        "localBaserowDeleteRow": "Видалити рядки",
+        "localBaserowDeleteRowDescription": "Видаляє один або кілька рядків у таблиці Baserow.",
         "localBaserowRowsCreated": "Рядки створено",
         "localBaserowRowsCreatedDescription": "Спрацьовує, коли рядки створюються в таблиці Baserow.",
         "localBaserowRowsUpdated": "Рядки оновлено",
-        "localBaserowRowsUpdatedDescription": "Спрацьовує, коли рядки оновлюються в таблиці Baserow.",
+        "localBaserowRowsUpdatedDescription": "Спрацьовує, коли рядки оновлюються в будь-яких полях таблиці Baserow.",
         "localBaserowRowsDeleted": "Рядки видалено",
         "localBaserowRowsDeletedDescription": "Спрацьовує, коли рядки видаляються в таблиці Baserow.",
         "coreHTTPTrigger": "Отримати HTTP-запит",
@@ -66,7 +66,7 @@
         "errorNoTableSelected": "Таблицю не вибрано",
         "errorFilterInError": "Принаймні один фільтр налаштовано неправильно",
         "errorSortingInError": "Принаймні одне сортування налаштовано неправильно",
-        "errorNoFieldSelected": "Поле не вибрано",
+        "errorNoFieldSelected": "Не вибрано жодного поля",
         "errorNoAggregationTypeSelected": "Тип агрегації не вибрано",
         "corePeriodic": "Періодичний тригер",
         "corePeriodicDescription": "Запускає робочий процес періодично із заданими інтервалами",
@@ -83,7 +83,24 @@
         "slackWriteMessageDescription": "Надсилає повідомлення до певного #каналу Slack",
         "slackWriteMessageMissingChannel": "Потрібен канал.",
         "slackWriteMessageMissingMessage": "Потрібне повідомлення.",
-        "slackWriteMessageMissingIntegration": "Інтеграцію Slack не вибрано."
+        "slackWriteMessageMissingIntegration": "Інтеграцію Slack не вибрано.",
+        "coreManualTrigger": "Ручний тригер",
+        "localBaserowCreateRows": "Масово створити рядки",
+        "localBaserowCreateRowsDescription": "Створює кілька нових рядків у таблиці Baserow.",
+        "localBaserowUpdateRows": "Масово оновити рядки",
+        "localBaserowUpdateRowsDescription": "Оновлює кілька наявних рядків у таблиці Baserow.",
+        "localBaserowFieldsUpdated": "Оновлено значення певних полів",
+        "localBaserowFieldsUpdatedDescription": "Спрацьовує, коли оновлюються значення певних полів у рядках таблиці Baserow.",
+        "coreManualTriggerDescription": "Запускається лише тоді, коли інша дія робочого процесу запускає цей робочий процес.",
+        "coreCSVFileReader": "Прочитати файл CSV",
+        "coreCSVFileReaderDescription": "Зчитує рядки з файлу CSV.",
+        "coreStartWorkflow": "Запустити робочий процес",
+        "coreStartWorkflowDescription": "Запускає робочий процес автоматизації.",
+        "errorNoRowsSelected": "Не вибрано жодного рядка",
+        "errorCSVFileMissing": "Відсутня властивість файлу CSV",
+        "errorCSVContentMissing": "Відсутнє поле з даними CSV",
+        "errorNoWorkflowSelected": "Робочий процес не вибрано",
+        "errorWorkflowNotImmediateDispatch": "Вибраний робочий процес має використовувати тригер, який можна запустити негайно."
     },
     "userSourceType": {
         "localBaserow": "Автентифікація через таблицю Baserow"
@@ -330,5 +347,48 @@
         "fieldMappingPlaceholderDuration": "Виберіть значення тривалості, наприклад 1:23:40",
         "noTableSelectedMessage": "Виберіть таблицю, щоб почати налаштовувати поля.",
         "noWritableFields": "Ця таблиця не містить жодних полів, доступних для запису."
+    },
+    "localBaserowFieldsUpdatedForm": {
+        "fieldLabel": "Поля",
+        "fieldHelper": "Робочий процес спрацьовує лише тоді, коли змінюється значення одного з цих полів."
+    },
+    "coreCSVFileReaderServiceForm": {
+        "inputType": "Джерело",
+        "inputTypeFile": "Файл",
+        "inputTypeContent": "Вміст",
+        "file": "Файл CSV",
+        "filePlaceholder": "Виберіть файл CSV...",
+        "csv": "Дані CSV",
+        "csvPlaceholder": "Введіть дані CSV...",
+        "separator": "Роздільник",
+        "encoding": "Кодування",
+        "firstLineIsHeader": "Перший рядок — заголовки",
+        "comma": "Кома",
+        "semicolon": "Крапка з комою",
+        "tab": "Табуляція",
+        "pipe": "Вертикальна риска",
+        "utf8": "UTF-8",
+        "utf8Bom": "UTF-8 з BOM",
+        "latin1": "Latin-1"
+    },
+    "coreStartWorkflowServiceForm": {
+        "automation": "Автоматизація",
+        "workflow": "Робочий процес",
+        "workflowHelperText": "Запустити можна лише опубліковані робочі процеси з ручним тригером. Якщо цей робочий процес містить неопубліковані зміни, буде запущено останню опубліковану версію."
+    },
+    "localBaserowDeleteRowServiceForm": {
+        "rowIdLabel": "Ідентифікатор(и) рядка",
+        "rowIdPlaceholder": "Виберіть ID рядка або масив ID рядків",
+        "rowIdHelper": "Виберіть один ID рядка або масив ID рядків. За один раз можна видалити до {limit} рядків."
+    },
+    "localBaserowCreateRowsServiceForm": {
+        "rowsLabel": "Рядки",
+        "rowsPlaceholder": "Виберіть список об’єктів рядків",
+        "rowsHelper": "Формула має повертати масив об'єктів рядків або рядок JSON, який можна перетворити на такий масив. Використовуйте назви полів або їхні ID як ключі об'єктів. За один раз можна створити до {limit} рядків."
+    },
+    "localBaserowUpdateRowsServiceForm": {
+        "rowsLabel": "Рядки",
+        "rowsPlaceholder": "Виберіть список об'єктів рядків з ID",
+        "rowsHelper": "Формула має повертати масив об'єктів рядків або рядок JSON, який можна перетворити на такий масив. Кожен об'єкт має містити властивість id. Використовуйте назви полів або ID полів як ключі об'єктів. За один раз можна оновити до {limit} рядків."
     }
 }

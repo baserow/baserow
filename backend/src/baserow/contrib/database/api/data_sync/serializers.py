@@ -16,21 +16,28 @@ class DataSyncSyncedPropertySerializer(serializers.ModelSerializer):
 class DataSyncSerializer(serializers.ModelSerializer):
     synced_properties = DataSyncSyncedPropertySerializer(many=True)
     type = serializers.SerializerMethodField()
+    database_id = serializers.SerializerMethodField()
 
     class Meta:
         model = DataSync
         fields = (
             "id",
             "type",
+            "table_id",
+            "database_id",
             "synced_properties",
             "last_sync",
             "last_error",
             "auto_add_new_properties",
+            "delete_unmatched_rows",
             "two_way_sync",
         )
 
     def get_type(self, instance):
         return data_sync_type_registry.get_by_model(instance.specific_class).type
+
+    def get_database_id(self, instance):
+        return instance.table.database_id if instance.table_id else None
 
 
 class CreateDataSyncSerializer(serializers.ModelSerializer):
@@ -51,6 +58,7 @@ class CreateDataSyncSerializer(serializers.ModelSerializer):
             "type",
             "table_name",
             "auto_add_new_properties",
+            "delete_unmatched_rows",
             "two_way_sync",
         )
 
@@ -65,6 +73,7 @@ class UpdateDataSyncSerializer(serializers.ModelSerializer):
         fields = (
             "synced_properties",
             "auto_add_new_properties",
+            "delete_unmatched_rows",
             "two_way_sync",
         )
 

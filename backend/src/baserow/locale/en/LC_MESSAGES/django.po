@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 21:52+0000\n"
+"POT-Creation-Date: 2026-07-06 19:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow/api/authentication.py:26
+#: src/baserow/api/authentication.py:27
 msgid "Token contained no recognizable user identification"
 msgstr ""
 
-#: src/baserow/api/authentication.py:34
+#: src/baserow/api/authentication.py:42
 msgid "User not found"
 msgstr ""
 
@@ -110,8 +110,85 @@ msgstr ""
 msgid "Node (%(node_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:260
+#: src/baserow/contrib/automation/nodes/node_types.py:143
+msgid "Local Baserow create row"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:160
+msgid "Local Baserow update row"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:177
+msgid "Local Baserow delete row"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:185
+msgid "Local Baserow get row"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:193
+msgid "Local Baserow list rows"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:201
+msgid "Local Baserow aggregate rows"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:209
+msgid "HTTP request"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:216
+msgid "Iterator"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:229
+msgid "Send email"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:242
+msgid "AI agent"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:249
+msgid "Router"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:315
 msgid "Branch"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:444
+msgid "Local Baserow rows created"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:452
+msgid "Local Baserow rows updated"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:460
+msgid "Local Baserow rows deleted"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:476
+msgid "Periodic trigger"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:483
+msgid "HTTP trigger"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:496
+msgid "Slack write message"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/registries.py:47
+msgid "Unnamed node"
+msgstr ""
+
+#: src/baserow/contrib/automation/notification_types.py:57
+#, python-format
+msgid "%(name)s workflow was disabled."
 msgstr ""
 
 #: src/baserow/contrib/automation/workflows/actions.py:28
@@ -205,28 +282,39 @@ msgstr ""
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1062
+#: src/baserow/contrib/integrations/core/service_types.py:1175
 msgid "Branch taken"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1067
+#: src/baserow/contrib/integrations/core/service_types.py:1180
 msgid "Label"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1069
+#: src/baserow/contrib/integrations/core/service_types.py:1182
 msgid "The label of the branch that matched the condition."
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1438
+#: src/baserow/contrib/integrations/core/service_types.py:1593
 msgid "Previous scheduled run"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1442
+#: src/baserow/contrib/integrations/core/service_types.py:1597
 msgid "Next scheduled run"
 msgstr ""
 
-#: src/baserow/contrib/integrations/local_baserow/service_types.py:1688
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:1711
 msgid "No rows found"
+msgstr ""
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2290
+#, python-format
+msgid "The %(operation)s action can process at most %(limit)s rows at once."
+msgstr ""
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2653
+#, python-format
+msgid ""
+"The batch delete rows action can process at most %(limit)s rows at once."
 msgstr ""
 
 #: src/baserow/contrib/integrations/slack/service_types.py:166

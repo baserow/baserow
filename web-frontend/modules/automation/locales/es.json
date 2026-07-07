@@ -101,7 +101,16 @@
         "completedInLessThanSecond": "Completado en menos de 1 segundo.",
         "testRun": "Prueba",
         "statusStarted": "En progreso...",
-        "running": "Ejecutando por {at}s"
+        "running": "Ejecutando por {at}s",
+        "statusSuccessBadge": "Completado",
+        "statusErrorBadge": "Fallido",
+        "successfulRuns": "Ejecuciones exitosas",
+        "failedRuns": "Ejecuciones fallidas",
+        "errorHideDetails": "Ocultar detalles",
+        "errorShowDetails": "Mostrar detalles",
+        "runNumber": "Ejecución {n}",
+        "runCount": "{n} ejecuciones",
+        "showResult": "Mostrar resultado"
     },
     "nodeType": {
         "triggerDeletionError": "Los disparadores no pueden eliminarse, solo reemplazarse.",
@@ -126,7 +135,8 @@
         "slackWriteMessageLabel": "Envía un mensaje a #{channel}",
         "slackWriteMessageName": "Enviar un mensaje de Slack",
         "periodicTriggerLabel": "Disparador periódico",
-        "aiAgent": "Prompt de IA"
+        "aiAgent": "Prompt de IA",
+        "defaultEdgeLabelFallback": "Predeterminado"
     },
     "simulateDispatch": {
         "testNodeDescription": "Prueba este evento para confirmar que la configuración es correcta. Los datos de esta prueba pueden usarse en pasos posteriores.",
@@ -203,5 +213,18 @@
     },
     "workflowEditor": {
         "chooseEvent": "Elige un evento…"
+    },
+    "workflowGeneralSettings": {
+        "titleOverview": "Configuración del flujo de trabajo",
+        "nameLabel": "Nombre del flujo de trabajo",
+        "workflowDisabledRecipientsLabel": "Destinatarios de notificaciones",
+        "selectWorkflowDisabledRecipients": "Seleccionar destinatarios",
+        "noWorkflowDisabledRecipients": "No hay destinatarios seleccionados.",
+        "cantUpdateWorkflowTitle": "No se pudo actualizar el flujo de trabajo",
+        "workflowDisabledRecipientsHelp": "Estos miembros del espacio de trabajo recibirán una notificación en la aplicación si este flujo de trabajo se deshabilita automáticamente.",
+        "cantUpdateWorkflowDescription": "Lo sentimos, no se pudo actualizar el flujo de trabajo."
+    },
+    "workflowDisabledNotification": {
+        "body": "El flujo de trabajo {name} fue deshabilitado."
     }
 }

@@ -146,6 +146,14 @@ class BaseExporterOptionsSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text="List of field IDs that must be included in the export, in the desired order.",
     )
+    include_row_id = serializers.BooleanField(
+        default=True,
+        help_text="Whether or not to include the row id column in the export.",
+    )
+    include_primary_field = serializers.BooleanField(
+        default=True,
+        help_text="Whether or not to include the primary field column in the export.",
+    )
 
 
 class CsvExporterOptionsSerializer(BaseExporterOptionsSerializer):

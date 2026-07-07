@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add manual trigger to automations",
+    "issue_origin": "github",
+    "issue_number": 5561,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-06-25"
+}

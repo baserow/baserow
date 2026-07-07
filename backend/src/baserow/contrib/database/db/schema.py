@@ -6,7 +6,9 @@ from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.backends.ddl_references import Statement
 from django.db.backends.utils import strip_quotes
 
-from .sql_queries import sql_create_try_cast, sql_drop_try_cast
+from .sql_queries import sql_create_field_try_cast, sql_drop_field_try_cast
+
+TRY_CAST_FUNCTION_PLACEHOLDER = "__baserow_field_try_cast__"
 
 
 class PostgresqlLenientDatabaseSchemaEditor:
@@ -20,7 +22,7 @@ class PostgresqlLenientDatabaseSchemaEditor:
 
     sql_alter_column_type = (
         "ALTER COLUMN %(column)s TYPE %(type)s%(collation)s "
-        "USING pg_temp.try_cast(%(column)s::text)"
+        f"USING {TRY_CAST_FUNCTION_PLACEHOLDER}(%(column)s::text)"
     )
 
     def __init__(
@@ -36,6 +38,9 @@ class PostgresqlLenientDatabaseSchemaEditor:
         self.force_alter_column = force_alter_column
         super().__init__(*args, **kwargs)
 
+    def _try_cast_function_name(self, field):
+        return self.quote_name(f"{field.column}_try_cast")
+
     def _alter_field(
         self,
         model,
@@ -50,6 +55,7 @@ class PostgresqlLenientDatabaseSchemaEditor:
         if self.force_alter_column:
             old_type = f"{old_type}_forced"
 
+        try_cast_function = None
         if old_type != new_type:
             variables = {}
             if isinstance(self.alter_column_prepare_old_value, tuple):
@@ -67,10 +73,12 @@ class PostgresqlLenientDatabaseSchemaEditor:
             quoted_column_name = self.quote_name(new_field.column)
             for key, value in variables.items():
                 variables[key] = value.replace("$FUNCTION$", "")
-            self.execute(sql_drop_try_cast)
+            try_cast_function = self._try_cast_function_name(new_field)
+            self.execute(sql_drop_field_try_cast % {"function_name": try_cast_function})
             self.execute(
-                sql_create_try_cast
+                sql_create_field_try_cast
                 % {
+                    "function_name": try_cast_function,
                     "column": quoted_column_name,
                     "type": new_type,
                     "alter_column_prepare_old_value": alter_column_prepare_old_value,
@@ -79,7 +87,7 @@ class PostgresqlLenientDatabaseSchemaEditor:
                 variables,
             )
 
-        return super()._alter_field(
+        result = super()._alter_field(
             model,
             old_field,
             new_field,
@@ -90,7 +98,26 @@ class PostgresqlLenientDatabaseSchemaEditor:
             strict,
         )
 
+        if try_cast_function is not None:
+            # The cast function is for one-time use only. We want to drop it
+            # immediately after because we don't want to have millions of functions
+            # lingering at some point.
+            self.execute(sql_drop_field_try_cast % {"function_name": try_cast_function})
+
+        return result
+
     def _alter_column_type_sql(
+        self, model, old_field, new_field, new_type, old_collation, new_collation
+    ):
+        (sql, params), other_actions = self._build_alter_column_type_sql(
+            model, old_field, new_field, new_type, old_collation, new_collation
+        )
+        sql = sql.replace(
+            TRY_CAST_FUNCTION_PLACEHOLDER, self._try_cast_function_name(new_field)
+        )
+        return (sql, params), other_actions
+
+    def _build_alter_column_type_sql(
         self, model, old_field, new_field, new_type, old_collation, new_collation
     ):
         # Cast when data type changed.

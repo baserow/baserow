@@ -36,7 +36,6 @@ from baserow.api.errors import (
 from baserow.api.schemas import get_error_schema
 from baserow.api.sessions import (
     get_untrusted_client_session_id,
-    get_user_remote_ip_address_from_request,
     set_user_session_data_from_request,
 )
 from baserow.api.user.registries import user_data_registry
@@ -90,6 +89,7 @@ from baserow.core.user.exceptions import (
 )
 from baserow.core.user.handler import UserHandler
 from baserow.core.user.utils import generate_session_tokens_for_user
+from baserow.core.utils import get_user_remote_ip_address_from_request
 
 from .errors import (
     ERROR_ALREADY_EXISTS,

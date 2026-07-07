@@ -34,8 +34,10 @@ from opentelemetry import metrics, trace
 from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
 from baserow.contrib.database.fields.dependencies.update_collector import (
+    DependantRowsUpdate,
     DependencyContext,
     FieldUpdateCollector,
+    merge_dependant_rows_updates,
 )
 from baserow.contrib.database.fields.exceptions import (
     FieldDataConstraintException,
@@ -65,7 +67,9 @@ from baserow.contrib.database.trash.models import TrashedRows
 from baserow.contrib.database.views.operations import (
     CreateViewRowOperationType,
     DeleteViewRowOperationType,
+    MoveViewRowOperationType,
     ReadViewRowOperationType,
+    RestoreViewRowOperationType,
     UpdateViewRowOperationType,
 )
 from baserow.contrib.database.views.registries import view_ownership_type_registry
@@ -94,12 +98,14 @@ from .operations import (
     DeleteDatabaseRowOperationType,
     MoveRowDatabaseRowOperationType,
     ReadDatabaseRowOperationType,
+    RestoreDatabaseRowOperationType,
     UpdateDatabaseRowOperationType,
 )
 from .signals import (
     before_rows_create,
     before_rows_delete,
     before_rows_update,
+    dependant_rows_updated,
     row_orders_recalculated,
     rows_created,
     rows_deleted,
@@ -124,6 +130,8 @@ if TYPE_CHECKING:
 tracer = trace.get_tracer(__name__)
 
 BATCH_SIZE = 1024
+LARGE_IMPORT_SEARCH_UPDATE_MIN_CHANGED_ROWS = 10_000
+LARGE_IMPORT_SEARCH_UPDATE_THRESHOLD = 0.5
 
 meter = metrics.get_meter(__name__)
 rows_created_counter = meter.create_counter(
@@ -236,6 +244,19 @@ class RowM2MChangeTracker:
 
 
 class RowHandler(metaclass=baserow_trace_methods(tracer)):
+    def _should_use_full_field_search_update_for_import(
+        self,
+        changed_rows: int,
+        model: GeneratedTableModel,
+    ) -> bool:
+        if changed_rows > LARGE_IMPORT_SEARCH_UPDATE_MIN_CHANGED_ROWS:
+            return True
+
+        existing_row_count = model.objects.count()
+        return changed_rows >= (
+            existing_row_count * LARGE_IMPORT_SEARCH_UPDATE_THRESHOLD
+        )
+
     def prepare_values(self, fields, values):
         """
         Prepares a set of values so that they can be created or updated in the database.
@@ -609,6 +630,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         row_id: int,
         enhance_by_fields: bool = False,
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
     ) -> GeneratedTableModelForUpdate:
         """
         Fetches a single row from the provided table and lock it for update.
@@ -620,6 +642,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             `enhance_queryset` for each field in the table.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the row is fetched in the view.
+            This can result in different permissions checks.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         :return: The requested row instance.
         """
@@ -637,6 +661,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             row_id,
             model=model,
             base_queryset=base_queryset,
+            view=view,
         )
 
         return cast(GeneratedTableModelForUpdate, row)
@@ -948,15 +973,25 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         cascade_update = field_rules_handler.collector.get_processed_rows()
 
-        fields, dependant_fields = self.update_dependencies_of_rows_created(
-            model, [instance]
+        fields, dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_created(model, [instance])
         )
 
-        self.update_dependencies_of_rows_updated(
+        _, cascade_dependant_rows_updates = self.update_dependencies_of_rows_updated(
             table=table,
             model=model,
             updated_rows=cascade_update.updated_rows,
             updated_field_ids=cascade_update.field_ids,
+        )
+        dependant_rows_updates = merge_dependant_rows_updates(
+            dependant_rows_updates,
+            cascade_dependant_rows_updates,
+            self.cascade_dependant_rows_update(
+                table,
+                cascade_update.row_ids,
+                cascade_update.field_ids,
+                exclude_row_ids=[instance.id],
+            ),
         )
 
         if model.fields_requiring_refresh_after_insert():
@@ -994,6 +1029,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             dependant_fields=dependant_fields,
             before_return=before_return,
         )
+        self.send_dependant_rows_updated(user, table, dependant_rows_updates)
 
         return instance
 
@@ -1059,7 +1095,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         with transaction.atomic():
             row = self.get_row_for_update(
-                user, table, row_id, enhance_by_fields=True, model=model
+                user,
+                table,
+                row_id,
+                enhance_by_fields=True,
+                model=model,
+                view=view,
             )
             return self.update_row(
                 user,
@@ -1193,8 +1234,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 raise exc
         rows_updated_counter.add(1)
 
-        dependant_fields = self.update_dependencies_of_rows_updated(
-            table, [row], model, updated_field_ids, m2m_change_tracker
+        dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_updated(
+                table, [row], model, updated_field_ids, m2m_change_tracker
+            )
         )
         # We need to refresh here as ExpressionFields might have had their values
         # updated. Django does not support UPDATE .... RETURNING and so we need to
@@ -1222,8 +1265,70 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields=[f for f in updated_fields if f.id in updated_field_ids],
             dependant_fields=dependant_fields,
         )
+        self.send_dependant_rows_updated(user, table, dependant_rows_updates)
 
         return row
+
+    def send_dependant_rows_updated(
+        self,
+        user: Optional[AbstractUser],
+        table: Table,
+        dependant_rows_updates: List[DependantRowsUpdate],
+        send_realtime_update: bool = True,
+    ) -> None:
+        """
+        Notifies receivers about rows whose values changed as a consequence of
+        a change in the starting table, so realtime events can be sent.
+
+        :param user: The user on whose behalf the change was made, if any.
+        :param table: The starting table where the change originated.
+        :param dependant_rows_updates: The rows per affected table whose values
+            changed as a consequence of the change.
+        :param send_realtime_update: Forwarded to the receivers so they can
+            skip sending realtime events.
+        """
+
+        if not dependant_rows_updates:
+            return
+        dependant_rows_updated.send(
+            self,
+            user=user,
+            table=table,
+            dependant_rows_updates=dependant_rows_updates,
+            send_realtime_update=send_realtime_update,
+        )
+
+    def cascade_dependant_rows_update(
+        self,
+        table: Table,
+        cascade_row_ids: Iterable[int],
+        cascade_field_ids: Iterable[int],
+        exclude_row_ids: Iterable[int],
+    ) -> List[DependantRowsUpdate]:
+        """
+        Rows changed by field rules only reach the acting user via the HTTP
+        response, so other subscribers need them as dependant rows updates.
+
+        :param table: The table the cascaded changes happened in.
+        :param cascade_row_ids: The ids of the rows changed by field rules.
+        :param cascade_field_ids: The ids of the fields whose values changed.
+        :param exclude_row_ids: Row ids already broadcast by the row signals,
+            to be excluded.
+        :return: A single-entry list with the update for the table, or an empty
+            list when no rows remain.
+        """
+
+        row_ids = sorted(set(cascade_row_ids) - set(exclude_row_ids))
+        if not row_ids:
+            return []
+        return [
+            DependantRowsUpdate(
+                table=table,
+                row_ids=row_ids,
+                field_ids=sorted(cascade_field_ids),
+                requires_refresh=False,
+            )
+        ]
 
     def update_dependencies_of_rows_updated(
         self,
@@ -1233,7 +1338,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         updated_field_ids: Set[int],
         m2m_change_tracker: Optional[RowM2MChangeTracker] = None,
         skip_search_updates: bool = False,
-    ) -> List["DjangoField"]:
+        collect_dependant_rows: bool = True,
+    ) -> Tuple[List["DjangoField"], List[DependantRowsUpdate]]:
         """
         Prepares a list of fields that are dependent on the updated fields and updates
         them.
@@ -1245,7 +1351,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param m2m_change_tracker: The tracker that keeps track of the many to many
             changes.
         :param skip_search_updates: Set to True to skip search updates.
-        :return: The dependant fields that are updated.
+        :param collect_dependant_rows: Set to False when no realtime events will
+            be sent, to skip tracking the affected rows per table.
+        :return: The dependant fields that are updated and the rows per table whose
+            values changed as a consequence, for realtime events.
         """
 
         field_cache = FieldCache()
@@ -1268,6 +1377,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             table,
             starting_row_ids=[row.id for row in updated_rows],
             deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
+            collect_dependant_rows=collect_dependant_rows,
         )
         updated_fields = []
         for depth, dependant_fields_group in enumerate(
@@ -1291,7 +1401,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             update_collector.apply_updates_and_get_updated_fields(
                 field_cache, skip_search_updates
             )
-        return updated_fields
+        return updated_fields, update_collector.get_dependant_rows_updates()
 
     def force_create_rows(
         self,
@@ -1448,9 +1558,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             through = getattr(model, field_name).through
             through.objects.bulk_create(values)
 
-        _, dependant_fields = self.update_dependencies_of_rows_created(
-            model,
-            inserted_rows,
+        _, dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_created(
+                model,
+                inserted_rows,
+                collect_dependant_rows=send_realtime_update,
+            )
         )
 
         from baserow.contrib.database.views.handler import ViewHandler
@@ -1507,6 +1620,20 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 dependant_fields=dependant_fields,
                 before_return=before_return,
                 **signal_params,
+            )
+            self.send_dependant_rows_updated(
+                user,
+                table,
+                merge_dependant_rows_updates(
+                    dependant_rows_updates,
+                    self.cascade_dependant_rows_update(
+                        table,
+                        cascade_updated.row_ids,
+                        cascade_updated.field_ids,
+                        exclude_row_ids=[row.id for row in inserted_rows],
+                    ),
+                ),
+                send_realtime_update=send_realtime_update,
             )
 
         return CreatedRowsData(
@@ -1598,19 +1725,28 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         self,
         model: Type[GeneratedTableModel],
         created_rows: List[GeneratedTableModel],
-    ) -> List["DjangoField"]:
+        collect_dependant_rows: bool = True,
+    ) -> Tuple[List["DjangoField"], List["DjangoField"], List[DependantRowsUpdate]]:
         """
         Generates a list of dependant fields that need to be updated after the rows have
         been created and updates them.
 
         :param model: The model of the table.
         :param rows: The rows that have been created.
-        :return: The dependant fields that are updated.
+        :param collect_dependant_rows: Set to False when no realtime events will
+            be sent, to skip tracking the affected rows per table.
+        :return: The fields of the table, the dependant fields that are updated and
+            the rows per table whose values changed as a consequence, for realtime
+            events.
         """
 
         row_ids = [row.id for row in created_rows]
         table = model.baserow_table
-        update_collector = FieldUpdateCollector(table, starting_row_ids=row_ids)
+        update_collector = FieldUpdateCollector(
+            table,
+            starting_row_ids=row_ids,
+            collect_dependant_rows=collect_dependant_rows,
+        )
 
         field_cache = FieldCache()
         field_cache.cache_model(model)
@@ -1658,7 +1794,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     dependency_context,
                 )
             update_collector.apply_updates_and_get_updated_fields(field_cache)
-        return fields, dependant_fields
+        return fields, dependant_fields, update_collector.get_dependant_rows_updates()
 
     def _prepare_m2m_field_related_objects(
         self, row: GeneratedTableModel, field_name: str, value: List[Any]
@@ -1767,6 +1903,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         progress: Optional[Progress] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         signal_params: Optional[Dict] = None,
+        skip_search_update: bool = True,
     ) -> Tuple[List[GeneratedTableModel], Dict[str, Dict[str, Any]]]:
         """
         Creates rows by batch and generates an error report instead of failing on first
@@ -1777,6 +1914,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param rows_values: List of rows values for rows that need to be created.
         :param progress: Give a progress instance to track the progress of the import.
         :param model: Optional model to prevent recomputing table model.
+        :param signal_params: Additional parameters that are added to the signal.
+        :param skip_search_update: When True, skip search updates. The caller is
+            responsible for managing search updates.
         :return: The created rows and the error report.
         """
 
@@ -1806,9 +1946,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 generate_error_report=True,
                 send_realtime_update=False,
                 send_webhook_events=False,
-                # Don't trigger loads of search updates for every batch of rows we
-                # create but instead a single one for this entire table at the end.
-                skip_search_update=True,
+                skip_search_update=skip_search_update,
                 signal_params=signal_params,
             )
 
@@ -1822,10 +1960,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
             all_created_rows += created_rows
 
-        SearchHandler.schedule_update_search_data(
-            table, row_ids=[r.id for r in all_created_rows]
-        )
-
         return all_created_rows, report
 
     def force_update_rows_by_batch(
@@ -1836,6 +1970,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         progress: Progress,
         model: Optional[Type[GeneratedTableModel]] = None,
         signal_params: Optional[Dict] = None,
+        skip_search_update: bool = True,
     ) -> Tuple[List[Dict[str, Any] | None], Dict[str, Dict[str, Any]]]:
         """
         Updates rows by batch and generates an error report instead of failing on first
@@ -1847,6 +1982,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param progress: Give a progress instance to track the progress of the import.
         :param model: Optional model to prevent recomputing table model.
         :param signal_params: Additional parameters that are added to the signal.
+        :param skip_search_update: When True, skip search updates. The caller is
+            responsible for managing search updates.
         :return: The updated rows and the error report.
         """
 
@@ -1876,6 +2013,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                         send_realtime_update=False,
                         send_webhook_events=False,
                         generate_error_report=True,
+                        skip_search_update=skip_search_update,
                         signal_params=signal_params,
                     )
                     report.update(result.errors)
@@ -2059,12 +2197,18 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         else:
             rows_values_to_create = valid_rows
 
+        changed_rows = len(rows_values_to_create) + len(rows_values_to_update)
+        full_field_search_update = self._should_use_full_field_search_update_for_import(
+            changed_rows, model
+        )
+
         created_rows, creation_report = self.force_create_rows_by_batch(
             user,
             table,
             rows_values_to_create,
             progress=creation_sub_progress,
             model=model,
+            skip_search_update=full_field_search_update,
         )
 
         if rows_values_to_update:
@@ -2074,6 +2218,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 rows_values_to_update,
                 progress=creation_sub_progress,
                 model=model,
+                skip_search_update=full_field_search_update,
             )
 
         # Add errors to global report
@@ -2094,6 +2239,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             # Just send a single table_updated here as realtime update instead
             # of rows_created because we might import a lot of rows.
             table_updated.send(self, table=table, user=user, force_table_refresh=True)
+
+        if full_field_search_update and changed_rows > 0:
+            SearchHandler.schedule_update_search_data(table)
 
         return created_rows, error_report.to_dict()
 
@@ -2528,12 +2676,21 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if cascade_updated.updated_rows:
             model.objects.bulk_update(cascade_updated.updated_rows, cascade_fields)
 
-        dependant_fields = self.update_dependencies_of_rows_updated(
-            table,
-            list(rows_to_update) + cascade_updated.updated_rows,
-            model,
-            updated_field_ids.union(cascade_updated.field_ids),
-            m2m_change_tracker,
+        dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_updated(
+                table,
+                list(rows_to_update) + cascade_updated.updated_rows,
+                model,
+                updated_field_ids.union(cascade_updated.field_ids),
+                m2m_change_tracker,
+                collect_dependant_rows=send_realtime_update,
+            )
+        )
+
+        # The cascade also changed fields on the updated rows themselves (e.g. a
+        # self-link display), so report them alongside the directly edited fields.
+        updated_field_ids.update(
+            field.id for field in dependant_fields if field.table_id == table.id
         )
 
         from baserow.contrib.database.views.handler import ViewHandler
@@ -2581,6 +2738,20 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             dependant_fields=dependant_fields,
             cascade_update=cascade_updated,
             **signal_params,
+        )
+        self.send_dependant_rows_updated(
+            user,
+            table,
+            merge_dependant_rows_updates(
+                dependant_rows_updates,
+                self.cascade_dependant_rows_update(
+                    table,
+                    cascade_updated.row_ids,
+                    cascade_updated.field_ids,
+                    exclude_row_ids=row_ids,
+                ),
+            ),
+            send_realtime_update=send_realtime_update,
         )
 
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
@@ -2738,6 +2909,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         row_id: int,
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
     ) -> GeneratedTableModelForUpdate:
         """
         Updates the row order value.
@@ -2749,14 +2921,18 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             instance. Otherwise the row will be moved to the end.
         :param model: If the correct model has already been generated, it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the row is moved in the view.
+            This can result in different permissions checks.
         """
 
         if model is None:
             model = table.get_model()
 
         with transaction.atomic():
-            row = self.get_row_for_update(user, table, row_id, model=model)
-            return self.move_row(user, table, row, before_row=before_row, model=model)
+            row = self.get_row_for_update(user, table, row_id, model=model, view=view)
+            return self.move_row(
+                user, table, row, before_row=before_row, model=model, view=view
+            )
 
     def move_row(
         self,
@@ -2766,6 +2942,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
+        view: Optional["View"] = None,
     ) -> GeneratedTableModelForUpdate:
         """
         Updates the row order value.
@@ -2779,14 +2956,17 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             provided so that it does not have to be generated for a second time.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :param view: Optionally provide view, if the row is moved in the view.
+            This can result in different permissions checks.
         """
 
-        workspace = table.database.workspace
-        CoreHandler().check_permissions(
-            user,
+        self._check_permissions_with_view_fallback(
             MoveRowDatabaseRowOperationType.type,
-            workspace=workspace,
-            context=table,
+            MoveViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row.id],
         )
 
         if model is None:
@@ -2797,7 +2977,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         row.order = self.get_unique_orders_before_row(before_row, model)[0]
-        row.save(update_fields=["order", "updated_on"])
+        row.save(update_fields=["order"])
 
         # All fields must be marked as updated because the lookup fields can depend
         # on the row order. Only fields that are specifically marked as
@@ -2813,8 +2993,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 field = field_object["field"]
                 updated_fields.append(field)
 
-        dependant_fields = self.update_dependencies_of_rows_updated(
-            table, [row], model, updated_field_ids
+        dependant_fields, dependant_rows_updates = (
+            self.update_dependencies_of_rows_updated(
+                table, [row], model, updated_field_ids
+            )
         )
 
         from baserow.contrib.database.views.handler import ViewHandler
@@ -2834,6 +3016,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields=[],
             dependant_fields=dependant_fields,
         )
+        self.send_dependant_rows_updated(user, table, dependant_rows_updates)
 
         return row
 
@@ -2929,7 +3112,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         (
             updated_fields,
             dependant_fields,
-        ) = self.update_dependencies_of_rows_deleted(table, row, model)
+            dependant_rows_updates,
+        ) = self.update_dependencies_of_rows_deleted(
+            table, row, model, collect_dependant_rows=send_realtime_update
+        )
 
         from baserow.contrib.database.views.handler import ViewHandler
 
@@ -2947,10 +3133,23 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             fields=updated_fields,
             dependant_fields=dependant_fields,
         )
+        self.send_dependant_rows_updated(
+            user, table, dependant_rows_updates, send_realtime_update
+        )
         return row
 
-    def update_dependencies_of_rows_deleted(self, table, row, model):
-        update_collector = FieldUpdateCollector(table, starting_row_ids=[row.id])
+    def update_dependencies_of_rows_deleted(
+        self,
+        table: Table,
+        row: GeneratedTableModel,
+        model: Type[GeneratedTableModel],
+        collect_dependant_rows: bool = True,
+    ) -> Tuple[List["DjangoField"], List["DjangoField"], List[DependantRowsUpdate]]:
+        update_collector = FieldUpdateCollector(
+            table,
+            starting_row_ids=[row.id],
+            collect_dependant_rows=collect_dependant_rows,
+        )
         field_cache = FieldCache()
         field_cache.cache_model(model)
         updated_field_ids = []
@@ -2996,7 +3195,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 )
 
             update_collector.apply_updates_and_get_updated_fields(field_cache)
-        return updated_fields, dependant_fields
+        return (
+            updated_fields,
+            dependant_fields,
+            update_collector.get_dependant_rows_updates(),
+        )
 
     def delete_rows(
         self,
@@ -3125,7 +3328,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             field = field_object["field"]
             updated_fields.append(field)
 
-        update_collector = FieldUpdateCollector(table, starting_row_ids=row_ids)
+        update_collector = FieldUpdateCollector(
+            table,
+            starting_row_ids=row_ids,
+            collect_dependant_rows=send_realtime_update,
+        )
         field_cache = FieldCache()
         field_cache.cache_model(model)
         dependant_fields = []
@@ -3177,8 +3384,77 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             dependant_fields=dependant_fields,
             **signal_params,
         )
+        self.send_dependant_rows_updated(
+            user,
+            table,
+            update_collector.get_dependant_rows_updates(),
+            send_realtime_update,
+        )
 
         return trashed_rows
+
+    def restore_row(
+        self,
+        user: AbstractUser,
+        table: Table,
+        row_id: int,
+        view: Optional["View"] = None,
+    ) -> Any:
+        """
+        Restores a single trashed row with optional view-level permission
+        fallback. When a view is provided and the user lacks table-level
+        restore permission, the view-level permission is checked as fallback.
+
+        :param user: The user performing the restore.
+        :param table: The table the row belongs to.
+        :param row_id: The id of the trashed row to restore.
+        :param view: Optionally provide view for permission fallback.
+        :return: The restored row.
+        """
+
+        self._check_permissions_with_view_fallback(
+            RestoreDatabaseRowOperationType.type,
+            RestoreViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row_id],
+        )
+        return TrashHandler.force_restore_item(
+            user, "row", row_id, parent_trash_item_id=table.id
+        )
+
+    def restore_rows(
+        self,
+        user: AbstractUser,
+        table: Table,
+        trashed_rows_entry_id: int,
+        view: Optional["View"] = None,
+        row_ids: Optional[List[int]] = None,
+    ) -> Any:
+        """
+        Restores trashed rows with optional view-level permission fallback.
+
+        :param user: The user performing the restore.
+        :param table: The table the rows belong to.
+        :param trashed_rows_entry_id: The id of the TrashedRows entry.
+        :param view: Optionally provide view for permission fallback.
+        :param row_ids: Optionally the row ids being restored, used for
+            row-level permission enforcement on restricted views.
+        :return: The restored trashed rows object.
+        """
+
+        self._check_permissions_with_view_fallback(
+            RestoreDatabaseRowOperationType.type,
+            RestoreViewRowOperationType.type,
+            user,
+            table,
+            view,
+            row_ids,
+        )
+        return TrashHandler.force_restore_item(
+            user, "rows", trashed_rows_entry_id, parent_trash_item_id=table.id
+        )
 
     def recalculate_row_orders(self, table: Table, model: GeneratedTableModel = None):
         """

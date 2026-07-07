@@ -5,6 +5,7 @@ import {
   TriggerServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
+import LocalBaserowCreateRowsServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowCreateRowsServiceForm'
 import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm'
 import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm'
 import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm'
@@ -12,6 +13,7 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
 import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
 import LocalBaserowSignalTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowSignalTriggerServiceForm'
+import LocalBaserowFieldsUpdatedTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowFieldsUpdatedTriggerServiceForm'
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
@@ -454,6 +456,50 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
   }
 }
 
+export class LocalBaserowUpsertRowsWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  supportedTables(tables) {
+    return tables.filter(
+      (table) => !table.is_data_sync || table.is_two_way_data_sync
+    )
+  }
+
+  get returnsList() {
+    return true
+  }
+
+  getErrorMessage({ service }) {
+    if (service?.rows !== undefined && !service.rows?.formula) {
+      return this.app.$i18n.t('serviceType.errorNoRowsSelected')
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  get formComponent() {
+    return LocalBaserowCreateRowsServiceForm
+  }
+}
+
+export class LocalBaserowCreateRowsWorkflowServiceType extends LocalBaserowUpsertRowsWorkflowServiceType {
+  static getType() {
+    return 'local_baserow_create_rows'
+  }
+
+  get icon() {
+    return 'iconoir-plus'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.localBaserowCreateRows')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.localBaserowCreateRowsDescription')
+  }
+}
+
 export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
@@ -475,6 +521,24 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
 
   get formComponent() {
     return LocalBaserowUpdateRowServiceForm
+  }
+}
+
+export class LocalBaserowUpdateRowsWorkflowServiceType extends LocalBaserowUpsertRowsWorkflowServiceType {
+  static getType() {
+    return 'local_baserow_update_rows'
+  }
+
+  get icon() {
+    return 'iconoir-edit-pencil'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.localBaserowUpdateRows')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.localBaserowUpdateRowsDescription')
   }
 }
 
@@ -594,5 +658,39 @@ export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowTrigg
 
   get formComponent() {
     return LocalBaserowSignalTriggerServiceForm
+  }
+}
+
+export class LocalBaserowFieldsUpdatedTriggerServiceType extends LocalBaserowTriggerServiceType {
+  static getType() {
+    return 'fields_updated'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.localBaserowFieldsUpdated')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.localBaserowFieldsUpdatedDescription')
+  }
+
+  get icon() {
+    return 'iconoir-input-field'
+  }
+
+  get formComponent() {
+    return LocalBaserowFieldsUpdatedTriggerServiceForm
+  }
+
+  getErrorMessage({ service }) {
+    if (service !== undefined) {
+      if (!service.table_id) {
+        return this.app.$i18n.t('serviceType.errorNoTableSelected')
+      }
+      if (!service.field_ids || service.field_ids.length === 0) {
+        return this.app.$i18n.t('serviceType.errorNoFieldsSelected')
+      }
+    }
+    return super.getErrorMessage({ service })
   }
 }

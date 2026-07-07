@@ -68,6 +68,8 @@ example, have two grid views, A and B, of the same table of data, and you change
 width of a column in grid A, then it only changes for grid A and not for grid B. The
 views can be created, modified and deleted via the 
 `baserow.contrib.database.views.handler.ViewHandler` and via the REST API.
+The [collapsible grid group-by note](./collapsible-grid-group-by.md) explains how
+large grouped grid views are paged and rendered.
 
 > View types can be added via plugins. More about that on the 
 > [view type plugin page](../plugins/view-type.md).

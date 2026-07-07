@@ -6,6 +6,7 @@ from django.db import models
 from baserow.contrib.automation.constants import WORKFLOW_NAME_MAX_LEN
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.core.cache import local_cache
+from baserow.core.graph.models import GraphModelMixin
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -48,7 +49,10 @@ class AutomationWorkflow(
     TrashableModelMixin,
     CreatedAndUpdatedOnMixin,
     OrderableMixin,
+    GraphModelMixin,
 ):
+    supports_edges = True
+
     automation = models.ForeignKey(
         "automation.Automation", on_delete=models.CASCADE, related_name="workflows"
     )
@@ -76,7 +80,6 @@ class AutomationWorkflow(
 
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
 
-    graph = models.JSONField(default=dict, help_text="Contains the node graph.")
     notification_recipients = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,
@@ -126,36 +129,31 @@ class AutomationWorkflow(
             else self,
         )
 
+    def get_graph_handler(self):
+        from baserow.contrib.automation.workflows.graph_handler import (
+            AutomationWorkflowGraphHandler,
+        )
+
+        return AutomationWorkflowGraphHandler
+
     def get_trigger(self) -> "AutomationTriggerNode":
         """
         Returns the first node of the workflow A.K.A the trigger.
         """
 
-        return self.get_graph().get_node_at_position(None, "south", "")
+        return self.get_graph().get_point_at_position(None, "south", "")
 
-    def can_immediately_be_tested(self):
+    def can_be_immediately_dispatched(self):
         """
-        True of the workflow trigger can immediately be dispatched in test mode.
-        """
-
-        service = self.get_trigger().service.specific
-        return service.get_type().can_immediately_be_tested(service)
-
-    def get_graph(self):
-        """
-        Returns the workflow graph. Use the same graph instance related to the workflow
-        ID regardless of the workflow instance.
+        True if the workflow trigger can dispatch without waiting for an event.
         """
 
-        from .graph_handler import NodeGraphHandler
+        trigger = self.get_trigger()
+        if trigger is None:
+            return False
 
-        # always return the same instance to avoid using different graphs from different
-        # instances of the same workflow
-
-        return local_cache.get(
-            f"automation_workflow__{self.id}",
-            lambda: NodeGraphHandler(self),
-        )
+        service = trigger.service.specific
+        return service.get_type().can_be_immediately_dispatched(service)
 
     @property
     def is_published(self) -> bool:
@@ -170,39 +168,6 @@ class AutomationWorkflow(
             workflow = published_workflow
 
         return workflow.state == WorkflowState.LIVE
-
-    def print(self, message=None, original=False):
-        """
-        Prints the graph in a pretty way. Useful for debug.
-        """
-
-        import pprint
-
-        if message:
-            print(message)
-
-        if original:
-            pprint.pprint(self.get_graph().graph, indent=2)
-        else:
-            pprint.pprint(self.get_graph().labeled_graph(), indent=2)
-
-    def assert_reference(self, reference):
-        """
-        Used in test, compare the current workflow graph with the given reference and
-        raise an error if the graph doesn't match.
-        """
-
-        import pprint
-
-        try:
-            assert (
-                self.get_graph().labeled_graph() == reference  # nosec B101
-            ), "Failed to match the reference."
-        except AssertionError:
-            print("Failed to match the reference:")
-            pprint.pprint(reference, indent=2)
-            self.print("Current graph:")
-            raise
 
 
 class DuplicateAutomationWorkflowJob(

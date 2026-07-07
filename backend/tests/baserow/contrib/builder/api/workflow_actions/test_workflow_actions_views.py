@@ -641,6 +641,116 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
     assert response_json[color_field.name] == "Brown"
     assert animal_field.name not in response_json
 
+    service.refresh_from_db()
+
+    assert service.sample_data["data"][color_field.name] == "Brown"
+    assert animal_field.name not in service.sample_data["data"]
+    assert service.sample_data["status"] == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_dispatch_local_baserow_delete_row_workflow_action(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Animal", "text")],
+        rows=[["Horse"]],
+    )
+    model = table.get_model()
+    first_row = model.objects.all()[0]
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    delete_service = data_fixture.create_local_baserow_delete_row_service(
+        integration=integration,
+        table=table,
+        row_id=f"'{first_row.id}'",
+    )
+    workflow_action = data_fixture.create_local_baserow_delete_row_workflow_action(
+        page=page,
+        element=element,
+        event=EventTypes.CLICK,
+        service=delete_service,
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+
+    response = api_client.post(
+        url,
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    # A deletion returns 204 with no body: the response must be empty, not a
+    # serialized `{}` dict.
+    assert response.status_code == HTTP_204_NO_CONTENT
+    assert response.data is None
+    assert response.content == b""
+    # The row was actually deleted.
+    assert model.objects.filter(id=first_row.id).exists() is False
+
+
+@pytest.mark.django_db
+def test_dispatch_published_workflow_action_does_not_update_sample_data(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Animal", "text"),
+            ("Color", "text"),
+        ],
+        rows=[],
+    )
+    color_field = table.field_set.get(name="Color")
+    animal_field = table.field_set.get(name="Animal")
+    builder = data_fixture.create_builder_application(user=user)
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=published_builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK, user=user
+    )
+    service = workflow_action.service.specific
+    service.table = table
+    service.field_mappings.create(field=color_field, value="'Brown'")
+    service.field_mappings.create(field=animal_field, value="'Horse'")
+    service.save()
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+
+    with patch(
+        "baserow.contrib.builder.handler.get_builder_used_property_names"
+    ) as used_properties_mock:
+        used_properties_mock.return_value = {
+            "all": {workflow_action.service.id: ["id", color_field.db_column]},
+            "external": {workflow_action.service.id: ["id", color_field.db_column]},
+        }
+        response = api_client.post(
+            url,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK
+    service.refresh_from_db()
+    assert service.sample_data is None
+
 
 @pytest.mark.django_db
 def test_dispatch_local_baserow_create_row_workflow_action_field_constraint(

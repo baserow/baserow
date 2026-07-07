@@ -169,11 +169,16 @@ export class FileInputElementType extends FormElementType {
   beforeActionDispatchContext(element, value, files) {
     const withoutFiles = (element.multiple ? value : [value]).map((v) => {
       if (v?.__file__) {
-        const data = v.data
-        const uid = uuid()
-        // Add file to context
-        files[uid] = data
-        return { ...v, file: uid, data: undefined }
+        // Only register an uploadable file when there's actual file data. An
+        // unchanged, pre-existing file is referenced by its `url` and has no
+        // `data`, so we must not inject a `file` placeholder for it.
+        if (v.data) {
+          const uid = uuid()
+          // Add file to context
+          files[uid] = v.data
+          return { ...v, file: uid, data: undefined }
+        }
+        return { ...v, data: undefined }
       } else {
         return v
       }
@@ -225,6 +230,9 @@ export class FileInputElementType extends FormElementType {
   }
 
   isDeactivatedReason({ workspace }) {
+    if (!workspace) {
+      return null
+    }
     if (
       !this.app.$hasFeature(
         EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
@@ -238,6 +246,7 @@ export class FileInputElementType extends FormElementType {
 
   getDeactivatedClickModal({ workspace }) {
     if (
+      workspace &&
       !this.app.$hasFeature(
         EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
         workspace.id

@@ -2,12 +2,13 @@
   display: inline-block;
   vertical-align: top;
   white-space: normal;
-  user-select: none;
   cursor: default;
+  user-select: none;
+  caret-color: transparent;
 }
 
 .operator-formula-component__symbol {
-  color: $palette-green-800;
+  color: $palette-green-900;
   font-weight: 500;
   background-color: $palette-green-50;
   padding: 0 8px;

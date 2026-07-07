@@ -57,10 +57,16 @@ import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 export default {
   components: { FieldCollaboratorDropdown },
   mixins: [gridField, collaboratorField, collaboratorName],
+  emits: ['editing-changed'],
   data() {
     return {
       editing: false,
     }
+  },
+  watch: {
+    editing(editing) {
+      this.$emit('editing-changed', editing)
+    },
   },
 }
 </script>

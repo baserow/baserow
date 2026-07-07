@@ -47,13 +47,16 @@ export default {
     binding.dir.updated(el, binding)
     el.sortableAutoScrolling = false
 
-    const mousedownElement = binding.value.handle
-      ? el.querySelector(binding.value.handle)
-      : el
-
     el.mousedownEvent = (event) => {
       if (!el.sortableEnabled || event.button !== 0) {
         return
+      }
+
+      if (binding.value.handle) {
+        const handle = el.querySelector(binding.value.handle)
+        if (!handle || !handle.contains(event.target)) {
+          return
+        }
       }
 
       el.sortableMoved = false
@@ -82,11 +85,14 @@ export default {
         parent.style.position = 'relative'
       }
 
+      // Prevent the browser from starting a text selection.
+      event.preventDefault()
+
       indicator = document.createElement('div')
       indicator.classList.add('sortable-position-indicator')
       parent.insertBefore(indicator, parent.firstChild)
     }
-    mousedownElement.addEventListener('mousedown', el.mousedownEvent)
+    el.addEventListener('mousedown', el.mousedownEvent)
   },
   /**
    * When the directive must unbind from the element, we will remove all the events
@@ -97,10 +103,7 @@ export default {
       binding.dir.cancel(el)
     }
 
-    const mousedownElement = binding.value.handle
-      ? el.querySelector(binding.value.handle)
-      : el
-    mousedownElement.removeEventListener('mousedown', el.mousedownEvent)
+    el.removeEventListener('mousedown', el.mousedownEvent)
   },
   updated(el, binding) {
     el.sortableId = binding.value.id
@@ -109,6 +112,7 @@ export default {
     el.sortableMarginLeft = binding.value.marginLeft
     el.sortableMarginRight = binding.value.marginRight
     el.sortableMarginTop = binding.value.marginTop
+    el.sortableMarginTopLast = binding.value.marginTopLast
   },
   /**
    * Called when the user moves the mouse when the dragging of the element has
@@ -177,13 +181,20 @@ export default {
     // element must be moved to the end.
     const elementRect = el.getBoundingClientRect()
     const afterRect = all[all.length - 1].getBoundingClientRect()
+    // Allow callers to nudge the indicator differently for the trailing
+    // position (when the dragged element will land at the very end of the
+    // list) compared to between-items positions, since there is no natural
+    // gap below the last item to centre the indicator in.
+    const verticalMargin = before
+      ? el.sortableMarginTop || 0
+      : (el.sortableMarginTopLast ?? el.sortableMarginTop ?? 0)
     const top =
       (before
         ? beforeRect.top - indicator.clientHeight / 2
         : afterRect.top + afterRect.height) -
       parentRect.top +
       parent.scrollTop +
-      (el.sortableMarginTop || 0)
+      verticalMargin
     const left = elementRect.left - parentRect.left
     indicator.style.left = left + (el.sortableMarginLeft || 0) + 'px'
     indicator.style.width =

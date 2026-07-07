@@ -38,6 +38,10 @@ export class WorkflowActionType extends Registerable {
     return path
   }
 
+  get returnsList() {
+    return false
+  }
+
   /**
    * Returns a message if the workflow action configuration is invalid.
    * @param {object} workflowAction - The workflow action to validate.
@@ -45,6 +49,13 @@ export class WorkflowActionType extends Registerable {
    * @returns The error message or null if everything is good
    */
   getErrorMessage(workflowAction, applicationContext) {
+    const deactivatedReason =
+      applicationContext?.workspace &&
+      this.isDeactivatedReason({ workspace: applicationContext.workspace })
+    if (deactivatedReason) {
+      return deactivatedReason
+    }
+
     return null
   }
 
@@ -56,5 +67,17 @@ export class WorkflowActionType extends Registerable {
    */
   isInError(workflowAction, applicationContext) {
     return Boolean(this.getErrorMessage(workflowAction, applicationContext))
+  }
+
+  isDeactivatedReason({ workspace }) {
+    return null
+  }
+
+  isDeactivated({ workspace }) {
+    return !!this.isDeactivatedReason({ workspace })
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    return null
   }
 }

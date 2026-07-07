@@ -1,4 +1,7 @@
+import csv
+import io
 import json
+import re
 import socket
 import uuid
 from datetime import datetime
@@ -27,9 +30,11 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
+    CSV_FILE_READER_INPUT_TYPE,
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
     PERIODIC_INTERVAL_MINUTE,
+    SMTP_EMAIL_TIMEOUT,
 )
 from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPTriggerServiceDoesNotExist,
@@ -37,24 +42,29 @@ from baserow.contrib.integrations.core.exceptions import (
 )
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
+    CoreCSVFileReaderService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
+    CoreManualTriggerService,
     CorePeriodicService,
     CoreRouterService,
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
+    CoreStartWorkflowService,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
 )
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
     ensure_email,
+    ensure_file,
     ensure_string,
 )
 from baserow.core.registries import ImportExportConfig
@@ -74,6 +84,12 @@ from baserow.core.services.registries import (
 )
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
+
+# Captures potential runtime formula function calls, e.g. `get(`, `concat(`, etc.
+# The captured name is checked against the runtime function registry so that
+# literal text like `foo(` (which isn't a real function) doesn't match. Function
+# names are case-insensitive, so the name is lowercased before the lookup.
+RE_FORMULA_FUNCTION = re.compile(r"\b([a-zA-Z_]+)\s*\(")
 
 
 class CoreServiceType(ServiceType):
@@ -281,16 +297,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             if new_formula is not None:
                 query_param.value = new_formula
                 yield query_param
-
-    def extract_properties(
-        self, service: Service, path: List[str], **kwargs
-    ) -> List[str]:
-        """Returns the first path element if any"""
-
-        if path:
-            return [path[0]]
-
-        return []
 
     def serialize_property(
         self,
@@ -533,6 +539,23 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         return formulas
 
+    def _body_has_formula(self, service: CoreHTTPRequestService) -> bool:
+        """
+        Returns True if the JSON body is built from a formula that interpolates a
+        runtime value, e.g. a data source via `get(...)` or a function like `now()`.
+
+        This is used to customize the JSON validation error with a more specific
+        error message.
+        """
+
+        formula = (service.body_content or {}).get("formula") or ""
+
+        registered_functions = set(formula_runtime_function_registry.get_types())
+        return any(
+            match.group(1).lower() in registered_functions
+            for match in RE_FORMULA_FUNCTION.finditer(formula)
+        )
+
     def dispatch_data(
         self,
         service: CoreHTTPRequestService,
@@ -548,11 +571,22 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         if service.body_type == BODY_TYPE.JSON:  # JSON payload
             try:
-                body_dict["json"] = json.loads(body_content) if body_content else None
+                # `strict=False` allows raw control characters (e.g. newlines,
+                # tabs, etc) inside JSON string values. This is necessary because
+                # the body can be the resolved output of a formula which contains
+                # control chars.
+                body_dict["json"] = (
+                    json.loads(body_content, strict=False) if body_content else None
+                )
             except json.JSONDecodeError as e:
-                raise ServiceImproperlyConfiguredDispatchException(
-                    "The body is not a valid JSON"
-                ) from e
+                message = "The body is not a valid JSON"
+                if self._body_has_formula(service):
+                    message += (
+                        ". If the body includes a value from a formula, wrap "
+                        "it with to_json() so it is correctly quoted and "
+                        "escaped, e.g. concat('{\"value\": ', to_json(get('...')), '}')."
+                    )
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
         elif service.body_type == BODY_TYPE.FORM:  # Form multipart payload
             body_dict["data"] = {
                 f.key: resolved_values[f"form_data_{f.id}"]
@@ -582,6 +616,10 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             raise UnexpectedDispatchException(
                 f"Invalid URL: {resolved_values['url']}"
             ) from e
+        except request_exceptions.Timeout:
+            return {
+                "data": {"raw_body": "", "body": "", "headers": {}, "status_code": 504}
+            }
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
         except Exception as e:
@@ -835,6 +873,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             from_email = settings.DEFAULT_FROM_EMAIL
             connection = get_connection(
                 backend=settings.CELERY_EMAIL_BACKEND,
+                timeout=SMTP_EMAIL_TIMEOUT,
             )
             smtp_host = settings.EMAIL_HOST
             smtp_port = settings.EMAIL_PORT
@@ -859,6 +898,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 username=smtp_integration.username,
                 password=smtp_integration.password,
                 use_tls=smtp_integration.use_tls,
+                timeout=SMTP_EMAIL_TIMEOUT,
             )
             smtp_host = smtp_integration.host
             smtp_port = smtp_integration.port
@@ -1216,7 +1256,7 @@ class CoreRouterServiceType(CoreServiceType):
 
         return super().get_sample_data(service, dispatch_context)
 
-    def get_edges(self, service):
+    def get_edges(self, service: Service) -> Dict[str, Dict[str, str]]:
         return {str(e.uid): {"label": e.label} for e in service.edges.all()} | {
             "": {"label": service.default_edge_label}
         }
@@ -1317,7 +1357,49 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
         return super().prepare_values(values, user, instance)
 
-    def can_immediately_be_tested(self, service):
+    def serialize_property(
+        self,
+        service: CorePeriodicService,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        if prop_name == "next_run_at":
+            return (
+                service.next_run_at.isoformat()
+                if service.next_run_at is not None
+                else None
+            )
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        if prop_name == "next_run_at" and value is not None:
+            return datetime.fromisoformat(value)
+
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+    def can_be_immediately_dispatched(self, service):
         return True
 
     def _setup_periodic_task(self, sender, **kwargs):
@@ -1725,6 +1807,25 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         return values
 
 
+class CoreManualTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
+    type = "manual"
+    model_class = CoreManualTriggerService
+
+    class SerializedDict(ServiceDict):
+        pass
+
+    def can_be_immediately_dispatched(self, service: CoreManualTriggerService):
+        return True
+
+    def dispatch_data(
+        self,
+        service: CoreManualTriggerService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ):
+        return None
+
+
 class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
     type = "iterator"
     model_class = CoreIteratorService
@@ -1803,6 +1904,347 @@ class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
         dispatch_context: DispatchContext,
     ) -> Any:
         return {"results": resolved_values["source"], "has_next_page": False}
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data=data)
+
+
+class CoreCSVFileReaderServiceType(ListServiceTypeMixin, CoreServiceType):
+    type = "csv_file_reader"
+    model_class = CoreCSVFileReaderService
+    dispatch_types = [DispatchTypes.DATA, DispatchTypes.ACTION]
+
+    allowed_fields = [
+        "file",
+        "csv",
+        "input_type",
+        "separator",
+        "encoding",
+        "first_line_is_header",
+    ]
+
+    serializer_field_names = [
+        "file",
+        "csv",
+        "input_type",
+        "separator",
+        "encoding",
+        "first_line_is_header",
+    ]
+
+    class SerializedDict(ServiceDict):
+        file: str
+        csv: str
+        input_type: str
+        separator: str
+        encoding: str
+        first_line_is_header: bool
+
+    simple_formula_fields = [
+        "file",
+        "csv",
+    ]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "file": FormulaSerializerField(
+                help_text=CoreCSVFileReaderService._meta.get_field("file").help_text,
+                required=False,
+            ),
+            "csv": FormulaSerializerField(
+                help_text=CoreCSVFileReaderService._meta.get_field("csv").help_text,
+                required=False,
+            ),
+            "input_type": serializers.ChoiceField(
+                choices=CSV_FILE_READER_INPUT_TYPE.choices,
+                help_text=CoreCSVFileReaderService._meta.get_field(
+                    "input_type"
+                ).help_text,
+                required=False,
+            ),
+            "separator": serializers.ChoiceField(
+                choices=[
+                    (",", "Comma"),
+                    (";", "Semicolon"),
+                    ("\t", "Tab"),
+                    ("|", "Pipe"),
+                ],
+                help_text=CoreCSVFileReaderService._meta.get_field(
+                    "separator"
+                ).help_text,
+                required=False,
+            ),
+            "encoding": serializers.ChoiceField(
+                choices=[
+                    ("utf-8", "UTF-8"),
+                    ("utf-8-sig", "UTF-8 with BOM"),
+                    ("latin-1", "Latin-1"),
+                ],
+                help_text=CoreCSVFileReaderService._meta.get_field(
+                    "encoding"
+                ).help_text,
+                required=False,
+            ),
+            "first_line_is_header": serializers.BooleanField(
+                help_text=CoreCSVFileReaderService._meta.get_field(
+                    "first_line_is_header"
+                ).help_text,
+                required=False,
+            ),
+        }
+
+    def get_schema_name(self, service: CoreCSVFileReaderService) -> str:
+        return f"CSVFileReader{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreCSVFileReaderService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if (
+            service.sample_data
+            and "data" in service.sample_data
+            and "results" in service.sample_data["data"]
+            and (allowed_fields is None or "items" in allowed_fields)
+        ):
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(service.sample_data["data"]["results"])
+            schema = schema_builder.to_schema()
+
+            if "items" in schema:
+                return {
+                    **schema,
+                    "title": self.get_schema_name(service),
+                }
+
+        return None
+
+    def formulas_to_resolve(
+        self, service: CoreCSVFileReaderService
+    ) -> list[FormulaToResolve]:
+        if service.input_type == CSV_FILE_READER_INPUT_TYPE.CONTENT:
+            return [
+                FormulaToResolve(
+                    "csv",
+                    service.csv,
+                    lambda value: ensure_string(value, allow_empty=False),
+                    "'csv' property",
+                )
+            ]
+
+        return [
+            FormulaToResolve(
+                "file",
+                service.file,
+                ensure_file,
+                "'file' property",
+            )
+        ]
+
+    def dispatch_data(
+        self,
+        service: CoreCSVFileReaderService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        if "csv" in resolved_values:
+            csv_data = resolved_values["csv"]
+        else:
+            csv_data = self._read_csv_file(
+                resolved_values["file"],
+                service.encoding,
+            )
+
+        return {
+            "results": self._read_csv(
+                csv_data,
+                service.separator,
+                service.first_line_is_header,
+            ),
+            "has_next_page": False,
+        }
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data=data)
+
+    def _read_csv_file(
+        self,
+        input_file,
+        encoding: str,
+    ) -> str:
+        try:
+            return input_file.read_bytes().decode(encoding)
+        except UnicodeDecodeError as exc:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"The CSV file couldn't be decoded using {encoding}."
+            ) from exc
+
+    def _read_csv(
+        self,
+        csv_data: str,
+        separator: str,
+        first_line_is_header: bool,
+    ) -> list[dict[str, str]]:
+        try:
+            csv_rows = list(csv.reader(io.StringIO(csv_data), delimiter=separator))
+        except csv.Error as exc:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"The CSV file couldn't be read: {exc}."
+            ) from exc
+
+        if not csv_rows:
+            return []
+
+        if first_line_is_header:
+            headers = [self._normalize_csv_header(header) for header in csv_rows[0]]
+            return [
+                self._row_to_dict(headers, row)
+                for row in csv_rows[1:]
+                if self._row_has_values(row)
+            ]
+
+        headers = [f"column_{index + 1}" for index in range(self._widest_row(csv_rows))]
+        return [
+            self._row_to_dict(headers, row)
+            for row in csv_rows
+            if self._row_has_values(row)
+        ]
+
+    def _row_to_dict(self, headers: list[str], row: list[str]) -> dict[str, str]:
+        return {
+            header or f"column_{index + 1}": row[index] if index < len(row) else ""
+            for index, header in enumerate(headers)
+        }
+
+    def _normalize_csv_header(self, header: str) -> str:
+        return header.removeprefix("\ufeff").strip()
+
+    def _row_has_values(self, row: list[str]) -> bool:
+        return any(value != "" for value in row)
+
+    def _widest_row(self, rows: list[list[str]]) -> int:
+        return max((len(row) for row in rows), default=0)
+
+
+class CoreStartWorkflowServiceType(CoreServiceType):
+    type = "start_workflow"
+    model_class = CoreStartWorkflowService
+    dispatch_types = [DispatchTypes.ACTION]
+
+    allowed_fields = ["workflow"]
+    serializer_field_names = ["workflow_id"]
+    serializer_field_overrides = {
+        "workflow_id": serializers.IntegerField(
+            required=False,
+            allow_null=True,
+            help_text=CoreStartWorkflowService._meta.get_field("workflow").help_text,
+        )
+    }
+
+    class SerializedDict(ServiceDict):
+        workflow_id: int
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Dict[int, int]],
+        **kwargs,
+    ) -> Any:
+        if prop_name == "workflow_id" and value is not None:
+            return id_mapping.get("automation_workflows", {}).get(value, value)
+
+        return super().deserialize_property(prop_name, value, id_mapping, **kwargs)
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[CoreStartWorkflowService] = None,
+    ) -> Dict[str, Any]:
+        values = super().prepare_values(values, user, instance)
+        if "workflow_id" not in values:
+            return values
+
+        workflow_id = values.pop("workflow_id")
+        if workflow_id is None:
+            values["workflow"] = None
+            return values
+
+        from baserow.contrib.automation.workflows.exceptions import (
+            AutomationWorkflowDoesNotExist,
+        )
+        from baserow.contrib.automation.workflows.service import (
+            AutomationWorkflowService,
+        )
+
+        try:
+            workflow = AutomationWorkflowService().get_workflow(user, workflow_id)
+        except AutomationWorkflowDoesNotExist as exc:
+            raise serializers.ValidationError(
+                f"The workflow with ID {workflow_id} does not exist."
+            ) from exc
+
+        if not workflow.can_be_immediately_dispatched():
+            raise serializers.ValidationError(
+                "Only workflows with an immediate dispatch trigger can be started."
+            )
+
+        values["workflow"] = workflow
+        return values
+
+    def export_prepared_values(self, instance: CoreStartWorkflowService):
+        values = super().export_prepared_values(instance)
+        values["workflow_id"] = (
+            values.pop("workflow").id if values["workflow"] else None
+        )
+        return values
+
+    def dispatch_data(
+        self,
+        service: CoreStartWorkflowService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        if service.workflow_id is None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The workflow to start is not configured."
+            )
+
+        from baserow.contrib.automation.workflows.constants import WorkflowState
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        published_workflow = AutomationWorkflowHandler().get_published_workflow(
+            service.workflow
+        )
+        if published_workflow is None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected workflow must be published before it can be started."
+            )
+
+        if published_workflow.state != WorkflowState.LIVE:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected workflow must be live before it can be started."
+            )
+
+        if not published_workflow.can_be_immediately_dispatched():
+            raise ServiceImproperlyConfiguredDispatchException(
+                "Only workflows with an immediate dispatch trigger can be started."
+            )
+
+        AutomationWorkflowHandler().async_start_workflow(published_workflow)
+        return None
 
     def dispatch_transform(
         self,

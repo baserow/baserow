@@ -3,7 +3,7 @@ ARG GID="9999"
 
 ARG BACKEND_IMAGE=baserow/backend
 ARG WEBFRONTEND_IMAGE=baserow/web-frontend
-ARG CADDY_VERSION=2.11.1
+ARG CADDY_VERSION=2.11.4
 # hadolint ignore=DL3006
 FROM ${BACKEND_IMAGE} AS backend_image
 # hadolint ignore=DL3006
@@ -13,7 +13,7 @@ FROM caddy:${CADDY_VERSION} AS caddy_image
 # =============================================================================
 # Base - system dependencies (cached independently of source images)
 # =============================================================================
-FROM python:3.14.3-slim-trixie AS base
+FROM python:3.14.6-slim-trixie AS base
 ARG UID
 ARG GID
 
@@ -64,6 +64,8 @@ RUN ln -s /opt/yarn-v1.22.22/bin/yarn /usr/local/bin/yarn
 
 # Copy su-exec from backend image (already built with pinned version + SHA256 verification)
 COPY --from=backend_image /usr/local/bin/su-exec /usr/local/bin/su-exec
+COPY --from=backend_image /usr/local/bin/wasmtime /usr/local/bin/wasmtime
+COPY --from=backend_image /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 
 ENV POSTGRES_LOCATION=/etc/postgresql/15/main \
     UV_PROJECT_ENVIRONMENT=/baserow/venv \
