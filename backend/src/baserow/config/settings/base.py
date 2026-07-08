@@ -869,6 +869,15 @@ SEARCH_UPDATE_ROW_IDS_LIMIT = int(
     os.getenv("BASEROW_SEARCH_UPDATE_ROW_IDS_LIMIT", 5000)
 )
 
+# When enabled, realtime row payloads are not serialized and broadcast for
+# tables without any subscribed websocket client, realtime shared view or
+# webhook. Only supported (and automatically detected) with the default
+# channels_redis RedisChannelLayer backend on a single host; unsupported
+# configurations fail open and always broadcast.
+REALTIME_SUBSCRIBER_GATE = str_to_bool(
+    os.getenv("BASEROW_REALTIME_SUBSCRIBER_GATE", "true")
+)
+
 # Maximum count of records considered as a 'small table' during field rule operations.
 FIELD_RULE_ROWS_LIMIT = int(os.getenv("FIELD_RULE_ROWS_LIMIT", BATCH_ROWS_SIZE_LIMIT))
 

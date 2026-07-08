@@ -13,6 +13,9 @@ from baserow.contrib.database.api.rows.serializers import (
 )
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.ws.realtime_listeners import (
+    get_table_realtime_listeners,
+)
 from baserow.contrib.database.ws.rows.messages import RealtimeRowMessages
 from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
 from baserow.ws.registries import page_registry
@@ -51,6 +54,13 @@ def broadcast_dependant_rows_updated(
 
     table = _get_table(table_id)
     if table is None:
+        return
+
+    listeners = get_table_realtime_listeners(table)
+    if not (listeners.ws_table_subscribers or listeners.has_realtime_views):
+        # Neither the table page nor any realtime view has a subscriber that
+        # could receive the broadcast, so the fetch and serialization of the
+        # dependant rows can be skipped entirely.
         return
 
     model = table.get_model()

@@ -17,6 +17,10 @@ from baserow.contrib.database.fields.dependencies.update_collector import (
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.signals import table_updated
+from baserow.contrib.database.ws.realtime_listeners import (
+    get_table_realtime_listeners,
+    table_group_has_ws_subscribers,
+)
 from baserow.contrib.database.ws.rows.messages import RealtimeRowMessages
 from baserow.contrib.database.ws.rows.tasks import broadcast_dependant_rows_updated
 from baserow.ws.registries import PageType, page_registry
@@ -36,6 +40,10 @@ def serialize_rows_values(
     serialize_only_updated_fields: bool = False,
     **kwargs,
 ):
+    if not get_table_realtime_listeners(table, model).any:
+        # No websocket subscriber, realtime view or webhook can consume the
+        # serialized old rows, so the serialization is skipped entirely.
+        return None
     return serialize_rows_for_response(
         rows,
         model,
@@ -56,6 +64,8 @@ def rows_created(
     **kwargs,
 ):
     if not send_realtime_update:
+        return
+    if not table_group_has_ws_subscribers(table.id):
         return
 
     table_page_type = page_registry.get("table")
@@ -92,9 +102,11 @@ def rows_updated(
 ):
     if not send_realtime_update:
         return
+    if not table_group_has_ws_subscribers(table.id):
+        return
 
     table_page_type = page_registry.get("table")
-    before_rows_values = dict(before_return)[serialize_rows_values]
+    before_rows_values = dict(before_return)[serialize_rows_values] or []
     transaction.on_commit(
         lambda: table_page_type.broadcast(
             RealtimeRowMessages.rows_updated(
@@ -183,6 +195,10 @@ def rows_ai_values_generation_error(
 
 @receiver(row_signals.before_rows_delete)
 def before_rows_delete(sender, rows, user, table, model, **kwargs):
+    if not table_group_has_ws_subscribers(table.id):
+        # The websocket delete broadcast is the only consumer of these
+        # serialized rows, so without subscribers nothing needs serializing.
+        return None
     return get_row_serializer_class(model, RowSerializer, is_response=True)(
         rows, many=True
     ).data
@@ -194,13 +210,15 @@ def rows_deleted(
 ):
     if not send_realtime_update:
         return
+    if not table_group_has_ws_subscribers(table.id):
+        return
 
     table_page_type = page_registry.get("table")
     transaction.on_commit(
         lambda: table_page_type.broadcast(
             RealtimeRowMessages.rows_deleted(
                 table_id=table.id,
-                serialized_rows=dict(before_return)[before_rows_delete],
+                serialized_rows=dict(before_return)[before_rows_delete] or [],
             ),
             getattr(user, "web_socket_id", None),
             table_id=table.id,

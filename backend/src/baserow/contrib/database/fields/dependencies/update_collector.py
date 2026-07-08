@@ -17,6 +17,9 @@ from baserow.contrib.database.table.constants import (
 )
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.signals import table_updated
+from baserow.contrib.database.ws.realtime_listeners import (
+    table_group_has_ws_subscribers,
+)
 
 StartingRowIdsType = Optional[List[int]]
 
@@ -353,6 +356,11 @@ class PathBasedUpdateStatementCollector:
             return
         if starting_row_ids is None or not path_to_starting_table:
             # Starting rows and whole-column updates are broadcast elsewhere.
+            return
+        if not table_group_has_ws_subscribers(self.table.id):
+            # The snapshot only feeds the websocket broadcast of this table's
+            # dependant rows; without subscribers the broadcast falls back to
+            # the already supported id-only skeletons.
             return
 
         model = field_cache.get_model(self.table)
