@@ -3,11 +3,13 @@
  * a minimal in-memory implementation on the global scope for tests that need it.
  */
 export function installLocalStorageMock() {
-  if (global.localStorage) {
+  if (globalThis.localStorage) {
     return
   }
-  const store = {}
-  global.localStorage = {
+  // Null-prototype store so keys like `toString` or `__proto__` behave like
+  // real localStorage entries instead of hitting inherited properties.
+  const store = Object.create(null)
+  globalThis.localStorage = {
     getItem: (key) => (key in store ? store[key] : null),
     setItem: (key, value) => {
       store[key] = String(value)
