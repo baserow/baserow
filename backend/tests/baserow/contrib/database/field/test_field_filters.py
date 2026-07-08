@@ -292,3 +292,31 @@ def test_advanced_filter_builder_apply_filters_correctly(data_fixture):
     assert queryset.count() == 2
     assert row_1 in queryset
     assert row_3 in queryset
+
+
+@pytest.mark.django_db
+def test_apply_to_queryset_only_uses_distinct_when_joins_can_duplicate_rows(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    other_table = data_fixture.create_database_table(user=user, database=table.database)
+    text_field = data_fixture.create_text_field(table=table, name="text")
+    link_field = data_fixture.create_link_row_field(
+        table=table, link_row_table=other_table, name="link"
+    )
+    model = table.get_model()
+
+    # A filter on a plain column can't duplicate rows, so no distinct is
+    # needed, which keeps the count query a plain COUNT(*).
+    scalar_queryset = FilterBuilder(FILTER_TYPE_AND).filter(
+        Q(**{f"field_{text_field.id}": "a"})
+    ).apply_to_queryset(model.objects.all())
+    assert scalar_queryset.query.distinct is False
+
+    # A filter joining through a link row relation can match the same row via
+    # multiple join paths, so distinct must be kept.
+    joined_queryset = FilterBuilder(FILTER_TYPE_AND).filter(
+        Q(**{f"field_{link_field.id}__id__in": [1]})
+    ).apply_to_queryset(model.objects.all())
+    assert joined_queryset.query.distinct is True

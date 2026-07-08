@@ -168,10 +168,16 @@ class FilterBuilder:
             self._q_filters
         )
 
-        # When using OR conditions in filters that involve joined tables, the SQL query
-        # may produce duplicate rows because multiple join paths can match the same
-        # record. Applying distinct() ensures we return only unique results.
-        return filtered_queryset.distinct()
+        # When filters involve joined tables, the SQL query may produce duplicate
+        # rows because multiple join paths can match the same record, so
+        # distinct() ensures only unique results are returned. Without joins
+        # distinct() is skipped because it makes the count query wrap a
+        # `SELECT DISTINCT <all columns>` over the whole table, which is orders
+        # of magnitude slower on large tables. Subquery annotations don't add
+        # aliases, only real joins do.
+        if len(filtered_queryset.query.alias_map) > 1:
+            return filtered_queryset.distinct()
+        return filtered_queryset
 
     def get_filters_and_annotations(self) -> Tuple[Q, Dict[str, Any]]:
         """
