@@ -101,6 +101,16 @@ class FilteredViewRowChecker:
                     )
                 )
 
+    @property
+    def has_views(self) -> bool:
+        """
+        Returns whether any view matched the provided queryset and realtime
+        requirements. When False, no rows can ever be visible in any view and
+        callers can skip serializing rows for view events entirely.
+        """
+
+        return bool(self._views_with_filters or self._views_without_filters)
+
     def _view_row_checks_can_be_cached(self, view):
         if self._updated_field_ids is None:
             # If the updated field_ids are `None`, then we assume that all the cell

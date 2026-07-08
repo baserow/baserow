@@ -88,6 +88,10 @@ def views_rows_created(
     row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
+    if not row_checker.has_views:
+        # Without any view requiring realtime events there is nothing to
+        # broadcast, so the serialization can be skipped entirely.
+        return
     transaction.on_commit(
         lambda: _send_rows_created_event_to_views(
             serialize_rows_for_response(rows, model),
@@ -104,6 +108,10 @@ def views_before_rows_delete(sender, rows, user, table, model, **kwargs):
     row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
+    if not row_checker.has_views:
+        # Without any view requiring realtime events there is nothing to
+        # broadcast, so the serialization can be skipped entirely.
+        return {"deleted_rows_views": [], "deleted_rows": []}
     return {
         "deleted_rows_views": (
             row_checker.get_filtered_views_where_rows_are_visible(rows)
@@ -142,6 +150,8 @@ def views_before_rows_update(
         only_include_views_which_want_realtime_events=True,
         updated_field_ids=updated_field_ids,
     )
+    if not row_checker.has_views:
+        return {"old_rows_views": [], "caching_row_checker": row_checker}
     return {
         "old_rows_views": row_checker.get_filtered_views_where_rows_are_visible(rows),
         "caching_row_checker": row_checker,
@@ -165,6 +175,10 @@ def views_rows_updated(
         return
 
     before_return_dict = dict(before_return)[views_before_rows_update]
+    if not before_return_dict["caching_row_checker"].has_views:
+        # Without any view requiring realtime events there is nothing to
+        # broadcast, so the serialization can be skipped entirely.
+        return
     serialized_old_rows = dict(before_return)[serialize_rows_values]
     serialized_updated_rows = serialize_rows_for_response(rows, model)
 
