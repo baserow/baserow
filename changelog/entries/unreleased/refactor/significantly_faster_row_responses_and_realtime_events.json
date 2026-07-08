@@ -1,0 +1,9 @@
+{
+  "type": "refactor",
+  "message": "Significantly faster row listing, creating, updating and deleting: row payloads are serialized natively instead of through DRF, link row display values are fetched without loading every linked row, realtime payloads are skipped for tables nobody is watching, and view counts no longer scan the whole table.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-07-08"
+}

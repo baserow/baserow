@@ -3,8 +3,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from rest_framework import serializers
 
-from baserow.core.cache import local_cache
-
 # Serializes the row `order` column exactly like the DRF RowSerializer does.
 _ORDER_FIELD = serializers.DecimalField(max_digits=40, decimal_places=20)
 
@@ -169,11 +167,16 @@ def _build_converters(
 
 
 def _get_converters(model) -> Tuple[Dict[int, Tuple[str, Callable]], List[int]]:
-    table = model.baserow_table
-    return local_cache.get(
-        f"native_row_converters_{table.id}_{table.version}",
-        lambda: _build_converters(model),
-    )
+    # The converters are cached on the generated model class itself because
+    # they depend on the exact model variant: models generated with
+    # attribute_names or a filtered field set expose different attributes for
+    # the same table. Default models are themselves cached per request, so
+    # the converters are built at most once per model per request.
+    cached = model.__dict__.get("_baserow_native_row_converters")
+    if cached is None:
+        cached = _build_converters(model)
+        model._baserow_native_row_converters = cached
+    return cached
 
 
 def native_serialize_rows(

@@ -135,3 +135,34 @@ def test_native_serialization_light_link_fetch_matches_prefetched_output(
             assert native_row[key] == drf_row[key], (
                 f"Field {key} differs: DRF={drf_row[key]!r} native={native_row[key]!r}"
             )
+
+
+@pytest.mark.django_db
+def test_native_serialization_handles_model_variants(data_fixture):
+    """
+    Models generated with attribute_names or a filtered field set expose
+    different attributes for the same table, so the converters must not leak
+    between model variants (regression test for created_on/last_modified
+    fields serialized through an attribute_names model).
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="My Text", primary=True)
+    data_fixture.create_created_on_field(table=table, name="Created")
+
+    default_model = table.get_model()
+    default_model.objects.create()
+
+    attribute_model = table.get_model(attribute_names=True)
+    default_rows = list(default_model.objects.all())
+    attribute_rows = list(attribute_model.objects.all())
+
+    # Serialize through the default model first so its converters are cached,
+    # then through the attribute_names model, which must use its own.
+    assert_serialization_identical(default_model, default_rows)
+    drf = get_row_serializer_class(
+        attribute_model, RowSerializer, is_response=True
+    )(attribute_rows, many=True).data
+    native = native_serialize_rows(attribute_model, attribute_rows)
+    assert as_json(native) == as_json(drf)
