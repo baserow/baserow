@@ -1377,17 +1377,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             table,
             starting_row_ids=[row.id for row in updated_rows],
             deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
+            update_changes_only=True,
             collect_dependant_rows=collect_dependant_rows,
         )
         updated_fields = []
-        for depth, dependant_fields_group in enumerate(
-            all_dependent_fields_grouped_by_depth
-        ):
-            dependency_context = DependencyContext(depth=depth)
+        for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for (
                 dependant_field,
                 dependant_field_type,
                 path_to_starting_table,
+                depth,
             ) in dependant_fields_group:
                 updated_fields.append(dependant_field)
                 dependant_field_type.row_of_dependency_updated(
@@ -1396,7 +1395,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     update_collector,
                     field_cache,
                     path_to_starting_table,
-                    dependency_context,
+                    DependencyContext(depth=depth),
                 )
             update_collector.apply_updates_and_get_updated_fields(
                 field_cache, skip_search_updates
@@ -1745,6 +1744,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         update_collector = FieldUpdateCollector(
             table,
             starting_row_ids=row_ids,
+            update_changes_only=True,
             collect_dependant_rows=collect_dependant_rows,
         )
 
@@ -1774,14 +1774,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
         )
 
-        for depth, dependant_fields_group in enumerate(
-            all_dependent_fields_grouped_by_depth
-        ):
-            dependency_context = DependencyContext(depth=depth)
+        for dependant_fields_group in all_dependent_fields_grouped_by_depth:
             for (
                 dependant_field,
                 dependant_field_type,
                 path_to_starting_table,
+                depth,
             ) in dependant_fields_group:
                 dependant_fields.append(dependant_field)
 
@@ -1791,7 +1789,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     update_collector,
                     field_cache,
                     path_to_starting_table,
-                    dependency_context,
+                    DependencyContext(depth=depth),
                 )
             update_collector.apply_updates_and_get_updated_fields(field_cache)
         return fields, dependant_fields, update_collector.get_dependant_rows_updates()
@@ -3148,6 +3146,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         update_collector = FieldUpdateCollector(
             table,
             starting_row_ids=[row.id],
+            update_changes_only=True,
             collect_dependant_rows=collect_dependant_rows,
         )
         field_cache = FieldCache()
@@ -3174,14 +3173,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
         )
 
-        for depth, dependent_fields_level in enumerate(
-            all_dependent_fields_grouped_by_level
-        ):
-            dependency_context = DependencyContext(depth=depth)
+        for dependent_fields_level in all_dependent_fields_grouped_by_level:
             for (
                 dependant_field,
                 dependant_field_type,
                 path_to_starting_table,
+                depth,
             ) in dependent_fields_level:
                 dependant_fields.append(dependant_field)
 
@@ -3191,7 +3188,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     update_collector,
                     field_cache,
                     path_to_starting_table,
-                    dependency_context,
+                    DependencyContext(depth=depth),
                 )
 
             update_collector.apply_updates_and_get_updated_fields(field_cache)
@@ -3331,6 +3328,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         update_collector = FieldUpdateCollector(
             table,
             starting_row_ids=row_ids,
+            update_changes_only=True,
             collect_dependant_rows=send_realtime_update,
         )
         field_cache = FieldCache()
@@ -3346,14 +3344,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
         )
 
-        for depth, dependent_fields_level in enumerate(
-            all_dependent_fields_grouped_by_level
-        ):
-            dependency_context = DependencyContext(depth=depth)
+        for dependent_fields_level in all_dependent_fields_grouped_by_level:
             for (
                 table_id,
                 dependant_field,
                 path_to_starting_table,
+                depth,
             ) in dependent_fields_level:
                 dependant_fields.append(dependant_field)
                 dependant_field_type = field_type_registry.get_by_model(dependant_field)
@@ -3363,7 +3359,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     update_collector,
                     field_cache,
                     path_to_starting_table,
-                    dependency_context,
+                    DependencyContext(depth=depth),
                 )
             update_collector.apply_updates_and_get_updated_fields(field_cache)
 

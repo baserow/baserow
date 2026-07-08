@@ -176,6 +176,7 @@ from .dependencies.exceptions import (
 )
 from .dependencies.handler import FieldDependants, FieldDependencyHandler
 from .dependencies.models import FieldDependency
+from .dependencies.statement_builder import execute_update_statements_returning_ids
 from .dependencies.types import FieldDependencies
 from .dependencies.update_collector import DependencyContext, FieldUpdateCollector
 from .exceptions import (
@@ -5857,7 +5858,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
-            for table_id, dependant_field, _ in dependant_fields_group:
+            for table_id, dependant_field, _, _depth in dependant_fields_group:
                 if not isinstance(dependant_field, FormulaField):
                     # LinkRowFields might depends on FormulaFields, but we can't update
                     # them here because this is only valid for FormulaFields.
@@ -6018,7 +6019,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         expr = FormulaHandler.baserow_expression_to_update_django_expression(
             field.cached_typed_internal_expression, model
         )
-        model.objects_and_trash.all().update(**{f"{field.db_column}": expr})
+        execute_update_statements_returning_ids(model, {field.db_column: expr}, [None])
 
     def after_rows_created(
         self,
@@ -6045,7 +6046,16 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         expr = FormulaHandler.baserow_expression_to_update_django_expression(
             to_field.cached_typed_internal_expression, to_model
         )
-        to_model.objects_and_trash.all().update(**{f"{to_field.db_column}": expr})
+        # Only rewrite rows whose value actually changes, so that an edit
+        # leaving (some) values untouched doesn't cause write amplification
+        # and doesn't reindex or broadcast unchanged rows. The returned ids
+        # let the caller scope those side effects to the changed rows.
+        return execute_update_statements_returning_ids(
+            to_model,
+            {to_field.db_column: expr},
+            [None],
+            update_changes_only=True,
+        )
 
     def after_import_serialized(self, field, field_cache, id_mapping):
         field.save(recalculate=True, field_cache=field_cache)

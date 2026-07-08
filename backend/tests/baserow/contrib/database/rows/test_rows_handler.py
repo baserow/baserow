@@ -1696,7 +1696,7 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
 
     # An UPDATE query to set the formula field value + 1 query due
     # to FormulaFieldType.after_rows_created
-    with django_assert_num_queries(len(captured.captured_queries) + 2):
+    with django_assert_num_queries(len(captured.captured_queries) + 3):
         (r,) = (
             RowHandler()
             .force_create_rows(
@@ -1722,7 +1722,7 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     )
     model = table.get_model()
 
-    with django_assert_num_queries(len(captured.captured_queries) + 2):
+    with django_assert_num_queries(len(captured.captured_queries) + 3):
         (r,) = (
             RowHandler()
             .force_create_rows(
@@ -1740,8 +1740,9 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     assert getattr(r, f"field_{f1.id}") == "Stelvio-a"
     assert getattr(r, f"field_{f2.id}") == "Stelvio-b"
 
-    # But a formula referencing another formula requires an additional query
-    # because it needs the result of the first formula to calculate the second
+    # A formula referencing another formula is inlined into the same UPDATE
+    # query, substituting the reference with the referenced formula's own
+    # expression, so no additional query is needed.
     f3 = data_fixture.create_formula_field(
         table=table,
         name="F3",
@@ -1749,8 +1750,6 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_created(
     )
     model = table.get_model()
 
-    # Now a second UPDATE query is needed, so that F3 can use the result
-    # of F1 to correctly calculate its value
     with django_assert_num_queries(len(captured.captured_queries) + 3):
         (r,) = (
             RowHandler()
@@ -1816,7 +1815,7 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_updated(
     model = table.get_model()
 
     # An UPDATE query to set the formula field value
-    with django_assert_num_queries(len(captured.captured_queries) + 1):
+    with django_assert_num_queries(len(captured.captured_queries) + 2):
         res = RowHandler().force_update_rows(
             user=user,
             table=table,
@@ -1840,7 +1839,7 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_updated(
     )
     model = table.get_model()
 
-    with django_assert_num_queries(len(captured.captured_queries) + 1):
+    with django_assert_num_queries(len(captured.captured_queries) + 2):
         res = RowHandler().force_update_rows(
             user=user,
             table=table,
@@ -1856,8 +1855,9 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_updated(
     assert getattr(r, f"field_{f1.id}") == "Stelvio-a"
     assert getattr(r, f"field_{f2.id}") == "Stelvio-b"
 
-    # But a formula referencing another formula requires an additional query
-    # because it needs the result of the first formula to calculate the second
+    # A formula referencing another formula is inlined into the same UPDATE
+    # query, substituting the reference with the referenced formula's own
+    # expression, so no additional query is needed.
     f3 = data_fixture.create_formula_field(
         table=table,
         name="F3",
@@ -1865,8 +1865,6 @@ def test_formula_referencing_fields_add_additional_queries_on_rows_updated(
     )
     model = table.get_model()
 
-    # Now a second UPDATE query is needed, so that F3 can use the result
-    # of F1 to correctly calculate its value
     with django_assert_num_queries(len(captured.captured_queries) + 2):
         res = RowHandler().force_update_rows(
             user=user,

@@ -5,6 +5,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple, cast
 from django.conf import settings
 from django.db.models import Expression, Q, Value
 
+from baserow.contrib.database.fields.dependencies.statement_builder import (
+    execute_update_statements_returning_ids,
+)
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.signals import field_updated, fields_type_changed
@@ -191,6 +194,7 @@ class PathBasedUpdateStatementCollector:
                     next_via_field_link.table,
                     next_via_field_link,
                     connection_is_broken=self.connection_is_broken,
+                    update_changes_only=self.update_changes_only,
                 )
             self.sub_paths[
                 next_link_db_column
@@ -208,7 +212,10 @@ class PathBasedUpdateStatementCollector:
         broken_name = f"broken_connection_to_table_{field.table_id}"
         if broken_name not in self.sub_paths:
             collector = PathBasedUpdateStatementCollector(
-                field.table, None, connection_is_broken=True
+                field.table,
+                None,
+                connection_is_broken=True,
+                update_changes_only=self.update_changes_only,
             )
             self.sub_paths[broken_name] = collector
         else:
@@ -363,14 +370,13 @@ class PathBasedUpdateStatementCollector:
             cap = limit + 1 - len(before)
             if cap <= 0:
                 break
-            rows = [
-                row
-                for row in model.objects.filter(row_filter)
-                .enhance_by_fields()
-                .order_by()
-                .distinct()[:cap]
-                if row.id not in before
-            ]
+            queryset = model.objects.filter(row_filter)
+            if before:
+                # Rows snapshotted by an earlier statement are excluded in the
+                # query, so their (potentially large) prefetches aren't
+                # fetched again just to be thrown away.
+                queryset = queryset.exclude(id__in=list(before.keys()))
+            rows = list(queryset.enhance_by_fields().order_by().distinct()[:cap])
             for row, serialized in zip(rows, serializer_class(rows, many=True).data):
                 before[row.id] = serialized
 
@@ -515,49 +521,21 @@ class PathBasedUpdateStatementCollector:
                 )
             ]
         else:
-            querysets = [base_queryset]
+            # A None queryset updates the whole table.
+            querysets = [None]
         if starting_row_ids is None:
             # We aren't updating individual rows but instead entire columns, so don't
             # set this per row attribute.
             self.update_statements.pop(ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME, None)
 
-        updated_row_ids = []
-        if self.update_statements:
-            annotations, filters = {}, Q()
-
-            # If we are only updating changes, we need to filter out rows that don't
-            # need to be updated. Because of how postgres works, this could save a lot
-            # of disk space and IO, at the cost of a more complex query and a longer
-            # execution time, but if we're updating an entire field or only certain
-            # rows, it's better to skip this optimization.
-            if self.update_changes_only:
-                for field, expr in self.update_statements.items():
-                    if expr is None or not field.startswith("field_"):
-                        continue
-
-                    annotated_field = f"{field}_expr"
-                    annotations[annotated_field] = expr
-                    # Because the expression can evaluate to null and because of how the
-                    # comparison with null should be handle in SQL
-                    # (https://www.postgresql.org/docs/15/functions-comparison.html), we
-                    # need to properly filter rows to correctly update only the ones
-                    # that need to be updated.
-                    filters |= Q(
-                        **{
-                            f"{field}__isnull": False,
-                            f"{annotated_field}__isnull": True,
-                        }
-                    ) | ~Q(**{field: expr})
-
-            # Recalculating a row twice is idempotent, so overlapping filters
-            # (e.g. a starting row linking to another starting row) are fine.
-            for qs in querysets:
-                updated_row_ids += (
-                    qs.annotate(**annotations)
-                    .filter(filters)
-                    .update_returning_ids(**self.update_statements)
-                )
-        return updated_row_ids
+        # Recalculating a row twice is idempotent, so overlapping filters
+        # (e.g. a starting row linking to another starting row) are fine.
+        return execute_update_statements_returning_ids(
+            model,
+            self.update_statements,
+            querysets,
+            update_changes_only=self.update_changes_only,
+        )
 
     def _include_rows_connected_to_deleted_m2m_relationships(
         self,
@@ -881,9 +859,14 @@ class FieldUpdateCollector:
                     continue
 
                 fields = self._get_updated_fields_in_table(table)
-                SearchHandler.schedule_update_search_data(
-                    table, fields=fields, row_ids=list(row_ids)
-                )
+                if len(row_ids) > settings.SEARCH_UPDATE_ROW_IDS_LIMIT:
+                    # Serializing huge id lists into the task queue is worse
+                    # than rebuilding the whole fields.
+                    SearchHandler.schedule_update_search_data(table, fields=fields)
+                else:
+                    SearchHandler.schedule_update_search_data(
+                        table, fields=fields, row_ids=list(row_ids)
+                    )
 
         updated_fields = self._get_updated_fields_in_table(self._starting_table)
 

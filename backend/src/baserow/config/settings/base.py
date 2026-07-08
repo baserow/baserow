@@ -862,6 +862,13 @@ SEARCH_UPDATE_BATCH_SIZE = int(
     os.getenv("BASEROW_SEARCH_UPDATE_BATCH_SIZE", 2000)
 )  # How many rows to process per batch in search index updates.
 
+# The maximum amount of explicit row ids passed along when scheduling search
+# index updates. Above the limit a full field rebuild is scheduled instead,
+# which avoids serializing huge id lists into the task queue.
+SEARCH_UPDATE_ROW_IDS_LIMIT = int(
+    os.getenv("BASEROW_SEARCH_UPDATE_ROW_IDS_LIMIT", 5000)
+)
+
 # Maximum count of records considered as a 'small table' during field rule operations.
 FIELD_RULE_ROWS_LIMIT = int(os.getenv("FIELD_RULE_ROWS_LIMIT", BATCH_ROWS_SIZE_LIMIT))
 

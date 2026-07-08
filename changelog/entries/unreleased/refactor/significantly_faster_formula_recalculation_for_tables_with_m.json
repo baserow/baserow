@@ -1,0 +1,9 @@
+{
+  "type": "refactor",
+  "message": "Significantly faster formula recalculation for tables with many lookups, rollups and linked rows: aggregates are calculated in shared scans, chained formulas update in a single statement, and rows whose values didn't change are no longer rewritten, reindexed or broadcast.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-07-08"
+}

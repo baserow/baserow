@@ -10,9 +10,35 @@ from django.db.models import (
     Field,
     Func,
     JSONField,
+    Subquery,
     Transform,
     Value,
 )
+
+
+class AggregateSubquery(Subquery):
+    """
+    A Subquery wrapping a single aggregated expression over a joined table,
+    which compiles exactly like a plain correlated Subquery but additionally
+    retains the pre-aggregation building blocks (the raw aggregate expression,
+    the FilteredRelation annotations it aggregates over and the filters that
+    apply to the aggregation). The update statement collector uses these to
+    merge every aggregate over the same joins into a single grouped scan
+    instead of executing one correlated subquery per aggregate per row.
+    """
+
+    def __init__(
+        self,
+        queryset,
+        wrapped_aggregate=None,
+        pre_annotations=None,
+        aggregate_filters=None,
+        **extra,
+    ):
+        super().__init__(queryset, **extra)
+        self.wrapped_aggregate = wrapped_aggregate
+        self.pre_annotations = pre_annotations or {}
+        self.aggregate_filters = aggregate_filters or []
 
 
 # noinspection PyAbstractClass

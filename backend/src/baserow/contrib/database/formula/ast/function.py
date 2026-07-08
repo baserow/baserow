@@ -9,7 +9,6 @@ from django.db.models import (
     Model,
     OuterRef,
     QuerySet,
-    Subquery,
     Value,
 )
 from django.db.models.fields import DurationField
@@ -23,6 +22,7 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowFunctionDefinition,
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    AggregateSubquery,
     AndExpr,
 )
 from baserow.contrib.database.formula.expression_generator.generator import (
@@ -263,7 +263,12 @@ def aggregate_wrapper(
     """
 
     subquery = construct_aggregate_wrapper_queryset(expr_with_metadata, model)
-    expr: Expression = Subquery(subquery)
+    expr: Expression = AggregateSubquery(
+        subquery,
+        wrapped_aggregate=expr_with_metadata.expression,
+        pre_annotations=expr_with_metadata.pre_annotations,
+        aggregate_filters=expr_with_metadata.aggregate_filters,
+    )
 
     output_field = expr_with_metadata.expression.output_field
 

@@ -2372,10 +2372,15 @@ class BaserowStringAggManyToManyValues(OneArgumentBaserowFunction):
         func_call: BaserowFunctionCall,
         arg: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaType]:
-        if value_key := getattr(
-            arg.expression_type, "custom_string_agg_value_key", None
-        ):
-            self.value_key = value_key
+        # This function definition is a registry singleton, so the value key
+        # must always be (re)set from the argument type: a sticky value from
+        # a previously typed formula (e.g. "first_name" from a multiple
+        # collaborators field) would otherwise leak into every following
+        # multiple select formula.
+        self.value_key = (
+            getattr(arg.expression_type, "custom_string_agg_value_key", None)
+            or "value"
+        )
         return func_call.with_valid_type(BaserowFormulaTextType())
 
     def to_django_expression(self, arg: Expression) -> Expression:

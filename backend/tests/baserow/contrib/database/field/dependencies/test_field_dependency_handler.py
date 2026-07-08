@@ -352,17 +352,17 @@ def test_get_all_dependant_fields_with_type(data_fixture):
     )
     expexted_results_by_depth = (
         [
-            (text_field_1_dependency_1, text_field_type, None),
-            (text_field_1_dependency_2, text_field_type, None),
-            (text_field_2_dependency_1, text_field_type, None),
-            (other_table_field, text_field_type, [link_field_to_table]),
-            (text_field_2_dependency_3, text_field_type, None),
-            (text_field_1_and_2_dependency_1, text_field_type, None),
+            (text_field_1_dependency_1, text_field_type, None, 0),
+            (text_field_1_dependency_2, text_field_type, None, 0),
+            (text_field_2_dependency_1, text_field_type, None, 0),
+            (other_table_field, text_field_type, [link_field_to_table], 0),
+            (text_field_2_dependency_3, text_field_type, None, 0),
+            (text_field_1_and_2_dependency_1, text_field_type, None, 0),
         ],
         [
-            (text_field_1_dependency_1_dependency_1, text_field_type, None),
-            (text_field_1_dependency_2_dependency_1, text_field_type, None),
-            (text_field_2_dependency_1_dependency_1, text_field_type, None),
+            (text_field_1_dependency_1_dependency_1, text_field_type, None, 1),
+            (text_field_1_dependency_2_dependency_1, text_field_type, None, 1),
+            (text_field_2_dependency_1_dependency_1, text_field_type, None, 1),
         ],
     )
 

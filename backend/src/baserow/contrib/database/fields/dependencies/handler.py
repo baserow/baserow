@@ -27,6 +27,9 @@ from baserow.core.types import PermissionCheck
 from .models import FieldDependency
 
 FieldDependants = List[Tuple[Field, FieldType, List[LinkRowField]]]
+# Same as FieldDependants, with the original dependency depth of the field
+# appended to every entry.
+FieldDependantsWithDepth = List[Tuple[Field, FieldType, List[LinkRowField], int]]
 
 
 class FieldDependencyHandler:
@@ -357,6 +360,173 @@ class FieldDependencyHandler:
         return levels
 
     @classmethod
+    def _coalesce_dependency_levels(
+        cls,
+        levels: List[List[int]],
+        dependencies: Dict[int, Set[int]],
+        pending_field_ids: Set[int],
+        edges: Dict[Tuple[int, int], Set[Optional[int]]],
+        field_info: Dict[int, Dict],
+    ) -> List[List[int]]:
+        """
+        Merges consecutive topological levels into as few statement groups as
+        possible. All fields in one group are handed to the update collector
+        together and applied with a single pass of update statements, so a
+        field may only join the current group when every one of its updated
+        dependencies either:
+
+        - is not being updated at all (its stored values are already final),
+        - lives in an earlier, already applied group, or
+        - is a same-table, no-via formula dependency targeted at exactly the
+          same statement nodes, in which case the collector inlines its
+          expression into the dependant's statement so both are calculated
+          consistently in one UPDATE.
+
+        A dependency through a via link (including self-links, which read
+        other rows' persisted values) or towards another table must be
+        physically written before the dependant recalculates, so it forces a
+        new group.
+
+        :param levels: The topologically sorted levels of field ids.
+        :param dependencies: A dict of field id to the ids of the fields it
+            depends on.
+        :param pending_field_ids: The ids of all fields that will receive an
+            update in this cascade.
+        :param edges: A dict of (dependant id, dependency id) to the set of
+            via link field ids of their dependency edges (None for a direct
+            same-row dependency).
+        :param field_info: Per pending field id a dict with its table_id,
+            whether it is a formula-like field and the frozenset of statement
+            node keys it is targeted at.
+        :return: The coalesced groups of field ids, in application order.
+        """
+
+        groups = []
+        flushed: Set[int] = set()
+        current: List[int] = []
+        current_ids: Set[int] = set()
+
+        for level in levels:
+            for field_id in level:
+                if field_id not in field_info:
+                    continue
+                info = field_info[field_id]
+                can_join = True
+                for dependency_id in dependencies.get(field_id, ()):
+                    if (
+                        dependency_id not in pending_field_ids
+                        or dependency_id in flushed
+                    ):
+                        continue
+                    dependency_info = field_info.get(dependency_id)
+                    edge_vias = edges.get((field_id, dependency_id))
+                    if (
+                        dependency_id in current_ids
+                        and dependency_info is not None
+                        and info["is_formula"]
+                        and dependency_info["is_formula"]
+                        and dependency_info["table_id"] == info["table_id"]
+                        and edge_vias == {None}
+                        and dependency_info["node_keys"] == info["node_keys"]
+                    ):
+                        continue
+                    can_join = False
+                    break
+                if not can_join and current:
+                    groups.append(current)
+                    flushed |= current_ids
+                    current, current_ids = [], set()
+                current.append(field_id)
+                current_ids.add(field_id)
+        if current:
+            groups.append(current)
+        return groups
+
+    @classmethod
+    def _coalesce_and_annotate_levels(
+        cls,
+        dependencies_grouped_by_level: List[List[int]],
+        dependencies: Dict[int, Set[int]],
+        dependency_map: Dict[int, List[Tuple]],
+        get_field,
+        get_node_key,
+    ) -> List[List[Tuple]]:
+        """
+        Coalesces the given topological levels into statement groups and
+        returns for every group the dependency map entries of its fields with
+        the original level index appended, so consumers keep seeing the real
+        dependency depth of every field.
+
+        :param dependencies_grouped_by_level: The topologically sorted levels
+            of field ids.
+        :param dependencies: A dict of field id to the ids of the fields it
+            depends on.
+        :param dependency_map: A dict of field id to the list of consumer
+            facing entries for that field.
+        :param get_field: Callable returning the field of an entry.
+        :param get_node_key: Callable returning the statement node key of an
+            entry, identifying the update collector node the field's update
+            statement is registered at.
+        :return: A list of groups, each containing the entries of its fields
+            with the original level index appended to every entry tuple.
+        """
+
+        from baserow.contrib.database.fields.models import FormulaField
+
+        pending_field_ids = set(dependency_map.keys())
+        if not pending_field_ids:
+            return []
+
+        edges: Dict[Tuple[int, int], Set[Optional[int]]] = defaultdict(set)
+        for dependant_id, dependency_id, via_id in FieldDependency.objects.filter(
+            dependant_id__in=pending_field_ids
+        ).values_list("dependant_id", "dependency_id", "via_id"):
+            if dependency_id is not None:
+                edges[(dependant_id, dependency_id)].add(via_id)
+
+        # The topological levels include the starting fields themselves and
+        # other fields without pending updates; the depth consumers see only
+        # counts levels actually containing pending fields, like the levels
+        # this method used to return before groups were coalesced.
+        original_level = {}
+        pending_level_index = 0
+        for level in dependencies_grouped_by_level:
+            pending_in_level = [
+                field_id for field_id in level if field_id in dependency_map
+            ]
+            for field_id in pending_in_level:
+                original_level[field_id] = pending_level_index
+            if pending_in_level:
+                pending_level_index += 1
+
+        field_info = {}
+        for field_id, entries in dependency_map.items():
+            field = get_field(entries[0])
+            field_info[field_id] = {
+                "table_id": field.table_id,
+                "is_formula": isinstance(field, FormulaField),
+                "node_keys": frozenset(get_node_key(entry) for entry in entries),
+            }
+
+        id_groups = cls._coalesce_dependency_levels(
+            dependencies_grouped_by_level,
+            dependencies,
+            pending_field_ids,
+            edges,
+            field_info,
+        )
+
+        groups = []
+        for id_group in id_groups:
+            group = []
+            for field_id in id_group:
+                for entry in dependency_map[field_id]:
+                    group.append((*entry, original_level[field_id]))
+            if group:
+                groups.append(group)
+        return groups
+
+    @classmethod
     def group_all_dependent_fields_by_level_from_fields(
         cls,
         fields: Iterable[Field],
@@ -432,17 +602,19 @@ class FieldDependencyHandler:
 
         dependencies_gouped_by_level = cls.group_dependencies_by_level(dependencies)
 
-        # For every dependency, return the starting table id and the field instance.
-        dependent_fields_by_level = []
-        for group_of_depdencies in dependencies_gouped_by_level:
-            level = []
-            for field_id in group_of_depdencies:
-                if field_id in dependency_map:
-                    level.extend(dependency_map[field_id])
-            if level:
-                dependent_fields_by_level.append(level)
-
-        return dependent_fields_by_level
+        # For every dependency, return the starting table id and the field instance,
+        # coalescing consecutive levels into as few statement groups as possible.
+        return cls._coalesce_and_annotate_levels(
+            dependencies_gouped_by_level,
+            dependencies,
+            dependency_map,
+            get_field=lambda entry: entry[1],
+            get_node_key=lambda entry: (
+                entry[0],
+                entry[1].table_id,
+                tuple(via.id for via in (entry[2] or [])),
+            ),
+        )
 
     @classmethod
     def group_all_dependent_fields_by_level(
@@ -452,7 +624,7 @@ class FieldDependencyHandler:
         field_cache: FieldCache,
         associated_relations_changed: bool,
         database_id_prefilter=None,
-    ) -> List[FieldDependants]:
+    ) -> List[FieldDependantsWithDepth]:
         """
         Recursively fetches field dependants, and fetches the specific types in a query
         efficient and performant manner. The dependants are grouped by their depth,
@@ -522,16 +694,17 @@ class FieldDependencyHandler:
 
         dependencies_gouped_by_level = cls.group_dependencies_by_level(dependencies)
 
-        dependent_fields_by_level = []
-        for group_of_depdencies in dependencies_gouped_by_level:
-            level = []
-            for field_id in group_of_depdencies:
-                if field_id in dependency_map:
-                    level.extend(dependency_map[field_id])
-            if level:
-                dependent_fields_by_level.append(level)
-
-        return dependent_fields_by_level
+        # Coalesce consecutive levels into as few statement groups as possible.
+        return cls._coalesce_and_annotate_levels(
+            dependencies_gouped_by_level,
+            dependencies,
+            dependency_map,
+            get_field=lambda entry: entry[0],
+            get_node_key=lambda entry: (
+                entry[0].table_id,
+                tuple(via.id for via in (entry[2] or [])),
+            ),
+        )
 
     @classmethod
     def get_all_dependent_fields_with_type(

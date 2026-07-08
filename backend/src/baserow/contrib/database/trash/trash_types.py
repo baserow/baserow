@@ -182,8 +182,8 @@ class TableTrashableItemType(TrashableItemType):
             filtered = []
             for group in deps:
                 cross_table = [
-                    (dep_field, dep_type, path)
-                    for dep_field, dep_type, path in group
+                    (dep_field, dep_type, path, depth)
+                    for dep_field, dep_type, path, depth in group
                     if dep_field.table_id != table_to_trash.id
                 ]
                 if cross_table:

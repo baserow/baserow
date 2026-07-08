@@ -438,7 +438,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field_type.init_field_data(instance, to_model)
 
         field_cache.cache_model_fields(to_model)
-        update_collector = FieldUpdateCollector(table)
+        update_collector = FieldUpdateCollector(table, update_changes_only=True)
         updated_fields = self._update_dependencies_of_field_created(
             instance,
             update_collector,
@@ -480,6 +480,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 dependant_field,
                 dependant_field_type,
                 path_to_starting_table,
+                depth,
             ) in dependant_fields_group:
                 dependant_field_type.field_dependency_created(
                     dependant_field,
@@ -672,7 +673,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         from_model_field = from_model._meta.get_field(field.db_column)
         to_model_field = to_model._meta.get_field(field.db_column)
 
-        update_collector = FieldUpdateCollector(field.table)
+        update_collector = FieldUpdateCollector(field.table, update_changes_only=True)
 
         # If the field type or the database representation changes it could be
         # that some view dependencies like filters or sortings need to be changed.
@@ -797,7 +798,10 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 using=DEFAULT_DB_ALIAS
             )
 
-        to_field_type.after_update(
+        # Formula-like field types return the ids of the rows whose values
+        # actually changed, so search updates can be scoped to those rows.
+        # Other field types return None, meaning the changed rows are unknown.
+        changed_row_ids = to_field_type.after_update(
             old_field,
             field,
             from_model,
@@ -838,7 +842,18 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
 
         ViewHandler().field_updated(field)
         if needs_to_update_search_data:
-            SearchHandler.schedule_update_search_data(field.table, fields=[field])
+            if changed_row_ids is None or baserow_field_type_changed:
+                SearchHandler.schedule_update_search_data(field.table, fields=[field])
+            elif len(changed_row_ids) > settings.SEARCH_UPDATE_ROW_IDS_LIMIT:
+                # Serializing huge id lists into the task queue is worse than
+                # rebuilding the whole field.
+                SearchHandler.schedule_update_search_data(field.table, fields=[field])
+            elif len(changed_row_ids) > 0:
+                SearchHandler.schedule_update_search_data(
+                    field.table, fields=[field], row_ids=changed_row_ids
+                )
+            # No changed rows means the stored values are identical, so there
+            # is nothing to reindex.
 
         field_updated.send(
             self,
@@ -873,6 +888,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 dependant_field,
                 dependant_field_type,
                 path_to_starting_table,
+                depth,
             ) in dependant_fields_group:
                 dependant_field_type.field_dependency_updated(
                     dependant_field,
@@ -1105,6 +1121,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 dependant_field,
                 dependant_field_type,
                 path_to_starting_table,
+                depth,
             ) in dependant_fields_group:
                 dependant_field_type.field_dependency_deleted(
                     dependant_field,
@@ -1361,6 +1378,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 dependant_field,
                 dependant_field_type,
                 path_to_starting_table,
+                depth,
             ) in dependant_fields_group:
                 dependant_field_type.field_dependency_created(
                     dependant_field,

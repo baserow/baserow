@@ -919,6 +919,11 @@ class FieldType(
         :param to_field_kwargs: The kwargs that were passed when updating the field
             instance.
         :type to_field_kwargs: dict
+        :return: Optionally the ids of the rows whose stored values actually
+            changed as a result of this hook, so the caller can scope side
+            effects like search index updates to those rows. None means the
+            changed rows are unknown and every row must be assumed changed.
+        :rtype: Optional[List[int]]
         """
 
     def after_delete(self, field, model, connection):

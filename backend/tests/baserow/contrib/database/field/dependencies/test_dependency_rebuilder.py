@@ -341,9 +341,13 @@ def test_trashing_and_restoring_a_field_recreate_dependencies_correctly(data_fix
     deps = FieldDependencyHandler.group_all_dependent_fields_by_level(
         table.id, [text.id], field_cache, associated_relations_changed=False
     )
-    assert len(deps) == 2
+    # f2 only depends on f1 in the same table, so both coalesce into a single
+    # statement group, retaining their original dependency depths.
+    assert len(deps) == 1
     assert deps[0][0][0] == f1
-    assert deps[1][0][0] == f2
+    assert deps[0][0][3] == 0
+    assert deps[0][1][0] == f2
+    assert deps[0][1][3] == 1
 
     row_1 = RowHandler().force_create_row(user, table, {text.db_column: "a"})
     assert getattr(row_1, f2.db_column) == "a"
@@ -364,9 +368,13 @@ def test_trashing_and_restoring_a_field_recreate_dependencies_correctly(data_fix
     deps = FieldDependencyHandler.group_all_dependent_fields_by_level(
         table.id, [text.id], field_cache, associated_relations_changed=False
     )
-    assert len(deps) == 2
+    # f2 only depends on f1 in the same table, so both coalesce into a single
+    # statement group, retaining their original dependency depths.
+    assert len(deps) == 1
     assert deps[0][0][0] == f1
-    assert deps[1][0][0] == f2
+    assert deps[0][0][3] == 0
+    assert deps[0][1][0] == f2
+    assert deps[0][1][3] == 1
 
     row_2.refresh_from_db()
     assert getattr(row_2, f1.db_column) == "b"
