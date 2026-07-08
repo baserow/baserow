@@ -140,4 +140,22 @@ describe('RowEditModalSidebar', () => {
     wrapper.vm.onTabSelected(historyIndex)
     expect(getRowEditModalSidebarTab()).toBe('history')
   })
+
+  test('persists the latest tab when the user switches back and forth', async () => {
+    registerTypes([
+      makeType('comments', { selectedByDefault: true, order: 0 }),
+      makeType('history', { order: 10 }),
+    ])
+    const wrapper = await mount()
+    const commentsIndex = wrapper.vm.sidebarTypes.findIndex(
+      (t) => t.getType() === 'comments'
+    )
+    const historyIndex = wrapper.vm.sidebarTypes.findIndex(
+      (t) => t.getType() === 'history'
+    )
+    wrapper.vm.onTabSelected(historyIndex)
+    expect(getRowEditModalSidebarTab()).toBe('history')
+    wrapper.vm.onTabSelected(commentsIndex)
+    expect(getRowEditModalSidebarTab()).toBe('comments')
+  })
 })

@@ -69,8 +69,9 @@ export default {
   },
   data() {
     return {
-      // Tab type selected on open; used to avoid re-persisting on mount.
-      initialSelectedType: null,
+      // Tab type currently shown. Starts at the initial (auto-opened) tab so
+      // the mount echo is not persisted; updated on each real user selection.
+      selectedType: null,
     }
   },
   computed: {
@@ -105,13 +106,14 @@ export default {
   },
   created() {
     const types = this.sidebarTypes
-    this.initialSelectedType = types[this.selectedTabIndex]?.getType() ?? null
+    this.selectedType = types[this.selectedTabIndex]?.getType() ?? null
   },
   methods: {
-    // Persist the user's tab choice, but not the initial mount selection.
+    // Persist the user's tab choice; skips the mount echo (same type as shown).
     onTabSelected(index) {
       const type = this.sidebarTypes[index]?.getType()
-      if (type && type !== this.initialSelectedType) {
+      if (type && type !== this.selectedType) {
+        this.selectedType = type
         setRowEditModalSidebarTab(type)
       }
     },
