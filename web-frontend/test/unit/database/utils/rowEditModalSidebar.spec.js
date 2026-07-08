@@ -1,30 +1,13 @@
-import { beforeAll } from 'vitest'
 import {
   ROW_EDIT_MODAL_SIDEBAR_TAB_KEY,
   getRowEditModalSidebarTab,
   setRowEditModalSidebarTab,
 } from '@baserow/modules/database/utils/rowEditModalSidebar'
+import { installLocalStorageMock } from '@baserow/test/helpers/localStorage'
 
 describe('rowEditModalSidebar utils', () => {
   beforeAll(() => {
-    // Provide localStorage if not available in test environment
-    if (!global.localStorage) {
-      const store = {}
-      global.localStorage = {
-        getItem: (key) => store[key] ?? null,
-        setItem: (key, value) => {
-          store[key] = value
-        },
-        removeItem: (key) => {
-          delete store[key]
-        },
-        clear: () => {
-          Object.keys(store).forEach((key) => delete store[key])
-        },
-        key: (index) => Object.keys(store)[index] ?? null,
-        length: Object.keys(store).length,
-      }
-    }
+    installLocalStorageMock()
   })
 
   afterEach(() => {

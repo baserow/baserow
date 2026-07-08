@@ -7,7 +7,8 @@ export const ROW_EDIT_MODAL_SIDEBAR_TAB_KEY = 'baserow.rowEditModalSidebarTab'
 export function getRowEditModalSidebarTab() {
   try {
     return localStorage.getItem(ROW_EDIT_MODAL_SIDEBAR_TAB_KEY) || null
-  } catch (e) {
+  } catch {
+    // Ignore storage errors (e.g. unavailable in private mode).
     return null
   }
 }
@@ -16,5 +17,7 @@ export function getRowEditModalSidebarTab() {
 export function setRowEditModalSidebarTab(type) {
   try {
     localStorage.setItem(ROW_EDIT_MODAL_SIDEBAR_TAB_KEY, type)
-  } catch (e) {}
+  } catch {
+    // Ignore storage errors (e.g. unavailable in private mode or over quota).
+  }
 }

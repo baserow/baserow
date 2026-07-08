@@ -5,6 +5,7 @@ import {
   getRowEditModalSidebarTab,
   setRowEditModalSidebarTab,
 } from '@baserow/modules/database/utils/rowEditModalSidebar'
+import { installLocalStorageMock } from '@baserow/test/helpers/localStorage'
 
 // Minimal fake sidebar types so the test does not depend on premium comments.
 // Explicit order mirrors the real types (comments 0, history 10); the database
@@ -45,21 +46,7 @@ describe('RowEditModalSidebar', () => {
   // This Nuxt/happy-dom vitest env does not provide localStorage; polyfill it
   // so the helper's real read/write (and thus persistence assertions) work.
   beforeAll(() => {
-    if (!global.localStorage) {
-      const store = {}
-      global.localStorage = {
-        getItem: (key) => store[key] ?? null,
-        setItem: (key, value) => {
-          store[key] = value
-        },
-        removeItem: (key) => {
-          delete store[key]
-        },
-        clear: () => {
-          Object.keys(store).forEach((key) => delete store[key])
-        },
-      }
-    }
+    installLocalStorageMock()
   })
 
   beforeEach(() => {
