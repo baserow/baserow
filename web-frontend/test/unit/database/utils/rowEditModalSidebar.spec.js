@@ -43,14 +43,14 @@ describe('rowEditModalSidebar utils', () => {
   })
 
   test('get returns null when localStorage throws', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
       throw new Error('unavailable')
     })
     expect(getRowEditModalSidebarTab()).toBe(null)
   })
 
   test('set does not throw when localStorage throws', () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw new Error('unavailable')
     })
     expect(() => setRowEditModalSidebarTab('comments')).not.toThrow()
