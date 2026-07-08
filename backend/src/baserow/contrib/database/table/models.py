@@ -557,12 +557,13 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
     def get_field_object_by_id(
         cls, field_id: int, include_trash: bool = False
     ) -> FieldObject:
-        field_objects = cls.get_field_objects(include_trash)
-
-        try:
-            return next(filter(lambda f: f["field"].id == field_id, field_objects))
-        except StopIteration:
+        # The field objects dicts are keyed by field id, so no scan is needed.
+        field_object = cls._field_objects.get(field_id)
+        if field_object is None and include_trash:
+            field_object = cls._trashed_field_objects.get(field_id)
+        if field_object is None:
             raise ValueError(f"Field with ID {field_id} not found.")
+        return field_object
 
     @classmethod
     def get_field_object_by_user_field_name(

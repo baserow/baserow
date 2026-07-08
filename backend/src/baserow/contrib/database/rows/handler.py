@@ -327,17 +327,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             passed in.
         """
 
-        field_ids = {}
+        field_ids = {
+            field_obj["name"]: field_id for field_id, field_obj in field_objects.items()
+        }
         prepared_values_by_field = defaultdict(dict)
 
-        # organize values by field name
+        # organize values by field name, iterating only the keys every row
+        # actually provides instead of every field of the table.
         for index, row_value in enumerate(rows_values):
-            for field_id, field_obj in field_objects.items():
-                field_name = field_obj["name"]
-                field_type = field_obj["type"]
-                field = field_obj["field"]
-                field_ids[field_name] = field_id
-                if field_name in row_value:
+            for field_name in row_value:
+                if field_name in field_ids:
                     prepared_values_by_field[field_name][index] = row_value[field_name]
 
         # bulk-prepare values per field
@@ -357,14 +356,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         for index, row_value in enumerate(rows_values):
             new_values = deepcopy(row_value)
             row_errors = {}
-            for field_id, field_obj in field_objects.items():
-                field_name = field_obj["name"]
-                if field_name in row_value:
-                    prepared_value = prepared_values_by_field[field_name][index]
-                    if isinstance(prepared_value, Exception):
-                        row_errors[field_name] = [prepared_value]
-                    else:
-                        new_values[field_name] = prepared_value
+            for field_name in row_value:
+                if field_name not in field_ids:
+                    continue
+                prepared_value = prepared_values_by_field[field_name][index]
+                if isinstance(prepared_value, Exception):
+                    row_errors[field_name] = [prepared_value]
+                else:
+                    new_values[field_name] = prepared_value
             if not row_errors:
                 prepared_rows.append(new_values)
             else:
@@ -2281,8 +2280,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         if fields_metadata_by_row_id is None:
             fields_metadata_by_row_id: Dict[RowId, FieldsMetadata] = {}
-        else:
-            fields_metadata_by_row_id = deepcopy(fields_metadata_by_row_id)
 
         for row_id, original_row in rows_by_id.items():
             fields_metadata = self.get_fields_metadata_for_row_history(
@@ -2442,18 +2439,27 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             raise RowDoesNotExist(sorted(list(set(row_ids) - set(db_rows_ids))))
 
         updated_fields = [o["field"] for o in model._field_objects.values()]
-        fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
-            rows_to_update, updated_fields, None
-        )
 
         updated_field_ids = set()
         field_name_to_field = dict()
+        field_key_to_id = dict()
+        for field_id, field_obj in model._field_objects.items():
+            field_name_to_field[field_obj["name"]] = field_obj["field"]
+            field_key_to_id[field_obj["name"]] = field_id
+            field_key_to_id[field_id] = field_id
         for obj in rows_to_update:
-            row_values = prepared_rows_values_by_id[obj.id]
-            for field_id, field_obj in model._field_objects.items():
-                field_name_to_field[field_obj["name"]] = field_obj["field"]
-                if field_id in row_values or field_obj["name"] in row_values:
+            for key in prepared_rows_values_by_id[obj.id]:
+                field_id = field_key_to_id.get(key)
+                if field_id is not None:
                     updated_field_ids.add(field_id)
+
+        # Row history only ever reads the metadata of fields whose values
+        # changed, so it's only serialized for the updated fields.
+        fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
+            rows_to_update,
+            [f for f in updated_fields if f.id in updated_field_ids],
+            None,
+        )
 
         original_row_values_by_id = {}
         for row in rows_to_update:
@@ -2752,8 +2758,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_realtime_update=send_realtime_update,
         )
 
+        # By now `updated_field_ids` also contains the always-update fields,
+        # field-rule fields and same-table dependant fields, which is exactly
+        # the set row history can observe changes for.
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
-            updated_rows_to_return, updated_fields, fields_metadata_by_row_id
+            updated_rows_to_return,
+            [f for f in updated_fields if f.id in updated_field_ids],
+            fields_metadata_by_row_id,
         )
 
         updated_rows_values = [
