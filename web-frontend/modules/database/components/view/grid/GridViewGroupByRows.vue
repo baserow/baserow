@@ -22,7 +22,7 @@
         :class="rowClass(item.row)"
         :style="{
           top: item.y + 'px',
-          transform: `translateX(${leftOffset || 0}px)`,
+          left: (leftOffset || 0) + 'px',
         }"
       >
         <GridViewRow
@@ -251,16 +251,7 @@ export default {
       return {
         'grid-view__group-by-rows-row--warning': this.isWarningRow(row),
         'grid-view__group-by-rows-row--selected': row._.selected,
-        'grid-view__group-by-rows-row--presence': this.rowHasPresence(row),
       }
-    },
-    rowHasPresence(row) {
-      if (this.focusEntriesByRow.has(row.id)) return true
-      const prefix = `${row.id}:`
-      for (const key of this.focusEntriesByCell.keys()) {
-        if (key.startsWith(prefix)) return true
-      }
-      return false
     },
     addRow(event, path) {
       event.preventFieldCellUnselect = true
