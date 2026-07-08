@@ -1125,6 +1125,11 @@
     "title": "Preview & Publish Your App",
     "content": "Click **Preview** to test your app privately. When ready, click **Publish** to share it with the public via a domain."
   },
+  "trashType": {
+    "builder_page": "page",
+    "builder_data_source": "data source",
+    "builder_workflow_action": "workflow action"
+  },
   "pageElementBehaviour": {
     "normal": "Normal",
     "fixed": "Fixed"

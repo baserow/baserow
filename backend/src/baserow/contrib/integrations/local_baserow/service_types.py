@@ -120,6 +120,7 @@ from baserow.core.formula.validator import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.integrations.models import Integration
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -414,8 +415,8 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         :param dispatch_context: The dispatch_context instance used to
             resolve formulas (if any).
         :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
-            a service that has no `Table` associated with it, or if the table/database
-            is trashed.
+            a service that has no integration or `Table` associated with it, or if the
+            integration/table/database is trashed.
         """
 
         if service.table_id is None:
@@ -424,6 +425,18 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if TrashHandler.item_has_a_trashed_parent(service.table, check_item_also=True):
             raise ServiceImproperlyConfiguredDispatchException(
                 "The selected table is trashed"
+            )
+
+        # The integration may be missing, or trashed (excluded by the no-trash
+        # manager, so the relation resolves to None). Either way the service can't
+        # be dispatched until a live integration is assigned/restored. Report it as
+        # a configuration error rather than dereferencing a None integration.
+        if (
+            service.integration_id is None
+            or not Integration.objects.filter(id=service.integration_id).exists()
+        ):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "No integration selected"
             )
 
         return super().resolve_service_formulas(service, dispatch_context)
@@ -559,12 +572,19 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
-        if values.get("integration"):
+        if "integration" in values:
+            # Use the FK column rather than the resolved object: the integration
+            # may be trashed (so the relation resolves to None) but its id must
+            # still be captured, otherwise undoing a change away from a trashed
+            # integration would clear the relation instead of restoring it.
             del values["integration"]
-            values["integration_id"] = instance.integration.id
-        if values.get("table"):
+            values["integration_id"] = instance.integration_id
+        if "table" in values:
+            # Use the FK column rather than the resolved object so a trashed table
+            # (relation resolves to None) still captures its id, and so the
+            # exported key is consistently `table_id` whether or not a table is set.
             del values["table"]
-            values["table_id"] = instance.table.id if instance.table else None
+            values["table_id"] = instance.table_id
         return values
 
     def generate_schema(
@@ -971,9 +991,9 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
-        if values.get("view"):
+        if "view" in values:
             del values["view"]
-            values["view_id"] = instance.view.id
+            values["view_id"] = instance.view_id
         return values
 
 
@@ -1486,9 +1506,9 @@ class LocalBaserowAggregateRowsUserServiceType(
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
-        if values.get("field"):
+        if "field" in values:
             del values["field"]
-            values["field_id"] = instance.field.id
+            values["field_id"] = instance.field_id
         return values
 
     def deserialize_property(

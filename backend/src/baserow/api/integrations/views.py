@@ -40,6 +40,12 @@ from baserow.core.exceptions import (
     ApplicationOperationNotSupported,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.actions import (
+    CreateIntegrationActionType,
+    DeleteIntegrationActionType,
+    MoveIntegrationActionType,
+    UpdateIntegrationActionType,
+)
 from baserow.core.integrations.exceptions import (
     IntegrationDoesNotExist,
     IntegrationNotInSameApplication,
@@ -158,7 +164,7 @@ class IntegrationsView(APIView):
         before = IntegrationHandler().get_integration(before_id) if before_id else None
 
         integration_type = integration_type_registry.get(type_name)
-        integration = IntegrationService().create_integration(
+        integration = CreateIntegrationActionType.do(
             request.user, integration_type, application, before=before, **data
         )
 
@@ -225,7 +231,7 @@ class IntegrationView(APIView):
             base_serializer_class=UpdateIntegrationSerializer,
         )
 
-        integration_updated = IntegrationService().update_integration(
+        integration_updated = UpdateIntegrationActionType.do(
             request.user, integration, **data
         )
 
@@ -271,7 +277,7 @@ class IntegrationView(APIView):
 
         integration = IntegrationHandler().get_integration_for_update(integration_id)
 
-        IntegrationService().delete_integration(request.user, integration)
+        DeleteIntegrationActionType.do(request.user, integration)
 
         return Response(status=204)
 
@@ -334,7 +340,7 @@ class MoveIntegrationView(APIView):
         if before_id:
             before = IntegrationHandler().get_integration(before_id)
 
-        moved_integration = IntegrationService().move_integration(
+        moved_integration = MoveIntegrationActionType.do(
             request.user, integration, before
         )
 

@@ -1,5 +1,6 @@
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
+import { ELEMENT_EVENTS } from '@baserow/modules/builder/enums'
 
 const state = () => ({})
 
@@ -229,6 +230,47 @@ const actions = {
 
       updateContext.updateTimeout = setTimeout(fire, 500)
       updateContext.promiseResolve = resolve
+    })
+  },
+  /**
+   * Re-dispatches every data source bound to the given integration so that the
+   * collection elements pointing at them reset their content. Used when an
+   * integration is trashed (its data sources become misconfigured and have no
+   * records to show) or restored (they repopulate). Affected data sources are
+   * resolved across the current and shared pages.
+   */
+  redispatchForIntegration(
+    { dispatch, getters, rootGetters },
+    { builder, integrationId }
+  ) {
+    const selectedPage = rootGetters['page/getSelected']
+    const sharedPage = rootGetters['page/getSharedPage'](builder)
+    const pages = [selectedPage, sharedPage].filter(Boolean)
+    if (!pages.length) {
+      return
+    }
+
+    const affectedDataSources = getters
+      .getPagesDataSources(pages)
+      .filter((dataSource) => dataSource.integration_id === integrationId)
+    if (!affectedDataSources.length) {
+      return
+    }
+
+    const elements = pages.flatMap((page) =>
+      rootGetters['element/getElementsOrdered'](page)
+    )
+    affectedDataSources.forEach((dataSource) => {
+      dispatch(
+        'element/emitElementEvent',
+        {
+          event: ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE,
+          elements,
+          dataSourceId: dataSource.id,
+          builder,
+        },
+        { root: true }
+      )
     })
   },
   async moveToPage(

@@ -297,8 +297,10 @@ def update_data_source(
     )
     kwargs = ds_update.to_update_kwargs(user, workspace)
     if kwargs:
-        ds = DataSourceService().update_data_source(
-            user, ds, service_type=service_type, **kwargs
+        ds = (
+            DataSourceService()
+            .update_data_source(user, ds, service_type=service_type, **kwargs)
+            .data_source
         )
 
     ds_type = ds.service.get_type().type if ds.service else ""

@@ -24,6 +24,7 @@ from baserow.core.formula.types import (
     BaserowFormulaObject,
 )
 from baserow.core.services.models import Service
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyInt, AnyStr, setup_interesting_test_table
 
@@ -1014,7 +1015,14 @@ def test_delete_data_source(api_client, data_fixture):
     )
     assert response.status_code == HTTP_204_NO_CONTENT
 
-    # Ensure the service also is deleted
+    # The data source is trashed (soft-deleted) so it can be restored via undo.
+    assert not DataSource.objects.filter(id=data_source1.id).exists()
+    assert DataSource.trash.filter(id=data_source1.id).exists()
+    # The underlying service is preserved while trashed so a restore brings it back.
+    assert Service.objects.count() == 1
+
+    # Permanently deleting the data source also cleans up the service.
+    TrashHandler.permanently_delete(data_source1)
     assert Service.objects.count() == 0
 
 

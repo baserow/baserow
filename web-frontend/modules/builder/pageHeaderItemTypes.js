@@ -101,7 +101,13 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
     ](pages).filter((dataSource) => dataSource.type)
     return dataSources.some((dataSource) => {
       const serviceType = this.app.$registry.get('service', dataSource.type)
-      return serviceType.isInError({ service: dataSource })
+      // Pass `application` (the builder) so a data source whose integration has
+      // been trashed - and can therefore no longer be resolved - is flagged as
+      // being in error, turning the "Data" header label red.
+      return serviceType.isInError({
+        service: dataSource,
+        application: builder,
+      })
     })
   }
 

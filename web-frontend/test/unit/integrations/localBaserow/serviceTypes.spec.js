@@ -288,4 +288,42 @@ describe('Local baserow service types', () => {
       serviceType.isInError({ service: { table_id: 1, field_ids: [1, 2] } })
     ).toBe(false)
   })
+
+  test('getErrorMessage flags a data source whose integration is not resolvable', () => {
+    const application = { id: 1 }
+    const fakeApp = {
+      $store: {
+        getters: {
+          'integration/getIntegrationById': (app, id) =>
+            id === 5 ? { id: 5, type: 'local_baserow' } : undefined,
+        },
+      },
+      $i18n: { t: (key) => key },
+    }
+    const serviceType = new LocalBaserowGetRowServiceType({ app: fakeApp })
+
+    // Live integration + table selected → valid.
+    expect(
+      serviceType.getErrorMessage({
+        service: { integration_id: 5, table_id: 99 },
+        application,
+      })
+    ).toBe(null)
+
+    // Integration trashed/absent (not in the store) → misconfigured.
+    expect(
+      serviceType.getErrorMessage({
+        service: { integration_id: 41, table_id: 99 },
+        application,
+      })
+    ).toBe('serviceType.errorMisconfiguredIntegration')
+
+    // Without an application the integration can't be resolved, so the check is
+    // skipped (no false positive); other checks still apply.
+    expect(
+      serviceType.getErrorMessage({
+        service: { integration_id: 41, table_id: 99 },
+      })
+    ).toBe(null)
+  })
 })

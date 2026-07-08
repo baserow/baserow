@@ -19,6 +19,7 @@ from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     APIUrlsInstanceMixin,
     APIUrlsRegistryMixin,
@@ -173,13 +174,28 @@ class ServiceType(
                 try:
                     integration = IntegrationHandler().get_integration(integration_id)
                 except IntegrationDoesNotExist:
-                    raise DRFValidationError(
-                        f"The integration with ID {integration_id} does not exist."
-                    )
+                    # The integration may be trashed rather than truly gone: undoing
+                    # a data source update can restore an integration_id whose
+                    # integration is still trashed (a later undo step un-trashes it).
+                    # Resolve it from the full set so the FK can still be set; the
+                    # data source stays misconfigured until the integration is
+                    # restored. A genuinely non-existent id still raises.
+                    try:
+                        integration = IntegrationHandler().get_integration(
+                            integration_id,
+                            base_queryset=Integration.objects_and_trash.all(),
+                            specific=False,
+                        )
+                    except IntegrationDoesNotExist:
+                        raise DRFValidationError(
+                            f"The integration with ID {integration_id} does not exist."
+                        )
 
-                if instance and instance.integration_id:
-                    # `integration` cannot belong to a different application
-                    # than the one that `instance.integration` points to.
+                # `integration` cannot belong to a different application than the one
+                # that `instance.integration` points to. Skipped when the current
+                # integration has been trashed (it can no longer be resolved, so
+                # `instance.integration` is None).
+                if instance and instance.integration_id and instance.integration:
                     current_integration_id = instance.integration.application_id
                     if integration.application_id != current_integration_id:
                         raise DRFValidationError(

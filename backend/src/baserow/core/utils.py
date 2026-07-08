@@ -168,6 +168,44 @@ def extract_allowed(values, allowed_fields):
     return allowed_values
 
 
+def extract_undo_redo_values(instance, values, exclude_fields=()):
+    """
+    Captures the original and new values of an update, so the update can be undone or
+    redone by re-applying them through the same update method.
+
+    For every key in ``values`` that maps to an attribute on ``instance`` (and is not
+    in ``exclude_fields``), the current value is read from the instance (the
+    "original") and the provided value is kept (the "new"). ``values`` is expected to
+    use the service-level vocabulary (e.g. ``integration_id`` rather than
+    ``integration``), so the captured values are JSON-serializable and can be passed
+    straight back into the update method.
+
+    :param instance: The instance being updated, read for its original values.
+    :param values: The incoming update values (service-level vocabulary).
+    :param exclude_fields: Field names to skip, e.g. sensitive fields that must not be
+        stored in the action log and are not user-revertible.
+    :return: A tuple ``(original_values, new_values)``.
+    """
+
+    from django.db.models import Manager, Model
+
+    exclude = set(exclude_fields)
+    original_values = {}
+    new_values = {}
+    for key, value in values.items():
+        if key in exclude or not hasattr(instance, key):
+            continue
+        original = getattr(instance, key)
+        # Skip relations (model instances / related managers): they are not
+        # JSON-serializable for the action log and are managed by their own undoable
+        # actions. FK fields are captured via their JSON-safe ``_id`` keys instead.
+        if isinstance(original, (Model, Manager)):
+            continue
+        original_values[key] = original
+        new_values[key] = value
+    return original_values, new_values
+
+
 def set_allowed_attrs(values, allowed_fields, instance):
     """
     Sets the attributes of the instance with the values of the key names that are in the

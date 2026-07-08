@@ -71,6 +71,21 @@ class BuilderWorkflowActionType(
 
         return super().prepare_values(values, user, instance)
 
+    def export_prepared_values(self, instance: BuilderWorkflowAction) -> Dict[str, Any]:
+        """
+        Returns a JSON-serializable dict of the action's prepared values, so an
+        update can be undone/redone by re-applying them. Formula fields are stored
+        as their serialized dicts. The `page`/`element` relations are skipped: their
+        `page_id`/`element_id` counterparts (also allowed fields) capture them in a
+        JSON-serializable way.
+        """
+
+        return {
+            key: getattr(instance, key)
+            for key in self.allowed_fields
+            if key not in ("page", "element")
+        }
+
     def validate_event(self, event: str, element: Optional[Element]) -> None:
         """
         Ensures that the given event is one the element can fire. Every element

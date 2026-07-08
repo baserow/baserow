@@ -243,18 +243,26 @@ def test_get_data_sources(data_fixture, stub_check_permissions):
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.builder.data_sources.service.data_source_deleted")
+@patch("baserow.contrib.builder.data_sources.trash_types.data_source_deleted")
 def test_delete_data_source(data_source_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     data_source = data_fixture.create_builder_data_source(user=user)
     data_source_id = data_source.id
+    page = data_source.page
 
-    service = DataSourceService()
-    service.delete_data_source(user, data_source)
+    DataSourceService().delete_data_source(user, data_source)
 
-    data_source_deleted_mock.send.assert_called_once_with(
-        service, data_source_id=data_source_id, page=data_source.page, user=user
-    )
+    # The data source is trashed (soft-deleted) so it can be restored via undo,
+    # rather than being hard-deleted.
+    assert not DataSource.objects.filter(id=data_source_id).exists()
+    assert DataSource.trash.filter(id=data_source_id).exists()
+
+    # The realtime `data_source_deleted` signal is emitted by the trashable item type.
+    data_source_deleted_mock.send.assert_called_once()
+    call_kwargs = data_source_deleted_mock.send.call_args.kwargs
+    assert call_kwargs["data_source_id"] == data_source_id
+    assert call_kwargs["page"] == page
+    assert call_kwargs["user"] == user
 
 
 @pytest.mark.django_db(transaction=True)
@@ -281,7 +289,7 @@ def test_update_data_source(data_source_updated_mock, data_fixture):
     )
 
     data_source_updated_mock.send.assert_called_once_with(
-        service, data_source=data_source_updated, user=user
+        service, data_source=data_source_updated.data_source, user=user
     )
 
 
@@ -827,3 +835,29 @@ def test_dispatch_data_sources_skips_exceptions_in_results(data_fixture):
         result = service.dispatch_data_sources(user, data_sources, dispatch_context)
 
     assert result[data_source_2.id] == expected_error
+
+
+@pytest.mark.django_db
+def test_get_data_sources_with_trashed_integration(data_fixture):
+    # Trashing an integration does not cascade to the data sources whose service
+    # references it. Listing those data sources must not raise (the trashed
+    # integration is excluded by the no-trash manager); the service's integration
+    # simply resolves to None until the integration is restored.
+    from baserow.core.integrations.handler import IntegrationHandler
+    from baserow.core.integrations.service import IntegrationService
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user, page=page
+    )
+    integration = IntegrationHandler().get_integration(
+        data_source.service.integration_id
+    )
+
+    IntegrationService().delete_integration(user, integration)
+
+    data_sources = DataSourceService().get_data_sources(user, page)
+
+    assert [ds.id for ds in data_sources] == [data_source.id]
+    assert data_sources[0].service.integration is None

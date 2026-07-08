@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Application
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.exceptions import UserSourceNotInSameApplication
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
@@ -19,12 +20,12 @@ from baserow.core.user_sources.operations import (
 from baserow.core.user_sources.registries import UserSourceType
 from baserow.core.user_sources.signals import (
     user_source_created,
-    user_source_deleted,
     user_source_moved,
     user_source_orders_recalculated,
     user_source_updated,
 )
-from baserow.core.user_sources.types import UserSourceForUpdate
+from baserow.core.user_sources.types import UpdatedUserSource, UserSourceForUpdate
+from baserow.core.utils import extract_undo_redo_values
 
 
 class UserSourceService:
@@ -177,7 +178,7 @@ class UserSourceService:
 
     def update_user_source(
         self, user: AbstractUser, user_source: UserSourceForUpdate, **kwargs
-    ) -> UserSource:
+    ) -> UpdatedUserSource:
         """
         Updates and user_source with values. Will also check if the values are allowed
         to be set on the user_source first.
@@ -185,7 +186,7 @@ class UserSourceService:
         :param user: The user trying to update the user_source.
         :param user_source: The user_source that should be updated.
         :param kwargs: The values that should be set on the user_source.
-        :return: The updated user_source.
+        :return: The updated user_source together with the values that changed.
         """
 
         CoreHandler().check_permissions(
@@ -196,6 +197,14 @@ class UserSourceService:
         )
 
         user_source_type: UserSourceType = user_source.get_type()
+
+        # Capture the original and new values (in the service-level vocabulary, so FK
+        # fields are stored as their ids) before `prepare_values` mutates them, so the
+        # update can be undone/redone.
+        original_values, new_values = extract_undo_redo_values(
+            user_source, kwargs, user_source_type.sensitive_fields
+        )
+
         prepared_values = user_source_type.prepare_values(kwargs, user, user_source)
 
         # Detect if a user re-count is required. Per user source type
@@ -219,7 +228,7 @@ class UserSourceService:
 
         user_source_updated.send(self, user_source=user_source, user=user)
 
-        return user_source
+        return UpdatedUserSource(user_source, original_values, new_values)
 
     def delete_user_source(self, user: AbstractUser, user_source: UserSourceForUpdate):
         """
@@ -238,11 +247,9 @@ class UserSourceService:
             context=user_source,
         )
 
-        self.handler.delete_user_source(user_source)
-
-        user_source_deleted.send(
-            self, user_source_id=user_source.id, application=application, user=user
-        )
+        # Soft-delete (trash) the user source so it can be restored via undo. The
+        # `user_source_deleted` realtime signal is emitted by the trashable item type.
+        TrashHandler.trash(user, application.workspace, application, user_source)
 
     def move_user_source(
         self,

@@ -100,6 +100,7 @@ class BuilderConfig(AppConfig):
             ListDataSourcesPageOperationType,
             OrderDataSourcesPageOperationType,
             ReadDataSourceOperationType,
+            RestoreDataSourceOperationType,
             UpdateDataSourceOperationType,
         )
 
@@ -110,6 +111,7 @@ class BuilderConfig(AppConfig):
         operation_type_registry.register(DeleteDataSourceOperationType())
         operation_type_registry.register(OrderDataSourcesPageOperationType())
         operation_type_registry.register(DispatchDataSourceOperationType())
+        operation_type_registry.register(RestoreDataSourceOperationType())
 
         from baserow.contrib.builder.domains.job_types import PublishDomainJobType
         from baserow.contrib.builder.pages.job_types import DuplicatePageJobType
@@ -143,6 +145,7 @@ class BuilderConfig(AppConfig):
             ListBuilderWorkflowActionsPageOperationType,
             OrderBuilderWorkflowActionOperationType,
             ReadBuilderWorkflowActionOperationType,
+            RestoreBuilderWorkflowActionOperationType,
             UpdateBuilderWorkflowActionOperationType,
         )
 
@@ -153,6 +156,7 @@ class BuilderConfig(AppConfig):
         operation_type_registry.register(ReadBuilderWorkflowActionOperationType())
         operation_type_registry.register(OrderBuilderWorkflowActionOperationType())
         operation_type_registry.register(DispatchBuilderWorkflowActionOperationType())
+        operation_type_registry.register(RestoreBuilderWorkflowActionOperationType())
 
         from baserow.core.registries import permission_manager_type_registry
 
@@ -226,13 +230,19 @@ class BuilderConfig(AppConfig):
         domain_type_registry.register(CustomDomainType())
         domain_type_registry.register(SubDomainType())
 
+        from .data_sources.trash_types import DataSourceTrashableItemType
         from .domains.trash_types import DomainTrashableItemType
         from .elements.trash_types import ElementTrashableItemType
         from .pages.trash_types import PageTrashableItemType
+        from .workflow_actions.trash_types import (
+            BuilderWorkflowActionTrashableItemType,
+        )
 
         trash_item_type_registry.register(DomainTrashableItemType())
         trash_item_type_registry.register(PageTrashableItemType())
         trash_item_type_registry.register(ElementTrashableItemType())
+        trash_item_type_registry.register(DataSourceTrashableItemType())
+        trash_item_type_registry.register(BuilderWorkflowActionTrashableItemType())
 
         from baserow.core.action.registries import (
             action_scope_registry,
@@ -240,6 +250,12 @@ class BuilderConfig(AppConfig):
         )
 
         from .action_scopes import PageActionScopeType, SharedPageActionScopeType
+        from .data_sources.actions import (
+            CreateDataSourceActionType,
+            DeleteDataSourceActionType,
+            MoveDataSourceActionType,
+            UpdateDataSourceActionType,
+        )
         from .elements.actions import (
             CreateElementActionType,
             DeleteElementActionType,
@@ -247,15 +263,44 @@ class BuilderConfig(AppConfig):
             MoveElementActionType,
             UpdateElementActionType,
         )
+        from .pages.actions import (
+            CreatePageActionType,
+            DeletePageActionType,
+            DuplicatePageActionType,
+            OrderPagesActionType,
+            UpdatePageActionType,
+        )
+        from .workflow_actions.actions import (
+            CreateBuilderWorkflowActionActionType,
+            DeleteBuilderWorkflowActionActionType,
+            OrderBuilderWorkflowActionsActionType,
+            UpdateBuilderWorkflowActionActionType,
+        )
 
         action_scope_registry.register(PageActionScopeType())
         action_scope_registry.register(SharedPageActionScopeType())
+
+        action_type_registry.register(CreatePageActionType())
+        action_type_registry.register(UpdatePageActionType())
+        action_type_registry.register(DeletePageActionType())
+        action_type_registry.register(DuplicatePageActionType())
+        action_type_registry.register(OrderPagesActionType())
 
         action_type_registry.register(CreateElementActionType())
         action_type_registry.register(UpdateElementActionType())
         action_type_registry.register(DeleteElementActionType())
         action_type_registry.register(DuplicateElementActionType())
         action_type_registry.register(MoveElementActionType())
+
+        action_type_registry.register(CreateDataSourceActionType())
+        action_type_registry.register(UpdateDataSourceActionType())
+        action_type_registry.register(DeleteDataSourceActionType())
+        action_type_registry.register(MoveDataSourceActionType())
+
+        action_type_registry.register(CreateBuilderWorkflowActionActionType())
+        action_type_registry.register(UpdateBuilderWorkflowActionActionType())
+        action_type_registry.register(DeleteBuilderWorkflowActionActionType())
+        action_type_registry.register(OrderBuilderWorkflowActionsActionType())
 
         from baserow.contrib.builder.data_providers.registries import (
             builder_data_provider_type_registry,

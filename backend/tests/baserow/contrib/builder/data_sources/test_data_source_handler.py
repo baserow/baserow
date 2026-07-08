@@ -153,8 +153,10 @@ def test_update_data_source(data_fixture):
 
     service_type = service_type_registry.get("local_baserow_get_row")
 
-    data_source_updated = DataSourceHandler().update_data_source(
-        data_source, service_type, name="newValue"
+    data_source_updated = (
+        DataSourceHandler()
+        .update_data_source(data_source, service_type, name="newValue")
+        .data_source
     )
 
     assert data_source_updated.name == "newValue"
@@ -170,8 +172,12 @@ def test_update_data_source_change_type(data_fixture):
     service_type = service_type_registry.get("local_baserow_get_row")
     new_service_type = service_type_registry.get("local_baserow_list_rows")
 
-    data_source_updated = DataSourceHandler().update_data_source(
-        data_source, service_type, new_service_type=new_service_type
+    data_source_updated = (
+        DataSourceHandler()
+        .update_data_source(
+            data_source, service_type, new_service_type=new_service_type
+        )
+        .data_source
     )
 
     assert (
@@ -179,8 +185,10 @@ def test_update_data_source_change_type(data_fixture):
         == "local_baserow_list_rows"
     )
 
-    data_source_updated = DataSourceHandler().update_data_source(
-        data_source, service_type, new_service_type=None
+    data_source_updated = (
+        DataSourceHandler()
+        .update_data_source(data_source, service_type, new_service_type=None)
+        .data_source
     )
 
     assert data_source_updated.service is None
@@ -193,8 +201,8 @@ def test_update_data_source_change_page(data_fixture):
     )
     page_dest = data_fixture.create_builder_page(builder=data_source.page.builder)
 
-    data_source_updated = DataSourceHandler().update_data_source(
-        data_source, page=page_dest
+    data_source_updated = (
+        DataSourceHandler().update_data_source(data_source, page=page_dest).data_source
     )
 
     data_source_updated.refresh_from_db()
@@ -213,8 +221,8 @@ def test_update_data_source_change_page_with_conflict(data_fixture):
         page=page_dest, name="Conflict"
     )
 
-    data_source_updated = DataSourceHandler().update_data_source(
-        data_source, page=page_dest
+    data_source_updated = (
+        DataSourceHandler().update_data_source(data_source, page=page_dest).data_source
     )
 
     data_source_updated.refresh_from_db()
@@ -233,8 +241,10 @@ def test_update_data_source_change_page_with_conflict_but_name(data_fixture):
         page=page_dest, name="Conflict"
     )
 
-    data_source_updated = DataSourceHandler().update_data_source(
-        data_source, page=page_dest, name="Another name"
+    data_source_updated = (
+        DataSourceHandler()
+        .update_data_source(data_source, page=page_dest, name="Another name")
+        .data_source
     )
 
     data_source_updated.refresh_from_db()
@@ -705,3 +715,27 @@ def test_query_data_sources_with_missing_specific_service(data_fixture):
         f"The specific object with id {missing_service_id} does not exist."
     )
     assert data_sources == [data_source]
+
+
+@pytest.mark.django_db
+def test_get_data_source_with_trashed_integration(data_fixture):
+    # A data source whose service references a trashed integration must still load
+    # (e.g. so it can be PATCHed to reassign an integration); the trashed
+    # integration resolves to None rather than raising IntegrationDoesNotExist.
+    from baserow.core.integrations.handler import IntegrationHandler
+    from baserow.core.integrations.service import IntegrationService
+
+    user = data_fixture.create_user()
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user
+    )
+    integration = IntegrationHandler().get_integration(
+        data_source.service.integration_id
+    )
+
+    IntegrationService().delete_integration(user, integration)
+
+    result = DataSourceHandler().get_data_source(data_source.id)
+
+    assert result.id == data_source.id
+    assert result.service.integration is None

@@ -32,3 +32,7 @@ class UpdateIntegrationOperationType(IntegrationOperationType):
 
 class ReadIntegrationOperationType(IntegrationOperationType):
     type = "application.integration.read"
+
+
+class RestoreIntegrationOperationType(IntegrationOperationType):
+    type = "application.integration.restore"

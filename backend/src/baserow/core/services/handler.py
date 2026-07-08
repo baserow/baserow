@@ -6,6 +6,7 @@ from django.db.models import QuerySet
 
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.db import specific_iterator
+from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.registries import ImportExportConfig
@@ -45,9 +46,16 @@ class ServiceHandler:
                 service = service.get_type().get_queryset().get(id=service_id)
 
                 if service.integration_id:
-                    specific_integration = IntegrationHandler().get_integration(
-                        service.integration_id, specific=True
-                    )
+                    try:
+                        specific_integration = IntegrationHandler().get_integration(
+                            service.integration_id, specific=True
+                        )
+                    except IntegrationDoesNotExist:
+                        # The integration has been trashed (the no-trash manager
+                        # can't find it) but the service still references it.
+                        # Treat it as misconfigured rather than failing to load
+                        # the service.
+                        specific_integration = None
                     service.__class__.integration.field.set_cached_value(
                         service, specific_integration
                     )
@@ -128,9 +136,15 @@ class ServiceHandler:
 
             for service in specific_services:
                 if service.integration_id:
-                    service.integration = specific_integration_map[
+                    # The integration may be missing from the map because it has been
+                    # trashed (the map is built from the no-trash manager) while the
+                    # service still references it — trashing an integration does not
+                    # cascade to its services/data sources. Resolve to None so the
+                    # service is treated as misconfigured until the integration is
+                    # restored, rather than raising a KeyError.
+                    service.integration = specific_integration_map.get(
                         service.integration_id
-                    ]
+                    )
 
             return specific_services
         else:

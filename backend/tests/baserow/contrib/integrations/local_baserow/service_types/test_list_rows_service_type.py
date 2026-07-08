@@ -359,6 +359,35 @@ def test_local_baserow_list_rows_service_before_dispatch_validation_error(data_f
 
 
 @pytest.mark.django_db
+def test_local_baserow_list_rows_service_dispatch_with_trashed_integration(
+    data_fixture,
+):
+    # Dispatching a service whose integration has been trashed must raise a handled
+    # configuration error rather than dereferencing the (now None) integration.
+    from baserow.core.trash.handler import TrashHandler
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table, _, _ = data_fixture.build_table(
+        user=user, columns=[("Name", "text")], rows=[["A"]]
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    service = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration, table=table
+    )
+
+    TrashHandler.trash(user, page.builder.workspace, page.builder, integration)
+
+    dispatch_context = FakeDispatchContext()
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+        LocalBaserowListRowsUserServiceType().resolve_service_formulas(
+            service, dispatch_context
+        )
+
+
+@pytest.mark.django_db
 def test_local_baserow_list_rows_service_dispatch_data_with_view_and_service_filters(
     data_fixture,
 ):

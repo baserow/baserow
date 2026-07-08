@@ -304,6 +304,15 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
     def allowed_fields(self):
         return super().allowed_fields + ["service"]
 
+    def export_prepared_values(self, instance: WorkflowAction) -> Dict[str, Any]:
+        # Replace the `service` model instance captured by the base implementation
+        # with the service's own JSON-serializable prepared values, so a config
+        # change can be undone/redone.
+        values = super().export_prepared_values(instance)
+        service = instance.service.specific
+        values["service"] = service.get_type().export_prepared_values(service)
+        return values
+
     def get_pytest_params_serialized(
         self, pytest_params: Dict[str, Any]
     ) -> Dict[str, Any]:

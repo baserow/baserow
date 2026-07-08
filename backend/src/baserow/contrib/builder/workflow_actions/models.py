@@ -1,11 +1,14 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
+from django_cte import CTEManager
+
 from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.elements.models import Element, NavigationElementMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.field import FormulaField
-from baserow.core.mixins import OrderableMixin
+from baserow.core.managers import NoTrashManager, TrashOnlyManager
+from baserow.core.mixins import OrderableMixin, TrashableModelMixin
 from baserow.core.registry import ModelRegistryMixin
 from baserow.core.services.models import Service
 from baserow.core.workflow_actions.models import WorkflowAction
@@ -17,10 +20,11 @@ class EventTypes(models.TextChoices):
     AFTER_LOGIN = "after_login"
 
 
-class BuilderWorkflowActionManager(models.Manager):
+class BuilderWorkflowActionManager(NoTrashManager):
     """
-    By default, we will only return workflow
-    actions associated with untrashed elements.
+    By default, we only return workflow actions that are not themselves trashed
+    (inherited from `NoTrashManager`) and that aren't associated with a trashed
+    element.
     """
 
     def get_queryset(self):
@@ -34,6 +38,7 @@ class BuilderWorkflowActionManager(models.Manager):
 class BuilderWorkflowAction(
     WorkflowAction,
     OrderableMixin,
+    TrashableModelMixin,
 ):
     order = models.PositiveIntegerField()
     content_type = models.ForeignKey(
@@ -51,11 +56,15 @@ class BuilderWorkflowAction(
         Element, on_delete=models.CASCADE, null=True, default=None
     )
 
-    # The default manager hides actions whose element has been trashed. Use
+    # The default manager hides actions that are trashed themselves or whose element
+    # has been trashed. `trash`/`objects_and_trash` come from `TrashableModelMixin` and
+    # are used for the workflow action's own trash/restore. Use
     # `objects_including_trashed_elements` in the rare places that must operate on
-    # those actions regardless of their element's trash state, such as cleaning them
-    # up when the element is permanently deleted.
+    # actions regardless of their element's trash state, such as cleaning them up when
+    # the element is permanently deleted.
     objects = BuilderWorkflowActionManager()
+    trash = TrashOnlyManager()
+    objects_and_trash = CTEManager()
     objects_including_trashed_elements = models.Manager()
 
     @classmethod

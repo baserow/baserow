@@ -17,6 +17,17 @@ const getPageContext = (store, pageId) => {
   return { page, builder, pages }
 }
 
+/**
+ * Returns the application (builder) for a given application ID, or null when it isn't
+ * loaded in the store. Used by the integration and user source realtime handlers,
+ * which are scoped to the application rather than a page.
+ */
+const getApplicationContext = (store, applicationId) => {
+  const application = store.getters['application/get'](applicationId)
+  if (!application) return null
+  return { application }
+}
+
 export const registerRealtimeEvents = (realtime) => {
   // Page events
   realtime.registerEvent('page_created', ({ store }, data) => {
@@ -247,6 +258,21 @@ export const registerRealtimeEvents = (realtime) => {
     )
     if (!dataSource) return
 
+    // The data source may currently live on a different page than the event's
+    // page_id (e.g. sharing/un-sharing — including via undo/redo — moves it
+    // between a content page and the shared page). Relocate it to the destination
+    // page first, otherwise forceUpdate would duplicate it across both page lists.
+    if (dataSource.page_id !== data.data_source.page_id) {
+      const sourcePage = ctx.pages.find((p) => p?.id === dataSource.page_id)
+      if (sourcePage) {
+        store.dispatch('dataSource/forcePageMove', {
+          pageSource: sourcePage,
+          pageDest: ctx.page,
+          dataSourceId: dataSource.id,
+        })
+      }
+    }
+
     store.dispatch('dataSource/forceUpdate', {
       page: ctx.page,
       dataSource,
@@ -261,6 +287,102 @@ export const registerRealtimeEvents = (realtime) => {
     store.dispatch('dataSource/forceDelete', {
       page: ctx.page,
       dataSourceId: data.data_source_id,
+    })
+  })
+
+  // Integration events
+  realtime.registerEvent('integration_created', ({ store }, data) => {
+    const ctx = getApplicationContext(store, data.integration.application_id)
+    if (!ctx) return
+
+    store.dispatch('integration/forceCreate', {
+      application: ctx.application,
+      integration: data.integration,
+      beforeId: data.before_id,
+    })
+
+    // When an integration is restored (e.g. undoing its deletion), re-dispatch
+    // the data sources that reference it so their collection elements repopulate.
+    // For a brand new integration this is a no-op (nothing references it yet).
+    store.dispatch('dataSource/redispatchForIntegration', {
+      builder: ctx.application,
+      integrationId: data.integration.id,
+    })
+  })
+
+  realtime.registerEvent('integration_updated', ({ store }, data) => {
+    const ctx = getApplicationContext(store, data.integration.application_id)
+    if (!ctx) return
+
+    const integration = store.getters['integration/getIntegrationById'](
+      ctx.application,
+      data.integration.id
+    )
+    if (!integration) return
+
+    store.dispatch('integration/forceUpdate', {
+      application: ctx.application,
+      integration,
+      values: data.integration,
+    })
+  })
+
+  realtime.registerEvent('integration_deleted', ({ store }, data) => {
+    const ctx = getApplicationContext(store, data.application_id)
+    if (!ctx) return
+
+    store.dispatch('integration/forceDelete', {
+      application: ctx.application,
+      integrationId: data.integration_id,
+    })
+
+    // The integration's data sources are now misconfigured (their integration
+    // can no longer be resolved). Re-dispatch them so collection elements bound
+    // to those data sources reset their content (there are no records to show
+    // while the integration is trashed). On restore the integration_created
+    // event repopulates them.
+    store.dispatch('dataSource/redispatchForIntegration', {
+      builder: ctx.application,
+      integrationId: data.integration_id,
+    })
+  })
+
+  // User source events
+  realtime.registerEvent('user_source_created', ({ store }, data) => {
+    const ctx = getApplicationContext(store, data.user_source.application_id)
+    if (!ctx) return
+
+    store.dispatch('userSource/forceCreate', {
+      application: ctx.application,
+      userSource: data.user_source,
+      beforeId: data.before_id,
+    })
+  })
+
+  realtime.registerEvent('user_source_updated', ({ store }, data) => {
+    const ctx = getApplicationContext(store, data.user_source.application_id)
+    if (!ctx) return
+
+    const userSource = store.getters['userSource/getUserSourceById'](
+      ctx.application,
+      data.user_source.id
+    )
+    if (!userSource) return
+
+    store.dispatch('userSource/forceUpdate', {
+      application: ctx.application,
+      userSource,
+      values: data.user_source,
+    })
+  })
+
+  realtime.registerEvent('user_source_deleted', ({ store }, data) => {
+    const ctx = getApplicationContext(store, data.application_id)
+    if (!ctx) return
+
+    store.dispatch('userSource/forceDelete', {
+      application: ctx.application,
+      userSourceId: data.user_source_id,
     })
   })
 
@@ -293,6 +415,16 @@ export const registerRealtimeEvents = (realtime) => {
     store.dispatch('builderWorkflowAction/forceDelete', {
       page: ctx.page,
       workflowActionId: data.workflow_action_id,
+    })
+  })
+
+  realtime.registerEvent('workflow_actions_reordered', ({ store }, data) => {
+    const ctx = getPageContext(store, data.page_id)
+    if (!ctx) return
+
+    store.dispatch('builderWorkflowAction/forceOrder', {
+      page: ctx.page,
+      order: data.order,
     })
   })
 

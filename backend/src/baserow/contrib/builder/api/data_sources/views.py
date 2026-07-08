@@ -51,6 +51,12 @@ from baserow.contrib.builder.api.data_sources.serializers import (
 from baserow.contrib.builder.api.elements.errors import ERROR_ELEMENT_DOES_NOT_EXIST
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
 from baserow.contrib.builder.application_types import BuilderApplicationType
+from baserow.contrib.builder.data_sources.actions import (
+    CreateDataSourceActionType,
+    DeleteDataSourceActionType,
+    MoveDataSourceActionType,
+    UpdateDataSourceActionType,
+)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
@@ -209,7 +215,7 @@ class DataSourcesView(APIView):
 
         service_type = service_type_registry.get(type_name) if type_name else None
 
-        data_source = DataSourceService().create_data_source(
+        data_source = CreateDataSourceActionType.do(
             request.user, page, service_type=service_type, before=before, **data
         )
 
@@ -329,7 +335,7 @@ class DataSourceView(APIView):
         if page is not None:
             data["page"] = page
 
-        data_source_updated = DataSourceService().update_data_source(
+        data_source_updated = UpdateDataSourceActionType.do(
             request.user, data_source, service_type=service_type, **data
         )
 
@@ -378,12 +384,12 @@ class DataSourceView(APIView):
     @transaction.atomic
     def delete(self, request, data_source_id: int):
         """
-        Deletes an data_source.
+        Deletes a data_source.
         """
 
         data_source = DataSourceHandler().get_data_source_for_update(data_source_id)
 
-        DataSourceService().delete_data_source(request.user, data_source)
+        DeleteDataSourceActionType.do(request.user, data_source)
 
         return Response(status=204)
 
@@ -443,7 +449,7 @@ class MoveDataSourceView(APIView):
         if before_id:
             before = DataSourceHandler().get_data_source(before_id, specific=False)
 
-        moved_data_source = DataSourceService().move_data_source(
+        moved_data_source = MoveDataSourceActionType.do(
             request.user, data_source, before
         )
 

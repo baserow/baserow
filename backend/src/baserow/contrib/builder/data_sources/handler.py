@@ -29,7 +29,7 @@ from baserow.core.storage import ExportZipFile
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import find_unused_name
 
-from .types import DataSourceForUpdate
+from .types import DataSourceForUpdate, UpdatedDataSource
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
@@ -400,7 +400,7 @@ class DataSourceHandler:
         name: Optional[str] = None,
         page: Optional[Page] = None,
         **kwargs,
-    ) -> DataSource:
+    ) -> UpdatedDataSource:
         """
         Updates a data_source and the related service with values.
 
@@ -409,8 +409,13 @@ class DataSourceHandler:
         :param name: A new name for the data_source.
         :param page: The data source's page.
         :param kwargs: The values that should be set on the data_source.
-        :return: The updated data_source.
+        :return: The updated data_source together with the original and new values
+            that changed, so the update can be undone/redone.
         """
+
+        original_values: Dict[str, Any] = {}
+        new_values: Dict[str, Any] = {}
+        original_name = data_source.name
 
         new_service_type = None
         if "new_service_type" in kwargs:
@@ -444,12 +449,18 @@ class DataSourceHandler:
             service_to_update = self.service_handler.get_service_for_update(
                 data_source.service.id
             )
-            self.service_handler.update_service(
+            updated_service = self.service_handler.update_service(
                 service_type, service_to_update, **kwargs
             )
-            data_source.service = service_to_update
+            original_values.update(updated_service.original_service_values)
+            new_values.update(updated_service.new_service_values)
+            data_source.service = updated_service.service
 
         if page is not None and data_source.page_id != page.id:
+            # Capture the page move (e.g. toggling a data source as shared, which moves
+            # it to the builder's shared page) so it can be undone/redone.
+            original_values["page_id"] = data_source.page_id
+            new_values["page_id"] = page.id
             data_source.page = page
             # Add the moved data source at the end of the new page
             data_source.order = DataSource.get_last_order(page)
@@ -457,6 +468,8 @@ class DataSourceHandler:
             data_source.name = self.find_unused_data_source_name(page, data_source.name)
 
         if name is not None:
+            original_values["name"] = original_name
+            new_values["name"] = name
             data_source.name = name
 
         try:
@@ -468,7 +481,7 @@ class DataSourceHandler:
             if name is not None:
                 raise DataSourceNameNotUniqueError(name)
 
-        return data_source
+        return UpdatedDataSource(data_source, original_values, new_values)
 
     def delete_data_source(self, data_source: DataSource):
         """
