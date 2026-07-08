@@ -94,6 +94,8 @@ describe('RowEditModalSidebar', () => {
     ])
     const wrapper = await mount()
     expect(wrapper.vm.selectedTabIndex).toBe(0)
+    // Mounting the default tab must not persist a preference.
+    expect(getRowEditModalSidebarTab()).toBe(null)
   })
 
   test('selects the remembered tab when it is available', async () => {

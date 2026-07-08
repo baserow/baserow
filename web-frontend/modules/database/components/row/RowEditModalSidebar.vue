@@ -105,8 +105,8 @@ export default {
     },
   },
   created() {
-    const types = this.sidebarTypes
-    this.selectedType = types[this.selectedTabIndex]?.getType() ?? null
+    this.selectedType =
+      this.sidebarTypes[this.selectedTabIndex]?.getType() ?? null
   },
   methods: {
     // Persist the user's tab choice; skips the mount echo (same type as shown).
