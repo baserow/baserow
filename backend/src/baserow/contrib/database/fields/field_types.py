@@ -23,6 +23,7 @@ from typing import (
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.aggregates import ArrayAgg, JSONBAgg, StringAgg
@@ -348,6 +349,7 @@ class TextFieldMatchingRegexFieldType(FieldType, ABC):
                 "allow_null": not required,
                 "allow_blank": not required,
                 "validators": validators,
+                "max_length": settings.MAX_FIELD_TEXT_LENGTH,
                 **kwargs,
             }
         )
@@ -459,6 +461,7 @@ class TextFieldType(CollationSortMixin, FieldType):
                 "allow_null": not required,
                 "allow_blank": not required,
                 "default": instance.text_default or None,
+                "max_length": settings.MAX_FIELD_TEXT_LENGTH,
                 **kwargs,
             }
         )
@@ -524,6 +527,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
                 "required": required,
                 "allow_null": not required,
                 "allow_blank": not required,
+                "max_length": settings.MAX_FIELD_TEXT_LENGTH,
                 **kwargs,
             }
         )

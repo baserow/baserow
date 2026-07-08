@@ -2,19 +2,23 @@
   <div
     ref="cell"
     class="grid-view__cell grid-field-long-text__cell active"
-    :class="{ editing: opened }"
+    :class="{ editing: opened, invalid: editing && !isValid() }"
     @contextmenu="stopContextIfEditing($event)"
   >
     <div v-if="!opened" class="grid-field-long-text">{{ value }}</div>
-    <textarea
-      v-else-if="editing"
-      ref="input"
-      v-model="copy"
-      v-prevent-parent-scroll
-      :disabled="readOnly"
-      type="text"
-      class="grid-field-long-text__textarea"
-    />
+    <template v-else-if="editing">
+      <textarea
+        ref="input"
+        v-model="copy"
+        v-prevent-parent-scroll
+        :disabled="readOnly"
+        type="text"
+        class="grid-field-long-text__textarea"
+      />
+      <div v-show="!isValid()" class="grid-view__cell-error align-right">
+        {{ getError() }}
+      </div>
+    </template>
     <div v-else class="grid-field-long-text__textarea">{{ value }}</div>
     <slot name="default" :slot-props="{ editing, opened }"></slot>
   </div>

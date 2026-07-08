@@ -80,6 +80,7 @@ export default defineNuxtModule({
         baserowBuilderDomains: [],
         baserowRowPageSizeLimit: 200,
         baserowUniqueRowValuesSizeLimit: 100,
+        baserowMaxFieldTextLength: 1_000_000,
         baserowDisableSupport: '',
         baserowIntegrationsPeriodicMinuteMin: '1',
         mediaUrl: 'http://localhost:4000/media/',
