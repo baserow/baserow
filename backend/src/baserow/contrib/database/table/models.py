@@ -122,7 +122,10 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
             return super().count()
 
     def enhance_by_fields(
-        self, only_field_ids: Optional[List[int]] = None, **kwargs
+        self,
+        only_field_ids: Optional[List[int]] = None,
+        skip_field_ids: Optional[List[int]] = None,
+        **kwargs,
     ) -> QuerySet:
         """
         Enhances the queryset based on the `enhance_queryset_in_bulk` for each unique
@@ -133,13 +136,18 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
 
         :param only_field_ids: only apply the prefetch related for the field with ID
           included in the given list.
+        :param skip_field_ids: don't apply the prefetch related for the fields with
+          an ID included in the given list, for example because the caller fetches
+          their values in a cheaper way itself.
         :return: The enhanced queryset.
         """
 
+        skip_field_ids = set(skip_field_ids or [])
         selected_fields = (
             field
             for field in self.model._field_objects.values()
-            if only_field_ids is None or field["field"].id in only_field_ids
+            if (only_field_ids is None or field["field"].id in only_field_ids)
+            and field["field"].id not in skip_field_ids
         )
 
         by_type = defaultdict(list)

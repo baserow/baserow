@@ -100,3 +100,38 @@ def test_native_serialization_covers_common_field_types_natively(data_fixture):
         for fid in drf_field_ids
     ]
     assert missing == set(), f"missing native: {missing}; fallbacks: {fallback_details}"
+
+
+@pytest.mark.django_db
+def test_native_serialization_light_link_fetch_matches_prefetched_output(
+    data_fixture,
+):
+    """
+    Rows serialized natively WITHOUT link row prefetches (using the
+    values-based light fetch) must produce the same output as the DRF
+    serializer over fully prefetched rows.
+    """
+
+    table, user, row, blank_row, context = setup_interesting_test_table(data_fixture)
+    model = table.get_model()
+
+    enhanced_rows = list(model.objects.all().enhance_by_fields())
+    drf = get_row_serializer_class(model, RowSerializer, is_response=True)(
+        enhanced_rows, many=True
+    ).data
+
+    from baserow.contrib.database.api.rows.native_serializer import (
+        get_light_fetchable_link_row_field_ids,
+    )
+
+    light_ids = get_light_fetchable_link_row_field_ids(model)
+    assert len(light_ids) > 0
+    plain_rows = list(model.objects.all().enhance_by_fields(skip_field_ids=light_ids))
+    native = native_serialize_rows(model, plain_rows)
+
+    for drf_row, native_row in zip(as_json(drf), as_json(native)):
+        assert drf_row.keys() == native_row.keys()
+        for key in drf_row:
+            assert native_row[key] == drf_row[key], (
+                f"Field {key} differs: DRF={drf_row[key]!r} native={native_row[key]!r}"
+            )

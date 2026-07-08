@@ -3058,25 +3058,11 @@ class LinkRowFieldType(
         )
 
     def get_native_response_value_converter(self, field_object):
-        from rest_framework import serializers
+        from baserow.contrib.database.api.rows.native_serializer import (
+            LinkRowNativeValueConverter,
+        )
 
-        name = field_object["name"]
-        # Matches LinkRowValueSerializer's order field exactly.
-        order_to_representation = serializers.DecimalField(
-            max_digits=40, decimal_places=20, required=False
-        ).to_representation
-
-        def converter(row):
-            return [
-                {
-                    "id": linked_row.id,
-                    "value": str(linked_row),
-                    "order": order_to_representation(linked_row.order),
-                }
-                for linked_row in getattr(row, name).all()
-            ]
-
-        return converter
+        return LinkRowNativeValueConverter(field_object)
 
     def get_serializer_help_text(self, instance):
         return (

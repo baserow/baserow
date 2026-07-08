@@ -57,6 +57,7 @@ from baserow.contrib.database.api.rows.errors import (
 )
 from baserow.contrib.database.api.rows.exceptions import InvalidJoinParameterException
 from baserow.contrib.database.api.rows.native_serializer import (
+    get_light_fetchable_link_row_field_ids,
     native_serialize_rows,
 )
 from baserow.contrib.database.api.rows.serializers import (
@@ -456,6 +457,8 @@ class RowsView(APIView):
             for link_row_join in link_row_joins
         }
 
+        use_native_serializer = not user_field_names and not field_kwargs
+
         if view_id:
             view_handler = ViewHandler()
             view = view_handler.get_view_as_user(
@@ -471,15 +474,26 @@ class RowsView(APIView):
             # queryset. Unrequested fields will be filtered out later in the serializer.
 
             model = table.get_model()
-            queryset = model.objects.all().enhance_by_fields(**field_kwargs)
-            queryset = view_handler.apply_filters(view, queryset)
-            queryset = view_handler.apply_sorting(view, queryset)
         else:
             model = table.get_model(
                 fields=fields,
                 field_ids=[] if fields else None,
             )
-            queryset = model.objects.all().enhance_by_fields(**field_kwargs)
+
+        # The native serializer fetches the display values of eligible link
+        # row fields itself with a single query per field, so their expensive
+        # per-linked-row prefetches can be skipped.
+        skip_field_ids = (
+            get_light_fetchable_link_row_field_ids(model)
+            if use_native_serializer
+            else None
+        )
+        queryset = model.objects.all().enhance_by_fields(
+            skip_field_ids=skip_field_ids, **field_kwargs
+        )
+        if view_id:
+            queryset = view_handler.apply_filters(view, queryset)
+            queryset = view_handler.apply_sorting(view, queryset)
 
         adhoc_filters = AdHocFilters.from_request(
             request, user_field_names=user_field_names
@@ -495,7 +509,7 @@ class RowsView(APIView):
 
         paginator = PageNumberPagination(limit_page_size=settings.ROW_PAGE_SIZE_LIMIT)
         page = paginator.paginate_queryset(queryset, request, self)
-        if not user_field_names and not field_kwargs:
+        if use_native_serializer:
             serialized_rows = native_serialize_rows(
                 model, page, field_ids=[f.id for f in fields] if fields else None
             )
