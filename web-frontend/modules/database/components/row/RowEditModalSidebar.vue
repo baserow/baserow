@@ -104,6 +104,14 @@ export default {
       )
     },
   },
+  watch: {
+    // Keep the tracker in sync when the tab is re-selected programmatically
+    // (e.g. the remembered tab becomes unavailable), so that emit is not
+    // mistaken for a user action and does not overwrite the stored preference.
+    selectedTabIndex(index) {
+      this.selectedType = this.sidebarTypes[index]?.getType() ?? null
+    },
+  },
   created() {
     this.selectedType =
       this.sidebarTypes[this.selectedTabIndex]?.getType() ?? null

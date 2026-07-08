@@ -12,7 +12,12 @@ import { installLocalStorageMock } from '@baserow/test/helpers/localStorage'
 // plugin already registers a real `history` type, which register() overwrites.
 const makeType = (
   type,
-  { selectedByDefault = false, deactivated = false, order = 50 } = {}
+  {
+    selectedByDefault = false,
+    deactivated = false,
+    deactivateWhenReadOnly = false,
+    order = 50,
+  } = {}
 ) =>
   class extends RowModalSidebarType {
     static getType() {
@@ -27,7 +32,10 @@ const makeType = (
       return { name: `${type}-component`, render: () => null }
     }
 
-    isDeactivated() {
+    isDeactivated(database, table, readOnly) {
+      if (deactivateWhenReadOnly && readOnly === true) {
+        return true
+      }
       return deactivated
     }
 
@@ -146,5 +154,40 @@ describe('RowEditModalSidebar', () => {
     expect(getRowEditModalSidebarTab()).toBe('history')
     wrapper.vm.onTabSelected(commentsIndex)
     expect(getRowEditModalSidebarTab()).toBe('comments')
+  })
+
+  test('keeps the preference when props deactivate the remembered tab on a reused instance', async () => {
+    // comments stays available; history is remembered but gets deactivated when
+    // the instance is reused with readOnly=true, shifting the selected index.
+    registerTypes([
+      makeType('comments', { selectedByDefault: true, order: 0 }),
+      makeType('history', { deactivateWhenReadOnly: true, order: 10 }),
+    ])
+    setRowEditModalSidebarTab('history')
+
+    const wrapper = await testApp.mount(RowEditModalSidebar, {
+      props: {
+        database,
+        table,
+        fields: [],
+        row: { id: 1, _: {} },
+        view: null,
+        readOnly: false,
+      },
+    })
+    // history is remembered and available -> selected at index 1.
+    expect(wrapper.vm.selectedTabIndex).toBe(1)
+
+    // Reuse the same instance in a context where history is deactivated; the
+    // index drops to 0 (comments) and Tabs re-selects programmatically.
+    await wrapper.setProps({ readOnly: true })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.sidebarTypes.map((t) => t.getType())).toEqual([
+      'comments',
+    ])
+    expect(wrapper.vm.selectedTabIndex).toBe(0)
+    // The stored preference must survive so it returns when history is available.
+    expect(getRowEditModalSidebarTab()).toBe('history')
   })
 })
