@@ -28,7 +28,10 @@ from baserow.contrib.builder.data_sources.signals import (
 from baserow.contrib.builder.data_sources.types import DataSourceForUpdate
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.exceptions import CannotCalculateIntermediateOrder
+from baserow.core.exceptions import (
+    CannotCalculateIntermediateOrder,
+    PermissionException,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.registries import DispatchTypes, ServiceType
@@ -318,10 +321,14 @@ class DataSourceService:
             for d in data_sources
         ]
 
-        CoreHandler().check_multiple_permissions(
+        check_results = CoreHandler().check_multiple_permissions(
             checks,
             workspace=data_sources[0].page.builder.workspace,
+            return_permissions_exceptions=True,
         )
+        for check_result in check_results.values():
+            if isinstance(check_result, PermissionException):
+                raise check_result
 
         results = self.handler.dispatch_data_sources(data_sources, dispatch_context)
 

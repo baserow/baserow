@@ -61,12 +61,16 @@ from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceRefinementForbidden,
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
+from baserow.contrib.builder.data_sources.operations import (
+    DispatchDataSourceOperationType,
+)
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
@@ -650,6 +654,14 @@ class GetRecordNamesView(APIView):
     def get(self, request, data_source_id: int):
         # Find the data source corresponding to the given id
         data_source = DataSourceHandler().get_data_source(data_source_id)
+
+        CoreHandler().check_permissions(
+            request.user,
+            DispatchDataSourceOperationType.type,
+            workspace=data_source.page.builder.workspace,
+            context=data_source,
+        )
+
         service = data_source.service.specific
         service_type = service.get_type()
 

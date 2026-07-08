@@ -525,7 +525,7 @@ def test_dispatch_data_sources_page_visibility_all_returns_elements(
     endpoint should return elements.
     """
 
-    page = data_source_fixture["page"]
+    page = data_source_fixture["public_page"]
     page.visibility = Page.VISIBILITY_TYPES.ALL
     page.save()
 
@@ -654,7 +654,7 @@ def test_dispatch_data_sources_page_visibility_logged_in_returns_no_elements_for
     endpoint should return zero elements.
     """
 
-    page = data_source_fixture["page"]
+    page = data_source_fixture["public_page"]
     page.visibility = Page.VISIBILITY_TYPES.LOGGED_IN
     page.save()
 

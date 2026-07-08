@@ -236,18 +236,23 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         a definitive answer.
 
         If None of the permission managers replied with a final answer for a check,
-        the operation is denied by default for this check.
+        the check is recorded as denied in the returned mapping.
+
+        Use `check_permissions` instead if you want a denied permission to raise a
+        `PermissionException`.
 
         :param checks: The list of checks to do. Each check is a triplet of
             (actor, permission_name, scope).
         :param workspace: The optional workspace in which the operations take place.
         :param include_trash: If true, then also checks if the given workspace has been
             trashed instead of raising a DoesNotExist exception.
-        :param return_permissions_exceptions: Raise an exception when the permission is
-            disallowed when `True`. Return `False` instead when `False`.
-            `False` by default.
+        :param return_permissions_exceptions: When True, a denied check is recorded
+            in the returned mapping as the corresponding PermissionException instance.
+            Otherwise, a denied check is recorded as False.
         :return: A dictionary with one entry for each check of the parameter as key and
-            whether the operation is allowed or not as value.
+            whether the operation is allowed (True) or denied (False, or the
+            PermissionException instance when return_permissions_exceptions=True)
+            as value.
         """
 
         result = {}
