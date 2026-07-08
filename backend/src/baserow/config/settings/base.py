@@ -842,6 +842,11 @@ if BASEROW_EXTRA_PUBLIC_URLS:
             EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES.append(hostname)
 
 FROM_EMAIL = os.getenv("FROM_EMAIL", "no-reply@localhost")
+# Align Django's built-in senders with the Baserow configured sender so that any
+# code relying on Django defaults (e.g. the `Send email` action using instance
+# SMTP) uses the configured FROM_EMAIL instead of `webmaster@localhost`.
+DEFAULT_FROM_EMAIL = FROM_EMAIL
+SERVER_EMAIL = FROM_EMAIL
 RESET_PASSWORD_TOKEN_MAX_AGE = 60 * 60 * 2  # 2 hours
 CHANGE_EMAIL_TOKEN_MAX_AGE = 60 * 60 * 12  # 12 hours
 
