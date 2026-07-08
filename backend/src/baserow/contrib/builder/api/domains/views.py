@@ -403,6 +403,8 @@ class AskPublicBuilderDomainExistsView(APIView):
         )
         if settings.MEDIA_URL_HOSTNAME:
             allowed_domain.add(settings.MEDIA_URL_HOSTNAME)
+        if settings.BUILDER_PREVIEW_HOSTNAME:
+            allowed_domain.add(settings.BUILDER_PREVIEW_HOSTNAME)
 
         if domain_name in allowed_domain:
             return Response(None, status=200)

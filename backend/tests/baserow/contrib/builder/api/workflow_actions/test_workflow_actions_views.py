@@ -13,6 +13,10 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.builder.preview import (
+    BuilderPreviewGrantHandler,
+    get_builder_preview_cookie_name,
+)
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
@@ -38,6 +42,12 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
+
+
+def authenticate_builder_preview(api_client, builder, user):
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+    BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = token
 
 
 @pytest.mark.django_db
@@ -292,15 +302,16 @@ def test_public_workflow_actions_view(api_client, data_fixture):
         "api:builder:domains:list_workflow_actions",
         kwargs={"page_id": page.id},
     )
+    authenticate_builder_preview(api_client, builder, user)
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     response_json = response.json()
     assert len(response_json) == 1
     assert response_json[0]["type"] == NotificationWorkflowActionType.type
+    del api_client.cookies[get_builder_preview_cookie_name()]
 
     url = reverse(
         "api:builder:domains:list_workflow_actions",

@@ -2233,25 +2233,26 @@ def test_builder_application_exports_file_with_zip_file(
 
 
 @pytest.mark.django_db
-def test_get_default_application_urls(data_fixture):
+def test_get_default_application_urls(data_fixture, settings):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     builder_to = data_fixture.create_builder_application(workspace=None)
     domain1 = data_fixture.create_builder_custom_domain(
         builder=builder, published_to=builder_to, domain_name="mytest.com"
     )
+    settings.BUILDER_PREVIEW_PATH_PREFIX = "/builder-preview"
 
     assert builder.get_type().get_application_urls(builder) == [
-        f"http://localhost:3000/builder/{builder.id}/preview/"
+        "http://localhost:3000/builder-preview/"
     ]
     assert builder_to.get_type().get_application_urls(builder_to) == [
         "http://mytest.com:3000",
-        f"http://localhost:3000/builder/{builder.id}/preview/",
+        "http://localhost:3000/builder-preview/",
     ]
 
 
 @pytest.mark.django_db
-def test_get_application_id_for_url(data_fixture):
+def test_get_application_id_for_url(data_fixture, settings):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     builder_to = data_fixture.create_builder_application(workspace=None)
@@ -2260,8 +2261,11 @@ def test_get_application_id_for_url(data_fixture):
     )
 
     assert (
+        builder.get_type().get_application_id_for_url("http://localhost:3000/") is None
+    )
+    assert (
         builder.get_type().get_application_id_for_url(
-            f"http://localhost:3000/builder/{builder.id}/preview/"
+            f"{settings.PUBLIC_WEB_FRONTEND_URL}/builder/{builder.id}/preview/"
         )
         == builder.id
     )

@@ -526,23 +526,45 @@ export function makeErrorResponseInterceptor(
  */
 export const prepareRequestHeaders = (store) => (config) => {
   const application = store.getters['userSourceUser/getCurrentApplication']
+  const currentApplicationMode =
+    store.getters['userSourceUser/getCurrentApplicationMode']
+  const isPreviewContext = currentApplicationMode === 'preview'
+  const usePreviewCredentials = isPreviewContext && config.usePreviewAuth
+
+  if (usePreviewCredentials) {
+    config.withCredentials = true
+  }
+
+  const isUserSourceAuthenticated =
+    store.getters['userSourceUser/isAuthenticated'](application)
+  const canSendUserSourceToken =
+    isUserSourceAuthenticated &&
+    !store.getters['userSourceUser/isRefreshing'](application)
+
   if (store.getters['auth/isAuthenticated']) {
-    const token = store.getters['auth/token']
-    config.headers.Authorization = `JWT ${token}`
-    config.headers.ClientSessionId =
-      store.getters['auth/getUntrustedClientSessionId']
     // If we are logged with Baserow user and with a user source user
     // so we also want to send this user token
-    // to the backend through the custom `UserSourceAuthorization` header.
+    // to the backend.
     // This enables the "double" authentication.
     // We access the data with the permission of the currently logged Baserow user
     // but we can see the data of the user source user.
-    if (store.getters['userSourceUser/isAuthenticated'](application)) {
+    if (canSendUserSourceToken) {
       const userSourceToken =
         store.getters['userSourceUser/accessToken'](application)
-      config.headers.UserSourceAuthorization = `JWT ${userSourceToken}`
+      if (usePreviewCredentials) {
+        config.headers.Authorization = `JWT ${userSourceToken}`
+      } else {
+        config.headers.UserSourceAuthorization = `JWT ${userSourceToken}`
+      }
     }
-  } else if (store.getters['userSourceUser/isAuthenticated'](application)) {
+
+    if (!(usePreviewCredentials && canSendUserSourceToken)) {
+      const token = store.getters['auth/token']
+      config.headers.Authorization = `JWT ${token}`
+      config.headers.ClientSessionId =
+        store.getters['auth/getUntrustedClientSessionId']
+    }
+  } else if (isUserSourceAuthenticated) {
     // Here we are logged as a user source user
     const userSourceToken =
       store.getters['userSourceUser/accessToken'](application)

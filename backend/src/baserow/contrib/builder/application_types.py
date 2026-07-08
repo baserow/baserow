@@ -506,36 +506,31 @@ class BuilderApplicationType(ApplicationType):
         if domain is not None:
             # Let's also return the preview url so that it's easier to test
             preview_url = urljoin(
-                settings.PUBLIC_WEB_FRONTEND_URL,
-                f"/builder/{domain.builder_id}/preview/",
+                settings.BUILDER_PREVIEW_URL,
+                f"{settings.BUILDER_PREVIEW_PATH_PREFIX}/",
             )
             return [domain.get_public_url(), preview_url]
 
         preview_url = urljoin(
-            settings.PUBLIC_WEB_FRONTEND_URL,
-            f"/builder/{application.id}/preview/",
+            settings.BUILDER_PREVIEW_URL,
+            f"{settings.BUILDER_PREVIEW_PATH_PREFIX}/",
         )
         # It's an unpublished version let's return to the home preview page
         return [preview_url]
 
     @classmethod
-    def _extract_builder_id_from_path(cls, url_path):
-        # Define the regex pattern with a capturing group for the integer
-        pattern = r"^/builder/(\d+)/preview/.*$"
+    def _extract_builder_id_from_legacy_preview_path(cls, url_path: str) -> int | None:
+        """Extracts the builder id from a preview URL used before the ID-less flow."""
 
-        # Use re.match to find the match
-        match = re.match(pattern, url_path)
-
-        if match:
-            # Extract the integer from the first capturing group
-            return int(match.group(1))
-        return None
+        match = re.match(r"^/builder/(\d+)/preview(?:/.*)?$", url_path)
+        return int(match.group(1)) if match else None
 
     @classmethod
     def get_application_id_for_url(cls, url: str) -> int | None:
         """
-        If the given URL is relative to the PUBLIC_WEB_FRONTEND_URL, we try to match
-        the preview path and to extract the builder id from it.
+        Legacy preview URLs contained the builder id and must remain supported for
+        existing SAML RelayState configurations. New preview URLs cannot identify
+        the builder because their state lives in the grant cookie.
 
         Otherwise, we try to match a published domain and return the related
         application id.
@@ -545,14 +540,17 @@ class BuilderApplicationType(ApplicationType):
 
         parsed_url = urlparse(url)
         parsed_frontend_url = urlparse(settings.PUBLIC_WEB_FRONTEND_URL)
+        parsed_preview_url = urlparse(settings.BUILDER_PREVIEW_URL)
 
-        if (parsed_url.scheme, parsed_url.hostname) == (
-            parsed_frontend_url.scheme,
-            parsed_frontend_url.hostname,
-        ):
-            # It's an unpublished app and we try to access the preview
-            url_path = parsed_url.path
-            return cls._extract_builder_id_from_path(url_path)
+        parsed_origin = parsed_url.scheme, parsed_url.hostname
+        frontend_origin = parsed_frontend_url.scheme, parsed_frontend_url.hostname
+        preview_origin = parsed_preview_url.scheme, parsed_preview_url.hostname
+
+        if parsed_origin == frontend_origin:
+            return cls._extract_builder_id_from_legacy_preview_path(parsed_url.path)
+
+        if parsed_origin == preview_origin:
+            return None
 
         try:
             # Let's search for a published app

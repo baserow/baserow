@@ -24,6 +24,7 @@ services:
   backend:
     image: baserow_backend:dev
     environment:
+      - OAUTHLIB_INSECURE_TRANSPORT
       - BASEROW_BACKEND_DEBUGGER_ENABLED
       - BASEROW_BACKEND_DEBUGGER_PORT=${BASEROW_BACKEND_DEBUGGER_PORT:-5678}
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
@@ -233,6 +234,25 @@ services:
     ports:
       - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_MAILHOG_SMTP_PORT:-1025}:1025" # smtp
       - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_MAILHOG_WEB_PORT:-8025}:8025" # web ui
+    networks:
+      local:
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    profiles: ["authentication"]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Browser-facing URLs use localhost, while backchannel URLs are resolved from
+      # the request so backend containers can communicate with http://keycloak:8080.
+      KC_HOSTNAME: http://localhost:${BASEROW_KEYCLOAK_PORT:-8081}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL:-http://localhost:8000}
+    ports:
+      - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_KEYCLOAK_PORT:-8081}:8080"
+    volumes:
+      - ./deploy/keycloak/baserow-dev-realm.json:/opt/keycloak/data/import/baserow-dev-realm.json:ro
     networks:
       local:
 

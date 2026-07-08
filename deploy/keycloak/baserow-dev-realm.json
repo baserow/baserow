@@ -1,0 +1,93 @@
+{
+  "realm": "baserow-dev",
+  "enabled": true,
+  "displayName": "Baserow development",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "clients": [
+    {
+      "clientId": "baserow-builder",
+      "name": "Baserow Builder OpenID Connect",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "baserow-builder-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "${PUBLIC_BACKEND_URL}/api/user-source/*"
+      ],
+      "webOrigins": ["http://localhost:*"]
+    },
+    {
+      "clientId": "${PUBLIC_BACKEND_URL}/api/user-source/sso/saml/acs/",
+      "name": "Baserow Builder SAML",
+      "enabled": true,
+      "protocol": "saml",
+      "redirectUris": [
+        "${PUBLIC_BACKEND_URL}/api/user-source/sso/saml/acs/"
+      ],
+      "attributes": {
+        "saml.assertion.signature": "false",
+        "saml.authnstatement": "true",
+        "saml.client.signature": "false",
+        "saml.force.post.binding": "true",
+        "saml.server.signature": "false",
+        "saml_name_id_format": "email",
+        "saml_assertion_consumer_url_post": "${PUBLIC_BACKEND_URL}/api/user-source/sso/saml/acs/"
+      },
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-property-mapper",
+          "config": {
+            "attribute.name": "user.email",
+            "attribute.nameformat": "Basic",
+            "friendly.name": "email",
+            "user.attribute": "email"
+          }
+        },
+        {
+          "name": "first name",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-property-mapper",
+          "config": {
+            "attribute.name": "user.first_name",
+            "attribute.nameformat": "Basic",
+            "friendly.name": "firstName",
+            "user.attribute": "firstName"
+          }
+        },
+        {
+          "name": "last name",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-property-mapper",
+          "config": {
+            "attribute.name": "user.last_name",
+            "attribute.nameformat": "Basic",
+            "friendly.name": "lastName",
+            "user.attribute": "lastName"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "builder-user",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "builder-user@example.com",
+      "firstName": "Builder",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "builder-user",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

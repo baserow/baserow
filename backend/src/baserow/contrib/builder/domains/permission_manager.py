@@ -9,11 +9,14 @@ from baserow.contrib.builder.data_sources.operations import (
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.elements.operations import ListElementsPageOperationType
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.preview import BuilderPreviewActor
+from baserow.contrib.builder.preview.subjects import BuilderPreviewActorSubjectType
 from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
     ListBuilderWorkflowActionsPageOperationType,
 )
 from baserow.core.cache import local_cache
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.operations import ReadApplicationOperationType
 from baserow.core.registries import PermissionManagerType, operation_type_registry
 from baserow.core.subjects import AnonymousUserSubjectType, UserSubjectType
@@ -25,6 +28,83 @@ from baserow.core.user_sources.operations import (
 from baserow.core.user_sources.subjects import UserSourceUserSubjectType
 
 User = get_user_model()
+
+
+class AllowBuilderPreviewPermissionManagerType(PermissionManagerType):
+    """
+    Allows a short-lived builder preview actor to render one draft builder.
+    """
+
+    type = "allow_builder_preview"
+    supported_actor_types = [BuilderPreviewActorSubjectType.type]
+
+    page_level_operations = [
+        ListElementsPageOperationType.type,
+        ListDataSourcesPageOperationType.type,
+        ListBuilderWorkflowActionsPageOperationType.type,
+    ]
+    sub_page_level_operations = [
+        DispatchDataSourceOperationType.type,
+        DispatchBuilderWorkflowActionOperationType.type,
+    ]
+    sub_application_level_operations = [
+        LoginUserSourceOperationType.type,
+    ]
+    application_level_operations = [
+        ReadApplicationOperationType.type,
+        ListUserSourcesApplicationOperationType.type,
+    ]
+    preview_operations = (
+        page_level_operations
+        + sub_page_level_operations
+        + sub_application_level_operations
+        + application_level_operations
+    )
+
+    def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
+        result = {}
+
+        for check in checks:
+            operation_type = operation_type_registry.get(check.operation_name)
+            if operation_type.type not in self.preview_operations:
+                continue
+
+            builder = self.get_builder_for_check(operation_type.type, check.context)
+            if builder is None:
+                continue
+
+            if builder.id == check.actor.builder_id:
+                result[check] = True
+            else:
+                result[check] = PermissionDenied(check.actor)
+
+        return result
+
+    def get_builder_for_check(self, operation_name, context):
+        if operation_name in self.page_level_operations:
+            return context.builder
+        if operation_name in self.sub_page_level_operations:
+            return context.page.builder
+        if operation_name in self.sub_application_level_operations:
+            return Builder.objects.filter(id=context.application_id).first()
+        if operation_name in self.application_level_operations:
+            return Builder.objects.filter(id=context.id).first()
+        return None
+
+    def filter_queryset(self, actor, operation_name, queryset, workspace=None):
+        if not isinstance(actor, BuilderPreviewActor):
+            return None
+
+        if operation_name == ListElementsPageOperationType.type:
+            return queryset.filter(page__builder_id=actor.builder_id)
+        if operation_name == ListDataSourcesPageOperationType.type:
+            return queryset.filter(page__builder_id=actor.builder_id)
+        if operation_name == ListBuilderWorkflowActionsPageOperationType.type:
+            return queryset.filter(page__builder_id=actor.builder_id)
+        return None
+
+    def get_permissions_object(self, actor, workspace=None):
+        return None
 
 
 class AllowPublicBuilderManagerType(PermissionManagerType):

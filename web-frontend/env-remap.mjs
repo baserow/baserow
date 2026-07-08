@@ -17,6 +17,9 @@ const envMapping = {
   // Public config (available on client via SSR)
   PUBLIC_BACKEND_URL: 'NUXT_PUBLIC_PUBLIC_BACKEND_URL',
   PUBLIC_WEB_FRONTEND_URL: 'NUXT_PUBLIC_PUBLIC_WEB_FRONTEND_URL',
+  BASEROW_BUILDER_PREVIEW_URL: 'NUXT_PUBLIC_BUILDER_PREVIEW_URL',
+  BASEROW_BUILDER_PREVIEW_PATH_PREFIX:
+    'NUXT_PUBLIC_BUILDER_PREVIEW_PATH_PREFIX',
   DOWNLOAD_FILE_VIA_XHR: 'NUXT_PUBLIC_DOWNLOAD_FILE_VIA_XHR',
   BASEROW_DISABLE_PUBLIC_URL_CHECK:
     'NUXT_PUBLIC_BASEROW_DISABLE_PUBLIC_URL_CHECK',
@@ -116,6 +119,30 @@ if (!process.env.NUXT_PUBLIC_BASEROW_EMBEDDED_SHARE_URL) {
     process.env.NUXT_PUBLIC_BASEROW_EMBEDDED_SHARE_URL =
       process.env.NUXT_PUBLIC_PUBLIC_WEB_FRONTEND_URL
   }
+}
+
+// Handle BASEROW_BUILDER_PREVIEW_URL fallback to PUBLIC_WEB_FRONTEND_URL
+if (!process.env.NUXT_PUBLIC_BUILDER_PREVIEW_URL) {
+  process.env.NUXT_PUBLIC_BUILDER_PREVIEW_URL =
+    process.env.NUXT_PUBLIC_PUBLIC_WEB_FRONTEND_URL
+}
+
+// Handle BASEROW_BUILDER_PREVIEW_PATH_PREFIX fallback.
+// A prefix is needed when preview shares the regular frontend URL to avoid
+// route ambiguity. Separated preview domains default to published-style paths.
+if (process.env.NUXT_PUBLIC_BUILDER_PREVIEW_PATH_PREFIX === undefined) {
+  const builderPreviewUrl =
+    process.env.NUXT_PUBLIC_BUILDER_PREVIEW_URL?.replace(/\/$/, '') || ''
+  const publicWebFrontendUrl =
+    process.env.NUXT_PUBLIC_PUBLIC_WEB_FRONTEND_URL?.replace(/\/$/, '') || ''
+  process.env.NUXT_PUBLIC_BUILDER_PREVIEW_PATH_PREFIX =
+    builderPreviewUrl === publicWebFrontendUrl ? '/builder-preview' : ''
+} else if (process.env.NUXT_PUBLIC_BUILDER_PREVIEW_PATH_PREFIX) {
+  process.env.NUXT_PUBLIC_BUILDER_PREVIEW_PATH_PREFIX = `/${process.env.NUXT_PUBLIC_BUILDER_PREVIEW_PATH_PREFIX.split(
+    '/'
+  )
+    .filter(Boolean)
+    .join('/')}`
 }
 
 // Handle BASEROW_EXTRA_PUBLIC_URLS with hostname extraction transformation

@@ -25,6 +25,7 @@ from baserow.api.services.errors import (
     ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
     ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
 )
+from baserow.api.user_sources.authentication import UserSourceJSONWebTokenAuthentication
 from baserow.api.utils import (
     DiscriminatorCustomFieldsMappingSerializer,
     apply_exception_mapping,
@@ -65,6 +66,9 @@ from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.handler import BuilderHandler
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.builder.preview.authentication import (
+    BuilderPreviewAuthentication,
+)
 from baserow.contrib.builder.service import BuilderService
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
@@ -91,6 +95,11 @@ BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
 
 # The duration of the cached public `get_public_builder_by_domain_name` view.
 BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60
+
+BUILDER_PREVIEW_RENDER_AUTHENTICATION_CLASSES = (
+    BuilderPreviewAuthentication,
+    UserSourceJSONWebTokenAuthentication,
+)
 
 
 class ForcedPublicPolymorphicApplicationResponseSerializer(
@@ -157,6 +166,7 @@ class PublicBuilderByDomainNameView(APIView):
 
 class PublicBuilderByIdView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PREVIEW_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -197,6 +207,7 @@ class PublicBuilderByIdView(APIView):
 
 class PublicElementsView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PREVIEW_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -274,6 +285,7 @@ class PublicElementsView(APIView):
 
 class PublicDataSourcesView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PREVIEW_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -364,6 +376,7 @@ class PublicDataSourcesView(APIView):
 
 class PublicBuilderWorkflowActionsView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PREVIEW_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -448,6 +461,7 @@ class PublicBuilderWorkflowActionsView(APIView):
 
 class PublicDispatchDataSourceView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PREVIEW_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -519,6 +533,7 @@ class PublicDispatchDataSourceView(APIView):
 
 class PublicDispatchDataSourcesView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PREVIEW_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[

@@ -1,12 +1,12 @@
 <template>
   <PublicPageContent
-    v-if="!pending && !error"
+    v-if="!pending && !error && asyncDataResult"
     :workspace="workspace"
     :builder="builder"
     :page="currentPage"
     :params="params"
     :path="path"
-    :mode="mode"
+    :mode="pageMode"
   />
 </template>
 
@@ -23,7 +23,7 @@ import {
   getTokenIfEnoughTimeLeft,
   userSourceCookieTokenName,
 } from '@baserow/modules/core/utils/auth'
-import { useRoute, useRouter } from '#imports'
+import { useHead, useRequestURL, useRoute } from '#imports'
 import PublicPageContent from '../components/PublicPageContent.vue'
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
@@ -41,13 +41,56 @@ defineOptions({
   name: 'PublicPage',
 })
 
+const props = defineProps({
+  builderId: {
+    type: Number,
+    required: false,
+    default: null,
+  },
+  pathMatch: {
+    type: String,
+    required: false,
+    default: null,
+  },
+  mode: {
+    type: String,
+    required: false,
+    default: 'public',
+  },
+})
+
 const store = useStore()
 const route = useRoute()
 const nuxtApp = useNuxtApp()
 
 const { $registry, $i18n } = nuxtApp
 
-const requestHostname = useRequestURL().hostname
+const requestUrl = useRequestURL()
+const requestHostname = requestUrl.hostname
+const routeBuilderId = props.builderId
+const routeMode =
+  typeof route.meta.builderPageMode === 'string'
+    ? route.meta.builderPageMode
+    : null
+const mode = routeMode || props.mode
+const routePathMatch =
+  props.pathMatch !== null
+    ? props.pathMatch
+    : Array.isArray(route.params.pathMatch)
+      ? route.params.pathMatch.join('/')
+      : route.params.pathMatch || ''
+
+if (mode === 'preview') {
+  useHead({
+    titleTemplate: '',
+    title: '',
+  })
+
+  store.dispatch('userSourceUser/setCurrentApplication', {
+    application: null,
+    mode,
+  })
+}
 
 const {
   data: asyncDataResult,
@@ -56,17 +99,9 @@ const {
 } = await useAsyncData(
   `publicPage_${requestHostname}_${route.fullPath}`,
   async () => {
-    let mode = 'public'
     const query = route.query
 
-    const builderId = route.params.builderId
-      ? parseInt(route.params.builderId, 10)
-      : null
-
-    // We have a builderId parameter in the path so it's a preview
-    if (builderId) {
-      mode = 'preview'
-    }
+    const builderId = routeBuilderId
 
     let builder = store.getters['application/getSelected']
     let needPostBuilderLoading = false
@@ -74,12 +109,19 @@ const {
     if (!builder || (builderId && builderId !== builder.id)) {
       try {
         if (builderId) {
-          // We have the builderId in the params so this is a preview
-          // Must fetch the builder instance by this Id.
+          // Legacy preview URLs have the builderId in the path.
           await store.dispatch('publicBuilder/fetchById', {
             builderId,
           })
           builder = await store.dispatch('application/selectById', builderId)
+        } else if (mode === 'preview') {
+          const { id: receivedBuilderId } = await store.dispatch(
+            'publicBuilder/fetchPreview'
+          )
+          builder = await store.dispatch(
+            'application/selectById',
+            receivedBuilderId
+          )
         } else {
           // We don't have the builderId so it's a public page.
           // Must fetch the builder instance by domain name.
@@ -110,6 +152,7 @@ const {
 
     store.dispatch('userSourceUser/setCurrentApplication', {
       application: builder,
+      mode,
     })
 
     if (
@@ -189,9 +232,7 @@ const {
 
     const found = resolveApplicationRoute(
       store.getters['page/getVisiblePages'](builder),
-      Array.isArray(route.params.pathMatch)
-        ? route.params.pathMatch.join('/')
-        : route.params.pathMatch
+      routePathMatch
     )
 
     // Handle 404
@@ -304,6 +345,9 @@ const {
       path,
       mode,
     }
+  },
+  {
+    server: mode !== 'preview',
   }
 )
 
@@ -316,5 +360,5 @@ const builder = computed(() => asyncDataResult.value?.builder)
 const currentPage = computed(() => asyncDataResult.value?.currentPage)
 const path = computed(() => asyncDataResult.value?.path)
 const params = computed(() => asyncDataResult.value?.params)
-const mode = computed(() => asyncDataResult.value?.mode)
+const pageMode = computed(() => asyncDataResult.value?.mode)
 </script>

@@ -9,6 +9,7 @@ class BuilderConfig(AppConfig):
             application_type_registry,
             object_scope_type_registry,
             operation_type_registry,
+            subject_type_registry,
         )
         from baserow.core.trash.registries import trash_item_type_registry
         from baserow.core.usage.registries import workspace_storage_usage_item_registry
@@ -30,6 +31,9 @@ class BuilderConfig(AppConfig):
         from baserow.contrib.builder.pages.object_scopes import (
             BuilderPageObjectScopeType,
         )
+        from baserow.contrib.builder.preview.subjects import (
+            BuilderPreviewActorSubjectType,
+        )
         from baserow.contrib.builder.workflow_actions.object_scopes import (
             BuilderWorkflowActionScopeType,
         )
@@ -40,6 +44,7 @@ class BuilderConfig(AppConfig):
         object_scope_type_registry.register(BuilderDomainObjectScopeType())
         object_scope_type_registry.register(BuilderDataSourceObjectScopeType())
         object_scope_type_registry.register(BuilderWorkflowActionScopeType())
+        subject_type_registry.register(BuilderPreviewActorSubjectType())
 
         from baserow.contrib.builder.operations import (
             ListDomainsBuilderOperationType,
@@ -156,10 +161,16 @@ class BuilderConfig(AppConfig):
 
         from baserow.core.registries import permission_manager_type_registry
 
-        from .domains.permission_manager import AllowPublicBuilderManagerType
+        from .domains.permission_manager import (
+            AllowBuilderPreviewPermissionManagerType,
+            AllowPublicBuilderManagerType,
+        )
         from .elements.permission_manager import ElementVisibilityPermissionManager
         from .permission_manager import AllowIfTemplatePermissionManagerType
 
+        permission_manager_type_registry.register(
+            AllowBuilderPreviewPermissionManagerType()
+        )
         permission_manager_type_registry.register(AllowPublicBuilderManagerType())
         permission_manager_type_registry.register(ElementVisibilityPermissionManager())
 

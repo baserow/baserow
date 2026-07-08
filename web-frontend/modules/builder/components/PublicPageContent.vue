@@ -34,7 +34,7 @@ import {
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
-import { useRoute, useRouter } from '#imports'
+import { useRoute, useRouter, useRuntimeConfig } from '#imports'
 
 defineOptions({
   name: 'PublicPageContent',
@@ -44,6 +44,7 @@ const store = useStore()
 const route = useRoute()
 const router = useRouter()
 const nuxtApp = useNuxtApp()
+const config = useRuntimeConfig()
 
 const { $registry, $i18n } = nuxtApp
 
@@ -333,9 +334,9 @@ const maybeRedirectUserToLoginPage = async () => {
     )
     const url = prefixInternalResolvedUrl(
       loginPage.path,
-      props.builder,
       'page',
-      props.mode
+      props.mode,
+      config.public.builderPreviewPathPrefix
     )
 
     const currentPath = route.fullPath
@@ -387,8 +388,13 @@ const checkProviderAuthentication = async () => {
   }
 
   if (refreshTokenFromProvider) {
+    const cookieUrl =
+      props.mode === 'preview'
+        ? config.public.builderPreviewUrl
+        : config.public.publicWebFrontendUrl
     setToken(nuxtApp, refreshTokenFromProvider, userSourceCookieTokenName, {
       sameSite: 'Lax',
+      cookieUrl,
     })
     try {
       await store.dispatch('userSourceUser/refreshAuth', {

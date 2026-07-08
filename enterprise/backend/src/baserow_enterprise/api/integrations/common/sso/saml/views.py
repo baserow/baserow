@@ -1,3 +1,5 @@
+from django.core import signing
+from django.core.signing import BadSignature
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
@@ -46,6 +48,38 @@ from baserow_enterprise.sso.saml.exceptions import (
     InvalidSamlRequest,
     InvalidSamlResponse,
 )
+
+SAML_APPLICATION_TOKEN_QUERY_PARAM = "baserow_saml_application_token"
+SAML_APPLICATION_TOKEN_SALT = "baserow_enterprise.saml.application"
+
+
+def add_application_token_to_relay_state(
+    relay_state_url: str, application_id: int
+) -> str:
+    """Adds a signed application identifier to an SP-initiated RelayState URL."""
+
+    application_token = signing.dumps(application_id, salt=SAML_APPLICATION_TOKEN_SALT)
+    return urlencode_query_params(
+        relay_state_url,
+        {SAML_APPLICATION_TOKEN_QUERY_PARAM: application_token},
+    )
+
+
+def get_application_from_relay_state(origin: str, saml_request_data: dict):
+    """Resolves signed SP state, falling back to legacy URL-based resolution."""
+
+    application_token = saml_request_data.pop(SAML_APPLICATION_TOKEN_QUERY_PARAM, None)
+    if application_token is None:
+        return CoreHandler().get_application_for_url(origin)
+
+    try:
+        application_id = signing.loads(
+            application_token, salt=SAML_APPLICATION_TOKEN_SALT
+        )
+    except BadSignature as exc:
+        raise InvalidSamlRequest("Invalid SAML application token.") from exc
+
+    return CoreHandler().get_application(application_id)
 
 
 class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
@@ -107,8 +141,9 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
             )
 
             origin = data["RelayState"]
+            query_params = data.get("saml_request_data", {})
 
-            application = CoreHandler().get_application_for_url(origin)
+            application = get_application_from_relay_state(origin, query_params)
             if application is None:
                 raise ApplicationDoesNotExist()
             application_urls = application.get_type().get_application_urls(
@@ -123,7 +158,6 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
                 ),
             )
 
-            query_params = data.get("saml_request_data", {})
             # Add the refresh token as query parameter
             query_params[f"user_source_saml_token__{user.user_source.id}"] = (
                 user.get_refresh_token()
@@ -230,6 +264,9 @@ class SamlAppAuthProviderBaserowInitiatedSingleSignOn(APIView):
                 query_params,
                 default_frontend_urls=application_urls,
                 allow_any_path=False,
+            )
+            valid_relay_state_url = add_application_token_to_relay_state(
+                valid_relay_state_url, user_source.application_id
             )
 
             idp_sign_in_url = SamlAppAuthProviderHandler.get_sign_in_url(

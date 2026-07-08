@@ -13,6 +13,10 @@ from rest_framework.status import (
 )
 from rest_framework_simplejwt.exceptions import TokenError
 
+from baserow.contrib.builder.preview import (
+    BuilderPreviewGrantHandler,
+    get_builder_preview_cookie_name,
+)
 from baserow.core.models import BlacklistedToken
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
@@ -158,6 +162,31 @@ def test_obtain_json_web_token_unpublished_but_auth(
             {"email": "e@ma.il", "password": "password"},
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_obtain_json_web_token_unpublished_with_preview_cookie(
+    api_client, data_fixture, stub_user_source_registry
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    user_source = data_fixture.create_user_source_with_first_type(application=builder)
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+    BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = token
+
+    url = reverse(
+        "api:user_sources:token_auth", kwargs={"user_source_id": user_source.id}
+    )
+
+    with stub_user_source_registry():
+        response = api_client.post(
+            url,
+            {"email": "e@ma.il", "password": "password"},
+            format="json",
         )
 
     assert response.status_code == HTTP_200_OK
@@ -577,6 +606,34 @@ def test_refresh_json_web_token(api_client, data_fixture, stub_user_source_regis
 
     with pytest.raises(TokenError):
         token.check_blacklist()
+
+
+@pytest.mark.django_db
+def test_refresh_json_web_token_unpublished_with_preview_cookie(
+    api_client, data_fixture, stub_user_source_registry
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    user_source = data_fixture.create_user_source_with_first_type(application=builder)
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+    BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = token
+
+    url = reverse("api:user_sources:token_refresh")
+
+    us_user = data_fixture.create_user_source_user(user_source=user_source)
+
+    with stub_user_source_registry(get_user_return=us_user):
+        response = api_client.post(
+            url,
+            {"refresh_token": str(us_user.get_refresh_token())},
+            format="json",
+        )
+
+    response_json = response.json()
+
+    assert response.status_code == HTTP_200_OK
+    assert "access_token" in response_json
 
 
 @pytest.mark.django_db

@@ -6,7 +6,17 @@ from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_N
 
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.preview import (
+    BuilderPreviewGrantHandler,
+    get_builder_preview_cookie_name,
+)
 from baserow_enterprise.builder.custom_code.models import BuilderCustomScript
+
+
+def authenticate_builder_preview(api_client, builder, user):
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+    BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = token
 
 
 @pytest.mark.django_db
@@ -125,7 +135,7 @@ def test_create_enterprise_builder_application_no_licence(api_client, data_fixtu
 def test_get_enterprise_builder_custom_code_preview(
     enable_enterprise, api_client, data_fixture
 ):
-    user, token = data_fixture.create_user_and_token(
+    user, _token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
     workspace = data_fixture.create_workspace(user=user)
@@ -138,10 +148,10 @@ def test_get_enterprise_builder_custom_code_preview(
     builder.custom_code.save()
 
     url = reverse("api:enterprise:custom_code:js", kwargs={"builder_id": builder.id})
+    authenticate_builder_preview(api_client, builder, user)
 
     response = api_client.get(
         url,
-        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
     assert response.content == b"testJs"
@@ -150,7 +160,6 @@ def test_get_enterprise_builder_custom_code_preview(
 
     response = api_client.get(
         url,
-        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
     assert response.content == b"testCss"

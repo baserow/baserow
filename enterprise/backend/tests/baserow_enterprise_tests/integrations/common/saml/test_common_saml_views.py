@@ -1,8 +1,9 @@
 import base64
 import io
 import zlib
-from urllib.parse import parse_qsl, urlencode, urlparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse
 
+from django.core import signing
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -14,9 +15,15 @@ from saml2.xml.schema import validate as validate_saml_xml
 
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.core.user_sources.registries import user_source_type_registry
+from baserow_enterprise.api.integrations.common.sso.saml.views import (
+    SAML_APPLICATION_TOKEN_QUERY_PARAM,
+    SAML_APPLICATION_TOKEN_SALT,
+    get_application_from_relay_state,
+)
 from baserow_enterprise.integrations.common.sso.saml.models import (
     SamlAppAuthProviderModel,
 )
+from baserow_enterprise.sso.saml.exceptions import InvalidSamlRequest
 
 from ...local_baserow.helpers import populate_local_baserow_test_data
 
@@ -39,7 +46,7 @@ def decode_saml_request(idp_redirect_url):
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_builder_saml_baserow_initiated_login_view(
-    data_fixture, api_client, enterprise_data_fixture
+    data_fixture, api_client, enterprise_data_fixture, settings
 ):
     metadata = enterprise_data_fixture.get_test_saml_idp_metadata()
 
@@ -93,9 +100,18 @@ def test_builder_saml_baserow_initiated_login_view(
     saml_request = decode_saml_request(idp_sign_in_url)
     assert validate_saml_xml(saml_request) is None
     response_query_params = dict(parse_qsl(urlparse(idp_sign_in_url).query))
+    relay_state = response_query_params["RelayState"]
+    parsed_relay_state = urlparse(relay_state)
+    assert parsed_relay_state._replace(query="").geturl() == urljoin(
+        settings.BUILDER_PREVIEW_URL,
+        f"{settings.BUILDER_PREVIEW_PATH_PREFIX}/",
+    )
+    relay_state_query_params = dict(parse_qsl(parsed_relay_state.query))
+    application_token = relay_state_query_params.pop(SAML_APPLICATION_TOKEN_QUERY_PARAM)
+    assert relay_state_query_params == {}
     assert (
-        response_query_params["RelayState"]
-        == f"http://localhost:3000/builder/{domain.builder.id}/preview/"
+        signing.loads(application_token, salt=SAML_APPLICATION_TOKEN_SALT)
+        == user_source.application_id
     )
 
     # Second time, should redirect to the same URL
@@ -114,15 +130,33 @@ def test_builder_saml_baserow_initiated_login_view(
     saml_request = decode_saml_request(idp_sign_in_url)
     assert validate_saml_xml(saml_request) is None
     response_query_params = dict(parse_qsl(urlparse(idp_sign_in_url).query))
+    relay_state = response_query_params["RelayState"]
+    parsed_relay_state = urlparse(relay_state)
     assert (
-        response_query_params["RelayState"] == "http://test.com:3000/login?next=%2Ftoto"
+        parsed_relay_state._replace(query="").geturl() == "http://test.com:3000/login"
+    )
+    relay_state_query_params = dict(parse_qsl(parsed_relay_state.query))
+    application_token = relay_state_query_params.pop(SAML_APPLICATION_TOKEN_QUERY_PARAM)
+    assert relay_state_query_params == {"next": "/toto"}
+    assert (
+        signing.loads(application_token, salt=SAML_APPLICATION_TOKEN_SALT)
+        == published_builder.id
     )
 
 
+def test_get_application_from_relay_state_rejects_invalid_application_token():
+    saml_request_data = {SAML_APPLICATION_TOKEN_QUERY_PARAM: "invalid-token"}
+
+    with pytest.raises(InvalidSamlRequest):
+        get_application_from_relay_state(
+            "http://localhost:3000/builder-preview/", saml_request_data
+        )
+
+
 @pytest.mark.django_db()
-@override_settings(DEBUG=True)
+@override_settings(DEBUG=True, BUILDER_PREVIEW_PATH_PREFIX="/builder-preview")
 def test_builder_saml_assertion_consumer_service(
-    data_fixture, api_client, enterprise_data_fixture
+    data_fixture, api_client, enterprise_data_fixture, settings
 ):
     (
         metadata,
@@ -157,6 +191,59 @@ def test_builder_saml_assertion_consumer_service(
     )
 
     with freeze_time("2024-12-17T15:53:00.00Z"):
+        signed_relay_state = urljoin(
+            settings.BUILDER_PREVIEW_URL,
+            f"{settings.BUILDER_PREVIEW_PATH_PREFIX}/",
+        )
+        application_token = signing.dumps(
+            user_source.application_id,
+            salt=SAML_APPLICATION_TOKEN_SALT,
+        )
+        signed_relay_state_query = urlencode(
+            {SAML_APPLICATION_TOKEN_QUERY_PARAM: application_token}
+        )
+        signed_relay_state = f"{signed_relay_state}?{signed_relay_state_query}"
+        response = api_client.post(
+            sp_sso_saml_acs_url,
+            data={
+                "SAMLResponse": saml_response,
+                "RelayState": signed_relay_state,
+            },
+        )
+        assert response.status_code == HTTP_302_FOUND
+
+        parsed_redirect = urlparse(response.headers["Location"])
+        assert parsed_redirect.path == "/builder-preview/"
+        query_param = dict(parse_qsl(parsed_redirect.query))
+        assert SAML_APPLICATION_TOKEN_QUERY_PARAM not in query_param
+        assert f"user_source_saml_token__{user_source.id}" in query_param
+
+        response = api_client.post(
+            sp_sso_saml_acs_url,
+            data={
+                "SAMLResponse": saml_response,
+                "RelayState": (
+                    f"{settings.PUBLIC_WEB_FRONTEND_URL}/builder/"
+                    f"{user_source.application_id}/preview/"
+                ),
+            },
+        )
+        assert response.status_code == HTTP_302_FOUND
+
+        parsed_redirect = urlparse(response.headers["Location"])
+        expected_preview_url = urlparse(
+            urljoin(
+                settings.BUILDER_PREVIEW_URL,
+                f"{settings.BUILDER_PREVIEW_PATH_PREFIX}/",
+            )
+        )
+
+        assert parsed_redirect.hostname == expected_preview_url.hostname
+        assert parsed_redirect.path == expected_preview_url.path
+
+        query_param = dict(parse_qsl(parsed_redirect.query))
+        assert f"user_source_saml_token__{user_source.id}" in query_param
+
         response = api_client.post(
             sp_sso_saml_acs_url,
             data={

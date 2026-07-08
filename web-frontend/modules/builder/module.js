@@ -30,6 +30,10 @@ export default defineNuxtModule({
       name: 'selectWorkspaceBuilderPage',
       path: resolve('./middleware/selectWorkspaceBuilderPage.js'),
     })
+    addRouteMiddleware({
+      name: 'exchangePreviewToken',
+      path: resolve('./middleware/exchangePreviewToken.js'),
+    })
 
     // Add routes
     extendPages((pages) => {

@@ -19,7 +19,9 @@ export const setToken = (
   const { runWithContext } = appOrContext
   return runWithContext(() => {
     const config = useRuntimeConfig()
-    const secure = isSecureURL(config.public.publicWebFrontendUrl)
+    const secure =
+      configuration.secure ??
+      isSecureURL(configuration.cookieUrl || config.public.publicWebFrontendUrl)
     const cookie = useCookie(getCookieName(config, key), {
       path: '/',
       maxAge: refreshTokenMaxAge,

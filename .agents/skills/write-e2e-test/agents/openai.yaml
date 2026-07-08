@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write E2E Test"
+  short_description: "Write and run Baserow Playwright e2e tests"
+  default_prompt: "Use $write-e2e-test to add and run a focused Baserow Playwright e2e test."

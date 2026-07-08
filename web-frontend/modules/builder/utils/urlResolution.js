@@ -17,6 +17,7 @@ import { getUrlScheme } from '@baserow/modules/core/utils/url'
  * @param {Function} resolveFormula A resolveFormula function we'll use if the
  *  element has page parameters which need to be resolved.
  * @param {String} editorMode A builder application's editor mode.
+ * @param {String} previewPathPrefix The configured preview path prefix.
  * @returns {String} A resolved URL.
  */
 export default function resolveElementUrl(
@@ -24,7 +25,8 @@ export default function resolveElementUrl(
   builder,
   pages,
   resolveFormula,
-  editorMode
+  editorMode,
+  previewPathPrefix = ''
 ) {
   let resolvedUrl = ''
   if (element.navigation_type === 'page') {
@@ -66,9 +68,9 @@ export default function resolveElementUrl(
   resolvedUrl = resolvedUrl.replace(/^[\x00-\x20]+/, '')
   resolvedUrl = prefixInternalResolvedUrl(
     resolvedUrl,
-    builder,
     element.navigation_type,
-    editorMode
+    editorMode,
+    previewPathPrefix
   )
   // Add query parameters if they exist
   if (element.query_parameters && element.query_parameters.length > 0) {
@@ -98,30 +100,61 @@ export default function resolveElementUrl(
 }
 
 /**
- * Responsible for prefixing a resolvedUrl with the builder application's preview
- * URI, if it meets certain conditions.
+ * Prefixes an internal preview URL with the configured fixed preview path
+ * prefix, if any.
  *
  * @param {String} resolvedUrl A URL which `resolveElementUrl` has generated.
- * @param {Object} builder A builder application.
  * @param {String} navigationType An element's `navigation_type` (custom / page).
  * @param {String} editorMode A builder application's editor mode.
- * @returns {String} A URL we may have prefixed with the application's preview URI.
+ * @param {String} previewPathPrefix The configured preview path prefix.
+ * @returns {String} The resolved URL.
  */
 export function prefixInternalResolvedUrl(
   resolvedUrl,
-  builder,
   navigationType,
-  editorMode
+  editorMode,
+  previewPathPrefix = ''
 ) {
+  const normalizedPrefix = normalizePreviewPathPrefix(previewPathPrefix)
+
+  // Only internal URLs rendered in preview mode need the preview path prefix.
+  // Page navigation is always internal, while custom navigation is internal only
+  // when it uses a root-relative URL.
   if (
-    resolvedUrl &&
-    editorMode === 'preview' &&
-    (navigationType === 'page' ||
-      (navigationType === 'custom' && resolvedUrl.startsWith('/')))
+    !resolvedUrl ||
+    !normalizedPrefix ||
+    editorMode !== 'preview' ||
+    !(
+      navigationType === 'page' ||
+      (navigationType === 'custom' && resolvedUrl.startsWith('/'))
+    )
   ) {
-    // Add prefix in preview mode for page navigation or custom URL starting with `/`
-    return `/builder/${builder.id}/preview${resolvedUrl}`
-  } else {
     return resolvedUrl
   }
+
+  // Avoid prefixing URLs which already point inside the configured preview path.
+  // The three forms cover the prefix itself, a nested path, and a query string
+  // attached directly to the prefix.
+  if (
+    resolvedUrl === normalizedPrefix ||
+    resolvedUrl.startsWith(`${normalizedPrefix}/`) ||
+    resolvedUrl.startsWith(`${normalizedPrefix}?`)
+  ) {
+    return resolvedUrl
+  }
+
+  // Preserve the slash between the preview prefix and a root-level query string.
+  if (resolvedUrl.startsWith('/?')) {
+    return `${normalizedPrefix}/${resolvedUrl.slice(1)}`
+  }
+
+  // All remaining internal URLs are root-relative paths, so prepend the prefix.
+  return `${normalizedPrefix}${resolvedUrl}`
+}
+
+export function normalizePreviewPathPrefix(previewPathPrefix) {
+  if (!previewPathPrefix) {
+    return ''
+  }
+  return `/${previewPathPrefix.split('/').filter(Boolean).join('/')}`
 }

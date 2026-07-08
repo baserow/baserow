@@ -46,7 +46,11 @@ export default (client) => {
       })
     },
     authenticate(userSourceId, credentials) {
-      return client.post(`/user-source/${userSourceId}/token-auth`, credentials)
+      return client.post(
+        `/user-source/${userSourceId}/token-auth`,
+        credentials,
+        { usePreviewAuth: true }
+      )
     },
     refreshAuth(refreshToken) {
       return client.post(
@@ -54,7 +58,7 @@ export default (client) => {
         {
           refresh_token: refreshToken,
         },
-        { skipAuthRefresh: true }
+        { skipAuthRefresh: true, usePreviewAuth: true }
       )
     },
     blacklistToken(refreshToken) {

@@ -12,6 +12,7 @@ export const state = () => ({
   // The currentApplication is used in the clientHandler because we have no way to know
   // If the a request is done for the page editor or the template.
   currentApplication: null,
+  currentApplicationMode: null,
 })
 
 const checkApplication = (application) => {
@@ -79,14 +80,15 @@ export const mutations = {
     checkApplication(application)
     application.userSourceUser.refreshing = refreshing
   },
-  SET_CURRENT_APPLICATION(state, { application }) {
+  SET_CURRENT_APPLICATION(state, { application, mode = null }) {
     state.currentApplication = application
+    state.currentApplicationMode = mode
   },
 }
 
 export const actions = {
-  setCurrentApplication({ commit }, { application }) {
-    commit('SET_CURRENT_APPLICATION', { application })
+  setCurrentApplication({ commit }, { application, mode = null }) {
+    commit('SET_CURRENT_APPLICATION', { application, mode })
   },
   async forceAuthenticate({ dispatch }, { application, userSource, user }) {
     const { $registry, $i18n, $client, $config } = this
@@ -143,6 +145,10 @@ export const actions = {
     commit('SET_AUTHENTICATED', { application, authenticated: true })
 
     if (setCookie) {
+      const cookieUrl =
+        getters.getCurrentApplicationMode === 'preview'
+          ? nuxtApp.$config.public.builderPreviewUrl
+          : nuxtApp.$config.public.publicWebFrontendUrl
       // Set the token for next page load
       await setToken(
         nuxtApp,
@@ -150,6 +156,7 @@ export const actions = {
         userSourceCookieTokenName,
         {
           sameSite: 'Lax',
+          cookieUrl,
         }
       )
     }
@@ -222,6 +229,9 @@ export const actions = {
 export const getters = {
   getCurrentApplication: (state) => {
     return state.currentApplication
+  },
+  getCurrentApplicationMode: (state) => {
+    return state.currentApplicationMode
   },
   isAuthenticated: (state) => (application) => {
     return !!application?.userSourceUser?.authenticated

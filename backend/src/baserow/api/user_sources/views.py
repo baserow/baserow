@@ -58,6 +58,9 @@ from baserow.api.utils import (
     type_from_data_or_registry,
     validate_data_custom_fields,
 )
+from baserow.contrib.builder.preview.authentication import (
+    BuilderPreviewAuthentication,
+)
 from baserow.core.app_auth_providers.exceptions import (
     AppAuthenticationProviderTypeDoesNotExist,
     IncompatibleUserSourceType,
@@ -500,8 +503,10 @@ class ListUserSourceUsersView(APIView):
 
 class UserSourceObtainJSONWebToken(TokenObtainPairView):
     permission_classes = (AllowAny,)
-    # We need the user to be authenticated for double authentication.
+    # Draft previews authenticate with a preview actor, while editor requests use the
+    # regular JWT actor. Both are allowed to obtain user source tokens.
     authentication_classes = [
+        BuilderPreviewAuthentication,
         JSONWebTokenAuthentication,
     ]
 
@@ -608,8 +613,12 @@ class UserSourceForceObtainJSONWebToken(APIView):
 
 class UserSourceTokenRefreshView(APIView):
     permission_classes = (AllowAny,)
-    # We only want to authenticate with main auth
-    authentication_classes = (JSONWebTokenAuthentication,)
+    # Draft previews authenticate with a preview actor, while editor requests use the
+    # regular JWT actor. Published pages can still refresh anonymously.
+    authentication_classes = [
+        BuilderPreviewAuthentication,
+        JSONWebTokenAuthentication,
+    ]
 
     @extend_schema(
         tags=["User sources"],

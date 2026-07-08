@@ -4,6 +4,7 @@ from .data_sources import urls as data_source_urls
 from .domains import urls as domain_urls
 from .elements import urls as element_urls
 from .pages import urls as page_urls
+from .preview import urls as preview_urls
 from .theme import urls as theme_urls
 from .workflow_actions import urls as workflow_action_urls
 
@@ -71,6 +72,10 @@ paths_without_builder_id = [
             ),
             namespace="workflow_action",
         ),
+    ),
+    path(
+        "preview/",
+        include(preview_urls, namespace="preview"),
     ),
 ]
 

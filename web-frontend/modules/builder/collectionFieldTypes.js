@@ -189,7 +189,8 @@ export class LinkCollectionFieldType extends CollectionFieldType {
           builder,
           this.app.$store.getters['page/getVisiblePages'](builder),
           resolveFormula,
-          mode
+          mode,
+          this.app.$config.public.builderPreviewPathPrefix
         ),
       }
     } catch (error) {

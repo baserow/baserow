@@ -92,7 +92,7 @@ test.describe("Builder element visibility on published pages", () => {
     const builderPage = await createBuilderPage(
       "Visibility",
       "/visibility",
-      builder,
+      builder
     );
     for (const cfg of ELEMENTS) {
       const element = await createBuilderElement(builderPage, "heading", {
@@ -124,7 +124,7 @@ test.describe("Builder element visibility on published pages", () => {
     await updateRows(
       user,
       table,
-      rows.map((r) => ({ id: r.id, Password: PASSWORD })),
+      rows.map((r) => ({ id: r.id, Password: PASSWORD }))
     );
 
     const integration = await createLocalBaserowIntegration(builder);
@@ -137,25 +137,25 @@ test.describe("Builder element visibility on published pages", () => {
         name: fieldByName.Name,
         role: fieldByName.Role,
         password: fieldByName.Password,
-      },
+      }
     );
 
     // --- Publish. The published copy filters elements by visibility.
     const published = await publishBuilder(
       builder,
-      `e2e-visibility-${userSource.id}-${Date.now()}.example.com`,
+      `e2e-visibility-${userSource.id}-${Date.now()}.example.com`
     );
 
     // --- Authenticate each user source user against the published user source.
     const blankAuth = await userSourceTokenAuth(
       published.userSourceId,
       "blank@example.com",
-      PASSWORD,
+      PASSWORD
     );
     const editorAuth = await userSourceTokenAuth(
       published.userSourceId,
       "editor@example.com",
-      PASSWORD,
+      PASSWORD
     );
 
     const previewUrl = `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}${published.previewPath()}`;
@@ -167,7 +167,7 @@ test.describe("Builder element visibility on published pages", () => {
     // the five headings render. `refreshToken` null means an anonymous visit.
     const assertVisibleFor = async (
       refreshToken: string | null,
-      expectedLabels: string[],
+      expectedLabels: string[]
     ) => {
       // Reset to a clean visitor: no Baserow session, no user source token.
       await page.context().clearCookies();
@@ -186,7 +186,7 @@ test.describe("Builder element visibility on published pages", () => {
 
       // E1_ALL is visible to everyone, so wait for it to confirm the page rendered.
       await expect(
-        page.locator(".ab-heading", { hasText: "E1_ALL" }),
+        page.locator(".ab-heading", { hasText: "E1_ALL" })
       ).toBeVisible();
 
       for (const label of ALL_LABELS) {

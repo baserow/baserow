@@ -6,7 +6,10 @@ import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlRes
  * These rules add the Application Builder CSS classes and safely render token
  * content interpolated into HTML.
  */
-export const createApplicationBuilderMarkdownRules = ({ builder, mode }) => ({
+export const createApplicationBuilderMarkdownRules = ({
+  mode,
+  previewPathPrefix,
+}) => ({
   heading_open: (tokens, idx, options, env, renderer) => {
     const level = tokens[idx].markup.length
     tokens[idx].attrJoin('class', `ab-heading ab-heading--h${level}`)
@@ -15,9 +18,9 @@ export const createApplicationBuilderMarkdownRules = ({ builder, mode }) => ({
   link_open: (tokens, idx, options, env, renderer) => {
     const url = prefixInternalResolvedUrl(
       tokens[idx].attrGet('href'),
-      builder,
       'custom',
-      mode
+      mode,
+      previewPathPrefix
     )
     tokens[idx].attrSet('href', url)
     tokens[idx].attrJoin('class', 'ab-link')

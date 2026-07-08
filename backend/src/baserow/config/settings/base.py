@@ -105,6 +105,9 @@ if BASEROW_BACKEND_PLUGIN_NAMES:
     INSTALLED_APPS.extend(BASEROW_BACKEND_PLUGIN_NAMES)
 
 MIDDLEWARE = [
+    # Keep this before CorsMiddleware so it can post-process the broad CORS
+    # headers after django-cors-headers has added them.
+    "baserow.middleware.BaserowCredentialedCorsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -856,6 +859,40 @@ BASEROW_EMBEDDED_SHARE_URL = os.getenv("BASEROW_EMBEDDED_SHARE_URL")
 if not BASEROW_EMBEDDED_SHARE_URL:
     BASEROW_EMBEDDED_SHARE_URL = PUBLIC_WEB_FRONTEND_URL
 
+BUILDER_PREVIEW_URL = os.getenv("BASEROW_BUILDER_PREVIEW_URL")
+if not BUILDER_PREVIEW_URL:
+    BUILDER_PREVIEW_URL = PUBLIC_WEB_FRONTEND_URL
+
+
+def _get_origin_from_url(url):
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+BASEROW_CORS_ALLOWED_CREDENTIAL_ORIGINS = [
+    origin
+    for origin in {
+        _get_origin_from_url(PUBLIC_WEB_FRONTEND_URL),
+        _get_origin_from_url(BUILDER_PREVIEW_URL),
+    }
+    if origin is not None
+]
+
+BUILDER_PREVIEW_PATH_PREFIX = os.getenv("BASEROW_BUILDER_PREVIEW_PATH_PREFIX")
+if BUILDER_PREVIEW_PATH_PREFIX is None:
+    BUILDER_PREVIEW_PATH_PREFIX = (
+        "/builder-preview"
+        if BUILDER_PREVIEW_URL.rstrip("/") == PUBLIC_WEB_FRONTEND_URL.rstrip("/")
+        else ""
+    )
+elif BUILDER_PREVIEW_PATH_PREFIX:
+    BUILDER_PREVIEW_PATH_PREFIX = "/" + BUILDER_PREVIEW_PATH_PREFIX.strip("/")
+
+BUILDER_PREVIEW_GRANT_TTL = timedelta(
+    seconds=int(os.getenv("BASEROW_BUILDER_PREVIEW_GRANT_TTL_SECONDS", 60 * 30))
+)
 FRONTEND_COOKIE_PREFIX = os.getenv("BASEROW_FRONTEND_COOKIE_PREFIX", "")
 
 MEDIA_URL_PATH = "/media/"
@@ -865,6 +902,7 @@ PRIVATE_BACKEND_URL = os.getenv("PRIVATE_BACKEND_URL", "http://backend:8000")
 PUBLIC_BACKEND_HOSTNAME = urlparse(PUBLIC_BACKEND_URL).hostname
 PUBLIC_WEB_FRONTEND_HOSTNAME = urlparse(PUBLIC_WEB_FRONTEND_URL).hostname
 BASEROW_EMBEDDED_SHARE_HOSTNAME = urlparse(BASEROW_EMBEDDED_SHARE_URL).hostname
+BUILDER_PREVIEW_HOSTNAME = urlparse(BUILDER_PREVIEW_URL).hostname
 MEDIA_URL_HOSTNAME = urlparse(MEDIA_URL).hostname
 PRIVATE_BACKEND_HOSTNAME = urlparse(PRIVATE_BACKEND_URL).hostname
 
@@ -873,6 +911,9 @@ if PUBLIC_BACKEND_HOSTNAME:
 
 if MEDIA_URL_HOSTNAME:
     ALLOWED_HOSTS.append(MEDIA_URL_HOSTNAME)
+
+if BUILDER_PREVIEW_HOSTNAME:
+    ALLOWED_HOSTS.append(BUILDER_PREVIEW_HOSTNAME)
 
 if PRIVATE_BACKEND_HOSTNAME:
     ALLOWED_HOSTS.append(PRIVATE_BACKEND_HOSTNAME)
@@ -1392,6 +1433,7 @@ PERMISSION_MANAGERS = [
     "setting_operation",
     "staff",
     "allow_if_template",
+    "allow_builder_preview",
     "allow_public_builder",
     "element_visibility",
     "member",

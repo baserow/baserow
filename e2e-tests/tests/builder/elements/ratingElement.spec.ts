@@ -50,8 +50,7 @@ test.describe("Builder page heading element test suite", () => {
 
     await newPage.waitForLoadState();
 
-    const title = await newPage.title();
-    await expect(title).toBe("Default page");
+    await expect(newPage).toHaveTitle("Default page");
 
     await expect(newPage.locator(".rating")).toHaveCount(3);
   });
