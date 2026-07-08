@@ -1721,6 +1721,17 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
     def get_serializer_field(self, instance, **kwargs):
         return CollaboratorSerializer(required=False, **kwargs)
 
+    def get_native_response_value_converter(self, field_object):
+        name = field_object["name"]
+
+        def converter(row):
+            user = getattr(row, name)
+            if user is None:
+                return None
+            return {"id": user.id, "name": user.first_name}
+
+        return converter
+
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
@@ -1946,6 +1957,17 @@ class CreatedByFieldType(ReadOnlyFieldType):
 
     def get_serializer_field(self, instance, **kwargs):
         return CollaboratorSerializer(required=False, **kwargs)
+
+    def get_native_response_value_converter(self, field_object):
+        name = field_object["name"]
+
+        def converter(row):
+            user = getattr(row, name)
+            if user is None:
+                return None
+            return {"id": user.id, "name": user.first_name}
+
+        return converter
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
@@ -3034,6 +3056,27 @@ class LinkRowFieldType(
                 **kwargs,
             },
         )
+
+    def get_native_response_value_converter(self, field_object):
+        from rest_framework import serializers
+
+        name = field_object["name"]
+        # Matches LinkRowValueSerializer's order field exactly.
+        order_to_representation = serializers.DecimalField(
+            max_digits=40, decimal_places=20, required=False
+        ).to_representation
+
+        def converter(row):
+            return [
+                {
+                    "id": linked_row.id,
+                    "value": str(linked_row),
+                    "order": order_to_representation(linked_row.order),
+                }
+                for linked_row in getattr(row, name).all()
+            ]
+
+        return converter
 
     def get_serializer_help_text(self, instance):
         return (
@@ -4475,6 +4518,17 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             }
         )
 
+    def get_native_response_value_converter(self, field_object):
+        name = field_object["name"]
+
+        def converter(row):
+            option = getattr(row, name)
+            if option is None:
+                return None
+            return {"id": option.id, "value": option.value, "color": option.color}
+
+        return converter
+
     def enhance_queryset(self, queryset, field, name, **kwargs):
         # It's important that this individual enhance_queryset method exists, even
         # though the enhance queryset in bulk exists, because the link_row field can
@@ -5034,6 +5088,17 @@ class MultipleSelectFieldType(
                 **kwargs,
             }
         )
+
+    def get_native_response_value_converter(self, field_object):
+        name = field_object["name"]
+
+        def converter(row):
+            return [
+                {"id": option.id, "value": option.value, "color": option.color}
+                for option in getattr(row, name).all()
+            ]
+
+        return converter
 
     def enhance_queryset(self, queryset, field, name, **kwargs):
         # It's important that this individual enhance_queryset method exists, even
@@ -5634,6 +5699,18 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         ) = self.get_field_instance_and_type_from_formula_field(instance)
         field_kwargs = self._filter_serializer_field_kwargs(field_type, **kwargs)
         return field_type.get_response_serializer_field(field_instance, **field_kwargs)
+
+    def get_native_response_value_converter(self, field_object):
+        # Scalar formula results delegate to plain DRF serializer fields which
+        # the default implementation handles; arrays need their own converter.
+        converter = super().get_native_response_value_converter(field_object)
+        if converter is not None:
+            return converter
+
+        formula_type = self.to_baserow_formula_type(field_object["field"])
+        if isinstance(formula_type, BaserowFormulaArrayType):
+            return formula_type.get_native_array_value_converter(field_object)
+        return None
 
     def get_model_field(self, instance: FormulaField, **kwargs):
         # When typed_table is False we are constructing a table model without
@@ -6956,6 +7033,17 @@ class MultipleCollaboratorsFieldType(
                 **kwargs,
             }
         )
+
+    def get_native_response_value_converter(self, field_object):
+        name = field_object["name"]
+
+        def converter(row):
+            return [
+                {"id": user.id, "name": user.first_name}
+                for user in getattr(row, name).all()
+            ]
+
+        return converter
 
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         return [{"id": u.id, "name": u.first_name} for u in value.all()]

@@ -2,7 +2,7 @@ import re
 from abc import ABC
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any, List, Optional, Set, Type, Union
+from typing import Any, Callable, List, Optional, Set, Type, Union
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
@@ -1357,6 +1357,79 @@ class BaserowFormulaArrayType(
                 **kwargs,
             }
         )
+
+    def get_native_array_value_converter(self, field_object) -> Optional[Callable]:
+        """
+        Returns a plain function converting the stored JSONB array of this
+        array formula into the exact response representation the DRF array
+        serializers produce, or None when the sub type's element serializer
+        can't be reproduced natively.
+
+        :param field_object: The field object dict from the generated model.
+        :return: A function taking a row instance, or None.
+        """
+
+        from baserow.contrib.database.fields.registries import (
+            get_native_value_to_representation,
+        )
+
+        (
+            sub_instance,
+            sub_field_type,
+        ) = self.sub_type.get_baserow_field_instance_and_type()
+        element_to_representation = get_native_value_to_representation(
+            sub_field_type.get_response_serializer_field(sub_instance)
+        )
+        if element_to_representation is None:
+            return None
+
+        name = field_object["name"]
+
+        if self.sub_type.item_is_in_nested_value_object_when_in_array:
+
+            def converter(row):
+                value = getattr(row, name)
+                if value is None:
+                    return None
+                result = []
+                for item in value:
+                    # Mirrors ArrayValueSerializer, including its behaviour of
+                    # emitting an empty list for a mismatching item.
+                    try:
+                        out = {}
+                        if "id" in item:
+                            out["id"] = int(item["id"])
+                        if "ids" in item:
+                            out["ids"] = {
+                                key: int(item_id)
+                                for key, item_id in item["ids"].items()
+                            }
+                        if "value" in item:
+                            item_value = item["value"]
+                            out["value"] = (
+                                None
+                                if item_value is None
+                                else element_to_representation(item_value)
+                            )
+                        result.append(out)
+                    except Exception:
+                        result.append([])
+                return result
+
+        else:
+
+            def converter(row):
+                value = getattr(row, name)
+                if value is None:
+                    return None
+                return [
+                    None
+                    if item_value is None
+                    else element_to_representation(item_value)
+                    for item_value in value
+                ]
+
+        return converter
 
     def get_export_value(self, value, field_object, rich_value=False) -> Any:
         if value is None:

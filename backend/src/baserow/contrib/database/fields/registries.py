@@ -1,6 +1,7 @@
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     List,
     NoReturn,
@@ -94,6 +95,50 @@ if TYPE_CHECKING:
     )
 
 StartingRowType = Union["GeneratedTableModel", List["GeneratedTableModel"]]
+
+
+def get_native_value_to_representation(serializer_field) -> Optional[Callable]:
+    """
+    Returns the `to_representation` of the provided DRF serializer field when
+    it is a simple context-free field whose output can be reproduced without
+    the DRF serializer machinery, or None otherwise. Reusing the exact
+    serializer field's own method guarantees an identical representation by
+    construction, including for subclasses overriding `to_representation`.
+
+    :param serializer_field: The DRF serializer field instance to inspect.
+    :return: The bound `to_representation` method or None.
+    """
+
+    from rest_framework import serializers
+
+    from baserow.contrib.database.api.fields.serializers import (
+        DurationFieldSerializer,
+    )
+
+    if serializer_field is None or isinstance(
+        serializer_field, serializers.SerializerMethodField
+    ):
+        return None
+    if not isinstance(
+        serializer_field,
+        (
+            serializers.CharField,
+            serializers.IntegerField,
+            serializers.FloatField,
+            serializers.BooleanField,
+            serializers.DecimalField,
+            serializers.DateField,
+            serializers.DateTimeField,
+            serializers.TimeField,
+            serializers.DurationField,
+            serializers.UUIDField,
+            # A context-free custom field converting stored durations to
+            # seconds.
+            DurationFieldSerializer,
+        ),
+    ):
+        return None
+    return serializer_field.to_representation
 
 
 class FieldType(
@@ -583,6 +628,39 @@ class FieldType(
         """
 
         return self.get_serializer_field(instance, **kwargs)
+
+    def get_native_response_value_converter(self, field_object) -> Optional[Callable]:
+        """
+        Returns a plain function converting a row instance to this field's
+        response representation, byte-identical to what the DRF response
+        serializer would produce, or None when no such function exists and the
+        row serialization must fall back to DRF for this field.
+
+        The default implementation reuses the exact response serializer
+        field's `to_representation` when it is a simple context-free DRF
+        field, which guarantees an identical representation by construction.
+        Field types whose response serializer needs the DRF machinery (nested
+        serializers, method fields, request context) return None here unless
+        they provide their own converter.
+
+        :param field_object: The field object dict from the generated model,
+            containing the `field` instance, `type` and attribute `name`.
+        :return: A function taking a row instance and returning the JSON-ready
+            value, or None to fall back to DRF for this field.
+        """
+
+        serializer_field = self.get_response_serializer_field(field_object["field"])
+        to_representation = get_native_value_to_representation(serializer_field)
+        if to_representation is None:
+            return None
+
+        name = field_object["name"]
+
+        def converter(row):
+            value = getattr(row, name)
+            return None if value is None else to_representation(value)
+
+        return converter
 
     def get_serializer_help_text(self, instance):
         """

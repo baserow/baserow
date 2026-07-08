@@ -255,17 +255,40 @@ def paginate_and_serialize_queryset(
     limit_linked_items = parse_limit_linked_items_params(request)
     extra_kwargs = {"limit_linked_items": limit_linked_items}
 
-    serializer_class = get_row_serializer_class(
-        queryset.model,
-        RowSerializer,
-        is_response=True,
-        field_ids=field_ids,
-        exclude_field_ids=exclude_field_ids,
-        extra_kwargs=extra_kwargs,
-    )
-    serializer = serializer_class(page, many=True)
+    if limit_linked_items is None:
+        from baserow.contrib.database.api.rows.native_serializer import (
+            native_serialize_rows,
+        )
 
-    response = paginator.get_paginated_response(serializer.data)
+        model = queryset.model
+        if field_ids is not None or exclude_field_ids is not None:
+            included = set(field_ids) if field_ids is not None else None
+            excluded = (
+                set(exclude_field_ids) if exclude_field_ids is not None else set()
+            )
+            effective_field_ids = [
+                field_id
+                for field_id in model._field_objects.keys()
+                if (included is None or field_id in included)
+                and field_id not in excluded
+            ]
+        else:
+            effective_field_ids = None
+        serialized_rows = native_serialize_rows(
+            model, page, field_ids=effective_field_ids
+        )
+    else:
+        serializer_class = get_row_serializer_class(
+            queryset.model,
+            RowSerializer,
+            is_response=True,
+            field_ids=field_ids,
+            exclude_field_ids=exclude_field_ids,
+            extra_kwargs=extra_kwargs,
+        )
+        serialized_rows = serializer_class(page, many=True).data
+
+    response = paginator.get_paginated_response(serialized_rows)
     return PaginatedData(response, page, paginator)
 
 

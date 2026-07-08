@@ -56,6 +56,9 @@ from baserow.contrib.database.api.rows.errors import (
     ERROR_ROW_IDS_NOT_UNIQUE,
 )
 from baserow.contrib.database.api.rows.exceptions import InvalidJoinParameterException
+from baserow.contrib.database.api.rows.native_serializer import (
+    native_serialize_rows,
+)
 from baserow.contrib.database.api.rows.serializers import (
     GetRowAdjacentSerializer,
     GetRowQueryParamsSerializer,
@@ -192,6 +195,34 @@ def build_response_with_metadata(
             }
     response_serializer = serializer_class(data)
     return Response(response_serializer.data)
+
+
+def build_native_response_with_metadata(
+    model,
+    rows,
+    request,
+    updated_field_ids: list | None = None,
+    cascade_update: CascadeUpdatedRows | None = None,
+) -> Response:
+    """
+    The native serialization equivalent of `build_response_with_metadata`,
+    producing the identical response structure without the DRF serializer
+    machinery.
+    """
+
+    data = {"items": native_serialize_rows(model, rows)}
+    if str_to_bool(str(request.GET.get("include_metadata"))):
+        data["metadata"] = {
+            "updated_field_ids": list(updated_field_ids)
+            if updated_field_ids is not None
+            else [field.id for field in model.get_fields()]
+        }
+        if cascade_update:
+            data["metadata"]["cascade_update"] = {
+                "rows": native_serialize_rows(model, cascade_update.updated_rows),
+                "field_ids": list(cascade_update.field_ids),
+            }
+    return Response(data)
 
 
 class RowsView(APIView):
@@ -464,19 +495,24 @@ class RowsView(APIView):
 
         paginator = PageNumberPagination(limit_page_size=settings.ROW_PAGE_SIZE_LIMIT)
         page = paginator.paginate_queryset(queryset, request, self)
-        serializer_class = get_row_serializer_class(
-            model,
-            RowSerializer,
-            is_response=True,
-            field_ids=[f.id for f in fields] if fields else None,
-            user_field_names=user_field_names,
-            field_kwargs=field_kwargs,
-        )
-        serializer = serializer_class(page, many=True)
+        if not user_field_names and not field_kwargs:
+            serialized_rows = native_serialize_rows(
+                model, page, field_ids=[f.id for f in fields] if fields else None
+            )
+        else:
+            serializer_class = get_row_serializer_class(
+                model,
+                RowSerializer,
+                is_response=True,
+                field_ids=[f.id for f in fields] if fields else None,
+                user_field_names=user_field_names,
+                field_kwargs=field_kwargs,
+            )
+            serialized_rows = serializer_class(page, many=True).data
 
         rows_loaded.send(sender=self, table=table)
 
-        return paginator.get_paginated_response(serializer.data)
+        return paginator.get_paginated_response(serialized_rows)
 
     @extend_schema(
         parameters=[
@@ -1444,6 +1480,8 @@ class BatchRowsView(APIView):
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None
         )
+        if not user_field_names and not hidden_field_ids:
+            return build_native_response_with_metadata(model, rows, request)
         response_row_serializer_class = get_row_serializer_class(
             model,
             RowSerializer,
@@ -1609,6 +1647,14 @@ class BatchRowsView(APIView):
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None
         )
+        if not user_field_names and not hidden_field_ids:
+            return build_native_response_with_metadata(
+                model,
+                rows,
+                request,
+                updated_field_ids=updated_data.updated_field_ids,
+                cascade_update=updated_data.cascade_update,
+            )
         response_row_serializer_class = get_row_serializer_class(
             model,
             RowSerializer,
