@@ -1,5 +1,7 @@
-import { PAGE_PLACES } from '@baserow/modules/builder/enums'
-import { groupElementsByPagePlace } from '@baserow/modules/builder/utils/pagePlaceElements'
+import {
+  PAGE_ELEMENT_BEHAVIOURS,
+  PAGE_PLACES,
+} from '@baserow/modules/builder/enums'
 
 const PAGE_ELEMENT_SECTION_CONFIGS = [
   {
@@ -63,15 +65,37 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
   },
 ]
 
+function groupElementsByPagePlace(
+  elements,
+  registry,
+  places = Object.values(PAGE_PLACES)
+) {
+  const elementsWithPlace = elements
+    .map((element) => ({
+      place: registry.get('element', element.type).getPagePlace(),
+      element,
+    }))
+    .filter(({ place }) => places.includes(place))
+
+  return places.map((place) => ({
+    place,
+    elements: elementsWithPlace
+      .filter((elementWithPlace) => elementWithPlace.place === place)
+      .map(({ element }) => element),
+  }))
+}
+
 export default {
   computed: {
-    sharedElementsByPlace() {
-      return groupElementsByPagePlace(this.sharedElements, this.$registry)
-    },
     pageElementSections() {
+      const elementsByPlace = groupElementsByPagePlace(
+        [...(this.sharedElements || []), ...(this.elements || [])],
+        this.$registry
+      )
+
       return PAGE_ELEMENT_SECTION_CONFIGS.map((section) => ({
         ...section,
-        elements: this.getElementsForSection(section),
+        elements: this.getElementsForSection(section, elementsByPlace),
       }))
     },
     visiblePageElementSections() {
@@ -81,19 +105,19 @@ export default {
     },
   },
   methods: {
-    getElementsForSection(section) {
-      if (section.place === PAGE_PLACES.CONTENT) {
-        return this.elements || []
+    getElementsForSection(section, elementsByPlace) {
+      const elementsForPlace =
+        elementsByPlace.find((group) => group.place === section.place)
+          ?.elements || []
+
+      if (section.isFixed === undefined) {
+        return elementsForPlace
       }
 
-      return this.getEntriesForSharedPlace(section.place)
-        .filter((entry) => entry.isFixed === section.isFixed)
-        .map((entry) => entry.element)
-    },
-    getEntriesForSharedPlace(place) {
-      return (
-        this.sharedElementsByPlace.find((group) => group.place === place)
-          ?.elements || []
+      return elementsForPlace.filter(
+        (element) =>
+          (element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED) ===
+          section.isFixed
       )
     },
   },
