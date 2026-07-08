@@ -345,9 +345,9 @@ class PathBasedUpdateStatementCollector:
         :return: None, the outcome is recorded in `before_rows_result`.
         """
 
-        from baserow.contrib.database.api.rows.serializers import (
-            RowSerializer,
-            get_row_serializer_class,
+        from baserow.contrib.database.api.rows.native_serializer import (
+            get_light_fetchable_link_row_field_ids,
+            native_serialize_rows,
         )
 
         limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
@@ -365,9 +365,7 @@ class PathBasedUpdateStatementCollector:
 
         model = field_cache.get_model(self.table)
         before = before_rows_result[self.table.id]
-        serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True
-        )
+        light_link_field_ids = get_light_fetchable_link_row_field_ids(model)
         for row_filter in self._filters_for_rows_connected_to_starting_rows(
             path_to_starting_table,
             starting_row_ids,
@@ -384,8 +382,12 @@ class PathBasedUpdateStatementCollector:
                 # query, so their (potentially large) prefetches aren't
                 # fetched again just to be thrown away.
                 queryset = queryset.exclude(id__in=list(before.keys()))
-            rows = list(queryset.enhance_by_fields().order_by().distinct()[:cap])
-            for row, serialized in zip(rows, serializer_class(rows, many=True).data):
+            rows = list(
+                queryset.enhance_by_fields(skip_field_ids=light_link_field_ids)
+                .order_by()
+                .distinct()[:cap]
+            )
+            for row, serialized in zip(rows, native_serialize_rows(model, rows)):
                 before[row.id] = serialized
 
     def _collect_changed_only_row_ids(

@@ -5,7 +5,7 @@ from django.dispatch import receiver
 
 from opentelemetry import trace
 
-from baserow.contrib.database.api.rows.serializers import serialize_rows_for_response
+from baserow.contrib.database.api.rows.native_serializer import native_serialize_rows
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.registries import view_type_registry
@@ -94,7 +94,7 @@ def views_rows_created(
         return
     transaction.on_commit(
         lambda: _send_rows_created_event_to_views(
-            serialize_rows_for_response(rows, model),
+            native_serialize_rows(model, rows),
             before,
             row_checker.get_filtered_views_where_rows_are_visible(rows),
             user=user,
@@ -116,7 +116,7 @@ def views_before_rows_delete(sender, rows, user, table, model, **kwargs):
         "deleted_rows_views": (
             row_checker.get_filtered_views_where_rows_are_visible(rows)
         ),
-        "deleted_rows": serialize_rows_for_response(rows, model),
+        "deleted_rows": native_serialize_rows(model, rows),
     }
 
 
@@ -180,7 +180,7 @@ def views_rows_updated(
         # broadcast, so the serialization can be skipped entirely.
         return
     serialized_old_rows = dict(before_return)[serialize_rows_values]
-    serialized_updated_rows = serialize_rows_for_response(rows, model)
+    serialized_updated_rows = native_serialize_rows(model, rows)
 
     old_row_views: List[FilteredViewRows] = before_return_dict["old_rows_views"]
     existing_checker = before_return_dict["caching_row_checker"]

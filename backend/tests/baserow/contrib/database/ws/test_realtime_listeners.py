@@ -156,7 +156,7 @@ def test_row_update_skips_realtime_serialization_without_listeners(
         return_value=False,
     )
     serialize = patch(
-        "baserow.contrib.database.ws.rows.signals.serialize_rows_for_response",
+        "baserow.contrib.database.ws.rows.signals.native_serialize_rows",
     )
     broadcast = patch(
         "baserow.ws.registries.PageType.broadcast",

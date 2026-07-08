@@ -7,9 +7,9 @@ from channels.layers import get_channel_layer
 
 from baserow.config.celery import app
 from baserow.config.db_routers import set_db_alias
-from baserow.contrib.database.api.rows.serializers import (
-    RowSerializer,
-    get_row_serializer_class,
+from baserow.contrib.database.api.rows.native_serializer import (
+    get_light_fetchable_link_row_field_ids,
+    native_serialize_rows,
 )
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.models import Table
@@ -64,16 +64,19 @@ def broadcast_dependant_rows_updated(
         return
 
     model = table.get_model()
-    rows = list(model.objects.filter(id__in=row_ids).enhance_by_fields())
+    light_link_field_ids = get_light_fetchable_link_row_field_ids(model)
+    rows = list(
+        model.objects.filter(id__in=row_ids).enhance_by_fields(
+            skip_field_ids=light_link_field_ids
+        )
+    )
     if not rows:
         return
 
     table_page_type = page_registry.get("table")
     channel_layer = get_channel_layer()
     before_by_id = {row["id"]: row for row in (serialized_rows_before or [])}
-    serialized_rows = get_row_serializer_class(model, RowSerializer, is_response=True)(
-        rows, many=True
-    ).data
+    serialized_rows = native_serialize_rows(model, rows)
     payload = RealtimeRowMessages.rows_updated(
         table_id=table_id,
         # Rows without a snapshot fall back to an id-only skeleton.

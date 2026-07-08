@@ -5,12 +5,10 @@ from django.conf import settings
 from django.db import transaction
 from django.dispatch import receiver
 
-from baserow.contrib.database.api.rows.serializers import (
-    RowHistorySerializer,
-    RowSerializer,
-    get_row_serializer_class,
-    serialize_rows_for_response,
+from baserow.contrib.database.api.rows.native_serializer import (
+    native_serialize_rows,
 )
+from baserow.contrib.database.api.rows.serializers import RowHistorySerializer
 from baserow.contrib.database.fields.dependencies.update_collector import (
     DependantRowsUpdate,
 )
@@ -44,9 +42,9 @@ def serialize_rows_values(
         # No websocket subscriber, realtime view or webhook can consume the
         # serialized old rows, so the serialization is skipped entirely.
         return None
-    return serialize_rows_for_response(
-        rows,
+    return native_serialize_rows(
         model,
+        rows,
         field_ids=updated_field_ids if serialize_only_updated_fields else None,
     )
 
@@ -73,9 +71,7 @@ def rows_created(
         lambda: table_page_type.broadcast(
             RealtimeRowMessages.rows_created(
                 table_id=table.id,
-                serialized_rows=get_row_serializer_class(
-                    model, RowSerializer, is_response=True
-                )(rows, many=True).data,
+                serialized_rows=native_serialize_rows(model, rows),
                 metadata=row_metadata_registry.generate_and_merge_metadata_for_rows(
                     user, table, [row.id for row in rows]
                 ),
@@ -112,17 +108,16 @@ def rows_updated(
             RealtimeRowMessages.rows_updated(
                 table_id=table.id,
                 serialized_rows_before_update=before_rows_values,
-                serialized_rows=get_row_serializer_class(
+                # In some cases the caller may want to serialize just the
+                # fields that were provided in updated_field_ids list (i.e.
+                # field rules). Otherwise, all fields (i.e. in webhooks).
+                serialized_rows=native_serialize_rows(
                     model,
-                    RowSerializer,
-                    is_response=True,
-                    # in some cases the caller may want to serialize just the fields
-                    # that were provided in updated_field_ids list (i.e. field rules).
-                    # Otherwise, we need to serialize all fields (i.e. in webhooks).
+                    rows,
                     field_ids=updated_field_ids
                     if serialize_only_updated_fields
                     else None,
-                )(rows, many=True).data,
+                ),
                 # Broadcast a list of updated fields so that the listener can take
                 # action even if the value didn't change.
                 updated_field_ids=list(updated_field_ids),
@@ -199,9 +194,7 @@ def before_rows_delete(sender, rows, user, table, model, **kwargs):
         # The websocket delete broadcast is the only consumer of these
         # serialized rows, so without subscribers nothing needs serializing.
         return None
-    return get_row_serializer_class(model, RowSerializer, is_response=True)(
-        rows, many=True
-    ).data
+    return native_serialize_rows(model, rows)
 
 
 @receiver(row_signals.rows_deleted)
