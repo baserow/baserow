@@ -6,6 +6,7 @@
     header-no-padding
     content-no-x-padding
     class="row-edit-modal-sidebar"
+    @update:selected-index="onTabSelected"
   >
     <Tab
       v-for="sidebarType in sidebarTypes"
@@ -27,6 +28,10 @@
 <script>
 import Tabs from '@baserow/modules/core/components/Tabs.vue'
 import Tab from '@baserow/modules/core/components/Tab.vue'
+import {
+  getRowEditModalSidebarTab,
+  setRowEditModalSidebarTab,
+} from '@baserow/modules/database/utils/rowEditModalSidebar'
 
 export default {
   name: 'RowEditModalSidebar',
@@ -62,9 +67,24 @@ export default {
       default: false,
     },
   },
+  data() {
+    return {
+      // Tab type selected on open; used to avoid re-persisting on mount.
+      initialSelectedType: null,
+    }
+  },
   computed: {
     selectedTabIndex() {
       const types = this.sidebarTypes
+      const remembered = getRowEditModalSidebarTab()
+      if (remembered) {
+        const rememberedIndex = types.findIndex(
+          (type) => type.getType() === remembered
+        )
+        if (rememberedIndex !== -1) {
+          return rememberedIndex
+        }
+      }
       const index = types.findIndex((type) =>
         type.isSelectedByDefault(this.database, this.table)
       )
@@ -81,6 +101,19 @@ export default {
             this.view
           ) === false && type.getComponent()
       )
+    },
+  },
+  created() {
+    const types = this.sidebarTypes
+    this.initialSelectedType = types[this.selectedTabIndex]?.getType() ?? null
+  },
+  methods: {
+    // Persist the user's tab choice, but not the initial mount selection.
+    onTabSelected(index) {
+      const type = this.sidebarTypes[index]?.getType()
+      if (type && type !== this.initialSelectedType) {
+        setRowEditModalSidebarTab(type)
+      }
     },
   },
 }
