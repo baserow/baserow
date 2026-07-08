@@ -86,30 +86,33 @@ def notify_workspaces_approaching_application_user_limit() -> None:
         check_application_user_limit(workspace)
 
 
-def raise_if_over_application_user_login_limit(user_source: UserSource, user) -> None:
+def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     """
-    Raises `ApplicationUserLimitReached` when the given user isn't allowed to
-    authenticate because a provider that enforces a hard application user login limit
-    considers the user over it.
+    Raises ApplicationUserLimitReached when logins to the given user source's
+    workspace aren't allowed because a provider that enforces a hard application user
+    login limit considers the workspace over it.
+
+    When a workspace is over its limit, all of its logins are refused (not just the
+    users past the limit).
 
     The over-limit decision is delegated to the registered providers (highest order
-    first): the first provider that returns a non-`None` verdict decides. A provider
-    returning `None` doesn't enforce a hard login limit for the current deployment, so
+    first): the first provider that returns a non-None verdict decides. A provider
+    returning None doesn't enforce a hard login limit for the current deployment, so
     the next provider is consulted; when none do, the login is allowed.
 
     :param user_source: The user source the user is authenticating against.
-    :param user: The authenticated `UserSourceUser`.
-    :raises ApplicationUserLimitReached: When a provider considers the user over the
-        limit.
+    :raises ApplicationUserLimitReached: When a provider considers the workspace over
+        the limit.
     """
 
-    # Soft limit (the default): the limit is only used to notify workspace members,
-    # nobody is blocked from signing in. The hard limit is opt-in via an env var.
+    # Soft limit: the limit is only used to notify workspace members and nobody
+    # is blocked from signing in.
     if not settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED:
         return
 
+    workspace = user_source.application.workspace
     for provider in _sorted_providers():
-        over_limit = provider.is_over_login_limit(user_source, user)
+        over_limit = provider.is_over_login_limit(workspace)
         if over_limit is None:
             continue
         if over_limit:

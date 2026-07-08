@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import Optional, Tuple
 
 from baserow.contrib.builder.handler import BuilderHandler
 from baserow.core.models import Workspace
@@ -6,9 +6,6 @@ from baserow_premium.application_user_usage.registries import (
     ApplicationUserUsageProviderType,
 )
 from baserow_premium.license.models import License
-
-if TYPE_CHECKING:
-    from baserow.core.user_sources.models import UserSource
 
 
 class PremiumApplicationUserUsageProviderType(ApplicationUserUsageProviderType):
@@ -51,18 +48,13 @@ class PremiumApplicationUserUsageProviderType(ApplicationUserUsageProviderType):
         usage = BuilderHandler().aggregate_user_source_counts()
         return usage, total_limit
 
-    def is_over_login_limit(self, user_source: "UserSource", user) -> Optional[bool]:
+    def is_over_login_limit(self, workspace: Workspace) -> Optional[bool]:
         """
-        TODO: Returns None for now for these reasons:
+        Returns None so that self-hosted installs never hard-block logins.
 
-        1. Not yet implemented. This is eventually how we hard-block logins on
-            self-hosted. But we first need to decide, within the instance-wide
-            scope, how we compute the total count across all user sources (not
-            the per-source position the SaaS uses).
-        2. Can we have unlicensed self-hosted installs and is Application users
-            a core feature? I.e. an instance with no license (or a pre v1.32
-            license without application_users). If yes, then we have to return
-            None to not block logins.
+        The base implementation blocks every login once the instance-wide
+        usage exceeds the summed license limit (get_usage_and_limit() returns None
+        for unlicensed or pre v1.32 installs, so those are never blocked).
         """
 
         return None
