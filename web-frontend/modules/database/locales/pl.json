@@ -94,7 +94,7 @@
         "hasFullPermissions": "Posiada pełne uprawnienia, w tym do elementów podrzędnych.",
         "hasOnlySelectedPermissions": "Posiada uprawnienia tylko do wybranych elementów podrzędnych.",
         "noPermissions": "Nie posiada uprawnień.",
-        "createNewTitle": "Utwoórz nowy token bazy danych",
+        "createNewTitle": "Utwórz nowy token bazy danych",
         "backToOverview": "Powrót do podsumowania"
     },
     "apiTokenForm": {
