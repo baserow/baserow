@@ -23,7 +23,13 @@ class BuilderWorkflowActionTrashableItemType(TrashableItemType):
         return trashed_item.page
 
     def get_name(self, trashed_item: BuilderWorkflowAction) -> str:
-        return f"{trashed_item.get_type().type} ({trashed_item.id})"
+        name = f"{trashed_item.get_type().type} ({trashed_item.id})"
+        # Mention the parent element (if any) so that, when the workflow action is
+        # shown in the trash, the user can tell which element it belongs to.
+        element = trashed_item.element
+        if element is not None:
+            name += f" inside {element} ({element.id})"
+        return name.lower()
 
     def trash(
         self,

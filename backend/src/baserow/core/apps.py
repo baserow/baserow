@@ -660,6 +660,8 @@ class CoreConfig(AppConfig):
 
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401
+        import baserow.core.integrations.ws.signals  # noqa: F403, F401
+        import baserow.core.user_sources.ws.signals  # noqa: F403, F401
 
         # pgvector extension setup. Because the extension is optional, we must
         # dynamically check if it's available and adjust the models accordingly.

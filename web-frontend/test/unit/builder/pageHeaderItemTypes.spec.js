@@ -28,7 +28,12 @@ describe('DataSourcesPageHeaderItemType.isInError', () => {
     // Integration 41 is not in the store (trashed), so it can't be resolved.
     const headerItemType = buildHeaderItemType({
       dataSources: [
-        { id: 1, type: 'local_baserow_get_row', integration_id: 41, table_id: 99 },
+        {
+          id: 1,
+          type: 'local_baserow_get_row',
+          integration_id: 41,
+          table_id: 99,
+        },
       ],
       integrations: {},
     })
@@ -39,7 +44,12 @@ describe('DataSourcesPageHeaderItemType.isInError', () => {
   test('is not in error when the integration resolves', () => {
     const headerItemType = buildHeaderItemType({
       dataSources: [
-        { id: 1, type: 'local_baserow_get_row', integration_id: 5, table_id: 99 },
+        {
+          id: 1,
+          type: 'local_baserow_get_row',
+          integration_id: 5,
+          table_id: 99,
+        },
       ],
       integrations: { 5: { id: 5, type: 'local_baserow' } },
     })

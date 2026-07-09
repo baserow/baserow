@@ -7,7 +7,7 @@ from baserow.core.integrations.service import IntegrationService
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.contrib.builder.ws.integrations.signals.broadcast_to_permitted_users")
+@patch("baserow.core.integrations.ws.signals.broadcast_to_permitted_users")
 def test_integration_created(mock_broadcast, data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
@@ -24,7 +24,7 @@ def test_integration_created(mock_broadcast, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.contrib.builder.ws.integrations.signals.broadcast_to_permitted_users")
+@patch("baserow.core.integrations.ws.signals.broadcast_to_permitted_users")
 def test_integration_updated(mock_broadcast, data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)
@@ -38,7 +38,7 @@ def test_integration_updated(mock_broadcast, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.contrib.builder.ws.integrations.signals.broadcast_to_permitted_users")
+@patch("baserow.core.integrations.ws.signals.broadcast_to_permitted_users")
 def test_integration_deleted(mock_broadcast, data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)

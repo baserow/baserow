@@ -45,6 +45,19 @@ def test_workflow_action_trashable_get_name(data_fixture):
 
 
 @pytest.mark.django_db
+def test_workflow_action_trashable_get_name_mentions_parent_element(data_fixture):
+    page = data_fixture.create_builder_page()
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_notification_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK.value
+    )
+
+    result = BuilderWorkflowActionTrashableItemType().get_name(workflow_action)
+
+    assert result == f"notification ({workflow_action.id}) inside button ({element.id})"
+
+
+@pytest.mark.django_db
 def test_workflow_action_trashable_trash(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)

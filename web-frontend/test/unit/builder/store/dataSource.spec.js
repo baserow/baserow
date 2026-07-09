@@ -37,6 +37,20 @@ describe('dataSource store', () => {
     expect(collectionDataSources.length).toBe(3)
   })
 
+  test('getPagesDataSources skips pages whose data sources are not loaded', () => {
+    // A builder's shared page can exist in the store (e.g. listed in the sidebar
+    // while on a non-builder scope) without its `dataSources` being loaded.
+    const loadedPage = { id: 1, dataSources: [{ id: 10 }, { id: 11 }] }
+    const unloadedPage = { id: 2 }
+
+    const result = store.getters['dataSource/getPagesDataSources']([
+      loadedPage,
+      unloadedPage,
+    ])
+
+    expect(result).toEqual([{ id: 10 }, { id: 11 }])
+  })
+
   test('fetch', async () => {
     const page = {
       id: 42,

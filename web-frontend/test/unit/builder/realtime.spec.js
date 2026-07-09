@@ -213,7 +213,9 @@ describe('builder realtime workflow_actions_reordered', () => {
       { page_id: 12345, order: [3, 1, 2] }
     )
 
-    expect(dispatchedWith(store, 'builderWorkflowAction/forceOrder')).toEqual([])
+    expect(dispatchedWith(store, 'builderWorkflowAction/forceOrder')).toEqual(
+      []
+    )
   })
 })
 

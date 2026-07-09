@@ -8,7 +8,7 @@ from baserow.contrib.builder.elements.models import Element, NavigationElementMi
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.field import FormulaField
 from baserow.core.managers import NoTrashManager, TrashOnlyManager
-from baserow.core.mixins import OrderableMixin, TrashableModelMixin
+from baserow.core.mixins import OrderableMixin
 from baserow.core.registry import ModelRegistryMixin
 from baserow.core.services.models import Service
 from baserow.core.workflow_actions.models import WorkflowAction
@@ -38,7 +38,6 @@ class BuilderWorkflowActionManager(NoTrashManager):
 class BuilderWorkflowAction(
     WorkflowAction,
     OrderableMixin,
-    TrashableModelMixin,
 ):
     order = models.PositiveIntegerField()
     content_type = models.ForeignKey(

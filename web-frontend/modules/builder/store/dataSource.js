@@ -435,7 +435,11 @@ const getters = {
     return page.dataSources
   },
   getPagesDataSources: (state) => (pages) => {
-    return pages.map(({ dataSources }) => dataSources).flat()
+    // A page's `dataSources` can be undefined when the page exists in the store
+    // (e.g. a builder's shared page listed in the sidebar) but its data sources
+    // haven't been loaded, such as when a realtime event arrives while viewing a
+    // non-builder scope. Default to an empty array so callers don't hit undefined.
+    return pages.map(({ dataSources }) => dataSources || []).flat()
   },
   getPagesDataSourceById: (state, getters) => (pages, id) => {
     return getters

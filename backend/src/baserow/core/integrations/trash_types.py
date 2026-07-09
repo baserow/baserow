@@ -21,6 +21,8 @@ class IntegrationTrashableItemType(TrashableItemType):
         return trashed_item.application
 
     def get_name(self, trashed_item: Integration) -> str:
+        # The application is already shown as the trash entry's parent (get_parent
+        # returns it), so it isn't repeated here.
         return f"{trashed_item.name} ({trashed_item.id})"
 
     def trash(
