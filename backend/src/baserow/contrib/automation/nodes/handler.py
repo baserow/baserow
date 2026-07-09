@@ -28,6 +28,7 @@ from baserow.contrib.automation.history.models import (
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
+    AutomationNodeMaxDispatchesExceeded,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
@@ -466,14 +467,13 @@ class AutomationNodeHandler:
     def _before_node_dispatch(
         self,
         node: AutomationNode,
-        node_history: AutomationNodeHistory,
         workflow_history: AutomationWorkflowHistory,
-        iteration_path: str,
-    ) -> bool:
+    ) -> None:
         """
-        Runs pre-dispatch checks and emits the started signal. Returns True if
-        the dispatch should be aborted, having already marked the run as
-        errored.
+        Runs pre-dispatch checks and emits the started signal.
+
+        :raises AutomationNodeMaxDispatchesExceeded: If the workflow run has
+            exceeded the maximum number of node dispatches allowed.
         """
 
         # Stop the workflow run if it exceeds the max dispatches allowed. For
@@ -484,18 +484,15 @@ class AutomationNodeHandler:
             and self._check_node_dispatch_limit(workflow_history.id)
         ):
             limit = settings.AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN
-            error = f"Workflow exceeded the maximum of {limit} node dispatches."
-            logger.warning(error)
-            self._handle_workflow_error(node_history, iteration_path, error)
-            return True
+            raise AutomationNodeMaxDispatchesExceeded(
+                f"Workflow exceeded the maximum of {limit} node dispatches."
+            )
 
         automation_node_dispatch_started.send(
             sender=self,
             node=node,
             workflow_history=workflow_history,
         )
-
-        return False
 
     def _after_node_dispatch(
         self, node: AutomationNode, node_history: AutomationNodeHistory
@@ -586,12 +583,12 @@ class AutomationNodeHandler:
         iteration_path = dispatch_context.get_iteration_path(node)
         node_type: Type[AutomationNodeActionNodeType] = node.get_type()
 
-        if self._before_node_dispatch(
-            node,
-            node_history,
-            workflow_history,
-            iteration_path,
-        ):
+        try:
+            self._before_node_dispatch(node, workflow_history)
+        except AutomationNodeMaxDispatchesExceeded as e:
+            error = str(e)
+            logger.warning(error)
+            self._handle_workflow_error(node_history, iteration_path, error)
             return None
 
         try:
