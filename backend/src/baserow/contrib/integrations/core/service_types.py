@@ -1307,7 +1307,7 @@ class CoreGotoServiceType(CoreServiceType):
         """
         The destination is a reference to another service which may not have
         been imported yet (e.g. a forward jump). We therefore null it on this
-        first pass and remap it during the second pass in import_references(),
+        first pass and remap it during the second pass in post_import(),
         once all the workflow's services have been imported.
         """
 
@@ -1329,7 +1329,7 @@ class CoreGotoServiceType(CoreServiceType):
 
         return service
 
-    def import_references(self, instance, id_mapping, **kwargs):
+    def post_import(self, instance, id_mapping, **kwargs):
         """
         Performs the second-pass remap of the destination service reference.
 
@@ -1345,7 +1345,7 @@ class CoreGotoServiceType(CoreServiceType):
         import.
         """
 
-        updated_models = super().import_references(instance, id_mapping, **kwargs)
+        updated_models = super().post_import(instance, id_mapping, **kwargs)
 
         pending_destinations = id_mapping.get("goto_destination_services", {})
         if instance.id in pending_destinations:

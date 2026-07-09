@@ -1086,7 +1086,7 @@ class InstanceWithFormulaMixin:
 
         return updated_models
 
-    def import_references(
+    def post_import(
         self,
         instance: Instance,
         id_mapping: Dict[str, Any],

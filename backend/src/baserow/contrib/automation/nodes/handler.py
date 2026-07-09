@@ -376,9 +376,7 @@ class AutomationNodeHandler:
             updated_models = service_type.import_formulas(
                 service, id_mapping, import_formula, **kwargs
             )
-            updated_models |= service_type.import_references(
-                service, id_mapping, **kwargs
-            )
+            updated_models |= service_type.post_import(service, id_mapping, **kwargs)
 
             [u.save() for u in updated_models]
 
