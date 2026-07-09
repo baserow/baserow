@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('builder', '0074_corestartworkflowworkflowaction'),
+        ('builder', '0075_container_element_positioning_behaviour'),
     ]
 
     operations = [
