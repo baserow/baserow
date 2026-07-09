@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fixes open page workflow actions with missing page parameters",
+    "message": "Fixes workflow actions with missing page parameters",
     "issue_origin": "github",
     "issue_number": 3110,
     "domain": "builder",
