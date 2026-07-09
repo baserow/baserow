@@ -11,7 +11,6 @@ from django.db import transaction
 from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from celery import chord, group
-from celery_singleton import Singleton
 from loguru import logger
 from opentelemetry import trace
 
@@ -104,13 +103,29 @@ def run_periodic_fields_updates(
     if not ordered_ids:
         return
 
-    batch_count = max(1, settings.PERIODIC_FIELD_UPDATE_BATCH_COUNT)
-    batch_size = ceil(len(ordered_ids) / batch_count)
-    batches = list(itertools.batched(ordered_ids, batch_size))
-    for batch_index, batch_ids in enumerate(batches):
-        update_workspaces_periodic_fields.delay(
-            list(batch_ids), update_now, batch_index=batch_index
+    # One cycle at a time. Acquire the fenced run lock; skip if a cycle is still running.
+    token = self.request.id or uuid4().hex
+    flag = SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL)
+    if not flag.acquire(token):
+        logger.info(
+            "run_periodic_fields_updates skipped: previous cycle still running."
         )
+        return
+
+    try:
+        batch_count = max(1, settings.PERIODIC_FIELD_UPDATE_BATCH_COUNT)
+        batch_size = ceil(len(ordered_ids) / batch_count)
+        batches = list(itertools.batched(ordered_ids, batch_size))
+        header = group(
+            update_workspaces_periodic_fields.s(
+                list(batch_ids), update_now, batch_index=batch_index
+            )
+            for batch_index, batch_ids in enumerate(batches)
+        )
+        chord(header)(finish_periodic_fields_update.si(token))
+    except Exception:
+        flag.clear_if(token)
+        raise
 
     logger.info(
         "run_periodic_fields_updates dispatched {count} workspace(s) across "
@@ -208,25 +223,20 @@ def _run_periodic_field_type_update_per_workspace(
 
 
 @app.task(
-    base=Singleton,
-    unique_on="batch_index",
-    raise_on_duplicate=False,
     bind=True,
     queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME,
     soft_time_limit=BATCH_UPDATE_SOFT_TIME_LIMIT,
     time_limit=BATCH_UPDATE_HARD_TIME_LIMIT,
-    lock_expiry=BATCH_UPDATE_HARD_TIME_LIMIT,
 )
 def update_workspaces_periodic_fields(
     self, workspace_ids: list[int], update_now: bool = True, batch_index: int = 0
 ):
     """
-    Updates all periodic fields for a batch of workspaces.
-
-    Runs as a singleton per ``batch_index`` so a slow cycle can't stack the same batch
-    on top of itself; the next run's matching batch is skipped until this one finishes.
+    Updates all periodic fields for a batch of workspaces. Extends the per-cycle run
+    lock's TTL at the start so the lock survives as long as any batch is active.
     """
 
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).extend()
     for workspace_id in workspace_ids:
         _update_workspace_periodic_fields(workspace_id, update_now)
 

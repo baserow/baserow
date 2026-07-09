@@ -19,6 +19,7 @@ from baserow.contrib.database.fields.tasks import (
     delete_mentions_marked_for_deletion,
     finish_periodic_fields_update,
     run_periodic_fields_updates,
+    update_workspaces_periodic_fields,
 )
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
@@ -56,15 +57,13 @@ def test_run_periodic_fields_updates_dispatches_only_eligible_workspaces(
         workspace_2.refresh_now()
 
     with (
-        patch(
-            "baserow.contrib.database.fields.tasks."
-            "update_workspaces_periodic_fields.delay"
-        ) as delay,
+        patch("baserow.contrib.database.fields.tasks.chord") as chord_mock,
         freeze_time("2020-01-01 00:04"),
     ):
         run_periodic_fields_updates()
 
-    dispatched = {wid for call in delay.call_args_list for wid in call.args[0]}
+    header = chord_mock.call_args.args[0]
+    dispatched = {wid for sig in header.tasks for wid in sig.args[0]}
     assert workspace.id in dispatched
     assert workspace_2.id not in dispatched
 
@@ -75,10 +74,7 @@ def test_run_periodic_fields_updates_dispatch_false_runs_inline(data_fixture, se
     workspace = _workspace_with_now_formula(data_fixture)
 
     with (
-        patch(
-            "baserow.contrib.database.fields.tasks."
-            "update_workspaces_periodic_fields.delay"
-        ) as delay,
+        patch("baserow.contrib.database.fields.tasks.chord") as chord_mock,
         patch(
             "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields"
         ) as inline,
@@ -86,7 +82,7 @@ def test_run_periodic_fields_updates_dispatch_false_runs_inline(data_fixture, se
     ):
         run_periodic_fields_updates(workspace_id=workspace.id, dispatch=False)
 
-    delay.assert_not_called()
+    chord_mock.assert_not_called()
     inline.assert_called_once_with(workspace.id, True)
 
 
@@ -247,20 +243,18 @@ def test_run_periodic_fields_updates_splits_into_configured_batches(
     )
 
     with (
-        patch(
-            "baserow.contrib.database.fields.tasks."
-            "update_workspaces_periodic_fields.delay"
-        ) as delay,
+        patch("baserow.contrib.database.fields.tasks.chord") as chord_mock,
         freeze_time("2023-02-27 10:00"),
     ):
         run_periodic_fields_updates()
 
-    # 3 stalest-first workspaces split into 2 batches, each tagged with its index
-    assert delay.call_count == 2
-    assert delay.call_args_list[0].args[0] == [ws_b.id, ws_a.id]
-    assert delay.call_args_list[0].kwargs["batch_index"] == 0
-    assert delay.call_args_list[1].args[0] == [ws_c.id]
-    assert delay.call_args_list[1].kwargs["batch_index"] == 1
+    # 3 stalest-first workspaces split into 2 batches, each tagged with its index.
+    sigs = list(chord_mock.call_args.args[0].tasks)
+    assert len(sigs) == 2
+    assert sigs[0].args[0] == [ws_b.id, ws_a.id]
+    assert sigs[0].kwargs["batch_index"] == 0
+    assert sigs[1].args[0] == [ws_c.id]
+    assert sigs[1].kwargs["batch_index"] == 1
 
 
 @pytest.mark.django_db
@@ -298,17 +292,15 @@ def test_run_periodic_fields_updates_dispatches_stalest_first(data_fixture, sett
     )
 
     with (
-        patch(
-            "baserow.contrib.database.fields.tasks."
-            "update_workspaces_periodic_fields.delay"
-        ) as delay,
+        patch("baserow.contrib.database.fields.tasks.chord") as chord_mock,
         freeze_time("2023-02-27 10:00"),
     ):
         run_periodic_fields_updates()
 
     # default single batch keeps the most out-of-date workspaces first
-    assert delay.call_count == 1
-    assert delay.call_args_list[0].args[0] == [ws_b.id, ws_a.id, ws_c.id]
+    sigs = list(chord_mock.call_args.args[0].tasks)
+    assert len(sigs) == 1
+    assert sigs[0].args[0] == [ws_b.id, ws_a.id, ws_c.id]
 
 
 @pytest.mark.django_db
@@ -826,3 +818,87 @@ def test_finish_periodic_fields_update_releases_only_matching_token():
     # The owning callback releases the lock.
     finish_periodic_fields_update("cycle-token")
     assert cache.get(RUN_LOCK_KEY) is None
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_clears_lock_after_completion(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    with freeze_time("2023-02-27 10:30"), local_cache.context():
+        run_periodic_fields_updates(workspace_id=workspace.id)
+
+        # The chord ran eagerly and the finish callback released the lock. Checked
+        # inside the freeze so the lock's TTL (computed against the frozen clock)
+        # can't look expired against the real clock once we leave this block.
+        assert cache.get(RUN_LOCK_KEY) is None
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_skips_when_cycle_running(data_fixture, settings):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    # Simulate a cycle already in flight.
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    with (
+        patch("baserow.contrib.database.fields.tasks.chord") as chord_mock,
+        freeze_time("2023-02-27 10:30"),
+    ):
+        run_periodic_fields_updates(workspace_id=workspace.id)
+
+    chord_mock.assert_not_called()
+    assert cache.get(RUN_LOCK_KEY) == "held"
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_empty_cycle_does_not_acquire():
+    with patch("baserow.contrib.database.fields.tasks.chord") as chord_mock:
+        run_periodic_fields_updates()
+
+    chord_mock.assert_not_called()
+    assert cache.get(RUN_LOCK_KEY) is None
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_releases_lock_on_dispatch_failure(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks.chord",
+            side_effect=RuntimeError("boom"),
+        ),
+        freeze_time("2023-02-27 10:30"),
+    ):
+        with pytest.raises(RuntimeError):
+            run_periodic_fields_updates(workspace_id=workspace.id)
+
+        # The fenced except released the lock. Checked inside the freeze, see the
+        # comment on test_run_periodic_fields_updates_clears_lock_after_completion.
+        assert cache.get(RUN_LOCK_KEY) is None
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_extends_run_lock(data_fixture, settings):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields"
+        ),
+        freeze_time("2023-02-27 10:30"),
+    ):
+        update_workspaces_periodic_fields([workspace.id], True, batch_index=0)
+
+        # Heartbeat extends TTL without overwriting the token. Checked inside the
+        # freeze, see the comment on
+        # test_run_periodic_fields_updates_clears_lock_after_completion.
+        assert cache.get(RUN_LOCK_KEY) == "held"
