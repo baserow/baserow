@@ -1,13 +1,9 @@
-import {
-  PAGE_ELEMENT_BEHAVIOURS,
-  PAGE_PLACES,
-} from '@baserow/modules/builder/enums'
+import { PAGE_PLACES } from '@baserow/modules/builder/enums'
 
 const PAGE_ELEMENT_SECTION_CONFIGS = [
   {
     key: 'fixed-header',
     place: PAGE_PLACES.HEADER,
-    isFixed: true,
     tag: 'div',
     classNames: ['page__fixed-stack', 'page__fixed-stack--top'],
     previewClassNames: ['page__fixed-stack--header'],
@@ -21,7 +17,6 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
   {
     key: 'header',
     place: PAGE_PLACES.HEADER,
-    isFixed: false,
     tag: 'header',
     classNames: ['page__header'],
     selectedPreviewClassName: 'page__header--element-selected',
@@ -40,7 +35,6 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
   {
     key: 'footer',
     place: PAGE_PLACES.FOOTER,
-    isFixed: false,
     tag: 'footer',
     classNames: ['page__footer'],
     selectedPreviewClassName: 'page__footer--element-selected',
@@ -52,7 +46,6 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
   {
     key: 'fixed-footer',
     place: PAGE_PLACES.FOOTER,
-    isFixed: true,
     tag: 'div',
     classNames: ['page__fixed-stack', 'page__fixed-stack--bottom'],
     previewClassNames: ['page__fixed-stack--footer'],
@@ -65,22 +58,22 @@ const PAGE_ELEMENT_SECTION_CONFIGS = [
   },
 ]
 
-function groupElementsByPagePlace(
+function groupElementsBySection(
   elements,
   registry,
-  places = Object.values(PAGE_PLACES)
+  sections = PAGE_ELEMENT_SECTION_CONFIGS.map(({ key }) => key)
 ) {
-  const elementsWithPlace = elements
+  const elementsWithSection = elements
     .map((element) => ({
-      place: registry.get('element', element.type).getPagePlace(),
+      section: registry.get('element', element.type).getPageSection(element),
       element,
     }))
-    .filter(({ place }) => places.includes(place))
+    .filter(({ section }) => sections.includes(section))
 
-  return places.map((place) => ({
-    place,
-    elements: elementsWithPlace
-      .filter((elementWithPlace) => elementWithPlace.place === place)
+  return sections.map((section) => ({
+    section,
+    elements: elementsWithSection
+      .filter((elementWithSection) => elementWithSection.section === section)
       .map(({ element }) => element),
   }))
 }
@@ -88,14 +81,14 @@ function groupElementsByPagePlace(
 export default {
   computed: {
     pageElementSections() {
-      const elementsByPlace = groupElementsByPagePlace(
+      const elementsBySection = groupElementsBySection(
         [...(this.sharedElements || []), ...(this.elements || [])],
         this.$registry
       )
 
       return PAGE_ELEMENT_SECTION_CONFIGS.map((section) => ({
         ...section,
-        elements: this.getElementsForSection(section, elementsByPlace),
+        elements: this.getElementsForSection(section, elementsBySection),
       }))
     },
     visiblePageElementSections() {
@@ -105,19 +98,10 @@ export default {
     },
   },
   methods: {
-    getElementsForSection(section, elementsByPlace) {
-      const elementsForPlace =
-        elementsByPlace.find((group) => group.place === section.place)
+    getElementsForSection(section, elementsBySection) {
+      return (
+        elementsBySection.find((group) => group.section === section.key)
           ?.elements || []
-
-      if (section.isFixed === undefined) {
-        return elementsForPlace
-      }
-
-      return elementsForPlace.filter(
-        (element) =>
-          (element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED) ===
-          section.isFixed
       )
     },
   },
