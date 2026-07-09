@@ -41,6 +41,10 @@ const updateContext = {
   // first element's save - and its undo action - would be silently dropped).
   elementId: null,
   flush: null,
+  // Same idea as `elementId`/`flush` above, but for the debounced `move`. Lets a
+  // pending move be persisted before a *different* element starts moving.
+  moveElementId: null,
+  moveFlush: null,
 }
 
 const updateCachedValues = (page) => {
@@ -665,6 +669,12 @@ const actions = {
     }
 
     const fire = async () => {
+      // Reset the shared move context synchronously (before the await) so this
+      // move can no longer be flushed or cancelled by a later one.
+      clearTimeout(updateContext.moveTimeout)
+      updateContext.moveTimeout = null
+      updateContext.moveElementId = null
+      updateContext.moveFlush = null
       try {
         const { data: elementUpdated } = await ElementService($client).move(
           elementId,
@@ -761,7 +771,26 @@ const actions = {
       }
     }
 
+    // If a move for a *different* element is still pending, flush it first so its
+    // move is persisted (and its undo action registered) before this one is
+    // debounced. Done here - after this element's optimistic reposition - so the
+    // drag isn't blocked, and awaited so the two moves keep their order.
+    if (
+      updateContext.moveFlush !== null &&
+      updateContext.moveElementId !== null &&
+      updateContext.moveElementId !== elementId
+    ) {
+      try {
+        await updateContext.moveFlush()
+      } catch (error) {
+        // The pending move failed; `fire` already rolled it back. Continue with
+        // this move rather than failing it too.
+      }
+    }
+
     clearTimeout(updateContext.moveTimeout)
+    updateContext.moveElementId = elementId
+    updateContext.moveFlush = fire
     updateContext.moveTimeout = setTimeout(fire, 1000)
   },
   /**

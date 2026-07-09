@@ -409,6 +409,70 @@ describe('element store', () => {
         dispatched.some((d) => d.action.startsWith('builderWorkflowAction/'))
       ).toBe(false)
     })
+
+    test('flushes a pending move when a different element is moved', async () => {
+      // Regression: `moveTimeout` is shared across all elements. Moving a second
+      // element within the debounce window used to cancel the first element's
+      // timer and drop its backend move (and its undo action).
+      const elementA = { id: 5, type: 'heading', place_in_container: '' }
+      const elementB = { id: 6, type: 'heading', place_in_container: '' }
+      const page = makePage({ 0: 5, 5: { next: { '': [6] } }, 6: {} }, [
+        elementA,
+        elementB,
+      ])
+
+      const patch = vi.fn((url) =>
+        Promise.resolve({
+          data: { id: Number(url.match(/element\/(\d+)/)[1]), page_id: page.id },
+        })
+      )
+      const thisCtx = {
+        $client: { patch },
+        $registry: { get: () => ({ wrapMove: (ctxArg, cb) => cb() }) },
+      }
+      const context = {
+        commit: vi.fn(),
+        dispatch: vi.fn(() => Promise.resolve()),
+        getters: {
+          getElementById: (p, id) =>
+            [elementA, elementB].find((e) => e.id === id) ?? null,
+          getParent: () => null,
+        },
+        rootGetters: {
+          'builderWorkflowAction/getElementWorkflowActions': () => [],
+        },
+      }
+
+      const move = (elementId) =>
+        elementStore.actions.move.call(thisCtx, context, {
+          builder: {},
+          page,
+          elementId,
+          referenceElementId: null,
+          position: 'south',
+          placeInContainer: '',
+          targetPage: null,
+        })
+
+      await move(5)
+      // Still within A's debounce window: nothing persisted yet.
+      expect(patch).not.toHaveBeenCalled()
+
+      // Moving B flushes A's pending move instead of discarding it.
+      await move(6)
+      expect(patch).toHaveBeenCalledWith(
+        'builder/element/5/move/',
+        expect.anything()
+      )
+
+      // B is still debounced; let its timer fire.
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(patch).toHaveBeenCalledWith(
+        'builder/element/6/move/',
+        expect.anything()
+      )
+      expect(patch).toHaveBeenCalledTimes(2)
+    })
   })
 
   describe('debouncedUpdate', () => {
