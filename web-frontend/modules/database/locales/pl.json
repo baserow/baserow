@@ -23,7 +23,7 @@
             "requestMethod": "Metoda",
             "url": "Adres URL",
             "userFieldNames": "Nazwy pól użytkownika",
-            "events": "Jakie zdarzenia powinny wyzwalać ten webhook?",
+            "events": "Co powinno uruchomić ten webhook?",
             "headers": "Dodatkowe nagłówki",
             "example": "Przykładowy payload"
         },
@@ -40,8 +40,8 @@
         },
         "triggerButton": "Uruchom test webhooka",
         "deactivated": {
-            "title": "Webhook jest nieaktywny",
-            "content": "Ten webhook został wyłączony, ponieważ wystąpiło zbyt wiele błędów. Więcej szczegółów znajdziesz w logu wywołań. Kliknij poniższy przycisk, aby ponownie go aktywować. Po aktywacji nie zapomnij zapisać webhooka.",
+            "title": "Webhook jest wyłączony",
+            "content": "Ten webhook został wyłączony, ponieważ wystąpiło zbyt wiele błędów. Więcej szczegółów znajdziesz w logu wywołań. Kliknij poniższy przycisk, aby ponownie aktywować ten webhook. Po aktywacji nie zapomnij go zapisać.",
             "activate": "Aktywuj"
         },
         "deprecatedEventType": {
@@ -49,15 +49,15 @@
             "description": "Ten webhook nie otrzymuje jednocześnie informacji o wszystkich zmienionych wierszach. Przekonwertuj go na typ zdarzenia w stylu wsadowym. Spowoduje to zmianę ładunku treści JSON na format, który zawiera wiele wierszy.",
             "convert": "Konwertuj"
         },
-        "triggerWhenFieldsHaveChanged": "Trigger uruchamiany, gdy zostaną zapisane zmiany w polach",
-        "helpTriggerWhenFieldsHaveChanged": "Zostanie uruchomiony wyłącznie, gdy wartość komórek wybranych pól zostanie zmieniona."
+        "triggerWhenFieldsHaveChanged": "Uruchamiany, gdy nastąpią zmiany w polach",
+        "helpTriggerWhenFieldsHaveChanged": "Zostanie uruchomiony wyłącznie wtedy, gdy zmienią się wartości w wybranych polach."
     },
     "webhook": {
         "details": "szczegóły",
         "lastCall": "Ostatnie wywołanie: {lastCallTime}",
         "noCalls": "Brak wywołań",
         "callLog": "Rejestr wywołań",
-        "triggerDescription": "Wyzwalane w przypadku każdego zdarzenia | Wyzwalane w przypadku {count} zdarzenia | Wyzwalane w przypadku {count} zdarzeń"
+        "triggerDescription": "Wyzwalany każdorazowo | Wyzwalany w przypadku {count} zdarzenia | Wyzwalany w przypadku {count} zdarzeń"
     },
     "createWebhook": {
         "errorTableWebhookMaxLimitExceededTitle": "Przekroczona maksymalna liczba webhooków",
@@ -71,9 +71,10 @@
         "exportTable": "Eksportuj tabelę",
         "webhooks": "Webhooki",
         "lastSynced": "Ostatnia synchronizacja",
-        "notSynced": "niezsynchronizowana",
-        "sync": "Synchronizuj tabelę",
-        "updateSyncConfig": "Zaktualizuj konfigurację synchronizacji"
+        "notSynced": "nie zsynchronizowana",
+        "sync": "Zsynchronizuj tabelę",
+        "updateSyncConfig": "Zaktualizuj konfigurację synchronizacji",
+        "importFile": "Importuj plik"
     },
     "apiToken": {
         "create": "tworzenie",
@@ -90,10 +91,10 @@
     "apiTokenSettings": {
         "title": "Tokeny bazy danych",
         "createToken": "Utwórz token",
-        "noTokensMessage": "Nie utworzyłeś jeszcze żadnego tokena bazy danych. Tokenów baz można użyć w celu uwierzytelnienia w punktach końcowych REST API, gdzie można dodawać, odczytywać, aktualizować i usuwać wiersze. Możliwe jest ustawienie uprawnień na poziomie tabeli.",
-        "hasFullPermissions": "Posiada pełne uprawnienia, w tym do elementów podrzędnych.",
-        "hasOnlySelectedPermissions": "Posiada uprawnienia tylko do wybranych elementów podrzędnych.",
-        "noPermissions": "Nie posiada uprawnień.",
+        "noTokensMessage": "Nie utworzyłeś jeszcze żadnego tokena bazy danych. Tokenów można użyć do uwierzytelnienia dostępu do endpointów REST API w celu dodawania, odczytywania, aktualizowania i usuwania wierszy. Możliwe jest nadanie uprawnień na poziomie tabeli.",
+        "hasFullPermissions": "Pełne uprawnienia, w tym do elementów podrzędnych.",
+        "hasOnlySelectedPermissions": "Uprawnienia tylko do wybranych elementów podrzędnych.",
+        "noPermissions": "Bez uprawnień.",
         "createNewTitle": "Utwórz nowy token bazy danych",
         "backToOverview": "Powrót do podsumowania"
     },
@@ -140,12 +141,12 @@
         "compatibleFilters": "Kompatybilne filtry"
     },
     "apiDocsTableListRows": {
-        "description": "Aby wyświetlić listę wierszy w tabeli *{name}*, należy wysłać żądanie `GET` do endpointu *{name}*. Odpowiedź zostanie podzielona na strony i domyślnie zwracana jest pierwsza strona. Konkretna strona zostanie pobrana po podaniu parametrów zapytania `page` oraz `size`.",
-        "page": "Określa, która strona zawierająca wiersze powinna zostać zwrócona.",
+        "description": "Aby wyświetlić listę wierszy w tabeli *{name}*, należy wysłać żądanie `GET` do endpointu *{name}*. Odpowiedź zostanie podzielona na strony i domyślnie zwracana jest pierwsza strona. Konkretna strona zostanie zwrócona po podaniu parametrów zapytania `page` oraz `size`.",
+        "page": "Określa, która strona powinna zostać zwrócona.",
         "size": "Określa, ile wierszy powinno być zwróconych na każdej stronie.",
-        "userFieldNames": "Jeśli w wywołaniu GET określono parametr `user_field_names` i jako jego wartość podano: `y`, `yes`, `true`, `t`, `on`, `1` lub pusty ciąg znaków, to nazwy pól zwrócone przez endpoint będą faktycznymi nazwami pól.\n\nJeśli w wywołaniu GET nie podano parametru `user_field_names` lub jeśli jego wartość nie odpowiada żadnej z powyższych wartości, to wszystkie zwrócone nazwy pól będą miały postać `field_` oraz ID pola. Na przykład `field_1` odnosi się do pola o identyfikatorze `1`.\n\n Ponadto jeżeli w wywołaniu GET podano wartość `user_field_names`, to zmienia się zachowanie parametrów `order_by`, `include` i `exclude`. Parametry te powinny zawierać listy z rozdzielonymi przecinkami rzeczywistymi nazwami pól.",
+        "userFieldNames": "Jeśli w wywołaniu GET określono parametr `user_field_names` i jako jego wartość podano: `y`, `yes`, `true`, `t`, `on`, `1` lub pusty ciąg znaków, to nazwy pól zwrócone przez endpoint będą faktycznymi nazwami pól.\n\nJeśli w wywołaniu GET nie podano parametru `user_field_names` lub jeśli jego wartość nie odpowiada żadnej z powyższych wartości, to wszystkie zwrócone nazwy pól będą miały postać `field_` oraz ID pola. Na przykład `field_1` odnosi się do pola o identyfikatorze `1`.\n\n Ponadto, jeżeli w wywołaniu GET podano wartość `user_field_names`, to zmienia się zachowanie parametrów `order_by`, `include` i `exclude`. Parametry te powinny zawierać listy z rozdzielonymi przecinkami rzeczywistymi nazwami pól.",
         "search": "Jeśli zostanie podane, zostaną zwrócone tylko wiersze z danymi pasującymi do zapytania.",
-        "orderBy": "Opcjonalnie wiersze mogą być uporządkowane według pól oddzielonych przecinkami. Domyślnie lub po poprzedzeniu znakiem '+', pole jest uporządkowane rosnąco (A-Z), a po poprzedzeniu znakiem '-' malejąco (Z-A).\n\n #### Z `user_field_names`:\n\n parametr `order_by` powinien być rozdzieloną przecinkami listą nazw pól, wg. których mają być posortowane wiersze. Na przykład, jeśli podano parametr `order_by=My Field,-My Field 2`, to wiersze zostaną uporządkowane rosnąco wg. pola `My Field`. Jeśli występują pola o tej samej wartości, to pola te zostaną uporządkowane malejąco wg. pola o nazwie `My Field 2`.\n\n Jeśli występują pola, których nazwy zaczynają się od `+` lub `-`, to należy upewnić się, czy są one poprzedzone właściwymi znakami `+` lub `-`, np. `+-Name`.\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami, np. `\"Name ,\"`. Natomiast jeśli nazwy pól zawierają cudzysłów, to należy użyć znaku `\\` (escape), np. `Name \\\"`. \n\n#### Bez `user_field_names`:\n\n parametr `order_by` powinien być rozdzieloną przecinkami listą pól w postaci `field_` oraz ID pola, wg. którego mają być posortowane wiersze. Na przykład, jeśli podano parametr `order_by=field_1,-field_2`, to wiersze zostaną uporządkowane rosnąco wg. `field_1`. Jeśli występują pola o tej samej wartości, to pola te zostaną uporządkowane malejąco wg. `field_2`.",
+        "orderBy": "Opcjonalnie wiersze mogą być uporządkowane według pól oddzielonych przecinkami. Domyślnie lub po poprzedzeniu znakiem '+', pole jest uporządkowane rosnąco (A-Z), a po poprzedzeniu znakiem '-' malejąco (Z-A).\n\n #### Z `user_field_names`:\n\n parametr `order_by` powinien być rozdzieloną przecinkami listą nazw pól, wg. których mają być posortowane wiersze. Na przykład, jeśli podano parametr `order_by=My Field,-My Field 2`, to wiersze zostaną uporządkowane rosnąco wg. pola `My Field`. Jeśli występują pola o tej samej wartości, to pola te zostaną uporządkowane malejąco wg. pola o nazwie `My Field 2`.\n\n Jeśli występują pola, których nazwy zaczynają się od `+` lub `-`, to należy poprzedzić je dodatkowymi znakami `+` lub `-`, np. `+-Name`.\n\n Nazwy pól zawierające przecinki muszą być otoczone cudzysłowami, np. `\"Name ,\"`. Natomiast jeśli nazwy pól zawierają znak (lub znaki) cudzysłowiu, to należy użyć znaku `\\` (escape), np. `Name \\\"`. \n\n#### Bez `user_field_names`:\n\n parametr `order_by` powinien być rozdzieloną przecinkami listą pól w postaci `field_` oraz ID pola, wg. którego mają być posortowane wiersze. Na przykład, jeśli podano parametr `order_by=field_1,-field_2`, to wiersze zostaną uporządkowane rosnąco wg. `field_1`. Jeśli występują pola o tej samej wartości, to pola te zostaną uporządkowane malejąco wg. `field_2`.",
         "filter": "Wiersze mogą być opcjonalnie filtrowane przy użyciu tych samych filtrów widoku, które są dostępne w przypadku widoków. Można użyć wielu filtrów, pod warunkiem, że są one w tym samym formacie. Zmienne `field` i `filter` wskazują odpowiednio, jak i gdzie zastosować filtr.\n\n#### Z `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podano następujący parametr: `filter__Name__equal=test`, zwrócone zostaną tylko wiersze, w których wartość `Name` jest równa \"test\". Metoda ta jest wstecznie kompatybilna i w przypadku niepowodzenia z nazwą sprawdzi `field_id`.\n\n#### Bez `user_field_names`:\n\nNa przykład, jeśli opcjonalnie podano parametr: `filter__field_1__equal=test`, to zwrócone zostaną tylko wiersze, w których wartość `field_1` jest równa 'test'.\n\nNależy pamiętać, że jeśli podany jest parametr filtrów, to zostanie on pominięty. ",
         "filterLink": "Tutaj znajdziesz listę wszystkich filtrów.",
         "filterType": "- `AND`: wskazuje, że wiersze muszą pasować do wszystkich filtrów.\n- `OR`: wskazuje, że wiersze muszą pasować tylko do jednego z filtrów.\n\n Ma to zastosowanie wyłącznie, gdy podano co najmniej dwa filtry.",
@@ -290,7 +291,8 @@
         "dbIndexError": "Ten typ pola nie może mieć indeksu. Usuń indeks lub zmień rodzaj pola.",
         "dbIndexDescription": "Indeksowanie może znacznie zwiększyć wydajność filtrowania, ale spowalnia operacje tworzenia, aktualizacji i usuwania.",
         "defaultValueDisabledByConstraint": "Nie można ustawić wartości domyślnej dla pola z ograniczeniem unikalności",
-        "dbIndexDisabledTooltip": "W przypadku tego rodzaju pola indeksowanie nie jest dostępne."
+        "dbIndexDisabledTooltip": "W przypadku tego rodzaju pola indeksowanie nie jest dostępne.",
+        "defaultValueOverriddenByView": "To pole ma ustawioną wartość domyślną na poziomie widoku i zostanie użyta zamiast tej wartości domyślnej."
     },
     "fieldLookupSubForm": {
         "noTable": "Aby utworzyć pole odnośnika, potrzebujesz co najmniej jednego pola wiersza linku.",
@@ -416,7 +418,8 @@
         "importPreview": "Podgląd importu",
         "defaultName": "Tabela",
         "useUpsertField": "Aktualizuj wiersze, jeśli już istnieją",
-        "upsertTooltip": "Dopasuj istniejące wiersze za pomocą unikalnego pola, aby zastąpić dane wartościami z importu."
+        "upsertTooltip": "Dopasuj istniejące wiersze za pomocą unikalnego pola, aby zastąpić dane wartościami z importu.",
+        "restoredFile": "Importowanie pliku \"{name}\"..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Kliknij, aby edytować formułę",
@@ -643,7 +646,9 @@
     },
     "exportTableForm": {
         "viewLabel": "Wybierz widok do wyeksportowania:",
-        "typeError": "Brak dostępnego typu eksportera. Wybierz inny widok lub całą tabelę."
+        "typeError": "Brak dostępnego typu eksportera. Wybierz inny widok lub całą tabelę.",
+        "includeRowId": "Uwzględnij ID wiersza",
+        "includePrimaryField": "Uwzględnij pole podstawowe"
     },
     "exportTableLoadingBar": {
         "export": "Wyeksportuj",
@@ -858,7 +863,7 @@
         "noFieldsContent": "Dodaj pole, klikając w panelu po lewej."
     },
     "duplicateTableJobType": {
-        "duplicating": "Powielanie trwa",
+        "duplicating": "Duplikowanie",
         "duplicatedTitle": "Tabela została zduplikowana",
         "name": "Zduplikuj tabelę"
     },
@@ -939,7 +944,10 @@
         "groupBy": "Grupuj według",
         "thenBy": "Następnie według",
         "addGroupBy": "wybierz pole, wg. Którego zostaną pogrupowane dane",
-        "hiddenFieldWarning": "Jedno lub więcej kryteriów pogrupowań odwołuje się do ukrytych pól, które nie będą widoczne dla edytorów i użytkowników z niższymi uprawnieniami."
+        "hiddenFieldWarning": "Jedno lub więcej kryteriów pogrupowań odwołuje się do ukrytych pól, które nie będą widoczne dla edytorów i użytkowników z niższymi uprawnieniami.",
+        "maxGroupBysReached": "Można pogrupować wg. maksymalnie {count} pól.",
+        "collapseAllGroups": "Zwiń wszystko",
+        "expandAllGroups": "Rozwiń wszystko"
     },
     "userMentionInRichTextFieldNotification": {
         "title": "{sender} wspomniał o Tobie w polu {fieldName} wiersza {rowId} w {tableName}",
@@ -969,7 +977,8 @@
         "importError": "Import pliku nie powiódł się",
         "stateRowCreation": "Importowanie...",
         "statePreValidation": "Weryfikacja danych…",
-        "stateCreateTable": "Tworzenie tabeli…"
+        "stateCreateTable": "Tworzenie tabeli…",
+        "importingTable": "Importowanie tabeli \"{name}\"..."
     },
     "apiDocsPasswordFieldAuthentication": {
         "title": "Uwierzytelnianie {name}",
@@ -1140,7 +1149,10 @@
         "error": "Podczas synchronizacji wystąpił błąd",
         "autoAddLabel": "Automatycznie dodawaj nowe właściwości",
         "autoAddHelper": "Automatycznie dodaje i synchronizuje nowo dostępne atrybuty ze źródła danych do tabeli Baserow. Należy pamiętać, że aby ta funkcja działała, wszystkie atrybuty muszą być zsynchronizowane.",
-        "twoWaySyncLabel": "Synchronizacja dwu-kierunkowa"
+        "twoWaySyncLabel": "Synchronizacja dwu-kierunkowa",
+        "deleteUnmatchedRowsLabel": "Usuń wiersze, gdy zostaną usunięte lub ukryte w źródle",
+        "deleteUnmatchedRowsHelper": "Gdy opcja jest włączona, to w trakcie każdej synchronizacji wiersze usunięte lub niewidoczne w źródle są usuwane z tej tabeli. Natomiast jeśli opcja jest wyłączona, wiersze nie są usuwane i gdy wiersz źródłowy pojawi się ponownie, zostaną użyte ponownie.",
+        "syncing": "Synchronizowanie danych..."
     },
     "syncTableModal": {
         "title": "Synchronizuj {name}",
@@ -1221,5 +1233,25 @@
     "rowEditFieldFormViewEditRow": {
         "copyLink": "Skopiuj link",
         "noFormView": "Nie skonfigurowano widoku formularza"
+    },
+    "tableExcelImporter": {
+        "chooseFileLabel": "Wybierz plik Excel",
+        "chooseFileDescription": "Możesz zaimportować istniejący arkusz, przesyłając plik .xlsx, .xls lub .ods. Jeśli plik zawiera skoroszyt, możesz wybrać, który z arkuszy ma zostać zaimportowany.",
+        "chooseFile": "Wybierz plik Excel",
+        "sheet": "Arkusz",
+        "firstRowHeader": "Pierwszy wiersz zawiera nagłówek",
+        "limitFileSize": "Maksymalny rozmiar pliku: {limit} MB.",
+        "limitError": "Nie można zaimportować więcej niż {limit} wierszy.",
+        "processingError": "W trakcie przetwarzania pliku Excel wystąpił błąd: {error}",
+        "emptyError": "Ten plik Excel nie zawiera żadnych arkuszy.",
+        "emptySheetError": "Wybrany arkusz jest pusty."
+    },
+    "viewSearch": {
+        "clearSearch": "Wyczyść wyszukiwanie"
+    },
+    "gridViewGroupByBanner": {
+        "emptyValue": "(Pusty)",
+        "expandGroup": "Rozwiń grupę",
+        "collapseGroup": "Zwiń grupę"
     }
 }
