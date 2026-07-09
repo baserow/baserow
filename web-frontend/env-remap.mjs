@@ -49,7 +49,6 @@ const envMapping = {
   BASEROW_ROW_PAGE_SIZE_LIMIT: 'NUXT_PUBLIC_BASEROW_ROW_PAGE_SIZE_LIMIT',
   BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT:
     'NUXT_PUBLIC_BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT',
-  BASEROW_MAX_FIELD_TEXT_LENGTH: 'NUXT_PUBLIC_BASEROW_MAX_FIELD_TEXT_LENGTH',
   BASEROW_DISABLE_SUPPORT: 'NUXT_PUBLIC_BASEROW_DISABLE_SUPPORT',
   BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
     'NUXT_PUBLIC_BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN',
@@ -76,6 +75,21 @@ for (const [legacyKey, nuxtKey] of Object.entries(envMapping)) {
     process.env[nuxtKey] === undefined
   ) {
     process.env[nuxtKey] = process.env[legacyKey]
+  }
+}
+
+// Only override the default when a valid positive integer is provided.
+if (
+  process.env.BASEROW_MAX_FIELD_TEXT_LENGTH !== undefined &&
+  process.env.NUXT_PUBLIC_BASEROW_MAX_FIELD_TEXT_LENGTH === undefined
+) {
+  const maxFieldTextLength = parseInt(
+    process.env.BASEROW_MAX_FIELD_TEXT_LENGTH,
+    10
+  )
+  if (Number.isInteger(maxFieldTextLength) && maxFieldTextLength > 0) {
+    process.env.NUXT_PUBLIC_BASEROW_MAX_FIELD_TEXT_LENGTH =
+      String(maxFieldTextLength)
   }
 }
 

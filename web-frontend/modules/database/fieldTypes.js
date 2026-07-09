@@ -1153,9 +1153,12 @@ function maxFieldTextLengthError(app, value) {
   if (value === null || value === undefined || value === '') {
     return null
   }
-  const limit = parseInt(app.$config.public.baserowMaxFieldTextLength, 10)
+  const limit = app.$config.public.baserowMaxFieldTextLength
   if (value.length > limit) {
-    return app.$i18n.t('fieldErrors.maxChars', { max: limit })
+    return app.$i18n.t('fieldErrors.maxCharsExceeded', {
+      max: limit,
+      over: value.length - limit,
+    })
   }
   return null
 }

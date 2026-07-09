@@ -46,6 +46,7 @@
       ref="expandedModal"
       v-model="richCopy"
       :field="field"
+      :error="getModalError()"
       :mentionable-users="workspace ? workspace.users : null"
       @hidden="onExpandedModalHidden"
     />
@@ -107,6 +108,10 @@ export default {
       }
     },
     cancel() {
+      // While the modal is open it owns closing (it blocks close on invalid content).
+      if (this.isModalOpen()) {
+        return
+      }
       if (!this.isValid()) {
         this.opened = false
         this.editing = false
@@ -120,6 +125,9 @@ export default {
       }
       const ref = this.isModalOpen() ? 'expandedModal' : 'input'
       return this.getValidationError(this.$refs[ref]?.serializeToMarkdown())
+    },
+    getModalError() {
+      return this.isModalOpen() ? this.getError() : null
     },
     beforeSave() {
       const ref = this.isModalOpen() ? 'expandedModal' : 'input'

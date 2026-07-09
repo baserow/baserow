@@ -850,7 +850,7 @@ BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
 
-MAX_FIELD_TEXT_LENGTH = int(os.getenv("BASEROW_MAX_FIELD_TEXT_LENGTH", 1_000_000))
+MAX_FIELD_TEXT_LENGTH = int(os.getenv("BASEROW_MAX_FIELD_TEXT_LENGTH") or 1_000_000)
 
 # Per table, how many rows changed by a dependency cascade (formulas, lookups,
 # link row display values in other tables) are broadcast as exact realtime row
