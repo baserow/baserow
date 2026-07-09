@@ -457,7 +457,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
         # The node is back at its original level, so revert the reconciliations
         # the move made (e.g. restore Go to links it cleared).
         for node_type_str, modifications in params.move_extra_data.items():
-            automation_node_type_registry.get(node_type_str).revert_move_in_workflow(
+            automation_node_type_registry.get(node_type_str).revert_move(
                 user, modifications
             )
 

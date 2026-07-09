@@ -515,7 +515,7 @@ class AutomationNodeService:
         # changes it made, keyed by node type, so the move can be undone.
         move_extra_data: dict[str, Any] = {}
         for node_type in automation_node_type_registry.get_all():
-            modifications = node_type.after_move_in_workflow(user, workflow)
+            modifications = node_type.after_move(user, workflow)
             if modifications is not None:
                 move_extra_data[node_type.type] = modifications
 

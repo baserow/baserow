@@ -493,7 +493,7 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
 
         return super().prepare_values(values, user, instance)
 
-    def after_move_in_workflow(
+    def after_move(
         self, user: AbstractUser, workflow: AutomationWorkflow
     ) -> list[tuple[int, int]] | None:
         # A move can change a node's level or take it off the source node's
@@ -502,7 +502,7 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
         # report them so the move can be undone.
         return self.clear_invalidated_links(user, workflow) or None
 
-    def revert_move_in_workflow(
+    def revert_move(
         self, user: AbstractUser, modifications: list[tuple[int, int]]
     ) -> None:
         self.restore_links(user, modifications)
