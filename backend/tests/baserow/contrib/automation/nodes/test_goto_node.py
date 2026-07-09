@@ -1,5 +1,6 @@
 import pytest
 
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
 )
@@ -7,7 +8,6 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
-from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
 def _build_goto_workflow(data_fixture, condition="'false'", with_destination=True):
@@ -215,25 +215,10 @@ def test_dispatch_node_falls_through_when_condition_false(data_fixture):
     assert result is None
 
 
-@pytest.mark.django_db
-def test_goto_node_dispatch_skips_jump_when_simulating(data_fixture):
-    # The node type owns the simulation gate: while simulating, the jump is never
-    # followed (it would loop the simulated path), so no destination is emitted.
-    data = _build_goto_workflow(data_fixture, condition="'true'")
-    goto_node = data["goto_node"]
-
-    dispatch_context = FakeDispatchContext(simulate_until_node=goto_node)
-    dispatch_result = goto_node.get_type().dispatch(goto_node, dispatch_context)
-
-    assert dispatch_result.destination_service_id is None
-
-
-@pytest.mark.django_db
-def test_goto_node_dispatch_rejects_cross_level_destination(data_fixture):
+def _cross_level_goto_workflow(data_fixture):
     """
-    When the destination has been moved into a container (becomes cross-level)
-    after being configured, the node type's dispatch-time guard should raise a
-    clean misconfigured error rather than a 500/KeyError.
+    Builds a workflow whose goto (at the root level) targets a node living
+    inside an iterator (a different level), i.e. a jump that is no longer valid.
     """
 
     data = data_fixture.iterator_graph_fixture()
@@ -241,15 +226,115 @@ def test_goto_node_dispatch_rejects_cross_level_destination(data_fixture):
     iterator_child = data["iterator_child_1_node"]
     trigger = data["trigger_node"]
 
-    # The goto node sits at the root level (right after the trigger)...
     goto_node = data_fixture.create_core_goto_node(
         workflow=workflow, reference_node=trigger, position="south", output=""
     )
     service = goto_node.service.specific
     service.condition = "'true'"
-    # ...but the destination lives inside the iterator (a different level).
     service.destination_service = iterator_child.service
     service.save()
 
+    return {"workflow": workflow, "goto_node": goto_node, "destination": iterator_child}
+
+
+@pytest.mark.django_db
+def test_validate_jump_destination_allows_valid_destination(data_fixture):
+    # The hook is a no-op for a link that is still a valid jump.
+    data = _build_goto_workflow(data_fixture, condition="'true'")
+    goto_node = data["goto_node"]
+    destination = data["destination"]
+
+    # Does not raise.
+    goto_node.get_type().validate_jump_destination(goto_node, destination.service_id)
+
+
+@pytest.mark.django_db
+def test_validate_jump_destination_rejects_cross_level_destination(data_fixture):
+    # When the destination has been moved into a container (becomes cross-level)
+    # after being configured, the hook raises a clean misconfigured error rather
+    # than letting the runner follow the jump into a 500/KeyError.
+    data = _cross_level_goto_workflow(data_fixture)
+    goto_node = data["goto_node"]
+    destination = data["destination"]
+
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
-        goto_node.get_type().dispatch(goto_node, FakeDispatchContext())
+        goto_node.get_type().validate_jump_destination(
+            goto_node, destination.service_id
+        )
+
+
+@pytest.mark.django_db
+def test_dispatch_node_does_not_follow_jump_when_simulating(data_fixture):
+    # The runner owns the simulation gate: while simulating, a requested jump is
+    # never followed. The goto lies on the path to the simulated node, so it is
+    # dispatched, but execution must continue to its natural next node rather than
+    # looping back to the jump destination.
+    data = _build_goto_workflow(data_fixture, condition="'true'")
+    workflow = data["workflow"]
+    goto_node = data["goto_node"]
+
+    final_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, reference_node=goto_node, label="final"
+    )
+
+    history = data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        event_payload={"results": [], "has_next_page": False},
+        simulate_until_node=final_node,
+    )
+
+    result = AutomationNodeHandler().dispatch_node(goto_node.id, history.id)
+
+    # The natural next node runs, not the (backward) jump destination.
+    assert result is not None
+    leaf = result.tasks[0]
+    if hasattr(leaf, "tasks"):
+        leaf = leaf.tasks[0]
+    assert leaf.args[0] == final_node.id
+
+
+@pytest.mark.django_db
+def test_dispatch_node_validates_jump_on_real_run(data_fixture):
+    # On a real run the jump is followed, so the runner validates it against the
+    # live graph: an invalid (cross-level) destination is reported as a workflow
+    # error instead of crashing.
+    data = _cross_level_goto_workflow(data_fixture)
+    workflow = data["workflow"]
+    goto_node = data["goto_node"]
+
+    history = data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        event_payload={"results": [], "has_next_page": False},
+    )
+
+    result = AutomationNodeHandler().dispatch_node(goto_node.id, history.id)
+
+    assert result is None
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.ERROR
+    assert "misconfigured" in history.message
+
+
+@pytest.mark.django_db
+def test_dispatch_node_skips_jump_validation_when_simulating(data_fixture):
+    # The jump is never followed while simulating, so the runner must not validate
+    # it: an invalid (cross-level) destination that errors on a real run is left
+    # untouched, and the simulation completes without a misconfigured error.
+    data = _cross_level_goto_workflow(data_fixture)
+    workflow = data["workflow"]
+    goto_node = data["goto_node"]
+
+    history = data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        event_payload={"results": [], "has_next_page": False},
+        simulate_until_node=goto_node,
+    )
+
+    result = AutomationNodeHandler().dispatch_node(goto_node.id, history.id)
+
+    assert result is None
+    history.refresh_from_db()
+    assert history.status != HistoryStatusChoices.ERROR

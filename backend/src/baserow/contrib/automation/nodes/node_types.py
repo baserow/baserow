@@ -85,7 +85,6 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
-from baserow.core.services.types import DispatchResult
 
 
 class AutomationNodeActionNodeType(AutomationNodeType):
@@ -443,38 +442,29 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
 
         return None
 
-    def dispatch(self, automation_node, dispatch_context) -> DispatchResult:
+    def validate_jump_destination(
+        self,
+        automation_node: AutomationNode,
+        destination_service_id: int,
+    ) -> None:
         """
-        Applies the automation-graph rules on top of the generic goto service
-        dispatch. The service only resolves the intent to jump (and to which
-        destination); this node type owns the graph-specific decisions:
+        Re-validates the configured jump against the live graph before the
+        runner follows it. The service only resolves the intent to jump (and to
+        which destination); a link that became invalid after the service was
+        configured (e.g. the destination was moved to another level) raises a
+        clean misconfigured error instead of jumping.
 
-        - While simulating, the jump is never followed, to avoid looping the
-          simulated path. Execution then continues to the natural next node.
-        - Before a real jump is followed, the destination is re-validated
-          against the live graph, so a link that became invalid after the
-          service was configured (e.g. the destination was moved to another
-          level) raises a clean misconfigured error instead of jumping.
+        The runner calls this only when the jump is about to be followed, so a
+        jump that is never followed (e.g. while simulating) is never validated.
         """
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-        dispatch_result = super().dispatch(automation_node, dispatch_context)
-
-        if dispatch_result.destination_service_id is None:
-            return dispatch_result
-
-        if getattr(dispatch_context, "simulate_until_node", None) is not None:
-            dispatch_result.destination_service_id = None
-            return dispatch_result
-
         destination_node = AutomationNodeHandler().get_node_by_service_id(
-            dispatch_result.destination_service_id
+            destination_service_id
         )
         if error := self.validate_goto_destination(automation_node, destination_node):
             raise ServiceImproperlyConfiguredDispatchException(error)
-
-        return dispatch_result
 
     def prepare_values(
         self,

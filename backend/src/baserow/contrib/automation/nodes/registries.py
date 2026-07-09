@@ -403,6 +403,29 @@ class AutomationNodeType(
             automation_node.service.specific, dispatch_context
         )
 
+    def validate_jump_destination(
+        self,
+        automation_node: AutomationNode,
+        destination_service_id: int,
+    ) -> None:
+        """
+        Hook for node types whose dispatch can request a jump to another node
+        (by returning a destination_service_id on the DispatchResult).
+
+        The runner calls this only when the jump is about to be followed, i.e.
+        never while simulating because we don't want to jump over the node that
+        we want to simulate. The node type can then re-validate the destination
+        against the live graph and raise ServiceImproperlyConfiguredDispatchException
+        if the link is no longer a valid jump.
+
+        The default is a no-op, as most node types never request a jump.
+
+        :param automation_node: The node that requested the jump.
+        :param destination_service_id: The service the jump targets.
+        :raises ServiceImproperlyConfiguredDispatchException: If the jump is no
+            longer valid against the current graph.
+        """
+
 
 class AutomationNodeTypeRegistry(
     Registry,
