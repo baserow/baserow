@@ -411,6 +411,86 @@ describe('element store', () => {
     })
   })
 
+  describe('debouncedUpdate', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    })
+
+    const makeContext = () => ({
+      dispatch: vi.fn(() => Promise.resolve()),
+      getters: {},
+    })
+
+    test('flushes the pending update when a different element is edited', async () => {
+      // Regression: the debounce context is shared across all elements. Editing a
+      // second element before the first's debounce fired used to clear the first
+      // element's timer and drop its save entirely, leaving the local state ahead
+      // of the backend and its undo action missing.
+      const patch = vi.fn(() => Promise.resolve({ data: {} }))
+      const thisCtx = { $client: { patch } }
+      const page = makePage({}, [])
+      const elementA = { id: 1, type: 'heading', value: 'a' }
+      const elementB = { id: 2, type: 'heading', value: 'b' }
+
+      const p1 = elementStore.actions.debouncedUpdate.call(
+        thisCtx,
+        makeContext(),
+        { builder: {}, page, element: elementA, values: { value: 'AAA' } }
+      )
+      await vi.advanceTimersByTimeAsync(0)
+      // Still within A's debounce window: nothing persisted yet.
+      expect(patch).not.toHaveBeenCalled()
+
+      const p2 = elementStore.actions.debouncedUpdate.call(
+        thisCtx,
+        makeContext(),
+        { builder: {}, page, element: elementB, values: { value: 'BBB' } }
+      )
+      await vi.advanceTimersByTimeAsync(0)
+      // Editing B flushed A's pending update instead of discarding it.
+      expect(patch).toHaveBeenCalledWith('builder/element/1/', { value: 'AAA' })
+
+      // B is still debounced; let its timer fire.
+      await vi.advanceTimersByTimeAsync(500)
+      expect(patch).toHaveBeenCalledWith('builder/element/2/', { value: 'BBB' })
+      expect(patch).toHaveBeenCalledTimes(2)
+
+      await Promise.all([p1, p2])
+    })
+
+    test('coalesces rapid edits to the same element into a single save', async () => {
+      const patch = vi.fn(() => Promise.resolve({ data: {} }))
+      const thisCtx = { $client: { patch } }
+      const page = makePage({}, [])
+      const element = { id: 1, type: 'heading', value: 'a' }
+
+      const p1 = elementStore.actions.debouncedUpdate.call(
+        thisCtx,
+        makeContext(),
+        { builder: {}, page, element, values: { value: 'X' } }
+      )
+      await vi.advanceTimersByTimeAsync(200)
+      const p2 = elementStore.actions.debouncedUpdate.call(
+        thisCtx,
+        makeContext(),
+        { builder: {}, page, element, values: { value: 'XY' } }
+      )
+      await vi.advanceTimersByTimeAsync(500)
+
+      // Same element: the edits coalesce into one PATCH with the latest value,
+      // never prematurely flushed.
+      expect(patch).toHaveBeenCalledTimes(1)
+      expect(patch).toHaveBeenCalledWith('builder/element/1/', { value: 'XY' })
+
+      await Promise.all([p1, p2])
+    })
+  })
+
   describe('getRootElements', () => {
     test('appends elements absent from the graph as bottom root elements', () => {
       // Regression: an Element that exists on the page but is missing from the

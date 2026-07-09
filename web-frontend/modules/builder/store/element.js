@@ -34,6 +34,13 @@ const updateContext = {
   lastUpdatedValues: null,
   valuesToUpdate: {},
   moveTimeout: null,
+  // The id of the element the pending debounced update belongs to, and a
+  // function that flushes that pending update immediately. Because this context
+  // is shared across all elements, these let `debouncedUpdate` persist a pending
+  // change before it starts debouncing a *different* element (otherwise the
+  // first element's save - and its undo action - would be silently dropped).
+  elementId: null,
+  flush: null,
 }
 
 const updateCachedValues = (page) => {
@@ -349,6 +356,28 @@ const actions = {
     { builder, page, element, values }
   ) {
     const { $client } = this
+
+    // `updateContext` is shared across all elements. If there is a pending
+    // debounced update for a *different* element, flush it now so its change is
+    // persisted (and its undo action registered) before we start debouncing this
+    // element. Without this, editing a second element within the debounce window
+    // clears the first element's timer and discards its save, leaving the local
+    // state ahead of the backend and its undo action missing.
+    if (
+      updateContext.flush !== null &&
+      updateContext.elementId !== null &&
+      updateContext.elementId !== element.id
+    ) {
+      try {
+        await updateContext.flush()
+      } catch (error) {
+        // The pending update failed; `fire` already rolled it back. Continue
+        // with this element's update rather than failing it too.
+      }
+    }
+
+    updateContext.elementId = element.id
+
     const oldValues = {}
     Object.keys(values).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
@@ -366,6 +395,13 @@ const actions = {
 
     return new Promise((resolve, reject) => {
       const fire = async () => {
+        // Reset the shared context synchronously (before the await) so that this
+        // update can no longer be coalesced with, or flushed by, a later one.
+        clearTimeout(updateContext.updateTimeout)
+        updateContext.updateTimeout = null
+        updateContext.promiseResolve = null
+        updateContext.flush = null
+        updateContext.elementId = null
         const toUpdate = updateContext.valuesToUpdate
         updateContext.valuesToUpdate = {}
         try {
@@ -399,6 +435,7 @@ const actions = {
 
       updateContext.updateTimeout = setTimeout(fire, 500)
       updateContext.promiseResolve = resolve
+      updateContext.flush = fire
     })
   },
   async delete({ dispatch, commit, getters }, { builder, page, elementId }) {
