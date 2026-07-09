@@ -71,9 +71,7 @@ def test_user_source_restored(mock_broadcast, data_fixture):
     UserSourceService().delete_user_source(user, user_source)
     mock_broadcast.reset_mock()
 
-    TrashHandler.restore_item(
-        user, UserSourceTrashableItemType.type, user_source_id
-    )
+    TrashHandler.restore_item(user, UserSourceTrashableItemType.type, user_source_id)
 
     mock_broadcast.delay.assert_called_once()
     args = mock_broadcast.delay.call_args
