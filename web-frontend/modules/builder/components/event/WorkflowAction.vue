@@ -55,12 +55,20 @@ import _ from 'lodash'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions } from 'vuex'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
+import { syncFormsWithDefaultValuesKey } from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'WorkflowAction',
   components: { SampleDataViewer, SidebarExpandable },
   mixins: [applicationContext],
   inject: ['workspace', 'builder', 'elementPage', 'mode'],
+  provide() {
+    // Keep the rendered workflow-action form in sync with the underlying action so
+    // that undo/redo (and realtime changes) are reflected live in the open form.
+    return {
+      [syncFormsWithDefaultValuesKey]: true,
+    }
+  },
   props: {
     availableWorkflowActionTypes: {
       type: Array,
