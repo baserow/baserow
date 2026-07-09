@@ -62,6 +62,10 @@ export class AIFieldType extends FieldType {
       .getBaserowFieldType()
   }
 
+  getValidationError(field, value) {
+    return this.getBaserowFieldType(field).getValidationError(field, value)
+  }
+
   getCardComponent(field) {
     return this.getBaserowFieldType(field).getCardComponent(field)
   }

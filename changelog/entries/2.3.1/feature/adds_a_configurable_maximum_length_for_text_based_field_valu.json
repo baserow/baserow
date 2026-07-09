@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Adds a configurable maximum length for text based field values",
+    "issue_origin": "github",
+    "issue_number": 5688,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-08"
+}

@@ -222,6 +222,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         workspace: Optional[Workspace] = None,
         include_trash: bool = False,
         return_permissions_exceptions: bool = False,
+        raise_exception: bool = False,
     ) -> Dict[PermissionCheck, Union[bool, PermissionException]]:
         """
         Given a list of permission to check, returns True for each check for which the
@@ -236,18 +237,27 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         a definitive answer.
 
         If None of the permission managers replied with a final answer for a check,
-        the operation is denied by default for this check.
+        the check is recorded as denied in the returned mapping.
+
+        Use check_permissions(), or set raise_exception=True, if you want a denied
+        permission to raise a PermissionException.
 
         :param checks: The list of checks to do. Each check is a triplet of
             (actor, permission_name, scope).
         :param workspace: The optional workspace in which the operations take place.
         :param include_trash: If true, then also checks if the given workspace has been
             trashed instead of raising a DoesNotExist exception.
-        :param return_permissions_exceptions: Raise an exception when the permission is
-            disallowed when `True`. Return `False` instead when `False`.
-            `False` by default.
+        :param return_permissions_exceptions: When True, a denied check is recorded
+            in the returned mapping as the corresponding PermissionException instance.
+            Otherwise, a denied check is recorded as False.
+        :param raise_exception: When True, the first PermissionException encountered
+            among the denied checks is raised instead of being returned in the mapping.
+        :raises PermissionException: If `raise_exception` is True and at least one
+            check is denied.
         :return: A dictionary with one entry for each check of the parameter as key and
-            whether the operation is allowed or not as value.
+            whether the operation is allowed (True) or denied (False, or the
+            PermissionException instance when return_permissions_exceptions=True)
+            as value.
         """
 
         result = {}
@@ -274,9 +284,8 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
             for check, check_result in manager_result.items():
                 if check_result is not None:
-                    if (
-                        isinstance(check_result, PermissionException)
-                        and not return_permissions_exceptions
+                    if isinstance(check_result, PermissionException) and not (
+                        return_permissions_exceptions or raise_exception
                     ):
                         result[check] = False
                     else:
@@ -288,9 +297,14 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         for undetermined_check in undetermined_checks:
             result[undetermined_check] = (
                 PermissionDenied(undetermined_check.actor)
-                if return_permissions_exceptions
+                if (return_permissions_exceptions or raise_exception)
                 else False
             )
+
+        if raise_exception:
+            for check_result in result.values():
+                if isinstance(check_result, PermissionException):
+                    raise check_result
 
         return result
 

@@ -6,6 +6,7 @@
     header-no-padding
     content-no-x-padding
     class="row-edit-modal-sidebar"
+    @update:selected-index="onTabSelected"
   >
     <Tab
       v-for="sidebarType in sidebarTypes"
@@ -27,6 +28,10 @@
 <script>
 import Tabs from '@baserow/modules/core/components/Tabs.vue'
 import Tab from '@baserow/modules/core/components/Tab.vue'
+import {
+  getRowEditModalSidebarTab,
+  setRowEditModalSidebarTab,
+} from '@baserow/modules/database/utils/rowEditModalSidebar'
 
 export default {
   name: 'RowEditModalSidebar',
@@ -62,9 +67,23 @@ export default {
       default: false,
     },
   },
+  data() {
+    return {
+      // Remembered tab type, kept reactive so `selectedTabIndex` stays in sync.
+      rememberedType: getRowEditModalSidebarTab(),
+    }
+  },
   computed: {
     selectedTabIndex() {
       const types = this.sidebarTypes
+      if (this.rememberedType) {
+        const rememberedIndex = types.findIndex(
+          (type) => type.getType() === this.rememberedType
+        )
+        if (rememberedIndex !== -1) {
+          return rememberedIndex
+        }
+      }
       const index = types.findIndex((type) =>
         type.isSelectedByDefault(this.database, this.table)
       )
@@ -81,6 +100,19 @@ export default {
             this.view
           ) === false && type.getComponent()
       )
+    },
+  },
+  methods: {
+    // Persist the user's tab choice. Programmatic emits (mount echo, or a
+    // fallback when the remembered tab is unavailable) carry the already
+    // selected index and are skipped, so they never overwrite the preference.
+    onTabSelected(index) {
+      const type = this.sidebarTypes[index]?.getType()
+      if (!type || index === this.selectedTabIndex) {
+        return
+      }
+      this.rememberedType = type
+      setRowEditModalSidebarTab(type)
     },
   },
 }

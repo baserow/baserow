@@ -165,7 +165,7 @@ def test_send_smtp_email_with_integration_ignores_global_celery_email_backend(
     CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
     EMAIL_HOST="instance.smtp.example.com",
     EMAIL_PORT=2525,
-    DEFAULT_FROM_EMAIL="instance@example.com",
+    FROM_EMAIL="My Database <no-reply@example.com>",
 )
 def test_send_smtp_email_uses_instance_smtp_settings(data_fixture):
     service = data_fixture.create_core_smtp_email_service(
@@ -191,13 +191,53 @@ def test_send_smtp_email_uses_instance_smtp_settings(data_fixture):
         mock_email.assert_called_once_with(
             "Test Subject",
             "Hello, this is a test email!",
-            "instance@example.com",
+            "My Database <no-reply@example.com>",
             ["recipient@example.com"],
             bcc=[],
             cc=[],
             connection=mock_connection.return_value,
         )
         assert result.data == {"success": True}
+
+
+@pytest.mark.django_db
+@override_settings(
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST="instance.smtp.example.com",
+    EMAIL_PORT=2525,
+    FROM_EMAIL="My Database <no-reply@example.com>",
+    DEFAULT_FROM_EMAIL="webmaster@localhost",
+)
+def test_send_smtp_email_instance_smtp_uses_from_email_not_default(data_fixture):
+    # Regression test: the instance SMTP path must use the configured
+    # FROM_EMAIL and not fall back to Django's DEFAULT_FROM_EMAIL, which
+    # defaults to `webmaster@localhost`.
+    service = data_fixture.create_core_smtp_email_service(
+        integration=None,
+        use_instance_smtp_settings=True,
+        from_email="''",
+        from_name="''",
+        to_emails="'recipient@example.com'",
+        subject="'Test Subject'",
+        body="'Hello, this is a test email!'",
+        body_type="plain",
+    )
+
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext()
+
+    with mock_django_email() as (mock_email, mock_connection):
+        service_type.dispatch(service, dispatch_context)
+        mock_email.assert_called_once_with(
+            "Test Subject",
+            "Hello, this is a test email!",
+            "My Database <no-reply@example.com>",
+            ["recipient@example.com"],
+            bcc=[],
+            cc=[],
+            connection=mock_connection.return_value,
+        )
 
 
 @pytest.mark.django_db

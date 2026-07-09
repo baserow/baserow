@@ -870,7 +870,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         using_instance_smtp = self._should_use_instance_smtp(service)
 
         if using_instance_smtp:
-            from_email = settings.DEFAULT_FROM_EMAIL
+            from_email = settings.FROM_EMAIL
             connection = get_connection(
                 backend=settings.CELERY_EMAIL_BACKEND,
                 timeout=SMTP_EMAIL_TIMEOUT,

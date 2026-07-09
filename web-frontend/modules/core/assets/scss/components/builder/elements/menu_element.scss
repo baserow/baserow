@@ -140,11 +140,11 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   padding: 1em;
   z-index: $z-index-layout-resize;
   overflow-y: auto;
-  max-width: 420px;
+  max-width: 500px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   border-radius: 0 6px 6px 0;
 
-  @media (min-width: 420px) {
+  @media (min-width: 500px) {
     animation: menu-element-slide-in-left 180ms ease-out;
   }
 

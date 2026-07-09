@@ -1,35 +1,23 @@
 <template>
   <div class="page">
-    <PageElement
-      v-for="element in headerElements"
-      :key="element.id"
-      :element="element"
-      :mode="mode"
-      :application-context-additions="{
-        page: currentPage,
-        recordIndexPath: [],
-      }"
-    />
-    <PageElement
-      v-for="element in elements"
-      :key="element.id"
-      :element="element"
-      :mode="mode"
-      :application-context-additions="{
-        page: currentPage,
-        recordIndexPath: [],
-      }"
-    />
-    <PageElement
-      v-for="element in footerElements"
-      :key="element.id"
-      :element="element"
-      :mode="mode"
-      :application-context-additions="{
-        page: currentPage,
-        recordIndexPath: [],
-      }"
-    />
+    <!-- Sections are built by pageElementSectionsMixin. -->
+    <component
+      :is="section.tag"
+      v-for="section in visiblePageElementSections"
+      :key="section.key"
+      :class="section.classNames"
+    >
+      <PageElement
+        v-for="element in section.elements"
+        :key="element.id"
+        :element="element"
+        :mode="mode"
+        :application-context-additions="{
+          page: currentPage,
+          recordIndexPath: [],
+        }"
+      />
+    </component>
   </div>
 </template>
 
@@ -37,11 +25,11 @@
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import _ from 'lodash'
-import { PAGE_PLACES } from '@baserow/modules/builder/enums'
+import pageElementSectionsMixin from '@baserow/modules/builder/mixins/pageElementSections'
 
 export default {
   components: { PageElement },
-  mixins: [dimensionMixin],
+  mixins: [dimensionMixin, pageElementSectionsMixin],
   inject: ['builder', 'mode', 'currentPage'],
   props: {
     path: {
@@ -59,22 +47,6 @@ export default {
     sharedElements: {
       type: Array,
       required: true,
-    },
-  },
-  computed: {
-    headerElements() {
-      return this.sharedElements.filter(
-        (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
-          PAGE_PLACES.HEADER
-      )
-    },
-    footerElements() {
-      return this.sharedElements.filter(
-        (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
-          PAGE_PLACES.FOOTER
-      )
     },
   },
   watch: {

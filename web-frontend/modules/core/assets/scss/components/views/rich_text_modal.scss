@@ -1,6 +1,17 @@
-.rich-text-modal__editor {
+.rich-text-modal {
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  max-height: calc(100% - 60px);
+}
+
+.rich-text-modal__editor {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
+}
+
+.rich-text-modal__alert {
+  flex: 0 0 auto;
+  margin: 4px 0 16px;
 }

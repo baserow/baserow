@@ -17,57 +17,42 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
-          <template v-if="headerElements.length !== 0">
-            <header
-              class="page__header"
-              :class="{
-                'page__header--element-selected':
-                  pageSectionWithSelectedElement === 'header',
-              }"
+          <!-- Sections are built by pageElementSectionsMixin. -->
+          <template v-for="section in pageElementSections" :key="section.key">
+            <div
+              v-if="showSectionSeparator(section, 'before')"
+              class="page-preview__separator"
             >
-              <ElementPreview
-                v-for="(element, index) in headerElements"
-                :key="element.id"
-                :element="element"
-                :is-first-element="index === 0"
-                :is-copying="copyingElementIndex === index"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                  page: currentPage,
-                }"
-                :show-element-id="showElementId"
-                @move="moveElement($event)"
-              />
-            </header>
-            <div class="page-preview__separator">
               <span class="page-preview__separator-label">
-                {{ $t('pagePreview.header') }}
+                {{ $t(section.separator.label) }}
               </span>
             </div>
-          </template>
-          <template v-if="elements.length === 0">
             <AddElementZone
-              class="add-element-zone--full-height"
+              v-if="showEmptyContentSection(section)"
+              class="page__content add-element-zone--full-height"
               :page="currentPage"
               :target-page-place="PAGE_PLACES.CONTENT"
               :label="$t('pagePreview.emptyMessage')"
               @add-element="$refs.addElementModal.show()"
             />
-          </template>
-          <template v-else>
-            <div
-              class="page__content"
-              :class="{
-                'page__content--element-selected':
-                  pageSectionWithSelectedElement === 'content',
-              }"
+            <component
+              :is="section.tag"
+              v-else-if="section.elements.length !== 0"
+              :class="getPreviewSectionClassNames(section)"
             >
+              <div
+                v-if="showSectionSeparator(section, 'before', true)"
+                class="page-preview__separator"
+              >
+                <span class="page-preview__separator-label">
+                  {{ $t(section.separator.label) }}
+                </span>
+              </div>
               <ElementPreview
-                v-for="(element, index) in elements"
+                v-for="element in section.elements"
                 :key="element.id"
                 :element="element"
-                :is-first-element="index === 0 && headerElements.length === 0"
-                :is-copying="copyingElementIndex === index"
+                :is-first-element="element.id === firstPreviewElementId"
                 :application-context-additions="{
                   recordIndexPath: [],
                   page: currentPage,
@@ -75,39 +60,23 @@
                 :show-element-id="showElementId"
                 @move="moveElement($event)"
               />
-            </div>
-          </template>
-          <template v-if="footerElements.length !== 0">
-            <div class="page-preview__separator">
+              <div
+                v-if="showSectionSeparator(section, 'after', true)"
+                class="page-preview__separator"
+              >
+                <span class="page-preview__separator-label">
+                  {{ $t(section.separator.label) }}
+                </span>
+              </div>
+            </component>
+            <div
+              v-if="showSectionSeparator(section, 'after')"
+              class="page-preview__separator"
+            >
               <span class="page-preview__separator-label">
-                {{ $t('pagePreview.footer') }}
+                {{ $t(section.separator.label) }}
               </span>
             </div>
-            <footer
-              class="page__footer"
-              :class="{
-                'page__footer--element-selected':
-                  pageSectionWithSelectedElement === 'footer',
-              }"
-            >
-              <ElementPreview
-                v-for="(element, index) in footerElements"
-                :key="element.id"
-                :element="element"
-                :is-first-element="
-                  index === 0 &&
-                  headerElements.length === 0 &&
-                  elements.length === 0
-                "
-                :is-copying="copyingElementIndex === index"
-                :application-context-additions="{
-                  recordIndexPath: [],
-                  page: currentPage,
-                }"
-                :show-element-id="showElementId"
-                @move="moveElement($event)"
-              />
-            </footer>
           </template>
 
           <client-only>
@@ -137,6 +106,7 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
+import pageElementSectionsMixin from '@baserow/modules/builder/mixins/pageElementSections'
 
 export default {
   name: 'PagePreview',
@@ -148,6 +118,7 @@ export default {
     BuilderToasts,
     AddElementZone,
   },
+  mixins: [pageElementSectionsMixin],
   inject: ['builder', 'currentPage', 'workspace'],
   provide() {
     return {
@@ -158,9 +129,6 @@ export default {
   },
   data() {
     return {
-      // The element that is currently being copied
-      copyingElementIndex: null,
-
       // The resize observer to resize the preview when the wrapper size change
       resizeObserver: null,
 
@@ -210,19 +178,11 @@ export default {
     sharedElements() {
       return this.$store.getters['element/getRootElements'](this.sharedPage)
     },
-    headerElements() {
-      return this.sharedElements.filter(
-        (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
-          PAGE_PLACES.HEADER
+    firstPreviewElementId() {
+      const firstSectionWithElement = this.pageElementSections.find(
+        (section) => section.elements.length !== 0
       )
-    },
-    footerElements() {
-      return this.sharedElements.filter(
-        (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
-          PAGE_PLACES.FOOTER
-      )
+      return firstSectionWithElement?.elements[0]?.id || null
     },
     elementSelectedId() {
       return this.elementSelected?.id
@@ -233,7 +193,7 @@ export default {
       }
       return this.$registry.get('element', this.elementSelected.type)
     },
-    pageSectionWithSelectedElement() {
+    pageElementSectionWithSelectedElement() {
       if (!this.elementSelected) {
         return null
       }
@@ -263,7 +223,7 @@ export default {
 
       return this.$registry
         .get('element', ancestorWithPagePlace.type)
-        .getPagePlace()
+        .getPageSection(ancestorWithPagePlace)
     },
     elementsAround() {
       if (!this.elementSelected) {
@@ -344,7 +304,7 @@ export default {
     this.onWindowResized()
   },
   beforeUnmount() {
-    this.resizeObserver.disconnect()
+    this.resizeObserver?.disconnect()
     document.removeEventListener('keydown', this.preventScrollIfFocused)
   },
   methods: {
@@ -368,6 +328,29 @@ export default {
     },
     setPagePreviewLocked(locked) {
       this.isPreviewLocked = locked
+    },
+    getPreviewSectionClassNames(section) {
+      return [
+        ...section.classNames,
+        ...(section.previewClassNames || []),
+        {
+          [section.selectedPreviewClassName]:
+            section.selectedPreviewClassName &&
+            this.pageElementSectionWithSelectedElement === section.key,
+        },
+      ]
+    },
+    showEmptyContentSection(section) {
+      return (
+        section.place === PAGE_PLACES.CONTENT && section.elements.length === 0
+      )
+    },
+    showSectionSeparator(section, position, insideSection = false) {
+      return (
+        section.separator?.position === position &&
+        Boolean(section.separator.insideSection) === insideSection &&
+        section.elements.length !== 0
+      )
     },
     onWindowResized() {
       this.$nextTick(() => {

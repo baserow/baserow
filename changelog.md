@@ -1,5 +1,21 @@
 # Changelog
 
+## Released 2.3.1
+
+### New features
+* [Database] Remembers whether you last opened the comments or history tab when editing a row [#2532](https://github.com/baserow/baserow/issues/2532)
+* [Builder] Added fixed positioning options to Application Builder header and footer containers. [#3559](https://github.com/baserow/baserow/issues/3559)
+* [Database] Adds a configurable maximum length for text based field values [#5688](https://github.com/baserow/baserow/issues/5688)
+
+### Bug fixes
+* [Integration] Fix the Send email action using instance SMTP sending from webmaster@localhost instead of the configured FROM_EMAIL. [#5640](https://github.com/baserow/baserow/issues/5640)
+* [Database] In a restricted view, a row edited so it no longer matches the filters is now removed immediately for the editing user instead of lingering until a refresh. [#5660](https://gitlab.com/baserow/baserow/-/issues/5660)
+* [Database] Fixed single select dropdown and presence badge overlap issues on group-by grid view [#5684](https://github.com/baserow/baserow/issues/5684)
+* [Core] Improve delete audit log entries performance.
+* [Builder] Improved anonymous builder dispatch.
+* [Database] Resolve the issue with two separate N+1 queries when creating rows.
+
+
 ## Released 2.3.0
 
 ### New features

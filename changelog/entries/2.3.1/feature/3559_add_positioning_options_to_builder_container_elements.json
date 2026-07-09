@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added fixed positioning options to Application Builder header and footer containers.",
+    "issue_origin": "github",
+    "issue_number": 3559,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-06-11"
+}

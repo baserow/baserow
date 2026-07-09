@@ -187,6 +187,7 @@
     "overflowDuration": "Value is out of bounds.",
     "higherThan": "Value is higher than {max}.",
     "maxChars": "Max {max} chars.",
+    "maxCharsExceeded": "Max {max} chars (-{over}).",
     "minChars": "Min {min} chars."
   },
   "fieldDocs": {

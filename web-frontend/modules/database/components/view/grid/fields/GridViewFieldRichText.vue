@@ -6,6 +6,7 @@
     :class="{
       editing: opened && !isModalOpen(),
       'field-rich-text--preview': !opened || isModalOpen(),
+      invalid: editing && !isModalOpen() && !isValid(),
     }"
     @contextmenu="stopContextIfEditing($event)"
   >
@@ -35,10 +36,17 @@
       class="baserow-icon-enlarge grid-field-rich-text__textarea-expand-icon"
       @click="($refs.expandedModal.toggle(), resetCellSize())"
     />
+    <div
+      v-show="editing && !isModalOpen() && !isValid()"
+      class="grid-view__cell-error align-right"
+    >
+      {{ getError() }}
+    </div>
     <FieldRichTextModal
       ref="expandedModal"
       v-model="richCopy"
       :field="field"
+      :error="getModalError()"
       :mentionable-users="workspace ? workspace.users : null"
       @hidden="onExpandedModalHidden"
     />
@@ -100,7 +108,26 @@ export default {
       }
     },
     cancel() {
+      // While the modal is open it owns closing (it blocks close on invalid content).
+      if (this.isModalOpen()) {
+        return
+      }
+      if (!this.isValid()) {
+        this.opened = false
+        this.editing = false
+        return
+      }
       return this.save()
+    },
+    getError() {
+      if (!this.editing) {
+        return this.getValidationError(this.value)
+      }
+      const ref = this.isModalOpen() ? 'expandedModal' : 'input'
+      return this.getValidationError(this.$refs[ref]?.serializeToMarkdown())
+    },
+    getModalError() {
+      return this.isModalOpen() ? this.getError() : null
     },
     beforeSave() {
       const ref = this.isModalOpen() ? 'expandedModal' : 'input'
@@ -113,6 +140,11 @@ export default {
     },
     onExpandedModalHidden() {
       this.preventNextUnselect = true
+      if (!this.isValid()) {
+        this.opened = false
+        this.editing = false
+        return
+      }
       this.save()
     },
     canSaveByPressingEnter() {

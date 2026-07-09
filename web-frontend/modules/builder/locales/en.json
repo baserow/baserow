@@ -209,6 +209,8 @@
   },
   "pagePreview": {
     "emptyMessage": "Click to create an element",
+    "fixedHeader": "FIXED HEADER",
+    "fixedFooter": "FIXED FOOTER",
     "header": "HEADER",
     "footer": "FOOTER"
   },
@@ -1090,5 +1092,9 @@
   "previewPublishGuidedTourStep": {
     "title": "Preview & Publish Your App",
     "content": "Click **Preview** to test your app privately. When ready, click **Publish** to share it with the public via a domain."
+  },
+  "pageElementBehaviour": {
+    "normal": "Normal",
+    "fixed": "Fixed"
   }
 }

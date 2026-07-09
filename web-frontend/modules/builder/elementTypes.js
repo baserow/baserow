@@ -28,6 +28,7 @@ import {
   IFRAME_SOURCE_TYPES,
   DIRECTIONS,
   PAGE_PLACES,
+  PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
 import ColumnElement from '@baserow/modules/builder/components/elements/components/ColumnElement'
 import ColumnElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ColumnElementForm'
@@ -175,6 +176,18 @@ export class ElementType extends Registerable {
    */
   getPagePlace() {
     return PAGE_PLACES.CONTENT
+  }
+
+  /**
+   * Returns the page section where an element is rendered. This is the same as
+   * the page place by default, but element types can split a place into smaller
+   * sections using instance properties.
+   *
+   * @param {Object} element
+   * @returns {string}
+   */
+  getPageSection(element = null) {
+    return this.getPagePlace()
   }
 
   /**
@@ -649,6 +662,7 @@ export class ElementType extends Registerable {
   getElementsAround({ builder, page, element, withSharedPage = false }) {
     const elementType = this.app.$registry.get('element', element.type)
     const elementPlace = elementType.getPagePlace()
+    const elementSection = elementType.getPageSection(element)
 
     const elementPage = this.app.$store.getters['page/getById'](
       builder,
@@ -668,8 +682,9 @@ export class ElementType extends Registerable {
     ).filter(
       (sibling) =>
         Boolean(parentElement) ||
-        this.app.$registry.get('element', sibling.type).getPagePlace() ===
-          elementPlace
+        this.app.$registry
+          .get('element', sibling.type)
+          .getPageSection(sibling) === elementSection
     )
 
     const elementIndex = siblings.findIndex((e) => e.id === element.id)
@@ -2303,6 +2318,13 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     return PAGE_PLACES.HEADER
   }
 
+  getPageSection(element = null) {
+    const pagePlace = this.getPagePlace()
+    return element?.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+      ? `${PAGE_ELEMENT_BEHAVIOURS.FIXED}-${pagePlace}`
+      : pagePlace
+  }
+
   getDefaultChildValues(page, values) {
     return {}
   }
@@ -2311,6 +2333,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     const superValues = super.getDefaultValues(page, values, parentElement)
     return {
       ...superValues,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
       style_padding_left: 0,
       style_padding_right: 0,
     }
@@ -2326,7 +2349,9 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
   isDisallowedReason({
     builder,
     page,
+    element,
     parentElement,
+    referenceElement,
     beforeElement,
     afterElement,
     pagePlace,
@@ -2342,6 +2367,18 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     if (afterElement === undefined) {
       if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
+      }
+      if (referenceElement) {
+        const referenceElementType = this.app.$registry.get(
+          'element',
+          referenceElement.type
+        )
+        if (
+          this.getPageSection(element) !==
+          referenceElementType.getPageSection(referenceElement)
+        ) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
       }
       return null
     }
@@ -2428,7 +2465,9 @@ export class FooterElementType extends HeaderElementType {
   isDisallowedReason({
     builder,
     page,
+    element,
     parentElement,
+    referenceElement,
     beforeElement,
     afterElement,
     pagePlace,
@@ -2444,6 +2483,18 @@ export class FooterElementType extends HeaderElementType {
     if (afterElement === undefined) {
       if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
+      }
+      if (referenceElement) {
+        const referenceElementType = this.app.$registry.get(
+          'element',
+          referenceElement.type
+        )
+        if (
+          this.getPageSection(element) !==
+          referenceElementType.getPageSection(referenceElement)
+        ) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
       }
       return null
     }
