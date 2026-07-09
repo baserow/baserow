@@ -2,14 +2,6 @@
   "automationWorkflow": {
     "title": "Workflow"
   },
-  "coreGotoServiceForm": {
-    "conditionLabel": "Condition",
-    "conditionDescription": "When this condition is true, the workflow jumps to the destination node instead of continuing to the next node.",
-    "conditionPlaceholder": "If true, we jump to the destination node.",
-    "destinationLabel": "Destination node",
-    "destinationDescription": "The node to jump to when the condition is true.",
-    "destinationPlaceholder": "Choose a destination node..."
-  },
   "automationWelcomeGuidedTourStep": {
     "title": "Welcome to Baserow Automations!",
     "content": "Let's take a quick tour. You'll see how to set up triggers, add actions, test your workflow, and publish it — no coding required."

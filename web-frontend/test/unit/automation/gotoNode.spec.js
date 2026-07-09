@@ -1,4 +1,5 @@
 import {
+  buildGotoDestinations,
   isBackwardGotoJump,
   isValidGotoDestination,
 } from '@baserow/modules/automation/utils/gotoNode'
@@ -95,5 +96,80 @@ describe('isBackwardGotoJump', () => {
         previousNodesOf,
       })
     ).toBe(false)
+  })
+})
+
+describe('buildGotoDestinations', () => {
+  // A linear workflow: trigger -> before -> goto -> after. Each node carries a
+  // service, since a node is only a selectable destination once its service
+  // (what `destination_service_id` points at) has landed. `pending` is an
+  // optimistically created node that has no service yet.
+  const trigger = { id: 1, type: 'trigger', service: { id: 11 } }
+  const before = { id: 2, type: 'create_row', service: { id: 12 } }
+  const goto = { id: 3, type: 'goto', service: { id: 13 } }
+  const after = { id: 4, type: 'create_row', service: { id: 14 } }
+  const pending = { id: 5, type: 'create_row', service: null }
+  const nodes = [trigger, before, goto, after, pending]
+
+  const isTrigger = (node) => node.type === 'trigger'
+  const noAncestors = () => []
+  const previousByNodeId = {
+    [trigger.id]: [],
+    [before.id]: [trigger],
+    [goto.id]: [trigger, before],
+    [after.id]: [trigger, before, goto],
+    [pending.id]: [trigger, before, goto, after],
+  }
+  const previousNodesOf = (node) => previousByNodeId[node.id] ?? []
+
+  const build = (overrides = {}) =>
+    buildGotoDestinations({
+      gotoNode: goto,
+      nodes,
+      ancestorsOf: noAncestors,
+      previousNodesOf,
+      isTrigger,
+      nameOf: (node) => `name:${node.id}`,
+      ...overrides,
+    })
+
+  test('includes nodes that run before the Go to node (backward jump)', () => {
+    expect(build().map((destination) => destination.value)).toContain(
+      before.service.id
+    )
+  })
+
+  test('includes nodes that run after the Go to node (forward jump)', () => {
+    expect(build().map((destination) => destination.value)).toContain(
+      after.service.id
+    )
+  })
+
+  test('excludes the Go to node itself', () => {
+    expect(build().map((destination) => destination.value)).not.toContain(
+      goto.service.id
+    )
+  })
+
+  test('excludes trigger nodes', () => {
+    expect(build().map((destination) => destination.value)).not.toContain(
+      trigger.service.id
+    )
+  })
+
+  test('excludes nodes without a service yet', () => {
+    // `pending` is on the goto's path but has no service, so it is not yet a
+    // selectable destination.
+    expect(build().map((destination) => destination.value)).not.toContain(
+      undefined
+    )
+    expect(build()).toHaveLength(2)
+  })
+
+  test('maps each destination to its service id and resolved name', () => {
+    expect(build()).toEqual([
+      { value: before.service.id, name: `name:${before.id}` },
+      { value: after.service.id, name: `name:${after.id}` },
+    ])
   })
 })

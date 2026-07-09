@@ -246,6 +246,14 @@
     "workflow": "Workflow",
     "workflowHelperText": "Only published workflows with a manual trigger can be started. If this workflow has unpublished changes, the latest published version will run."
   },
+  "coreGotoServiceForm": {
+    "conditionLabel": "Condition",
+    "conditionDescription": "When this condition is true, the workflow jumps to the destination node instead of continuing to the next node.",
+    "conditionPlaceholder": "If true, we jump to the destination node.",
+    "destinationLabel": "Destination node",
+    "destinationDescription": "The node to jump to when the condition is true.",
+    "destinationPlaceholder": "Choose a destination node..."
+  },
   "slackBotForm": {
     "tokenLabel": "Bot User Token",
     "tokenPlaceholder": "xoxb-1234-...",

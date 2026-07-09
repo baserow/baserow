@@ -92,3 +92,48 @@ export function isValidGotoDestination({
   })
   return isBackwardJump || isForwardJump
 }
+
+/**
+ * Builds the selectable destinations for a "Go to node" dropdown: every valid
+ * jump target (see `isValidGotoDestination`) that already carries a service,
+ * mapped to the `{ value, name }` shape the generic `CoreGotoServiceForm`
+ * renders. `value` is the destination's service id, which is what the goto
+ * node's `destination_service_id` points at.
+ *
+ * This lives here so the automation `NodeSidePanel` can compute it and pass it into
+ * the integrations service form as a prop.
+ *
+ * @param {Object} gotoNode The source Go to node.
+ * @param {Object[]} nodes All nodes in the workflow.
+ * @param {Function} ancestorsOf `(node) => node[]` — the node's container ancestors.
+ * @param {Function} previousNodesOf `(node) => node[]` — the nodes that run before it.
+ * @param {Function} isTrigger `(node) => boolean` — whether the node is a trigger.
+ * @param {Function} nameOf `(node) => string` — the destination's display name.
+ * @returns {{ value: number, name: string }[]}
+ */
+export function buildGotoDestinations({
+  gotoNode,
+  nodes,
+  ancestorsOf,
+  previousNodesOf,
+  isTrigger,
+  nameOf,
+}) {
+  return nodes
+    .filter(
+      (node) =>
+        // A node is only a selectable destination once it has a service (its id
+        // is what `destination_service_id` points at). Optimistically created
+        // nodes have no service yet, so they're skipped until the real node
+        // lands.
+        Boolean(node.service?.id) &&
+        isValidGotoDestination({
+          gotoNode,
+          destinationNode: node,
+          ancestorsOf,
+          previousNodesOf,
+          isTrigger,
+        })
+    )
+    .map((node) => ({ value: node.service.id, name: nameOf(node) }))
+}
