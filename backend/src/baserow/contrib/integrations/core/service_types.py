@@ -1411,10 +1411,9 @@ class CoreGotoServiceType(CoreServiceType):
         both arrive as `False`.
         """
 
-        raw_condition = service.condition
-        if isinstance(raw_condition, dict):
-            raw_condition = raw_condition.get("formula", "")
-        return bool((raw_condition or "").strip())
+        formula = (service.condition or {}).get("formula") or ""
+        # a formula of just white spaces should be considered unset
+        return bool(formula.strip())
 
     def dispatch_data(
         self,
