@@ -1,18 +1,23 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.test import override_settings
 
 import pytest
 from freezegun import freeze_time
 
+from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
 )
 from baserow.contrib.database.fields.tasks import (
+    RUN_LOCK_KEY,
+    RUN_LOCK_TTL,
     _update_workspace_periodic_fields,
     delete_mentions_marked_for_deletion,
+    finish_periodic_fields_update,
     run_periodic_fields_updates,
 )
 from baserow.contrib.database.rows.handler import RowHandler
@@ -807,3 +812,17 @@ def test_run_periodic_fields_updates_command_runs_inline(data_fixture, settings)
             call_command("run_periodic_fields_updates", workspace_id=workspace.id)
 
     inline.assert_called_once_with(workspace.id, True)
+
+
+@pytest.mark.django_db
+def test_finish_periodic_fields_update_releases_only_matching_token():
+    flag = SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL)
+    flag.acquire("cycle-token")
+
+    # Stale callback with a different token is a no-op.
+    finish_periodic_fields_update("other-token")
+    assert cache.get(RUN_LOCK_KEY) == "cycle-token"
+
+    # The owning callback releases the lock.
+    finish_periodic_fields_update("cycle-token")
+    assert cache.get(RUN_LOCK_KEY) is None

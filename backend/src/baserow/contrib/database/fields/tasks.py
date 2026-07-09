@@ -4,15 +4,18 @@ import traceback
 from datetime import datetime, timedelta, timezone
 from math import ceil
 from typing import Optional, Type
+from uuid import uuid4
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import OuterRef, Q, QuerySet, Subquery
 
+from celery import chord, group
 from celery_singleton import Singleton
 from loguru import logger
 from opentelemetry import trace
 
+from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
 from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
@@ -35,6 +38,12 @@ SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS = 60
 BATCH_UPDATE_SOFT_TIME_LIMIT = settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60
 # Give the hard kill a small margin over the soft limit.
 BATCH_UPDATE_HARD_TIME_LIMIT = BATCH_UPDATE_SOFT_TIME_LIMIT + 30
+
+# Only one periodic-field cycle runs at a time. The parent acquires this Redis flag
+# (fenced by the run's token) and the chord callback releases it. The TTL is the crash
+# backstop; batches heartbeat it so a serialized cycle can't expire mid-flight.
+RUN_LOCK_KEY = "periodic_fields_update_running"
+RUN_LOCK_TTL = BATCH_UPDATE_HARD_TIME_LIMIT + 60
 
 
 def filter_distinct_workspace_ids_per_fields(
@@ -220,6 +229,13 @@ def update_workspaces_periodic_fields(
 
     for workspace_id in workspace_ids:
         _update_workspace_periodic_fields(workspace_id, update_now)
+
+
+@app.task(queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME)
+def finish_periodic_fields_update(token: str):
+    """Chord callback: release the per-cycle run lock if we still own it."""
+
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY).clear_if(token)
 
 
 def _update_workspace_periodic_fields(
