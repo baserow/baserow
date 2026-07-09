@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Periodic field updates now run one cycle at a time via a fenced Redis run lock, preventing overlapping runs from double-processing workspaces.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-09"
+}
