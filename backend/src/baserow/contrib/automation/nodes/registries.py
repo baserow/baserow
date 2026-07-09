@@ -165,6 +165,24 @@ class AutomationNodeType(
             service_type_registry.get(self.service_type) if self.service_type else None
         )
 
+    def get_history_destination_node(
+        self, node: AutomationNode
+    ) -> Optional[AutomationNode]:
+        """
+        Returns the node that execution jumped to from the given node during a
+        run, or None when this node type does not redirect execution.
+
+        Most nodes simply hand off to their natural next node and so have no
+        explicit destination. Node types that jump elsewhere in the graph (e.g.
+        the "Go to" node) override this so run histories can show where
+        execution went.
+
+        :param node: The node instance to resolve the destination for.
+        :return: The destination node, or None.
+        """
+
+        return None
+
     def is_replaceable_with(self, other_node_type: "AutomationNodeType") -> bool:
         """
         Determines if this node type can be replaced with another node type.

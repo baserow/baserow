@@ -368,6 +368,23 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
     model_class = CoreGotoActionNode
     service_type = CoreGotoServiceType.type
 
+    def get_history_destination_node(
+        self, node: AutomationNode
+    ) -> Optional[AutomationNode]:
+        """
+        Resolves the node this "Go to" node jumps to via its service's
+        configured destination. Returns None when no destination has been
+        configured (or the destination service is not backed by a node).
+        """
+
+        service = node.service.specific
+        destination_service = service.destination_service
+
+        if destination_service is None:
+            return None
+
+        return getattr(destination_service, "automation_workflow_node", None)
+
     @staticmethod
     def validate_goto_destination(
         source_node: AutomationNode,

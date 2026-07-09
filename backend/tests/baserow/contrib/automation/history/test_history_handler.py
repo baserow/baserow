@@ -372,7 +372,7 @@ def test_get_node_result_returns_latest_pass_when_node_loops(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_goto_destination_labels(data_fixture):
+def test_get_destination_labels(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
     trigger = workflow.get_trigger()
@@ -396,7 +396,7 @@ def test_get_goto_destination_labels(data_fixture):
         user=user, workflow_history=workflow_history, node=trigger
     )
 
-    labels = AutomationHistoryHandler().get_goto_destination_labels(
+    labels = AutomationHistoryHandler().get_destination_labels(
         [goto_history, trigger_history]
     )
 
@@ -410,7 +410,7 @@ def test_get_goto_destination_labels(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_goto_destination_labels_without_custom_label(data_fixture):
+def test_get_destination_labels_without_custom_label(data_fixture):
     """
     When the destination node has no custom label, the returned label is empty but
     the node type is still provided so the frontend can show a generic name.
@@ -435,7 +435,7 @@ def test_get_goto_destination_labels_without_custom_label(data_fixture):
         user=user, workflow_history=workflow_history, node=goto_node
     )
 
-    labels = AutomationHistoryHandler().get_goto_destination_labels([goto_history])
+    labels = AutomationHistoryHandler().get_destination_labels([goto_history])
 
     assert destination.label == ""
     assert labels == {

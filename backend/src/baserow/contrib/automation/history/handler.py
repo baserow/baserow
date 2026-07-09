@@ -16,7 +16,6 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.contrib.integrations.core.models import CoreGotoService
 from baserow.core.db import specific_iterator
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
@@ -283,12 +282,13 @@ class AutomationHistoryHandler:
             if (label := nr.result.get("edge", {}).get("label"))
         }
 
-    def get_goto_destination_labels(
+    def get_destination_labels(
         self, node_histories: List[AutomationNodeHistory]
     ) -> Dict[int, Dict[str, Any]]:
         """
-        For each "Go to node" history entry, return a mapping that describes
-        the node it jumps to, e.g.:
+        For each history entry whose node redirected execution to another node
+        (e.g. the "Go to node" node), return a mapping that describes the node
+        it jumped to, e.g.:
             {
                 "id": <destination node id>,
                 "type": <destination node type>,
@@ -302,27 +302,10 @@ class AutomationHistoryHandler:
         custom label.
         """
 
-        goto_histories = [
-            nh for nh in node_histories if nh.node.get_type().type == "goto"
-        ]
-        if not goto_histories:
-            return {}
-
-        services = {
-            service.id: service
-            for service in CoreGotoService.objects.filter(
-                id__in=[nh.node.service_id for nh in goto_histories]
-            ).select_related("destination_service__automation_workflow_node")
-        }
-
         labels = {}
-        for nh in goto_histories:
-            service = services.get(nh.node.service_id)
-            destination = (
-                service.destination_service.automation_workflow_node
-                if service and service.destination_service_id
-                else None
-            )
+        for nh in node_histories:
+            node = nh.node
+            destination = node.get_type().get_history_destination_node(node)
             if destination is not None:
                 labels[nh.id] = {
                     "id": destination.id,

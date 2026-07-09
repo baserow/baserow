@@ -67,7 +67,7 @@ class AutomationHistoryService:
         self._check_workflow_permissions(user, workflow)
         return self.handler.get_edge_labels(node_histories)
 
-    def get_goto_destination_labels(
+    def get_destination_labels(
         self,
         user: AbstractUser,
         node_histories: List[AutomationNodeHistory],
@@ -77,4 +77,4 @@ class AutomationHistoryService:
 
         workflow = node_histories[0].workflow_history.original_workflow
         self._check_workflow_permissions(user, workflow)
-        return self.handler.get_goto_destination_labels(node_histories)
+        return self.handler.get_destination_labels(node_histories)
