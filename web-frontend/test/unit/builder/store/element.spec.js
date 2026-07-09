@@ -423,7 +423,10 @@ describe('element store', () => {
 
       const patch = vi.fn((url) =>
         Promise.resolve({
-          data: { id: Number(url.match(/element\/(\d+)/)[1]), page_id: page.id },
+          data: {
+            id: Number(url.match(/element\/(\d+)/)[1]),
+            page_id: page.id,
+          },
         })
       )
       const thisCtx = {
