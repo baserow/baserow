@@ -51,10 +51,28 @@ class SingletonAutoRescheduleFlag:
         return False
 
     def is_set(self) -> bool:
+        """
+        Checks if the flag is set.
+
+        :return: True if the lock is set, False otherwise.
+        """
+
         return cache.get(key=self.key) or False
 
     def set(self) -> bool:
+        """
+        Sets the flag for the task, indicating it needs to be rescheduled.
+
+        :return: True if the flag was set, False if it was already set.
+        """
+
         return cache.set(key=self.key, value=True, timeout=self.timeout)
 
     def clear(self) -> bool:
+        """
+        Clears the flag for the task.
+
+        :return: True if the flag was cleared, False otherwise.
+        """
+
         return cache.delete(key=self.key)
