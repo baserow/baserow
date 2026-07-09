@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from django.test.utils import override_settings
 
@@ -50,6 +50,39 @@ def test_audit_log_handler_can_clear_entries_older_than(
 
     AuditLogHandler.delete_entries_older_than(datetime(2023, 1, 2, 12, 0, 0))
     assert AuditLogEntry.objects.count() == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_audit_log_handler_deletes_entries_in_multiple_batches(
+    api_client, enterprise_data_fixture, synced_roles
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    with freeze_time("2023-01-01 12:00:00"):
+        CreateWorkspaceActionType.do(user, "workspace 1")
+
+    with freeze_time("2023-01-01 12:00:01"):
+        CreateWorkspaceActionType.do(user, "workspace 2")
+
+    with freeze_time("2023-01-01 12:00:02"):
+        CreateWorkspaceActionType.do(user, "workspace 3")
+
+    with freeze_time("2023-01-01 12:00:03"):
+        CreateWorkspaceActionType.do(user, "workspace 4")
+
+    # A batch size smaller than the number of matching entries must still
+    # delete all of them, while leaving newer entries untouched.
+    AuditLogHandler.delete_entries_older_than(
+        datetime(2023, 1, 1, 12, 0, 3), batch_size=2
+    )
+
+    remaining = AuditLogEntry.objects.all()
+    assert len(remaining) == 1
+    assert remaining[0].action_timestamp == datetime(
+        2023, 1, 1, 12, 0, 3, tzinfo=timezone.utc
+    )
 
 
 @pytest.mark.django_db

@@ -67,11 +67,20 @@ class AuditLogHandler:
         )
 
     @classmethod
-    def delete_entries_older_than(cls, cutoff: datetime):
+    def delete_entries_older_than(cls, cutoff: datetime, batch_size: int = 100_000):
         """
         Deletes all audit log entries that are older than the given number of days.
 
         :param cutoff: The date and time before which all entries will be deleted.
+        :param batch_size: The maximum number of entries to delete per query.
         """
 
-        AuditLogEntry.objects.filter(action_timestamp__lt=cutoff).delete()
+        while True:
+            entry_ids = (
+                AuditLogEntry.objects.filter(action_timestamp__lt=cutoff)
+                .order_by("action_timestamp")
+                .values_list("id", flat=True)[:batch_size]
+            )
+            deleted_count, _ = AuditLogEntry.objects.filter(id__in=entry_ids).delete()
+            if deleted_count < batch_size:
+                break

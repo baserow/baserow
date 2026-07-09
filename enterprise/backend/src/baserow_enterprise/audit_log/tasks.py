@@ -1,24 +1,30 @@
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from django.conf import settings
 
+from celery_singleton import Singleton
+
 from baserow.config.celery import app
 
+CLEANUP_TIME_LIMIT_SECONDS = (
+    settings.BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES * 60
+)
 
-@app.task(bind=True, queue="export")
+
+@app.task(
+    bind=True,
+    queue="export",
+    base=Singleton,
+    raise_on_duplicate=False,
+    lock_expiry=CLEANUP_TIME_LIMIT_SECONDS,
+    soft_time_limit=CLEANUP_TIME_LIMIT_SECONDS,
+    time_limit=CLEANUP_TIME_LIMIT_SECONDS,
+)
 def clean_up_audit_log_entries(self):
-    """
-    Execute job cleanup for each job types if they need to cleanup something like files
-    or old jobs.
-    """
-
     from .handler import AuditLogHandler
 
-    older_than_days = timedelta(
+    entries_older_than = datetime.now(tz=timezone.utc) - timedelta(
         days=settings.BASEROW_ENTERPRISE_AUDIT_LOG_RETENTION_DAYS
-    )
-    entries_older_than = datetime.combine(
-        datetime.now(tz=timezone.utc) - older_than_days, time.min
     )
     AuditLogHandler.delete_entries_older_than(entries_older_than)
 
