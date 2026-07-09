@@ -79,11 +79,11 @@ def test_smtp_integration_update(data_fixture):
         password="newpassword456",
     )
 
-    assert updated_integration.host == "smtp.newhost.com"
-    assert updated_integration.port == 465
-    assert updated_integration.use_tls is False
-    assert updated_integration.username == "newuser@example.com"
-    assert updated_integration.password == "newpassword456"
+    assert updated_integration.integration.host == "smtp.newhost.com"
+    assert updated_integration.integration.port == 465
+    assert updated_integration.integration.use_tls is False
+    assert updated_integration.integration.username == "newuser@example.com"
+    assert updated_integration.integration.password == "newpassword456"
 
 
 @pytest.mark.django_db
@@ -105,11 +105,11 @@ def test_smtp_integration_partial_update(data_fixture):
         port=465,
     )
 
-    assert updated_integration.host == "smtp.newhost.com"
-    assert updated_integration.port == 465
-    assert updated_integration.use_tls is True  # unchanged
-    assert updated_integration.username == "user@example.com"  # unchanged
-    assert updated_integration.password == "password123"  # unchanged
+    assert updated_integration.integration.host == "smtp.newhost.com"
+    assert updated_integration.integration.port == 465
+    assert updated_integration.integration.use_tls is True  # unchanged
+    assert updated_integration.integration.username == "user@example.com"  # unchanged
+    assert updated_integration.integration.password == "password123"  # unchanged
 
 
 @pytest.mark.django_db

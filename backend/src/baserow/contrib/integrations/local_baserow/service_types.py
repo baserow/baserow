@@ -1955,6 +1955,22 @@ class LocalBaserowUpsertRowServiceType(
                 bulk_field_mappings
             )
 
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        # The field mappings (each row field's value/formula) live on a related model,
+        # so the base export - which only reads `allowed_fields` - misses them. Capture
+        # them in the same shape `after_update` restores them from, so that changing a
+        # field value can be undone/redone.
+        values["field_mappings"] = [
+            {
+                "field_id": field_mapping.field_id,
+                "enabled": field_mapping.enabled,
+                "value": field_mapping.value,
+            }
+            for field_mapping in instance.field_mappings.all()
+        ]
+        return values
+
     def formula_generator(
         self, service: ServiceType
     ) -> Generator[str | Instance, str, None]:

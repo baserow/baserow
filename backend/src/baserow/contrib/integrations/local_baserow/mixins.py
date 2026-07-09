@@ -123,6 +123,15 @@ class LocalBaserowTableServiceFilterableMixin:
             for g in service.service_filter_groups.all()
         ]
 
+    def export_prepared_values(self, instance):
+        values = super().export_prepared_values(instance)
+        # The service filters live on a related model (rebuilt in `after_update`), so
+        # the base export - which only reads `allowed_fields` - misses them. Capture
+        # them in the same shape `after_update` restores them from, so that changing a
+        # filter can be undone/redone.
+        values["service_filters"] = self.serialize_filters(instance)
+        return values
+
     def serialize_property(
         self,
         service: ServiceSubClass,
@@ -629,6 +638,15 @@ class LocalBaserowTableServiceSortableMixin:
             }
             for s in service.service_sorts_with_untrashed_fields
         ]
+
+    def export_prepared_values(self, instance):
+        values = super().export_prepared_values(instance)
+        # The service sorts live on a related model (rebuilt in `after_update`), so the
+        # base export - which only reads `allowed_fields` - misses them. Capture them in
+        # the same shape `after_update` restores them from, so that changing a sort can
+        # be undone/redone.
+        values["service_sorts"] = self.serialize_sortings(instance)
+        return values
 
     def serialize_property(
         self,

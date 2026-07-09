@@ -756,15 +756,6 @@ class ElementHandler:
             **kwargs,
         )
 
-        deferred_import_callback = element_type.before_import(
-            serialized_element,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
-
         created_instance = element_type.import_serialized(
             page,
             serialized_element,

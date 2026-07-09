@@ -29,6 +29,7 @@ from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
@@ -1637,3 +1638,85 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_collaborators(
 
     collaborators = getattr(dispatch_data["data"], collaborator_field.db_column).all()
     assert list(collaborators.values_list("id", flat=True)) == [user.id]
+
+
+@pytest.mark.django_db
+def test_upsert_row_service_export_prepared_values_includes_field_mappings(
+    data_fixture,
+):
+    # The field mappings (each row field's value/formula) must be captured by
+    # `export_prepared_values` so that changing a field value is undoable/redoable.
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[("Name", "text", {})],
+    )
+    name_field = table.field_set.get(name="Name")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table, integration=integration
+    )
+    service.field_mappings.create(field=name_field, value="'Jeff'", enabled=True)
+
+    exported = service.get_type().export_prepared_values(service)
+
+    assert len(exported["field_mappings"]) == 1
+    field_mapping = exported["field_mappings"][0]
+    assert field_mapping["field_id"] == name_field.id
+    assert field_mapping["enabled"] is True
+    assert field_mapping["value"]["formula"] == "'Jeff'"
+
+
+@pytest.mark.django_db
+def test_upsert_row_service_field_mapping_update_can_be_undone(data_fixture):
+    # Reproduces the automation/builder create_row undo bug: capturing the original
+    # field mappings and re-applying them (as undo does) reverts a field value change.
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[("Name", "text", {})],
+    )
+    name_field = table.field_set.get(name="Name")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table, integration=integration
+    )
+    service.field_mappings.create(field=name_field, value="", enabled=True)
+    service_type = service.get_type()
+
+    # Snapshot the original (empty) mappings.
+    original = service_type.export_prepared_values(service)
+
+    # Change the field value to 'bob'.
+    ServiceHandler().update_service(
+        service_type,
+        service,
+        field_mappings=[{"field_id": name_field.id, "enabled": True, "value": "'bob'"}],
+    )
+    service.refresh_from_db()
+    new = service_type.export_prepared_values(service)
+    assert new["field_mappings"] != original["field_mappings"]
+    assert new["field_mappings"][0]["value"]["formula"] == "'bob'"
+
+    # Undo: re-apply the original mappings -> value reverts to empty.
+    ServiceHandler().update_service(
+        service_type, service, field_mappings=original["field_mappings"]
+    )
+    service.refresh_from_db()
+    assert service.field_mappings.get(field=name_field).value["formula"] == ""

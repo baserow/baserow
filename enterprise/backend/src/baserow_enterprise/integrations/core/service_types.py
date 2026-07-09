@@ -121,6 +121,18 @@ class CoreCodeServiceType(CoreServiceType):
     ):
         return self.after_create(instance, values)
 
+    def export_prepared_values(self, instance: CoreCodeService) -> Dict[str, Any]:
+        values = super().export_prepared_values(instance)
+        # Injections live on a related model (rebuilt in `after_create`), so the base
+        # export - which only reads `allowed_fields` - misses them. Capture them in the
+        # same shape `after_create` restores them from, so that changing them can be
+        # undone/redone.
+        values["injections"] = [
+            {"name": injection.name, "formula": injection.formula}
+            for injection in instance.injections.all()
+        ]
+        return values
+
     def formulas_to_resolve(self, service: CoreCodeService) -> list[FormulaToResolve]:
         return [
             FormulaToResolve(

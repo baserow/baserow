@@ -285,6 +285,26 @@ class CoreHTTPRequestServiceType(CoreServiceType):
     ):
         return self.after_create(instance, values)
 
+    def export_prepared_values(self, instance: Service) -> dict[str, Any]:
+        values = super().export_prepared_values(instance)
+        # Headers, query params and form data live on related models (rebuilt in
+        # `after_create`), so the base export - which only reads `allowed_fields` -
+        # misses them. Capture them in the same shape `after_create` restores them
+        # from, so that changing them can be undone/redone.
+        values["headers"] = [
+            {"key": header.key, "value": header.value}
+            for header in instance.headers.all()
+        ]
+        values["query_params"] = [
+            {"key": query_param.key, "value": query_param.value}
+            for query_param in instance.query_params.all()
+        ]
+        values["form_data"] = [
+            {"key": form_data.key, "value": form_data.value}
+            for form_data in instance.form_data.all()
+        ]
+        return values
+
     def formula_generator(
         self, service: ServiceType
     ) -> Generator[str | Instance, str, None]:
