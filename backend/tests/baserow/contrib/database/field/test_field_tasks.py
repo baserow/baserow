@@ -896,9 +896,35 @@ def test_update_workspaces_periodic_fields_extends_run_lock(data_fixture, settin
         ),
         freeze_time("2023-02-27 10:30"),
     ):
-        update_workspaces_periodic_fields([workspace.id], True, batch_index=0)
+        update_workspaces_periodic_fields(
+            [workspace.id], True, batch_index=0, run_token="held"
+        )
 
         # Heartbeat extends TTL without overwriting the token. Checked inside the
         # freeze, see the comment on
         # test_run_periodic_fields_updates_clears_lock_after_completion.
+        assert cache.get(RUN_LOCK_KEY) == "held"
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_aborts_when_lock_not_owned(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    # A different cycle owns the lock (e.g. this batch was delayed and a newer cycle
+    # took over). The batch must not run and must not touch the other cycle's lock.
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields"
+        ) as inner,
+        freeze_time("2023-02-27 10:30"),
+    ):
+        update_workspaces_periodic_fields(
+            [workspace.id], True, batch_index=0, run_token="stale"
+        )
+
+        inner.assert_not_called()
         assert cache.get(RUN_LOCK_KEY) == "held"

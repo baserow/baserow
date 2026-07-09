@@ -28,15 +28,17 @@ def test_clear_if_only_deletes_on_matching_token():
 
 
 @pytest.mark.django_db
-def test_extend_preserves_value_and_reports_missing_key():
+def test_extend_if_extends_only_for_matching_token():
     flag = SingletonAutoRescheduleFlag("test_lock", timeout=60)
 
     # Nothing to extend yet.
-    assert flag.extend() is False
+    assert flag.extend_if("token-a") is False
 
     flag.acquire("token-a")
-    assert flag.extend() is True
-    # Extend must not overwrite the token.
+    # A different token no longer owns the lock: refuse to extend.
+    assert flag.extend_if("token-b") is False
+    # The owning token extends the TTL without overwriting the value.
+    assert flag.extend_if("token-a") is True
     assert cache.get("test_lock") == "token-a"
 
 

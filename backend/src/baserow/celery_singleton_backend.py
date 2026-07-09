@@ -35,13 +35,17 @@ class SingletonAutoRescheduleFlag:
 
         return bool(cache.add(self.key, value, timeout=self.timeout))
 
-    def extend(self) -> bool:
+    def extend_if(self, value) -> bool:
         """
-        Reset the TTL without changing the value (heartbeat). Returns False if
-        the key is gone, so a straggler can't recreate it.
+        Ownership-aware heartbeat: reset the TTL only if the current value still
+        matches our token. Returns False if we no longer hold the lock (expired or
+        taken over by another holder), so the caller can stop instead of running
+        unprotected.
         """
 
-        return bool(cache.touch(self.key, self.timeout))
+        if cache.get(self.key) == value:
+            return bool(cache.touch(self.key, self.timeout))
+        return False
 
     def clear_if(self, value) -> bool:
         """Delete the flag only if the current value matches the token."""

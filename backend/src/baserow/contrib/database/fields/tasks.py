@@ -62,7 +62,9 @@ def filter_distinct_workspace_ids_per_fields(
     )
     if workspace_id is not None:
         queryset = queryset.filter(id=workspace_id)
-    return queryset.distinct().order_by("now")
+    # Ordering is applied later on the final workspace queryset; the ids collected here
+    # go straight into a set, so any ordering at this stage is wasted work.
+    return queryset.distinct().order_by()
 
 
 @app.task(
@@ -118,7 +120,10 @@ def run_periodic_fields_updates(
         batches = list(itertools.batched(ordered_ids, batch_size))
         header = group(
             update_workspaces_periodic_fields.s(
-                list(batch_ids), update_now, batch_index=batch_index
+                list(batch_ids),
+                update_now,
+                batch_index=batch_index,
+                run_token=token,
             )
             for batch_index, batch_ids in enumerate(batches)
         )
@@ -229,14 +234,29 @@ def _run_periodic_field_type_update_per_workspace(
     time_limit=BATCH_UPDATE_HARD_TIME_LIMIT,
 )
 def update_workspaces_periodic_fields(
-    self, workspace_ids: list[int], update_now: bool = True, batch_index: int = 0
+    self,
+    workspace_ids: list[int],
+    update_now: bool = True,
+    batch_index: int = 0,
+    run_token: Optional[str] = None,
 ):
     """
     Updates all periodic fields for a batch of workspaces. Extends the per-cycle run
-    lock's TTL at the start so the lock survives as long as any batch is active.
+    lock's TTL at the start, but only while this cycle still owns it. If the lock has
+    lapsed or a newer cycle took over (e.g. after a long queue delay), the batch stops
+    instead of running unprotected and risking an overlap.
     """
 
-    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).extend()
+    if not SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).extend_if(
+        run_token
+    ):
+        logger.info(
+            "update_workspaces_periodic_fields batch {batch_index} skipped: the run "
+            "lock is no longer held by this cycle.",
+            batch_index=batch_index,
+        )
+        return
+
     for workspace_id in workspace_ids:
         _update_workspace_periodic_fields(workspace_id, update_now)
 
