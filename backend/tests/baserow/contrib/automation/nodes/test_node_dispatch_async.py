@@ -665,7 +665,7 @@ def test_dispatch_node_dispatches_trigger_simulation(
         },
         "status": 200,
         "output_uid": "",
-        "output_service_id": None,
+        "destination_service_id": None,
     }
 
     mock_automation_node_updated.send.assert_called_once_with(
@@ -742,7 +742,7 @@ def test_dispatch_node_dispatches_action_simulation(
             "order": AnyStr(),
         },
         "output_uid": "",
-        "output_service_id": None,
+        "destination_service_id": None,
         "status": 200,
     }
 
@@ -964,7 +964,7 @@ def test_dispatch_node_dispatches_iterator_simulation(
             "order": AnyStr(),
         },
         "output_uid": "",
-        "output_service_id": None,
+        "destination_service_id": None,
         "status": 200,
     }
 
@@ -1466,7 +1466,7 @@ def test_dispatch_node_dispatches_router_edge_simulation(
         },
         "output_uid": AnyStr(),
         "status": 200,
-        "output_service_id": None,
+        "destination_service_id": None,
     }
 
     mock_automation_node_updated.send.assert_called_once_with(

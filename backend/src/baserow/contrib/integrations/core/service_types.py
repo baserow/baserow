@@ -1431,7 +1431,7 @@ class CoreGotoServiceType(CoreServiceType):
         This only resolves the intent to jump; how the jump is validated against
         the graph, and whether it should be suppressed (e.g. while simulating),
         is decided by the consumer that owns the graph. The returned
-        `output_service_id` is a plain reference to the configured destination
+        destination_service_id is a plain reference to the configured destination
         service, which the consumer resolves within its own graph.
         """
 
@@ -1440,16 +1440,16 @@ class CoreGotoServiceType(CoreServiceType):
         should_jump = resolved_values["condition"] or not self._condition_is_set(
             service
         )
-        output_service_id = None
+        destination_service_id = None
         if should_jump:
             if service.destination_service_id is None:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "No destination has been configured for this service."
                 )
-            output_service_id = service.destination_service_id
+            destination_service_id = service.destination_service_id
 
         return {
-            "output_service_id": output_service_id,
+            "destination_service_id": destination_service_id,
             "data": {"condition": bool(should_jump)},
         }
 
@@ -1458,7 +1458,7 @@ class CoreGotoServiceType(CoreServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(
-            output_service_id=data["output_service_id"], data=data["data"]
+            destination_service_id=data["destination_service_id"], data=data["data"]
         )
 
 

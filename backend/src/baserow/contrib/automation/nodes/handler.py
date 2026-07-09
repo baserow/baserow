@@ -673,11 +673,11 @@ class AutomationNodeHandler:
                 canvas = chain(*groups_to_chain)
                 to_chain.append(canvas)
 
-        if dispatch_result.output_service_id is not None:
+        if dispatch_result.destination_service_id is not None:
             # A node (e.g. "Go to node") requested a jump to a specific node,
             # identified by its service, rather than the natural next node.
             next_node_ids = [
-                self.get_node_by_service_id(dispatch_result.output_service_id).id
+                self.get_node_by_service_id(dispatch_result.destination_service_id).id
             ]
         else:
             # Handle non-iterator nodes, including iterator children.

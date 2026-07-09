@@ -225,7 +225,7 @@ def test_goto_node_dispatch_skips_jump_when_simulating(data_fixture):
     dispatch_context = FakeDispatchContext(simulate_until_node=goto_node)
     dispatch_result = goto_node.get_type().dispatch(goto_node, dispatch_context)
 
-    assert dispatch_result.output_service_id is None
+    assert dispatch_result.destination_service_id is None
 
 
 @pytest.mark.django_db

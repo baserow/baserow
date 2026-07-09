@@ -63,7 +63,7 @@ def test_core_goto_node_dispatch_condition_true(data_fixture, truthful_condition
 
     dispatch_result = service.get_type().dispatch(service, FakeDispatchContext())
 
-    assert dispatch_result.output_service_id == destination.service_id
+    assert dispatch_result.destination_service_id == destination.service_id
     assert dispatch_result.data == {"condition": True}
 
 
@@ -83,7 +83,7 @@ def test_core_goto_node_dispatch_condition_false(data_fixture):
 
     dispatch_result = service.get_type().dispatch(service, FakeDispatchContext())
 
-    assert dispatch_result.output_service_id is None
+    assert dispatch_result.destination_service_id is None
     assert dispatch_result.data == {"condition": False}
 
 
@@ -115,7 +115,7 @@ def test_core_goto_node_dispatch_empty_condition_jumps(data_fixture, empty_condi
 
     dispatch_result = service.get_type().dispatch(service, FakeDispatchContext())
 
-    assert dispatch_result.output_service_id == destination.service_id
+    assert dispatch_result.destination_service_id == destination.service_id
     assert dispatch_result.data == {"condition": True}
 
 

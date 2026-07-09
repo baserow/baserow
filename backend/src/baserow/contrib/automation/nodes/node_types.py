@@ -461,15 +461,15 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
 
         dispatch_result = super().dispatch(automation_node, dispatch_context)
 
-        if dispatch_result.output_service_id is None:
+        if dispatch_result.destination_service_id is None:
             return dispatch_result
 
         if getattr(dispatch_context, "simulate_until_node", None) is not None:
-            dispatch_result.output_service_id = None
+            dispatch_result.destination_service_id = None
             return dispatch_result
 
         destination_node = AutomationNodeHandler().get_node_by_service_id(
-            dispatch_result.output_service_id
+            dispatch_result.destination_service_id
         )
         if error := self.validate_goto_destination(automation_node, destination_node):
             raise ServiceImproperlyConfiguredDispatchException(error)
