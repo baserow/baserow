@@ -69,18 +69,16 @@ export default {
   },
   data() {
     return {
-      // Tab type currently shown. Starts at the initial (auto-opened) tab so
-      // the mount echo is not persisted; updated on each real user selection.
-      selectedType: null,
+      // Remembered tab type, kept reactive so `selectedTabIndex` stays in sync.
+      rememberedType: getRowEditModalSidebarTab(),
     }
   },
   computed: {
     selectedTabIndex() {
       const types = this.sidebarTypes
-      const remembered = getRowEditModalSidebarTab()
-      if (remembered) {
+      if (this.rememberedType) {
         const rememberedIndex = types.findIndex(
-          (type) => type.getType() === remembered
+          (type) => type.getType() === this.rememberedType
         )
         if (rememberedIndex !== -1) {
           return rememberedIndex
@@ -104,26 +102,17 @@ export default {
       )
     },
   },
-  watch: {
-    // Keep the tracker in sync when the tab is re-selected programmatically
-    // (e.g. the remembered tab becomes unavailable), so that emit is not
-    // mistaken for a user action and does not overwrite the stored preference.
-    selectedTabIndex(index) {
-      this.selectedType = this.sidebarTypes[index]?.getType() ?? null
-    },
-  },
-  created() {
-    this.selectedType =
-      this.sidebarTypes[this.selectedTabIndex]?.getType() ?? null
-  },
   methods: {
-    // Persist the user's tab choice; skips the mount echo (same type as shown).
+    // Persist the user's tab choice. Programmatic emits (mount echo, or a
+    // fallback when the remembered tab is unavailable) carry the already
+    // selected index and are skipped, so they never overwrite the preference.
     onTabSelected(index) {
       const type = this.sidebarTypes[index]?.getType()
-      if (type && type !== this.selectedType) {
-        this.selectedType = type
-        setRowEditModalSidebarTab(type)
+      if (!type || index === this.selectedTabIndex) {
+        return
       }
+      this.rememberedType = type
+      setRowEditModalSidebarTab(type)
     },
   },
 }
