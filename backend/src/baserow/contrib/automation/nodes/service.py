@@ -513,11 +513,11 @@ class AutomationNodeService:
         # references (e.g. a "Go to node" link that now points across levels).
         # Let each node type reconcile the workflow and record any reversible
         # changes it made, keyed by node type, so the move can be undone.
-        post_move_modifications: dict[str, Any] = {}
+        move_extra_data: dict[str, Any] = {}
         for node_type in automation_node_type_registry.get_all():
             modifications = node_type.after_move_in_workflow(user, workflow)
             if modifications is not None:
-                post_move_modifications[node_type.type] = modifications
+                move_extra_data[node_type.type] = modifications
 
         cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
         global_cache.update(cache_key, lambda _: True)
@@ -529,5 +529,5 @@ class AutomationNodeService:
             previous_reference_node=previous_reference_node,
             previous_position=previous_position,
             previous_output=previous_output,
-            post_move_modifications=post_move_modifications,
+            move_extra_data=move_extra_data,
         )

@@ -31,7 +31,7 @@ class AutomationNodeMove:
     # Reversible modifications node types made to reconcile the workflow after
     # the move (e.g. clearing now-invalid "Go to node" links), keyed by node
     # type. Captured so the move action can revert them on undo.
-    post_move_modifications: dict[str, Any] = field(default_factory=dict)
+    move_extra_data: dict[str, Any] = field(default_factory=dict)
 
 
 class AutomationNodeDict(TypedDict):

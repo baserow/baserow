@@ -395,7 +395,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
         destination_output: str
         # Reversible modifications node types made to reconcile the workflow
         # after the move, keyed by node type. Reverted on undo.
-        post_move_modifications: dict = field(default_factory=dict)
+        move_extra_data: dict = field(default_factory=dict)
 
     @classmethod
     def do(
@@ -429,7 +429,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
                 reference_node_id,
                 position,
                 output,
-                move.post_move_modifications,
+                move.move_extra_data,
             ),
             scope=cls.scope(workflow.id),
             workspace=workflow.automation.workspace,
@@ -456,7 +456,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
         )
         # The node is back at its original level, so revert the reconciliations
         # the move made (e.g. restore Go to links it cleared).
-        for node_type_str, modifications in params.post_move_modifications.items():
+        for node_type_str, modifications in params.move_extra_data.items():
             automation_node_type_registry.get(node_type_str).revert_move_in_workflow(
                 user, modifications
             )
