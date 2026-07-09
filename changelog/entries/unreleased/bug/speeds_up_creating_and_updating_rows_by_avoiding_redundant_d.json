@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Speeds up creating and updating rows by avoiding redundant database queries",
+    "message": "Resolve the issue with two separate N+1 queries when creating rows.",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "database",
