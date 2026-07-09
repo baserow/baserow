@@ -39,11 +39,7 @@
 </template>
 
 <script>
-import {
-  HORIZONTAL_ALIGNMENTS,
-  LINK_VARIANTS,
-  WIDTHS_NEW,
-} from '@baserow/modules/builder/enums'
+import { LINK_VARIANTS } from '@baserow/modules/builder/enums'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import LinkNavigationSelectionForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkNavigationSelectionForm'
@@ -62,12 +58,10 @@ export default {
     return {
       values: {
         value: {},
-        alignment: HORIZONTAL_ALIGNMENTS.LEFT,
         variant: LINK_VARIANTS.LINK,
-        width: WIDTHS_NEW.AUTO,
         styles: {},
       },
-      allowedValues: ['value', 'alignment', 'variant', 'width', 'styles'],
+      allowedValues: ['value', 'variant', 'styles'],
       linkElementFormVariantOptions: [
         {
           value: LINK_VARIANTS.LINK,
