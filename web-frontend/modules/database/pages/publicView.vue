@@ -3,7 +3,7 @@
     <Toasts></Toasts>
     <div class="public-view__table">
       <Table
-        v-if="database && table && view"
+        v-if="ready && database && table && view"
         :database="database"
         :table="table"
         :fields="fields"
@@ -12,18 +12,28 @@
         :table-loading="false"
         :store-prefix="'page/'"
       ></Table>
+      <PublicViewSkeleton v-else></PublicViewSkeleton>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import {
+  computed,
+  ref,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  onServerPrefetch,
+} from 'vue'
 import { useRoute } from 'vue-router'
-import { useAsyncData, useNuxtApp, useState } from '#app'
+import { useNuxtApp, useState, navigateTo } from '#app'
 import { useHead } from '#imports'
 
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import Table from '@baserow/modules/database/components/table/Table'
+import PublicViewSkeleton from '@baserow/modules/database/components/view/PublicViewSkeleton'
 import ViewService from '@baserow/modules/database/services/view'
 import { PUBLIC_PLACEHOLDER_ENTITY_ID } from '@baserow/modules/database/utils/constants'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
@@ -44,7 +54,7 @@ const detectedLocale = useState('public-view-detected-locale', () => {
 $i18n.locale.value = detectedLocale.value
 await $i18n.loadLocaleMessages(detectedLocale.value)
 
-const { data, error } = await useAsyncData(
+const { data, ready, asyncData } = await usePageAsyncData(
   `database-public-view-${route.params.slug}`,
   async () => {
     const nuxt = useNuxtApp()
@@ -149,12 +159,29 @@ const { data, error } = await useAsyncData(
   }
 )
 
-if (error.value) {
-  throw error.value
-}
+// Handle the redirect to the password protected view authentication page. The
+// client-side watcher handles it after a client-side navigation, and the
+// `onServerPrefetch` makes the server respond with a redirect on the first page
+// load.
+watch(
+  data,
+  (d) => {
+    if (d?.redirect) {
+      navigateTo(d.redirect, { replace: true })
+    }
+  },
+  { immediate: true }
+)
 
-if (data.value?.redirect) {
-  await navigateTo(data.value.redirect)
+if (import.meta.server) {
+  onServerPrefetch(async () => {
+    await asyncData
+    if (data.value?.redirect) {
+      await nuxtApp.runWithContext(() =>
+        navigateTo(data.value.redirect, { replace: true })
+      )
+    }
+  })
 }
 
 const database = computed(() => data.value?.database)
@@ -179,23 +206,42 @@ function keyDown(event) {
 onMounted(() => {
   keydownEvent = (event) => keyDown(event)
   document.body.addEventListener('keydown', keydownEvent)
-
-  if (!$config.public.disableAnonymousPublicViewWsConnections) {
-    $realtime.connect(true, true)
-
-    const token = $store.getters['page/view/public/getAuthToken']
-    $realtime.subscribe('view', { slug: route.params.slug, token })
-  }
 })
+
+/**
+ * Connect and subscribe to the realtime updates of the view as soon as the async
+ * data is ready. This can't happen in the onMounted hook because the page is
+ * mounted before the async data has been fetched on client-side navigation.
+ */
+let subscribedToRealtime = false
+watch(
+  ready,
+  (isReady) => {
+    if (
+      isReady &&
+      !subscribedToRealtime &&
+      !data.value?.redirect &&
+      !$config.public.disableAnonymousPublicViewWsConnections
+    ) {
+      subscribedToRealtime = true
+      $realtime.connect(true, true)
+
+      const token = $store.getters['page/view/public/getAuthToken']
+      $realtime.subscribe('view', { slug: route.params.slug, token })
+    }
+  },
+  { immediate: true }
+)
 
 onBeforeUnmount(() => {
   $i18n.locale.value = originalLanguageBeforeDetect.value
 
   document.body.removeEventListener('keydown', keydownEvent)
 
-  if (!$config.public.disableAnonymousPublicViewWsConnections) {
+  if (subscribedToRealtime) {
     $realtime.subscribe(null)
     $realtime.disconnect()
+    subscribedToRealtime = false
   }
 })
 </script>

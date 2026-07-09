@@ -21,7 +21,14 @@
           />
         </a>
       </div>
-      <div v-if="authProviders.length > 0" class="auth-provider-admin__items">
+      <div v-if="!ready" class="skeleton">
+        <div class="skeleton__item skeleton__item--w-full"></div>
+        <div class="skeleton__item skeleton__item--w-full"></div>
+      </div>
+      <div
+        v-else-if="authProviders.length > 0"
+        class="auth-provider-admin__items"
+      >
         <component
           :is="getAdminListComponent(authProvider)"
           v-for="authProvider in authProviders"
@@ -42,6 +49,7 @@
 import { ref, computed, nextTick } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp, definePageMeta, useI18n, useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import CreateAuthProviderContext from '@baserow_enterprise/components/admin/contexts/CreateAuthProviderContext.vue'
 import CreateAuthProviderModal from '@baserow_enterprise/components/admin/modals/CreateAuthProviderModal.vue'
 
@@ -67,8 +75,11 @@ const createModal = ref(null)
 const authProviderTypeToCreate = ref(null)
 
 // Fetch data on page load
-await store.dispatch('authProviderAdmin/fetchAll')
-await store.dispatch('authProviderAdmin/fetchNextProviderId')
+const { ready } = await usePageAsyncData('admin-auth-providers', async () => {
+  await store.dispatch('authProviderAdmin/fetchAll')
+  await store.dispatch('authProviderAdmin/fetchNextProviderId')
+  return true
+})
 
 // Computed
 const authProviderMap = computed(

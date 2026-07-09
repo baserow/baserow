@@ -1,22 +1,25 @@
 <template>
   <PageEditorContent
-    v-if="!pending"
+    v-if="ready"
     :workspace="workspace"
     :builder="builder"
     :page="currentPage"
   />
+  <PageEditorSkeleton v-else />
 </template>
 
 <script setup>
-import { useHead, useAsyncData } from '#imports'
+import { useHead } from '#imports'
 import { computed } from 'vue'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 import _ from 'lodash'
 import PageEditorContent from '@baserow/modules/builder/components/PageEditorContent.vue'
+import PageEditorSkeleton from '@baserow/modules/builder/components/PageEditorSkeleton.vue'
 
 definePageMeta({
   layout: 'app',
@@ -39,11 +42,7 @@ useHead(() => ({
 }))
 
 // Load page data
-const {
-  data: pageData,
-  error: pageError,
-  pending,
-} = await useAsyncData(
+const { data: pageData, ready } = await usePageAsyncData(
   () => `page-editor-${route.params.builderId}-${route.params.pageId}`,
   async () => {
     // The objects are selected by the middleware
@@ -117,13 +116,9 @@ const {
   }
 )
 
-if (pageError.value) {
-  throw pageError.value
-}
-
-const workspace = computed(() => pageData.value.workspace)
-const builder = computed(() => pageData.value.builder)
-const currentPage = computed(() => pageData.value.page)
+const workspace = computed(() => pageData.value?.workspace)
+const builder = computed(() => pageData.value?.builder)
+const currentPage = computed(() => pageData.value?.page)
 
 // Navigation guards
 onBeforeRouteUpdate((to, from) => {

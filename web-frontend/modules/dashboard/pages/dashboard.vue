@@ -1,18 +1,21 @@
 <template>
-  <div v-if="dashboard" class="dashboard-app">
+  <DashboardSkeleton v-if="!ready" />
+  <div v-else-if="dashboard" class="dashboard-app">
     <DashboardHeader :dashboard="dashboard" />
     <DashboardContent :dashboard="dashboard" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, watch, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
-import { useNuxtApp, useAsyncData, createError, useHead } from '#app'
+import { useNuxtApp, createError, useHead } from '#app'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
+import DashboardSkeleton from '@baserow/modules/dashboard/components/DashboardSkeleton'
 import DashboardHeader from '@baserow/modules/dashboard/components/DashboardHeader'
 import DashboardContent from '@baserow/modules/dashboard/components/DashboardContent'
 
@@ -22,7 +25,7 @@ definePageMeta({
     'settings',
     'authenticated',
     'workspacesAndApplications',
-    'dashboardLoading',
+    'selectWorkspaceDashboard',
   ],
 })
 
@@ -30,11 +33,7 @@ const store = useStore()
 const route = useRoute()
 const { $hasPermission, $realtime } = useNuxtApp()
 
-const {
-  data,
-  pending,
-  error: fetchError,
-} = await useAsyncData(
+const { data, ready } = await usePageAsyncData(
   `dashboard-data-${route.params.dashboardId}`,
   async () => {
     try {
@@ -78,27 +77,33 @@ const {
   }
 )
 
-if (fetchError.value) {
-  throw fetchError.value
-}
-
 const dashboard = computed(() => data.value?.dashboard)
 
 useHead(() => ({
   title: dashboard.value?.name || '',
 }))
 
-// Mounted logic
-onMounted(() => {
-  if (dashboard.value) {
-    $realtime.subscribe('dashboard', { dashboard_id: dashboard.value.id })
-  }
-})
+/**
+ * Subscribe to the realtime updates of the dashboard as soon as the async data
+ * is ready. This can't happen in the onMounted hook because the page is mounted
+ * before the async data has been fetched on client-side navigation.
+ */
+let subscribedDashboardId = null
+watch(
+  ready,
+  (isReady) => {
+    if (isReady && subscribedDashboardId === null && dashboard.value) {
+      subscribedDashboardId = dashboard.value.id
+      $realtime.subscribe('dashboard', { dashboard_id: subscribedDashboardId })
+    }
+  },
+  { immediate: true }
+)
 
-// Cleanup
 onBeforeUnmount(() => {
-  if (dashboard.value) {
-    $realtime.unsubscribe('dashboard', { dashboard_id: dashboard.value.id })
+  if (subscribedDashboardId !== null) {
+    $realtime.unsubscribe('dashboard', { dashboard_id: subscribedDashboardId })
+    subscribedDashboardId = null
   }
 })
 </script>

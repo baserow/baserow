@@ -1,5 +1,6 @@
 <template>
-  <div style="height: 100%; display: flex; flex-direction: column">
+  <SettingsPageSkeleton v-if="!ready" />
+  <div v-else style="height: 100%; display: flex; flex-direction: column">
     <Tabs
       offset
       full-height
@@ -33,6 +34,9 @@
 <script setup>
 import { useHead } from '#imports'
 
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
+import SettingsPageSkeleton from '@baserow/modules/core/components/settings/SettingsPageSkeleton'
+
 /* Using Vuex in Nuxt 3 with Composition API */
 
 const route = useRoute()
@@ -41,28 +45,27 @@ const nuxtApp = useNuxtApp()
 const store = nuxtApp.$store
 const { $i18n } = nuxtApp
 
-/* asyncData → useAsyncData */
-const { data: workspace, error } = await useAsyncData('workspace', async () => {
-  try {
-    return await store.dispatch(
-      'workspace/selectById',
-      parseInt(route.params.workspaceId, 10)
-    )
-  } catch (e) {
-    throw createError({
-      statusCode: 404,
-      message: 'Workspace not found.',
-      data: {
-        report: false,
-      },
-      fatal: true,
-    })
+/* asyncData → usePageAsyncData */
+const { data: workspace, ready } = await usePageAsyncData(
+  `settings-workspace-${route.params.workspaceId}`,
+  async () => {
+    try {
+      return await store.dispatch(
+        'workspace/selectById',
+        parseInt(route.params.workspaceId, 10)
+      )
+    } catch (e) {
+      throw createError({
+        statusCode: 404,
+        message: 'Workspace not found.',
+        data: {
+          report: false,
+        },
+        fatal: true,
+      })
+    }
   }
-})
-
-if (error.value) {
-  throw error.value
-}
+)
 
 /* Registry access */
 const registry = nuxtApp.$registry
@@ -74,6 +77,10 @@ const workspaceSettingsPageTypes = computed(() =>
 
 /* Build an array of settings page types they're permitted to view. */
 const pages = computed(() => {
+  if (!workspace.value) {
+    return []
+  }
+
   const permittedPages = workspaceSettingsPageTypes.value.filter((instance) =>
     instance.hasPermission(workspace.value)
   )

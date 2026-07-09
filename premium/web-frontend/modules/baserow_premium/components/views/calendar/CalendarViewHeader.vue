@@ -1,5 +1,5 @@
 <template>
-  <ul v-if="!tableLoading" class="header__filter header__filter--full-width">
+  <ul class="header__filter header__filter--full-width">
     <li class="header__filter-item">
       <a
         class="header__filter-link"
@@ -65,7 +65,6 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SelectDateFieldModal from '@baserow_premium/components/views/calendar/SelectDateFieldModal'
@@ -149,9 +148,6 @@ export default {
     isDev() {
       return import.meta.env.MODE === 'development'
     },
-    ...mapState({
-      tableLoading: (state) => state.table.loading,
-    }),
     canChooseDateField() {
       return (
         !this.readOnly &&

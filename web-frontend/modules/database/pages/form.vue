@@ -2,7 +2,8 @@
   <div class="form-view__page-container">
     <Toasts></Toasts>
     <div class="form-view__page">
-      <div v-if="fields.length === 0" class="form-view__body">
+      <FormPageSkeleton v-if="!ready"></FormPageSkeleton>
+      <div v-else-if="fields.length === 0" class="form-view__body">
         <div class="form-view__no-fields margin-bottom-4">
           <div class="form-view__no-fields-title">
             This form doesn't have any fields
@@ -38,11 +39,12 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { useAsyncData } from '#app'
+import { computed, ref, watch, onServerPrefetch } from 'vue'
+import { navigateTo } from '#app'
 import { useHead } from '#imports'
 import { useRoute, useRouter } from 'vue-router'
 
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { clone, isPromise } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
@@ -54,6 +56,7 @@ import {
 } from '@baserow/modules/database/utils/form'
 import { matchSearchFilters } from '@baserow/modules/database/utils/view'
 import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormPageSkeleton from '@baserow/modules/database/components/view/form/FormPageSkeleton'
 
 definePageMeta({
   middleware: ['settings'],
@@ -73,7 +76,7 @@ const submitActionRedirectUrl = ref('')
 const form = ref(null)
 
 // Replaces asyncData from Nuxt2
-const { data, error } = await useAsyncData(
+const { data, ready, asyncData } = await usePageAsyncData(
   `database-public-form-${route.params.slug}-${route.query.edit_token || ''}`,
   async () => {
     const slug = route.params.slug
@@ -220,27 +223,57 @@ const { data, error } = await useAsyncData(
   }
 )
 
-if (error.value) {
-  throw error.value
-}
+// Handle the redirect to the password protected form authentication page. The
+// client-side watcher handles it after a client-side navigation, and the
+// `onServerPrefetch` makes the server respond with a redirect on the first page
+// load.
+watch(
+  data,
+  (d) => {
+    if (d?.redirect) {
+      navigateTo(d.redirect.href, { replace: true })
+    }
+  },
+  { immediate: true }
+)
 
-if (data.value?.redirect) {
-  await navigateTo(data.value.redirect.href)
+if (import.meta.server) {
+  onServerPrefetch(async () => {
+    await asyncData
+    if (data.value?.redirect) {
+      await nuxtApp.runWithContext(() =>
+        navigateTo(data.value.redirect.href, { replace: true })
+      )
+    }
+  })
 }
 
 // Expose data like the old asyncData return did
-const title = computed(() => data.value.title)
-const description = computed(() => data.value.description)
-const coverImage = computed(() => data.value.coverImage)
-const logoImage = computed(() => data.value.logoImage)
-const submitText = computed(() => data.value.submitText)
-const fields = computed(() => data.value.fields || [])
-const mode = computed(() => data.value.mode)
-const showLogo = computed(() => data.value.showLogo)
-const publicAuthToken = computed(() => data.value.publicAuthToken)
-const editToken = computed(() => data.value.editToken || null)
+const title = computed(() => data.value?.title)
+const description = computed(() => data.value?.description)
+const coverImage = computed(() => data.value?.coverImage)
+const logoImage = computed(() => data.value?.logoImage)
+const submitText = computed(() => data.value?.submitText)
+const fields = computed(() => data.value?.fields || [])
+const mode = computed(() => data.value?.mode)
+const showLogo = computed(() => data.value?.showLogo)
+const publicAuthToken = computed(() => data.value?.publicAuthToken)
+const editToken = computed(() => data.value?.editToken || null)
 const isEditMode = computed(() => !!editToken.value)
-const values = ref(data.value.values)
+
+// The values must be a writable ref because the form mutates them via `v-model`.
+// It's synced from the async data with a sync flush, so that it also runs during
+// SSR where watchers with the default flush don't re-run.
+const values = ref({})
+watch(
+  data,
+  (d) => {
+    if (d?.values) {
+      values.value = d.values
+    }
+  },
+  { immediate: true, flush: 'sync' }
+)
 
 useHead(() => {
   const head = {

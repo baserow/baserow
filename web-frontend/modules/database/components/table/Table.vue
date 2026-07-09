@@ -285,13 +285,6 @@ export default {
     ViewSearch,
     ViewContext,
   },
-  /**
-   * Because there is no hook that is called before the route changes, we need the
-   * tableLoading middleware to change the table loading state. This change will get
-   * rendered right away. This allows us to have a custom loading animation when
-   * switching views.
-   */
-  middleware: ['tableLoading'],
   props: {
     database: {
       type: Object,

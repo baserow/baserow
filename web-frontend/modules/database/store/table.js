@@ -61,9 +61,6 @@ export const mutations = {
 }
 
 export const actions = {
-  setLoading({ commit }, value) {
-    commit('SET_LOADING', value)
-  },
   /**
    * Trigger a new table creation based on the provided values. The job id corresponding
    * to the table creation task is returned. Once this job is finished a create_table

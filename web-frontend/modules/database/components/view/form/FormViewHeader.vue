@@ -1,5 +1,5 @@
 <template>
-  <ul v-if="!tableLoading" class="header__filter header__filter--full-width">
+  <ul class="header__filter header__filter--full-width">
     <li
       v-if="
         $hasPermission(
@@ -45,7 +45,6 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
 
 import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
 import FormViewModeContext from '@baserow/modules/database/components/view/form/FormViewModeContext'
@@ -82,9 +81,6 @@ export default {
         }).href
       )
     },
-    ...mapState({
-      tableLoading: (state) => state.table.loading,
-    }),
   },
 }
 </script>

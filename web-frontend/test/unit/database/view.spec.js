@@ -1,3 +1,4 @@
+import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import Table from '@baserow/modules/database/pages/table'
 import {
@@ -35,6 +36,21 @@ describe('View Tests', () => {
     return testApp.mount(App, {
       route,
     })
+  }
+
+  // The table page no longer blocks the navigation while the async data is
+  // being fetched. It mounts immediately in a loading state, so tests must
+  // wait until the expected element has been rendered.
+  const waitForRender = async (component, selector, attempts = 50) => {
+    for (let i = 0; i < attempts; i++) {
+      if (component.find(selector).exists()) {
+        return
+      }
+      await flushPromises()
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      await nextTick()
+    }
+    throw new Error(`Timed out waiting for ${selector} to render.`)
   }
 
   test('forceCreate view metadata mutations are idempotent', async () => {
@@ -156,6 +172,7 @@ describe('View Tests', () => {
     const firstTableComponent = await mountRoute(
       `/database/${application.id}/table/${firstTable.id}/?token=fake`
     )
+    await waitForRender(firstTableComponent, 'div.grid-view')
 
     // Check if Vuex store is updated correctly (first view):
     expect(testApp.store.getters['view/first'].id).toBe(firstTableGridView.id)
@@ -181,6 +198,7 @@ describe('View Tests', () => {
     const secondTableComponent = await mountRoute(
       `/database/${application.id}/table/${secondTable.id}/?token=fake`
     )
+    await waitForRender(secondTableComponent, 'div.grid-view')
 
     // Check if Vuex store is updated correctly (first view):
     expect(testApp.store.getters['view/first'].id).toBe(secondTableGridView.id)
@@ -201,9 +219,10 @@ describe('View Tests', () => {
     await secondTableComponent.unmount()
     // Let's switch back to the first table in the database and see if first table's
     // default view is appended to the *end* of remembered views array:
-    await mountRoute(
+    const firstTableComponentAgain = await mountRoute(
       `/database/${application.id}/table/${firstTable.id}/?token=fake`
     )
+    await waitForRender(firstTableComponentAgain, 'div.grid-view')
 
     // Check if Vuex store is updated correctly (first view):
     expect(testApp.store.getters['view/first'].id).toBe(firstTableGridView.id)
@@ -253,6 +272,7 @@ describe('View Tests', () => {
     const tableComponent = await mountRoute(
       `/database/${application.id}/table/${table.id}/?token=fake`
     )
+    await waitForRender(tableComponent, 'div.gallery-view')
 
     // Check if Vuex store is updated correctly (first view):
     expect(testApp.store.getters['view/first'].id).toBe(gridView.id)
@@ -327,11 +347,19 @@ describe('View Tests', () => {
       viewsError,
     })
 
-    await expect(
-      testApp.mount(Table, {
-        route: `/database/${application.id}/table/${table.id}/123?token=fake`,
-      })
-    ).rejects.toThrow('Request failed with status code 500')
+    // The page mounts immediately in the loading state instead of blocking the
+    // navigation on the failing request. The error is promoted to the Nuxt
+    // error page afterwards and the view toolbar is never rendered.
+    const tableComponent = await testApp.mount(Table, {
+      route: `/database/${application.id}/table/${table.id}/123?token=fake`,
+    })
+    await flushPromises()
+    await nextTick()
+
+    expect(tableComponent.find('.header__filter-link').exists()).toBe(false)
+    expect(useError().value?.message).toContain(
+      'Request failed with status code 500'
+    )
   })
 
   test.skip('API error during views loading is displayed correctly', async () => {

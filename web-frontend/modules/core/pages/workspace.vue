@@ -1,5 +1,6 @@
 <template>
-  <div v-if="workspaceExists">
+  <WorkspacePageSkeleton v-if="!ready" />
+  <div v-else-if="workspaceExists">
     <div class="dashboard__header" ph-autocapture="dashboard-header">
       <div class="dashboard__header-left">
         <h1
@@ -219,10 +220,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter, useNuxtApp, createError } from '#app'
-import { useHead, useAsyncData } from '#imports'
+import { useHead } from '#imports'
 
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
+import WorkspacePageSkeleton from '@baserow/modules/core/components/workspace/WorkspacePageSkeleton'
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import DashboardApplication from '@baserow/modules/core/components/dashboard/DashboardApplication'
@@ -257,8 +260,6 @@ const { $store, $registry, $i18n, $hasPermission } = nuxtApp
 // ----------------------------------------------------------------------------
 // STATE
 // ----------------------------------------------------------------------------
-const selectedWorkspace = ref(null)
-const workspaceComponentArguments = ref({})
 const templates = ref([
   {
     name: 'Project Management',
@@ -302,14 +303,10 @@ async function fetchWorkspaceExtraData(workspace) {
 }
 
 /**
- * Fetch all dashboard-related data for the current workspace.
- * `useAsyncData` now returns the data and we hydrate our refs from it.
+ * Fetch all dashboard-related data for the current workspace. The page mounts
+ * immediately on client-side navigation and shows the skeleton until `ready`.
  */
-const {
-  data: dashboardData,
-  pending,
-  error,
-} = await useAsyncData(
+const { data: dashboardData, ready } = await usePageAsyncData(
   `current-workspace-${route.params.workspaceId}`,
   async () => {
     const workspaceId = parseInt(route.params.workspaceId, 10)
@@ -344,21 +341,23 @@ const {
   }
 )
 
-if (error.value) {
-  throw error.value
-}
-
 /**
- * Hydrate local refs from the async data.
- * Keeps your existing `selectedWorkspace` and `workspaceComponentArguments`
- * reactive and writable for later updates (e.g. `workspaceUpdated`).
+ * Derive the rendered state from the async data with computed properties.
+ * Watchers must not be used here because they don't re-run during SSR, which
+ * would leave these empty in the server-rendered page. The override makes
+ * `workspaceComponentArguments` writable for later updates
+ * (e.g. `workspaceUpdated`).
  */
-watchEffect(() => {
-  if (!dashboardData.value) return
-  selectedWorkspace.value = dashboardData.value.selectedWorkspace
-  workspaceComponentArguments.value =
-    dashboardData.value.workspaceComponentArguments
-})
+const workspaceComponentArgumentsOverride = ref(null)
+const selectedWorkspace = computed(
+  () => dashboardData.value?.selectedWorkspace ?? null
+)
+const workspaceComponentArguments = computed(
+  () =>
+    workspaceComponentArgumentsOverride.value ??
+    dashboardData.value?.workspaceComponentArguments ??
+    {}
+)
 
 useHead(() => ({
   title: $i18n.t('dashboard.title'),
@@ -443,6 +442,7 @@ function selectApplication(application) {
 
 async function workspaceUpdated(workspace) {
   const extraData = await fetchWorkspaceExtraData(workspace)
-  workspaceComponentArguments.value = extraData.workspaceComponentArguments
+  workspaceComponentArgumentsOverride.value =
+    extraData.workspaceComponentArguments
 }
 </script>

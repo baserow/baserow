@@ -18,7 +18,7 @@
       @navigate-next="(row, term) => setAdjacentRow(false, row, term)"
     />
     <NuxtPage
-      v-if="hasChildRoute"
+      v-if="hasChildRoute && ready"
       :database="database"
       :table="table"
       :fields="fields"
@@ -27,15 +27,24 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  onServerPrefetch,
+} from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useHead } from '#imports'
-import { useAsyncData } from '#app'
+import { navigateTo } from '#app'
 
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import Table from '@baserow/modules/database/components/table/Table'
 import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
+import { getDefaultView } from '@baserow/modules/database/utils/view'
 
 definePageMeta({
   name: 'database-table',
@@ -44,14 +53,10 @@ definePageMeta({
     'settings',
     'authenticated',
     'workspacesAndApplications',
-    // Because there is no hook that is called before the route changes, we need the
-    // tableLoading middleware to change the table loading state. This change will get
-    // rendered right away. This allows us to have a custom loading animation when
-    // switching views.
-    'tableLoading',
-    // Middleware specifically for the table. It makes sure that the workspace,
-    // database, table, fields, views, row, etc are all fetched based on the provided
-    // route parameters.
+    // Middleware specifically for the table. It selects the workspace, database
+    // and table based on the provided route parameters, using store lookups only.
+    // The views, fields and row are fetched by the page itself so that the
+    // navigation isn't blocked.
     'selectWorkspaceDatabaseTable',
     'pendingJobs',
   ],
@@ -71,25 +76,112 @@ function finishLoading() {
   nuxtApp.callHook('page:loading:end')
 }
 
-// We need the tableLoading state to show a small loading animation when switching
-// between views or tables. Because some of the data will be populated by the asyncData
-// function and some by mapping the state of a store it could look a bit strange for the
-// user when switching between views because not all data renders at the same time. That
-// is why we show this loading animation. Store changes are always rendered right away.
-const tableLoading = computed(() => $store.state.table.loading)
 const views = computed(() => $store.state.view.items)
 
-const { data, error } = await useAsyncData(
+const { data, ready, asyncData } = await usePageAsyncData(
   `database-table-page-${route.params.databaseId}-${route.params.tableId}-${route.params.viewId ?? 'null'}`,
   async () => {
     // Use current route params (not captured params) so refresh works correctly.
     const currentParams = { ...route.params }
+    const routeName = route.name
     const viewId = currentParams.viewId ? parseInt(currentParams.viewId) : null
+    const rowId = currentParams.rowId ? parseInt(currentParams.rowId) : null
     // It's okay to use the `table/getSelected` because the correct ones are selected
     // using the `modules/database/middleware/selectWorkspaceDatabaseTable.js`
     // middleware.
     const currentTable = $store.getters['table/getSelected']
     const currentDatabase = $store.getters['application/getSelected']
+
+    // Because this handler doesn't block the navigation, the user can navigate to
+    // another table or view while it's still running. In that case the remaining
+    // store writing steps must be skipped because they would race with the handler
+    // of the newly opened page.
+    const stale = () =>
+      route.params.tableId !== currentParams.tableId ||
+      route.params.viewId !== currentParams.viewId
+
+    // Fetch the views if they're not in the store yet. This was previously done in
+    // the `selectWorkspaceDatabaseTable` middleware, but it's done here so that the
+    // navigation isn't blocked while fetching.
+    if ($store.state.view.tableId !== currentTable.id) {
+      await $store.dispatch('view/fetchAll', currentTable)
+      if (stale()) return { stale: true }
+    }
+
+    // If the viewId isn't provided, redirect to the default view of the table. The
+    // `selectWorkspaceDatabaseTable` middleware already handles this if the views
+    // were in the store before navigating.
+    if (viewId === null) {
+      const defaultView = getDefaultView(
+        nuxtApp,
+        $store,
+        currentDatabase.workspace.id,
+        rowId !== null
+      )
+
+      if (defaultView) {
+        return {
+          redirect: {
+            name: routeName,
+            params: { ...currentParams, viewId: defaultView.id },
+            query: { ...route.query },
+          },
+        }
+      }
+    }
+
+    // In some cases, the backend needs the view ID to scope which fields to list.
+    // This can happen when a user does not have full access to a table for example.
+    const preliminaryView = $store.getters['view/get'](viewId)
+    let fieldsRequireViewId = false
+    if (preliminaryView) {
+      const ownershipType = $registry.get(
+        'viewOwnershipType',
+        preliminaryView.ownership_type
+      )
+      fieldsRequireViewId = ownershipType.fetchingFieldsRequiresViewId(
+        currentDatabase,
+        currentTable,
+        preliminaryView
+      )
+    }
+    const fieldCheckViewId = fieldsRequireViewId ? viewId : null
+    if (!$store.getters['field/isLoadedFor'](currentTable.id, fieldCheckViewId)) {
+      await $store.dispatch('field/fetchAll', {
+        table: currentTable,
+        viewId: fieldCheckViewId,
+      })
+      if (stale()) return { stale: true }
+    }
+
+    // Handle the enlarged row modal state by already fetching the row if it's
+    // provided in the params.
+    if (rowId) {
+      const row = await $store.dispatch('rowModalNavigation/fetchRow', {
+        tableId: currentTable.id,
+        rowId,
+        viewId,
+      })
+
+      // If the fetch failed, redirect to the table without rowId so that the table
+      // is still visible.
+      if (!row) {
+        return {
+          redirect: {
+            name: 'database-table',
+            params: { ...currentParams, rowId: '' },
+            query: { ...route.query },
+          },
+        }
+      }
+      if (stale()) return { stale: true }
+    } else {
+      // If no rowId is provided, then we want to make 100% sure any old rows are
+      // cleared. This could be the case when a row is open, but the user navigates
+      // to a page without a selected row.
+      await $store.dispatch('rowModalNavigation/clearRow')
+    }
+
     const currentFields = $store.getters['field/getAll']
 
     const result = {
@@ -100,6 +192,7 @@ const { data, error } = await useAsyncData(
     }
 
     if (viewId !== null && viewId !== 0) {
+      if (stale()) return { stale: true }
       try {
         const { view } = await $store.dispatch('view/selectById', viewId)
         const type = $registry.get('view', view.type)
@@ -129,18 +222,55 @@ const { data, error } = await useAsyncData(
   }
 )
 
-if (error.value) {
-  // If we have an unexpected error after the useAsyncData, we want to display it
-  // directly to the user.
-  throw error.value
+// Handle redirects returned by the handler, for example to the default view or
+// when the row in the params doesn't exist. The client-side watcher handles it
+// after a client-side navigation, and the `onServerPrefetch` makes the server
+// respond with a redirect on the first page load.
+watch(
+  data,
+  (d) => {
+    if (d?.redirect) {
+      router.replace(d.redirect)
+    }
+  },
+  { immediate: true }
+)
+
+if (import.meta.server) {
+  onServerPrefetch(async () => {
+    await asyncData
+    if (data.value?.redirect) {
+      await nuxtApp.runWithContext(() =>
+        navigateTo(data.value.redirect, { replace: true })
+      )
+    }
+  })
 }
 
+// The table is rendered in a loading state until the async data is ready and the
+// page is mounted. The mounted check keeps the server-rendered output limited to
+// the loading header, exactly like before, so that hydration matches.
+const mounted = ref(false)
+const tableLoading = computed(
+  () =>
+    !mounted.value ||
+    !ready.value ||
+    data.value?.redirect !== undefined ||
+    data.value?.stale === true
+)
+
 // Expose the actual values via computed shortcuts to make sure that if the asyncData
-// recomputes, it will show the correct values.
-const database = computed(() => data.value?.database)
-const table = computed(() => data.value?.table)
+// recomputes, it will show the correct values. The database and table fall back to
+// the ones selected by the middleware, so that the `Table` component always has its
+// required props while the async data is loading.
+const database = computed(
+  () => data.value?.database ?? $store.getters['application/getSelected']
+)
+const table = computed(
+  () => data.value?.table ?? $store.getters['table/getSelected']
+)
 const view = computed(() => data.value?.view)
-const fields = computed(() => data.value?.fields)
+const fields = computed(() => data.value?.fields ?? [])
 const dataError = computed(() => data.value?.error)
 let realtimePage = null
 
@@ -150,43 +280,88 @@ useHead(() => ({
     (table.value?.name ?? ''),
 }))
 
-/**
- * The onMounted hook is called right after the asyncData finishes and when the
- * page has been rendered for the first time. The perfect moment to stop the table
- * loading animation.
- */
 onMounted(() => {
-  if (table.value) {
-    realtimePage = {
-      page: 'table',
-      params: { table_id: table.value.id },
-    }
-    if (view.value) {
-      const viewOwnershipType = $registry.get(
-        'viewOwnershipType',
-        view.value.ownership_type
-      )
-      const { page, params } = viewOwnershipType.enhanceRealtimePagePayload(
-        database.value,
-        table.value,
-        view.value,
-        realtimePage
-      )
-      realtimePage.page = page
-      realtimePage.params = params
-    }
-
-    $realtime.subscribe(realtimePage.page, realtimePage.params)
-  }
-  $store.dispatch('table/setLoading', false)
+  mounted.value = true
 })
+
+/**
+ * Subscribe to the realtime updates of the table as soon as the async data is
+ * ready. This can't happen in the onMounted hook because the page is mounted
+ * before the async data has been fetched on client-side navigation.
+ */
+watch(
+  ready,
+  (isReady) => {
+    if (
+      isReady &&
+      realtimePage === null &&
+      table.value &&
+      !data.value?.redirect &&
+      !data.value?.stale
+    ) {
+      realtimePage = {
+        page: 'table',
+        params: { table_id: table.value.id },
+      }
+      if (view.value) {
+        const viewOwnershipType = $registry.get(
+          'viewOwnershipType',
+          view.value.ownership_type
+        )
+        const { page, params } = viewOwnershipType.enhanceRealtimePagePayload(
+          database.value,
+          table.value,
+          view.value,
+          realtimePage
+        )
+        realtimePage.page = page
+        realtimePage.params = params
+      }
+
+      $realtime.subscribe(realtimePage.page, realtimePage.params)
+    }
+  },
+  { immediate: true }
+)
 
 onBeforeUnmount(() => {
-  if (table.value) {
+  if (realtimePage !== null) {
     $realtime.unsubscribe(realtimePage.page, realtimePage.params)
+    realtimePage = null
   }
-  realtimePage = null
 })
+
+/**
+ * When only the rowId param changes, the page component is reused and the async
+ * data doesn't refetch because its key doesn't include the rowId. Fetching or
+ * clearing the row was previously done by a middleware on every route change,
+ * but that's now handled here without blocking the navigation.
+ */
+watch(
+  () => route.params.rowId,
+  async (newRowId, oldRowId) => {
+    if (!ready.value || newRowId === oldRowId) {
+      return
+    }
+    const rowId = newRowId ? parseInt(newRowId) : null
+    if (rowId) {
+      const row = await $store.dispatch('rowModalNavigation/fetchRow', {
+        tableId: table.value.id,
+        rowId,
+        viewId: view.value?.id ?? null,
+      })
+      if (!row) {
+        router.replace({
+          name: 'database-table',
+          params: { ...route.params, rowId: '' },
+          query: { ...route.query },
+        })
+      }
+    } else {
+      await $store.dispatch('rowModalNavigation/clearRow')
+    }
+  }
+)
 
 /**
  * When the user leaves to another page we want to unselect the selected table. This

@@ -8,7 +8,7 @@
         <div class="admin-health__description">
           {{ $t('health.description') }}
         </div>
-        <div>
+        <div v-if="ready">
           <div
             v-for="(status, checkName) in healthChecks"
             :key="checkName"
@@ -53,6 +53,16 @@
             {{ celeryExportQueueSize }}
           </div>
         </div>
+        <div v-else class="skeleton">
+          <div
+            v-for="i in 6"
+            :key="i"
+            class="skeleton skeleton--row skeleton--no-padding"
+          >
+            <div class="skeleton__item skeleton__item--w-md"></div>
+            <div class="skeleton__item skeleton__item--circle"></div>
+          </div>
+        </div>
       </div>
       <div class="admin-health__group">
         <EmailTester></EmailTester>
@@ -68,6 +78,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import HealthService from '@baserow/modules/core/services/health'
 import EmailTester from '@baserow/modules/core/components/health/EmailTester.vue'
 
@@ -83,7 +94,7 @@ const { $client, $i18n } = useNuxtApp()
 useHead({ title: $i18n.t('health.title') })
 
 // Fetch data (equivalent to asyncData)
-const { data } = await useAsyncData('health', async () => {
+const { data, ready } = await usePageAsyncData('health', async () => {
   const res = await HealthService($client).getAll()
   return res.data
 })

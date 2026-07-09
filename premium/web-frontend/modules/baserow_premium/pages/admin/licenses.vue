@@ -1,6 +1,18 @@
 <template>
   <div class="layout__col-2-scroll layout__col-2-scroll--white-background">
-    <div v-if="orderedLicenses.length === 0" class="placeholder">
+    <div v-if="!ready" class="skeleton">
+      <div
+        class="skeleton__item skeleton__item--heading skeleton__item--w-md"
+      ></div>
+      <div class="skeleton skeleton--row skeleton--no-padding">
+        <div class="skeleton__item skeleton__item--w-xs"></div>
+        <div class="skeleton__item skeleton__item--w-xs"></div>
+        <div class="skeleton__item skeleton__item--w-xs"></div>
+      </div>
+      <div class="skeleton__item skeleton__item--block"></div>
+      <div class="skeleton__item skeleton__item--block"></div>
+    </div>
+    <div v-else-if="orderedLicenses.length === 0" class="placeholder">
       <div class="placeholder__icon">
         <i class="iconoir-shield-check"></i>
       </div>
@@ -155,6 +167,7 @@
 </template>
 
 <script setup>
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import LicenseService from '@baserow_premium/services/license'
 import RegisterLicenseModal from '@baserow_premium/components/license/RegisterLicenseModal'
 import RedirectToBaserowModal from '@baserow_premium/components/RedirectToBaserowModal'
@@ -172,8 +185,8 @@ const { $client, $registry, $i18n } = useNuxtApp()
 
 useHead({ title: $i18n.t('licenses.titleLicenses') })
 
-// Fetch data using useAsyncData and return the values from the callback
-const { data, error } = await useAsyncData('licensesPage', async () => {
+// Fetch data using usePageAsyncData and return the values from the callback
+const { data, ready } = await usePageAsyncData('licensesPage', async () => {
   try {
     const [{ data: instanceData }, { data: licensesData }] = await Promise.all([
       SettingsService($client).getInstanceID(),
@@ -204,10 +217,6 @@ const { data, error } = await useAsyncData('licensesPage', async () => {
     })
   }
 })
-
-if (error.value) {
-  throw error.value
-}
 
 const licenses = computed(() => data.value?.licenses || [])
 const instanceId = computed(() => data.value?.instanceId || '')

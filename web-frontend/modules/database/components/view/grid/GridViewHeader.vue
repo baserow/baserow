@@ -1,5 +1,5 @@
 <template>
-  <ul v-if="!tableLoading" class="header__filter header__filter--full-width">
+  <ul class="header__filter header__filter--full-width">
     <li class="header__filter-item">
       <GridViewHide
         :database="database"
@@ -47,7 +47,6 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
 
 import GridViewRowHeight from '@baserow/modules/database/components/view/grid/GridViewRowHeight'
 import GridViewHide from '@baserow/modules/database/components/view/grid/GridViewHide'
@@ -90,9 +89,6 @@ export default {
   },
   emits: ['refresh'],
   computed: {
-    ...mapState({
-      tableLoading: (state) => state.table.loading,
-    }),
     presenceEnabled() {
       return isUserPresenceEnabled(this)
     },

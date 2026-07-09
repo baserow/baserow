@@ -1,6 +1,19 @@
 <template>
   <div class="layout__col-2-scroll layout__col-2-scroll--white-background">
-    <div v-if="license" class="license-detail">
+    <div v-if="!ready" class="skeleton">
+      <div
+        class="skeleton__item skeleton__item--heading skeleton__item--w-md"
+      ></div>
+      <div
+        v-for="i in 6"
+        :key="i"
+        class="skeleton skeleton--row skeleton--no-padding"
+      >
+        <div class="skeleton__item skeleton__item--w-md"></div>
+        <div class="skeleton__item skeleton__item--w-xs"></div>
+      </div>
+    </div>
+    <div v-else-if="license" class="license-detail">
       <h1>
         {{ $t('license.title', { name: licenseType.getName() }) }}
       </h1>
@@ -211,6 +224,7 @@
 
 <script setup>
 import moment from '@baserow/modules/core/moment'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import LicenseService from '@baserow_premium/services/license'
 import DisconnectLicenseModal from '@baserow_premium/components/license/DisconnectLicenseModal'
@@ -227,7 +241,7 @@ const router = useRouter()
 const { $client, $registry, $i18n } = useNuxtApp()
 
 // Fetch license data
-const { data, error } = await useAsyncData(
+const { data, ready } = await usePageAsyncData(
   `license-${route.params.id}`,
   async () => {
     try {
@@ -257,10 +271,6 @@ const { data, error } = await useAsyncData(
   }
 )
 
-if (error.value) {
-  throw error.value
-}
-
 const license = computed(() => data.value)
 
 const checkLoading = ref(false)
@@ -271,9 +281,9 @@ const licenseType = computed(() => {
   return $registry.get('license', license.value.product_code)
 })
 
-useHead({
+useHead(() => ({
   title: $i18n.t('license.title', { name: licenseType.value?.getName() || '' }),
-})
+}))
 
 const licenseFeatureDescription = computed(() => {
   if (!licenseType.value) return []

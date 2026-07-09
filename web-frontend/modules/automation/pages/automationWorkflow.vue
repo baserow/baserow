@@ -1,6 +1,7 @@
 <template>
+  <AutomationWorkflowSkeleton v-if="!ready" />
   <AutomationWorkflowContent
-    v-if="workspace && automation && workflow"
+    v-else-if="workspace && automation && workflow"
     :loading="workflowLoading"
     :workspace="workspace"
     :automation="automation"
@@ -10,10 +11,11 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useAsyncData } from '#imports'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import AutomationWorkflowContent from '@baserow/modules/automation/components/AutomationWorkflowContent'
+import AutomationWorkflowSkeleton from '@baserow/modules/automation/components/AutomationWorkflowSkeleton'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
@@ -46,7 +48,7 @@ const automationApplicationType = $registry.get(
   AutomationApplicationType.getType()
 )
 
-const { data: pageData, error } = await useAsyncData(
+const { data: pageData, ready } = await usePageAsyncData(
   () =>
     `automation-workflow-${route.params.automationId}-${route.params.workflowId}`,
   async () => {
@@ -89,10 +91,6 @@ const { data: pageData, error } = await useAsyncData(
     }
   }
 )
-
-if (error.value) {
-  throw error.value
-}
 
 // Computed properties from async data
 const automation = computed(() => pageData.value?.automation ?? null)

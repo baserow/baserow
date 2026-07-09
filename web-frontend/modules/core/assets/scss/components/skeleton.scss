@@ -1,0 +1,82 @@
+@keyframes skeleton-shimmer {
+  0% {
+    left: -32px;
+  }
+
+  100% {
+    left: 100%;
+  }
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px;
+
+  &.skeleton--row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  &.skeleton--no-padding {
+    padding: 0;
+  }
+}
+
+.skeleton__item {
+  position: relative;
+  overflow: hidden;
+  height: 12px;
+  background-color: $palette-neutral-100;
+  flex-shrink: 0;
+
+  @include rounded($rounded-md);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 32px;
+    background-color: $palette-neutral-25;
+    transform: skewX(-10deg);
+    animation: skeleton-shimmer infinite 1000ms;
+    animation-timing-function: cubic-bezier(0.785, 0.135, 0.15, 0.86);
+  }
+
+  &.skeleton__item--heading {
+    height: 24px;
+  }
+
+  &.skeleton__item--block {
+    height: 96px;
+  }
+
+  &.skeleton__item--circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+  }
+
+  &.skeleton__item--w-xs {
+    width: 80px;
+  }
+
+  &.skeleton__item--w-sm {
+    width: 140px;
+  }
+
+  &.skeleton__item--w-md {
+    width: 240px;
+  }
+
+  &.skeleton__item--w-half {
+    width: 50%;
+  }
+
+  &.skeleton__item--w-full {
+    width: 100%;
+  }
+}
