@@ -267,6 +267,34 @@
         </li>
         <li
           v-if="
+            canGroupBy &&
+            $hasPermission(
+              'database.table.view.create_group_by',
+              view,
+              database.workspace.id
+            )
+          "
+          class="context__menu-item"
+        >
+          <a
+            class="context__menu-item-link"
+            :class="{ 'context__menu-item-link--active': groupByForField }"
+            @click="toggleGroupBy($event, view, field)"
+          >
+            <i class="context__menu-item-icon iconoir-book-stack"></i>
+            {{
+              groupByForField
+                ? $t('gridViewFieldType.ungroupByField')
+                : $t('gridViewFieldType.groupByField')
+            }}
+            <i
+              v-if="groupByForField"
+              class="context__menu-active-icon iconoir-check"
+            ></i>
+          </a>
+        </li>
+        <li
+          v-if="
             !field.primary &&
             $hasPermission(
               'database.table.view.update_field_options',
@@ -302,7 +330,10 @@ import InsertFieldContext from '@baserow/modules/database/components/field/Inser
 import DuplicateFieldModal from '@baserow/modules/database/components/field/DuplicateFieldModal'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
-import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
+import {
+  DEFAULT_SORT_TYPE_KEY,
+  MAX_GROUP_BYS,
+} from '@baserow/modules/database/constants'
 import fieldOptions from '~/modules/database/store/view/fieldOptions'
 
 export default {
@@ -363,6 +394,18 @@ export default {
         }
       }
       return false
+    },
+    groupByForField() {
+      return this.view.group_bys.find(
+        (groupBy) => groupBy.field === this.field.id
+      )
+    },
+    canGroupBy() {
+      return (
+        this.getCanGroupByInView(this.field) &&
+        (this.groupByForField !== undefined ||
+          this.view.group_bys.length < MAX_GROUP_BYS)
+      )
     },
     showFieldContext() {
       return (
@@ -514,6 +557,33 @@ export default {
         notifyIf(error, 'view')
       }
     },
+    async toggleGroupBy(event, view, field) {
+      // stops the body click-outside handler from also acting on this click
+      event.stopPropagation()
+      event.preventDefault()
+      this.$refs.context.hide()
+
+      const groupBy = view.group_bys.find((g) => g.field === field.id)
+
+      try {
+        if (groupBy === undefined) {
+          await this.$store.dispatch('view/createGroupBy', {
+            view,
+            values: {
+              field: field.id,
+              order: 'ASC',
+              type: DEFAULT_SORT_TYPE_KEY,
+            },
+          })
+        } else {
+          await this.$store.dispatch('view/deleteGroupBy', { view, groupBy })
+        }
+
+        this.$emit('refresh')
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
+    },
     async hide(event, view, field) {
       try {
         await this.$store.dispatch(
@@ -543,6 +613,9 @@ export default {
     },
     getCanSortInView(field) {
       return this.$registry.get('field', field.type).getCanSortInView(field)
+    },
+    getCanGroupByInView(field) {
+      return this.$registry.get('field', field.type).getCanGroupByInView(field)
     },
 
     getIconsBefore() {
