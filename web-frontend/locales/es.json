@@ -126,7 +126,9 @@
         "alreadyInUse": "Este nombre de campo ya está en uso.",
         "decimalField": "El campo debe ser un decimal.",
         "invalidCharacters": "Este campo contiene caracteres inválidos.",
-        "copyFailed": "Error al copiar al portapapeles. Por favor, inténtalo de nuevo."
+        "copyFailed": "Error al copiar al portapapeles. Por favor, inténtalo de nuevo.",
+        "nameCantBeEmail": "Por favor ingresa tu nombre, no tu dirección de correo electrónico.",
+        "nameContainsUrl": "Los nombres no pueden contener enlaces, dominios o direcciones web."
     },
     "permission": {
         "admin": "Admin",
@@ -467,7 +469,8 @@
         "csv": "Importar un archivo CSV",
         "paste": "Pegar datos de la tabla",
         "xml": "Importar un archivo XML",
-        "json": "Importar un archivo JSON"
+        "json": "Importar un archivo JSON",
+        "excel": "Importar un archivo Excel"
     },
     "apiDocs": {
         "intro": "Introducción",
@@ -581,10 +584,10 @@
         "buttonDescription": "Crea un botón utilizando la URL (primer argumento) y la etiqueta (segundo argumento).",
         "getLinkLabelDescription": "Obtiene la etiqueta de una fórmula utilizando las funciones de enlace o botón.",
         "getLinkUrlDescription": "Obtiene la URL de una fórmula utilizando las funciones de enlace o botón.",
-        "oddDescription": "Devuelve true si el argumento proporcionado es un número impar, false en caso contrario.",
+        "oddDescription": "Devuelve verdadero si el argumento proporcionado es un número impar, falso en caso contrario.",
         "logDescription": "Función logaritmo: devuelve el exponente al que debe elevarse el primer argumento para obtener el segundo.",
         "absDescription": "Devuelve el valor absoluto para el número de argumento proporcionado.",
-        "evenDescription": "Devuelve true si el argumento proporcionado es un número par, false en caso contrario.",
+        "evenDescription": "Devuelve verdadero si el argumento proporcionado es un número par, falso en caso contrario.",
         "modDescription": "Devuelve el resto de la división entre el primer argumento y el segundo argumento.",
         "powerDescription": "Devuelve el resultado del primer argumento elevado al exponente del segundo argumento.",
         "expDescription": "Devuelve el resultado de la constante e ≈ 2,718 elevado al número de argumento proporcionado.",
@@ -714,7 +717,16 @@
         "stripDescription": "Elimina cualquier espacio en blanco al principio y al final del argumento",
         "toArrayDescription": "Convierte una cadena delimitada por comas en un `array` o matriz.",
         "sumDescription": "Suma los números dentro del argumento.",
-        "avgDescription": "Calcula el promedio de los números dentro del argumento."
+        "avgDescription": "Calcula el promedio de los números dentro del argumento.",
+        "durationFormatDescription": "Formatea una duración como texto utilizando una cadena de formato con marcadores 'd' (días), 'h' (horas), 'm' (minutos), 's' (segundos), por ejemplo 'h:mm', 'd h:mm:ss'.",
+        "toJsonDescription": "Serializa un valor en una cadena codificada en JSON, escapando comillas, barras inversas y caracteres de control para que pueda ser incrustado de forma segura dentro de un documento JSON.",
+        "fromJsonDescription": "Analiza una cadena codificada en JSON en un valor como un objeto, matriz (`array`) o número. Devuelve `null` si la cadena no es JSON válido.",
+        "toDatetimeDescription": "Analiza una cadena en un objeto datetime. Un segundo argumento opcional especifica el formato (ej. 'DD/MM/YYYY'). Si se omite, se asume el formato ISO 8601.",
+        "numberFormatDescription": "Formatea un número como una cadena con decimales configurables, separador de miles y separador decimal.",
+        "rangeDescription": "Devuelve una matriz o `array` de números. Proporciona `range(stop)`, `range(start, stop)`, o `range(start, stop, step)`.",
+        "nullDescription": "Devuelve `null`, que puede usarse como valor o para comparación",
+        "toDurationDescription": "Devuelve la duración correspondiente al argumento proporcionado.",
+        "absDescription": "Devuelve el valor absoluto del argumento."
     },
     "formulaInputContext": {
         "useRegularInput": "Usa entrada regular",
@@ -732,5 +744,15 @@
         "missingProvider": "El argumento 'obtener' o 'get' '{path}' le falta su prefijo del proveedor de fórmulas.",
         "invalidProviderPath": "El proveedor de fórmulas '{providerName}' encontró '{path}' como inválido.",
         "unknownProvider": "El proveedor de fórmulas '{providerName}' no existe."
+    },
+    "runtimeFormulaTypeErrors": {
+        "invalidDurationFormat": "'{value}' no es un formato de duración válido. Usa 'd' (días), 'h' (horas), 'm' (minutos), 's' (segundos), ej. 'd:h', 'd h:mm:ss'.",
+        "invalidThousandSeparator": "'{value}' no es un separador de miles válido. Las opciones válidas son: ',', '.', ' ', o '' (cadena vacía).",
+        "invalidDuration": "'{value}' no es una duración válida. Las opciones válidas son: '1 day', '2 hours', etc.",
+        "invalidDatetimeFormat": "'{value}' no es un formato de fecha y hora válido. Las opciones válidas son: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss', etc.",
+        "invalidDecimalSeparator": "'{value}' no es un separador decimal válido. Las opciones válidas son: ',' o '.'.",
+        "invalidTimezone": "'{value}' no es una zona horaria válida. Usa una zona horaria IANA válida (ej. 'Europe/Amsterdam').",
+        "sameSeparators": "El separador de miles y el separador decimal no pueden ser iguales.",
+        "invalidNumber": "'{value}' no es un número válido."
     }
 }
