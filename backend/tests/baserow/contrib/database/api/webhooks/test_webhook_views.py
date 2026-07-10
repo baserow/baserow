@@ -1,5 +1,6 @@
+from django.db import connection
 from django.shortcuts import reverse
-from django.test.utils import override_settings
+from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 import responses
@@ -719,3 +720,47 @@ def test_can_query_private_http_addresses_when_env_var_on(api_client, data_fixtu
         HTTP_AUTHORIZATION=f"JWT {jwt_token}",
     )
     assert response.status_code == HTTP_200_OK, response_json
+
+
+@pytest.mark.django_db
+def test_list_webhooks_query_count_does_not_scale_with_webhooks(
+    api_client, data_fixture
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+
+    def build_table_with_webhooks(webhook_count):
+        table = data_fixture.create_database_table(user=user)
+        fields = [data_fixture.create_text_field(table=table) for _ in range(2)]
+        views = [data_fixture.create_grid_view(table=table) for _ in range(2)]
+        for _ in range(webhook_count):
+            webhook = data_fixture.create_table_webhook(
+                table=table,
+                include_all_events=False,
+                events=["rows.created", "rows.updated"],
+            )
+            for event in webhook.events.all():
+                event.fields.set(fields)
+                event.views.set(views)
+        return table
+
+    def list_webhooks(table):
+        return api_client.get(
+            reverse("api:database:webhooks:list", kwargs={"table_id": table.id}),
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        )
+
+    few_table = build_table_with_webhooks(3)
+    many_table = build_table_with_webhooks(6)
+
+    # warm up so cold-cache/model-generation queries don't skew the comparison
+    assert list_webhooks(few_table).status_code == HTTP_200_OK
+    assert list_webhooks(many_table).status_code == HTTP_200_OK
+
+    with CaptureQueriesContext(connection) as few_queries:
+        assert list_webhooks(few_table).status_code == HTTP_200_OK
+
+    with CaptureQueriesContext(connection) as many_queries:
+        assert list_webhooks(many_table).status_code == HTTP_200_OK
+
+    assert len(few_queries.captured_queries) == len(many_queries.captured_queries)

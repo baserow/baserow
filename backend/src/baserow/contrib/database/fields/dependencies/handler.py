@@ -711,9 +711,21 @@ class FieldDependencyHandler:
                 dependant_id=related_field_id
             )
 
+        queryset = FieldDependency.objects.filter(broken_via_dep_filter).select_related(
+            "dependant", "dependant__table"
+        )
+        specific_dependants = {
+            field.id: field
+            for field in specific_iterator(
+                [via_dep.dependant for via_dep in queryset],
+                base_model=Field,
+                select_related=["table"],
+            )
+        }
+
         dependants = []
-        for via_dep in FieldDependency.objects.filter(broken_via_dep_filter):
-            dependant_field = via_dep.dependant.specific
+        for via_dep in queryset:
+            dependant_field = specific_dependants[via_dep.dependant_id]
             dependant_field_type = field_type_registry.get_by_model(dependant_field)
             field_dep_tuple = (
                 dependant_field,

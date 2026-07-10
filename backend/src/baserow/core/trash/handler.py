@@ -569,7 +569,7 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
 
         if application:
             trash_contents = trash_contents.filter(application=application)
-        return trash_contents.order_by("-trashed_at")
+        return trash_contents.select_related("user_who_trashed").order_by("-trashed_at")
 
     @staticmethod
     def item_has_a_trashed_parent(item, check_item_also=False):
