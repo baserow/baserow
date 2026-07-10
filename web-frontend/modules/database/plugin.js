@@ -358,6 +358,7 @@ import {
 import {
   SyncedFieldsConfigureDataSyncType,
   SettingsConfigureDataSyncType,
+  SyncHistoryConfigureDataSyncType,
 } from '@baserow/modules/database/configureDataSyncTypes'
 import { DatabaseGuidedTourType } from '@baserow/modules/database/guidedTourTypes'
 import {
@@ -1066,6 +1067,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'configureDataSync',
       new SettingsConfigureDataSyncType(context)
+    )
+    $registry.register(
+      'configureDataSync',
+      new SyncHistoryConfigureDataSyncType(context)
     )
 
     $registry.register('guidedTour', new DatabaseGuidedTourType(context))

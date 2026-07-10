@@ -1,7 +1,7 @@
 import JobService from '@baserow/modules/core/services/job'
 import _ from 'lodash'
 
-const FINISHED_STATES = ['finished', 'failed', 'cancelled']
+export const FINISHED_STATES = ['finished', 'failed', 'cancelled']
 const STARTING_TIMEOUT_MS = 200
 const MAX_POLLING_ATTEMPTS = 100
 

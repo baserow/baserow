@@ -1154,7 +1154,18 @@
   "configureDataSyncModal": {
     "title": "Data sync",
     "syncedFields": "Synced fields",
-    "syncSettings": "Sync settings"
+    "syncSettings": "Sync settings",
+    "syncHistory": "Sync history"
+  },
+  "dataSyncRuns": {
+    "title": "Sync history",
+    "description": "The most recent sync runs of this table, no matter who or what started them.",
+    "previousRuns": "Previous runs",
+    "noRuns": "This table hasn't been synced yet.",
+    "triggerManual": "Manual",
+    "triggerPeriodic": "Periodic",
+    "byUser": "by {name}",
+    "duration": "{seconds}s"
   },
   "configureDataSyncVisibleFields": {
     "title": "Change synced fields",

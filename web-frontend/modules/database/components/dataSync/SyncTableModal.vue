@@ -1,7 +1,7 @@
 <template>
   <Modal
     ref="modal"
-    :can-close="!syncLoading && !jobIsRunning"
+    :can-close="!syncLoading && (!jobIsRunning || attachedToForeignRun)"
     @hidden="hidden"
   >
     <template #content>
@@ -27,7 +27,7 @@
             size="large"
             :disabled="syncLoading || jobIsRunning"
             :loading="syncLoading || jobIsRunning"
-            @click="syncTable(table)"
+            @click="startSync()"
           >
             {{ $t('syncTableModal.sync') }}
           </Button>
@@ -36,6 +36,13 @@
           }}</Button>
         </div>
       </div>
+      <div v-if="table.data_sync" class="margin-top-3">
+        <h3>{{ $t('dataSyncRuns.previousRuns') }}</h3>
+        <DataSyncRunsList
+          :data-sync-id="table.data_sync.id"
+          @running-job="attachToRunningJob"
+        />
+      </div>
     </template>
   </Modal>
 </template>
@@ -43,9 +50,11 @@
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
 import dataSync from '@baserow/modules/database/mixins/dataSync'
+import DataSyncRunsList from '@baserow/modules/database/components/dataSync/DataSyncRunsList'
 
 export default {
   name: 'SyncTableModal',
+  components: { DataSyncRunsList },
   mixins: [modal, dataSync],
   props: {
     table: {
@@ -53,11 +62,28 @@ export default {
       required: true,
     },
   },
+  data() {
+    return {
+      attachedToForeignRun: false,
+    }
+  },
   methods: {
     show() {
       this.job = null
+      this.attachedToForeignRun = false
       this.hideError()
       modal.methods.show.bind(this)()
+    },
+    startSync() {
+      this.attachedToForeignRun = false
+      return this.syncTable(this.table)
+    },
+    // Show an in-flight run's progress instead of failing with "already running".
+    async attachToRunningJob(job) {
+      if (!this.jobIsRunning) {
+        this.attachedToForeignRun = true
+        await this.createAndMonitorJob(job)
+      }
     },
     hidden() {},
   },
