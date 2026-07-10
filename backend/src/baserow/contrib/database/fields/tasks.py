@@ -109,8 +109,16 @@ def run_periodic_fields_updates(
     token = self.request.id or uuid4().hex
     flag = SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL)
     if not flag.acquire(token):
-        logger.info(
-            "run_periodic_fields_updates skipped: previous cycle still running."
+        # Warn (not info) so operators can see the overlap: a cycle is taking longer
+        # than the gap between runs, so this one is skipped. Give more time between
+        # runs (BASEROW_PERIODIC_FIELD_UPDATE_CRONTAB) or spread the work across more
+        # tasks (BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT) so each cycle finishes first.
+        logger.warning(
+            "run_periodic_fields_updates skipped: the previous cycle is still running. "
+            "Increase the interval between runs "
+            "(BASEROW_PERIODIC_FIELD_UPDATE_CRONTAB) or the batch count "
+            "(BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT) so a cycle finishes before the "
+            "next one starts."
         )
         return
 

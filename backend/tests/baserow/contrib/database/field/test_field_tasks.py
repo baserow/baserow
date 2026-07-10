@@ -838,19 +838,30 @@ def test_run_periodic_fields_updates_clears_lock_after_completion(
 
 @pytest.mark.django_db
 def test_run_periodic_fields_updates_skips_when_cycle_running(data_fixture, settings):
+    from loguru import logger
+
     settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
     workspace = _workspace_with_now_formula(data_fixture)
     # Simulate a cycle already in flight.
     SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
 
-    with (
-        patch("baserow.contrib.database.fields.tasks.chord") as chord_mock,
-        freeze_time("2023-02-27 10:30"),
-    ):
-        run_periodic_fields_updates(workspace_id=workspace.id)
+    messages = []
+    sink_id = logger.add(messages.append, level="WARNING")
+    try:
+        with (
+            patch("baserow.contrib.database.fields.tasks.chord") as chord_mock,
+            freeze_time("2023-02-27 10:30"),
+        ):
+            run_periodic_fields_updates(workspace_id=workspace.id)
+    finally:
+        logger.remove(sink_id)
 
     chord_mock.assert_not_called()
     assert cache.get(RUN_LOCK_KEY) == "held"
+    # The overlap is surfaced as a warning operators can act on.
+    skip_logs = [m for m in messages if "still running" in str(m)]
+    assert len(skip_logs) == 1
+    assert "BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT" in str(skip_logs[0])
 
 
 @pytest.mark.django_db
