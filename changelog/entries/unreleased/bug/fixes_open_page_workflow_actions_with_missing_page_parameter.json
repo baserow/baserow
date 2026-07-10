@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fixes workflow actions with missing page parameters",
+    "message": "Improved element internal page navigation by requiring page parameter values.",
     "issue_origin": "github",
     "issue_number": 3110,
     "domain": "builder",

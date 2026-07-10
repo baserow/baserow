@@ -100,7 +100,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       }
     } else if (
       workflowAction.navigation_type === 'custom' &&
-      !workflowAction.navigate_to_url
+      !workflowAction.navigate_to_url.formula
     ) {
       return this.app.$i18n.t('workflowActionTypes.errorNavigationUrlMissing')
     }

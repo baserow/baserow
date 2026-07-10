@@ -213,7 +213,10 @@ export class LinkCollectionFieldType extends CollectionFieldType {
       ) {
         return this.app.$i18n.t('elementType.errorPageParameterInError')
       }
-    } else if (field.navigation_type === 'custom' && !field.navigate_to_url) {
+    } else if (
+      field.navigation_type === 'custom' &&
+      !field.navigate_to_url.formula
+    ) {
       return this.app.$i18n.t('elementType.errorNavigationUrlMissing')
     }
 

@@ -119,4 +119,36 @@ describe('Builder workflow action types', () => {
       })
     ).toBe(true)
   })
+
+  test('open page action is in error when custom navigation URL is missing', () => {
+    const workflowActionType = testApp
+      .getRegistry()
+      .get('workflowAction', 'open_page')
+    const builder = { id: 1, pages: [] }
+    const workflowAction = {
+      type: 'open_page',
+      navigation_type: 'custom',
+      navigate_to_url: { formula: '' },
+    }
+
+    expect(
+      workflowActionType.isInError(workflowAction, {
+        builder,
+      })
+    ).toBe(true)
+    expect(
+      workflowActionType.getErrorMessage(workflowAction, {
+        builder,
+      })
+    ).toBe('workflowActionTypes.errorNavigationUrlMissing')
+
+    // Once a custom URL formula is provided, the action is no longer in error.
+    workflowAction.navigate_to_url = { formula: "'https://baserow.io'" }
+
+    expect(
+      workflowActionType.isInError(workflowAction, {
+        builder,
+      })
+    ).toBe(false)
+  })
 })

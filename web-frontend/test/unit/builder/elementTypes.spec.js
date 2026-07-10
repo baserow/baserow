@@ -1098,6 +1098,9 @@ describe('elementTypes tests', () => {
         value: { formula: "'Test'" },
       }
       expect(elementType.isInError(element, { page, element })).toBe(true)
+      expect(elementType.getErrorMessage(element, { page, element })).toBe(
+        'elementType.errorNavigationUrlMissing'
+      )
 
       // Otherwise it is valid
       element.navigate_to_url = { formula: 'http://localhost' }
