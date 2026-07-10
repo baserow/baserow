@@ -939,3 +939,29 @@ def test_update_workspaces_periodic_fields_aborts_when_lock_not_owned(
 
         inner.assert_not_called()
         assert cache.get(RUN_LOCK_KEY) == "held"
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_continues_after_workspace_error():
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    processed = []
+
+    def side_effect(workspace_id, update_now):
+        if workspace_id == 1:
+            raise RuntimeError("boom")
+        processed.append(workspace_id)
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields",
+            side_effect=side_effect,
+        ),
+        freeze_time("2023-02-27 10:30"),
+    ):
+        # A failing workspace must not raise out of the batch, so the chord callback
+        # still runs and releases the lock.
+        update_workspaces_periodic_fields([1, 2], True, batch_index=0, run_token="held")
+
+    # The second workspace was still processed after the first one failed.
+    assert processed == [2]

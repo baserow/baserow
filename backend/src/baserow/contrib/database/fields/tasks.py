@@ -266,7 +266,16 @@ def update_workspaces_periodic_fields(
         return
 
     for workspace_id in workspace_ids:
-        _update_workspace_periodic_fields(workspace_id, update_now)
+        try:
+            _update_workspace_periodic_fields(workspace_id, update_now)
+        except Exception:
+            # Keep going so one failing workspace can't fail the whole batch. A failed
+            # batch would skip the chord callback and leave the run lock stranded until
+            # its TTL expires.
+            logger.exception(
+                "Periodic field update failed for workspace {workspace_id}.",
+                workspace_id=workspace_id,
+            )
 
 
 @app.task(queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME)
