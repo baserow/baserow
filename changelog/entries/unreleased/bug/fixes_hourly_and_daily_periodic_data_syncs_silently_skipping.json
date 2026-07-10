@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes hourly and daily periodic data syncs silently skipping scheduled runs",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-10"
+}
