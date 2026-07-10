@@ -1143,7 +1143,9 @@ def test_add_active_licenses_to_settings(api_client, data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow_premium.license.registries.BuilderHandler.aggregate_user_source_counts")
+@patch(
+    "baserow_premium.license.registries.ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
 def test_premium_license_builder_usage_license_extra_info(
     mock_aggregate_user_source_counts, premium_data_fixture
 ):

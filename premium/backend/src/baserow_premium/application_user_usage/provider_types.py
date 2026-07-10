@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 
-from baserow.contrib.builder.handler import BuilderHandler
 from baserow.core.models import Workspace
+from baserow_premium.application_user_usage.handler import ApplicationUserUsageHandler
 from baserow_premium.application_user_usage.registries import (
     ApplicationUserUsageProviderType,
 )
@@ -45,7 +45,7 @@ class PremiumApplicationUserUsageProviderType(ApplicationUserUsageProviderType):
         if not has_limit:
             return None
 
-        usage = BuilderHandler().aggregate_user_source_counts()
+        usage = ApplicationUserUsageHandler().aggregate_user_source_counts()
         return usage, total_limit
 
     def is_over_login_limit(self, workspace: Workspace) -> Optional[bool]:

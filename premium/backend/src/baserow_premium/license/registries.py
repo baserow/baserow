@@ -2,10 +2,10 @@ import abc
 import dataclasses
 from typing import Dict, List, Optional
 
-from baserow.contrib.builder.handler import BuilderHandler
 from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
+from baserow_premium.application_user_usage.handler import ApplicationUserUsageHandler
 from baserow_premium.license.models import License
 
 
@@ -166,7 +166,9 @@ class LicenseType(abc.ABC, Instance):
         """
 
         # Count the total number of application users in this instance
-        total_application_users_taken = BuilderHandler().aggregate_user_source_counts()
+        total_application_users_taken = (
+            ApplicationUserUsageHandler().aggregate_user_source_counts()
+        )
 
         # If there are no user source users, just exit early here.
         if not total_application_users_taken:
@@ -195,11 +197,9 @@ class LicenseType(abc.ABC, Instance):
         :return: A summary of the builder usage.
         """
 
-        from baserow.contrib.builder.handler import BuilderHandler
-
         return BuilderUsageSummary(
-            application_users_taken=BuilderHandler().aggregate_user_source_counts(
-                workspace
+            application_users_taken=(
+                ApplicationUserUsageHandler().aggregate_user_source_counts(workspace)
             )
         )
 
