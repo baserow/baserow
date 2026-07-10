@@ -49,9 +49,14 @@ def setup(settings):
         }
     )
 
-    # When enabled ("hard" limit) users past the application user limit are refused at
-    # login. When disabled (the default "soft" limit) the limit is only used to notify
-    # workspace members; nobody is blocked from signing in.
+    # When enabled ("hard" limit) *every* login to a workspace that is over its
+    # application user limit is refused, not just the users past the limit. When
+    # disabled (the default "soft" limit) the limit is only used to notify workspace
+    # members; nobody is blocked from signing in.
+    #
+    # Enabling it is necessary but not sufficient to block a login: an install whose
+    # licenses carry no `application_users` limit (unlicensed, or licensed before
+    # v1.32) resolves no limit at all and is never blocked either way.
     settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED = str_to_bool(
         os.getenv("BASEROW_APPLICATION_USER_LIMIT_ENFORCED", "")
     )

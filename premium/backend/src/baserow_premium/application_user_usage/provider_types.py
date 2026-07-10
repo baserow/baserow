@@ -48,13 +48,9 @@ class PremiumApplicationUserUsageProviderType(ApplicationUserUsageProviderType):
         usage = ApplicationUserUsageHandler().aggregate_user_source_counts()
         return usage, total_limit
 
-    def is_over_login_limit(self, workspace: Workspace) -> Optional[bool]:
-        """
-        Returns None so that self-hosted installs never hard-block logins.
-
-        The base implementation blocks every login once the instance-wide
-        usage exceeds the summed license limit (get_usage_and_limit() returns None
-        for unlicensed or pre v1.32 installs, so those are never blocked).
-        """
-
-        return None
+    # `is_over_login_limit` is inherited from the base provider: it reports the
+    # instance-wide usage as over the summed license limit. Unlicensed and pre v1.32
+    # installs resolve no usage/limit above, so they report None and are never blocked,
+    # regardless of BASEROW_APPLICATION_USER_LIMIT_ENFORCED. That setting gates
+    # whether `raise_if_over_application_user_login_limit` consults providers at all,
+    # so a login is only refused when it is True and a license carries a limit.

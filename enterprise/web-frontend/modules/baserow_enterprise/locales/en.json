@@ -190,7 +190,7 @@
   "applicationUserLimitNotification": {
     "titleWarning": "{workspaceName} has used {threshold} of its application user limit.",
     "titleReached": "{workspaceName} has reached its application user limit. Please upgrade.",
-    "titleReachedEnforced": "{workspaceName} has reached its application user limit. New users can't sign in until you upgrade."
+    "titleReachedEnforced": "{workspaceName} has reached its application user limit. Once it goes over, no one can sign in to its published apps until you upgrade."
   },
   "auditLog": {
     "adminTitle": "Audit log",
