@@ -14,6 +14,23 @@ class RedisBackendForSingleton(RedisBackend):
         self.redis = get_redis_connection("default")
 
 
+# Compare-and-act on the flag in a single round-trip so we never touch a lock a newer
+# holder has taken over between a read and the write (TOCTOU). `expire` takes seconds.
+_EXTEND_IF_SCRIPT = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("expire", KEYS[1], ARGV[2])
+end
+return 0
+"""
+
+_CLEAR_IF_SCRIPT = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+end
+return 0
+"""
+
+
 class SingletonAutoRescheduleFlag:
     """
     Flag is used to indicate that a task of this type is pending reschedule.
@@ -43,16 +60,26 @@ class SingletonAutoRescheduleFlag:
         unprotected.
         """
 
-        if cache.get(self.key) == value:
-            return bool(cache.touch(self.key, self.timeout))
-        return False
+        return bool(self._eval_if(_EXTEND_IF_SCRIPT, value, self.timeout))
 
     def clear_if(self, value) -> bool:
         """Delete the flag only if the current value matches the token."""
 
-        if cache.get(self.key) == value:
-            return cache.delete(self.key)
-        return False
+        return bool(self._eval_if(_CLEAR_IF_SCRIPT, value))
+
+    def _eval_if(self, script, value, *extra_args):
+        """
+        Run a compare-and-act Lua script keyed on our token. Values are stored via the
+        cache, so reuse its key prefix and serializer to match what `acquire` wrote;
+        otherwise the raw redis lookup would never find the key or match the token.
+        """
+
+        client = cache.client
+        redis_key = client.make_key(self.key)
+        token = client.encode(value)
+        return client.get_client(write=True).eval(
+            script, 1, redis_key, token, *extra_args
+        )
 
     def is_set(self) -> bool:
         """

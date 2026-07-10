@@ -248,12 +248,13 @@ def test_run_periodic_fields_updates_splits_into_configured_batches(
     ):
         run_periodic_fields_updates()
 
-    # 3 stalest-first workspaces split into 2 batches, each tagged with its index.
+    # 3 stalest-first workspaces round-robined across 2 batches, so the two stalest
+    # (b, a) are picked up first in parallel and each batch stays stalest-first.
     sigs = list(chord_mock.call_args.args[0].tasks)
     assert len(sigs) == 2
-    assert sigs[0].args[0] == [ws_b.id, ws_a.id]
+    assert sigs[0].args[0] == [ws_b.id, ws_c.id]
     assert sigs[0].kwargs["batch_index"] == 0
-    assert sigs[1].args[0] == [ws_c.id]
+    assert sigs[1].args[0] == [ws_a.id]
     assert sigs[1].kwargs["batch_index"] == 1
 
 
@@ -846,7 +847,7 @@ def test_run_periodic_fields_updates_skips_when_cycle_running(data_fixture, sett
     SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
 
     messages = []
-    sink_id = logger.add(messages.append, level="WARNING")
+    sink_id = logger.add(messages.append, level="ERROR")
     try:
         with (
             patch("baserow.contrib.database.fields.tasks.chord") as chord_mock,
@@ -858,9 +859,10 @@ def test_run_periodic_fields_updates_skips_when_cycle_running(data_fixture, sett
 
     chord_mock.assert_not_called()
     assert cache.get(RUN_LOCK_KEY) == "held"
-    # The overlap is surfaced as a warning operators can act on.
+    # The overlap is surfaced as an error, naming the settings self-hosters can tune.
     skip_logs = [m for m in messages if "still running" in str(m)]
     assert len(skip_logs) == 1
+    assert skip_logs[0].record["level"].name == "ERROR"
     assert "BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT" in str(skip_logs[0])
 
 

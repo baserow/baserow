@@ -2,7 +2,6 @@ import itertools
 import time
 import traceback
 from datetime import datetime, timedelta, timezone
-from math import ceil
 from typing import Optional, Type
 from uuid import uuid4
 
@@ -82,10 +81,9 @@ def run_periodic_fields_updates(
     """
     Finds the workspaces whose periodic fields need refreshing and splits them across
     ``BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT`` tasks, so no single task has to update
-    the whole instance at once. The count defaults to 1 (one task, like the old job) and
-    can be raised to spread the work across more workers. When ``dispatch`` is False the
-    updates run inline instead of being queued, which the management command uses to run
-    synchronously.
+    the whole instance at once. Raising the count spreads the work across more workers.
+    When ``dispatch`` is False the updates run inline instead of being queued, which the
+    management command uses to run synchronously.
     """
 
     workspace_ids = _collect_workspace_ids_needing_update(workspace_id)
@@ -109,26 +107,30 @@ def run_periodic_fields_updates(
     token = self.request.id or uuid4().hex
     flag = SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL)
     if not flag.acquire(token):
-        # Warn (not info) so operators can see the overlap: a cycle is taking longer
-        # than the gap between runs, so this one is skipped. Give more time between
-        # runs (BASEROW_PERIODIC_FIELD_UPDATE_CRONTAB) or spread the work across more
-        # tasks (BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT) so each cycle finishes first.
-        logger.warning(
-            "run_periodic_fields_updates skipped: the previous cycle is still running. "
-            "Increase the interval between runs "
-            "(BASEROW_PERIODIC_FIELD_UPDATE_CRONTAB) or the batch count "
-            "(BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT) so a cycle finishes before the "
-            "next one starts."
+        # Log as an error so self-hosters can see and act on it: a cycle is still
+        # running when the next one starts, so this run is skipped and periodic fields
+        # refresh less often than configured. The two settings below are the levers to
+        # fix it, so name them explicitly.
+        logger.error(
+            "run_periodic_fields_updates skipped: the previous cycle is still running, "
+            "so periodic fields will refresh less often than expected. Give each cycle "
+            "more time by increasing the interval between runs "
+            "(BASEROW_PERIODIC_FIELD_UPDATE_CRONTAB), or make each cycle finish faster "
+            "by spreading the work across more tasks "
+            "(BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT)."
         )
         return
 
     try:
         batch_count = max(1, settings.PERIODIC_FIELD_UPDATE_BATCH_COUNT)
-        batch_size = ceil(len(ordered_ids) / batch_count)
-        batches = list(itertools.batched(ordered_ids, batch_size))
+        # Round-robin the ordered ids across batches (0, n, 2n… then 1, n+1…) so every
+        # batch stays oldest-first and the most overdue workspaces are picked up first in
+        # parallel, instead of being stranded at the tail of a single batch.
+        batches = [ordered_ids[i::batch_count] for i in range(batch_count)]
+        batches = [batch for batch in batches if batch]
         header = group(
             update_workspaces_periodic_fields.s(
-                list(batch_ids),
+                batch_ids,
                 update_now,
                 batch_index=batch_index,
                 run_token=token,

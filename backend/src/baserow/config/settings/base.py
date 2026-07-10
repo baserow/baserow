@@ -1160,7 +1160,7 @@ PERIODIC_FIELD_UPDATE_QUEUE_NAME = os.getenv(
 # Number of tasks the periodic field update is split into. Defaults to 1 (a single
 # task, like the original job); raise it to spread the work across more workers.
 PERIODIC_FIELD_UPDATE_BATCH_COUNT = int(
-    os.getenv("BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT", 1)
+    os.getenv("BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT") or 1
 )
 
 BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES = int(
