@@ -208,7 +208,7 @@
         "searchFieldPlaceHolder": "Wprowadź frazę wyszukiwania...",
         "noTableChosenForFiltering": "Aby zacząć używać filtrów tego źródła danych, najpierw wybierz tabelę.",
         "noTableChosenForSorting": "Aby zacząć używać sortowań tego źródła danych, najpierw wybierz tabelę.",
-        "refinements": "Poprawki"
+        "refinements": "Dodatkowe szczegóły"
     },
     "coreHTTPRequestServiceForm": {
         "httpMethod": "Metoda HTTP",
@@ -393,11 +393,11 @@
     "localBaserowCreateRowsServiceForm": {
         "rowsLabel": "Wiersze",
         "rowsPlaceholder": "Wybierz listę obiektów typu \"wiersz\"",
-        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który po przetworzeniu tworzy tablicę obiektów wierszy. Jako klucze obiektów należy użyć nazw lub ID pól. Jednorazowo można utworzyć maksymalnie {limit} wierszy."
+        "rowsHelper": "Wynikiem musi być tablica obiektów wierszy lub ciąg JSON, który po przetworzeniu tworzy taką tablicę. Jako klucze obiektów należy użyć nazw lub ID pól. Jednorazowo można utworzyć do {limit} wierszy."
     },
     "localBaserowUpdateRowsServiceForm": {
         "rowsLabel": "Wiersze",
         "rowsPlaceholder": "Wybierz liste ID obiektów typu \"wiersz\"",
-        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który po przetworzeniu utworzy tablicę obiektów wierszy. Każdy obiekt musi zawierać atrybut identyfikacyjny. Jako klucz obiektu można użyć nazwy lub ID pola. Jednorazowo można zaktualizować maksymalnie {limit} wierszy."
+        "rowsHelper": "Wynikiem musi być tablica obiektów wierszy lub ciąg JSON, który po przetworzeniu utworzy taką tablicę. Każdy obiekt musi zawierać atrybut identyfikacyjny. Jako klucza obiektu można użyć nazwy lub ID pola. Jednorazowo można zaktualizować do {limit} wierszy."
     }
 }
