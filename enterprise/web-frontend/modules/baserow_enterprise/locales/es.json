@@ -225,7 +225,12 @@
             "warningTitle": "¡Otros usuarios podrían heredar el acceso!",
             "title": "Vista {name}",
             "selectMembers": "Seleccionar miembros"
-        }
+        },
+        "warningMessage": "Otros usuarios podrían heredar acceso a través de sus respectivos roles en el {parent} principal.",
+        "everyoneHasAccess": "Todos en el espacio de trabajo {name} pueden acceder a este {type}.",
+        "headerTooltip": "Los roles en este {type} sobrescribirán los roles {overrides}.",
+        "onlyYouHaveAccess": "Solo tú puedes acceder a este {type}.",
+        "warningTitle": "¡Otros usuarios podrían heredar acceso!"
     },
     "memberRolesShareToggle": {
         "subLabel": "{totalUsuarioCantidad} miembros del espacio de trabajo",
@@ -327,7 +332,9 @@
         "dateDependency": "Dependencia de fecha",
         "dateDependencyContent": "Puedes definir una dependencia entre dos fechas y una duración como fecha de inicio/final y duración. Con dependencia de fecha, si un valor cambia, los demás valores se ajustarán en consecuencia.",
         "dataScanner": "Escáner de datos",
-        "dataScannerContent": "Escanea todos los datos en tu instancia de Baserow buscando patrones sensibles como números IBAN o IDs médicas, o haz coincidencias contra listas de valores conocidos. Configura programaciones de escaneo automático y visualiza resultados detallados."
+        "dataScannerContent": "Escanea todos los datos en tu instancia de Baserow buscando patrones sensibles como números IBAN o IDs médicas, o haz coincidencias contra listas de valores conocidos. Configura programaciones de escaneo automático y visualiza resultados detallados.",
+        "xlsFileReaderContent": "Lee filas desde archivos XLS y XLSX en nodos de automatización y acciones de flujo de trabajo del constructor de aplicaciones.",
+        "codeRunnerContent": "Ejecuta código JavaScript en nodos de automatización y acciones de flujo de trabajo del constructor de aplicaciones."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Soporte directo"
@@ -467,7 +474,8 @@
         "addDomainNotice": "Disponible cuando se haya añadido uno o más dominios"
     },
     "advanced": {
-        "license": "Avanzado"
+        "license": "Avanzado",
+        "openSubscriptions": "Abre suscripciones para más asientos"
     },
     "commonOidcSettingForm": {
         "preview": "Vista previa",
@@ -843,5 +851,33 @@
         "titleSingular": "{count} nuevo resultado encontrado para {scanName}",
         "titlePlural": "{count} nuevos resultados encontrados para {scanName}",
         "description": "Revisa los resultados en el escáner de datos de administración."
+    },
+    "restrictedViewFilterContext": {
+        "removeDefaultValueHelper": "Este campo tiene un valor predeterminado pero ningún filtro. Puedes eliminarlo aquí, o gestionar todos los valores predeterminados haciendo clic en los tres puntos junto a la vista y luego en \"Valores predeterminados de fila\".",
+        "mismatchSubtitle": "Los editores podrán crear filas pero no las verán.",
+        "matchSubtitle": "Los editores podrán ver las filas que hayan creado.",
+        "mismatchTitle": "Los valores predeterminados no coinciden con los filtros",
+        "matchTitle": "Los valores predeterminados de vista coinciden con los filtros"
+    },
+    "coreCodeServiceForm": {
+        "codeHelperText": "Baserow llama a la función `principal(contexto)` cuando se ejecuta la acción. Usa `contexto` para leer valores inyectados y devuelve un `objeto` cuyas propiedades pueden ser usadas por acciones posteriores.",
+        "injectionsHelperText": "Las inyecciones son fórmulas evaluadas antes de que el código se ejecute. Cada nombre de inyección se convierte en una propiedad de `contexto`. Por ejemplo, una inyección llamada `nombreCliente` está disponible como `contexto.nombreCliente`.",
+        "nameFieldInvalid": "El nombre debe ser un nombre de variable válido.",
+        "codePlaceholder": "Ingresa el código para ejecutar",
+        "nameFieldRequired": "El campo nombre es obligatorio."
+    },
+    "serviceType": {
+        "coreXLSFileReaderDescription": "Lee filas desde un archivo XLS o XLSX.",
+        "errorXLSFileMissing": "Propiedad de archivo XLS faltante",
+        "coreCodeDescription": "Ejecuta código JavaScript arbitrario.",
+        "coreXLSFileReader": "Leer un archivo XLS",
+        "errorCodeMissing": "Propiedad de código faltante"
+    },
+    "coreXLSFileReaderServiceForm": {
+        "filePlaceholder": "Elige un archivo XLS o XLSX...",
+        "firstLineIsHeader": "La primera línea es cabecera"
+    },
+    "nodeType": {
+        "xlsFileReaderLabel": "Leer un archivo XLS"
     }
 }
