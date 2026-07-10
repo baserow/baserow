@@ -1382,7 +1382,7 @@ export class LongTextFieldType extends FieldType {
   }
 
   prepareValueForPaste(field, clipboardData, richClipboardData) {
-    if (richClipboardData != null) return richClipboardData
+    if (typeof richClipboardData === 'string') return richClipboardData
     if (field.long_text_enable_rich_text && clipboardData?.includes('\n\n')) {
       return padBlankLinesForMarkdown(clipboardData)
     }

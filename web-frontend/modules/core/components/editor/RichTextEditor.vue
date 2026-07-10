@@ -280,8 +280,6 @@ export default {
       }
     },
     getConfiguredExtensions() {
-      // When rich text is on, use ParagraphWithEmptyPreservation so
-      // empty paragraphs survive the markdown round-trip.
       const paragraphExt = this.enableRichTextFormatting
         ? ParagraphWithEmptyPreservation
         : Paragraph

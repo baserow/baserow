@@ -116,10 +116,8 @@ export default {
       this.save()
     },
     onPaste() {
-      // When the TipTap editor is active, it handles paste via handlePaste
-      // in editorProps. Return true to prevent the grid's paste handler
-      // from also processing the event and overwriting the editor content.
-      return this.editing && !this.isModalOpen()
+      // Prevent grid paste handler when TipTap editor is active
+      return this.editing
     },
     canSaveByPressingEnter() {
       return false

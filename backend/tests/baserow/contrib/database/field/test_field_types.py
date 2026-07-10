@@ -452,6 +452,95 @@ def test_long_text_field_type(data_fixture):
 
 
 @pytest.mark.django_db
+def test_long_text_enable_rich_text_pads_blank_lines(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="notes", long_text_enable_rich_text=False
+    )
+
+    model = table.get_model(attribute_names=True)
+    row_standard = model.objects.create(notes="Hello\n\nWorld")
+    row_extra = model.objects.create(notes="Hello\n\n\nWorld")
+    row_crlf = model.objects.create(notes="Hello\r\n\r\nWorld")
+    row_none = model.objects.create(notes=None)
+    row_no_newlines = model.objects.create(notes="Hello World")
+
+    handler = FieldHandler()
+    handler.update_field(
+        user=user, field=field, long_text_enable_rich_text=True
+    )
+
+    model = table.get_model(attribute_names=True)
+    row_standard.refresh_from_db()
+    row_extra.refresh_from_db()
+    row_crlf.refresh_from_db()
+    row_none.refresh_from_db()
+    row_no_newlines.refresh_from_db()
+
+    assert row_standard.notes == "Hello\n\n\nWorld"
+    assert row_extra.notes == "Hello\n\n\n\nWorld"
+    assert row_crlf.notes == "Hello\n\n\nWorld"
+    assert row_none.notes is None
+    assert row_no_newlines.notes == "Hello World"
+
+
+@pytest.mark.django_db
+def test_long_text_disable_rich_text_collapses_padding(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="notes", long_text_enable_rich_text=True
+    )
+
+    model = table.get_model(attribute_names=True)
+    row_padded = model.objects.create(notes="Hello\n\n\nWorld")
+    row_extra = model.objects.create(notes="Hello\n\n\n\nWorld")
+    row_standard = model.objects.create(notes="Hello\n\nWorld")
+    row_single = model.objects.create(notes="Hello\nWorld")
+
+    handler = FieldHandler()
+    handler.update_field(
+        user=user, field=field, long_text_enable_rich_text=False
+    )
+
+    row_padded.refresh_from_db()
+    row_extra.refresh_from_db()
+    row_standard.refresh_from_db()
+    row_single.refresh_from_db()
+
+    assert row_padded.notes == "Hello\n\nWorld"
+    assert row_extra.notes == "Hello\n\n\nWorld"
+    assert row_standard.notes == "Hello\n\nWorld"
+    assert row_single.notes == "Hello\nWorld"
+
+
+@pytest.mark.django_db
+def test_long_text_rich_text_toggle_does_not_inflate_newlines(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="notes", long_text_enable_rich_text=False
+    )
+
+    model = table.get_model(attribute_names=True)
+    row = model.objects.create(notes="Line1\n\nLine2\n\n\nLine3")
+
+    handler = FieldHandler()
+
+    for _ in range(3):
+        handler.update_field(
+            user=user, field=field, long_text_enable_rich_text=True
+        )
+        handler.update_field(
+            user=user, field=field, long_text_enable_rich_text=False
+        )
+
+    row.refresh_from_db()
+    assert row.notes == "Line1\n\nLine2\n\n\nLine3"
+
+
+@pytest.mark.django_db
 def test_valid_url(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

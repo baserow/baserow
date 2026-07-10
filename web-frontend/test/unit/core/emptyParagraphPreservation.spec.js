@@ -63,6 +63,43 @@ describe('blankLinePreservation', () => {
     expect(countEmptyParagraphs(html)).toBe(3)
   })
 
+  it('does not add phantom empty paragraphs around code fences', () => {
+    const html = render('A\n\n```\ncode\n```\n\nB')
+    expect(countEmptyParagraphs(html)).toBe(0)
+    expect(html).toContain('<p>A</p>')
+    expect(html).toContain('<p>B</p>')
+  })
+
+  it('preserves blank lines around code fences', () => {
+    const html = render('A\n\n\n```\ncode\n```\n\n\nB')
+    expect(countEmptyParagraphs(html)).toBe(2)
+  })
+
+  it('does not add phantom empty paragraphs around horizontal rules', () => {
+    const html = render('A\n\n---\n\nB')
+    expect(countEmptyParagraphs(html)).toBe(0)
+  })
+
+  it('preserves blank lines around horizontal rules', () => {
+    const html = render('A\n\n\n---\n\n\nB')
+    expect(countEmptyParagraphs(html)).toBe(2)
+  })
+
+  it('preserves blank line after a list', () => {
+    const html = render('- a\n- b\n\n\nC')
+    expect(countEmptyParagraphs(html)).toBe(1)
+  })
+
+  it('preserves blank line before a list', () => {
+    const html = render('A\n\n\n- a\n- b')
+    expect(countEmptyParagraphs(html)).toBe(1)
+  })
+
+  it('preserves blank lines on both sides of a list', () => {
+    const html = render('A\n\n\n- x\n- y\n\n\nB')
+    expect(countEmptyParagraphs(html)).toBe(2)
+  })
+
   it('is idempotent when registered multiple times', () => {
     const md = new Markdown()
     md.use(blankLinePreservation)
@@ -85,6 +122,14 @@ describe('padBlankLinesForMarkdown', () => {
 
   it('does not modify text without newlines', () => {
     expect(padBlankLinesForMarkdown('hello')).toBe('hello')
+  })
+
+  it('normalizes \\r\\n before padding', () => {
+    expect(padBlankLinesForMarkdown('a\r\n\r\nb')).toBe('a\n\n\nb')
+  })
+
+  it('handles mixed \\r\\n and \\n', () => {
+    expect(padBlankLinesForMarkdown('a\r\n\r\nb\n\nc')).toBe('a\n\n\nb\n\n\nc')
   })
 })
 

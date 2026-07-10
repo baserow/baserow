@@ -67,12 +67,10 @@ export const parseMarkdown = (
   // mentions
   md.use(parseMention(workspaceUsers || [], loggedUserId))
 
-  // blank line preservation
   md.use(blankLinePreservation)
 
   let html = md.render(value || '')
-  // Empty paragraphs from blankLinePreservation render as zero-height
-  // <p></p>. Replace with <br> for consistent visual spacing.
+  // Empty <p> from preservation have zero height
   html = html.replace(/<p><\/p>/g, '<br>')
   return html
 }

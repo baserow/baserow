@@ -569,6 +569,32 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         value = getattr(row, field.db_column)
         return collate_expression(Value(value))
 
+    def force_same_type_alter_column(self, from_field, to_field):
+        from_rich = getattr(from_field, "long_text_enable_rich_text", False)
+        to_rich = getattr(to_field, "long_text_enable_rich_text", False)
+        return from_rich != to_rich
+
+    def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
+        from_rich = getattr(from_field, "long_text_enable_rich_text", False)
+        to_rich = getattr(to_field, "long_text_enable_rich_text", False)
+
+        if connection.vendor == "postgresql" and not from_rich and to_rich:
+            # Pad runs of 2+ newlines so blank lines survive markdown parsing.
+            return r"""
+                p_in = regexp_replace(p_in, E'\r\n', E'\n', 'g');
+                p_in = regexp_replace(p_in, E'(\n{2,})', E'\\1\n', 'g');
+            """
+
+        if connection.vendor == "postgresql" and from_rich and not to_rich:
+            # Reverse the padding: collapse runs of 3+ newlines by removing one.
+            return r"""
+                p_in = regexp_replace(p_in, E'\n(\n{2,})', E'\\1', 'g');
+            """
+
+        return super().get_alter_column_prepare_new_value(
+            connection, from_field, to_field
+        )
+
 
 class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):
     type = "url"

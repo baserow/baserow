@@ -1,20 +1,24 @@
 import Paragraph from '@tiptap/extension-paragraph'
 
-/**
- * Pads runs of 2+ newlines with one extra newline so that
- * blankLinePreservation can detect the gap on parse.
- */
 export function padBlankLinesForMarkdown(text) {
-  return text.replace(/\n{2,}/g, (m) => m + '\n')
+  return text.replace(/\r\n/g, '\n').replace(/\n{2,}/g, (m) => m + '\n')
 }
 
-/**
- * Markdown-it plugin that preserves blank lines as empty paragraphs.
- * Detects gaps in token source-line maps and injects empty paragraph
- * tokens for each blank line beyond the standard paragraph separator.
- */
+// For container blocks (lists, blockquotes), the token map overshoots past
+// trailing blank lines. Walk children to find the real content boundary.
+function getContentEnd(tokens, idx) {
+  const container = tokens[idx]
+  let end = container.map[0]
+  for (let j = idx + 1; j < tokens.length; j++) {
+    if (tokens[j].level <= container.level) break
+    if (tokens[j].type === 'inline' && tokens[j].map) {
+      end = tokens[j].map[1]
+    }
+  }
+  return end
+}
+
 export function blankLinePreservation(md) {
-  // parse.setup is called on every parse() — guard against duplicate registration
   if (md._blankLinePreservationInstalled) return
   md._blankLinePreservationInstalled = true
 
@@ -27,12 +31,12 @@ export function blankLinePreservation(md) {
       const token = tokens[i]
 
       if (
-        token.nesting === 1 &&
+        token.nesting >= 0 &&
         token.map &&
         token.level === 0 &&
         lastBlockEnd !== null
       ) {
-        const blankLines = token.map[0] - lastBlockEnd - 1
+        const blankLines = Math.max(0, token.map[0] - lastBlockEnd - 1)
         for (let j = 0; j < blankLines; j++) {
           newTokens.push(new state.Token('paragraph_open', 'p', 1))
           newTokens.push(new state.Token('paragraph_close', 'p', -1))
@@ -41,8 +45,9 @@ export function blankLinePreservation(md) {
 
       newTokens.push(token)
 
-      if (token.nesting === 1 && token.map && token.level === 0) {
-        lastBlockEnd = token.map[1]
+      if (token.map && token.level === 0 && token.nesting >= 0) {
+        lastBlockEnd =
+          token.nesting === 1 ? getContentEnd(tokens, i) : token.map[1]
       }
     }
 
@@ -50,11 +55,6 @@ export function blankLinePreservation(md) {
   })
 }
 
-/**
- * TipTap Paragraph extension that preserves empty paragraphs through
- * the markdown round-trip. Empty paragraphs serialize as extra newlines
- * in markdown, and blankLinePreservation restores them on parse.
- */
 export const ParagraphWithEmptyPreservation = Paragraph.extend({
   addStorage() {
     return {
