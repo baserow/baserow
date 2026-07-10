@@ -77,11 +77,11 @@
         "localBaserowUpdateRow": "Actualiza una fila",
         "localBaserowUpdateRowDescription": "Actualiza una fila existente en una tabla de Baserow.",
         "localBaserowDeleteRow": "Elimina una fila",
-        "localBaserowDeleteRowDescription": "Elimina una fila en una tabla de Baserow.",
+        "localBaserowDeleteRowDescription": "Elimina una o más filas en una tabla de Baserow.",
         "localBaserowRowsCreated": "Se crean filas",
         "localBaserowRowsCreatedDescription": "Se activa cuando se crean filas en una tabla de Baserow.",
         "localBaserowRowsUpdated": "Se actualizan filas",
-        "localBaserowRowsUpdatedDescription": "Se activa cuando se actualizan filas en una tabla de Baserow.",
+        "localBaserowRowsUpdatedDescription": "Se activa cuando las filas se actualizan en cualquier campo de una tabla de Baserow.",
         "localBaserowRowsDeleted": "Se eliminan filas",
         "localBaserowRowsDeletedDescription": "Se activa cuando se eliminan filas en una tabla de Baserow.",
         "coreHTTPTrigger": "Recibir una solicitud HTTP",
@@ -105,7 +105,7 @@
         "errorNoTableSelected": "No se ha seleccionado una tabla",
         "errorFilterInError": "Al menos un filtro está mal configurado",
         "errorSortingInError": "Al menos uno de los criterios de ordenación está mal configurado",
-        "errorNoFieldSelected": "No se ha seleccionado un campo",
+        "errorNoFieldSelected": "No se seleccionaron campos",
         "errorNoAggregationTypeSelected": "No se ha seleccionado un tipo de agregación",
         "corePeriodic": "Disparador periódico",
         "corePeriodicDescription": "Dispara el flujo de trabajo de forma periódica en intervalos especificados",
@@ -122,7 +122,18 @@
         "slackWriteMessageDescription": "Envías un mensaje a un #canal específico de Slack",
         "slackWriteMessageMissingChannel": "Se requiere un canal.",
         "slackWriteMessageMissingMessage": "Se requiere un mensaje.",
-        "slackWriteMessageMissingIntegration": "No se ha seleccionado una integración de Slack."
+        "slackWriteMessageMissingIntegration": "No se ha seleccionado una integración de Slack.",
+        "localBaserowFieldsUpdatedDescription": "Se activa cuando las filas se actualizan en campos específicos de una tabla de Baserow.",
+        "errorWorkflowNotImmediateDispatch": "El flujo de trabajo seleccionado debe usar un disparador que pueda iniciarse inmediatamente.",
+        "coreManualTriggerDescription": "Se inicia solo cuando otra acción de flujo de trabajo inicia este flujo de trabajo.",
+        "localBaserowUpdateRowsDescription": "Actualiza múltiples filas existentes en una tabla de Baserow.",
+        "localBaserowCreateRowsDescription": "Crea múltiples filas nuevas en una tabla de Baserow.",
+        "coreCSVFileReaderDescription": "Lee filas desde un archivo CSV.",
+        "localBaserowFieldsUpdated": "Los valores de campos específicos se actualizan",
+        "errorCSVFileMissing": "Propiedad de archivo CSV faltante",
+        "errorCSVContentMissing": "Propiedad de datos CSV faltante",
+        "coreCSVFileReader": "Leer un archivo CSV",
+        "coreStartWorkflowDescription": "Inicia un flujo de trabajo de automatización."
     },
     "userSourceType": {
         "localBaserow": "Autenticación de la tabla de Baserow"
@@ -341,9 +352,25 @@
         "integrationDropdownLabel": "Integración"
     },
     "localBaserowUpdateRowsServiceForm": {
-        "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Cada objeto debe incluir una propiedad ID. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden actualizar hasta {limit} filas a la vez."
+        "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Cada objeto debe incluir una propiedad ID. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden actualizar hasta {limit} filas a la vez.",
+        "rowsPlaceholder": "Elige una lista de objetos de fila con IDs"
     },
     "localBaserowCreateRowsServiceForm": {
-        "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden crear hasta {limit} filas a la vez."
+        "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden crear hasta {limit} filas a la vez.",
+        "rowsPlaceholder": "Elige una lista de objetos de fila"
+    },
+    "coreStartWorkflowServiceForm": {
+        "workflowHelperText": "Solo los flujos de trabajo publicados con un disparador manual pueden iniciarse. Si este flujo de trabajo tiene cambios no publicados, se ejecutará la última versión publicada."
+    },
+    "localBaserowDeleteRowServiceForm": {
+        "rowIdHelper": "Elige un ID de fila o una matriz o `array` de IDs de fila. Puedes eliminar hasta {limit} filas a la vez.",
+        "rowIdPlaceholder": "Elige un ID de fila o una matriz o `array` de IDs de fila"
+    },
+    "localBaserowFieldsUpdatedForm": {
+        "fieldHelper": "El flujo de trabajo solo activa cuando uno de los valores de estos campos cambia."
+    },
+    "coreCSVFileReaderServiceForm": {
+        "filePlaceholder": "Elige un archivo CSV...",
+        "firstLineIsHeader": "La primera línea es cabecera"
     }
 }
