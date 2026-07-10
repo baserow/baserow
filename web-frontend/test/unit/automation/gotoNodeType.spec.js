@@ -71,6 +71,89 @@ describe('CoreGotoNodeType', () => {
     })
   })
 
+  describe('getHistoryLabel', () => {
+    // An app stub whose node registry holds `registeredNodeTypes`, mapping each
+    // registered node type to the generic name it falls back to. The enterprise
+    // `code` node type is deliberately absent, see the last test.
+    const makeApp = ({
+      registeredNodeTypes = { local_baserow_get_row: 'Get a single row' },
+    } = {}) => ({
+      $i18n: {
+        t: (key, values) => (values ? `${key}:${JSON.stringify(values)}` : key),
+      },
+      $registry: {
+        exists: (registry, type) => type in registeredNodeTypes,
+        // The real registry throws for an unregistered type, so the stub must
+        // too, otherwise dropping the `exists` guard would go unnoticed here.
+        get: (registry, type) => {
+          if (!(type in registeredNodeTypes)) {
+            throw new Error(`The type "${type}" is not found.`)
+          }
+          return { name: registeredNodeTypes[type] }
+        },
+      },
+    })
+
+    test('prefers the destination label resolved by the backend', () => {
+      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      expect(
+        nodeType.getHistoryLabel({
+          nodeHistory: {
+            node_label: 'Go to node',
+            destination_label: 'Fetch the row',
+            destination_node_type: 'local_baserow_get_row',
+          },
+        })
+      ).toBe(
+        'nodeType.gotoHistoryLabel:{"label":"Go to node","destination":"Fetch the row"}'
+      )
+    })
+
+    test('falls back to the destination node type name when it has no label', () => {
+      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      expect(
+        nodeType.getHistoryLabel({
+          nodeHistory: {
+            node_label: 'Go to node',
+            destination_label: '',
+            destination_node_type: 'local_baserow_get_row',
+          },
+        })
+      ).toBe(
+        'nodeType.gotoHistoryLabel:{"label":"Go to node","destination":"Get a single row"}'
+      )
+    })
+
+    test('omits the destination when none was recorded', () => {
+      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      expect(
+        nodeType.getHistoryLabel({
+          nodeHistory: {
+            node_label: 'Go to node',
+            destination_label: '',
+            destination_node_type: '',
+          },
+        })
+      ).toBe('Go to node')
+    })
+
+    test('omits the destination when its node type is not registered', () => {
+      // The enterprise `code` node type is only registered when the code runner
+      // is configured, so a history entry recorded while it was enabled can
+      // outlive its registration and reference a type this build doesn't have.
+      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      expect(
+        nodeType.getHistoryLabel({
+          nodeHistory: {
+            node_label: 'Go to node',
+            destination_label: '',
+            destination_node_type: 'code',
+          },
+        })
+      ).toBe('Go to node')
+    })
+  })
+
   describe('getConnections', () => {
     const workflow = { id: 10 }
     const goto = { id: 3, type: 'goto' }

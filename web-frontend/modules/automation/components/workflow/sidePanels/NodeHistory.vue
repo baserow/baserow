@@ -253,44 +253,8 @@ const nodeIconClass = computed(() => {
   return nodeType.value.iconClass
 })
 
-/**
- * For a "Go to node" entry, resolve the label of the node it jumps to so the
- * history reads "Go to node → <destination>".
- *
- * We prefer the destination's stored label resolved by the backend (run-time
- * accurate). When the destination has no custom label, we fall back to the
- * generic name of its node type. We can't resolve the node from the editor
- * workflow by id, because the history references the published workflow copy
- * that ran, whose node ids differ from the editor's.
- */
-const destinationLabel = computed(() => {
-  if (props.nodeHistory.node_type !== 'goto') return null
-
-  if (props.nodeHistory.destination_label) {
-    return props.nodeHistory.destination_label
-  }
-
-  const destinationType = props.nodeHistory.destination_node_type
-  if (!destinationType) return null
-
-  if (!app.$registry.exists('node', destinationType)) return null
-  return app.$registry.get('node', destinationType).name
-})
-
 const nodeTypeLabel = computed(() => {
-  const baseLabel = props.nodeHistory.node_label || nodeType.value.name
-  if (props.nodeHistory.node_type === 'router') {
-    // Show which branch was taken.
-    const edgeLabel =
-      props.nodeHistory.edge_label ||
-      app.$i18n.t('nodeType.defaultEdgeLabelFallback')
-    return `${baseLabel} (${edgeLabel})`
-  }
-  if (props.nodeHistory.node_type === 'goto' && destinationLabel.value) {
-    // Show which node the workflow jumps to.
-    return `${baseLabel} → ${destinationLabel.value}`
-  }
-  return baseLabel
+  return nodeType.value.getHistoryLabel({ nodeHistory: props.nodeHistory })
 })
 
 /**

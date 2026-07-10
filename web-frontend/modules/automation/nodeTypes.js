@@ -69,6 +69,21 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * The label of a node in a workflow run history. Unlike `getLabel`, this is
+   * resolved from the history entry alone: the history references the
+   * published workflow copy that ran, whose node ids differ from the editor's,
+   * so the editor workflow can't be consulted. Node types that record extra
+   * run-time context (e.g. the branch taken, or the node jumped to) override
+   * this to surface it.
+   *
+   * @param {Object} nodeHistory The history entry of the node's run.
+   * @returns {string} - The label for the history entry.
+   */
+  getHistoryLabel({ nodeHistory }) {
+    return nodeHistory.node_label || this.name
+  }
+
+  /**
    * Returns the text to be displayed on the graph just before the node.
    */
   getBeforeLabel({ workflow, node }) {
@@ -1001,6 +1016,21 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
       : this.name
   }
 
+  /**
+   * Append the branch that was taken during the run, e.g. "Router (Default)",
+   * so the history shows which edge the workflow followed.
+   * @param nodeHistory - The history entry of the router node's run.
+   * @returns {string} - The label for the history entry.
+   */
+  getHistoryLabel({ nodeHistory }) {
+    return this.app.$i18n.t('nodeType.routerHistoryLabel', {
+      label: super.getHistoryLabel({ nodeHistory }),
+      edge:
+        nodeHistory.edge_label ||
+        this.app.$i18n.t('nodeType.defaultEdgeLabelFallback'),
+    })
+  }
+
   get serviceType() {
     return this.app.$registry.get('service', CoreRouterServiceType.getType())
   }
@@ -1153,6 +1183,43 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
         automation,
         node: destinationNode,
       }),
+    })
+  }
+
+  /**
+   * Resolve the label of the node this "Go to node" entry jumped to, so the
+   * history reads "Go to node → <destination>".
+   *
+   * The destination's stored label is resolved by the backend. When the
+   * destination has no custom label, we fall back to the generic name of
+   * its node type.
+   * @param nodeHistory - The history entry of the Go to node's run.
+   * @returns {string|null} - The destination's label, or null if unresolvable.
+   */
+  getHistoryDestinationLabel({ nodeHistory }) {
+    if (nodeHistory.destination_label) {
+      return nodeHistory.destination_label
+    }
+
+    const destinationType = nodeHistory.destination_node_type
+    if (!destinationType) return null
+
+    if (!this.app.$registry.exists('node', destinationType)) return null
+    return this.app.$registry.get('node', destinationType).name
+  }
+
+  /**
+   * Append the node the workflow jumped to, e.g. "Go to node → List rows".
+   * @param nodeHistory - The history entry of the Go to node's run.
+   * @returns {string} - The label for the history entry.
+   */
+  getHistoryLabel({ nodeHistory }) {
+    const label = super.getHistoryLabel({ nodeHistory })
+    const destination = this.getHistoryDestinationLabel({ nodeHistory })
+    if (!destination) return label
+    return this.app.$i18n.t('nodeType.gotoHistoryLabel', {
+      label,
+      destination,
     })
   }
 
