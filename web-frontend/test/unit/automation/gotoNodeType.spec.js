@@ -229,6 +229,77 @@ describe('CoreGotoNodeType', () => {
     })
   })
 
+  describe('afterMove', () => {
+    const workflow = { id: 10 }
+    const trigger = { id: 1, type: 'trigger' }
+    const destination = { id: 2, type: 'create_row', service: { id: 20 } }
+
+    const makeGoto = (destinationServiceId = destination.service.id) => ({
+      id: 3,
+      type: 'goto',
+      service: { condition: {}, destination_service_id: destinationServiceId },
+    })
+
+    // An app stub where `previousByNodeId` maps a node id to the nodes the
+    // store reports as running before it, so both the backward and the forward
+    // jump checks can be exercised.
+    const makeApp = (previousByNodeId = {}) => ({
+      $store: {
+        getters: {
+          'automationWorkflowNode/findByServiceId': (_workflow, serviceId) =>
+            [trigger, destination].find(
+              (node) => node.service?.id === serviceId
+            ) || null,
+          'automationWorkflowNode/getAncestors': () => [],
+          'automationWorkflowNode/getPreviousNodes': (_workflow, node) =>
+            previousByNodeId[node.id] ?? [],
+        },
+      },
+      $registry: {
+        get: (registry, type) => ({ isTrigger: type === 'trigger' }),
+      },
+    })
+
+    test('clears a link whose destination left the Go to node path', () => {
+      // The destination is on neither the goto's backward nor its forward path.
+      const nodeType = new CoreGotoNodeType({
+        app: makeApp({ 2: [trigger], 3: [trigger] }),
+      })
+      expect(nodeType.afterMove({ workflow, node: makeGoto() })).toEqual({
+        service: { condition: {}, destination_service_id: null },
+      })
+    })
+
+    test('clears a link whose destination is gone from the workflow', () => {
+      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      expect(nodeType.afterMove({ workflow, node: makeGoto(999) })).toEqual({
+        service: { condition: {}, destination_service_id: null },
+      })
+    })
+
+    test('keeps a valid backward jump untouched', () => {
+      // The destination still runs before the Go to node.
+      const nodeType = new CoreGotoNodeType({
+        app: makeApp({ 2: [trigger], 3: [trigger, destination] }),
+      })
+      expect(nodeType.afterMove({ workflow, node: makeGoto() })).toBeNull()
+    })
+
+    test('keeps a valid forward jump untouched', () => {
+      // The destination now runs after the Go to node - a valid forward jump.
+      const nodeType = new CoreGotoNodeType({
+        app: makeApp({ 2: [trigger, { id: 3 }], 3: [trigger] }),
+      })
+      expect(nodeType.afterMove({ workflow, node: makeGoto() })).toBeNull()
+    })
+
+    test('does nothing when no destination is set', () => {
+      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const node = { id: 3, type: 'goto', service: {} }
+      expect(nodeType.afterMove({ workflow, node })).toBeNull()
+    })
+  })
+
   describe('registration', () => {
     let testApp = null
 

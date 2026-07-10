@@ -196,8 +196,6 @@ const nodeEdgeInUseFn = (edge) => {
   ).length
 }
 
-const GOTO_NODE_TYPE = 'goto'
-
 /**
  * The valid jump targets for the selected "Go to" node, shaped for the generic
  * CoreGotoServiceForm's `destinations` prop. As the service form can't refer to
@@ -206,7 +204,7 @@ const GOTO_NODE_TYPE = 'goto'
  * so the prop isn't bound as a stray fallthrough attribute on the other forms.
  */
 const gotoDestinations = computed(() => {
-  if (node.value?.type !== GOTO_NODE_TYPE) {
+  if (node.value?.type !== 'goto') {
     return undefined
   }
   return buildGotoDestinations({

@@ -106,6 +106,22 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * A hook called for every node after any node is moved within `workflow`,
+   * mirroring the backend's `after_move`. A node type can override this to
+   * reconcile state the move may have invalidated (for example a link to
+   * another node that now sits on a different branch or level), returning the
+   * values needed to repair `node`. Returns null (the default) when the type
+   * has nothing to reconcile.
+   *
+   * @param {Object} workflow The workflow the node belongs to.
+   * @param {Object} node The node to reconcile.
+   * @returns {Object|null} The values to update the node with, or null.
+   */
+  afterMove({ workflow, node }) {
+    return null
+  }
+
+  /**
    * The node type's description.
    * The description is derived from the service type's description.
    * @returns {string} - The node's description.
@@ -1224,24 +1240,23 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
   }
 
   /**
-   * Declares a link from this Go to node to its destination node, as long as
-   * the jump is still valid. The link is surfaced as a paired marker on both
-   * cards. Validity mirrors the backend `validate_goto_destination` (same
-   * level, backward jump, non-trigger); the store is reconciled after a move,
-   * but re-checking here also avoids surfacing a stale link during the brief
-   * window before that reconciliation runs.
+   * The node this "Go to node" jumps to, as long as the jump is still valid.
+   * Validity mirrors the backend `validate_goto_destination` (same level,
+   * backward or forward jump, non-trigger).
+   *
+   * @param {Object} workflow The workflow the node belongs to.
+   * @param {Object} node The Go to node to resolve the destination for.
+   * @returns {Object|null} The destination node, or null when the stored
+   *   destination is unset, missing from the workflow, or no longer valid.
    */
-  getConnections({ workflow, node }) {
+  getValidDestination({ workflow, node }) {
     const destinationServiceId = node.service?.destination_service_id
     if (destinationServiceId == null) {
-      return []
+      return null
     }
     const destinationNode = this.app.$store.getters[
       'automationWorkflowNode/findByServiceId'
     ](workflow, destinationServiceId)
-    if (!destinationNode) {
-      return []
-    }
     const isValid = isValidGotoDestination({
       gotoNode: node,
       destinationNode,
@@ -1257,10 +1272,40 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
         ),
       isTrigger: (n) => this.app.$registry.get('node', n.type).isTrigger,
     })
-    if (!isValid) {
+    return isValid ? destinationNode : null
+  }
+
+  /**
+   * Declares a link from this Go to node to its destination node, as long as
+   * the jump is still valid. The link is surfaced as a paired marker on both
+   * cards. The store is reconciled after a move, but re-checking here also
+   * avoids surfacing a stale link during the brief window before that
+   * reconciliation runs.
+   */
+  getConnections({ workflow, node }) {
+    const destinationNode = this.getValidDestination({ workflow, node })
+    if (!destinationNode) {
       return []
     }
     return [{ destinationNodeId: destinationNode.id }]
+  }
+
+  /**
+   * Mirrors the backend `clear_invalidated_links`: a move can take this node's
+   * destination off its path or to a different level, invalidating the jump.
+   * The backend clears it, but the acting client is excluded from its own
+   * realtime broadcast, so the store reconciles through this hook.
+   */
+  afterMove({ workflow, node }) {
+    if (node.service?.destination_service_id == null) {
+      return null
+    }
+    if (this.getValidDestination({ workflow, node })) {
+      return null
+    }
+    return {
+      service: { ...node.service, destination_service_id: null },
+    }
   }
 }
 

@@ -5,9 +5,6 @@ import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSideP
 import { clone } from '@baserow/modules/core/utils/object'
 
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
-import { isValidGotoDestination } from '@baserow/modules/automation/utils/gotoNode'
-
-const GOTO_NODE_TYPE = 'goto'
 
 const state = () => ({
   selectedNodeId: null,
@@ -534,13 +531,10 @@ const actions = {
         output,
       })
 
-      // A move can take a "Go to" destination off the source's path or to a
-      // different level, invalidating the jump, which the backend clears (see
-      // `clear_invalidated_links`). The acting client is excluded from its own
-      // realtime broadcast, so reconcile the store here — otherwise the stale
-      // destination id lingers and the link silently "reconnects" the next time
-      // a move makes it look valid again.
-      dispatch('clearInvalidatedGotoLinks', { workflow })
+      // A move can change a node's level or path, which may invalidate
+      // cross-node references. Let each node type reconcile the workflow, as
+      // the backend does after its own move.
+      dispatch('afterMove', { workflow })
     } catch (error) {
       // We revert the operation
       dispatch('graphMove', {
@@ -555,40 +549,17 @@ const actions = {
     }
   },
   /**
-   * Mirrors the backend `clear_invalidated_links`: nulls the destination of
-   * every "Go to node" whose stored destination is no longer a valid jump (e.g.
-   * it now sits on a different branch or at a different level). Used after a
-   * move, which can change a node's level or path.
+   * Mirrors the backend, which calls `after_move` on every node type after a
+   * move: lets each node reconcile state the move may have invalidated (e.g. a
+   * "Go to node" whose destination now sits on a different branch or level).
    */
-  clearInvalidatedGotoLinks({ dispatch, getters }, { workflow }) {
-    const ancestorsOf = (node) => getters.getAncestors(workflow, node)
-    const previousNodesOf = (node) => getters.getPreviousNodes(workflow, node)
-    const isTrigger = (node) => this.$registry.get('node', node.type).isTrigger
-
-    for (const gotoNode of getters.getNodes(workflow)) {
-      const destinationServiceId = gotoNode.service?.destination_service_id
-      if (gotoNode.type !== GOTO_NODE_TYPE || destinationServiceId == null) {
-        continue
-      }
-      const destinationNode = getters.findByServiceId(
-        workflow,
-        destinationServiceId
-      )
-      const valid = isValidGotoDestination({
-        gotoNode,
-        destinationNode,
-        ancestorsOf,
-        previousNodesOf,
-        isTrigger,
-      })
-      if (!valid) {
-        dispatch('forceUpdate', {
-          workflow,
-          node: gotoNode,
-          values: {
-            service: { ...gotoNode.service, destination_service_id: null },
-          },
-        })
+  afterMove({ dispatch, getters }, { workflow }) {
+    for (const node of getters.getNodes(workflow)) {
+      const values = this.$registry
+        .get('node', node.type)
+        .afterMove({ workflow, node })
+      if (values) {
+        dispatch('forceUpdate', { workflow, node, values })
       }
     }
   },
