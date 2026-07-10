@@ -383,7 +383,10 @@
         "columnGapTitle": "Espacio entre columnas",
         "columnAmountTitle": "Disposición",
         "columnAmountName": "sin columnas | 1 columna | {columnaCantidad} columnas",
-        "verticalAlignment": "Alineación vertical"
+        "verticalAlignment": "Alineación vertical",
+        "customWeightsHelper": "Utiliza 0 cuando una columna deba ajustarse únicamente al ancho de su contenido. Las demás columnas repartirán el espacio sobrante.",
+        "errorCustomWeightsMinimum": "Los pesos de las columnas deben ser 0 o mayores",
+        "columnStackingTitle": "Apila columnas por tipo de dispositivo"
     },
     "pageSettings": {
         "pageUpdatedTitle": "Cambiado",
@@ -1098,7 +1101,9 @@
         "menuItemAddSeparator": "Separador",
         "menuItemAddSpacer": "Espaciador",
         "eventDescription": "Para configurar acciones para este botón, abre la pestaña «Eventos» de este elemento.",
-        "noMenuItemsMessage": "Haz clic en «Añadir» para añadir tu primer elemento de menú."
+        "noMenuItemsMessage": "Haz clic en «Añadir» para añadir tu primer elemento de menú.",
+        "previewCompactMenuHelper": "Mostrar/ocultar la vista previa del menú compacto.",
+        "variant": "Variante por tipo de dispositivo"
     },
     "simpleContainerElementForm": {
         "noConfigurationOptions": "El elemento contenedor no tiene ninguna opción de configuración."
@@ -1184,5 +1189,8 @@
     "previewPublishGuidedTourStep": {
         "title": "Previsualiza y publica tu aplicación",
         "content": "Haz clic en **«Vista previa»** para probar tu aplicación de forma privada. Cuando estés listo, haz clic en **«Publicar»** para compartirla con el público a través de un dominio."
+    },
+    "workflowAction": {
+        "testActionDescription": "Ejecuta esta acción en vista previa para capturar su salida y hacerla disponible a las acciones siguientes."
     }
 }
