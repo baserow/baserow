@@ -278,7 +278,8 @@
         "dbIndexError": "Este tipo de campo no puede tener un índice. Por favor, elimínalo antes de guardar o cambia el tipo de campo.",
         "dbIndexDescription": "Indexar puede mejorar significativamente el rendimiento del filtrado, pero ralentiza las operaciones de creación, actualización y eliminación.",
         "defaultValueDisabledByConstraint": "No se puede establecer un valor predeterminado con una restricción de valor único",
-        "dbIndexDisabledTooltip": "La indexación no está disponible para este tipo de campo."
+        "dbIndexDisabledTooltip": "La indexación no está disponible para este tipo de campo.",
+        "defaultValueOverriddenByView": "Este campo ya tiene un valor predeterminado definido en la vista y tendrá preferencia sobre este otro valor predeterminado."
     },
     "fieldLookupSubForm": {
         "noTable": "Necesita al menos un campo de fila de vínculo para crear un campo de búsqueda.",
@@ -912,7 +913,8 @@
         "addGroupBy": "Elegir un campo por el que agrupar",
         "noGroupByTitle": "Aún no has creado ninguna agrupación",
         "noGroupByText": "Agrupar filas por un campo.",
-        "hiddenFieldWarning": "Uno o más agrupamientos hacen referencia a campos ocultos que no serán visibles para editores y roles inferiores."
+        "hiddenFieldWarning": "Uno o más agrupamientos hacen referencia a campos ocultos que no serán visibles para editores y roles inferiores.",
+        "maxGroupBysReached": "Puedes agrupar por hasta {count} campos."
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",
@@ -1099,7 +1101,9 @@
         "error": "Algo salió mal durante la sincronización",
         "autoAddLabel": "Agregar automáticamente nuevas propiedades",
         "autoAddHelper": "Automáticamente agrega y sincroniza las propiedades recién disponibles del origen de datos en la tabla de Baserow. Ten en cuenta que, para que esto funcione, todas las propiedades deben estar sincronizadas.",
-        "twoWaySyncLabel": "Sincronización bidireccional"
+        "twoWaySyncLabel": "Sincronización bidireccional",
+        "deleteUnmatchedRowsHelper": "Cuando está activado, las filas que son eliminadas o ya no son visibles en el origen también son eliminadas de esta tabla en cada sincronización. Cuando está desactivado, esas filas se mantienen y reutilizan si la fila del origen reaparece.",
+        "deleteUnmatchedRowsLabel": "Elimina filas cuando se eliminan o se ocultan en el origen"
     },
     "syncTableModal": {
         "title": "Sincronizar {name}",
@@ -1222,5 +1226,14 @@
     "gridViewFreezeHandle": {
         "hoverHint": "Arrastrar para congelar columnas",
         "freeze": "Congelar 0 columnas | Congelar 1 columna | Congelar {count} columnas"
+    },
+    "tableExcelImporter": {
+        "chooseFileDescription": "Puedes importar una hoja de cálculo existente subiendo un archivo .xlsx, .xls o .ods. Si el archivo contiene varias hojas puedes elegir cuál de ellas importar.",
+        "limitError": "No es posible importar más de {limit} filas.",
+        "processingError": "Ocurrió un error mientras se procesaba el archivo Excel: {error}",
+        "emptyError": "Este archivo Excel no contiene ninguna hoja.",
+        "limitFileSize": "El tamaño máximo del archivo es {limit}MB.",
+        "emptySheetError": "La hoja seleccionada está vacía.",
+        "firstRowHeader": "La primera fila es cabecera"
     }
 }
