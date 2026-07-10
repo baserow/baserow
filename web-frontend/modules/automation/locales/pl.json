@@ -149,7 +149,7 @@
         "localBaserowFieldsUpdatedMultipleLabel": "Wartości {count} pól w tabeli {tableName} zostały zaktualizowane",
         "localBaserowFieldsUpdatedNoFieldLabel": "Poszczególne wartości pól zostały zaktualizowane",
         "localBaserowCreateRowsLabel": "Zbiorcze tworzenie wierszy w tabeli {tableName}",
-        "localBaserowUpdateRowsLabel": "Zbiorczo zaktualnizuj wiersze w tabeli {tableName}",
+        "localBaserowUpdateRowsLabel": "Zbiorczo zaktualizuj wiersze w tabeli {tableName}",
         "csvFileReaderLabel": "Wczytaj plik CSV",
         "startWorkflowLabel": "Uruchom proces {workflowName}"
     },
@@ -158,7 +158,7 @@
         "actionReplace": "Zamień",
         "actionDuplicate": "Zduplikuj",
         "actionConfigure": "Skonfiguruj",
-        "beforeLabelTrigger": "Rozpoczyna się, gdy",
+        "beforeLabelTrigger": "Uruchamia się, gdy",
         "beforeLabelAction": "Następnie",
         "beforeLabelCondition": "Jeśli warunek jest spełniony",
         "beforeLabelConditionDefault": "Jeśli żaden warunek(ki) nie jest(są) spełnione",
