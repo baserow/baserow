@@ -3366,6 +3366,7 @@ def test_grouped_aggregate_rows_service_export_serialized(
     assert result == {
         "filter_type": "AND",
         "filters": [],
+        "filter_groups": [],
         "id": service.id,
         "integration_id": service.integration.id,
         "sample_data": None,
@@ -3411,6 +3412,7 @@ def test_grouped_aggregate_rows_service_import_serialized(data_fixture):
     serialized_service = {
         "filter_type": "AND",
         "filters": [],
+        "filter_groups": [],
         "id": 999,
         "integration_id": integration.id,
         "service_aggregation_group_bys": [

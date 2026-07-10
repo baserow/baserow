@@ -170,7 +170,8 @@
     "fieldHelper": "The workflow only triggers when one of these fields' values changes."
   },
   "localBaserowTableServiceConditionalForm": {
-    "addFilter": "Add additional filter",
+    "addFilter": "Add filter",
+    "addFilterGroup": "Add filter group",
     "noFilterTitle": "You have not yet created a data source filter",
     "noFilterText": "Data source filters allow you to show Baserow table rows that apply to your conditions.",
     "relatedFieldNotFound": "The related field is not found.",

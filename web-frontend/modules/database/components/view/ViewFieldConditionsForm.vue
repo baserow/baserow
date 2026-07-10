@@ -69,6 +69,12 @@
         @delete-filter="deleteFilter($event)"
         @update-filter-type="$emit('updateFilterType', $event)"
       >
+        <template #filterInputComponent="{ slotProps }">
+          <slot name="filterInputComponent" :slot-props="slotProps"></slot>
+        </template>
+        <template #afterValueInput="{ slotProps }">
+          <slot name="afterValueInput" :slot-props="slotProps"></slot>
+        </template>
       </ViewFieldConditionGroup>
     </div>
     <slot></slot>

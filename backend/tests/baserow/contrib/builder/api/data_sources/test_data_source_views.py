@@ -436,6 +436,7 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             ),
             "trashed": False,
             "value_is_formula": False,
+            "group": None,
         },
         {
             "id": service_filters[1].id,
@@ -449,6 +450,7 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
             "value_is_formula": True,
+            "group": None,
         },
     ]
 
@@ -502,8 +504,231 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             ),
             "trashed": False,
             "value_is_formula": False,
+            "group": None,
         }
     ]
+
+
+@pytest.mark.django_db
+def test_update_data_source_with_filter_groups(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    data_source1 = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source1.id}
+    )
+
+    # The frontend sends the whole filters + filter_groups payload, linking filters to
+    # groups (and nested groups to their parents) via client-generated correlation ids.
+    response = api_client.patch(
+        url,
+        {
+            "filter_groups": [
+                {"id": "group-a", "filter_type": "OR", "parent_group": None},
+                {"id": "group-b", "filter_type": "AND", "parent_group": "group-a"},
+            ],
+            "filters": [
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="foo",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": "group-a",
+                },
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="bar",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": "group-b",
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    groups = list(data_source1.service.service_filter_groups.order_by("id"))
+    assert len(groups) == 2
+    group_a, group_b = groups
+    assert group_a.filter_type == "OR"
+    assert group_a.parent_group_id is None
+    assert group_b.filter_type == "AND"
+    assert group_b.parent_group_id == group_a.id
+
+    filters = list(data_source1.service.service_filters.order_by("order"))
+    assert [f.group_id for f in filters] == [group_a.id, group_b.id]
+
+    # The response exposes the persisted groups, and each filter references its group.
+    response_json = response.json()
+    assert {g["id"] for g in response_json["filter_groups"]} == {
+        str(group_a.id),
+        str(group_b.id),
+    }
+    assert [f["group"] for f in response_json["filters"]] == [
+        str(group_a.id),
+        str(group_b.id),
+    ]
+
+
+@pytest.mark.django_db
+def test_update_data_source_filters_only_preserves_groups(api_client, data_fixture):
+    """
+    Regression: editing a filter sends only `filters` in the PATCH (not
+    `filter_groups`). The existing groups must be preserved and the filters re-linked
+    to them, rather than the groups being wiped and the filters flattened.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source.id}
+    )
+
+    # Create a group with a filter inside it.
+    api_client.patch(
+        url,
+        {
+            "filter_groups": [{"id": "g1", "filter_type": "AND", "parent_group": None}],
+            "filters": [
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="foo",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": "g1",
+                }
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    group = data_source.service.service_filter_groups.get()
+
+    # Simulate editing the filter value: only `filters` is sent, referencing the
+    # existing group by its persisted id. `filter_groups` is intentionally absent.
+    response = api_client.patch(
+        url,
+        {
+            "filters": [
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="bar",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": str(group.id),
+                }
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    # The group survives with the same id and the filter is still linked to it.
+    groups = list(data_source.service.service_filter_groups.all())
+    assert [g.id for g in groups] == [group.id]
+    filters = list(data_source.service.service_filters.all())
+    assert len(filters) == 1
+    assert filters[0].group_id == group.id
+    # The response reflects the preserved group (not a stale/empty list).
+    assert [g["id"] for g in response.json()["filter_groups"]] == [str(group.id)]
+    assert [f["group"] for f in response.json()["filters"]] == [str(group.id)]
+
+
+@pytest.mark.django_db
+def test_update_data_source_filter_groups_only_preserves_filters(
+    api_client, data_fixture
+):
+    """
+    Regression: toggling a group's AND/OR sends only `filter_groups` in the PATCH (not
+    `filters`). The group must be updated in place (keeping its id) and the filters must
+    be preserved, rather than the group being recreated (new id) which would cascade
+    delete the filters.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source.id}
+    )
+
+    api_client.patch(
+        url,
+        {
+            "filter_groups": [{"id": "g1", "filter_type": "AND", "parent_group": None}],
+            "filters": [
+                {
+                    "field": text_field.id,
+                    "type": "equal",
+                    "value": BaserowFormulaObject(
+                        formula="foo",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_RAW,
+                    ),
+                    "value_is_formula": False,
+                    "group": "g1",
+                }
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    group = data_source.service.service_filter_groups.get()
+    service_filter = data_source.service.service_filters.get()
+
+    # Simulate toggling the group's operator: only `filter_groups` is sent.
+    response = api_client.patch(
+        url,
+        {
+            "filter_groups": [
+                {"id": str(group.id), "filter_type": "OR", "parent_group": None}
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    # The group is updated in place (same id, new operator).
+    groups = list(data_source.service.service_filter_groups.all())
+    assert [(g.id, g.filter_type) for g in groups] == [(group.id, "OR")]
+    # The filter is untouched (same id) and still linked to the group.
+    filters = list(data_source.service.service_filters.all())
+    assert [f.id for f in filters] == [service_filter.id]
+    assert filters[0].group_id == group.id
 
 
 @pytest.mark.django_db

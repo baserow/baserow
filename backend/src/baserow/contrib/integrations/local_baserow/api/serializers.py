@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFilter,
+    LocalBaserowTableServiceFilterGroup,
     LocalBaserowTableServiceSort,
 )
 from baserow.core.formula.serializers import FormulaSerializerField
@@ -53,6 +54,26 @@ class LocalBaserowTableServiceSortSerializerMixin(serializers.Serializer):
         return data
 
 
+class LocalBaserowTableServiceFilterGroupSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(
+        help_text="A unique identifier for the filter group. On read this is the "
+        "group's id; on write it may be a client-generated id used to link filters "
+        "and nested groups to this group within the request payload."
+    )
+    parent_group = serializers.CharField(
+        source="parent_group_id",
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="The id of the parent filter group, or null for a group directly "
+        "under the service.",
+    )
+
+    class Meta:
+        model = LocalBaserowTableServiceFilterGroup
+        fields = ("id", "filter_type", "parent_group")
+
+
 class LocalBaserowTableServiceFilterSerializer(serializers.ModelSerializer):
     value = FormulaSerializerField(
         help_text="A formula for the filter's value.",
@@ -66,6 +87,14 @@ class LocalBaserowTableServiceFilterSerializer(serializers.ModelSerializer):
         help_text="A filter is considered trashed if "
         "the field it's associated with is trashed.",
     )
+    group = serializers.CharField(
+        source="group_id",
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="The id of the filter group this filter belongs to, or null if it "
+        "applies directly to the service.",
+    )
     order = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -78,6 +107,7 @@ class LocalBaserowTableServiceFilterSerializer(serializers.ModelSerializer):
             "value",
             "trashed",
             "value_is_formula",
+            "group",
         )
 
 
@@ -98,10 +128,16 @@ class LocalBaserowTableServiceFilterSerializerMixin(serializers.Serializer):
             many=True,
             context=self.context,
         ).data
+        representation["filter_groups"] = LocalBaserowTableServiceFilterGroupSerializer(
+            instance.service_filter_groups.all(),
+            many=True,
+            context=self.context,
+        ).data
         return representation
 
     def to_internal_value(self, data):
         filters = data.pop("filters", None)
+        filter_groups = data.pop("filter_groups", None)
         data = super().to_internal_value(data)
         if filters is not None:
             data["service_filters"] = [
@@ -109,6 +145,13 @@ class LocalBaserowTableServiceFilterSerializerMixin(serializers.Serializer):
                     context=self.context
                 ).to_internal_value(sf)
                 for sf in filters
+            ]
+        if filter_groups is not None:
+            data["service_filter_groups"] = [
+                LocalBaserowTableServiceFilterGroupSerializer(
+                    context=self.context
+                ).to_internal_value(fg)
+                for fg in filter_groups
             ]
         return data
 

@@ -71,7 +71,14 @@
         @update-filter="$emit('updateFilter', $event)"
         @delete-filter="$emit('deleteFilter', $event)"
         @update-filter-type="$emit('updateFilterType', $event)"
-      />
+      >
+        <template #filterInputComponent="{ slotProps }">
+          <slot name="filterInputComponent" :slot-props="slotProps"></slot>
+        </template>
+        <template #afterValueInput="{ slotProps }">
+          <slot name="afterValueInput" :slot-props="slotProps"></slot>
+        </template>
+      </ViewFieldConditionGroup>
     </div>
     <div v-if="!disableFilter" class="filters__group-item-actions">
       <ButtonText

@@ -23,6 +23,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowRowsDeleted,
     LocalBaserowRowsUpdated,
     LocalBaserowTableServiceFilter,
+    LocalBaserowTableServiceFilterGroup,
     LocalBaserowTableServiceSort,
     LocalBaserowUpdateRows,
     LocalBaserowUpsertRow,
@@ -104,6 +105,11 @@ class ServiceFixtures:
         if "order" not in kwargs:
             kwargs["order"] = 0
         return LocalBaserowTableServiceFilter.objects.create(**kwargs)
+
+    def create_local_baserow_table_service_filter_group(
+        self, **kwargs
+    ) -> LocalBaserowTableServiceFilterGroup:
+        return LocalBaserowTableServiceFilterGroup.objects.create(**kwargs)
 
     def create_local_baserow_table_service_sort(
         self, **kwargs
