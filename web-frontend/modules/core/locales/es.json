@@ -1278,9 +1278,23 @@
     "formulaParserErrors": {
         "invalidArgCountMin": "La función '{funcType}' espera un mínimo de {minArgs} argumentos.",
         "invalidArgCountRange": "La función '{funcType}' espera entre {minArgs} y {maxArgs} argumentos.",
-        "invalidArgCountExact": "La función '{funcType}' espera exactamente {minArgs} argumentos."
+        "invalidArgCountExact": "La función '{funcType}' espera exactamente {minArgs} argumentos.",
+        "invalidArgumentType": "'{value}' no es un argumento válido para la función '{funcType}'."
     },
     "formulaInputErrorContext": {
         "viewFullError": "Ver error completo"
+    },
+    "disableTwoFactorAuthModal": {
+        "comment": "Podrán iniciar sesión solo con su contraseña y configurar la autenticación de dos factores nuevamente después.",
+        "confirmation": "¿Estás seguro de que quieres eliminar la autenticación de dos factores para {name}?"
+    },
+    "sampleDataViewer": {
+        "truncatedPayloadWarning": "Solo se muestran los primeros {size} caracteres. Descarga la carga completa o `payload` para inspeccionarlo en tu computadora."
+    },
+    "workspaceOutdatedToast": {
+        "content": "Han ocurrido demasiados cambios mientras estabas lejos. Refresca para ver los últimos datos."
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "Nombre de espacio de trabajo no permitido"
     }
 }
