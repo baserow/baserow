@@ -715,8 +715,8 @@ class FieldDependencyHandler:
             "dependant", "dependant__table"
         )
         specific_dependants = {
-            field.id: field
-            for field in specific_iterator(
+            dependant_field.id: dependant_field
+            for dependant_field in specific_iterator(
                 [via_dep.dependant for via_dep in queryset],
                 base_model=Field,
                 select_related=["table"],
