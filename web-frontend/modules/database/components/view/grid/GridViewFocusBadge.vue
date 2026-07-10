@@ -19,6 +19,10 @@
 </template>
 
 <script>
+import {
+  ANONYMOUS_USER_ID,
+  getAnonymousDisplayName,
+} from '@baserow/modules/core/utils/presenceColors'
 import { activeFocusEntry } from '@baserow/modules/database/utils/presenceFocusEntries'
 
 export default {
@@ -37,13 +41,19 @@ export default {
     activeEntry() {
       return activeFocusEntry(this.entries)
     },
+    isAnonymous() {
+      return this.activeEntry?.user_id === ANONYMOUS_USER_ID
+    },
     activeUser() {
-      if (!this.activeEntry) return null
+      if (!this.activeEntry || this.isAnonymous) return null
       return this.$store.getters['workspace/getUserById'](
         this.activeEntry.user_id
       )
     },
     activeName() {
+      if (this.isAnonymous) {
+        return getAnonymousDisplayName(this.activeEntry.presence_id)
+      }
       return this.activeUser ? this.activeUser.name : '?'
     },
     overflowCount() {

@@ -1,7 +1,11 @@
-import { getPresenceUserColor } from '@baserow/modules/core/utils/presenceColors'
+import {
+  ANONYMOUS_USER_ID,
+  getPresenceColor,
+} from '@baserow/modules/core/utils/presenceColors'
 
 export const state = () => ({
   spaces: {},
+  editorsActive: {},
 })
 
 export const mutations = {
@@ -44,9 +48,15 @@ export const mutations = {
   CLEAR_SPACE(state, { space }) {
     const { [space]: _, ...rest } = state.spaces
     state.spaces = rest
+    const { [space]: _ea, ...restEa } = state.editorsActive
+    state.editorsActive = restEa
+  },
+  SET_EDITORS_ACTIVE(state, { space, active }) {
+    state.editorsActive = { ...state.editorsActive, [space]: active }
   },
   CLEAR_ALL_SPACES(state) {
     state.spaces = {}
+    state.editorsActive = {}
   },
 }
 
@@ -65,6 +75,9 @@ export const actions = {
   },
   clearSpace({ commit }, { space }) {
     commit('CLEAR_SPACE', { space })
+  },
+  handleEditorsActive({ commit }, { space, active }) {
+    commit('SET_EDITORS_ACTIVE', { space, active })
   },
   clearAllSpaces({ commit }) {
     commit('CLEAR_ALL_SPACES')
@@ -93,7 +106,7 @@ function _buildFocusMap(members, focusType, keyFn) {
       presence_id,
       user_id: data.user_id,
       editing: data.focus.editing || false,
-      color: getPresenceUserColor(data.user_id),
+      color: getPresenceColor(data.user_id, presence_id),
     })
   }
   if (map === null) return EMPTY_FOCUS_MAP
@@ -108,14 +121,19 @@ export const getters = {
     const spaceData = state.spaces[spaceName]
     if (!spaceData) return []
     const seen = new Set()
-    const users = []
-    for (const [, data] of Object.entries(spaceData.members)) {
-      if (!seen.has(data.user_id)) {
+    const authUsers = []
+    const anonUsers = []
+    for (const [presenceId, data] of Object.entries(spaceData.members)) {
+      if (data.user_id === ANONYMOUS_USER_ID) {
+        anonUsers.push({ user_id: data.user_id, presence_id: presenceId })
+      } else if (!seen.has(data.user_id)) {
         seen.add(data.user_id)
-        users.push({ user_id: data.user_id })
+        authUsers.push({ user_id: data.user_id, presence_id: presenceId })
       }
     }
-    return users.sort((a, b) => a.user_id - b.user_id)
+    authUsers.sort((a, b) => a.user_id - b.user_id)
+    anonUsers.sort((a, b) => a.presence_id.localeCompare(b.presence_id))
+    return [...authUsers, ...anonUsers]
   },
   getFocusEntriesByCell: (state) => (spaceName) => {
     const spaceData = state.spaces[spaceName]
@@ -130,6 +148,9 @@ export const getters = {
     const spaceData = state.spaces[spaceName]
     if (!spaceData) return EMPTY_FOCUS_MAP
     return _buildFocusMap(spaceData.members, 'row', (f) => f.row_id)
+  },
+  hasAnyActiveEditors: (state) => {
+    return Object.values(state.editorsActive).some(Boolean)
   },
 }
 

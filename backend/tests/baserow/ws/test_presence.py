@@ -11,7 +11,9 @@ from channels.testing import WebsocketCommunicator
 
 from baserow.config.asgi import application
 from baserow.core.async_redis import get_async_redis
+from baserow.ws.auth import ANONYMOUS_USER_TOKEN
 from baserow.ws.presence import (
+    ANONYMOUS_USER_ID,
     PresenceHandler,
     PresenceSpace,
     make_page_key,
@@ -45,6 +47,18 @@ async def _connect(token):
     communicator = WebsocketCommunicator(
         application,
         f"ws/core/?jwt_token={token}&web_socket_id={ws_id}",
+        headers=[(b"origin", b"http://localhost")],
+    )
+    await communicator.connect()
+    await communicator.receive_json_from()  # auth message
+    return communicator, ws_id
+
+
+async def _connect_anonymous():
+    ws_id = str(uuid.uuid4())
+    communicator = WebsocketCommunicator(
+        application,
+        f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}&web_socket_id={ws_id}",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator.connect()
@@ -580,7 +594,7 @@ async def test_restricted_view_excluded_from_presence(data_fixture):
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_public_view_has_no_presence(data_fixture):
+async def test_public_view_joins_table_presence_space(data_fixture):
     user_a, token_a = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user_a)
     database = data_fixture.create_database_application(workspace=workspace)
@@ -591,7 +605,10 @@ async def test_public_view_has_no_presence(data_fixture):
     await comm_a.send_json_to({"page": "view", "slug": view.slug})
     page_add = await comm_a.receive_json_from(timeout=1)
     assert page_add["type"] == "page_add"
-    assert await comm_a.receive_nothing(timeout=0.5)
+    members = await comm_a.receive_json_from(timeout=1)
+    assert members["type"] == "presence.members"
+    assert members["space"] == f"table-{table.id}"
+    assert members["entries"] == []
 
     await comm_a.disconnect()
 
@@ -843,3 +860,311 @@ async def test_subscribe_failure_rolls_back_state_so_resubscribe_works(
     members_msg = consumer.send_json.await_args_list[0].args[0]
     assert members_msg["type"] == "presence.members"
     assert members_msg["space"] == SPACE_NAME
+
+
+# --- Anonymous presence tests ---
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_anonymous_entry_valid_in_presence_space():
+    from baserow.ws.presence import _is_valid_entry
+
+    assert _is_valid_entry({"user_id": ANONYMOUS_USER_ID}) is True
+    assert _is_valid_entry({"user_id": ANONYMOUS_USER_ID, "focus": None}) is True
+
+    space = PresenceSpace("anon-test")
+    pid = "anon-pid-1"
+    await space.join(pid, ANONYMOUS_USER_ID)
+    members = await space.get_members()
+    assert len(members) == 1
+    assert members[0]["user_id"] == ANONYMOUS_USER_ID
+    assert members[0]["presence_id"] == pid
+
+    await space.remove_entry(pid)
+    assert await space.get_members() == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_multiple_anonymous_entries_coexist():
+    space = PresenceSpace("anon-multi")
+    await space.join("anon-1", ANONYMOUS_USER_ID)
+    await space.join("anon-2", ANONYMOUS_USER_ID)
+    await space.join("auth-1", 42)
+
+    members = await space.get_members()
+    assert len(members) == 3
+    anon_members = [m for m in members if m["user_id"] == ANONYMOUS_USER_ID]
+    assert len(anon_members) == 2
+    assert {m["presence_id"] for m in anon_members} == {"anon-1", "anon-2"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_anonymous_handler_suppresses_members_snapshot(presence_types):
+    handler, consumer = _make_mock_handler(user_id=ANONYMOUS_USER_ID)
+    params = {"test_param": 1}
+    await handler.handle_page_subscribed("test_presence_page", params)
+
+    assert handler.presence_id in await _presence_ids_in_redis(PRESENCE_KEY)
+    send_calls = consumer.send_json.await_args_list
+    assert not any(
+        call.args[0].get("type") == "presence.members" for call in send_calls
+    )
+    consumer.channel_layer.group_send.assert_awaited()
+
+    await handler.leave_all_spaces()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_anonymous_join_broadcasts_to_authenticated_editor(data_fixture):
+    user_a, token_a = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user_a)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table, public=True)
+
+    comm_a, ws_a = await _connect(token_a)
+    await comm_a.send_json_to({"page": "table", "table_id": table.id})
+    await comm_a.receive_json_from(timeout=1)  # page_add
+    await comm_a.receive_json_from(timeout=1)  # presence.members
+
+    comm_anon, ws_anon = await _connect_anonymous()
+    await comm_anon.send_json_to({"page": "view", "slug": view.slug})
+    page_add = await comm_anon.receive_json_from(timeout=1)
+    assert page_add["type"] == "page_add"
+
+    ea = await comm_anon.receive_json_from(timeout=1)
+    assert ea["type"] == "presence.editors_active"
+    assert ea["active"] is True
+    assert await comm_anon.receive_nothing(timeout=0.5)
+
+    join = await comm_a.receive_json_from(timeout=1)
+    assert join["type"] == "presence.join"
+    assert join["user_id"] == ANONYMOUS_USER_ID
+    assert "presence_id" in join
+
+    await comm_anon.disconnect()
+
+    leave = await comm_a.receive_json_from(timeout=1)
+    assert leave["type"] == "presence.leave"
+    assert leave["user_id"] == ANONYMOUS_USER_ID
+
+    await comm_a.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_anonymous_receives_no_join_leave_broadcasts(data_fixture):
+    user_a, token_a = data_fixture.create_user_and_token()
+    user_b, token_b = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user_a, members=[user_b])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table, public=True)
+
+    comm_a, ws_a = await _connect(token_a)
+    await comm_a.send_json_to({"page": "table", "table_id": table.id})
+    await comm_a.receive_json_from(timeout=1)  # page_add
+    await comm_a.receive_json_from(timeout=1)  # presence.members
+
+    comm_anon, ws_anon = await _connect_anonymous()
+    await comm_anon.send_json_to({"page": "view", "slug": view.slug})
+    await comm_anon.receive_json_from(timeout=1)  # page_add
+    await _drain(comm_anon, timeout=0.5)  # consume editors_active
+
+    comm_b, ws_b = await _connect(token_b)
+    await comm_b.send_json_to({"page": "table", "table_id": table.id})
+    await comm_b.receive_json_from(timeout=1)  # page_add
+    await comm_b.receive_json_from(timeout=1)  # presence.members
+    await _drain(comm_a, timeout=0.5)  # consume join on editor A
+
+    anon_frames = await _drain(comm_anon, timeout=0.5)
+    join_or_leave = [
+        f for f in anon_frames if f.get("type") in ("presence.join", "presence.leave")
+    ]
+    assert join_or_leave == []
+
+    await comm_b.disconnect()
+    await _drain(comm_a, timeout=0.5)  # consume leave on editor A
+
+    anon_frames = await _drain(comm_anon, timeout=0.5)
+    join_or_leave = [
+        f for f in anon_frames if f.get("type") in ("presence.join", "presence.leave")
+    ]
+    assert join_or_leave == []
+
+    await comm_anon.disconnect()
+    await comm_a.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_anonymous_receives_no_focus_broadcasts(data_fixture):
+    user_a, token_a = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user_a)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table, public=True)
+
+    comm_a, ws_a = await _connect(token_a)
+    await comm_a.send_json_to({"page": "table", "table_id": table.id})
+    await comm_a.receive_json_from(timeout=1)  # page_add
+    await comm_a.receive_json_from(timeout=1)  # presence.members
+
+    comm_anon, ws_anon = await _connect_anonymous()
+    await comm_anon.send_json_to({"page": "view", "slug": view.slug})
+    await comm_anon.receive_json_from(timeout=1)  # page_add
+    await _drain(comm_anon, timeout=0.5)  # consume editors_active
+    await _drain(comm_a, timeout=0.5)  # consume join
+
+    await comm_a.send_json_to(
+        {
+            "type": "presence.focus",
+            "page": "table",
+            "table_id": table.id,
+            "focus": {"type": "cell", "row_id": 1, "field_id": 1, "editing": False},
+        }
+    )
+
+    assert await comm_anon.receive_nothing(timeout=0.5)
+
+    await comm_anon.disconnect()
+    await comm_a.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_public_view_page_resolves_to_table_space(data_fixture):
+    from baserow.ws.registries import page_registry
+
+    user_a, token_a = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user_a)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table, public=True)
+
+    view_page = page_registry.get("view")
+
+    space_name = view_page.get_presence_space_name(slug=view.slug)
+    assert space_name == f"table-{table.id}"
+
+    assert view_page.get_presence_space_name(slug="non-existent") is None
+    assert view_page.get_presence_space_name(slug=None) is None
+    assert view_page.get_presence_space_name() is None
+
+
+# --- editors_active signal tests ---
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_anonymous_receives_editors_active_on_editor_join(data_fixture):
+    user_a, token_a = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user_a)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table, public=True)
+
+    comm_anon, ws_anon = await _connect_anonymous()
+    await comm_anon.send_json_to({"page": "view", "slug": view.slug})
+    await comm_anon.receive_json_from(timeout=1)  # page_add
+    assert await comm_anon.receive_nothing(timeout=0.5)
+
+    comm_a, ws_a = await _connect(token_a)
+    await comm_a.send_json_to({"page": "table", "table_id": table.id})
+    await comm_a.receive_json_from(timeout=1)  # page_add
+    await comm_a.receive_json_from(timeout=1)  # presence.members
+
+    anon_frames = await _drain(comm_anon, timeout=0.5)
+    editors_active_msgs = [
+        f for f in anon_frames if f.get("type") == "presence.editors_active"
+    ]
+    assert len(editors_active_msgs) == 1
+    assert editors_active_msgs[0]["active"] is True
+    assert editors_active_msgs[0]["space"] == f"table-{table.id}"
+
+    await comm_anon.disconnect()
+    await comm_a.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_anonymous_receives_editors_active_false_on_last_editor_leave(
+    data_fixture,
+):
+    user_a, token_a = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user_a)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table, public=True)
+
+    comm_a, ws_a = await _connect(token_a)
+    await comm_a.send_json_to({"page": "table", "table_id": table.id})
+    await comm_a.receive_json_from(timeout=1)  # page_add
+    await comm_a.receive_json_from(timeout=1)  # presence.members
+
+    comm_anon, ws_anon = await _connect_anonymous()
+    await comm_anon.send_json_to({"page": "view", "slug": view.slug})
+    await comm_anon.receive_json_from(timeout=1)  # page_add
+    ea_init = await comm_anon.receive_json_from(timeout=1)
+    assert ea_init["type"] == "presence.editors_active"
+    assert ea_init["active"] is True
+    await _drain(comm_a, timeout=0.5)  # consume anon join
+
+    await comm_a.disconnect()
+
+    anon_frames = await _drain(comm_anon, timeout=1)
+    editors_active_msgs = [
+        f for f in anon_frames if f.get("type") == "presence.editors_active"
+    ]
+    assert len(editors_active_msgs) == 1
+    assert editors_active_msgs[0]["active"] is False
+
+    await comm_anon.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_no_editors_active_signal_when_second_editor_joins(data_fixture):
+    user_a, token_a = data_fixture.create_user_and_token()
+    user_b, token_b = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user_a, members=[user_b])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table, public=True)
+
+    comm_a, ws_a = await _connect(token_a)
+    await comm_a.send_json_to({"page": "table", "table_id": table.id})
+    await comm_a.receive_json_from(timeout=1)  # page_add
+    await comm_a.receive_json_from(timeout=1)  # presence.members
+
+    comm_anon, ws_anon = await _connect_anonymous()
+    await comm_anon.send_json_to({"page": "view", "slug": view.slug})
+    await comm_anon.receive_json_from(timeout=1)  # page_add
+    await comm_anon.receive_json_from(timeout=1)  # editors_active: true (initial)
+    await _drain(comm_a, timeout=0.5)  # consume anon join
+
+    comm_b, ws_b = await _connect(token_b)
+    await comm_b.send_json_to({"page": "table", "table_id": table.id})
+    await comm_b.receive_json_from(timeout=1)  # page_add
+    await comm_b.receive_json_from(timeout=1)  # presence.members
+
+    anon_frames = await _drain(comm_anon, timeout=0.5)
+    editors_active_msgs = [
+        f for f in anon_frames if f.get("type") == "presence.editors_active"
+    ]
+    assert len(editors_active_msgs) == 0
+
+    await comm_anon.disconnect()
+    await comm_a.disconnect()
+    await comm_b.disconnect()

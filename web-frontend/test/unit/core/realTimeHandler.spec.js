@@ -993,6 +993,22 @@ describe('RealTimeHandler presence events', () => {
       )
     ).toBe(true)
   })
+
+  test('presence.editors_active dispatches handleEditorsActive', () => {
+    const { handler, store } = makeHandler()
+    fire(handler, 'presence.editors_active', {
+      space: 'table-1',
+      active: true,
+    })
+    expect(
+      store._dispatched.some(
+        ([n, v]) =>
+          n === 'presence/handleEditorsActive' &&
+          v.space === 'table-1' &&
+          v.active === true
+      )
+    ).toBe(true)
+  })
 })
 
 describe('RealTimeHandler token refresh on reconnect', () => {

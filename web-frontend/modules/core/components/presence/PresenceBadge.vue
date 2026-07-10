@@ -9,7 +9,11 @@
 </template>
 
 <script>
-import { getPresenceUserColor } from '@baserow/modules/core/utils/presenceColors'
+import {
+  ANONYMOUS_USER_ID,
+  getAnonymousDisplayName,
+  getPresenceColor,
+} from '@baserow/modules/core/utils/presenceColors'
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
@@ -19,20 +23,32 @@ export default {
       type: Number,
       required: true,
     },
+    presenceId: {
+      type: String,
+      default: '',
+    },
   },
   computed: {
+    isAnonymous() {
+      return this.userId === ANONYMOUS_USER_ID
+    },
     user() {
+      if (this.isAnonymous) return null
       return this.$store.getters['workspace/getUserById'](this.userId)
     },
     displayName() {
+      if (this.isAnonymous) {
+        return getAnonymousDisplayName(this.presenceId)
+      }
       return this.user ? this.user.name : 'Unknown'
     },
     initials() {
+      if (this.isAnonymous) return '?'
       if (!this.user) return '?'
       return nameAbbreviation(this.user.name)
     },
     color() {
-      return getPresenceUserColor(this.userId)
+      return getPresenceColor(this.userId, this.presenceId)
     },
   },
 }

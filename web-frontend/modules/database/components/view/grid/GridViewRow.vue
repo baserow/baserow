@@ -160,7 +160,7 @@ import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
-import { getPresenceUserColorRgb } from '@baserow/modules/core/utils/presenceColors'
+import { getPresenceColorRgb } from '@baserow/modules/core/utils/presenceColors'
 import { activeFocusEntry } from '@baserow/modules/database/utils/presenceFocusEntries'
 
 // Shared identity for cells without focus entries so their `focusEntries` prop
@@ -353,7 +353,12 @@ export default {
     rowFocusStyle() {
       const entry = activeFocusEntry(this.rowFocusEntries)
       if (entry === null) return {}
-      return { '--focus-color-rgb': getPresenceUserColorRgb(entry.user_id) }
+      return {
+        '--focus-color-rgb': getPresenceColorRgb(
+          entry.user_id,
+          entry.presence_id
+        ),
+      }
     },
     rowIdentifier() {
       switch (this.rowIdentifierType) {

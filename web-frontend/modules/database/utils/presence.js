@@ -28,7 +28,21 @@ export function getPresenceVisibleUsers(vm) {
  * presence focus emission. Handles viewOwnershipType enhancement
  * (e.g. restricted_view overrides).
  */
-export function resolvePresencePageParams(registry, database, table, view) {
+export function resolvePresencePageParams(
+  registry,
+  database,
+  table,
+  view,
+  options = {}
+) {
+  if (options.isPublicView) {
+    return {
+      page: 'view',
+      params: { slug: options.slug, token: options.token },
+      spaceName: null,
+      focusEnabled: true,
+    }
+  }
   let page = 'table'
   let params = { table_id: table.id }
   let focusEnabled = true

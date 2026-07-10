@@ -2,6 +2,7 @@ import json
 import uuid
 from typing import TYPE_CHECKING, Any, Optional, Protocol, runtime_checkable
 
+from channels.db import database_sync_to_async
 from loguru import logger
 
 from baserow.core.async_redis import get_async_redis
@@ -17,6 +18,10 @@ from baserow.ws.types import (
 
 if TYPE_CHECKING:
     from baserow.ws.consumers import CoreConsumer
+
+ANONYMOUS_USER_ID = -1
+PRESENCE_EVENT_PREFIX = "presence."
+ANONYMOUS_ALLOWED_PRESENCE_EVENTS = frozenset({"presence.editors_active"})
 
 PRESENCE_KEY_PREFIX = "presence:"
 PRESENCE_SPACE_TTL = 43200  # 12 hours
@@ -231,7 +236,7 @@ class PresenceHandler:
         space = None
         already_in_space = False
         try:
-            space_name = self.resolve_space_name(page_type_name, parameters)
+            space_name = await self.resolve_space_name(page_type_name, parameters)
             if space_name is None:
                 return
 
@@ -250,16 +255,23 @@ class PresenceHandler:
             )
             members = await self._join(space)
             self._page_subscribed(page_key, space_name, page_type_name, parameters)
-            await self._consumer.send_json(
-                {
-                    "type": "presence.members",
-                    "space": space_name,
-                    "entries": self._filter_members_focus(
-                        page_type_name, parameters, members
-                    ),
-                }
-            )
+            if self.user_id != ANONYMOUS_USER_ID:
+                await self._consumer.send_json(
+                    {
+                        "type": "presence.members",
+                        "space": space_name,
+                        "entries": self._filter_members_focus(
+                            page_type_name, parameters, members
+                        ),
+                    }
+                )
+            else:
+                if self._has_auth_members(members):
+                    await self._send_editors_active(space, active=True)
             await self._broadcast_join(space)
+            if self.user_id != ANONYMOUS_USER_ID:
+                if not self._has_auth_members(members):
+                    await self._signal_editors_active(space, active=True)
         except Exception:
             logger.exception("Presence subscribe failed for page {}", page_type_name)
             # Roll back everything so a later re-subscribe starts clean instead
@@ -314,6 +326,7 @@ class PresenceHandler:
 
         for side_effect in (
             lambda: self._broadcast_leave(space),
+            lambda: self._maybe_signal_last_editor_left(space),
             lambda: self._consumer.send_json(
                 {
                     "type": "presence.space_discard",
@@ -372,6 +385,7 @@ class PresenceHandler:
                 space = PresenceSpace(name=space_name)
                 await self._leave(space)
                 await self._broadcast_leave(space)
+                await self._maybe_signal_last_editor_left(space)
                 await self._consumer.channel_layer.group_discard(
                     space.channel_group, self._consumer.channel_name
                 )
@@ -490,6 +504,36 @@ class PresenceHandler:
             },
         )
 
+    @staticmethod
+    def _has_auth_members(members: list[ActivePresenceEntry]) -> bool:
+        return any(m["user_id"] != ANONYMOUS_USER_ID for m in members)
+
+    async def _signal_editors_active(self, space: PresenceSpace, active: bool) -> None:
+        await self._broadcast(
+            space,
+            {
+                "type": "presence.editors_active",
+                "space": space.name,
+                "active": active,
+            },
+        )
+
+    async def _send_editors_active(self, space: PresenceSpace, active: bool) -> None:
+        await self._consumer.send_json(
+            {
+                "type": "presence.editors_active",
+                "space": space.name,
+                "active": active,
+            }
+        )
+
+    async def _maybe_signal_last_editor_left(self, space: PresenceSpace) -> None:
+        if self.user_id == ANONYMOUS_USER_ID:
+            return
+        remaining = await space.get_members()
+        if not self._has_auth_members(remaining):
+            await self._signal_editors_active(space, active=False)
+
     def _filter_members_focus(
         self,
         page_type_name: str,
@@ -600,7 +644,9 @@ class PresenceHandler:
                 return
 
     @staticmethod
-    def resolve_space_name(page_type_name: str, parameters: dict) -> Optional[str]:
+    async def resolve_space_name(
+        page_type_name: str, parameters: dict
+    ) -> Optional[str]:
         """
         Look up the presence space name for a page type via the registry.
 
@@ -614,4 +660,6 @@ class PresenceHandler:
             page_type = page_registry.get(page_type_name)
         except page_registry.does_not_exist_exception_class:
             return None
-        return page_type.get_presence_space_name(**parameters)
+        return await database_sync_to_async(page_type.get_presence_space_name)(
+            **parameters
+        )

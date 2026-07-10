@@ -699,20 +699,35 @@ export default {
     }
 
     if (isUserPresenceEnabled(this)) {
+      const isPublicView = this.$store.getters['page/view/public/getIsPublic']
+      const options = isPublicView
+        ? {
+            isPublicView: true,
+            slug: this.view.slug,
+            token: this.$store.getters['page/view/public/getAuthToken'],
+          }
+        : {}
       const { page, params, spaceName, focusEnabled } =
         resolvePresencePageParams(
           this.$registry,
           this.database,
           this.table,
-          this.view
+          this.view,
+          options
         )
       this.presenceSpaceName = spaceName
       if (focusEnabled) {
+        const senderOptions = isPublicView
+          ? {
+              hasOtherMembers: () =>
+                this.$store.getters['presence/hasAnyActiveEditors'],
+            }
+          : { hasOtherMembers: () => this.hasOtherPresenceMembers }
         this.presenceFocus = createPresenceFocusSender(
           this.$realtime,
           page,
           params,
-          { hasOtherMembers: () => this.hasOtherPresenceMembers }
+          senderOptions
         )
       }
     }
