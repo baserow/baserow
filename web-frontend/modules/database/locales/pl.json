@@ -767,14 +767,14 @@
     },
     "snapshotsModal": {
         "title": "migawki",
-        "description": "Migawki są pełną kopią danych {applicationTypeName} zarejestrowanych w momencie ich utworzenia. Podczas przywracania danych zostanie utworzony duplikat tych danych. Migawki są automatycznie usuwane po upływie roku.",
-        "descriptionLimits": "Możesz mieć maksymalnie {n} migawek na obszar roboczy. | Możesz mieć maksymalnie {n} migawkę w obszarze roboczym. | Możesz mieć maksymalnie {n} migawek na obszar roboczy.",
+        "description": "Migawki są pełnymi kopiami danych {applicationTypeName} zarejestrowanych w momencie ich utworzenia. Podczas przywracania danych zostanie utworzony duplikat tych danych. Migawki są automatycznie usuwane po upływie roku.",
+        "descriptionLimits": "Możesz mieć maksymalnie {n} migawek na obszar roboczy. | Możesz mieć maksymalnie {n} migawkę na obszar roboczy. | Możesz mieć maksymalnie {n} migawek na obszar roboczy.",
         "createLabel": "Utwórz nową migawkę",
         "create": "Utwórz migawkę",
         "snapshotRestoredErrorTitle": "Wystąpił błąd",
-        "snapshotRestoredErrorMessage": "Nie udało się przywrócić migawki. Proszę spróbować ponownie później.",
+        "snapshotRestoredErrorMessage": "Nie udało się przywrócić migawki. Spróbuj ponownie później.",
         "snapshotDeletedErrorTitle": "Wystąpił błąd",
-        "snapshotDeletedErrorMessage": "Nie udało się usunąć migawki. Proszę spróbować ponownie później.",
+        "snapshotDeletedErrorMessage": "Nie udało się usunąć migawki. Spróbuj ponownie później.",
         "limitReached": "Osiągnięto limit liczby migawek.",
         "snapshot": "Migawka",
         "importingState": "Tworzenie",
@@ -854,7 +854,7 @@
         "notFound": "Nie znaleziono współpracownika"
     },
     "formViewModePreviewForm": {
-        "addCoverImage": "Dodaj zdjęcie na okładkę",
+        "addCoverImage": "Dodaj grafikę na okładkę",
         "addLogo": "Dodaj logo",
         "noFields": "Ten formularz nie ma żadnych pól. Kliknij na pole w lewym pasku bocznym, aby je dodać.",
         "descriptionPlaceholder": "Opis",
@@ -894,17 +894,17 @@
         "unknownUser": "Nieznany użytkownik"
     },
     "fieldCollaboratorSubForm": {
-        "notifyUserWhenAdded": "Powiadom użytkownika po dodaniu"
+        "notifyUserWhenAdded": "Po dodaniu wyślij powiadomienie"
     },
     "rowHistorySidebar": {
         "name": "Historia",
         "empty": "Nie wprowadzono jeszcze żadnych zmian. Tutaj można przeglądać wszelkie zmiany w tym wierszu.",
         "you": "Ty",
-        "created": "utworzył/a ten wiersz",
-        "updated": "zaktualizował/a ten wiersz",
-        "submitted": "przesłał/a ten wiersz",
-        "deleted": "usunął/ęła ten wiersz",
-        "restored": "przywrócił/a ten wiersz",
+        "created": ": użytkownik, który utworzył/a ten wiersz",
+        "updated": ": użytkownik, który zaktualizował/a ten wiersz",
+        "submitted": ": użytkownik, który przesłał/a ten wiersz",
+        "deleted": ": użytkownik, który usunął/ęła ten wiersz",
+        "restored": ": użytkownik, który przywrócił/a ten wiersz",
         "createdUndo": "cofnij utworzenie wiersza",
         "updatedUndo": "cofnij aktualizację wiersza",
         "deletedUndo": "cofnij usunięcie wiersza"
@@ -914,9 +914,9 @@
         "moreValues": "0 | i jeszcze 1 pole. | i {count} więcej pól."
     },
     "fieldPasswordSubForm": {
-        "description": "Pole hasła może być również używane w celu uwierzytelniania użytkownika w konfiguratorze aplikacji.",
-        "allowEndpointAuthentication": "Zezwól na uwierzytelnianie przez endpoint API",
-        "allowEndpointAuthenticationHelp": "Udostępnia to endpoint, w którym można zweryfikować poprawność identyfikatora wiersza i hasła. Umożliwia to wykorzystanie bazy Baserow jako źródła uwierzytelniania."
+        "description": "Pole hasła może być również używane do uwierzytelniania użytkownika w konfiguratorze aplikacji.",
+        "allowEndpointAuthentication": "Zezwól na uwierzytelnianie przy użyciu endpointu API",
+        "allowEndpointAuthenticationHelp": "Udostępnia endpoint, w którym można zweryfikować poprawność identyfikatora wiersza i hasła. Umożliwia to wykorzystanie bazy Baserow jako źródła uwierzytelniania."
     },
     "rowEditFieldPassword": {
         "setPassword": "Ustaw hasło"
@@ -1024,7 +1024,7 @@
     },
     "databaseDashboardResourceLinks": {
         "title": "Dokumentacja API",
-        "description": "Dowiedz się więcej o naszym oprogramowaniu"
+        "description": "Dowiedz się więcej o Baserow"
     },
     "changePrimaryFieldModal": {
         "title": "Zmień pole główne",
@@ -1054,7 +1054,7 @@
         "fieldRating": "Ocena",
         "fieldCategory": "Kategoria",
         "fieldKickoffDate": "Data rozpoczęcia",
-        "fieldDueDate": "Termin",
+        "fieldDueDate": "Termin wykonania",
         "fieldBudget": "Budżet",
         "fieldCompleted": "Zakończono",
         "fieldNotes": "Uwagi",
@@ -1069,23 +1069,23 @@
         "projectsCategoryMarketing": "Marketing",
         "projectsNotesRow1": "Acme zamierza całkowicie zmienić wizerunek swojej strony internetowej zgodnie z następującymi wytycznymi.",
         "projectsNotesRow2": "Sprawdź, czy obecni użytkownicy Soylent są zainteresowani nowym portalem użytkownika.",
-        "projectsNotesRow3": "Zastanawiamy się, czy warto to robić po bojkocie reklam na Facebooku. Badania pokazują, że płatne kampanie reklamowe stają się coraz mniej efektywne.",
+        "projectsNotesRow3": "Zastanawiamy się, czy warto to zrobić po bojkocie reklam na Facebooku. Badania pokazują, że płatne kampanie reklamowe stają się coraz mniej efektywne.",
         "teamsRoleDesigner": "Projektant",
         "teamsRoleDeveloper": "Programista",
-        "teamsRoleMarketer": "Marketingowiec",
-        "tasksDetailsRow1": "Logo wymaga poprawy, aby wyraźniej eksponować wezwanie do działania (CTA).",
-        "tasksDetailsRow2": "Struktura jest w całości poprawna, więc prawdopodobnie trzeba będzie również dostosować mapę witryny.",
-        "tasksDetailsRow3": "Nowa stopka powinna zawierać nasze dane kontaktowe, a także niewielkie (ale wyraźne) wezwanie do działania (CTA).",
-        "campaignsDetailsRow1": "Zrób wielkie oszczędności dzięki naszej letniej promocji z niepowtarzalnymi rabatami na wszystkie Twoje ulubione produkty!",
-        "campaignsDetailsRow2": "Zahamuj odpływ klientów i zwiększ ich zaangażowanie dzięki naszemu atrakcyjnemu programowi lojalnościowemu, stworzonemu z myślą o tym, by nagradzać Twoich najbardziej oddanych klientów.",
-        "campaignsDetailsRow3": "Ożyw swoją działalność i przyciągnij uwagę odbiorców dzięki dynamicznemu rebrandingowi marki, co idealnie wpisze się w dzisiejsze trendy rynkowe i oczekiwania klientów.",
+        "teamsRoleMarketer": "Specjalista od Marketingu",
+        "tasksDetailsRow1": "Logo wymaga poprawy, aby wyraźniej wyeksponować wezwanie do działania (CTA).",
+        "tasksDetailsRow2": "Struktura nie jest taka, jaka powinna być, więc może trzeba będzie również poprawić mapę witryny.",
+        "tasksDetailsRow3": "Nowa stopka powinna zawierać nasze dane kontaktowe, jak również dyskretne (ale zdecydowane) wezwanie do działania (CTA).",
+        "campaignsDetailsRow1": "Zaoszczędź dzięki naszej letniej promocji i niepowtarzalnym rabatom na wszystkie Twoje ulubione produkty!",
+        "campaignsDetailsRow2": "Zahamuj odpływ klientów i zwiększ ich zaangażowanie dzięki naszemu atrakcyjnemu programowi lojalnościowemu, stworzonemu z myślą o tym, by nagradzać Twoich najlepszych klientów.",
+        "campaignsDetailsRow3": "Ożyw swoją działalność i przyciągnij uwagę odbiorców dzięki dynamicznemu rebrandingowi marki. Idealnie wpisze się w dzisiejsze trendy rynkowe i oczekiwania klientów.",
         "customFieldsDescriptionRow1": "Turpis massa tincidunt dui ut ornare lectus sit amet est.",
         "customFieldsDescriptionRow2": "Vitae justo eget magna fermentum iaculis eu non diam.",
         "customFieldsDescriptionRow3": "Convallis tellus id interdum velit laoreet id donec ultrices tincidunt."
     },
     "databaseScratchTrackStep": {
         "title": "Co chcesz śledzić?",
-        "description": "Wybierz jeden z popularnych przykładów użycia lub utwórz własny.",
+        "description": "Wybierz jeden z popularnych przykładów lub utwórz własny.",
         "addYourOwn": "Dodaj własny",
         "tableName": "Nazwa tabeli",
         "rowName": "Nazwa wiersza",
@@ -1101,7 +1101,7 @@
         "tasks": "Zadania",
         "tasksRow1": "Przeprojektowanie logo",
         "tasksRow2": "Wyślij e-mail",
-        "tasksRow3": "Zredaguj wpis na blog",
+        "tasksRow3": "Przygotuj wpis na blogu",
         "campaigns": "Kampanie",
         "campaignsRow1": "Letnia promocja",
         "campaignsRow2": "Program lojalnościowy",
@@ -1111,16 +1111,16 @@
         "title": "Utwórz swoją pierwszą bazę danych",
         "description": "Wybierz, od czego chcesz zacząć:",
         "databaseNameLabel": "Nazwa bazy danych",
-        "databaseNamePrefill": "Baza danych {name}",
+        "databaseNamePrefill": "Baza danych należąca do {name}",
         "scratch": "Od zera",
         "import": "Plik",
         "airtable": "Airtable",
         "template": "Szablon",
-        "workspaceName": "Obszar roboczy {name}"
+        "workspaceName": "Obszar roboczy należący do {name}"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
-        "migrateButtonText": "Przenieś się na wieloetapowy filtr daty",
-        "migrateButtonTooltip": "Nowy filtr jest już dostępny. Kliknij, aby zaktualizować. Działa tak samo."
+        "migrateButtonText": "Zamień na wielostopniowy filtr daty",
+        "migrateButtonTooltip": "Nowy filtr jest już dostępny. Kliknij, aby go zaktualizować. Działa tak samo."
     },
     "dataSyncType": {
         "syncError": "Błąd synchronizacji",
@@ -1129,10 +1129,10 @@
     },
     "iCalCalendarDataSync": {
         "name": "Adres URL iCal",
-        "description": "Funkcja synchronizacji kalendarza iCal automatycznie synchronizuje wpisy z plikiem kalendarza znajdującym się pod podanym adresem URL. Obsługiwany jest tylko format ICS (Internet Calendar and Scheduling)."
+        "description": "Funkcja uaktualniania kalendarza iCal automatycznie synchronizuje wpisy z kalendarzem znajdującym się pod podanym adresem URL. Obsługiwany jest tylko format ICS (Internet Calendar and Scheduling)."
     },
     "postgreSQLDataSync": {
-        "description": "Synchronizuje tabelę PostgreSQL z tabelą Baserow na podstawie podanych poniżej danych. Należy pamiętać, że po rozpoczęciu synchronizacji zostaną zaznaczone wszystkie wiersze w podanej tabeli. Mimo że Baserow tylko odczytuje dane, zalecamy ograniczyć uprawnienia użytkownika do poziomu tylko do odczytu.",
+        "description": "Synchronizuje tabelę PostgreSQL z tabelą Baserow na podstawie podanych poniżej danych. Należy pamiętać, że po rozpoczęciu synchronizacji zostaną zaznaczone wszystkie wiersze w podanej tabeli. Mimo że Baserow tylko odczytuje dane, zalecamy ograniczyć uprawnienia użytkownika do \"tylko do odczytu\".",
         "host": "Host",
         "username": "Nazwa użytkownika",
         "password": "Hasło",
@@ -1147,11 +1147,11 @@
         "fields": "Wybierz pola, które chcesz zsynchronizować",
         "create": "Utwórz i zsynchronizuj tabelę",
         "error": "Podczas synchronizacji wystąpił błąd",
-        "autoAddLabel": "Automatycznie dodawaj nowe właściwości",
-        "autoAddHelper": "Automatycznie dodaje i synchronizuje nowo dostępne atrybuty ze źródła danych do tabeli Baserow. Należy pamiętać, że aby ta funkcja działała, wszystkie atrybuty muszą być zsynchronizowane.",
+        "autoAddLabel": "Automatycznie dodawaj nowe atrybuty",
+        "autoAddHelper": "Automatycznie dodaje i synchronizuje nowo dostępne atrybuty w źródle danych z tabelą Baserow. Należy pamiętać, że aby ta funkcja działała, wszystkie atrybuty muszą być zsynchronizowane.",
         "twoWaySyncLabel": "Synchronizacja dwu-kierunkowa",
         "deleteUnmatchedRowsLabel": "Usuń wiersze, gdy zostaną usunięte lub ukryte w źródle",
-        "deleteUnmatchedRowsHelper": "Gdy opcja jest włączona, to w trakcie każdej synchronizacji wiersze usunięte lub niewidoczne w źródle są usuwane z tej tabeli. Natomiast jeśli opcja jest wyłączona, wiersze nie są usuwane i gdy wiersz źródłowy pojawi się ponownie, zostaną użyte ponownie.",
+        "deleteUnmatchedRowsHelper": "Gdy opcja ta jest włączona, to w trakcie każdej synchronizacji wiersze usunięte lub niewidoczne w źródle są usuwane z tej tabeli. Jeśli opcja jest wyłączona, wiersze nie są usuwane i zostaną użyte ponownie, gdy pojawi się wiersz źródłowy.",
         "syncing": "Synchronizowanie danych..."
     },
     "syncTableModal": {
@@ -1167,7 +1167,7 @@
         "large": "Duża"
     },
     "gridViewFreezeHandle": {
-        "freeze": "Zablokuj 0 kolumn | Zablokuj 1 kolumnę | Zablokuj {count} kolumny",
+        "freeze": "Zablokuj 0 kolumn | Zablokuj 1 kolumnę | Zablokuj {count} kolumny/kolumn",
         "hoverHint": "Przeciągnij, aby zablokować kolumny"
     },
     "configureDataSyncModal": {
@@ -1192,7 +1192,7 @@
     },
     "tablesGuidedTourStep": {
         "title": "Skonfiguruj tabelę",
-        "content": "Tabele pozwalają przechowywać dane w sposób uporządkowany. Utwórz tabelę w bazie, aby zacząć budowę struktury swoich danych."
+        "content": "Tabele pozwalają przechowywać dane w sposób uporządkowany. Utwórz tabelę, aby ustrukturyzować swoje dane."
     },
     "filterSortGroupGuidedTourStep": {
         "title": "Wyszukaj i uporząkuj swoje dane",
@@ -1200,39 +1200,39 @@
     },
     "addFieldGuidedTourStep": {
         "title": "Dostosuj swoje dane",
-        "content": "Kliknij “+”, aby dodać nowe pola (kolumny). Spośród różnych rodzajów pól wybierz te, które pomogą uchwycić to, co jest najważniejsze w Twoim projekcie."
+        "content": "Kliknij “+”, aby dodać nowe pola (kolumny). Spośród dostępnych rodzajów pól wybierz te, które pomogą ci uchwycić to, co ma znaczenie."
     },
     "createViewGuidedTourStep": {
         "title": "Spersonalizuj widoki",
-        "content": "Utwórz swoje własne widoki, takie jak siatka, kalendarz, kanban lub galeria, po to, aby zwizualizować swoje dane dokładnie tak, jak chcesz."
+        "content": "Aby zwizualizować swoje dane dokładnie tak, jak chcesz, utwórz własne widoki, takie jak siatka, kalendarz, kanban lub galeria."
     },
     "createFormViewGuidedTourStep": {
         "title": "Utwórz formularz",
-        "content": "Szybko twórz formularze na podstawie swoich tabel i zbieraj odpowiedzi bezpośrednio w tabeli, usprawni to zbieranie danych."
+        "content": "Utwórz formularze powiązane z tabelami — odpowiedzi będą w nich wpisywane bezpośrednio, co znacznie usprawni zbieranie danych."
     },
     "viewOptionsGuidedTourStep": {
         "title": "Opcje widoku",
-        "content": "Kliknij trzy kropki obok widoku, aby wyeksportować, zaimportować, zduplikować oraz skonfigurować webhook."
+        "content": "Aby wyeksportować, zaimportować, zduplikować oraz skonfigurować webhook, kliknij trzy kropki obok widoku."
     },
     "fieldRules": {
         "errorTitle": "Błąd podczas przetwarzania reguły pola",
         "ruleDoesNotExist": "Reguła nie istnieje",
-        "ruleTypeDoesNotExist": "Typ reguły nie istnieje",
-        "ruleAlreadyExists": "Reguła już istnieje"
+        "ruleTypeDoesNotExist": "Ten typ reguły nie istnieje",
+        "ruleAlreadyExists": "Ta reguła już istnieje"
     },
     "fieldFormViewEditRowSubForm": {
         "selectFormViewLabel": "Widok formularza",
-        "description": "Każdemu wierszowi zostanie przypisany unikalny link, który umożliwi wstępne wypełnienie formularza danymi z tego wiersza. Należy pamiętać, że za pomocą formularza każdy użytkownik z dostępem do odczytu tabeli i pola będzie mógł edytować dany wiersz. Ponadto jeśli widok jest udostępniony publicznie, dotyczy to także odwiedzających.",
+        "description": "Każdemu wierszowi zostanie przypisany unikalny link, który umożliwi wstępne wypełnienie formularza danymi z tego wiersza. Zwróć uwagę, że za pomocą formularza każdy użytkownik z dostępem do odczytu tabeli i pola będzie mógł edytować dany wiersz. Jeśli widok jest udostępniony publicznie, dotyczy to także odwiedzających.",
         "notPublicWarning": "Ten formularz nie jest udostępniony publicznie. Link do edycji nie będzie działać, dopóki formularz nie zostanie opublikowany publicznie.",
         "notPublic": "(niepubliczny)",
-        "formDoesNotExist": "Wybrany formularz już nie istnieje."
+        "formDoesNotExist": "Wybrany formularz został usunięty."
     },
     "editRowLink": {
         "editRow": "Edytuj wiersz"
     },
     "rowEditFieldFormViewEditRow": {
         "copyLink": "Skopiuj link",
-        "noFormView": "Nie skonfigurowano widoku formularza"
+        "noFormView": "Nie skonfigurowano żadnego widoku formularza"
     },
     "tableExcelImporter": {
         "chooseFileLabel": "Wybierz plik Excel",
