@@ -319,7 +319,7 @@ def update_workspaces_periodic_fields(
 def finish_periodic_fields_update(token: str):
     """Chord callback: release the per-cycle run lock if we still own it."""
 
-    SingletonAutoRescheduleFlag(RUN_LOCK_KEY).clear_if(token)
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).clear_if(token)
 
 
 def _update_workspace_periodic_fields(
