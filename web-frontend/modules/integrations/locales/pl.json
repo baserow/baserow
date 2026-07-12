@@ -102,7 +102,7 @@
         "localBaserowUpdateRowsDescription": "Zbiorczo aktualizuje istniejące wiersze w tabeli bazy Baserow.",
         "localBaserowFieldsUpdated": "Uaktualnia konkretne wartości pól",
         "localBaserowFieldsUpdatedDescription": "Uruchamia się, gdy w określonych polach tabeli bazy Baserow są aktualizowane wiersze.",
-        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja uruchomi ten proces.",
+        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja rozpocznie ten proces.",
         "coreCSVFileReader": "Wczytaj plik CSV",
         "coreCSVFileReaderDescription": "Wczytuje wiersze z pliku CSV.",
         "coreStartWorkflow": "Uruchom proces",
