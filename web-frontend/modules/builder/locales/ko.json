@@ -273,7 +273,14 @@
         "verticalAlignment": "수직 정렬",
         "columnAmountName": "열 없음 | 1열 | {columnAmount}열",
         "columnGapTitle": "열 사이 간격",
-        "columnGapPlaceholder": "열 사이 간격 입력..."
+        "columnGapPlaceholder": "열 사이 간격 입력...",
+        "customLayout": "커스텀",
+        "customWeightsTitle": "사용자 지정 열 가중치",
+        "customWeightsHelper": "열의 너비를 내용의 너비만큼만 유지하려면 0을 사용하십시오. 나머지 공간은 다른 열과 공유됩니다.",
+        "errorCustomWeightsMinimum": "열 가중치는 0 이상이어야 합니다",
+        "columnStackingTitle": "기기 유형별로 열을 쌓으세요",
+        "columnStackingHorizontal": "나란히",
+        "columnStackingStacked": "쌓인"
     },
     "domainSettings": {
         "titleOverview": "도메인",
@@ -1031,7 +1038,14 @@
         "menuItemAddButton": "버튼",
         "menuItemAddSpacer": "공간 조정자",
         "eventDescription": "이 버튼의 동작을 구성하려면 해당 요소의 이벤트 탭을 열어주세요.",
-        "noMenuItemsMessage": "'추가' 버튼을 클릭하여 첫 번째 메뉴 항목을 추가하세요."
+        "noMenuItemsMessage": "'추가' 버튼을 클릭하여 첫 번째 메뉴 항목을 추가하세요.",
+        "variant": "기기 유형별 변형",
+        "expanded": "확장된",
+        "compact": "콤팩트",
+        "previewCompactMenuLabel": "간략 메뉴 미리보기",
+        "previewCompactMenuHelper": "간편 메뉴 미리보기를 표시/숨깁니다.",
+        "openEditorCompactMenu": "메뉴 열기",
+        "closeEditorCompactMenu": "메뉴 닫기"
     },
     "simpleContainerElementForm": {
         "noConfigurationOptions": "컨테이너 요소에는 구성 옵션이 없습니다."
@@ -1108,5 +1122,10 @@
         "serviceMisconfiguredMessage": "구성을 확인하세요.",
         "errorWorkflowActionDispatch": "\"{name}\" 작업이 실패했습니다. ",
         "errorDataSourceDispatch": "\"{name}\" 데이터를 로드하는 데 실패했습니다. "
+    },
+    "workflowAction": {
+        "sampleDataModalTitle": "{actionLabel}에 대한 페이로드",
+        "sampleDataModalSubTitle": "JSON 페이로드",
+        "testActionDescription": "이 작업을 미리 보기 모드에서 실행하여 출력을 캡처하고 후속 작업에서 사용할 수 있도록 하세요."
     }
 }
