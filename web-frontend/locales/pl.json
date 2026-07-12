@@ -125,7 +125,9 @@
         "alreadyInUse": "Ta nazwa pola jest już w użyciu.",
         "invalidCharacters": "To pole zawiera nieprawidłowe znaki.",
         "decimalField": "Wartość w tym polu musi być typu dziesiętnego.",
-        "copyFailed": "Kopiowanie do schowka nie powiodło się. Spróbuj ponownie."
+        "copyFailed": "Kopiowanie do schowka nie powiodło się. Spróbuj ponownie.",
+        "nameContainsUrl": "Nazwy nie mogą zawierać linków, domen lub adresów stron internetowych.",
+        "nameCantBeEmail": "Wprowadź swoje imię i nazwisko, a nie adres e-mail."
     },
     "permission": {
         "admin": "Administrator",
@@ -315,7 +317,8 @@
         "hasDateOnOrBefore": "zawiera datę równą lub przed",
         "hasDateAfter": "zawiera datę po",
         "hasAnyOf": "zawiera którekolwiek z",
-        "hasNotAnyOf": "nie zawiera któregokolwiek z"
+        "hasNotAnyOf": "nie zawiera któregokolwiek z",
+        "startsWith": "na początku jest"
     },
     "viewType": {
         "grid": "Siatka",
@@ -721,7 +724,9 @@
         "toDatetimeDescription": "Przetwarza ciąg znaków na obiekt typu datetime (daty i godziny). Opcjonalny drugi argument określa format (np. 'DD/MM/YYYY'). W przypadku pominięcia argumentu formatu, zostanie użyty format ISO 8601.",
         "toDurationDescription": "Zwraca czas trwania odpowiadający podanemu argumentowi.",
         "durationFormatDescription": "Formatuje czas trwania jako tekst, używając ciągu zawierającego symbole 'd' (dni), 'h' (godziny), 'm' (minuty) i 's' (sekundy), np. 'h:mm', 'd h:mm:ss'.",
-        "categoryUtility": "Narzędzie"
+        "categoryUtility": "Narzędzie",
+        "toJsonDescription": "Serializuje wartość jako ciąg znaków w formacie JSON, gdzie cudzysłowy, znaki odwrotnego ukośnika i znaki sterujące poprzedzone są znakiem \"escape\", dzięki czemu można ją umieścić w dokumencie JSON.",
+        "fromJsonDescription": "Przetwarza ciąg znaków zakodowany w formacie JSON na wartość, taką jak obiekt, tablica lub liczba. Zwraca null, jeśli ciąg nie jest poprawnie sformatowany jako JSON."
     },
     "runtimeGetErrors": {
         "invalidPath": "Argument 'get' '{path}' musi być zapisany jako ścieżka rozdzielona kropkami (np. 'dostawca.atrybut').",
