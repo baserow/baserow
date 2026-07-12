@@ -893,7 +893,8 @@
         "workspaces": "작업공간",
         "lastLogin": "마지막 로그인",
         "dateJoined": "가입일",
-        "active": "활성"
+        "active": "활성",
+        "twoFactorAuth": "2FA"
     },
     "editUserContext": {
         "changePassword": "비밀번호 변경",
@@ -920,7 +921,9 @@
         "error": {
             "invalidName": "유효한 전체 이름을 입력하세요. 2자 이상 150자 이하여야 합니다.",
             "invalidEmail": "유효한 이메일 주소를 입력하세요."
-        }
+        },
+        "twoFactorAuth": "이중 인증",
+        "removeTwoFactorAuth": "2단계 인증을 제거하세요"
     },
     "changeUserPasswordModal": {
         "changePassword": "{username}의 비밀번호 변경"
@@ -1184,6 +1187,31 @@
     "formulaParserErrors": {
         "invalidArgCountMin": "'{funcType}' 함수는 최소 {minArgs}개의 인수를 필요로 합니다.",
         "invalidArgCountExact": "'{funcType}' 함수는 정확히 {minArgs}개의 인수를 필요로 합니다.",
-        "invalidArgCountRange": "'{funcType}' 함수는 {minArgs}와 {maxArgs} 사이의 인수를 예상합니다."
+        "invalidArgCountRange": "'{funcType}' 함수는 {minArgs}와 {maxArgs} 사이의 인수를 예상합니다.",
+        "invalidArgumentType": "'{value}'는 '{funcType}' 함수의 유효한 인수가 아닙니다."
+    },
+    "sampleDataViewer": {
+        "payloadLabel": "아웃풋",
+        "errorLabel": "오류가 발생했습니다...",
+        "showPayloadLabel": "페이로드 표시",
+        "showErrorLabel": "오류 표시",
+        "downloadFullPayload": "전체 페이로드 다운로드",
+        "truncatedLabel": "[출력 내용 일부 생략]",
+        "truncatedPayloadWarning": "처음 {size}개의 문자만 표시됩니다. 전체 페이로드를 다운로드하여 컴퓨터에서 확인하세요."
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "워크스페이스 이름은 허용되지 않습니다"
+    },
+    "workspaceOutdatedToast": {
+        "title": "너무 많은 변경",
+        "content": "자리를 비운 동안 너무 많은 변경 사항이 발생했습니다. 최신 데이터를 보려면 새로고침하세요.",
+        "action": "데이터 새로 고침",
+        "dismiss": "버림"
+    },
+    "disableTwoFactorAuthModal": {
+        "title": "2단계 인증을 제거하세요",
+        "confirmation": "{name}님의 2단계 인증을 정말로 제거하시겠습니까?",
+        "comment": "사용자는 비밀번호만으로 로그인할 수 있으며, 나중에 다시 2단계 인증을 설정할 수 있습니다.",
+        "remove": "2단계 인증을 제거하세요"
     }
 }
