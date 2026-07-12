@@ -185,7 +185,7 @@
         "coreHTTPTrigger": "Trigger HTTP",
         "coreHTTPTriggerDescription": "Użyj żądania HTTP jako triggera procesu",
         "coreManualTrigger": "Trigger ręczny",
-        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja uruchomi ten proces"
+        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja rozpocznie ten proces"
     },
     "workflowEditor": {
         "chooseEvent": "Wybierz zdarzenie..."
