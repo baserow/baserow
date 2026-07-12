@@ -57,24 +57,19 @@
             <i class="form-view__edit-icon iconoir-edit-pencil"></i
           ></a>
         </h1>
-        <p v-if="!readOnly || view.description" class="form-view__description">
-          <Editable
+        <div
+          v-if="!readOnly || view.description"
+          class="form-view__description"
+        >
+          <RichTextEditor
             ref="description"
-            :value="view.description"
+            v-model="descriptionCopy"
+            :editable="!readOnly"
+            :enable-rich-text-formatting="true"
             :placeholder="$t('formViewModePreviewForm.descriptionPlaceholder')"
-            :multiline="true"
-            @change="updateForm({ description: $event.value })"
-            @editing="editingDescription = $event"
-          ></Editable>
-          <a
-            v-if="!readOnly"
-            class="form-view__edit"
-            :class="{ 'form-view__edit--hidden': editingDescription }"
-            @click="$refs.description.edit()"
-          >
-            <i class="form-view__edit-icon iconoir-edit-pencil"></i
-          ></a>
-        </p>
+            @blur="saveDescription"
+          ></RichTextEditor>
+        </div>
         <div v-if="fields.length === 0" class="form-view__no-fields">
           <div class="form-view__no-fields-title">
             {{ $t('formViewModePreviewForm.noFieldsTitle') }}
@@ -153,6 +148,7 @@ import FormViewImageUpload from '@baserow/modules/database/components/view/form/
 import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
 import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
 import FormViewMetaControls from '@baserow/modules/database/components/view/form/FormViewMetaControls'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 
 export default {
   name: 'FormViewModePreviewForm',
@@ -161,6 +157,7 @@ export default {
     FormViewField,
     FormViewImageUpload,
     FormViewMetaControls,
+    RichTextEditor,
   },
   mixins: [formViewHelpers],
   props: {
@@ -190,12 +187,25 @@ export default {
     return {
       editingTitle: false,
       editingSubmitText: false,
-      editingDescription: false,
+      descriptionCopy: this.view.description || '',
     }
+  },
+  watch: {
+    'view.description': {
+      handler(value) {
+        this.descriptionCopy = value || ''
+      },
+    },
   },
   methods: {
     order(order) {
       this.$emit('ordered-fields', order)
+    },
+    saveDescription() {
+      const markdown = this.$refs.description.serializeToMarkdown()
+      if (markdown !== (this.view.description || '')) {
+        this.updateForm({ description: markdown })
+      }
     },
   },
 }
