@@ -52,24 +52,15 @@
           v-show="selected || fieldOptions.description"
           class="form-view__field-description"
         >
-          <Editable
+          <RichTextEditor
             ref="description"
-            :value="fieldOptions.description"
+            v-model="descriptionCopy"
+            :editable="!readOnly"
+            :enable-rich-text-formatting="true"
             :placeholder="$t('formViewField.descriptionPlaceholder')"
-            :multiline="true"
-            @change="
-              $emit('updated-field-options', { description: $event.value })
-            "
-            @editing="editingDescription = $event"
-          ></Editable>
-          <a
-            v-if="!readOnly"
-            class="form-view__edit form-view-field-edit"
-            :class="{ 'form-view__edit--hidden': editingDescription }"
-            @click="$refs.description.edit()"
-          >
-            <i class="form-view__edit-icon iconoir-edit-pencil"></i
-          ></a>
+            editor-class="form-view__field-description-editor"
+            @blur="saveDescription"
+          ></RichTextEditor>
         </div>
         <p
           v-if="!readOnly && cannotSubmitValues"
@@ -196,10 +187,11 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm'
 import { createFiltersTree } from '@baserow/modules/database/utils/view'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 
 export default {
   name: 'FormViewField',
-  components: { ViewFieldConditionsForm },
+  components: { ViewFieldConditionsForm, RichTextEditor },
   provide() {
     return {
       registerChild: this.registerChild,
@@ -245,9 +237,9 @@ export default {
     return {
       selected: false,
       editingName: false,
-      editingDescription: false,
       value: null,
       children: [],
+      descriptionCopy: this.fieldOptions.description || '',
     }
   },
   computed: {
@@ -306,6 +298,11 @@ export default {
         })
       },
     },
+    'fieldOptions.description': {
+      handler(value) {
+        this.descriptionCopy = value || ''
+      },
+    },
   },
   created() {
     this.resetValue()
@@ -337,6 +334,12 @@ export default {
     },
     updateValue(value) {
       this.value = value
+    },
+    saveDescription() {
+      const markdown = this.$refs.description.serializeToMarkdown()
+      if (markdown !== (this.fieldOptions.description || '')) {
+        this.$emit('updated-field-options', { description: markdown })
+      }
     },
     getFieldType() {
       return this.$registry.get('field', this.field.type)
