@@ -232,7 +232,7 @@
         "rowUsage": "행 사용량",
         "storeUsage": "스토리지 사용량",
         "disconnectLicense": "라이선스 연결 해제",
-        "disconnectDescription": "활성 상태에서 이 라이선스를 연결 해제하면 관련 사용자는 더 이상 해당 플랜에 접근할 수 없습니다. 이는 라이선스를 효과적으로 제거합니다. 다른 자체 호스팅 인스턴스에서 이 라이선스를 사용하려면 {contact}으로 지원팀에 문의하세요.",
+        "disconnectDescription": "이 라이선스를 정말로 연결 해제하시겠습니까? 라이선스가 활성화된 상태에서 연결을 해제하면 관련 사용자는 더 이상 해당 플랜에 액세스할 수 없습니다. 이렇게 하면 해당 인스턴스에서 라이선스가 완전히 제거됩니다. 구독의 인스턴스 ID는 {subscriptions} 페이지에서 변경하거나 엔터프라이즈 버전인 경우 {contact}로 지원팀에 문의하여 변경할 수 있습니다.",
         "moreSeatsNeededTitle": "더 많은 좌석 필요",
         "contactSalesMoreSeats": "더 많은 좌석을 위해 영업팀에 문의하세요",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats}개의 유료 좌석과 {free_users_count}명의 무료 사용자가 사용 중",
