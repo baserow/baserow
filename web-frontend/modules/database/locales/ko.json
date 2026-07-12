@@ -68,7 +68,8 @@
         "lastSynced": "마지막 동기화",
         "notSynced": "동기화되지 않음",
         "sync": "테이블 동기화",
-        "updateSyncConfig": "동기화 구성 업데이트"
+        "updateSyncConfig": "동기화 구성 업데이트",
+        "importFile": "가져오기 파일"
     },
     "duplicateTableJobType": {
         "duplicating": "복제 중",
@@ -310,7 +311,8 @@
         "dbIndexError": "이 필드 유형에는 인덱스가 있을 수 없습니다. 필드 유형을 저장하거나 변경하기 전에 인덱스를 제거하세요.",
         "dbIndexDescription": "인덱싱을 사용하면 필터링 성능이 크게 향상되지만 생성, 업데이트 및 삭제 작업 속도가 느려집니다.",
         "defaultValueDisabledByConstraint": "고유 제약 조건으로 기본값을 설정할 수 없습니다",
-        "dbIndexDisabledTooltip": "이 필드 유형에는 인덱싱을 사용할 수 없습니다."
+        "dbIndexDisabledTooltip": "이 필드 유형에는 인덱싱을 사용할 수 없습니다.",
+        "defaultValueOverriddenByView": "이 필드에는 보기 수준의 기본값이 설정되어 있으며, 이 기본값보다 우선 적용됩니다."
     },
     "fieldSelectThroughFieldSubForm": {
         "noTable": "이 필드를 생성하려면 최소 하나의 테이블 링크 필드가 필요합니다.",
@@ -432,7 +434,8 @@
         "importError": "파일 가져오는 중 오류가 발생했습니다",
         "stateRowCreation": "가져오는 중...",
         "statePreValidation": "데이터 유효성 검사 중...",
-        "stateCreateTable": "테이블 생성 중..."
+        "stateCreateTable": "테이블 생성 중...",
+        "importingTable": "테이블 \"{name}\"을 가져오는 중..."
     },
     "importErrorReport": {
         "reportTitleFailure": "실패한 행",
@@ -458,7 +461,8 @@
         "upsertTooltip": "고유한 필드를 사용하여 기존 행을 일치시키고 가져온 값으로 데이터를 덮어씁니다.",
         "stateRowCreation": "가져오는 중...",
         "statePreValidation": "데이터 검증 중...",
-        "stateCreateTable": "테이블 생성 중..."
+        "stateCreateTable": "테이블 생성 중...",
+        "restoredFile": "파일 \"{name}\"을 가져오는 중..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "수식을 편집하려면 클릭하세요",
@@ -542,7 +546,10 @@
         "groupBy": "그룹화 기준",
         "thenBy": "다음 기준",
         "addGroupBy": "그룹화할 필드 선택",
-        "hiddenFieldWarning": "하나 이상의 그룹화 기준이 편집자 및 하위 권한 사용자에게 표시되지 않는 숨겨진 필드를 참조합니다."
+        "hiddenFieldWarning": "하나 이상의 그룹화 기준이 편집자 및 하위 권한 사용자에게 표시되지 않는 숨겨진 필드를 참조합니다.",
+        "maxGroupBysReached": "최대 {count}개의 필드를 기준으로 그룹화할 수 있습니다.",
+        "collapseAllGroups": "모두 접기",
+        "expandAllGroups": "모두 펼치기"
     },
     "viewGroupBy": {
         "groupBy": "그룹 | 1개의 필드로 그룹화 | {count}개의 필드로 그룹화"
@@ -722,7 +729,9 @@
     },
     "exportTableForm": {
         "viewLabel": "내보낼 뷰 선택:",
-        "typeError": "사용 가능한 내보내기 유형이 없습니다. 다른 뷰 또는 전체 테이블을 선택하세요."
+        "typeError": "사용 가능한 내보내기 유형이 없습니다. 다른 뷰 또는 전체 테이블을 선택하세요.",
+        "includeRowId": "행 ID를 포함하세요",
+        "includePrimaryField": "기본 필드를 포함하세요"
     },
     "exportTableLoadingBar": {
         "export": "내보내기",
@@ -1078,7 +1087,10 @@
         "error": "동기화 중 문제가 발생했습니다",
         "autoAddLabel": "새로운 속성을 자동으로 추가합니다",
         "autoAddHelper": "데이터 소스에서 새로 사용 가능한 속성을 Baserow 테이블에 자동으로 추가하고 동기화합니다. 이 기능을 사용하려면 모든 속성을 동기화해야 합니다.",
-        "twoWaySyncLabel": "양방향 동기화"
+        "twoWaySyncLabel": "양방향 동기화",
+        "deleteUnmatchedRowsLabel": "원본에서 삭제되거나 숨겨진 행은 삭제됩니다",
+        "deleteUnmatchedRowsHelper": "이 옵션을 활성화하면 원본 테이블에서 삭제되거나 더 이상 표시되지 않는 행은 동기화할 때마다 이 테이블에서도 삭제됩니다. 비활성화하면 해당 행은 유지되며 원본 행이 다시 나타나면 재사용됩니다.",
+        "syncing": "데이터 동기화 중..."
     },
     "syncTableModal": {
         "title": "{name} 동기화",
@@ -1186,5 +1198,25 @@
     "gridViewFreezeHandle": {
         "freeze": "0개 열 고정 | 1개 열 고정 | {count}개 열 고정",
         "hoverHint": "드래그하여 열을 고정하세요"
+    },
+    "tableExcelImporter": {
+        "chooseFileLabel": "엑셀 파일을 선택하세요",
+        "chooseFileDescription": ".xlsx, .xls 또는 .ods 파일을 업로드하여 기존 스프레드시트를 가져올 수 있습니다. 파일에 여러 시트가 포함된 경우 가져올 시트를 선택할 수 있습니다.",
+        "chooseFile": "엑셀 파일을 선택하세요",
+        "sheet": "시트",
+        "firstRowHeader": "첫 번째 행이 헤더입니다",
+        "limitFileSize": "최대 파일 크기는 {limit}MB입니다.",
+        "limitError": "{limit}개 이상의 행을 가져올 수 없습니다.",
+        "processingError": "엑셀 파일을 처리하는 동안 오류가 발생했습니다: {error}",
+        "emptyError": "이 엑셀 파일에는 시트가 없습니다.",
+        "emptySheetError": "선택한 시트가 비어 있습니다."
+    },
+    "viewSearch": {
+        "clearSearch": "검색 결과 지우기"
+    },
+    "gridViewGroupByBanner": {
+        "emptyValue": "(비어 있는)",
+        "expandGroup": "그룹 확장",
+        "collapseGroup": "그룹 접기"
     }
 }
