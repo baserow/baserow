@@ -1,3 +1,5 @@
+from typing import Optional
+
 from django.conf import settings
 from django.core.cache import cache
 
@@ -40,9 +42,13 @@ class SingletonAutoRescheduleFlag:
     `acquire`/`extend`/`clear_if`.
     """
 
-    def __init__(self, key: str, timeout: int = settings.AUTO_INDEX_LOCK_EXPIRY * 2):
+    def __init__(self, key: str, timeout: Optional[int] = None):
         self.key = key
-        self.timeout = timeout
+        # Resolve in the body, not as a default arg: a default is evaluated once at
+        # import time, which would freeze the setting and break `override_settings`.
+        self.timeout = (
+            timeout if timeout is not None else settings.AUTO_INDEX_LOCK_EXPIRY * 2
+        )
 
     def acquire(self, value=True) -> bool:
         """

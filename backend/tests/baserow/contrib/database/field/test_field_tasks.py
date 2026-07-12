@@ -5,6 +5,7 @@ from django.core.cache import cache
 from django.test import override_settings
 
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
 from freezegun import freeze_time
 
 from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
@@ -66,6 +67,27 @@ def test_run_periodic_fields_updates_dispatches_only_eligible_workspaces(
     dispatched = {wid for sig in header.tasks for wid in sig.args[0]}
     assert workspace.id in dispatched
     assert workspace_2.id not in dispatched
+
+
+@pytest.mark.django_db
+def test_run_periodic_fields_updates_dispatches_never_refreshed_workspace(
+    data_fixture, settings
+):
+    # A workspace whose `now` was never set (isnull) is due regardless of the interval
+    # or recent use: it covers the Q(now__isnull=True) branch.
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    create_table_with_row_in_workspace(data_fixture, workspace)
+    # Creating the formula sets `now`; clear it so the workspace looks never-refreshed.
+    Workspace.objects.filter(id=workspace.id).update(now=None)
+
+    with patch("baserow.contrib.database.fields.tasks.chord") as chord_mock:
+        run_periodic_fields_updates()
+
+    header = chord_mock.call_args.args[0]
+    dispatched = {wid for sig in header.tasks for wid in sig.args[0]}
+    assert workspace.id in dispatched
 
 
 @pytest.mark.django_db
@@ -867,7 +889,9 @@ def test_run_periodic_fields_updates_skips_when_cycle_running(data_fixture, sett
 
 
 @pytest.mark.django_db
-def test_run_periodic_fields_updates_empty_cycle_does_not_acquire():
+def test_run_periodic_fields_updates_empty_cycle_releases_lock():
+    # The lock is acquired before the eligibility scan; an empty cycle must release it
+    # again (via clear_if) so it isn't left held.
     with patch("baserow.contrib.database.fields.tasks.chord") as chord_mock:
         run_periodic_fields_updates()
 
@@ -967,3 +991,43 @@ def test_update_workspaces_periodic_fields_continues_after_workspace_error():
 
     # The second workspace was still processed after the first one failed.
     assert processed == [2]
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_stops_on_soft_time_limit():
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    processed = []
+
+    def side_effect(workspace_id, update_now):
+        if workspace_id == 1:
+            raise SoftTimeLimitExceeded()
+        processed.append(workspace_id)
+
+    with (
+        patch(
+            "baserow.contrib.database.fields.tasks._update_workspace_periodic_fields",
+            side_effect=side_effect,
+        ),
+        freeze_time("2023-02-27 10:30"),
+    ):
+        # The soft limit must stop the batch cleanly (no raise) so the chord callback
+        # still runs, rather than being swallowed and looping to the hard-limit SIGKILL.
+        update_workspaces_periodic_fields([1, 2], True, batch_index=0, run_token="held")
+
+    # The batch returned on the soft timeout, so workspace 2 was not processed.
+    assert processed == []
+
+
+@pytest.mark.django_db
+def test_run_periodic_field_type_reraises_soft_time_limit(data_fixture, settings):
+    # The inner per-field-type helper must let SoftTimeLimitExceeded propagate instead of
+    # catching it like a normal update failure, so the batch can stop cleanly.
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+
+    with patch.object(
+        FormulaFieldType, "run_periodic_update", side_effect=SoftTimeLimitExceeded()
+    ):
+        with pytest.raises(SoftTimeLimitExceeded):
+            _update_workspace_periodic_fields(workspace.id, True)

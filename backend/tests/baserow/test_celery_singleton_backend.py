@@ -46,3 +46,12 @@ def test_extend_if_extends_only_for_matching_token():
 def test_default_timeout_is_backwards_compatible(settings):
     flag = SingletonAutoRescheduleFlag("test_lock")
     assert flag.timeout == settings.AUTO_INDEX_LOCK_EXPIRY * 2
+
+
+@pytest.mark.django_db
+def test_default_timeout_follows_overridden_setting(settings):
+    # Resolved in the body, so an overridden setting is honored (a default arg would
+    # have frozen the value at import time).
+    settings.AUTO_INDEX_LOCK_EXPIRY = 7
+    flag = SingletonAutoRescheduleFlag("test_lock")
+    assert flag.timeout == 14
