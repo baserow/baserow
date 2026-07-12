@@ -1289,5 +1289,8 @@
         "confirmation": "Czy jesteś pewien, że chcesz usunąć uwierzytelnienie dwuskładnikowe dla {name}?",
         "comment": "Będą mogli zalogować się, podając jedynie swoje hasło, a następnie ponownie skonfigurować uwierzytelnianie dwuskładnikowe.",
         "remove": "Usuń uwierzytelnienie dwuskładnikowe"
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "Ta nazwa obszaru roboczego nie jest dozwolona"
     }
 }
