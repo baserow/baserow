@@ -23,7 +23,8 @@
         "friday": "금요일",
         "saturday": "토요일",
         "sunday": "일요일",
-        "value": "값"
+        "value": "값",
+        "workspace": "작업공간"
     },
     "action": {
         "close": "닫기",
@@ -124,7 +125,9 @@
         "invalidURL": "유효한 URL을 입력하세요.",
         "email": "필드는 이메일이어야 합니다.",
         "alreadyInUse": "이 필드 이름은 이미 사용 중입니다.",
-        "copyFailed": "클립보드에 복사하지 못했습니다. 다시 시도해 주세요."
+        "copyFailed": "클립보드에 복사하지 못했습니다. 다시 시도해 주세요.",
+        "nameContainsUrl": "이름에는 링크, 도메인 또는 웹 주소가 포함될 수 없습니다.",
+        "nameCantBeEmail": "이메일 주소가 아닌 이름을 입력해 주세요."
     },
     "permission": {
         "admin": "관리자",
@@ -314,7 +317,8 @@
         "hasNotDateAfter": "날짜가 이후가 아님",
         "hasDateOnOrAfter": "날짜가 이후 또는 같음",
         "hasAnyOf": "다음 중 하나",
-        "hasNotAnyOf": "아느 것도 해당하지 않음"
+        "hasNotAnyOf": "아느 것도 해당하지 않음",
+        "startsWith": "~로 시작"
     },
     "viewType": {
         "grid": "그리드",
@@ -334,7 +338,9 @@
         "rows": "행",
         "view": "뷰",
         "automation_workflow": "자동화 워크플로",
-        "automation_node": "자동화 노드"
+        "automation_node": "자동화 노드",
+        "builder_page": "빌더 페이지",
+        "builder_element": "빌더 요소"
     },
     "webhook": {
         "request": "요청",
@@ -462,7 +468,8 @@
         "csv": "CSV 파일 가져오기",
         "paste": "테이블 데이터 붙여넣기",
         "xml": "XML 파일 가져오기",
-        "json": "JSON 파일 가져오기"
+        "json": "JSON 파일 가져오기",
+        "excel": "엑셀 파일 가져오기"
     },
     "apiDocs": {
         "intro": "소개",
@@ -707,7 +714,17 @@
         "sumDescription": "인수에 포함된 숫자들을 합산합니다.",
         "avgDescription": "인수에 포함된 숫자들의 평균을 냅니다.",
         "atDescription": "첫 번째 인수에 있는 항목을 두 번째 인수로 지정된 인덱스에서 반환합니다.",
-        "toArrayDescription": "쉼표로 구분된 문자열을 배열로 변환합니다."
+        "toArrayDescription": "쉼표로 구분된 문자열을 배열로 변환합니다.",
+        "absDescription": "인수의 절댓값을 반환합니다.",
+        "rangeDescription": "숫자 배열을 반환합니다. range(stop), range(start, stop) 또는 range(start, stop, step)을 제공하세요.",
+        "toJsonDescription": "값을 JSON 형식으로 인코딩된 문자열로 직렬화하고, 따옴표, 백슬래시 및 제어 문자를 이스케이프 처리하여 JSON 문서 내에 안전하게 포함할 수 있도록 합니다.",
+        "fromJsonDescription": "JSON으로 인코딩된 문자열을 객체, 배열 또는 숫자와 같은 값으로 파싱합니다. 문자열이 유효한 JSON 형식이 아니면 null을 반환합니다.",
+        "nullDescription": "null을 반환하며, 이는 값으로 사용하거나 비교에 사용할 수 있습니다",
+        "numberFormatDescription": "숫자를 소수점 자릿수, 천 단위 구분 기호 및 소수점 구분 기호를 설정할 수 있는 문자열 형식으로 변환합니다.",
+        "toDatetimeDescription": "문자열을 날짜/시간 객체로 파싱합니다. 선택적 두 번째 인수는 형식을 지정합니다(예: 'DD/MM/YYYY'). 생략하면 ISO 8601 형식이 사용됩니다.",
+        "toDurationDescription": "제공된 인수에 해당하는 지속 시간을 반환합니다.",
+        "durationFormatDescription": "'d'(일), 'h'(시간), 'm'(분), 's'(초) 토큰을 사용하는 형식 문자열을 이용하여 기간을 텍스트 형식으로 지정합니다. 예: 'h:mm', 'd h:mm:ss'.",
+        "categoryUtility": "유틸리티"
     },
     "formulaInputContext": {
         "useRegularInput": "일반적인 입력을 사용",
@@ -725,5 +742,15 @@
         "missingProvider": "'get' 인수 '{path}'에 수식 제공자 접두사가 누락되었습니다.",
         "unknownProvider": "'{providerName}' 수식 공급자가 존재하지 않습니다.",
         "invalidProviderPath": "'{providerName}' 수식 공급자가 '{path}'가 유효하지 않다고 판단했습니다."
+    },
+    "runtimeFormulaTypeErrors": {
+        "invalidNumber": "'{value}'는 유효한 숫자가 아닙니다.",
+        "invalidTimezone": "'{value}'는 유효한 시간대가 아닙니다. 유효한 IANA 시간대(예: 'Europe/Amsterdam')를 사용하십시오.",
+        "invalidThousandSeparator": "'{value}'는 유효한 천 단위 구분 기호가 아닙니다. 유효한 옵션은 ',', '.', ' ' 또는 ''(빈 문자열)입니다.",
+        "invalidDecimalSeparator": "'{value}'는 유효한 소수 구분 기호가 아닙니다. 유효한 옵션은 ',' 또는 '.'입니다.",
+        "sameSeparators": "천 단위 구분 기호와 소수점 구분 기호는 같을 수 없습니다.",
+        "invalidDuration": "'{value}'는 유효한 기간이 아닙니다. 유효한 옵션은 '1일', '2시간' 등입니다.",
+        "invalidDatetimeFormat": "'{value}'는 유효한 날짜/시간 형식이 아닙니다. 유효한 형식은 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss' 등입니다.",
+        "invalidDurationFormat": "'{value}'는 유효한 기간 형식이 아닙니다. 'd'(일), 'h'(시간), 'm'(분), 's'(초)를 사용하세요. 예: 'd:h', 'd h:mm:ss'."
     }
 }
