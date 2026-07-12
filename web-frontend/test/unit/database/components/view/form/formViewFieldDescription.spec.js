@@ -22,7 +22,10 @@ const RichTextEditorStub = {
       this.$emit('update:modelValue', value)
     },
     serializeToMarkdown() {
-      return this.content || ''
+      // Mirror tiptap-markdown, which escapes stray markdown-special chars
+      // (e.g. a lone "*") so serialized output can differ from the raw
+      // stored string even when the user never edited anything.
+      return (this.content || '').replace(/\*/g, '\\*')
     },
   },
 }
@@ -82,6 +85,38 @@ describe('FormViewField description editor', () => {
     expect(events).toBeTruthy()
     expect(events[events.length - 1][0]).toEqual({
       description: 'See [docs](https://baserow.io)',
+    })
+  })
+
+  test(
+    'does not emit on blur without an edit, even if markdown serialization ' +
+      'differs from the stored legacy plain-text value',
+    async () => {
+      const wrapper = await mountComponent({
+        description: 'Rate 1-5 and use * bullets',
+      })
+      const editor = wrapper.findComponent(RichTextEditorStub)
+      // No edit happened, just focus in/out (blur only, no update:modelValue).
+      editor.vm.$emit('blur')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.emitted('updated-field-options')).toBeFalsy()
+    }
+  )
+
+  test('emits on blur after a real edit even for a legacy plain-text description', async () => {
+    const wrapper = await mountComponent({
+      description: 'Rate 1-5 and use * bullets',
+    })
+    const editor = wrapper.findComponent(RichTextEditorStub)
+    editor.vm.setContent('A whole new description')
+    editor.vm.$emit('blur')
+    await wrapper.vm.$nextTick()
+
+    const events = wrapper.emitted('updated-field-options')
+    expect(events).toBeTruthy()
+    expect(events[events.length - 1][0]).toEqual({
+      description: 'A whole new description',
     })
   })
 })

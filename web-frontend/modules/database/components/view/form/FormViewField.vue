@@ -58,7 +58,7 @@
             :editable="!readOnly"
             :enable-rich-text-formatting="true"
             :placeholder="$t('formViewField.descriptionPlaceholder')"
-            editor-class="form-view__field-description-editor"
+            @update:model-value="descriptionDirty = true"
             @blur="saveDescription"
           ></RichTextEditor>
         </div>
@@ -239,7 +239,11 @@ export default {
       editingName: false,
       value: null,
       children: [],
+      // Display buffer for the editor: a markdown string initially, tiptap
+      // JSON after edits. Not the source of truth, saved value always comes
+      // from serializeToMarkdown().
       descriptionCopy: this.fieldOptions.description || '',
+      descriptionDirty: false,
     }
   },
   computed: {
@@ -301,6 +305,8 @@ export default {
     'fieldOptions.description': {
       handler(value) {
         this.descriptionCopy = value || ''
+        // Stored value changed externally, the buffer is back in sync.
+        this.descriptionDirty = false
       },
     },
   },
@@ -336,10 +342,14 @@ export default {
       this.value = value
     },
     saveDescription() {
+      if (!this.descriptionDirty) {
+        return
+      }
       const markdown = this.$refs.description.serializeToMarkdown()
       if (markdown !== (this.fieldOptions.description || '')) {
         this.$emit('updated-field-options', { description: markdown })
       }
+      this.descriptionDirty = false
     },
     getFieldType() {
       return this.$registry.get('field', this.field.type)

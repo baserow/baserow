@@ -67,6 +67,7 @@
             :editable="!readOnly"
             :enable-rich-text-formatting="true"
             :placeholder="$t('formViewModePreviewForm.descriptionPlaceholder')"
+            @update:model-value="descriptionDirty = true"
             @blur="saveDescription"
           ></RichTextEditor>
         </div>
@@ -187,13 +188,19 @@ export default {
     return {
       editingTitle: false,
       editingSubmitText: false,
+      // Display buffer for the editor: a markdown string initially, tiptap
+      // JSON after edits. Not the source of truth, saved value always comes
+      // from serializeToMarkdown().
       descriptionCopy: this.view.description || '',
+      descriptionDirty: false,
     }
   },
   watch: {
     'view.description': {
       handler(value) {
         this.descriptionCopy = value || ''
+        // Stored value changed externally, the buffer is back in sync.
+        this.descriptionDirty = false
       },
     },
   },
@@ -202,10 +209,14 @@ export default {
       this.$emit('ordered-fields', order)
     },
     saveDescription() {
+      if (!this.descriptionDirty) {
+        return
+      }
       const markdown = this.$refs.description.serializeToMarkdown()
       if (markdown !== (this.view.description || '')) {
         this.updateForm({ description: markdown })
       }
+      this.descriptionDirty = false
     },
   },
 }

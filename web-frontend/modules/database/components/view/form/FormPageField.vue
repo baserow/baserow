@@ -11,7 +11,6 @@
             :model-value="field.description"
             :editable="false"
             :enable-rich-text-formatting="true"
-            editor-class="form-view__field-description-editor"
           ></RichTextEditor>
         </div>
         <component
