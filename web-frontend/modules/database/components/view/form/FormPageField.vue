@@ -6,8 +6,14 @@
           {{ field.name }}
           <span v-if="field.required" class="form-view__field-required">*</span>
         </div>
-        <!-- prettier-ignore -->
-        <div v-if="field.description" class="form-view__field-description whitespace-pre-wrap">{{ field.description }}</div>
+        <div v-if="field.description" class="form-view__field-description">
+          <RichTextEditor
+            :model-value="field.description"
+            :editable="false"
+            :enable-rich-text-formatting="true"
+            editor-class="form-view__field-description-editor"
+          ></RichTextEditor>
+        </div>
         <component
           :is="selectedFieldComponent.component"
           :key="field.field.id"
@@ -30,11 +36,12 @@
 
 <script>
 import FieldContext from '@baserow/modules/database/components/field/FieldContext'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
 
 export default {
   name: 'FormPageField',
-  components: { FieldContext },
+  components: { FieldContext, RichTextEditor },
   props: {
     slug: {
       type: String,
