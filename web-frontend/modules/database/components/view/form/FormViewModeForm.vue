@@ -15,11 +15,13 @@
       <div class="form-view__heading">
         <Thumbnail v-if="logoImage !== null" :src="logoImage.url" width="200" />
         <h1 v-if="title !== ''" class="form-view__title">{{ title }}</h1>
-        <!-- prettier-ignore -->
-        <p
-          v-if="description !== ''"
-          class="form-view__description whitespace-pre-wrap"
-        >{{ description }}</p>
+        <div v-if="description !== ''" class="form-view__description">
+          <RichTextEditor
+            :model-value="description"
+            :editable="false"
+            :enable-rich-text-formatting="true"
+          ></RichTextEditor>
+        </div>
       </div>
       <FormPageField
         v-for="field in visibleFields"
@@ -63,6 +65,7 @@ import baseFormViewMode from '@baserow/modules/database/mixins/baseFormViewMode'
 import FormPageField from '@baserow/modules/database/components/view/form/FormPageField'
 import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
 import FormViewSubmitted from '@baserow/modules/database/components/view/form/FormViewSubmitted'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 
 export default {
   name: 'FormViewModeForm',
@@ -70,6 +73,7 @@ export default {
     FormViewSubmitted,
     FormPageField,
     FormViewPoweredBy,
+    RichTextEditor,
   },
   mixins: [baseFormViewMode],
   emits: ['submit'],
