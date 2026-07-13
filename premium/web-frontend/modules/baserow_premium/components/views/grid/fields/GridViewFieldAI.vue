@@ -7,9 +7,10 @@
     >
       <div class="grid-field-button">
         <Button
+          v-tooltip="promptBroken ? $t('gridViewFieldAI.promptBroken') : null"
           type="secondary"
           size="tiny"
-          :disabled="!modelAvailable || generating"
+          :disabled="!modelAvailable || generating || promptBroken"
           :loading="generating"
           :icon="isDeactivated ? 'iconoir-lock' : ''"
           @click="generate()"
@@ -40,8 +41,9 @@
         <div style="background-color: #fff; padding: 8px">
           <ButtonText
             v-if="!isDeactivated"
+            v-tooltip="promptBroken ? $t('gridViewFieldAI.promptBroken') : null"
             icon="iconoir-magic-wand"
-            :disabled="!modelAvailable || generating"
+            :disabled="!modelAvailable || generating || promptBroken"
             :loading="generating"
             @mousedown.prevent.stop="generate()"
           >

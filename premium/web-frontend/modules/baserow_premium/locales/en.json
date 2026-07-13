@@ -327,7 +327,8 @@
   },
   "gridViewFieldAI": {
     "generate": "Generate",
-    "regenerate": "Regenerate"
+    "regenerate": "Regenerate",
+    "promptBroken": "The prompt is broken and must be fixed before values can be generated."
   },
   "fieldAISubForm": {
     "prompt": "Prompt",
