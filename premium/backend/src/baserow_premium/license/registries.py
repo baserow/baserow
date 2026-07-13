@@ -203,15 +203,6 @@ class LicenseType(abc.ABC, Instance):
             )
         )
 
-    def handle_application_user_overflow(
-        self, application_users_taken: int, license_object: License
-    ):
-        # No-op: the over-limit notification is driven from the enterprise periodic
-        # task `count_all_user_source_users`, not from the license check, so that
-        # premium stays free of any enterprise import. See
-        # baserow_enterprise.application_users.usage.
-        ...
-
 
 class LicenseTypeRegistry(Registry[LicenseType]):
     name = "license_type"

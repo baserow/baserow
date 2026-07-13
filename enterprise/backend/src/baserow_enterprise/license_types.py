@@ -92,9 +92,6 @@ class AdvancedLicenseType(LicenseType):
         # okay for now because we'll be monitoring the usage manually.
         pass
 
-    # `handle_application_user_overflow` is inherited from `LicenseType`, which notifies
-    # the affected workspaces that the application user limit has been reached.
-
 
 class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
     type = "enterprise_without_support"
