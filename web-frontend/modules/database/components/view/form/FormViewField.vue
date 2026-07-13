@@ -304,9 +304,12 @@ export default {
     },
     'fieldOptions.description': {
       handler(value) {
+        // Don't clobber an in-progress edit if the stored value changes
+        // externally (e.g. a realtime update from another editor).
+        if (this.descriptionDirty) {
+          return
+        }
         this.descriptionCopy = value || ''
-        // Stored value changed externally, the buffer is back in sync.
-        this.descriptionDirty = false
       },
     },
   },

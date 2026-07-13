@@ -129,4 +129,26 @@ describe('FormViewField description editor', () => {
       description: 'A whole new description',
     })
   })
+
+  test('keeps an in-progress edit when the stored description changes externally', async () => {
+    const wrapper = await mountComponent({ description: 'original' })
+    const editor = wrapper.findComponent(RichTextEditorStub)
+    // User starts editing (this marks the buffer dirty).
+    editor.vm.setContent('unsaved edit in progress')
+    await wrapper.vm.$nextTick()
+
+    // A realtime update to the stored value arrives mid-edit.
+    await wrapper.setProps({
+      fieldOptions: {
+        description: 'external change',
+        conditions: [],
+        condition_groups: [],
+      },
+    })
+
+    // The unsaved edit is preserved, not clobbered by the external value.
+    expect(wrapper.findComponent(RichTextEditorStub).props('modelValue')).toBe(
+      'unsaved edit in progress'
+    )
+  })
 })
