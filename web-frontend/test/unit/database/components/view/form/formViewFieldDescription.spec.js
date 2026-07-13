@@ -74,8 +74,18 @@ describe('FormViewField description editor', () => {
     expect(editor.props('modelValue')).toBe('**bold**')
   })
 
+  test('does not mount an editor for an unselected field with no description', async () => {
+    const wrapper = await mountComponent({ description: '' })
+    // v-if keeps the heavy rich-text editor out of the DOM until needed.
+    expect(wrapper.findComponent(RichTextEditorStub).exists()).toBe(false)
+    await wrapper.find('.form-view__field').trigger('click')
+    expect(wrapper.findComponent(RichTextEditorStub).exists()).toBe(true)
+  })
+
   test('emits updated-field-options with markdown on blur', async () => {
     const wrapper = await mountComponent({ description: '' })
+    // With no description the editor only mounts once the field is selected.
+    await wrapper.find('.form-view__field').trigger('click')
     const editor = wrapper.findComponent(RichTextEditorStub)
     editor.vm.setContent('See [docs](https://baserow.io)')
     editor.vm.$emit('blur')

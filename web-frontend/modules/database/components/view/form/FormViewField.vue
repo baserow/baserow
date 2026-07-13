@@ -49,7 +49,7 @@
           </a>
         </div>
         <div
-          v-show="selected || fieldOptions.description"
+          v-if="selected || fieldOptions.description"
           class="form-view__field-description"
         >
           <RichTextEditor
