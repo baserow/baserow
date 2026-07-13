@@ -10,6 +10,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NO
 
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
+from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FileField
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -1778,3 +1779,53 @@ def test_ai_field_api_serializes_error(api_client, premium_data_fixture):
     )
     assert response.status_code == HTTP_200_OK
     assert response.json()["error"] is not None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_error_clears_when_prompt_fixed(premium_data_fixture):
+    table = premium_data_fixture.create_database_table()
+    text_field = premium_data_fixture.create_text_field(table=table)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_999999')"},
+    )
+    assert field.error is not None
+
+    field.ai_prompt = {
+        "version": 1,
+        "formula": f"get('fields.field_{text_field.id}')",
+    }
+    field.save()
+    field.refresh_from_db()
+
+    assert field.error is None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_import_with_broken_reference_records_error(premium_data_fixture):
+    table = premium_data_fixture.create_database_table()
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_424242')"},
+    )
+    field_type = field_type_registry.get_by_model(field)
+    exported = field_type.export_serialized(field)
+
+    # id_mapping without the referenced field id -> after_import_serialized swallows
+    # the KeyError and leaves the broken reference, so import must not raise.
+    id_mapping = {"database_fields": {}}
+    imported_field = field_type.import_serialized(
+        table,
+        exported,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping,
+        deferred_fk_update_collector=DeferredForeignKeyUpdater(),
+    )
+    field_type.after_import_serialized(imported_field, FieldCache(), id_mapping)
+
+    imported_field = AIField.objects.get(id=imported_field.id)
+    assert imported_field.error is not None
