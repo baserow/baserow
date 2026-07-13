@@ -17,7 +17,9 @@
       </Button>
       <Button
         v-else-if="rowIsCreated"
+        v-tooltip="promptBroken ? $t('rowEditFieldAI.promptBroken') : null"
         type="secondary"
+        :disabled="promptBroken"
         :loading="generating"
         @click="generate()"
         >{{ $t('rowEditFieldAI.generate') }}</Button

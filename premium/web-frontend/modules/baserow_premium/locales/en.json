@@ -345,7 +345,8 @@
   },
   "rowEditFieldAI": {
     "generate": "Generate",
-    "createRowBefore": "The AI value can be generated after the row has been created."
+    "createRowBefore": "The AI value can be generated after the row has been created.",
+    "promptBroken": "The prompt is broken and must be fixed before values can be generated."
   },
   "aiFormulaModal": {
     "title": "Generate formula using AI",
