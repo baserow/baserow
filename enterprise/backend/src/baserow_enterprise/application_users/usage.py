@@ -114,9 +114,17 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     for provider in _sorted_providers():
         over_limit = provider.is_over_login_limit(workspace)
         if over_limit is None:
+            # This provider has no verdict for this deployment, so let the
+            # next one decide. The premium provider may not have any active
+            # license with `application_users` because its either an unlicensed
+            # install, or an older license.
             continue
+
         if over_limit:
             raise ApplicationUserLimitReached(
                 "The application user limit has been reached."
             )
+
+        # The highest order provider with a verdict decides. It is under the
+        # limit, so allow.
         return
