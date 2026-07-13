@@ -42,9 +42,12 @@ from baserow.core.generative_ai.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
+from baserow_premium.api.fields.errors import ERROR_AI_FIELD_PROMPT_INVALID
 from baserow_premium.fields.actions import GenerateFormulaWithAIActionType
+from baserow_premium.fields.exceptions import AIFieldPromptInvalidError
 from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField
+from baserow_premium.fields.visitors import get_ai_prompt_error
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 
@@ -84,6 +87,7 @@ class AsyncGenerateAIFieldValuesView(APIView):
                 [
                     "ERROR_GENERATIVE_AI_DOES_NOT_EXIST",
                     "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE",
+                    "ERROR_AI_FIELD_PROMPT_INVALID",
                 ]
             ),
             404: get_error_schema(
@@ -103,6 +107,7 @@ class AsyncGenerateAIFieldValuesView(APIView):
             GenerativeAITypeDoesNotExist: ERROR_GENERATIVE_AI_DOES_NOT_EXIST,
             ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            AIFieldPromptInvalidError: ERROR_AI_FIELD_PROMPT_INVALID,
         }
     )
     @validate_body(GenerateAIFieldValueViewSerializer, return_validated=True)
@@ -126,6 +131,10 @@ class AsyncGenerateAIFieldValuesView(APIView):
             workspace=workspace,
             context=ai_field.table,
         )
+
+        prompt_error = get_ai_prompt_error(ai_field.ai_prompt, ai_field.table)
+        if prompt_error:
+            raise AIFieldPromptInvalidError(prompt_error)
 
         job = JobHandler().create_and_start_job(
             request.user,

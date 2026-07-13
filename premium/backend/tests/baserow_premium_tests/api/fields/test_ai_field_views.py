@@ -479,3 +479,39 @@ def test_list_jobs_filter_by_type_and_field_id(premium_data_fixture, api_client)
     assert response_data["jobs"][0]["id"] == job_2_id
     assert response_data["jobs"][0]["type"] == "generate_ai_values"
     assert response_data["jobs"][0]["field_id"] == field_2.id
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_generate_ai_field_value_rejected_when_prompt_broken(
+    premium_data_fixture, api_client
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="ai",
+        ai_prompt={"version": 1, "formula": "get('fields.field_999999')"},
+    )
+
+    rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
+
+    response = api_client.post(
+        reverse(
+            "api:premium:fields:async_generate_ai_field_values",
+            kwargs={"field_id": field.id},
+        ),
+        {"row_ids": [rows[0].id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_AI_FIELD_PROMPT_INVALID"
