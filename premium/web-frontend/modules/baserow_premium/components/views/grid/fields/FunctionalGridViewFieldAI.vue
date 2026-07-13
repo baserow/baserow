@@ -6,7 +6,7 @@
         size="tiny"
         type="secondary"
         :loading="generating"
-        :disabled="!modelAvailable"
+        :disabled="!modelAvailable || promptBroken"
         :icon="isDeactivatedFunctional ? 'iconoir-lock' : ''"
       >
         <i18n-t keypath="functionalGridViewFieldAI.generate" tag="span" />
