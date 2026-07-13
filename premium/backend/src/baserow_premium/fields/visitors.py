@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Union
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.core.formula import (
@@ -7,9 +7,15 @@ from baserow.core.formula import (
     BaserowFormulaObject,
     BaserowFormulaVisitor,
 )
-from baserow.core.formula.parser.exceptions import FieldByIdReferencesAreDeprecated
+from baserow.core.formula.parser.exceptions import (
+    BaserowFormulaException,
+    FieldByIdReferencesAreDeprecated,
+)
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.utils import to_path
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.table.models import Table
 
 
 class BaserowFormulaReplaceFieldReferences(BaserowFormulaVisitor):
@@ -198,3 +204,35 @@ def extract_field_id_dependencies(
     visitor = AIFieldIDExtractingVisitor()
     visitor.visit(tree)
     return visitor.field_ids
+
+
+def get_ai_prompt_error(
+    prompt: Union[str, BaserowFormulaObject], table: "Table"
+) -> Optional[str]:
+    """
+    Validates an AI field prompt formula. Returns an error message when the prompt
+    cannot be parsed or references a field that does not exist (non-trashed) in the
+    given table. Returns None for an empty or valid prompt.
+    """
+
+    from baserow.contrib.database.fields.models import Field
+
+    formula_str = prompt if isinstance(prompt, str) else prompt["formula"]
+    if not formula_str:
+        return None
+
+    try:
+        referenced_ids = extract_field_id_dependencies(formula_str)
+    except BaserowFormulaException:
+        return "The prompt formula could not be parsed."
+
+    if referenced_ids:
+        existing_ids = set(
+            Field.objects.filter(
+                id__in=referenced_ids, table=table, trashed=False
+            ).values_list("id", flat=True)
+        )
+        if referenced_ids - existing_ids:
+            return "The prompt references a field that no longer exists."
+
+    return None
