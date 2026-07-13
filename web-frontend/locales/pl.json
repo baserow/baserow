@@ -353,7 +353,7 @@
         },
         "eventType": {
             "rowCreated": "Kiedy wiersz jest utworzony",
-            "rowsCreated": "Wiersze zostały utworzone",
+            "rowsCreated": "Dodanie wierszy",
             "rowUpdated": "Kiedy wiersz został zaktualizowany",
             "rowsUpdated": "Wiersze zostały zaktualizowane",
             "rowDeleted": "Kiedy wiersz został usunięty",
@@ -467,9 +467,9 @@
     "importerType": {
         "csv": "Importuj plik CSV",
         "paste": "Wklej dane z tabeli",
-        "xml": "Zaimportuj plik w formacie XML",
-        "json": "Zaimportuj plik w formacie JSON",
-        "excel": "Zaimportuj plik Excel"
+        "xml": "Importuj plik XML",
+        "json": "Importuj plik JSON",
+        "excel": "Importuj plik Excel"
     },
     "apiDocs": {
         "intro": "Wstęp",
