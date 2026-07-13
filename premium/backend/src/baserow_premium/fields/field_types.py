@@ -82,6 +82,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         "ai_prompt",
         "ai_file_field_id",
         "ai_auto_update",
+        "error",
     ]
     serializer_field_overrides = {
         "ai_output_type": serializers.ChoiceField(
@@ -115,6 +116,12 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             allow_null=True,
             help_text="If set, AI field will be recalculated if a value of a "
             "referenced field has been changed.",
+        ),
+        "error": serializers.CharField(
+            required=False,
+            read_only=True,
+            allow_null=True,
+            help_text="The error message if the field's prompt is broken, else null.",
         ),
         **SelectOptionBaseFieldType.serializer_field_overrides,
     }

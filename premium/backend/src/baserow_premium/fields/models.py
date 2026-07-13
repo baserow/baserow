@@ -14,6 +14,7 @@ from baserow.core.mixins import BigAutoFieldMixin
 
 from .ai_field_output_types import TextAIFieldOutputType
 from .registries import ai_field_output_registry
+from .visitors import get_ai_prompt_error
 
 User = get_user_model()
 
@@ -64,6 +65,14 @@ class AIField(Field):
         """
 
         return settings.BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS
+
+    @property
+    def error(self):
+        # Computed (not stored) prompt error so the field header can show it and
+        # generation can be blocked. Recomputed whenever the field is serialized.
+        if not self.table_id:
+            return None
+        return get_ai_prompt_error(self.ai_prompt, self.table)
 
 
 class GenerateAIValuesJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):

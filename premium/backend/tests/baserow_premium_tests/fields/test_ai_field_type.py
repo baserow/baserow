@@ -1733,3 +1733,48 @@ def test_import_ai_field_disables_auto_update(premium_data_fixture):
     imported_field = AIField.objects.get(id=imported_field.id)
     assert imported_field.ai_auto_update is False
     assert imported_field.ai_auto_update_user_id is None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_error_property_detects_broken_prompt(premium_data_fixture):
+    premium_data_fixture.register_fake_generate_ai_type()
+    table = premium_data_fixture.create_database_table()
+    broken = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_999999')"},
+    )
+    assert broken.error is not None
+
+    text_field = premium_data_fixture.create_text_field(table=table)
+    valid = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI2",
+        ai_prompt={
+            "version": 1,
+            "formula": f"get('fields.field_{text_field.id}')",
+        },
+    )
+    assert valid.error is None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_api_serializes_error(api_client, premium_data_fixture):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_999999')"},
+    )
+    response = api_client.get(
+        reverse("api:database:fields:item", kwargs={"field_id": field.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["error"] is not None
