@@ -412,7 +412,7 @@
         "stateCreateTable": "Tworzenie tabeli…",
         "fieldMappingTitle": "Mapowanie pól",
         "fieldMappingDescription": "Kolumny pól w Twojej tabeli zostały przyporządkowane automatycznie. Możesz je zmienić poniżej. Niezgodne komórki pozostaną puste po zaimportowaniu.",
-        "selectImportMessage": "Wybierz dane do zaimportowania.",
+        "selectImportMessage": "Wybierz dane.",
         "filePreview": "Podgląd zawartości pliku",
         "changeImporterType": "Zmień typ importu",
         "importPreview": "Podgląd importu",
@@ -443,7 +443,7 @@
     "viewsContext": {
         "searchView": "Przeszukaj widoki",
         "noViews": "Nie znaleziono widoków",
-        "collaborative": "Oparty na współpracy"
+        "collaborative": "Współdzielony"
     },
     "viewFilterTypeLinkRow": {
         "unnamed": "nienazwany wiersz {value}",
@@ -499,7 +499,7 @@
         "sort": "Sortowanie | 1 Sortowanie | {count} Sortowania/ń"
     },
     "viewDecorator": {
-        "decorator": "Kolor | 1 Kolor | {count} Kolory/ów",
+        "decorator": "Kolory | 1 Kolor | {count} Kolory/ów",
         "hiddenFieldWarning": "Ponieważ dekoracje mogą odwoływać się do ukrytych pól, w przypadku edytorów i użytkowników z uprawnieniami na niższym poziomie są one usuwane."
     },
     "viewRotateSlugModal": {
@@ -575,7 +575,7 @@
         "customizeCards": "Dostosuj karty"
     },
     "gridViewHide": {
-        "hideField": "Ukryj pola | 1 ukryte pole | {count} ukryte pola"
+        "hideField": "Widoczność pól | 1 ukryte pole | {count} ukryte pola"
     },
     "gridViewFieldType": {
         "insertLeft": "Wstaw z lewej",
@@ -629,7 +629,7 @@
         "count": "Liczba"
     },
     "formViewMeta": {
-        "includeRowId": "Użyj {row_id}, aby dodać nowo utworzony ID wiersza do adresu URL."
+        "includeRowId": "Użyj ID {row_id}, aby dodać ID nowo utworzonego wiersza do adresu URL."
     },
     "previewAny": {
         "externalWarning": "Otwarcie pliku przez zewnętrzną usługę spowoduje, że Twój plik zostanie wczytany przez jej serwery."
@@ -874,7 +874,7 @@
     "viewOwnershipType": {
         "collaborative": "Oparty na współpracy",
         "personal": "Osobisty",
-        "collaborativeDescription": "Każdy użytkownik z odpowiednimi uprawnieniami może przeglądać wszystkie dane i zmieniać atrybuty."
+        "collaborativeDescription": "Każdy użytkownik, o ile posiada odpowiednie uprawnienia, może przeglądać dane i zmieniać atrybuty."
     },
     "gridViewRowsAddContext": {
         "title": "Utwórz wiele wierszy",
@@ -900,18 +900,18 @@
         "name": "Historia",
         "empty": "Nie wprowadzono jeszcze żadnych zmian. Tutaj można przeglądać wszelkie zmiany w tym wierszu.",
         "you": "Ty",
-        "created": ": użytkownik, który utworzył/a ten wiersz",
-        "updated": ": użytkownik, który zaktualizował/a ten wiersz",
-        "submitted": ": użytkownik, który przesłał/a ten wiersz",
-        "deleted": ": użytkownik, który usunął/ęła ten wiersz",
-        "restored": ": użytkownik, który przywrócił/a ten wiersz",
+        "created": ": użytkownik, który utworzył ten wiersz",
+        "updated": ": użytkownik, który zaktualizował ten wiersz",
+        "submitted": ": użytkownik, który przesłał ten wiersz",
+        "deleted": ": użytkownik, który usunął ten wiersz",
+        "restored": ": użytkownik, który przywrócił ten wiersz",
         "createdUndo": "cofnij utworzenie wiersza",
         "updatedUndo": "cofnij aktualizację wiersza",
         "deletedUndo": "cofnij usunięcie wiersza"
     },
     "formSubmittedNotification": {
         "title": "{formName} został przesłany do tabeli {tableName}:",
-        "moreValues": "0 | i jeszcze 1 pole. | i {count} więcej pól."
+        "moreValues": "0 | i jeszcze 1 pole. | i inne pola w liczbie: {count}."
     },
     "fieldPasswordSubForm": {
         "description": "Pole hasła może być również używane do uwierzytelniania użytkownika w konfiguratorze aplikacji.",
@@ -961,7 +961,7 @@
         "addConditionGroup": "Dodaj grupę warunków"
     },
     "viewGroupBy": {
-        "groupBy": "Grupuj | Grupuj wg. 1 pola | Grupuj wg. {count} pól"
+        "groupBy": "Grupowanie | Grupowanie wg. 1 pola | Grupowanie wg. {count} pól"
     },
     "createTableModal": {
         "title": "Utwórz nową tabelę",
@@ -1018,7 +1018,7 @@
     "formViewMetaControls": {
         "whenSubmittedLabel": "Po przesłaniu formularza",
         "showMessage": "Wyświetl wiadomość",
-        "urlRedirect": "Przekieruj do adresu URL",
+        "urlRedirect": "Przekieruj na adres URL",
         "theMessage": "Wiadomość",
         "theURL": "Adres URL"
     },
@@ -1161,7 +1161,7 @@
         "hide": "Ukryj"
     },
     "gridViewRowHeight": {
-        "name": "Wysokość",
+        "name": "Wysokość wierszy",
         "small": "Mała",
         "medium": "Średnia",
         "large": "Duża"
