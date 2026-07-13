@@ -467,9 +467,7 @@ def test_long_text_enable_rich_text_pads_blank_lines(data_fixture):
     row_no_newlines = model.objects.create(notes="Hello World")
 
     handler = FieldHandler()
-    handler.update_field(
-        user=user, field=field, long_text_enable_rich_text=True
-    )
+    handler.update_field(user=user, field=field, long_text_enable_rich_text=True)
 
     model = table.get_model(attribute_names=True)
     row_standard.refresh_from_db()
@@ -500,9 +498,7 @@ def test_long_text_disable_rich_text_collapses_padding(data_fixture):
     row_single = model.objects.create(notes="Hello\nWorld")
 
     handler = FieldHandler()
-    handler.update_field(
-        user=user, field=field, long_text_enable_rich_text=False
-    )
+    handler.update_field(user=user, field=field, long_text_enable_rich_text=False)
 
     row_padded.refresh_from_db()
     row_extra.refresh_from_db()
@@ -529,15 +525,49 @@ def test_long_text_rich_text_toggle_does_not_inflate_newlines(data_fixture):
     handler = FieldHandler()
 
     for _ in range(3):
-        handler.update_field(
-            user=user, field=field, long_text_enable_rich_text=True
-        )
-        handler.update_field(
-            user=user, field=field, long_text_enable_rich_text=False
-        )
+        handler.update_field(user=user, field=field, long_text_enable_rich_text=True)
+        handler.update_field(user=user, field=field, long_text_enable_rich_text=False)
 
     row.refresh_from_db()
     assert row.notes == "Line1\n\nLine2\n\n\nLine3"
+
+
+@pytest.mark.django_db
+def test_long_text_rich_text_toggle_k2_oscillation(data_fixture):
+    """Rich k=2 (paragraph break, no blank line) inflates to k=3 on rich→plain→rich.
+
+    This is an inherent cardinality mismatch: rich text distinguishes paragraph
+    break (k=2) from blank line (k=3), but plain text only has k=2 for both.
+    Any integer-shift threshold moves the bug but cannot eliminate it. The
+    current behavior (k=2 inflates to k=3) is the least-bad option — the
+    visual difference is a slightly taller gap, not data corruption.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="notes", long_text_enable_rich_text=True
+    )
+
+    model = table.get_model(attribute_names=True)
+    row = model.objects.create(notes="A\n\nB")
+
+    handler = FieldHandler()
+
+    # rich→plain: collapse skips k=2 (threshold k≥3), stays \n\n
+    handler.update_field(user=user, field=field, long_text_enable_rich_text=False)
+    row.refresh_from_db()
+    assert row.notes == "A\n\nB"
+
+    # plain→rich: pad matches k≥2, inflates to \n\n\n
+    handler.update_field(user=user, field=field, long_text_enable_rich_text=True)
+    row.refresh_from_db()
+    assert row.notes == "A\n\n\nB"
+
+    # Second cycle: rich→plain collapses k=3 back to k=2
+    handler.update_field(user=user, field=field, long_text_enable_rich_text=False)
+    row.refresh_from_db()
+    assert row.notes == "A\n\nB"
 
 
 @pytest.mark.django_db

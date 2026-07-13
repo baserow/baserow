@@ -1381,7 +1381,25 @@ export class LongTextFieldType extends FieldType {
     return !field.long_text_enable_rich_text
   }
 
+  prepareRichValueForCopy(field, value) {
+    return {
+      value: this.prepareValueForCopy(field, value),
+      isRichText: !!field.long_text_enable_rich_text,
+    }
+  }
+
   prepareValueForPaste(field, clipboardData, richClipboardData) {
+    if (richClipboardData != null && typeof richClipboardData === 'object') {
+      const { value, isRichText } = richClipboardData
+      if (
+        field.long_text_enable_rich_text &&
+        !isRichText &&
+        value?.includes('\n\n')
+      ) {
+        return padBlankLinesForMarkdown(value)
+      }
+      return value
+    }
     if (typeof richClipboardData === 'string') return richClipboardData
     if (field.long_text_enable_rich_text && clipboardData?.includes('\n\n')) {
       return padBlankLinesForMarkdown(clipboardData)

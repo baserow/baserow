@@ -569,31 +569,68 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         value = getattr(row, field.db_column)
         return collate_expression(Value(value))
 
-    def force_same_type_alter_column(self, from_field, to_field):
+    def after_update(
+        self,
+        from_field,
+        to_field,
+        from_model,
+        to_model,
+        user,
+        connection,
+        altered_column,
+        before,
+        to_field_kwargs,
+    ):
         from_rich = getattr(from_field, "long_text_enable_rich_text", False)
         to_rich = getattr(to_field, "long_text_enable_rich_text", False)
-        return from_rich != to_rich
 
-    def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
-        from_rich = getattr(from_field, "long_text_enable_rich_text", False)
-        to_rich = getattr(to_field, "long_text_enable_rich_text", False)
+        if from_rich == to_rich or connection.vendor != "postgresql":
+            return
 
-        if connection.vendor == "postgresql" and not from_rich and to_rich:
+        col = to_field.db_column
+
+        if not from_rich and to_rich:
             # Pad runs of 2+ newlines so blank lines survive markdown parsing.
-            return r"""
-                p_in = regexp_replace(p_in, E'\r\n', E'\n', 'g');
-                p_in = regexp_replace(p_in, E'(\n{2,})', E'\\1\n', 'g');
-            """
-
-        if connection.vendor == "postgresql" and from_rich and not to_rich:
-            # Reverse the padding: collapse runs of 3+ newlines by removing one.
-            return r"""
-                p_in = regexp_replace(p_in, E'\n(\n{2,})', E'\\1', 'g');
-            """
-
-        return super().get_alter_column_prepare_new_value(
-            connection, from_field, to_field
-        )
+            # Filter includes \r\n\r\n rows since CRLF is normalized first.
+            qs = to_model.objects.filter(
+                Q(**{f"{col}__contains": "\n\n"})
+                | Q(**{f"{col}__contains": "\r\n\r\n"})
+            )
+            normalized = Func(
+                F(col),
+                Value("\r\n"),
+                Value("\n"),
+                Value("g"),
+                function="regexp_replace",
+                output_field=models.TextField(),
+            )
+            qs.update(
+                **{
+                    col: Func(
+                        normalized,
+                        Value("(\n{2,})"),
+                        Value("\\1\n"),
+                        Value("g"),
+                        function="regexp_replace",
+                        output_field=models.TextField(),
+                    )
+                }
+            )
+        else:
+            # Collapse runs of 3+ newlines by removing one.
+            qs = to_model.objects.filter(**{f"{col}__contains": "\n\n\n"})
+            qs.update(
+                **{
+                    col: Func(
+                        F(col),
+                        Value("\n(\n{2,})"),
+                        Value("\\1"),
+                        Value("g"),
+                        function="regexp_replace",
+                        output_field=models.TextField(),
+                    )
+                }
+            )
 
 
 class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):

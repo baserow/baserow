@@ -930,4 +930,94 @@ describe('FieldType tests', () => {
       }
     }
   )
+
+  describe('LongTextFieldType.prepareRichValueForCopy', () => {
+    test('includes isRichText flag from source field', () => {
+      const richField = { long_text_enable_rich_text: true }
+      const plainField = { long_text_enable_rich_text: false }
+
+      const richResult = new LongTextFieldType().prepareRichValueForCopy(
+        richField,
+        'A\n\nB'
+      )
+      expect(richResult).toEqual({ value: 'A\n\nB', isRichText: true })
+
+      const plainResult = new LongTextFieldType().prepareRichValueForCopy(
+        plainField,
+        'A\n\nB'
+      )
+      expect(plainResult).toEqual({ value: 'A\n\nB', isRichText: false })
+    })
+  })
+
+  describe('LongTextFieldType.prepareValueForPaste', () => {
+    test('rich-to-rich same-app paste returns value without padding', () => {
+      const field = { long_text_enable_rich_text: true }
+      const richClipboardData = { value: 'A\n\n\nB', isRichText: true }
+
+      const result = new LongTextFieldType().prepareValueForPaste(
+        field,
+        'A\n\n\nB',
+        richClipboardData
+      )
+      expect(result).toBe('A\n\n\nB')
+    })
+
+    test('plain-to-rich same-app paste pads blank lines', () => {
+      const field = { long_text_enable_rich_text: true }
+      const richClipboardData = { value: 'A\n\nB', isRichText: false }
+
+      const result = new LongTextFieldType().prepareValueForPaste(
+        field,
+        'A\n\nB',
+        richClipboardData
+      )
+      expect(result).toBe('A\n\n\nB')
+    })
+
+    test('rich-to-plain same-app paste returns value without collapsing', () => {
+      const field = { long_text_enable_rich_text: false }
+      const richClipboardData = { value: 'A\n\n\nB', isRichText: true }
+
+      const result = new LongTextFieldType().prepareValueForPaste(
+        field,
+        'A\n\n\nB',
+        richClipboardData
+      )
+      expect(result).toBe('A\n\n\nB')
+    })
+
+    test('external paste into rich text field pads blank lines', () => {
+      const field = { long_text_enable_rich_text: true }
+
+      const result = new LongTextFieldType().prepareValueForPaste(
+        field,
+        'A\n\nB',
+        undefined
+      )
+      expect(result).toBe('A\n\n\nB')
+    })
+
+    test('external paste into plain field returns clipboard data unchanged', () => {
+      const field = { long_text_enable_rich_text: false }
+
+      const result = new LongTextFieldType().prepareValueForPaste(
+        field,
+        'A\n\nB',
+        undefined
+      )
+      expect(result).toBe('A\n\nB')
+    })
+
+    test('legacy string richClipboardData still works', () => {
+      const field = { long_text_enable_rich_text: true }
+
+      const result = new LongTextFieldType().prepareValueForPaste(
+        field,
+        'A\n\nB',
+        'A\n\nB'
+      )
+      expect(result).toBe('A\n\nB')
+    })
+  })
 })

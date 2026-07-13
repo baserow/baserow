@@ -70,7 +70,8 @@ export const parseMarkdown = (
   md.use(blankLinePreservation)
 
   let html = md.render(value || '')
-  // Empty <p> from preservation have zero height
+  // Empty <p> renders at full line height (32px) in preview; <br> gives a
+  // smaller gap that better matches the editor's empty-paragraph spacing.
   html = html.replace(/<p><\/p>/g, '<br>')
   return html
 }

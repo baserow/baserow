@@ -22,6 +22,8 @@ export function blankLinePreservation(md) {
   if (md._blankLinePreservationInstalled) return
   md._blankLinePreservationInstalled = true
 
+  // markdown-it discards blank lines between blocks. This rule detects gaps
+  // in the source-line map and re-inserts empty <p> tokens to preserve them.
   md.core.ruler.push('preserve_blank_lines', (state) => {
     const tokens = state.tokens
     const newTokens = []
@@ -30,12 +32,15 @@ export function blankLinePreservation(md) {
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i]
 
+      // Only top-level opening/self-closing tokens carry a source map we
+      // can compare against the previous block's end line.
       if (
         token.nesting >= 0 &&
         token.map &&
         token.level === 0 &&
         lastBlockEnd !== null
       ) {
+        // Gap between previous block's end and this block's start = blank lines
         const blankLines = Math.max(0, token.map[0] - lastBlockEnd - 1)
         for (let j = 0; j < blankLines; j++) {
           newTokens.push(new state.Token('paragraph_open', 'p', 1))
@@ -45,6 +50,9 @@ export function blankLinePreservation(md) {
 
       newTokens.push(token)
 
+      // Track where this block ends. Container tokens (nesting=1, e.g.
+      // list/blockquote) overcount — their map spans past trailing blanks,
+      // so we walk children via getContentEnd to find the real boundary.
       if (token.map && token.level === 0 && token.nesting >= 0) {
         lastBlockEnd =
           token.nesting === 1 ? getContentEnd(tokens, i) : token.map[1]
