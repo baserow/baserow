@@ -61,6 +61,16 @@ def setup(settings):
         os.getenv("BASEROW_APPLICATION_USER_LIMIT_ENFORCED", "")
     )
 
+    # The number of hours a workspace can be over its application user limit before
+    # logins are refused when the limit is enforced. This gives the workspace time to
+    # upgrade or reduce its usage instead of being blocked the moment it goes over.
+    # Set it to 0 to refuse logins as soon as the periodic count detects the
+    # workspace is over its limit.
+    settings.BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS = int(
+        os.getenv("BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS", "")
+        or 24 * 7  # 7 days
+    )
+
     # Set this to True to enable users to login with auth providers different than
     # the one they were originally created with.
     settings.BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT = bool(

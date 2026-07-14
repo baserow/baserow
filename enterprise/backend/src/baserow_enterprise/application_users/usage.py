@@ -1,11 +1,14 @@
+from datetime import timedelta
 from typing import Optional, Tuple
 
 from django.conf import settings
+from django.utils.timezone import now
 
 from baserow.core.models import Workspace
 from baserow.core.registries import plugin_registry
 from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
+from baserow_enterprise.application_users.models import ApplicationUserOverLimit
 from baserow_enterprise.application_users.notification_types import (
     clear_application_user_threshold,
     notify_application_user_threshold,
@@ -42,12 +45,14 @@ def check_application_user_limit(workspace: Workspace) -> None:
     usage reaches one of the configured warning thresholds or the limit itself
     (100%). Notifications are deduped per `(workspace, threshold)`, and cleared again
     when usage drops back below a threshold so that re-crossing it (e.g. after an
-    upgrade then growth) notifies anew.
+    upgrade then growth) notifies anew. Also stamps or clears the moment the
+    workspace went over its limit, which drives the login enforcement grace period.
 
     :param workspace: The workspace to check.
     """
 
     usage, limit = get_application_user_usage_and_limit(workspace)
+    update_application_user_over_limit_state(workspace, usage, limit)
     if not limit:
         return
 
@@ -61,6 +66,29 @@ def check_application_user_limit(workspace: Workspace) -> None:
             notify_application_user_threshold(workspace, usage, limit, threshold)
         else:
             clear_application_user_threshold(workspace, threshold)
+
+
+def update_application_user_over_limit_state(
+    workspace: Workspace, usage: int, limit: Optional[int]
+) -> None:
+    """
+    Stamps the moment the workspace went over its application user limit, or clears
+    it again once usage is back within the limit (or no limit resolves anymore, e.g.
+    after a license upgrade). Repeated calls while the workspace stays over its limit
+    keep the original timestamp, so the grace period isn't restarted. The timestamp
+    drives the grace period before logins are refused when the limit is enforced.
+
+    :param workspace: The workspace to update the over limit state for.
+    :param usage: The current application user usage.
+    :param limit: The current application user limit, or `None` when there is none.
+    """
+
+    if limit is not None and usage > limit:
+        ApplicationUserOverLimit.objects.get_or_create(
+            workspace=workspace, defaults={"since": now()}
+        )
+    else:
+        ApplicationUserOverLimit.objects.filter(workspace=workspace).delete()
 
 
 def notify_workspaces_approaching_application_user_limit() -> None:
@@ -83,8 +111,8 @@ def notify_workspaces_approaching_application_user_limit() -> None:
 def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     """
     Raises ApplicationUserLimitReached when logins to the given user source's
-    workspace aren't allowed because the workspace is over its application user
-    limit.
+    workspace aren't allowed because the workspace has been over its application
+    user limit for longer than the configured grace period.
 
     When a workspace is over its limit, all of its logins are refused (not just the
     users past the limit). When no limit resolves for the workspace (e.g. an
@@ -92,7 +120,8 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     field), the login is allowed.
 
     :param user_source: The user source the user is authenticating against.
-    :raises ApplicationUserLimitReached: When the workspace is over the limit.
+    :raises ApplicationUserLimitReached: When the workspace has been over the limit
+        for longer than the grace period.
     """
 
     # Soft limit: the limit is only used to notify workspace members and nobody
@@ -101,6 +130,23 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
         return
 
     workspace = user_source.application.workspace
+
+    # The periodic user source count stamps the moment a workspace goes over its
+    # limit. Only refuse logins when that happened longer than the grace period
+    # ago, so the workspace has time to upgrade or reduce its usage first. This is
+    # a single cheap query on the login path.
+    grace_period_cutoff = now() - timedelta(
+        hours=settings.BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS
+    )
+    over_limit_past_grace_period = ApplicationUserOverLimit.objects.filter(
+        workspace=workspace, since__lt=grace_period_cutoff
+    ).exists()
+    if not over_limit_past_grace_period:
+        return
+
+    # The workspace might have upgraded or reduced its usage since the periodic
+    # count last ran, so double check the actual usage on the spot before refusing
+    # the login.
     usage, limit = get_application_user_usage_and_limit(workspace)
     if limit is not None and usage > limit:
         raise ApplicationUserLimitReached(
