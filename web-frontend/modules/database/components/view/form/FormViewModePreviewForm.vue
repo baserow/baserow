@@ -61,15 +61,12 @@
           v-if="!readOnly || view.description"
           class="form-view__description"
         >
-          <RichTextEditor
-            ref="description"
-            v-model="descriptionCopy"
-            :editable="!readOnly"
-            :enable-rich-text-formatting="true"
+          <FormViewDescription
+            :value="view.description || ''"
+            :read-only="readOnly"
             :placeholder="$t('formViewModePreviewForm.descriptionPlaceholder')"
-            @update:model-value="descriptionDirty = true"
-            @blur="saveDescription"
-          ></RichTextEditor>
+            @change="updateForm({ description: $event })"
+          ></FormViewDescription>
         </div>
         <div v-if="fields.length === 0" class="form-view__no-fields">
           <div class="form-view__no-fields-title">
@@ -149,7 +146,7 @@ import FormViewImageUpload from '@baserow/modules/database/components/view/form/
 import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
 import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
 import FormViewMetaControls from '@baserow/modules/database/components/view/form/FormViewMetaControls'
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 
 export default {
   name: 'FormViewModePreviewForm',
@@ -158,7 +155,7 @@ export default {
     FormViewField,
     FormViewImageUpload,
     FormViewMetaControls,
-    RichTextEditor,
+    FormViewDescription,
   },
   mixins: [formViewHelpers],
   props: {
@@ -188,38 +185,11 @@ export default {
     return {
       editingTitle: false,
       editingSubmitText: false,
-      // Display buffer for the editor: a markdown string initially, tiptap
-      // JSON after edits. Not the source of truth, saved value always comes
-      // from serializeToMarkdown().
-      descriptionCopy: this.view.description || '',
-      descriptionDirty: false,
     }
-  },
-  watch: {
-    'view.description': {
-      handler(value) {
-        // Don't clobber an in-progress edit if the stored value changes
-        // externally (e.g. a realtime update from another editor).
-        if (this.descriptionDirty) {
-          return
-        }
-        this.descriptionCopy = value || ''
-      },
-    },
   },
   methods: {
     order(order) {
       this.$emit('ordered-fields', order)
-    },
-    saveDescription() {
-      if (!this.descriptionDirty) {
-        return
-      }
-      const markdown = this.$refs.description.serializeToMarkdown()
-      if (markdown !== (this.view.description || '')) {
-        this.updateForm({ description: markdown })
-      }
-      this.descriptionDirty = false
     },
   },
 }

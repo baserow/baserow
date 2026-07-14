@@ -52,15 +52,12 @@
           v-if="selected || fieldOptions.description"
           class="form-view__field-description"
         >
-          <RichTextEditor
-            ref="description"
-            v-model="descriptionCopy"
-            :editable="!readOnly"
-            :enable-rich-text-formatting="true"
+          <FormViewDescription
+            :value="fieldOptions.description || ''"
+            :read-only="readOnly"
             :placeholder="$t('formViewField.descriptionPlaceholder')"
-            @update:model-value="descriptionDirty = true"
-            @blur="saveDescription"
-          ></RichTextEditor>
+            @change="$emit('updated-field-options', { description: $event })"
+          ></FormViewDescription>
         </div>
         <p
           v-if="!readOnly && cannotSubmitValues"
@@ -187,11 +184,11 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm'
 import { createFiltersTree } from '@baserow/modules/database/utils/view'
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 
 export default {
   name: 'FormViewField',
-  components: { ViewFieldConditionsForm, RichTextEditor },
+  components: { ViewFieldConditionsForm, FormViewDescription },
   provide() {
     return {
       registerChild: this.registerChild,
@@ -239,11 +236,6 @@ export default {
       editingName: false,
       value: null,
       children: [],
-      // Display buffer for the editor: a markdown string initially, tiptap
-      // JSON after edits. Not the source of truth, saved value always comes
-      // from serializeToMarkdown().
-      descriptionCopy: this.fieldOptions.description || '',
-      descriptionDirty: false,
     }
   },
   computed: {
@@ -302,16 +294,6 @@ export default {
         })
       },
     },
-    'fieldOptions.description': {
-      handler(value) {
-        // Don't clobber an in-progress edit if the stored value changes
-        // externally (e.g. a realtime update from another editor).
-        if (this.descriptionDirty) {
-          return
-        }
-        this.descriptionCopy = value || ''
-      },
-    },
   },
   created() {
     this.resetValue()
@@ -343,16 +325,6 @@ export default {
     },
     updateValue(value) {
       this.value = value
-    },
-    saveDescription() {
-      if (!this.descriptionDirty) {
-        return
-      }
-      const markdown = this.$refs.description.serializeToMarkdown()
-      if (markdown !== (this.fieldOptions.description || '')) {
-        this.$emit('updated-field-options', { description: markdown })
-      }
-      this.descriptionDirty = false
     },
     getFieldType() {
       return this.$registry.get('field', this.field.type)

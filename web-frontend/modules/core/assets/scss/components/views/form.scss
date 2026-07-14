@@ -311,6 +311,23 @@
   }
 }
 
+.form-view__description-editor {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.form-view__description-rendered {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.form-view__description-placeholder {
+  flex: 1 1 auto;
+  color: $color-neutral-500;
+  cursor: text;
+}
+
 .form-view__cover {
   position: relative;
   display: flex;
