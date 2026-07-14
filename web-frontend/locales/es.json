@@ -25,7 +25,8 @@
         "friday": "Viernes",
         "saturday": "Sábado",
         "sunday": "Domingo",
-        "value": "valor"
+        "value": "valor",
+        "workspace": "espacio de trabajo"
     },
     "action": {
         "upload": "Subir",
@@ -318,7 +319,8 @@
         "hasDateOnOrAfter": "tiene fecha en o después de",
         "hasNotDateOnOrAfter": "no tiene fecha en o después de",
         "hasDateWithin": "tiene fecha dentro",
-        "hasNotDateWithin": "no tiene fecha dentro"
+        "hasNotDateWithin": "no tiene fecha dentro",
+        "startsWith": "inicia con"
     },
     "viewType": {
         "grid": "Cuadrícula",
@@ -341,7 +343,9 @@
         "view": "vista",
         "rows": "filas",
         "automation_workflow": "flujo de trabajo de automatización",
-        "automation_node": "nodo de automatización"
+        "automation_node": "nodo de automatización",
+        "builder_page": "página del constructor",
+        "builder_element": "elemento del constructor"
     },
     "webhook": {
         "request": "Requerimiento",
@@ -726,7 +730,8 @@
         "rangeDescription": "Devuelve una matriz o `array` de números. Proporciona `range(stop)`, `range(start, stop)`, o `range(start, stop, step)`.",
         "nullDescription": "Devuelve `null`, que puede usarse como valor o para comparación",
         "toDurationDescription": "Devuelve la duración correspondiente al argumento proporcionado.",
-        "absDescription": "Devuelve el valor absoluto del argumento."
+        "absDescription": "Devuelve el valor absoluto del argumento.",
+        "categoryUtility": "Utilidad"
     },
     "formulaInputContext": {
         "useRegularInput": "Usa entrada regular",
