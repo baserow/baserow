@@ -122,16 +122,26 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
         model_class = self.field_types_override.get(
             field_type.type, field_type.model_class
         )
-        return model_class(
-            **{
-                allowed_field: getattr(self.field, allowed_field)
-                for allowed_field in allowed_fields
-                if hasattr(self.field, allowed_field)
-                and hasattr(model_class, allowed_field)
-                # Select options can't be set directly because that results in an error.
-                and allowed_field != "select_options"
-            }
-        )
+        excluded = {"select_options"}
+        mapping = getattr(self, "_select_options_mapping", None)
+        if not mapping:
+            excluded.add("single_select_default")
+
+        field_kwargs = {
+            allowed_field: getattr(self.field, allowed_field)
+            for allowed_field in allowed_fields
+            if hasattr(self.field, allowed_field)
+            and hasattr(model_class, allowed_field)
+            and allowed_field not in excluded
+        }
+
+        if mapping and "single_select_default" in field_kwargs:
+            source_default = field_kwargs["single_select_default"]
+            field_kwargs["single_select_default"] = (
+                mapping.get(str(source_default)) if source_default is not None else None
+            )
+
+        return model_class(**field_kwargs)
 
     def get_metadata(self, baserow_field, existing_metadata=None):
         new_metadata = super().get_metadata(baserow_field, existing_metadata)
@@ -158,7 +168,30 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
         )
         new_metadata["select_options_mapping"] = select_options_mapping
 
+        self._select_options_mapping = select_options_mapping
+        self._map_select_default_values(baserow_field, select_options_mapping)
+
         return new_metadata
+
+    def _map_select_default_values(self, baserow_field, select_options_mapping):
+        """
+        Maps the source field's select default option ID(s) to the corresponding
+        target option IDs on newly created fields (ADD path). For existing fields
+        (UPDATE path), the mapping flows through to_baserow_field() instead.
+        """
+
+        if not hasattr(baserow_field, "single_select_default"):
+            return
+
+        source_default = getattr(self.field, "single_select_default", None)
+        if source_default is not None:
+            mapped = select_options_mapping.get(str(source_default))
+        else:
+            mapped = None
+
+        if baserow_field.single_select_default != mapped:
+            baserow_field.single_select_default = mapped
+            baserow_field.save()
 
     def is_equal(self, baserow_row_value: Any, data_sync_row_value: Any) -> bool:
         # The CreatedOn and LastModified fields are always stored as datetime in the
