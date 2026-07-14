@@ -52,13 +52,13 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
 
 tracer = trace.get_tracer(__name__)
 
 
-class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
+class AutomationNodeHandler:
     allowed_fields = [
         "label",
         "service",
@@ -441,6 +441,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             node_history=node_history,
         )
 
+    @baserow_trace(tracer)
     def dispatch_node(
         self,
         node_id: int,
