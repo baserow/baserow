@@ -76,7 +76,7 @@
         "localBaserowCreateRowDescription": "Crea una fila nueva en una tabla de Baserow.",
         "localBaserowUpdateRow": "Actualiza una fila",
         "localBaserowUpdateRowDescription": "Actualiza una fila existente en una tabla de Baserow.",
-        "localBaserowDeleteRow": "Elimina una fila",
+        "localBaserowDeleteRow": "Eliminar filas",
         "localBaserowDeleteRowDescription": "Elimina una o más filas en una tabla de Baserow.",
         "localBaserowRowsCreated": "Se crean filas",
         "localBaserowRowsCreatedDescription": "Se activa cuando se crean filas en una tabla de Baserow.",
@@ -133,7 +133,13 @@
         "errorCSVFileMissing": "Propiedad de archivo CSV faltante",
         "errorCSVContentMissing": "Propiedad de datos CSV faltante",
         "coreCSVFileReader": "Leer un archivo CSV",
-        "coreStartWorkflowDescription": "Inicia un flujo de trabajo de automatización."
+        "coreStartWorkflowDescription": "Inicia un flujo de trabajo de automatización.",
+        "errorNoWorkflowSelected": "No se seleccionó un flujo de trabajo",
+        "localBaserowUpdateRows": "Actualizar filas en lote",
+        "localBaserowCreateRows": "Crear filas en lote",
+        "errorNoRowsSelected": "No se seleccionaron filas",
+        "coreManualTrigger": "Disparador manual",
+        "coreStartWorkflow": "Iniciar flujo de trabajo"
     },
     "userSourceType": {
         "localBaserow": "Autenticación de la tabla de Baserow"
@@ -285,7 +291,7 @@
         "bodyType": "Tipo de contenido",
         "bodyTypePlain": "Texto plano",
         "bodyTypeHtml": "HTML",
-        "body": "Contenido",
+        "body": "Cuerpo",
         "bodyPlaceholder": "Tu contenido de correo…",
         "smtpConfigurationMode": "Configuración SMTP",
         "useInstanceSmtpSettings": "Usa el servidor SMTP de la instancia"
@@ -353,24 +359,45 @@
     },
     "localBaserowUpdateRowsServiceForm": {
         "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Cada objeto debe incluir una propiedad ID. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden actualizar hasta {limit} filas a la vez.",
-        "rowsPlaceholder": "Elige una lista de objetos de fila con IDs"
+        "rowsPlaceholder": "Elige una lista de objetos de fila con IDs",
+        "rowsLabel": "Filas"
     },
     "localBaserowCreateRowsServiceForm": {
         "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden crear hasta {limit} filas a la vez.",
-        "rowsPlaceholder": "Elige una lista de objetos de fila"
+        "rowsPlaceholder": "Elige una lista de objetos de fila",
+        "rowsLabel": "Filas"
     },
     "coreStartWorkflowServiceForm": {
-        "workflowHelperText": "Solo los flujos de trabajo publicados con un disparador manual pueden iniciarse. Si este flujo de trabajo tiene cambios no publicados, se ejecutará la última versión publicada."
+        "workflowHelperText": "Solo los flujos de trabajo publicados con un disparador manual pueden iniciarse. Si este flujo de trabajo tiene cambios no publicados, se ejecutará la última versión publicada.",
+        "automation": "Automatización",
+        "workflow": "Flujo de trabajo"
     },
     "localBaserowDeleteRowServiceForm": {
         "rowIdHelper": "Elige un ID de fila o una matriz o `array` de IDs de fila. Puedes eliminar hasta {limit} filas a la vez.",
-        "rowIdPlaceholder": "Elige un ID de fila o una matriz o `array` de IDs de fila"
+        "rowIdPlaceholder": "Elige un ID de fila o una matriz o `array` de IDs de fila",
+        "rowIdLabel": "ID(s) de fila"
     },
     "localBaserowFieldsUpdatedForm": {
-        "fieldHelper": "El flujo de trabajo solo activa cuando uno de los valores de estos campos cambia."
+        "fieldHelper": "El flujo de trabajo solo activa cuando uno de los valores de estos campos cambia.",
+        "fieldLabel": "Campos"
     },
     "coreCSVFileReaderServiceForm": {
         "filePlaceholder": "Elige un archivo CSV...",
-        "firstLineIsHeader": "La primera línea es cabecera"
+        "firstLineIsHeader": "La primera línea es cabecera",
+        "csvPlaceholder": "Introduce datos del CSV...",
+        "utf8Bom": "UTF-8 con BOM",
+        "csv": "Datos CSV",
+        "file": "Archivo CSV",
+        "utf8": "UTF-8",
+        "latin1": "Latin-1",
+        "inputType": "Origen",
+        "inputTypeFile": "Archivo",
+        "inputTypeContent": "Contenido",
+        "encoding": "Codificación",
+        "comma": "Coma",
+        "semicolon": "Punto y coma",
+        "tab": "Tabulación",
+        "separator": "Separador",
+        "pipe": "Pleca"
     }
 }
