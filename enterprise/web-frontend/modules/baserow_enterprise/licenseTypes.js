@@ -13,11 +13,13 @@ const commonAdvancedFeatures = [
   EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
   EnterpriseFeaturesObject.FIELD_LEVEL_PERMISSIONS,
   EnterpriseFeaturesObject.DATE_DEPENDENCY,
-  // application builder
+  // WAB
   EnterpriseFeaturesObject.BUILDER_SSO,
   EnterpriseFeaturesObject.BUILDER_NO_BRANDING,
   EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
   EnterpriseFeaturesObject.BUILDER_CUSTOM_CODE,
+  EnterpriseFeaturesObject.CODE_RUNNER,
+  EnterpriseFeaturesObject.XLS_FILE_READER,
   // Only self-hosted
   EnterpriseFeaturesObject.SSO,
 ]
@@ -112,8 +114,6 @@ export class EnterpriseWithoutSupportLicenseType extends AdvancedLicenseType {
       ...commonAdvancedFeatures,
       EnterpriseFeaturesObject.ENTERPRISE_SETTINGS,
       EnterpriseFeaturesObject.DATA_SCANNER,
-      EnterpriseFeaturesObject.CODE_RUNNER,
-      EnterpriseFeaturesObject.XLS_FILE_READER,
     ]
   }
 
