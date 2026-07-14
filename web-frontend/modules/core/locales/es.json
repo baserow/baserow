@@ -590,14 +590,14 @@
     "failedConnectingToast": {
         "title": "Fallido",
         "content": "No se pudieron restablecer las actualizaciones en tiempo real. Por favor, actualiza para continuar.",
-        "action": "Recargar página"
+        "action": "Refrescar página"
     },
     "userSessionExpiredToast": {
         "title": "Sesión expirada",
         "content": "Se ha cerrado la sesión porque tu token de autenticación ha expirado. Vuelva a iniciar sesión."
     },
     "authorizationErrorToast": {
-        "action": "Recargar página",
+        "action": "Refrescar página",
         "title": "Error de autorización",
         "content": "Parece que no tienes permiso de ver este recurso."
     },
@@ -990,7 +990,8 @@
         "workspaces": "Grupos",
         "lastLogin": "Último acceso",
         "dateJoined": "Inscrito",
-        "active": "Activo"
+        "active": "Activo",
+        "twoFactorAuth": "2FA"
     },
     "editUserContext": {
         "changePassword": "Cambiar la contraseña",
@@ -1017,7 +1018,9 @@
         "error": {
             "invalidName": "Ingrese un nombre completo válido, debe tener más de 2 letras y menos de 150.",
             "invalidEmail": "Por favor, introduce una dirección de correo electrónico válida."
-        }
+        },
+        "removeTwoFactorAuth": "Eliminar autenticación de dos factores",
+        "twoFactorAuth": "Autenticación de dos factores"
     },
     "changeUserPasswordModal": {
         "changePassword": "Cambiar contraseña para {username}"
@@ -1286,13 +1289,24 @@
     },
     "disableTwoFactorAuthModal": {
         "comment": "Podrán iniciar sesión solo con su contraseña y configurar la autenticación de dos factores nuevamente después.",
-        "confirmation": "¿Estás seguro de que quieres eliminar la autenticación de dos factores para {name}?"
+        "confirmation": "¿Estás seguro de que quieres eliminar la autenticación de dos factores para {name}?",
+        "remove": "Eliminar autenticación de dos factores",
+        "title": "Eliminar autenticación de dos factores"
     },
     "sampleDataViewer": {
-        "truncatedPayloadWarning": "Solo se muestran los primeros {size} caracteres. Descarga la carga completa o `payload` para inspeccionarlo en tu computadora."
+        "truncatedPayloadWarning": "Solo se muestran los primeros {size} caracteres. Descarga la carga útil completa para inspeccionarlo en tu computadora.",
+        "errorLabel": "Ocurrió un error...",
+        "downloadFullPayload": "Descargar la carga útil completa",
+        "truncatedLabel": "[Salida truncada]",
+        "showPayloadLabel": "Mostrar carga útil",
+        "showErrorLabel": "Mostrar error",
+        "payloadLabel": "Salida"
     },
     "workspaceOutdatedToast": {
-        "content": "Han ocurrido demasiados cambios mientras estabas lejos. Refresca para ver los últimos datos."
+        "content": "Han ocurrido demasiados cambios mientras estabas lejos. Refresca para ver los últimos datos.",
+        "title": "Demasiados cambios",
+        "action": "Refrescar datos",
+        "dismiss": "Descartar"
     },
     "editWorkspace": {
         "invalidNameTitle": "Nombre de espacio de trabajo no permitido"
