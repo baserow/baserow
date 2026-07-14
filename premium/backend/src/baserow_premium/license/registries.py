@@ -1,6 +1,6 @@
 import abc
 import dataclasses
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
@@ -202,6 +202,44 @@ class LicenseType(abc.ABC, Instance):
                 ApplicationUserUsageHandler().aggregate_user_source_counts(workspace)
             )
         )
+
+    def get_application_user_usage_and_limit(
+        self, workspace: Workspace
+    ) -> Optional[Tuple[int, Optional[int]]]:
+        """
+        Returns the current application user usage and limit for the given workspace
+        as a `(usage, limit)` tuple, or `None` when this license type doesn't
+        resolve an application user limit. A `limit` of `None` means there is no
+        enforced application user limit.
+
+        The default implementation is the self-hosted truth: the limit is the sum of
+        the `application_users` of all active licenses that define one, because
+        every license row is an independent capacity grant that stacks with the
+        others. Usage is the instance-wide application user count.
+
+        :param workspace: The workspace a new application user would belong to.
+        :return: A `(usage, limit)` tuple or `None`.
+        """
+
+        total_limit = 0
+        has_limit = False
+        for license_object in License.objects.all():
+            if not license_object.valid_payload or not license_object.is_active:
+                continue
+            if license_object.application_users is None:
+                continue
+            has_limit = True
+            total_limit += license_object.application_users
+
+        # No active license carries an application_users limit, either the
+        # install is unlicensed, or its license predates v1.32 and has no
+        # application_users field.
+        # Either way, no limit is enforced and no notifications fire.
+        if not has_limit:
+            return None
+
+        usage = ApplicationUserUsageHandler().aggregate_user_source_counts()
+        return usage, total_limit
 
 
 class LicenseTypeRegistry(Registry[LicenseType]):

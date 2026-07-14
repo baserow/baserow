@@ -23,7 +23,7 @@ def user_source(data_fixture):
 @pytest.mark.django_db
 @override_settings(DEBUG=True, BASEROW_APPLICATION_USER_LIMIT_ENFORCED=False)
 @patch(
-    "baserow_premium.application_user_usage.provider_types."
+    "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
 def test_login_is_allowed_over_the_limit_when_the_limit_is_a_soft_one(
@@ -40,7 +40,7 @@ def test_login_is_allowed_over_the_limit_when_the_limit_is_a_soft_one(
 @pytest.mark.django_db
 @override_settings(BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True)
 @patch(
-    "baserow_premium.application_user_usage.provider_types."
+    "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
 def test_login_is_allowed_when_the_install_is_unlicensed(
@@ -54,7 +54,7 @@ def test_login_is_allowed_when_the_install_is_unlicensed(
 @pytest.mark.django_db
 @override_settings(DEBUG=True, BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True)
 @patch(
-    "baserow_premium.application_user_usage.provider_types."
+    "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
 def test_login_is_allowed_when_no_license_carries_an_application_user_limit(
@@ -71,7 +71,7 @@ def test_login_is_allowed_when_no_license_carries_an_application_user_limit(
 @pytest.mark.django_db
 @override_settings(DEBUG=True, BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True)
 @patch(
-    "baserow_premium.application_user_usage.provider_types."
+    "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
 def test_login_is_allowed_when_the_usage_is_within_the_license_limit(
@@ -88,7 +88,7 @@ def test_login_is_allowed_when_the_usage_is_within_the_license_limit(
 @pytest.mark.django_db
 @override_settings(DEBUG=True, BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True)
 @patch(
-    "baserow_premium.application_user_usage.provider_types."
+    "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
 def test_login_is_refused_when_the_usage_exceeds_the_license_limit(

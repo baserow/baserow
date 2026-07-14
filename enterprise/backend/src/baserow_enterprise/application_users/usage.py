@@ -3,23 +3,14 @@ from typing import Optional, Tuple
 from django.conf import settings
 
 from baserow.core.models import Workspace
+from baserow.core.registries import plugin_registry
 from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
 from baserow_enterprise.application_users.notification_types import (
     clear_application_user_threshold,
     notify_application_user_threshold,
 )
-from baserow_premium.application_user_usage.registries import (
-    application_user_usage_provider_registry,
-)
-
-
-def _sorted_providers():
-    return sorted(
-        application_user_usage_provider_registry.get_all(),
-        key=lambda provider: provider.order,
-        reverse=True,
-    )
+from baserow_premium.plugins import PremiumPlugin
 
 
 def get_application_user_usage_and_limit(
@@ -27,7 +18,8 @@ def get_application_user_usage_and_limit(
 ) -> Tuple[int, Optional[int]]:
     """
     Resolves the current application user usage and limit for the given workspace by
-    asking the registered providers, highest order first. A limit of `None` means
+    asking the license plugin of the current deployment (a per-workspace quota for
+    SaaS, an instance-wide license value for self-hosted). A limit of `None` means
     there is no enforced application user limit. This is used to drive the threshold
     notifications.
 
@@ -35,11 +27,13 @@ def get_application_user_usage_and_limit(
     :return: A `(usage, limit)` tuple.
     """
 
-    for provider in _sorted_providers():
-        result = provider.get_usage_and_limit(workspace)
-        if result is not None:
-            return result
-    return 0, None
+    license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin()
+    result = license_plugin.get_application_user_usage_and_limit_for_workspace(
+        workspace
+    )
+    if result is None:
+        return 0, None
+    return result
 
 
 def check_application_user_limit(workspace: Workspace) -> None:
@@ -89,20 +83,16 @@ def notify_workspaces_approaching_application_user_limit() -> None:
 def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     """
     Raises ApplicationUserLimitReached when logins to the given user source's
-    workspace aren't allowed because a provider that enforces a hard application user
-    login limit considers the workspace over it.
+    workspace aren't allowed because the workspace is over its application user
+    limit.
 
     When a workspace is over its limit, all of its logins are refused (not just the
-    users past the limit).
-
-    The over-limit decision is delegated to the registered providers (highest order
-    first): the first provider that returns a non-None verdict decides. A provider
-    returning None doesn't enforce a hard login limit for the current deployment, so
-    the next provider is consulted; when none do, the login is allowed.
+    users past the limit). When no limit resolves for the workspace (e.g. an
+    unlicensed install, or a pre v1.32 license without an `application_users`
+    field), the login is allowed.
 
     :param user_source: The user source the user is authenticating against.
-    :raises ApplicationUserLimitReached: When a provider considers the workspace over
-        the limit.
+    :raises ApplicationUserLimitReached: When the workspace is over the limit.
     """
 
     # Soft limit: the limit is only used to notify workspace members and nobody
@@ -111,20 +101,8 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
         return
 
     workspace = user_source.application.workspace
-    for provider in _sorted_providers():
-        over_limit = provider.is_over_login_limit(workspace)
-        if over_limit is None:
-            # This provider has no verdict for this deployment, so let the
-            # next one decide. The premium provider may not have any active
-            # license with `application_users` because its either an unlicensed
-            # install, or an older license.
-            continue
-
-        if over_limit:
-            raise ApplicationUserLimitReached(
-                "The application user limit has been reached."
-            )
-
-        # The highest order provider with a verdict decides. It is under the
-        # limit, so allow.
-        return
+    usage, limit = get_application_user_usage_and_limit(workspace)
+    if limit is not None and usage > limit:
+        raise ApplicationUserLimitReached(
+            "The application user limit has been reached."
+        )

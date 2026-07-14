@@ -117,17 +117,6 @@ class BaserowPremiumConfig(AppConfig):
 
         view_ownership_type_registry.register(PersonalViewOwnershipType())
 
-        from baserow_premium.application_user_usage.provider_types import (
-            PremiumApplicationUserUsageProviderType,
-        )
-        from baserow_premium.application_user_usage.registries import (
-            application_user_usage_provider_registry,
-        )
-
-        application_user_usage_provider_registry.register(
-            PremiumApplicationUserUsageProviderType()
-        )
-
         from baserow_premium.license.license_types import PremiumLicenseType
         from baserow_premium.license.registries import license_type_registry
 

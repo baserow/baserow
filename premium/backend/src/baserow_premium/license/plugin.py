@@ -1,4 +1,4 @@
-from typing import Dict, Generator, List, Optional, Set
+from typing import Dict, Generator, List, Optional, Set, Tuple
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -274,6 +274,41 @@ class LicensePlugin:
             )
         else:
             return None
+
+    def get_application_user_usage_and_limit_for_workspace(
+        self, workspace: Workspace
+    ) -> Optional[Tuple[int, Optional[int]]]:
+        """
+        Returns the application user usage and limit for the given workspace as a
+        `(usage, limit)` tuple by asking the most important (the license type with
+        the highest order) license type with an active license. A `limit` of `None`
+        means there is no enforced application user limit.
+
+        Returns `None` when the install is unlicensed or when the license type
+        doesn't resolve an application user limit (e.g. a pre v1.32 license without
+        an `application_users` field).
+
+        :param workspace: The workspace to resolve the usage and limit for.
+        :return: A `(usage, limit)` tuple or `None`.
+        """
+
+        # Unlike seats, application user capacity can be granted by licenses that
+        # aren't instance wide (e.g. premium), so resolve the most relevant license
+        # type from all active license rows instead of only the instance wide ones.
+        active_license_types = [
+            license_object.license_type
+            for license_object in License.objects.all()
+            if license_object.valid_payload and license_object.is_active
+        ]
+        if not active_license_types:
+            return None
+
+        most_relevant_license_type = max(
+            active_license_types, key=lambda license_type: license_type.order
+        )
+        return most_relevant_license_type.get_application_user_usage_and_limit(
+            workspace
+        )
 
     def get_seat_usage_for_specific_users(
         self, user_ids: List[int]
