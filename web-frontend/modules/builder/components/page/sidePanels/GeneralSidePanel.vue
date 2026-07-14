@@ -22,7 +22,6 @@
 <script>
 import elementSidePanel from '@baserow/modules/builder/mixins/elementSidePanel'
 import CustomStyleForm from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleForm'
-import { syncFormsWithDefaultValuesKey } from '@baserow/modules/core/mixins/form'
 
 export default {
   name: 'GeneralSidePanel',
@@ -31,9 +30,6 @@ export default {
   provide() {
     return {
       openCustomStyleForm: this.handleOpenCustomStyleForm,
-      // Keep the rendered element form in sync with the underlying element so that
-      // undo/redo (and realtime changes) are reflected live in the open form.
-      [syncFormsWithDefaultValuesKey]: true,
     }
   },
   data() {

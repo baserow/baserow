@@ -49,7 +49,6 @@ import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation
 import _ from 'lodash'
 import { helpers, maxLength } from '@vuelidate/validators'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { syncFormsWithDefaultValuesKey } from '@baserow/modules/core/mixins/form'
 
 const store = useStore()
 
@@ -57,9 +56,6 @@ const app = useNuxtApp()
 
 provide('formulaComponent', AutomationBuilderFormulaInput)
 provide('dataProvidersAllowed', DATA_PROVIDERS_ALLOWED_NODE_ACTIONS)
-// Keep the rendered node form in sync with the underlying node service so that
-// undo/redo (and realtime changes) are reflected live in the open form.
-provide(syncFormsWithDefaultValuesKey, true)
 
 const workspace = inject('workspace')
 const automation = inject('automation')

@@ -1,16 +1,6 @@
-import _ from 'lodash'
-
 import { clone } from '@baserow/modules/core/utils/object'
 
 const formParentKey = Symbol('formParentKey')
-
-// Injection key an ancestor can `provide` (with value `true`) to enable
-// `defaultValues` syncing for every form it contains, without passing the
-// `syncWithDefaultValues` prop to each one. Used by the builder and automation
-// editors so that undo/redo of a field change is reflected in the open form.
-export const syncFormsWithDefaultValuesKey = Symbol(
-  'syncFormsWithDefaultValues'
-)
 
 /**
  * This mixin introduces some helper functions for form components where the
@@ -32,16 +22,6 @@ export default {
       required: false,
       default: false,
     },
-    // When enabled, the form keeps its `values` in sync with `defaultValues` when the
-    // latter changes externally (for example after an undo/redo or a realtime update
-    // from another user). Only keys that the user hasn't locally edited are updated,
-    // so in-progress edits are never overwritten. Off by default to preserve the
-    // original behaviour where `values` are initialised only once, on create.
-    syncWithDefaultValues: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
   },
   provide() {
     return {
@@ -52,19 +32,6 @@ export default {
     parentForm: {
       from: formParentKey,
       default: null,
-    },
-    // Set to `true` by an ancestor editor (see `syncFormsWithDefaultValuesKey`) to
-    // enable defaultValues syncing without an explicit prop on this form.
-    injectedSyncWithDefaultValues: {
-      from: syncFormsWithDefaultValuesKey,
-      default: false,
-    },
-  },
-  computed: {
-    // Syncing is enabled either explicitly via the prop, or for all forms inside an
-    // editor that provides `syncFormsWithDefaultValuesKey`.
-    formSyncsWithDefaultValues() {
-      return this.syncWithDefaultValues || this.injectedSyncWithDefaultValues
     },
   },
   beforeUnmount() {
@@ -90,17 +57,12 @@ export default {
       skipFirstValuesEmit: false,
       // Array to store registered child forms
       registeredChildForms: [],
-      // Snapshot of the `defaultValues` we last initialised/synced from. Used (only
-      // when `syncWithDefaultValues` is enabled) to detect which keys the user has
-      // locally edited so those are never overwritten by an external change.
-      lastSyncedDefaultValues: {},
     }
   },
   created() {
     for (const [key, value] of Object.entries(this.getDefaultValues())) {
       this.values[key] = value
     }
-    this.lastSyncedDefaultValues = this.getDefaultValues()
 
     if (
       this.parentForm &&
@@ -118,14 +80,6 @@ export default {
         }
         if (this.emitValues) {
           this.emitChange(newValues)
-        }
-      },
-      deep: true,
-    },
-    defaultValues: {
-      handler() {
-        if (this.formSyncsWithDefaultValues) {
-          this.syncValuesWithDefaultValues()
         }
       },
       deep: true,
@@ -357,49 +311,6 @@ export default {
     },
     emitChange(newValues) {
       this.$emit('values-changed', newValues)
-    },
-    /**
-     * Re-synchronises `values` with `defaultValues` after the latter changed
-     * externally (e.g. undo/redo or a realtime update). Only enabled when the
-     * `syncWithDefaultValues` prop is set.
-     *
-     * Safety guarantees:
-     * - A key is only updated if the user hasn't locally edited it since the last
-     *   sync (its current value still equals the previously-synced default). This
-     *   means in-progress edits are never clobbered.
-     * - The resulting change to `values` does not emit `values-changed`, so it
-     *   cannot trigger a save/undo loop back to the source of the change.
-     */
-    syncValuesWithDefaultValues() {
-      const newDefaults = this.getDefaultValues()
-      const previousDefaults = this.lastSyncedDefaultValues
-      const updates = {}
-
-      for (const key of Object.keys(newDefaults)) {
-        const locallyEdited = !_.isEqual(
-          this.values[key],
-          previousDefaults[key]
-        )
-        if (locallyEdited) {
-          continue
-        }
-        if (!_.isEqual(this.values[key], newDefaults[key])) {
-          updates[key] = newDefaults[key]
-        }
-      }
-
-      // Always advance the snapshot so a key the user edited is compared against the
-      // latest external value on the next change.
-      this.lastSyncedDefaultValues = newDefaults
-
-      if (Object.keys(updates).length === 0) {
-        return
-      }
-
-      // Apply the external change without emitting: the deep `values` watcher fires
-      // once for this batch and the one-shot skip flag suppresses that emit.
-      this.skipFirstValuesEmit = true
-      Object.assign(this.values, updates)
     },
   },
 }
