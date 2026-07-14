@@ -1,6 +1,10 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
 import { uuid } from '@baserow/modules/core/utils/string'
+import {
+  markRealtimeMetadata,
+  realtimeMetadata,
+} from '@baserow/modules/core/utils/realtime'
 
 import ElementService from '@baserow/modules/builder/services/element'
 import PublicBuilderService from '@baserow/modules/builder/services/publishedBuilder'
@@ -20,6 +24,7 @@ const populateElement = (element, registry) => {
     // It breaks collection element reload after authentication for instance
     // This uid is used as key in the PageElement component
     uid: uuid(),
+    ...realtimeMetadata(),
     ...elementType.getPopulateStoreProperties(),
   }
 
@@ -83,8 +88,12 @@ const mutations = {
     }
     updateCachedValues(page)
   },
-  UPDATE_ITEM(state, { builder, page, element: elementToUpdate, values }) {
+  UPDATE_ITEM(
+    state,
+    { builder, page, element: elementToUpdate, values, viaRealtime = false }
+  ) {
     let updateCached = false
+    let markedElement = null
     page.elements.forEach((element) => {
       if (element.id === elementToUpdate.id) {
         if (
@@ -94,10 +103,17 @@ const mutations = {
           updateCached = true
         }
         Object.assign(element, values)
+        markRealtimeMetadata(element, viaRealtime)
+        markedElement = element
       }
     })
     if (builder.selectedElement?.id === elementToUpdate.id) {
       Object.assign(builder.selectedElement, values)
+      // `selectedElement` is usually the same object as the page element above;
+      // only mark it separately when it isn't, to avoid bumping the version twice.
+      if (builder.selectedElement !== markedElement) {
+        markRealtimeMetadata(builder.selectedElement, viaRealtime)
+      }
     }
     if (updateCached) {
       updateCachedValues(page)
@@ -157,9 +173,9 @@ const actions = {
       })
     }
   },
-  forceUpdate({ commit }, { builder, page, element, values }) {
+  forceUpdate({ commit }, { builder, page, element, values, viaRealtime }) {
     const { $registry } = this
-    commit('UPDATE_ITEM', { builder, page, element, values })
+    commit('UPDATE_ITEM', { builder, page, element, values, viaRealtime })
     const elementType = $registry.get('element', element.type)
     elementType.afterUpdate(element, page)
   },

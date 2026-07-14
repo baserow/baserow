@@ -47,6 +47,27 @@ export default {
       },
     }
   },
+  created() {
+    // Reset the form when the *same* element's realtime version advances (an
+    // undo/redo or another user's change). Comparing the version — rather than just
+    // reading the `viaRealtime` flag, which stays set until the next local edit —
+    // ensures we only reset on a genuinely new realtime event. A changed element id
+    // means the selection changed (the form remounts via `:key`). Runs post-flush so
+    // the form's `defaultValues` reflect the change first.
+    this.$watch(
+      () => [this.element?.id, this.element?._?.realtimeVersion],
+      ([id, version], [oldId, oldVersion]) => {
+        if (
+          id === oldId &&
+          version !== oldVersion &&
+          this.element?._?.viaRealtime
+        ) {
+          this.$refs.panelForm?.reset?.(true)
+        }
+      },
+      { flush: 'post' }
+    )
+  },
   methods: {
     /**
      * The handler that is injected into the element's general form

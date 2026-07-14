@@ -589,4 +589,52 @@ describe('element store', () => {
       expect(result.map((e) => e.id)).toEqual([1, 99])
     })
   })
+
+  describe('realtime form-reset metadata', () => {
+    const makeSelected = () => {
+      const element = {
+        id: 1,
+        type: 'heading',
+        value: 'a',
+        _: { viaRealtime: false, realtimeVersion: 0 },
+      }
+      const page = { elements: [element], elementMap: { 1: element } }
+      const builder = { selectedElement: element }
+      return { element, page, builder }
+    }
+
+    test('a realtime update flags viaRealtime and bumps realtimeVersion once', () => {
+      const { element, page, builder } = makeSelected()
+
+      elementStore.mutations.UPDATE_ITEM(
+        {},
+        {
+          builder,
+          page,
+          element: { id: 1 },
+          values: { value: 'b' },
+          viaRealtime: true,
+        }
+      )
+
+      expect(element.value).toBe('b')
+      expect(element._.viaRealtime).toBe(true)
+      // Bumped exactly once even though selectedElement is the same object.
+      expect(element._.realtimeVersion).toBe(1)
+    })
+
+    test('a local update clears viaRealtime without bumping realtimeVersion', () => {
+      const { element, page, builder } = makeSelected()
+      element._.viaRealtime = true
+      element._.realtimeVersion = 2
+
+      elementStore.mutations.UPDATE_ITEM(
+        {},
+        { builder, page, element: { id: 1 }, values: { value: 'c' } }
+      )
+
+      expect(element._.viaRealtime).toBe(false)
+      expect(element._.realtimeVersion).toBe(2)
+    })
+  })
 })

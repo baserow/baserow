@@ -1,6 +1,10 @@
 import WorkflowActionService from '@baserow/modules/builder/services/workflowAction'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
 import _ from 'lodash'
+import {
+  markRealtimeMetadata,
+  realtimeMetadata,
+} from '@baserow/modules/core/utils/realtime'
 
 const updateContext = {
   updateTimeout: null,
@@ -16,6 +20,7 @@ export function populateWorkflowAction(workflowAction) {
       loading: false,
       dispatching: false,
       dispatchedById: null,
+      ...realtimeMetadata(),
     },
   }
 }
@@ -41,7 +46,13 @@ const mutations = {
   },
   UPDATE_ITEM(
     state,
-    { page, workflowAction: workflowActionToUpdate, values, overwrite = false }
+    {
+      page,
+      workflowAction: workflowActionToUpdate,
+      values,
+      overwrite = false,
+      viaRealtime = false,
+    }
   ) {
     const index = page.workflowActions.findIndex(
       (wa) => wa.id === workflowActionToUpdate.id
@@ -52,13 +63,14 @@ const mutations = {
       return
     }
 
+    const existing = page.workflowActions[index]
     const {
       id,
       page_id: pageId,
       element_id: elementId,
       event,
       order,
-    } = page.workflowActions[index]
+    } = existing
 
     if (overwrite) {
       const newValue = populateWorkflowAction({
@@ -69,9 +81,14 @@ const mutations = {
         order,
         ...values,
       })
+      // Carry the realtime version over the object replacement so a subsequent
+      // increment is still detected as a change by watchers.
+      newValue._.realtimeVersion = existing?._?.realtimeVersion || 0
+      markRealtimeMetadata(newValue, viaRealtime)
       page.workflowActions.splice(index, 1, newValue)
     } else {
-      Object.assign(page.workflowActions[index], values)
+      Object.assign(existing, values)
+      markRealtimeMetadata(existing, viaRealtime)
     }
   },
   SET_ITEM(state, { page, workflowAction: workflowActionToSet, values }) {
@@ -103,8 +120,17 @@ const actions = {
   forceDelete({ commit }, { page, workflowActionId }) {
     commit('DELETE_ITEM', { page, workflowActionId })
   },
-  forceUpdate({ commit }, { page, workflowAction, values, overwrite }) {
-    commit('UPDATE_ITEM', { page, workflowAction, values, overwrite })
+  forceUpdate(
+    { commit },
+    { page, workflowAction, values, overwrite, viaRealtime }
+  ) {
+    commit('UPDATE_ITEM', {
+      page,
+      workflowAction,
+      values,
+      overwrite,
+      viaRealtime,
+    })
   },
   forceSet({ commit }, { page, workflowAction, values }) {
     commit('SET_ITEM', { page, workflowAction, values })

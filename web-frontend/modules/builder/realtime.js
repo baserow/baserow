@@ -158,6 +158,7 @@ export const registerRealtimeEvents = (realtime) => {
       page: ctx.page,
       element,
       values: element,
+      viaRealtime: true,
     })
   })
 
@@ -405,6 +406,7 @@ export const registerRealtimeEvents = (realtime) => {
       page: ctx.page,
       workflowAction: data.workflow_action,
       values: data.workflow_action,
+      viaRealtime: true,
     })
   })
 
