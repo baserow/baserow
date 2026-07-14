@@ -73,7 +73,8 @@
         "lastSynced": "Última sincronización",
         "notSynced": "No sincronizado",
         "sync": "Sincronizar tabla",
-        "updateSyncConfig": "Actualizar la configuración de sincronización"
+        "updateSyncConfig": "Actualizar la configuración de sincronización",
+        "importFile": "Importar archivo"
     },
     "apiToken": {
         "create": "crear",
@@ -392,12 +393,13 @@
         "fieldMappingTitle": "Cartografía de campo",
         "fieldMappingDescription": "Hemos asignado automáticamente las columnas de los campos Baserow en su tabla. Puedes cambiarlas a continuación. Cualquier celda incompatible permanecerá vacía después de la importación.",
         "selectImportMessage": "Selecciona los datos que quieras importar.",
-        "filePreview": "Vista previa del contenido del archivo",
-        "importPreview": "Vista previa de la importación",
+        "filePreview": "Previsualizar el contenido del archivo",
+        "importPreview": "Previsualizar la importación",
         "changeImporterType": "Cambiar el tipo de importación",
         "defaultName": "Tabla",
         "useUpsertField": "Actualizar filas si ya existen",
-        "upsertTooltip": "Coincidir filas existentes usando un campo único para sobrescribir los datos con los valores importados."
+        "upsertTooltip": "Coincidir filas existentes usando un campo único para sobrescribir los datos con los valores importados.",
+        "restoredFile": "Importando archivo \"{name}\"..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Haga clic para editar la fórmula",
@@ -592,7 +594,9 @@
     },
     "exportTableForm": {
         "viewLabel": "Seleccione la vista para exportar:",
-        "typeError": "No hay ningún tipo de exportador disponible, seleccione una vista diferente o la tabla completa."
+        "typeError": "No hay ningún tipo de exportador disponible, seleccione una vista diferente o la tabla completa.",
+        "includeRowId": "Incluir ID de fila",
+        "includePrimaryField": "Incluir campo principal"
     },
     "exportTableLoadingBar": {
         "export": "Exportar",
@@ -799,7 +803,7 @@
     },
     "formViewHeader": {
         "mode": "Modo",
-        "preview": "Vista previa",
+        "preview": "Previsualizar",
         "fields": "Campos"
     },
     "formViewModePreviewForm": {
@@ -914,7 +918,9 @@
         "noGroupByTitle": "Aún no has creado ninguna agrupación",
         "noGroupByText": "Agrupar filas por un campo.",
         "hiddenFieldWarning": "Uno o más agrupamientos hacen referencia a campos ocultos que no serán visibles para editores y roles inferiores.",
-        "maxGroupBysReached": "Puedes agrupar por hasta {count} campos."
+        "maxGroupBysReached": "Puedes agrupar por hasta {count} campos.",
+        "collapseAllGroups": "Colapsar todo",
+        "expandAllGroups": "Expandir todo"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",
@@ -1079,7 +1085,8 @@
         "importError": "Algo ha ido mal durante la importación del archivo",
         "stateRowCreation": "Importando...",
         "statePreValidation": "Validando los datos...",
-        "stateCreateTable": "Creando tabla..."
+        "stateCreateTable": "Creando tabla...",
+        "importingTable": "Importando tabla \"{name}\"..."
     },
     "importErrorReport": {
         "reportTitleFailure": "Filas que fallan",
@@ -1103,7 +1110,8 @@
         "autoAddHelper": "Automáticamente agrega y sincroniza las propiedades recién disponibles del origen de datos en la tabla de Baserow. Ten en cuenta que, para que esto funcione, todas las propiedades deben estar sincronizadas.",
         "twoWaySyncLabel": "Sincronización bidireccional",
         "deleteUnmatchedRowsHelper": "Cuando está activado, las filas que son eliminadas o ya no son visibles en el origen también son eliminadas de esta tabla en cada sincronización. Cuando está desactivado, esas filas se mantienen y reutilizan si la fila del origen reaparece.",
-        "deleteUnmatchedRowsLabel": "Elimina filas cuando se eliminan o se ocultan en el origen"
+        "deleteUnmatchedRowsLabel": "Elimina filas cuando se eliminan o se ocultan en el origen",
+        "syncing": "Sincronizando datos..."
     },
     "syncTableModal": {
         "title": "Sincronizar {name}",
@@ -1171,7 +1179,7 @@
         "body": "{name} webhook ha sido desactivado porque falló demasiadas veces consecutivamente."
     },
     "webhookPayloadTooLargeNotification": {
-        "body": "El payload para el webhook {name} con ID de evento {event_id} era demasiado grande. El contenido se ha dividido en varios lotes, pero los datos que superan el límite de lote de {batch_limit} fueron descartados."
+        "body": "La carga útil para el webhook {name} con ID de evento {event_id} era demasiado grande. El contenido se ha dividido en varios lotes, pero los datos que superan el límite de lote de {batch_limit} fueron descartados."
     },
     "tablesGuidedTourStep": {
         "title": "Configurar tablas",
@@ -1234,6 +1242,17 @@
         "emptyError": "Este archivo Excel no contiene ninguna hoja.",
         "limitFileSize": "El tamaño máximo del archivo es {limit}MB.",
         "emptySheetError": "La hoja seleccionada está vacía.",
-        "firstRowHeader": "La primera fila es cabecera"
+        "firstRowHeader": "La primera fila es cabecera",
+        "chooseFileLabel": "Elige un archivo Excel",
+        "chooseFile": "Elige un archivo Excel",
+        "sheet": "Hoja"
+    },
+    "viewSearch": {
+        "clearSearch": "Limpiar búsqueda"
+    },
+    "gridViewGroupByBanner": {
+        "expandGroup": "Expandir grupo",
+        "collapseGroup": "Colapsar grupo",
+        "emptyValue": "(Vacío)"
     }
 }
