@@ -142,7 +142,8 @@
         "localBaserowFieldsUpdatedLabel": "{fieldName} se actualiza en {tableName}",
         "localBaserowCreateRowsLabel": "Crear filas en lote en {tableName}",
         "localBaserowUpdateRowsLabel": "Actualizar filas en lote en {tableName}",
-        "csvFileReaderLabel": "Leer un archivo CSV"
+        "csvFileReaderLabel": "Leer un archivo CSV",
+        "startWorkflowLabel": "Iniciar {workflowName}"
     },
     "simulateDispatch": {
         "testNodeDescription": "Prueba este nodo para confirmar que la configuración es correcta. Los datos de esta prueba pueden usarse en pasos posteriores.",
@@ -157,7 +158,7 @@
         "errorOccurred": "Ocurrió un error…",
         "sampleDataLabel": "Salida",
         "sampleDataCopy": "Copiar",
-        "buttonLabelTest": "Probar evento",
+        "buttonLabelTest": "Probar nodo",
         "buttonLabelShowPayload": "Mostrar carga útil",
         "buttonLabelShowError": "Mostrar error",
         "sampleDataModalSubTitle": "Carga útil JSON"
@@ -192,7 +193,8 @@
         "periodicTrigger": "Disparador periódico",
         "periodicTriggerTriggeredAt": "Disparado a las",
         "coreHTTPTrigger": "Disparador HTTP",
-        "coreManualTriggerDescription": "Se inicia solo cuando otra acción de flujo de trabajo inicia este flujo de trabajo"
+        "coreManualTriggerDescription": "Se inicia solo cuando otra acción de flujo de trabajo inicia este flujo de trabajo",
+        "coreManualTrigger": "Disparador manual"
     },
     "workflowNode": {
         "displayLabelDebug": "ID: {id} | ID Previo: {previousNodeId} | {outputUid}",
