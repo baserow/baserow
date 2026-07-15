@@ -377,6 +377,32 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             if field_id in existing_field_ids
         ]
 
+    def field_dependency_updated(
+        self,
+        field,
+        updated_field,
+        updated_old_field,
+        update_collector,
+        field_cache,
+        via_path_to_starting_table=None,
+    ):
+        # When a referenced field is created, updated, deleted or restored, the
+        # prompt's validity (and thus the computed `error`) can change. Mark the
+        # field as changed so it is re-serialized and pushed to the client,
+        # without touching its stored cell values. (`field_dependency_created`
+        # and `field_dependency_deleted` both delegate here in the base type.)
+        update_collector.add_field_with_pending_update_statement(
+            field, None, via_path_to_starting_table
+        )
+        super().field_dependency_updated(
+            field,
+            updated_field,
+            updated_old_field,
+            update_collector,
+            field_cache,
+            via_path_to_starting_table,
+        )
+
     def _handle_dependent_rows_change(
         self,
         field: AIField,

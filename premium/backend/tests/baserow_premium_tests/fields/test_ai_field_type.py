@@ -1829,3 +1829,40 @@ def test_ai_field_import_with_broken_reference_records_error(premium_data_fixtur
 
     imported_field = AIField.objects.get(id=imported_field.id)
     assert imported_field.error is not None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_deleting_referenced_field_marks_ai_field_as_updated(premium_data_fixture):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table)
+    ai_field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt={
+            "version": 1,
+            "formula": f"get('fields.field_{text_field.id}')",
+        },
+    )
+    assert ai_field.error is None
+
+    # A previously generated value must survive the dependency deletion.
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{ai_field.id}": "generated"})
+
+    # Deleting the referenced field must report the AI field as updated so the
+    # client re-fetches it and sees the new broken state.
+    updated = FieldHandler().delete_field(user, text_field)
+    assert ai_field.id in [f.id for f in updated]
+
+    ai_field.refresh_from_db()
+    assert ai_field.error is not None
+
+    row.refresh_from_db()
+    assert getattr(row, f"field_{ai_field.id}") == "generated"
