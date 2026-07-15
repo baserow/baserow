@@ -1168,3 +1168,40 @@ async def test_no_editors_active_signal_when_second_editor_joins(data_fixture):
     await comm_anon.disconnect()
     await comm_a.disconnect()
     await comm_b.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_anonymous_focus_emission_blocked_server_side(data_fixture):
+    """Anonymous connections cannot emit focus even if a custom client tries."""
+    user_a, token_a = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user_a)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table, public=True)
+
+    comm_a, ws_a = await _connect(token_a)
+    await comm_a.send_json_to({"page": "table", "table_id": table.id})
+    await comm_a.receive_json_from(timeout=1)  # page_add
+    await comm_a.receive_json_from(timeout=1)  # presence.members
+
+    comm_anon, ws_anon = await _connect_anonymous()
+    await comm_anon.send_json_to({"page": "view", "slug": view.slug})
+    await comm_anon.receive_json_from(timeout=1)  # page_add
+    await _drain(comm_anon, timeout=0.5)  # consume editors_active
+    await _drain(comm_a, timeout=0.5)  # consume join
+
+    await comm_anon.send_json_to(
+        {
+            "type": "presence.focus",
+            "page": "view",
+            "slug": view.slug,
+            "focus": {"type": "cell", "row_id": 1, "field_id": 1, "editing": False},
+        }
+    )
+
+    assert await comm_a.receive_nothing(timeout=0.5)
+
+    await comm_anon.disconnect()
+    await comm_a.disconnect()

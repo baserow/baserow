@@ -226,6 +226,11 @@ export default {
       required: false,
       default: true,
     },
+    publicViewContext: {
+      type: Object,
+      required: false,
+      default: null,
+    },
   },
   emits: [
     'field-updated',
@@ -322,6 +327,10 @@ export default {
         this.$store.state.presence.spaces[this.presenceSpaceName]
       return spaceData ? Object.keys(spaceData.members).length > 0 : false
     },
+    publicViewEditorsActive() {
+      if (!this.publicViewContext) return false
+      return this.$store.getters['presence/hasAnyActiveEditors']
+    },
     rowModalActionComponents() {
       return this.activeSidebarTypes
         .map((type) => type.getActionComponent(this.row))
@@ -383,6 +392,11 @@ export default {
         this.presenceFocus.reemitLastFocus()
       }
     },
+    publicViewEditorsActive(active) {
+      if (active && this.presenceFocus) {
+        this.presenceFocus.reemitLastFocus()
+      }
+    },
   },
   beforeUnmount() {
     this.clearPresenceFocus()
@@ -425,12 +439,14 @@ export default {
       if (!this.presenceFocusEnabled || !isUserPresenceEnabled(this)) {
         return
       }
+      const options = this.publicViewContext || {}
       const { page, params, spaceName, focusEnabled } =
         resolvePresencePageParams(
           this.$registry,
           this.database,
           this.table,
-          this.view
+          this.view,
+          options
         )
       if (!focusEnabled) return
       // Reuse the existing sender when it targets the same realtime page, so
@@ -444,11 +460,17 @@ export default {
       this.clearPresenceFocus()
       this.presenceSenderKey = senderKey
       this.presenceSpaceName = spaceName
+      const senderOptions = this.publicViewContext
+        ? {
+            hasOtherMembers: () =>
+              this.$store.getters['presence/hasAnyActiveEditors'],
+          }
+        : { hasOtherMembers: () => this._hasOtherPresenceMembers() }
       this.presenceFocus = createPresenceFocusSender(
         this.$realtime,
         page,
         params,
-        { hasOtherMembers: () => this._hasOtherPresenceMembers() }
+        senderOptions
       )
     },
     /**

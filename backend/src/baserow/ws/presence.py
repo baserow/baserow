@@ -360,6 +360,11 @@ class PresenceHandler:
             clear focus.
         """
 
+        # Remove when enabling anonymous focus (flip ANONYMOUS_FOCUS_ENABLED
+        # in web-frontend/modules/database/utils/presence.js).
+        if self.user_id == ANONYMOUS_USER_ID:
+            return
+
         space_name = self._page_to_space.get(page_key)
         if space_name is None:
             return

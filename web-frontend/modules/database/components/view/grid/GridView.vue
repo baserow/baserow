@@ -269,6 +269,7 @@
       :rows="allRows"
       :sortable="true"
       :can-modify-fields="true"
+      :public-view-context="publicViewContext"
       :read-only="
         readOnly ||
         (!$hasPermission(
@@ -433,6 +434,19 @@ export default {
       const spaceData =
         this.$store.state.presence.spaces[this.presenceSpaceName]
       return spaceData ? Object.keys(spaceData.members).length > 0 : false
+    },
+    publicViewEditorsActive() {
+      if (!this.publicViewContext) return false
+      return this.$store.getters['presence/hasAnyActiveEditors']
+    },
+    publicViewContext() {
+      const isPublic = this.$store.getters['page/view/public/getIsPublic']
+      if (!isPublic) return null
+      return {
+        isPublicView: true,
+        slug: this.view.slug,
+        token: this.$store.getters['page/view/public/getAuthToken'],
+      }
     },
     /**
      * Returns all visible fields no matter in what section they
@@ -618,6 +632,11 @@ export default {
         this.presenceFocus.reemitLastFocus()
       }
     },
+    publicViewEditorsActive(active) {
+      if (active && this.presenceFocus) {
+        this.presenceFocus.reemitLastFocus()
+      }
+    },
     'view.frozen_column_count'() {
       // When the frozen column count changes (e.g. real-time sync from another
       // user), recalculate the viewport fit and update scrollbars. Use $nextTick
@@ -699,14 +718,7 @@ export default {
     }
 
     if (isUserPresenceEnabled(this)) {
-      const isPublicView = this.$store.getters['page/view/public/getIsPublic']
-      const options = isPublicView
-        ? {
-            isPublicView: true,
-            slug: this.view.slug,
-            token: this.$store.getters['page/view/public/getAuthToken'],
-          }
-        : {}
+      const options = this.publicViewContext || {}
       const { page, params, spaceName, focusEnabled } =
         resolvePresencePageParams(
           this.$registry,
@@ -717,7 +729,7 @@ export default {
         )
       this.presenceSpaceName = spaceName
       if (focusEnabled) {
-        const senderOptions = isPublicView
+        const senderOptions = this.publicViewContext
           ? {
               hasOtherMembers: () =>
                 this.$store.getters['presence/hasAnyActiveEditors'],
