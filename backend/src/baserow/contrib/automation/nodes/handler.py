@@ -474,13 +474,10 @@ class AutomationNodeHandler:
             exceeded the maximum number of node dispatches allowed.
         """
 
-        # Stop the workflow run if it exceeds the max dispatches allowed. For
-        # simulations, this check is skipped. Safety backstop against infinite
-        # loops, e.g. a misconfigured "Go to node".
-        if (
-            not workflow_history.simulate_until_node_id
-            and self._check_node_dispatch_limit(workflow_history.id)
-        ):
+        # Stop the workflow run if it exceeds the max dispatches allowed.
+        # Safety backstop against infinite loops, e.g. a misconfigured
+        # "Go to node".
+        if self._check_node_dispatch_limit(workflow_history.id):
             limit = settings.AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN
             raise AutomationNodeMaxDispatchesExceeded(
                 f"Workflow exceeded the maximum of {limit} node dispatches."
@@ -587,6 +584,7 @@ class AutomationNodeHandler:
             error = str(e)
             logger.warning(error)
             self._handle_workflow_error(node_history, iteration_path, error)
+            self._handle_simulation_notify(simulate_until_node, node)
             return None
 
         try:

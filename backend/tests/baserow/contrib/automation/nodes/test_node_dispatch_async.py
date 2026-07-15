@@ -1783,22 +1783,32 @@ def test_dispatch_node_enforces_per_run_dispatch_limit(data_fixture):
 
 @pytest.mark.django_db
 @override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=1)
-def test_dispatch_node_does_not_enforce_dispatch_limit_when_simulating(data_fixture):
-    # Simulations never follow jumps, so the dispatched path is always finite and
-    # the cap can only produce false positives. It must therefore be skipped entirely.
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+def test_dispatch_node_enforces_dispatch_limit_when_simulating(
+    mock_automation_node_updated, data_fixture
+):
+    # The cap is a backstop against infinite loops and applies to simulations
+    # too. A legitimate simulation dispatches each node on the path to the
+    # simulated node once, so it never gets near the cap.
     node, history = create_dispatch_limit_workflow(data_fixture, simulate=True)
 
-    # Dispatching well beyond the cap (1) must not error the run while simulating.
-    for _ in range(3):
-        AutomationNodeHandler().dispatch_node(node.id, history.id)
-        clear_local()
-
+    # First dispatch is within the limit.
+    AutomationNodeHandler().dispatch_node(node.id, history.id)
+    clear_local()
     history.refresh_from_db()
     assert history.status != HistoryStatusChoices.ERROR
 
-    # The simulated node still produced its sample data.
-    node.service.specific.refresh_from_db()
-    assert node.service.specific.sample_data is not None
+    # Second dispatch exceeds the limit and errors the run at the workflow level.
+    result = AutomationNodeHandler().dispatch_node(node.id, history.id)
+    assert result is None
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.ERROR
+    assert "exceeded the maximum of 1 node dispatches" in history.message
+
+    # The frontend is notified about the simulated node on the error path too,
+    # in addition to the notification sent by the first, successful dispatch.
+    assert mock_automation_node_updated.send.call_count == 2
+    mock_automation_node_updated.send.assert_called_with(ANY, user=None, node=node)
 
 
 @pytest.mark.django_db
