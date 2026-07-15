@@ -8,7 +8,7 @@
     :placeholder="
       !integrationType
         ? $t('integrationDropdown.selectTypeFirst')
-        : $t('integrationDropdown.integrationPlaceholder')
+        : placeholder || $t('integrationDropdown.integrationPlaceholder')
     "
     show-footer
     @input="$emit('input', $event)"
@@ -77,6 +77,11 @@ export default {
       type: String,
       required: false,
       default: 'regular',
+    },
+    placeholder: {
+      type: String,
+      required: false,
+      default: null,
     },
     /**
      * If there is only one integration available, it will be

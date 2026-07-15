@@ -529,9 +529,11 @@
     "namePlaceholder": "Source name",
     "nameLabel": "Name",
     "actionLabel": "Action",
-    "integrationLabel": "Integration",
-    "servicePlaceholder": "Select a service",
-    "integrationPlaceholder": "Select an integration",
+    "integrationLabel": "Connection",
+    "servicePlaceholder": "Choose action...",
+    "integrationPlaceholder": "Choose connection...",
+    "searchActionPlaceholder": "Search actions",
+    "noActionsFound": "No actions found",
     "errorUniqueName": "Data source name must be unique."
   },
   "dataSourceContext": {
