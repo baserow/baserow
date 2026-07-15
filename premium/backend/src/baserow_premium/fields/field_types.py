@@ -377,7 +377,9 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         # like formula fields) so the edge survives and restoring the field
         # re-links it and re-reports this field's error to the client.
         trashed_names = Field.objects_and_trash.filter(
-            id__in=field_ids - existing_field_ids, trashed=True
+            id__in=field_ids - existing_field_ids,
+            table_id=field_instance.table_id,
+            trashed=True,
         ).values_list("name", flat=True)
         return [
             FieldDependency(

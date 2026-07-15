@@ -1894,6 +1894,9 @@ def test_deleting_referenced_field_marks_ai_field_as_updated(premium_data_fixtur
     ai_field.refresh_from_db()
     assert ai_field.error is not None
 
+    row.refresh_from_db()
+    assert getattr(row, f"field_{ai_field.id}") == "generated"
+
 
 @pytest.mark.field_ai
 @pytest.mark.django_db
@@ -1934,8 +1937,5 @@ def test_restoring_referenced_field_clears_ai_field_error(
     assert ai_field.error is None
 
     # The generated cell value must survive the delete/restore round trip.
-    row.refresh_from_db()
-    assert getattr(row, f"field_{ai_field.id}") == "generated"
-
     row.refresh_from_db()
     assert getattr(row, f"field_{ai_field.id}") == "generated"
