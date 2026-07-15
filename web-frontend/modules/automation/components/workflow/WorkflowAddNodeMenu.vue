@@ -83,19 +83,19 @@ export default {
     },
     menuItems() {
       return this.nodeTypes.map((nodeType) =>
-        this.makeNodeTypeMenuItem(nodeType, this.editingTriggerNode)
+        this.makeNodeTypeMenuItem(nodeType)
       )
     },
   },
   methods: {
-    makeNodeTypeMenuItem(nodeType, withDescription = false) {
+    makeNodeTypeMenuItem(nodeType) {
       return {
         id: `node-${nodeType.getType()}`,
         label: nodeType.name,
         value: nodeType.getType(),
         icon: nodeType.iconClass,
         image: nodeType.image,
-        description: withDescription ? nodeType.description : null,
+        description: nodeType.description,
         disabled: nodeType.isDeactivated({
           workspace: this.resolvedWorkspace,
         }),

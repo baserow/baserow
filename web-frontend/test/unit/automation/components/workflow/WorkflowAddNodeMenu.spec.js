@@ -38,17 +38,20 @@ function makeNodeType({
 const repeatNodeType = makeNodeType({
   type: 'iterator',
   name: 'Repeat',
+  description: 'Run the following actions multiple times.',
   order: 5,
 })
 const createRowNodeType = makeNodeType({
   type: 'create_row',
   name: 'Create row',
+  description: 'Add a new record to a table.',
   order: 1,
   integrationType: localBaserowIntegrationType,
 })
 const getRowNodeType = makeNodeType({
   type: 'get_row',
   name: 'Get row',
+  description: 'Retrieve a single record from a table.',
   order: 2,
   integrationType: localBaserowIntegrationType,
 })
@@ -99,6 +102,13 @@ describe('WorkflowAddNodeMenu', () => {
     expect(
       wrapper.findAll('.menu-list__item-label').map((item) => item.text())
     ).toEqual(['Create row', 'Get row', 'Repeat'])
+    expect(
+      wrapper.findAll('.menu-list__item-description').map((item) => item.text())
+    ).toEqual([
+      'Add a new record to a table.',
+      'Retrieve a single record from a table.',
+      'Run the following actions multiple times.',
+    ])
     expect(wrapper.find('.menu-search__input').exists()).toBe(true)
 
     await wrapper

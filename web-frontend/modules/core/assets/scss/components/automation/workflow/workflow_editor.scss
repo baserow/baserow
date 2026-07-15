@@ -22,10 +22,6 @@ $connectorHeight: 32px;
   @include elevation($elevation-low);
   @include rounded($rounded-xl);
 
-  .menu-list {
-    width: 520px;
-  }
-
   .menu-list__items {
     max-height: 680px;
   }
