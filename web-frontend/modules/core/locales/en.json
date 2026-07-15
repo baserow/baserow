@@ -830,7 +830,8 @@
     "integrationPlaceholder": "Select an integration"
   },
   "dropdown": {
-    "empty": "No items available"
+    "empty": "No items available",
+    "clearSearch": "Clear search"
   },
   "richTextEditorMentionsList": {
     "notFound": "No users found"

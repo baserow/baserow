@@ -1,6 +1,6 @@
 <template>
   <div
-    class="dropdown multi-stage-dropdown"
+    class="dropdown grouped-dropdown"
     :class="{
       'dropdown--disabled': disabled,
       'dropdown--large': size === 'large',
@@ -10,7 +10,7 @@
     <button
       ref="trigger"
       type="button"
-      class="dropdown__selected multi-stage-dropdown__trigger"
+      class="dropdown__selected grouped-dropdown__trigger"
       :disabled="disabled"
       aria-haspopup="menu"
       :aria-expanded="open ? 'true' : 'false'"
@@ -40,34 +40,30 @@
 
     <Context
       ref="context"
-      class="multi-stage-dropdown__context"
+      class="grouped-dropdown__context"
       max-height-if-outside-viewport
       :style="contextStyle"
       @shown="onShown"
       @hidden="onHidden"
     >
       <div
-        class="multi-stage-dropdown__menu"
+        class="grouped-dropdown__menu"
         :class="{
-          'multi-stage-dropdown__menu--grouped': hasGroupedItems,
+          'grouped-dropdown__menu--grouped': hasGroupedItems,
         }"
       >
-        <div v-if="showSearch" class="multi-stage-dropdown__search">
-          <i class="multi-stage-dropdown__search-icon iconoir-search" />
-          <input
-            ref="searchInput"
-            v-model="query"
-            class="multi-stage-dropdown__search-input"
-            type="search"
-            :placeholder="searchPlaceholder"
-            @keydown="handleSearchKeydown"
-          />
-        </div>
+        <MenuSearch
+          v-if="showSearch"
+          ref="menuSearch"
+          v-model="query"
+          :placeholder="searchPlaceholder"
+          @keydown="handleSearchKeydown"
+        />
 
-        <div v-if="visibleItems.length" class="multi-stage-dropdown__panels">
+        <div v-if="visibleItems.length" class="grouped-dropdown__panels">
           <div
             v-if="navigationMenuItems.length"
-            class="multi-stage-dropdown__navigation"
+            class="grouped-dropdown__navigation"
           >
             <MenuList
               ref="navigationMenu"
@@ -83,10 +79,9 @@
           </div>
 
           <div
-            class="multi-stage-dropdown__actions"
+            class="grouped-dropdown__actions"
             :class="{
-              'multi-stage-dropdown__actions--only':
-                !navigationMenuItems.length,
+              'grouped-dropdown__actions--only': !navigationMenuItems.length,
             }"
           >
             <MenuList
@@ -101,7 +96,7 @@
             />
           </div>
         </div>
-        <div v-else class="multi-stage-dropdown__empty">
+        <div v-else class="grouped-dropdown__empty">
           {{ emptyText }}
         </div>
       </div>
@@ -114,6 +109,7 @@ import { computed, nextTick, ref } from 'vue'
 
 import Context from '@baserow/modules/core/components/Context'
 import MenuList from '@baserow/modules/core/components/MenuList'
+import MenuSearch from '@baserow/modules/core/components/MenuSearch'
 
 const props = defineProps({
   items: {
@@ -180,7 +176,7 @@ const emit = defineEmits([
 
 const context = ref(null)
 const trigger = ref(null)
-const searchInput = ref(null)
+const menuSearch = ref(null)
 const navigationMenu = ref(null)
 const actionMenu = ref(null)
 const open = ref(false)
@@ -376,8 +372,8 @@ function resetMenu() {
 
 async function focusMenu() {
   await nextTick()
-  if (props.showSearch && searchInput.value) {
-    searchInput.value.focus()
+  if (props.showSearch && menuSearch.value) {
+    menuSearch.value.focus()
   } else if (navigationMenuItems.value.length) {
     navigationMenu.value?.focus()
   } else {

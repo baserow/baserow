@@ -1,15 +1,11 @@
 <template>
   <div class="menu-list" @keydown="handleKeydown">
-    <div v-if="searchable" class="menu-list__search">
-      <i class="menu-list__search-icon iconoir-search" />
-      <input
-        ref="searchInput"
-        v-model="query"
-        class="menu-list__search-input"
-        type="search"
-        :placeholder="searchPlaceholder"
-      />
-    </div>
+    <MenuSearch
+      v-if="searchable"
+      ref="menuSearch"
+      v-model="query"
+      :placeholder="searchPlaceholder"
+    />
 
     <ul
       v-if="visibleItems.length"
@@ -75,6 +71,8 @@
 <script setup>
 import { computed, nextTick, onBeforeUpdate, ref, watch } from 'vue'
 
+import MenuSearch from '@baserow/modules/core/components/MenuSearch'
+
 const props = defineProps({
   items: {
     type: Array,
@@ -121,7 +119,7 @@ const emit = defineEmits([
 ])
 
 const query = ref('')
-const searchInput = ref(null)
+const menuSearch = ref(null)
 const itemButtons = ref([])
 
 const currentValue = computed(() =>
@@ -243,8 +241,8 @@ function reset() {
 
 async function focus() {
   await nextTick()
-  if (props.searchable && searchInput.value) {
-    searchInput.value.focus()
+  if (props.searchable && menuSearch.value) {
+    menuSearch.value.focus()
     return
   }
   const activeIndex = visibleItems.value.findIndex(isActive)

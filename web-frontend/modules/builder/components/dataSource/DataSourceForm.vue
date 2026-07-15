@@ -8,7 +8,7 @@
           required
           :error-message="getFirstErrorMessage('type')"
         >
-          <MultiStageDropdown
+          <GroupedDropdown
             v-model="computedType"
             class="data-source-form__type-dropdown"
             :items="serviceTypeOptions"
@@ -66,7 +66,7 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
-import MultiStageDropdown from '@baserow/modules/core/components/MultiStageDropdown'
+import GroupedDropdown from '@baserow/modules/core/components/GroupedDropdown'
 import form from '@baserow/modules/core/mixins/form'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
 import { required, maxLength, helpers } from '@vuelidate/validators'
@@ -75,7 +75,7 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 
 export default {
   name: 'DataSourceForm',
-  components: { IntegrationDropdown, MultiStageDropdown },
+  components: { GroupedDropdown, IntegrationDropdown },
   mixins: [form, applicationContext],
   provide() {
     return { dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_DATA_SOURCES }

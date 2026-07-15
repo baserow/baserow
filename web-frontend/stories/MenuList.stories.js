@@ -16,13 +16,13 @@ const renderMenu = (args) => ({
 })
 
 export default {
-  title: 'Baserow/Menus/MenuList',
+  title: 'Baserow/MenuList',
   component: MenuList,
   tags: ['autodocs'],
   decorators: [
     () => ({
       template:
-        '<div style="width: 380px; overflow: hidden; border: 1px solid #d9dbde; border-radius: 8px;"><story /></div>',
+        '<div style="width: 380px; overflow: hidden; border: 1px solid #d9dbde; border-radius: 8px; background: #fff;"><story /></div>',
     }),
   ],
   parameters: {

@@ -30,6 +30,9 @@ const mountComponent = (props = {}) =>
         autoOverflowScroll: {},
         tooltip: {},
       },
+      mocks: {
+        $t: (key) => key,
+      },
     },
   })
 
@@ -55,11 +58,28 @@ describe('MenuList', () => {
       searchPlaceholder: 'Search actions',
     })
 
-    await wrapper.find('.menu-list__search-input').setValue('loop')
+    await wrapper.find('.menu-search__input').setValue('loop')
 
     expect(
       wrapper.findAll('.menu-list__item-label').map((item) => item.text())
     ).toEqual(['Repeat'])
+  })
+
+  test('clears the search with the reset button', async () => {
+    const wrapper = mountComponent({ searchable: true })
+    const searchInput = wrapper.find('.menu-search__input')
+
+    expect(wrapper.find('.menu-search__reset').exists()).toBe(false)
+
+    await searchInput.setValue('get')
+
+    const resetButton = wrapper.find('.menu-search__reset')
+    expect(resetButton.attributes('aria-label')).toBe('dropdown.clearSearch')
+
+    await resetButton.trigger('click')
+
+    expect(searchInput.element.value).toBe('')
+    expect(wrapper.find('.menu-search__reset').exists()).toBe(false)
   })
 
   test('can hide item descriptions', () => {

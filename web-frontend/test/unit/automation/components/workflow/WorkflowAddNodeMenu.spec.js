@@ -99,7 +99,7 @@ describe('WorkflowAddNodeMenu', () => {
     expect(
       wrapper.findAll('.menu-list__item-label').map((item) => item.text())
     ).toEqual(['Create row', 'Get row', 'Repeat'])
-    expect(wrapper.find('.menu-list__search-input').exists()).toBe(true)
+    expect(wrapper.find('.menu-search__input').exists()).toBe(true)
 
     await wrapper
       .findAll('.menu-list__item-button')
@@ -112,7 +112,7 @@ describe('WorkflowAddNodeMenu', () => {
   test('keeps trigger choices flat and descriptive', () => {
     const wrapper = mountComponent({ onlyTrigger: true })
 
-    expect(wrapper.find('.menu-list__search-input').exists()).toBe(false)
+    expect(wrapper.find('.menu-search__input').exists()).toBe(false)
     expect(wrapper.find('.menu-list__item-label').text()).toBe(
       'Rows are created'
     )

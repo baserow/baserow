@@ -21,8 +21,8 @@ const FormInputStub = defineComponent({
   template: '<input :value="modelValue" />',
 })
 
-const MultiStageDropdownStub = defineComponent({
-  name: 'MultiStageDropdown',
+const GroupedDropdownStub = defineComponent({
+  name: 'GroupedDropdown',
   props: {
     modelValue: {
       type: String,
@@ -50,7 +50,7 @@ const MultiStageDropdownStub = defineComponent({
     },
   },
   emits: ['update:modelValue'],
-  template: '<div class="multi-stage-dropdown-stub" />',
+  template: '<div class="grouped-dropdown-stub" />',
 })
 
 const IntegrationDropdownStub = defineComponent({
@@ -147,7 +147,7 @@ async function mountComponent() {
         FormGroup: FormGroupStub,
         FormInput: FormInputStub,
         IntegrationDropdown: IntegrationDropdownStub,
-        MultiStageDropdown: MultiStageDropdownStub,
+        GroupedDropdown: GroupedDropdownStub,
       },
       mocks: {
         $registry: registry,
@@ -165,7 +165,7 @@ async function mountComponent() {
 describe('DataSourceForm', () => {
   test('groups service types under their integration type', async () => {
     const wrapper = await mountComponent()
-    const actionDropdown = wrapper.findComponent(MultiStageDropdownStub)
+    const actionDropdown = wrapper.findComponent(GroupedDropdownStub)
 
     expect(actionDropdown.props('items')).toEqual([
       {
@@ -192,7 +192,7 @@ describe('DataSourceForm', () => {
     const wrapper = await mountComponent()
 
     wrapper
-      .findComponent(MultiStageDropdownStub)
+      .findComponent(GroupedDropdownStub)
       .vm.$emit('update:modelValue', serviceType.getType())
     await nextTick()
 

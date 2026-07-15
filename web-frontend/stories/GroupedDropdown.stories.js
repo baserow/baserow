@@ -1,12 +1,12 @@
 import { expect, fn, waitFor, within } from 'storybook/test'
 import { ref, watch } from 'vue'
 
-import MultiStageDropdown from '@baserow/modules/core/components/MultiStageDropdown'
+import GroupedDropdown from '@baserow/modules/core/components/GroupedDropdown'
 
-import { multiStageDropdownItems } from './menuListFixtures'
+import { groupedDropdownItems } from './menuListFixtures'
 
 const renderDropdown = (args) => ({
-  components: { MultiStageDropdown },
+  components: { GroupedDropdown },
   setup() {
     const selectedValue = ref(args.modelValue)
 
@@ -21,7 +21,7 @@ const renderDropdown = (args) => ({
   },
   template: `
     <div style="width: 380px; min-height: 260px;">
-      <MultiStageDropdown
+      <GroupedDropdown
         v-bind="args"
         :model-value="selectedValue"
         @update:model-value="selectedValue = $event"
@@ -37,8 +37,8 @@ const renderDropdown = (args) => ({
 })
 
 export default {
-  title: 'Baserow/Form Elements/MultiStageDropdown',
-  component: MultiStageDropdown,
+  title: 'Baserow/Form Elements/GroupedDropdown',
+  component: GroupedDropdown,
   tags: ['autodocs'],
   parameters: {
     layout: 'centered',
@@ -112,7 +112,7 @@ export default {
     },
   },
   args: {
-    items: multiStageDropdownItems,
+    items: groupedDropdownItems,
     modelValue: null,
     placeholder: 'Choose an action',
     showSearch: true,

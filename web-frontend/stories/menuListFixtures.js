@@ -1,3 +1,6 @@
+import baserowLogo from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
+import slackLogo from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
+
 export const menuListItems = [
   {
     id: 'repeat',
@@ -92,11 +95,11 @@ export const compactMenuListItems = [
   },
 ]
 
-export const multiStageDropdownItems = [
+export const groupedDropdownItems = [
   {
     id: 'local-baserow',
     label: 'Local Baserow',
-    icon: 'iconoir-database',
+    image: baserowLogo,
     children: menuListItems.filter(({ id }) =>
       ['create-row', 'get-row', 'update-row', 'delete-row'].includes(id)
     ),
@@ -104,7 +107,7 @@ export const multiStageDropdownItems = [
   {
     id: 'external-baserow',
     label: 'External Baserow (API)',
-    icon: 'iconoir-globe',
+    image: baserowLogo,
     children: [
       {
         id: 'send-http-request',
@@ -118,7 +121,7 @@ export const multiStageDropdownItems = [
   {
     id: 'slack',
     label: 'Slack',
-    icon: 'iconoir-mail',
+    image: slackLogo,
     children: [
       {
         id: 'send-slack-message',
