@@ -23,6 +23,7 @@ from baserow.contrib.database.table.models import Table
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
+from baserow.core.trash.handler import TrashHandler
 from baserow_premium.fields.field_types import AIFieldType
 from baserow_premium.fields.models import AIField
 
@@ -1892,6 +1893,49 @@ def test_deleting_referenced_field_marks_ai_field_as_updated(premium_data_fixtur
 
     ai_field.refresh_from_db()
     assert ai_field.error is not None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+@patch("baserow.contrib.database.fields.signals.field_restored.send")
+def test_restoring_referenced_field_clears_ai_field_error(
+    field_restored_mock, premium_data_fixture
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table)
+    ai_field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt={
+            "version": 1,
+            "formula": f"get('fields.field_{text_field.id}')",
+        },
+    )
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{ai_field.id}": "generated"})
+
+    FieldHandler().delete_field(user, text_field)
+    ai_field.refresh_from_db()
+    assert ai_field.error is not None
+
+    # Restoring the referenced field must report the AI field as updated so the
+    # client re-fetches it and sees the error is gone.
+    TrashHandler.restore_item(user, "field", text_field.id)
+    related = field_restored_mock.call_args[1]["related_fields"]
+    assert ai_field.id in [f.id for f in related]
+
+    ai_field.refresh_from_db()
+    assert ai_field.error is None
+
+    # The generated cell value must survive the delete/restore round trip.
+    row.refresh_from_db()
+    assert getattr(row, f"field_{ai_field.id}") == "generated"
 
     row.refresh_from_db()
     assert getattr(row, f"field_{ai_field.id}") == "generated"

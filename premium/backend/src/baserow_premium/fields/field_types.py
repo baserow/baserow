@@ -373,6 +373,12 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         existing_field_ids = set(
             Field.objects.filter(id__in=field_ids).values_list("id", flat=True)
         )
+        # A trashed referenced field is declared as a broken reference (by name,
+        # like formula fields) so the edge survives and restoring the field
+        # re-links it and re-reports this field's error to the client.
+        trashed_names = Field.objects_and_trash.filter(
+            id__in=field_ids - existing_field_ids, trashed=True
+        ).values_list("name", flat=True)
         return [
             FieldDependency(
                 dependency_id=field_id,
@@ -381,6 +387,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             )
             for field_id in field_ids
             if field_id in existing_field_ids
+        ] + [
+            FieldDependency(
+                broken_reference_field_name=name,
+                dependant=field_instance,
+                via=None,
+            )
+            for name in trashed_names
         ]
 
     def field_dependency_updated(
@@ -395,8 +408,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         # When a referenced field is created, updated, deleted or restored, the
         # prompt's validity (and thus the computed `error`) can change. Mark the
         # field as changed so it is re-serialized and pushed to the client,
-        # without touching its stored cell values. (`field_dependency_created`
-        # and `field_dependency_deleted` both delegate here in the base type.)
+        # without touching its stored cell values (a None update statement is
+        # the collector's "changed without a cell update"). Not
+        # `add_field_which_has_changed`: that only reports via the
+        # additional-signals path, which skips the starting table, and the AI
+        # field usually lives in the same table as the changed dependency.
+        # (`field_dependency_created` and `field_dependency_deleted` both
+        # delegate here in the base type.)
         update_collector.add_field_with_pending_update_statement(
             field, None, via_path_to_starting_table
         )
