@@ -1,9 +1,14 @@
 <template>
-  <Context ref="context" class="workflow-node__context">
+  <Context
+    ref="context"
+    class="workflow-node__context"
+    max-height-if-outside-viewport
+  >
     <WorkflowAddNodeMenu
       :node="node"
       :only-trigger="onlyTrigger"
       @change="onChange($event)"
+      @close="hide"
     ></WorkflowAddNodeMenu>
   </Context>
 </template>

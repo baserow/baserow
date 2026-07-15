@@ -1,67 +1,48 @@
 <template>
-  <ul class="context__menu">
-    <li
-      v-for="nodeType in nodeTypes"
-      :key="nodeType.getType()"
-      class="context__menu-item"
+  <div class="workflow-add-node-menu">
+    <MenuList
+      :items="menuItems"
+      :searchable="!editingTriggerNode"
+      :search-placeholder="$t('workflowNodeContext.searchPlaceholderActions')"
+      :empty-text="$t('workflowNodeContext.noResults')"
+      @select="onMenuItemSelected"
+      @disabled-click="onMenuItemSelected"
+      @close="$emit('close')"
     >
-      <a
-        v-tooltip="
-          nodeType.isDeactivatedReason({ workspace: resolvedWorkspace })
-        "
-        class="context__menu-item-link context__menu-item-link--with-desc"
-        :class="{
-          disabled: nodeType.isDeactivated({ workspace: resolvedWorkspace }),
-        }"
-        @click="onChange(nodeType)"
-      >
-        <span class="context__menu-item-title" :title="nodeType.name">
-          <i
-            v-if="!nodeType.image"
-            class="context__menu-item-icon"
-            :class="nodeType.iconClass"
-          />
-          <img
-            v-else
-            :alt="nodeType.name"
-            :src="nodeType.image"
-            class="context__menu-item-icon"
-          />
-          <span class="context__menu-item-title-text">
-            {{ nodeType.name }}
-          </span>
+      <template #item-meta="{ item }">
+        <template v-if="item.meta">
           <component
             :is="component"
-            v-for="(component, index) in getNodeContextComponents(nodeType)"
+            v-for="(component, index) in getNodeContextComponents(item.meta)"
             :key="index"
             :workflow="resolvedWorkflow"
             :automation="resolvedAutomation"
-            :node="getNodeContextNode(nodeType)"
-            :node-type="nodeType"
+            :node="getNodeContextNode(item.meta)"
+            :node-type="item.meta"
           />
-        </span>
-        <div class="context__menu-item-description">
-          {{ nodeType.description }}
-        </div>
-        <component
-          :is="getDeactivatedClickModal(nodeType)[0]"
-          v-if="getDeactivatedClickModal(nodeType) !== null"
-          :ref="`deactivatedClickModal_${nodeType.getType()}`"
-          v-bind="getDeactivatedClickModal(nodeType)[1]"
-          :name="nodeType.name"
-          :workspace="resolvedWorkspace"
-        ></component>
-      </a>
-    </li>
-  </ul>
+        </template>
+      </template>
+    </MenuList>
+    <template v-for="nodeType in nodeTypes" :key="nodeType.getType()">
+      <component
+        :is="getDeactivatedClickModal(nodeType)[0]"
+        v-if="getDeactivatedClickModal(nodeType) !== null"
+        :ref="`deactivatedClickModal_${nodeType.getType()}`"
+        v-bind="getDeactivatedClickModal(nodeType)[1]"
+        :name="nodeType.name"
+        :workspace="resolvedWorkspace"
+      />
+    </template>
+  </div>
 </template>
 
 <script>
 import { unref } from 'vue'
-import context from '@baserow/modules/core/mixins/context'
+import MenuList from '@baserow/modules/core/components/MenuList'
+
 export default {
-  name: 'WorkflowNodeContext',
-  mixins: [context],
+  name: 'WorkflowAddNodeMenu',
+  components: { MenuList },
   inject: ['workspace', 'workflow', 'automation'],
   props: {
     node: {
@@ -75,7 +56,7 @@ export default {
       default: () => false,
     },
   },
-  emits: ['change'],
+  emits: ['change', 'close'],
   computed: {
     resolvedAutomation() {
       return unref(this.automation)
@@ -89,15 +70,6 @@ export default {
     editingTriggerNode() {
       return this.onlyTrigger
     },
-    /**
-     * Returns an array of node types that can be listed in the context.
-     * If we are offering the option to replace an existing node's type,
-     * then we will omit `this.node.type` from the array, and then present
-     * other nodes of the same 'category' (i.e. trigger or action). If we
-     * aren't replacing an existing node, then we will show all node types
-     * for a single category (i.e. trigger or action), depending on whether
-     * there is a trigger or not.
-     */
     nodeTypes() {
       return this.$registry
         .getOrderedList('node')
@@ -109,8 +81,33 @@ export default {
               : nodeType.isWorkflowAction)
         )
     },
+    menuItems() {
+      return this.nodeTypes.map((nodeType) =>
+        this.makeNodeTypeMenuItem(nodeType, this.editingTriggerNode)
+      )
+    },
   },
   methods: {
+    makeNodeTypeMenuItem(nodeType, withDescription = false) {
+      return {
+        id: `node-${nodeType.getType()}`,
+        label: nodeType.name,
+        value: nodeType.getType(),
+        icon: nodeType.iconClass,
+        image: nodeType.image,
+        description: withDescription ? nodeType.description : null,
+        disabled: nodeType.isDeactivated({
+          workspace: this.resolvedWorkspace,
+        }),
+        disabledReason: nodeType.isDeactivatedReason({
+          workspace: this.resolvedWorkspace,
+        }),
+        meta: nodeType,
+      }
+    },
+    onMenuItemSelected(item) {
+      this.onChange(item.meta)
+    },
     onChange(nodeType) {
       if (nodeType.isDeactivated({ workspace: this.resolvedWorkspace })) {
         const deactivatedClickModal = this.getDeactivatedClickModal(nodeType)
