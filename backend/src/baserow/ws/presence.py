@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 ANONYMOUS_USER_ID = -1
 PRESENCE_EVENT_PREFIX = "presence."
+# Retained for when anonymous focus emission is re-enabled (flip ANONYMOUS_FOCUS_ENABLED in web-frontend/modules/database/utils/presence.js).
 ANONYMOUS_ALLOWED_PRESENCE_EVENTS = frozenset({"presence.editors_active"})
 
 PRESENCE_KEY_PREFIX = "presence:"
@@ -508,6 +509,7 @@ class PresenceHandler:
     def _has_auth_members(members: list[ActivePresenceEntry]) -> bool:
         return any(m["user_id"] != ANONYMOUS_USER_ID for m in members)
 
+    # editors_active signaling: retained for when anonymous focus emission is re-enabled (flip ANONYMOUS_FOCUS_ENABLED in web-frontend/modules/database/utils/presence.js).
     async def _signal_editors_active(self, space: PresenceSpace, active: bool) -> None:
         await self._broadcast(
             space,

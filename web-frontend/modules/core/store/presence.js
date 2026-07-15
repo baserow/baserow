@@ -149,6 +149,7 @@ export const getters = {
     if (!spaceData) return EMPTY_FOCUS_MAP
     return _buildFocusMap(spaceData.members, 'row', (f) => f.row_id)
   },
+  // Retained for when anonymous focus emission is re-enabled (flip ANONYMOUS_FOCUS_ENABLED in modules/database/utils/presence.js).
   hasAnyActiveEditors: (state) => {
     return Object.values(state.editorsActive).some(Boolean)
   },

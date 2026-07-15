@@ -1,3 +1,6 @@
+// Set true to enable anonymous public-view visitors sending focus events to editors.
+export const ANONYMOUS_FOCUS_ENABLED = false
+
 /**
  * Canonical frontend source for the table presence space name format.
  * Mirrors backend table_presence_space_name() in database/ws/pages.py.
@@ -40,7 +43,7 @@ export function resolvePresencePageParams(
       page: 'view',
       params: { slug: options.slug, token: options.token },
       spaceName: null,
-      focusEnabled: true,
+      focusEnabled: ANONYMOUS_FOCUS_ENABLED,
     }
   }
   let page = 'table'

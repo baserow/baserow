@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import {
+  ANONYMOUS_FOCUS_ENABLED,
   createPresenceFocusSender,
   getPresenceVisibleUsers,
   isUserPresenceEnabled,
@@ -134,6 +135,20 @@ describe('resolvePresencePageParams', () => {
       params: { table_id: 10 },
       spaceName: 'table-10',
       focusEnabled: true,
+    })
+  })
+
+  test('returns focusEnabled matching ANONYMOUS_FOCUS_ENABLED for public view', () => {
+    const result = resolvePresencePageParams(null, null, null, null, {
+      isPublicView: true,
+      slug: 'abc',
+      token: 'tok',
+    })
+    expect(result).toEqual({
+      page: 'view',
+      params: { slug: 'abc', token: 'tok' },
+      spaceName: null,
+      focusEnabled: ANONYMOUS_FOCUS_ENABLED,
     })
   })
 
