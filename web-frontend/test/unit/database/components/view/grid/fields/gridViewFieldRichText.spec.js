@@ -129,6 +129,17 @@ describe('GridViewFieldRichText component', () => {
     expect(error.text()).toBe('fieldErrors.maxCharsExceeded')
   })
 
+  test('does not save when editing ends without any edits', async () => {
+    const wrapper = await mountComponent()
+    wrapper.vm.edit()
+    await wrapper.vm.$nextTick()
+
+    wrapper.vm.cancel()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update')).toBeUndefined()
+  })
+
   test('lets TipTap handle paste events while editing', async () => {
     const wrapper = await mountComponent()
 

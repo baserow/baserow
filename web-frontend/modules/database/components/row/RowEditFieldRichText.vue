@@ -58,6 +58,10 @@ export default {
       this.editing = false
     },
     beforeSave() {
+      // Reserializing an untouched legacy value could rewrite it on mere blur.
+      if (!this.$refs.input.isDirty()) {
+        return this.value
+      }
       return this.$refs.input.serializeToMarkdown()
     },
   },

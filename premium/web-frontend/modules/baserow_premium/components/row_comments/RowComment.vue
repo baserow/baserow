@@ -230,10 +230,11 @@ export default {
 
     async stopEdit(save = false) {
       this.$emit('stop-edit')
+      const hasEdits = this.$refs.editor?.isDirty()
       this.editing = false
       this.cleanupClickOutside()
 
-      if (save) {
+      if (save && hasEdits) {
         await this.updateComment()
       } else {
         this.message = this.cloneCommentMessage()

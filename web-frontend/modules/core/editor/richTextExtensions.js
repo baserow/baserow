@@ -154,9 +154,8 @@ const BulletList = BaseBulletList.extend({
       helpers,
       context
     )
-    // Marked merges adjacent bullet lists that use the same marker, so alternate
-    // markers by sibling position to preserve separate list nodes on reopen.
-    const marker = ['-', '*', '+'][context.index % 3]
+    // Marked merges adjacent same-marker lists; runs get alternating markers.
+    const marker = node.attrs?.markdownMarker ?? '-'
     return marker === '-'
       ? rendered
       : rendered.replace(/(^|\n)- /g, `$1${marker} `)

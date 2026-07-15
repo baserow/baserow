@@ -69,8 +69,140 @@ describe('official TipTap Markdown integration', () => {
     const reopened = reopen(editor)
     editor = reopened.editor
 
-    expect(reopened.markdown).toBe('\n\nA\n\n\n\n&nbsp;\n\nB\n\n')
+    expect(reopened.markdown).toBe('&nbsp;\n\nA\n\n\n\n&nbsp;\n\nB\n\n&nbsp;')
     expect(editor.getJSON()).toStrictEqual(document)
+  })
+
+  test.each([
+    ['leading', [paragraph(), paragraph('A')], '&nbsp;\n\nA'],
+    ['trailing', [paragraph('A'), paragraph()], 'A\n\n&nbsp;'],
+  ])(
+    'a %s empty paragraph survives whitespace-trimming storage',
+    (position, content, expectedMarkdown) => {
+      const document = { type: 'doc', content }
+      editor = createEditor(document)
+
+      const reopened = reopen(editor)
+      editor = reopened.editor
+
+      expect(reopened.markdown).toBe(expectedMarkdown)
+      // The backend trims boundary whitespace, so none may carry meaning.
+      expect(reopened.markdown).toBe(reopened.markdown.trim())
+      expect(editor.getJSON()).toStrictEqual(document)
+    }
+  )
+
+  test.each([
+    ['inline punctuation', 'Price is 3.50 today. See item #4 and A+B=C now.'],
+    ['number at line start', '3.50 each'],
+    ['hashtag without space', '#4 items'],
+    ['dash without space', '-dashed'],
+  ])('never escapes %s', (name, text) => {
+    const document = { type: 'doc', content: [paragraph(text)] }
+    editor = createEditor(document)
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+
+    expect(reopened.markdown).toBe(text)
+    expect(editor.getJSON()).toStrictEqual(document)
+  })
+
+  test.each([
+    ['heading', '# not a heading', '\\# not a heading'],
+    ['bullet', '- not a list', '\\- not a list'],
+    ['ordered', '1. not a list', '1\\. not a list'],
+    ['blockquote', '> not a quote', '&gt; not a quote'],
+    ['horizontal rule', '---', '\\---'],
+  ])(
+    'escapes a literal %s at the start of a paragraph',
+    (name, text, expectedMarkdown) => {
+      const document = { type: 'doc', content: [paragraph(text)] }
+      editor = createEditor(document)
+
+      const reopened = reopen(editor)
+      editor = reopened.editor
+
+      expect(reopened.markdown).toBe(expectedMarkdown)
+      expect(editor.getJSON()).toStrictEqual(document)
+    }
+  )
+
+  test.each([
+    ['bullet', '- not a list', 'first  \n\\- not a list'],
+    ['setext underline', '===', 'first  \n\\==='],
+  ])(
+    'escapes a literal %s after a hard break',
+    (name, text, expectedMarkdown) => {
+      const document = {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: 'first' },
+              { type: 'hardBreak' },
+              { type: 'text', text },
+            ],
+          },
+        ],
+      }
+      editor = createEditor(document)
+
+      const reopened = reopen(editor)
+      editor = reopened.editor
+
+      expect(reopened.markdown).toBe(expectedMarkdown)
+      expect(editor.getJSON()).toStrictEqual(document)
+    }
+  )
+
+  test('keeps inline code content verbatim at a line start', () => {
+    const document = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: '- item', marks: [{ type: 'code' }] },
+          ],
+        },
+      ],
+    }
+    editor = createEditor(document)
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+
+    expect(reopened.markdown).toBe('`- item`')
+    expect(editor.getJSON()).toStrictEqual(document)
+  })
+
+  test('adjacent bullet lists alternate markers and stay separate', () => {
+    const bulletList = (text) => ({
+      type: 'bulletList',
+      content: [{ type: 'listItem', content: [paragraph(text)], attrs: {} }],
+    })
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        bulletList('a'),
+        bulletList('b'),
+        paragraph('between'),
+        bulletList('c'),
+      ],
+    })
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+
+    expect(reopened.markdown).toBe('- a\n\n* b\n\nbetween\n\n- c')
+    expect(editor.getJSON().content.map(({ type }) => type)).toStrictEqual([
+      'bulletList',
+      'bulletList',
+      'paragraph',
+      'bulletList',
+    ])
   })
 
   test('preserves empty lines inside blockquotes', () => {

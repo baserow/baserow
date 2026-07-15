@@ -145,6 +145,7 @@ export default {
           emitUpdate: false,
           contentType: this.getContentType(value),
         })
+        this.initialDocument = clone(this.editor.getJSON())
       }
     },
   },
@@ -306,6 +307,7 @@ export default {
           this.setMenuScrollVisibility(true)
         },
       })
+      this.initialDocument = clone(this.editor.getJSON())
       this.setupEditor()
     },
     setupEditor() {
@@ -360,6 +362,9 @@ export default {
       return this.enableRichTextFormatting
         ? this.editor.getMarkdown()
         : this.editor.getText({ blockSeparator: '\n' })
+    },
+    isDirty() {
+      return !_.isEqual(this.editor.getJSON(), this.initialDocument)
     },
     isEventFromMenu(event) {
       return (

@@ -67,6 +67,7 @@ export default {
     return {
       // local copy of the value storing the JSON representation of the rich text editor
       richCopy: '',
+      hasEdits: false,
     }
   },
   computed: {
@@ -89,8 +90,14 @@ export default {
       immediate: true,
     },
     editing(editing) {
+      this.hasEdits = false
       if (!editing) {
         this.richCopy = this.value || ''
+      }
+    },
+    richCopy() {
+      if (this.editing) {
+        this.hasEdits = true
       }
     },
   },
@@ -130,6 +137,10 @@ export default {
       return this.isModalOpen() ? this.getError() : null
     },
     beforeSave() {
+      // Reserializing an untouched legacy value could rewrite it on mere blur.
+      if (!this.hasEdits) {
+        return this.value
+      }
       const ref = this.isModalOpen() ? 'expandedModal' : 'input'
       return this.$refs[ref].serializeToMarkdown()
     },

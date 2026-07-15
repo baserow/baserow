@@ -183,6 +183,30 @@ const encodeInlineCodeText = (text) =>
         .join('')
     )
 
+const assignBulletListMarkers = (children) => {
+  let runLength = 0
+  return children.map((child) => {
+    if (child.type !== 'bulletList') {
+      runLength = 0
+      return child
+    }
+    const marker = ['-', '*'][runLength % 2]
+    runLength += 1
+    return marker === '-'
+      ? child
+      : { ...child, attrs: { ...child.attrs, markdownMarker: marker } }
+  })
+}
+
+// Marked text is preceded by its delimiter, so only plain text can start a line.
+const tagLineStartTextNodes = (children) =>
+  children.map((child, index) => {
+    const startsLine = index === 0 || children[index - 1].type === 'hardBreak'
+    return startsLine && child.type === 'text' && !child.marks?.length
+      ? { ...child, markdownLineStart: true }
+      : child
+  })
+
 export const prepareMarkdownDocumentForSerialization = (node) => {
   const prepared = { ...node }
   if (node.type === 'text' && node.marks?.length) {
@@ -203,12 +227,47 @@ export const prepareMarkdownDocumentForSerialization = (node) => {
     )
   }
   if (node.content?.length) {
-    prepared.content = node.content.map(prepareMarkdownDocumentForSerialization)
+    let children = assignBulletListMarkers(node.content)
+    if (node.type === 'paragraph') {
+      children = tagLineStartTextNodes(children)
+    }
+    prepared.content = children.map(prepareMarkdownDocumentForSerialization)
   }
   return prepared
 }
 
+const isEmptyParagraph = (node) =>
+  node?.type === 'paragraph' && !node.content?.length
+
+export const preserveBoundaryEmptyParagraphs = (document, markdown) => {
+  const content = document?.content ?? []
+  if (content.length < 2) {
+    return markdown
+  }
+  let result = markdown
+  // Backend serializers trim boundary whitespace, hiding blank-line paragraphs.
+  if (isEmptyParagraph(content[0])) {
+    result = result.replace(/^\n+/, '&nbsp;\n\n')
+  }
+  if (isEmptyParagraph(content[content.length - 1])) {
+    result = result.replace(/\n+$/, '\n\n&nbsp;')
+  }
+  return result
+}
+
 const configuredMarkdownManagers = new WeakSet()
+
+const LINE_START_BLOCK_SYNTAX_REGEXP =
+  /^( {0,3})(?:(\|)|(#{1,6}|[-+])(?=[ ]|$)|([-=]+)(?=[ ]*$)|(\d{1,9})([.)])(?=[ ]|$))/
+
+const escapeLineStartBlockSyntax = (text) =>
+  text.replace(
+    LINE_START_BLOCK_SYNTAX_REGEXP,
+    (match, indent, always, marker, ruler, digits, ordinal) =>
+      digits !== undefined
+        ? `${indent}${digits}\\${ordinal}`
+        : `${indent}\\${always ?? marker ?? ruler}`
+  )
 
 export const configureMarkdownSerializerCompatibility = (manager) => {
   if (configuredMarkdownManagers.has(manager)) {
@@ -216,12 +275,14 @@ export const configureMarkdownSerializerCompatibility = (manager) => {
   }
   configuredMarkdownManagers.add(manager)
 
-  // TipTap's serializer does not escape block syntax when a text node follows a
-  // hard break. Escaping these punctuation characters everywhere is canonical but
-  // guarantees that literal text cannot become a heading, list, quote, or table.
-  const escapeMarkdownSyntax = manager.escapeMarkdownSyntax.bind(manager)
-  manager.escapeMarkdownSyntax = (text) =>
-    escapeMarkdownSyntax(text).replace(/([#>+\-=.|])/g, '\\$1')
+  // The official serializer never escapes block syntax where a line starts.
+  const encodeTextForMarkdown = manager.encodeTextForMarkdown.bind(manager)
+  manager.encodeTextForMarkdown = (text, node, parentNode) => {
+    const encoded = encodeTextForMarkdown(text, node, parentNode)
+    return node?.markdownLineStart
+      ? escapeLineStartBlockSyntax(encoded)
+      : encoded
+  }
 }
 
 export const MarkdownInputCapture = Extension.create({
@@ -260,7 +321,10 @@ export const MarkdownDocumentCompatibility = Extension.create({
         markdown
       )
     this.editor.markdown.serialize = (document) =>
-      originalSerialize(prepareMarkdownDocumentForSerialization(document))
+      preserveBoundaryEmptyParagraphs(
+        document,
+        originalSerialize(prepareMarkdownDocumentForSerialization(document))
+      )
 
     const initialMarkdown =
       this.editor.storage.markdownInputCapture?.initialContent
