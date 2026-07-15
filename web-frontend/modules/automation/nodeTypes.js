@@ -33,7 +33,10 @@ import {
   CoreStartWorkflowServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
-import { isValidGotoDestination } from '@baserow/modules/automation/utils/gotoNode'
+import {
+  buildGotoDestinations,
+  isValidGotoDestination,
+} from '@baserow/modules/automation/utils/gotoNode'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
@@ -119,6 +122,21 @@ export class NodeType extends Registerable {
    */
   afterMove({ workflow, node }) {
     return null
+  }
+
+  /**
+   * The selectable destinations to pass into the node's form component via
+   * its `destinations` prop, for node types whose form lets the user pick
+   * another node as a jump target. Returns undefined by default so the prop
+   * isn't bound as a stray fallthrough attribute on forms that don't use it.
+   *
+   * @param {Object} workflow The workflow the node belongs to.
+   * @param {Object} node The node whose form is being rendered.
+   * @param {Object} automation The automation the workflow belongs to.
+   * @returns {{ value: number, name: string }[]|undefined} The destinations.
+   */
+  getDestinations({ workflow, node, automation }) {
+    return undefined
   }
 
   /**
@@ -1273,6 +1291,35 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
       isTrigger: (n) => this.app.$registry.get('node', n.type).isTrigger,
     })
     return isValid ? destinationNode : null
+  }
+
+  /**
+   * The valid jump targets for this "Go to" node, shaped for the generic
+   * CoreGotoServiceForm's `destinations` prop. As the service form can't
+   * refer to automation nodes, the node-graph lookups and label resolution
+   * happen here and are passed into the form as data.
+   */
+  getDestinations({ workflow, node, automation }) {
+    return buildGotoDestinations({
+      gotoNode: node,
+      nodes:
+        this.app.$store.getters['automationWorkflowNode/getNodes'](workflow),
+      ancestorsOf: (n) =>
+        this.app.$store.getters['automationWorkflowNode/getAncestors'](
+          workflow,
+          n
+        ),
+      previousNodesOf: (n) =>
+        this.app.$store.getters['automationWorkflowNode/getPreviousNodes'](
+          workflow,
+          n
+        ),
+      isTrigger: (n) => this.app.$registry.get('node', n.type).isTrigger,
+      nameOf: (n) =>
+        this.app.$registry
+          .get('node', n.type)
+          .getLabel({ automation, node: n }),
+    })
   }
 
   /**

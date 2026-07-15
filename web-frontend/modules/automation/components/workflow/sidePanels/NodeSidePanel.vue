@@ -47,7 +47,6 @@ import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import SimulateDispatchNodeForm from '@baserow/modules/automation/components/form/SimulateDispatchNodeForm'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
-import { buildGotoDestinations } from '@baserow/modules/automation/utils/gotoNode'
 import _ from 'lodash'
 import { helpers, maxLength } from '@vuelidate/validators'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -197,32 +196,16 @@ const nodeEdgeInUseFn = (edge) => {
 }
 
 /**
- * The valid jump targets for the selected "Go to" node, shaped for the generic
- * CoreGotoServiceForm's `destinations` prop. As the service form can't refer to
- * automation nodes, the node-graph lookups and label resolution happen here and
- * are passed into the form as data. Returns undefined for any other node type
- * so the prop isn't bound as a stray fallthrough attribute on the other forms.
+ * The selectable destinations for the selected node's form, resolved through
+ * the node type's `getDestinations` hook. Node types whose form doesn't pick
+ * a destination return undefined, so the prop isn't bound as a stray
+ * fallthrough attribute on their forms.
  */
-const gotoDestinations = computed(() => {
-  if (node.value?.type !== 'goto') {
-    return undefined
-  }
-  return buildGotoDestinations({
-    gotoNode: node.value,
-    nodes: store.getters['automationWorkflowNode/getNodes'](workflow.value),
-    ancestorsOf: (n) =>
-      store.getters['automationWorkflowNode/getAncestors'](workflow.value, n),
-    previousNodesOf: (n) =>
-      store.getters['automationWorkflowNode/getPreviousNodes'](
-        workflow.value,
-        n
-      ),
-    isTrigger: (n) => app.$registry.get('node', n.type).isTrigger,
-    nameOf: (n) =>
-      n.label ||
-      app.$registry
-        .get('node', n.type)
-        .getDefaultLabel({ automation: automation.value, node: n }),
+const gotoDestinations = computed(() =>
+  nodeType.value.getDestinations({
+    workflow: workflow.value,
+    node: node.value,
+    automation: automation.value,
   })
-})
+)
 </script>

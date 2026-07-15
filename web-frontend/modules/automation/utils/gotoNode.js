@@ -100,8 +100,9 @@ export function isValidGotoDestination({
  * renders. `value` is the destination's service id, which is what the goto
  * node's `destination_service_id` points at.
  *
- * This lives here so the automation `NodeSidePanel` can compute it and pass it into
- * the integrations service form as a prop.
+ * This lives here so the `CoreGotoNodeType.getDestinations` hook can compute it
+ * and the automation `NodeSidePanel` can pass it into the integrations service
+ * form as a prop.
  *
  * @param {Object} gotoNode The source Go to node.
  * @param {Object[]} nodes All nodes in the workflow.
