@@ -9,6 +9,12 @@ const resolveFrom = (entrypoint, dependency) => {
 }
 
 describe('Vue dependencies', () => {
+  test('@vue/compiler-core uses the root entities decoder', () => {
+    expect(resolveFrom('@vue/compiler-core', 'entities/decode')).toBe(
+      realpathSync(require.resolve('entities/decode'))
+    )
+  })
+
   test.each([
     'nuxt',
     '@nuxt/nitro-server',

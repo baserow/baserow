@@ -331,6 +331,25 @@ describe('rich-text Markdown previews', () => {
     ])
   })
 
+  test('renders the boundary empty paragraph sentinel as an empty line', () => {
+    const html = parseMarkdown('&nbsp;\n\nA')
+    const document = new DOMParser().parseFromString(html, 'text/html')
+    const paragraphs = [...document.querySelectorAll('p')]
+
+    expect(paragraphs).toHaveLength(2)
+    expect(paragraphs.map((element) => element.textContent)).toStrictEqual([
+      '\u00a0',
+      'A',
+    ])
+  })
+
+  test('renders plain paragraphs without empty-line placeholders', () => {
+    const html = parseMarkdown('A\n\nB')
+
+    expect(html).not.toContain('&nbsp;')
+    expect(html).not.toContain('\u00a0')
+  })
+
   test('does not invent paragraphs for blank lines inside code blocks', () => {
     const html = parseMarkdown('```\nA\n\nB\n```')
     const document = new DOMParser().parseFromString(html, 'text/html')

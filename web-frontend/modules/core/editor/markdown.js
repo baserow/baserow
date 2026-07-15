@@ -34,7 +34,14 @@ const makeEmptyParagraphsVisible = (node) => {
   )
 }
 
+// Only sentinels and blank-line runs can produce empty paragraphs on parse.
+const EMPTY_PARAGRAPH_HINT_REGEXP = /&nbsp;|\u00a0|\n[ \t\r]*\n[ \t\r]*\n/
+
 const prepareMarkdownForPreview = (value) => {
+  // Parsing every value is too costly for grid cell previews, so gate it.
+  if (!EMPTY_PARAGRAPH_HINT_REGEXP.test(value)) {
+    return value
+  }
   const document = previewMarkdownManager.parse(value)
   return makeEmptyParagraphsVisible(document)
     ? previewMarkdownManager.serialize(
