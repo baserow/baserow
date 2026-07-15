@@ -426,6 +426,7 @@ def test_create_ai_field_type_via_api_invalid_formula(premium_data_fixture, api_
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
+    # An unparseable prompt is rejected on save.
     assert response.status_code == HTTP_400_BAD_REQUEST
     response_json = response.json()
     assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
@@ -1817,6 +1818,34 @@ def test_ai_field_import_with_broken_reference_records_error(premium_data_fixtur
 
     # id_mapping without the referenced field id -> after_import_serialized swallows
     # the KeyError and leaves the broken reference, so import must not raise.
+    id_mapping = {"database_fields": {}}
+    imported_field = field_type.import_serialized(
+        table,
+        exported,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping,
+        deferred_fk_update_collector=DeferredForeignKeyUpdater(),
+    )
+    field_type.after_import_serialized(imported_field, FieldCache(), id_mapping)
+
+    imported_field = AIField.objects.get(id=imported_field.id)
+    assert imported_field.error is not None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_import_with_unparseable_prompt_records_error(premium_data_fixture):
+    table = premium_data_fixture.create_database_table()
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_1') x hello"},
+    )
+    field_type = field_type_registry.get_by_model(field)
+    exported = field_type.export_serialized(field)
+
+    # An unparseable prompt (e.g. from an old or hand-edited export) must not
+    # break the import; the field simply ends up broken.
     id_mapping = {"database_fields": {}}
     imported_field = field_type.import_serialized(
         table,

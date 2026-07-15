@@ -29,6 +29,7 @@ from baserow.contrib.database.fields.field_types import (
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
@@ -359,9 +360,14 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     def get_field_dependencies(
         self, field_instance: AIField, field_cache: "FieldCache"
     ) -> FieldDependencies:
-        field_ids = set(
-            extract_field_id_dependencies(field_instance.ai_prompt["formula"])
-        )
+        try:
+            field_ids = set(
+                extract_field_id_dependencies(field_instance.ai_prompt["formula"])
+            )
+        except BaserowFormulaException:
+            # An unparseable prompt (e.g. from an import) is surfaced via the
+            # field's `error`; it simply has no field dependencies.
+            field_ids = set()
         if field_instance.ai_file_field_id is not None:
             field_ids.add(field_instance.ai_file_field_id)
         existing_field_ids = set(
@@ -605,10 +611,11 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                     field.ai_prompt, id_mapping["database_fields"]
                 )
                 save = True
-            except KeyError:
-                # Raised when the field ID is not found in the mapping. If that's the
-                # case, we leave the field ID references broken so that the import
-                # can still succeed.
+            except (KeyError, BaserowFormulaException):
+                # KeyError: a referenced field ID isn't in the mapping.
+                # BaserowFormulaException: the prompt can't be parsed.
+                # In both cases we leave the prompt as-is so the import can still
+                # succeed; the broken state is surfaced via the field's `error`.
                 pass
 
         if save:
