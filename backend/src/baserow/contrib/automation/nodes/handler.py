@@ -580,14 +580,6 @@ class AutomationNodeHandler:
 
         try:
             self._before_node_dispatch(node, workflow_history)
-        except AutomationNodeMaxDispatchesExceeded as e:
-            error = str(e)
-            logger.warning(error)
-            self._handle_workflow_error(node_history, iteration_path, error)
-            self._handle_simulation_notify(simulate_until_node, node)
-            return None
-
-        try:
             dispatch_result = node_type.dispatch(node, dispatch_context)
             if (
                 dispatch_result.destination_service_id is not None
@@ -599,6 +591,12 @@ class AutomationNodeHandler:
                 node_type.validate_jump_destination(
                     node, dispatch_result.destination_service_id
                 )
+        except AutomationNodeMaxDispatchesExceeded as e:
+            error = str(e)
+            logger.warning(error)
+            self._handle_workflow_error(node_history, iteration_path, error)
+            self._handle_simulation_notify(simulate_until_node, node)
+            return None
         except ServiceImproperlyConfiguredDispatchException as e:
             error = f"The node is misconfigured and cannot be dispatched. {str(e)}"
             self._handle_workflow_error(node_history, iteration_path, error)
