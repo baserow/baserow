@@ -1,4 +1,6 @@
 import { ViewOwnershipPermissionManagerType } from '@baserow_premium/permissionManagerTypes'
+import { BasicPermissionManagerType } from '@baserow/modules/core/permissionManagerTypes'
+import { isAdhocGroupBy } from '@baserow/modules/database/utils/view'
 
 function createManager(userId) {
   const manager = new ViewOwnershipPermissionManagerType()
@@ -90,54 +92,59 @@ describe('ViewOwnershipPermissionManagerType', () => {
       expect(result).toBeUndefined()
     })
   })
+})
 
-  describe('group by operations are included (regression)', () => {
-    const groupByOps = [
-      'database.table.view.create_group_by',
-      'database.table.view.group_by.update',
-      'database.table.view.group_by.delete',
-      'database.table.view.prioritize_group_bys',
-    ]
+function buildHasPermission(userId) {
+  const app = {
+    $store: {
+      getters: {
+        'auth/getUserId': userId,
+      },
+    },
+  }
 
-    it.each(groupByOps)(
-      '%s is allowed for personal view owner',
-      (operation) => {
-        const manager = createManager(10)
-        expect(
-          manager.hasPermission(null, operation, personalView(10), 1)
-        ).toBe(true)
+  const viewOwnership = new ViewOwnershipPermissionManagerType()
+  viewOwnership.app = app
+
+  const basic = new BasicPermissionManagerType()
+  basic.app = app
+
+  const managers = [
+    { instance: viewOwnership, permissions: null },
+    {
+      instance: basic,
+      permissions: { admin_only_operations: [], is_admin: false },
+    },
+  ]
+
+  return (operation, context, workspaceId) => {
+    for (const { instance, permissions } of managers) {
+      const result = instance.hasPermission(
+        permissions,
+        operation,
+        context,
+        workspaceId
+      )
+      if (result === true || result === false) {
+        return result
       }
-    )
+    }
+    return false
+  }
+}
+
+describe('isAdhocGroupBy with real permission dispatch (regression)', () => {
+  it('returns false for personal view owner — group by is writable', () => {
+    const app = { $hasPermission: buildHasPermission(42) }
+    const workspace = { id: 1 }
+    const view = personalView(42)
+    expect(isAdhocGroupBy(app, workspace, view, false)).toBe(false)
   })
 
-  describe('sort and filter operations have matching group by counterparts', () => {
-    const sortOps = [
-      'database.table.view.create_sort',
-      'database.table.view.sort.update',
-      'database.table.view.sort.delete',
-      'database.table.view.prioritize_sortings',
-    ]
-    const groupByOps = [
-      'database.table.view.create_group_by',
-      'database.table.view.group_by.update',
-      'database.table.view.group_by.delete',
-      'database.table.view.prioritize_group_bys',
-    ]
-
-    it('every sort operation pattern has a group by equivalent', () => {
-      const manager = createManager(1)
-      const view = personalView(1)
-
-      for (let i = 0; i < sortOps.length; i++) {
-        const sortResult = manager.hasPermission(null, sortOps[i], view, 1)
-        const groupByResult = manager.hasPermission(
-          null,
-          groupByOps[i],
-          view,
-          1
-        )
-        expect(groupByResult).toBe(sortResult)
-      }
-    })
+  it('returns true for non-owner — group by is read-only', () => {
+    const app = { $hasPermission: buildHasPermission(42) }
+    const workspace = { id: 1 }
+    const view = personalView(99)
+    expect(isAdhocGroupBy(app, workspace, view, false)).toBe(true)
   })
 })
