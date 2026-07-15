@@ -175,9 +175,8 @@ class BaserowFieldDataSyncProperty(DataSyncProperty):
 
     def _map_select_default_values(self, baserow_field, select_options_mapping):
         """
-        Maps the source field's select default option ID(s) to the corresponding
-        target option IDs on newly created fields (ADD path). For existing fields
-        (UPDATE path), the mapping flows through to_baserow_field() instead.
+        Maps the source field's single-select default option ID to the corresponding
+        target option ID using the provided select_options_mapping.
         """
 
         if not hasattr(baserow_field, "single_select_default"):
