@@ -341,7 +341,8 @@
     "outputTypeChangedWarning": "Clears the generated cell values.",
     "autoUpdate": "Auto update",
     "autoUpdateHelp": "When enabled, the AI field value will be automatically regenerated when any of the referenced fields in the prompt are updated.",
-    "autoUpdateDescription": "Regenerate when referenced fields change"
+    "autoUpdateDescription": "Regenerate when referenced fields change",
+    "invalidPrompt": "The prompt formula is invalid."
   },
   "rowEditFieldAI": {
     "generate": "Generate",
