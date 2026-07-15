@@ -150,8 +150,8 @@ export default {
   },
   watch: {
     unfinishedTrackedJobCount(newCount, oldCount) {
-      // A tracked run ended; refetch so the row shows its final state.
-      if (newCount < oldCount) {
+      // Page 1 only: elsewhere a drop can be pagination swapping rows out.
+      if (newCount < oldCount && this.page === 1) {
         this.reload()
       }
     },

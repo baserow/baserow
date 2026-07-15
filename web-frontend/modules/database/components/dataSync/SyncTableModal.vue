@@ -1,7 +1,7 @@
 <template>
   <Modal
     ref="modal"
-    :can-close="!syncLoading && (!jobIsRunning || attachedToForeignRun)"
+    :can-close="!syncLoading && (!jobIsRunning || attachedToExistingRun)"
     @hidden="hidden"
   >
     <template #content>
@@ -64,24 +64,24 @@ export default {
   },
   data() {
     return {
-      attachedToForeignRun: false,
+      attachedToExistingRun: false,
     }
   },
   methods: {
     show() {
       this.job = null
-      this.attachedToForeignRun = false
+      this.attachedToExistingRun = false
       this.hideError()
       modal.methods.show.bind(this)()
     },
     startSync() {
-      this.attachedToForeignRun = false
+      this.attachedToExistingRun = false
       return this.syncTable(this.table)
     },
     // Show an in-flight run's progress instead of failing with "already running".
     async attachToRunningJob(job) {
       if (!this.jobIsRunning) {
-        this.attachedToForeignRun = true
+        this.attachedToExistingRun = true
         await this.createAndMonitorJob(job)
       }
     },
