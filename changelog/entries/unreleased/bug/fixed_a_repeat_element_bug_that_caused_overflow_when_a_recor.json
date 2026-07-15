@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a Repeat element bug that caused overflow when a record contains long unbroken text.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-07-15"
+}
