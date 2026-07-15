@@ -70,7 +70,7 @@
         "filterToTimestamp": "Do",
         "user": "Użytkownik",
         "workspace": "Obszar roboczy",
-        "timestamp": "Znacznik czasu",
+        "timestamp": "Timestamp",
         "clearFilters": "Wyczyść",
         "workspaceTitle": "Log audytu obszaru {workspaceName}",
         "adminTitle": "Log audytu"
@@ -345,7 +345,7 @@
         "xlsFileReaderContent": "Wczytuj wiersze z plików XLS i XLSX w węzłach automatyzacji oraz w operacjach wykonywanych przez aplikacje."
     },
     "chatwootSupportSidebarWorkspace": {
-        "directSupport": "Bezpośrednie wsparcie"
+        "directSupport": "Wsparcie"
     },
     "userTeamsField": {
         "no_records": "Brak zespołów"
@@ -526,7 +526,7 @@
     "aggregationGroupByForm": {
         "groupByNone": "Brak",
         "groupByRowId": "ID wiersza",
-        "groupByFieldLabel": "Grupuj według"
+        "groupByFieldLabel": "Pogrupuj wg."
     },
     "aggregationSortByForm": {
         "sortByFieldLabel": "Sortuj według",
@@ -690,7 +690,7 @@
         "promptCreateFilterPrompt": "Pokaż tylko wiersze, w których pole główne jest puste."
     },
     "assistantInputMessage": {
-        "statusWaiting": "Asystent jest gotowy do pracy",
+        "statusWaiting": "Asystent oczekuje na instrukcje",
         "statusRunning": "Przetwarzanie...",
         "placeholder": "Zapytaj o cokolwiek...",
         "send": "Wyślij wiadomość",

@@ -596,7 +596,9 @@
     "pagePreview": {
         "emptyMessage": "Klik om het eerste element te maken",
         "header": "HEADER",
-        "footer": "FOOTER"
+        "footer": "FOOTER",
+        "fixedHeader": "VASTE HEADER",
+        "fixedFooter": "VASTE FOOTER"
     },
     "eventTypes": {
         "submitLabel": "Op versturen",
@@ -1226,5 +1228,9 @@
         "sampleDataModalTitle": "Payload voor {actionLabel}",
         "sampleDataModalSubTitle": "JSON-payload",
         "testActionDescription": "Voer deze actie uit in de voorbeeldweergave om de uitvoer vast te leggen en beschikbaar te maken voor volgende acties."
+    },
+    "pageElementBehaviour": {
+        "normal": "Normaal",
+        "fixed": "Vast"
     }
 }

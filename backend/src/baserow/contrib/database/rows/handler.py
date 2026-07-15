@@ -687,7 +687,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 field_ids=[], fields=[primary_field], add_dependencies=False
             )
 
-        queryset = model.objects.filter(pk__in=row_ids)
+        queryset = model.objects.filter(pk__in=row_ids).enhance_by_fields()
 
         return {row.id: str(row) for row in queryset}
 

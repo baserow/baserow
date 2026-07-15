@@ -117,7 +117,7 @@ class WebhookHandler:
         try:
             webhook = (
                 base_queryset.select_related("table__database__workspace")
-                .prefetch_related("events", "events__fields")
+                .prefetch_related("events", "events__fields", "events__views")
                 .get(id=webhook_id)
             )
         except TableWebhook.DoesNotExist:
@@ -145,7 +145,7 @@ class WebhookHandler:
         )
 
         return TableWebhook.objects.prefetch_related(
-            "events", "headers", "calls"
+            "events", "events__fields", "events__views", "headers", "calls"
         ).filter(table_id=table.id)
 
     def _update_webhook_event_config(

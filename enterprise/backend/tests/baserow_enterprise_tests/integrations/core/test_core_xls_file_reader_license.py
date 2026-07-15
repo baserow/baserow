@@ -33,8 +33,8 @@ from baserow_enterprise.license_types import (
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
-def test_core_xls_file_reader_feature_is_enterprise_only():
-    assert XLS_FILE_READER not in AdvancedLicenseType.features
+def test_core_xls_file_reader_feature():
+    assert XLS_FILE_READER in AdvancedLicenseType.features
     assert XLS_FILE_READER in EnterpriseWithoutSupportLicenseType.features
     assert XLS_FILE_READER in EnterpriseLicenseType.features
 

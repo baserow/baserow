@@ -23,7 +23,7 @@
         "errorNoWorkspace": "Nie masz żadnych obszarów roboczych.",
         "admin": "Admin",
         "dashboard": "Pulpit",
-        "trash": "Śmieci",
+        "trash": "Kosz",
         "settings": "Moje ustawienia",
         "members": "Członkowie",
         "notifications": "Powiadomienia",
@@ -283,8 +283,8 @@
     "dashboard": {
         "title": "Pulpit",
         "alertTitle": "Potrzebujemy Twojej pomocy!",
-        "alertText": "Udostępniając Baserow, pomożesz nam ulepszyć nasz produkt i uczynić go bardziej przydatnym.",
-        "tweetContent": "Wypróbuj {'@'}baserow, narzędzie open source do bazy danych typu no-code i alternatywę dla Airtable!",
+        "alertText": "Dzieląc się swoimi uwagami, pomożesz nam ulepszyć Baserow — stanie się jeszcze bardziej przydatny.",
+        "tweetContent": "Wypróbuj {'@'}baserow, bazę danych open source typu no-code i alternatywę dla Airtable!",
         "redditTitle": "'Baserow - baza danych open source typu no-code",
         "noWorkspaceTitle": "Nie znaleziono grup",
         "noWorkspaceText": "Nie jesteś członkiem żadnej grupy. Aplikacje takie jak bazy danych należą do grupy, więc aby je stworzyć musisz stworzyć grupę.",
@@ -362,8 +362,8 @@
         "login": "Zaloguj się"
     },
     "forgotPassword": {
-        "title": "Nie pamiętam hasła",
-        "message": "Podaj swój adres e-mail, abyśmy mogli wysłać link do zresetowania hasła.",
+        "title": "Nie pamiętasz hasła?",
+        "message": "Podaj swój adres e-mail, wyślemy Ci link do zresetowania hasła.",
         "submit": "Wyślij link",
         "confirmation": "W wiadomości, którą wysłaliśmy na adres {email}, znajduje się link do zresetowania hasła w Baserow.",
         "disabled": "Opcja resetowania hasła jest wyłączona",
@@ -586,7 +586,7 @@
     },
     "notificationPanel": {
         "title": "Powiadomienia",
-        "markAllAsRead": "Zaznacz wszystko jako przeczytane",
+        "markAllAsRead": "Zaznacz jako przeczytane",
         "clearAll": "Wyczyść wszystko",
         "noNotificationTitle": "Nie masz żadnych powiadomień",
         "noNotification": "Powiadomimy Cię o ważnych aktualizacjach oraz każdorazowo, gdy ktoś wspomni o Tobie w bazie Baserow.",
@@ -1018,7 +1018,7 @@
     },
     "importWorkspaceModal": {
         "retry": "Ponów",
-        "selectApplications": "Wybierz dane do zaimportowania",
+        "selectApplications": "Wybierz dane",
         "applications": "Aplikacje",
         "close": "Zamknij",
         "chooseFile": "Wybierz plik",
@@ -1289,5 +1289,8 @@
         "confirmation": "Czy jesteś pewien, że chcesz usunąć uwierzytelnienie dwuskładnikowe dla {name}?",
         "comment": "Będą mogli zalogować się, podając jedynie swoje hasło, a następnie ponownie skonfigurować uwierzytelnianie dwuskładnikowe.",
         "remove": "Usuń uwierzytelnienie dwuskładnikowe"
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "Ta nazwa obszaru roboczego nie jest dozwolona"
     }
 }

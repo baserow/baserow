@@ -1,15 +1,20 @@
 import itertools
+import time
 import traceback
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Type
+from uuid import uuid4
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import OuterRef, Q, QuerySet, Subquery
 
+from celery import chord, group
+from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 from opentelemetry import trace
 
+from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
 from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
@@ -23,6 +28,21 @@ from baserow.core.models import Workspace
 from baserow.core.telemetry.utils import add_baserow_trace_attrs, baserow_trace
 
 tracer = trace.get_tracer(__name__)
+
+# Workspaces that take longer than this are logged by id so we can look into them.
+SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS = 60
+
+# How long one batch of workspaces may run. Batches run in parallel, so a slow one no
+# longer holds up the rest and this no longer has to fit the run interval.
+BATCH_UPDATE_SOFT_TIME_LIMIT = settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60
+# Give the hard kill a small margin over the soft limit.
+BATCH_UPDATE_HARD_TIME_LIMIT = BATCH_UPDATE_SOFT_TIME_LIMIT + 30
+
+# Only one periodic-field cycle runs at a time. The parent acquires this Redis flag
+# (fenced by the run's token) and the chord callback releases it. The TTL is the crash
+# backstop; batches heartbeat it so a serialized cycle can't expire mid-flight.
+RUN_LOCK_KEY = "periodic_fields_update_running"
+RUN_LOCK_TTL = BATCH_UPDATE_HARD_TIME_LIMIT + 60
 
 
 def filter_distinct_workspace_ids_per_fields(
@@ -42,27 +62,102 @@ def filter_distinct_workspace_ids_per_fields(
     )
     if workspace_id is not None:
         queryset = queryset.filter(id=workspace_id)
-    return queryset.distinct().order_by("now")
+    # Ordering is applied later on the final workspace queryset; the ids collected here
+    # go straight into a set, so any ordering at this stage is wasted work.
+    return queryset.distinct().order_by()
 
 
 @app.task(
     bind=True,
     queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME,
     soft_time_limit=settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60,
-    # Keep the hard limit above this task's soft_time_limit, otherwise a shorter
-    # global/default CELERY_TASK_TIME_LIMIT could kill the task before the soft limit
-    # fires. The 30s margin stays under the task's run interval to avoid overlapping
-    # with the next run.
     time_limit=settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60 + 30,
 )
 def run_periodic_fields_updates(
-    self, workspace_id: Optional[int] = None, update_now: bool = True
+    self,
+    workspace_id: Optional[int] = None,
+    update_now: bool = True,
+    dispatch: bool = True,
 ):
     """
-    Refreshes all the fields that need to be updated periodically for all
-    workspaces.
+    Finds the workspaces whose periodic fields need refreshing and splits them across
+    ``BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT`` tasks, so no single task has to update
+    the whole instance at once. Raising the count spreads the work across more workers.
+    When ``dispatch`` is False the updates run inline instead of being queued, which the
+    management command uses to run synchronously. The inline path bypasses the run lock,
+    so it can overlap with an in-flight beat cycle.
     """
 
+    if not dispatch:
+        for wid in _collect_ordered_workspace_ids(workspace_id):
+            _update_workspace_periodic_fields(wid, update_now)
+        return
+
+    # One cycle at a time. Acquire the fenced run lock before the (potentially heavy)
+    # eligibility scan, so an overlapping run skips cheaply instead of scanning and
+    # discarding the result. Overlaps are likeliest on large instances, where the scan
+    # is heaviest.
+    token = self.request.id or uuid4().hex
+    flag = SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL)
+    if not flag.acquire(token):
+        # Log as an error so self-hosters can see and act on it: a cycle is still
+        # running when the next one starts, so this run is skipped and periodic fields
+        # refresh less often than configured. The two settings below are the levers to
+        # fix it, so name them explicitly.
+        logger.error(
+            "run_periodic_fields_updates skipped: the previous cycle is still running, "
+            "so periodic fields will refresh less often than expected. Give each cycle "
+            "more time by increasing the interval between runs "
+            "(BASEROW_PERIODIC_FIELD_UPDATE_CRONTAB), or make each cycle finish faster "
+            "by spreading the work across more tasks "
+            "(BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT)."
+        )
+        return
+
+    try:
+        ordered_ids = _collect_ordered_workspace_ids(workspace_id)
+        if not ordered_ids:
+            # Nothing to do this cycle: release the lock we just took.
+            flag.clear_if(token)
+            return
+
+        batch_count = max(1, settings.PERIODIC_FIELD_UPDATE_BATCH_COUNT)
+        # Round-robin the ordered ids across batches (0, n, 2n… then 1, n+1…) so every
+        # batch stays oldest-first and the most overdue workspaces are picked up first in
+        # parallel, instead of being stranded at the tail of a single batch.
+        batches = [ordered_ids[i::batch_count] for i in range(batch_count)]
+        batches = [batch for batch in batches if batch]
+        header = group(
+            update_workspaces_periodic_fields.s(
+                batch_ids,
+                update_now,
+                batch_index=batch_index,
+                run_token=token,
+            )
+            for batch_index, batch_ids in enumerate(batches)
+        )
+        chord(header)(finish_periodic_fields_update.si(token))
+    except Exception:
+        flag.clear_if(token)
+        raise
+
+    logger.info(
+        "run_periodic_fields_updates dispatched {count} workspace(s) across "
+        "{batches} batch(es).",
+        count=len(ordered_ids),
+        batches=len(batches),
+    )
+
+
+def _collect_workspace_ids_needing_update(
+    workspace_id: Optional[int] = None,
+) -> set[int]:
+    """Returns the ids of workspaces that have at least one periodic field due."""
+
+    # We pick the workspaces to update once here, before any of them are refreshed.
+    # Only formula fields update periodically today, so this matches the old behaviour.
+    # If another field type ever needs periodic updates, revisit this.
+    workspace_ids: set[int] = set()
     for field_type_instance in field_type_registry.get_all():
         field_qs = field_type_instance.get_fields_needing_periodic_update()
         if field_qs is None:
@@ -82,10 +177,22 @@ def run_periodic_fields_updates(
             | Q(now__lte=threshold)
             | Q(now__isnull=True)
         )
-        for workspace in workspaces:
-            _run_periodic_field_type_update_per_workspace(
-                field_type_instance, workspace, update_now
-            )
+        workspace_ids.update(workspaces.values_list("id", flat=True))
+    return workspace_ids
+
+
+def _collect_ordered_workspace_ids(workspace_id: Optional[int] = None) -> list[int]:
+    """
+    Ids of the workspaces with a periodic field due, most out-of-date (oldest ``now``)
+    first, like the old job did, so a backlog still clears the most overdue ones first.
+    """
+
+    workspace_ids = _collect_workspace_ids_needing_update(workspace_id)
+    return list(
+        Workspace.objects.filter(id__in=workspace_ids)
+        .order_by("now")
+        .values_list("id", flat=True)
+    )
 
 
 @baserow_trace(tracer)
@@ -96,11 +203,7 @@ def _run_periodic_field_type_update_per_workspace(
     if qs is None:
         return
 
-    if update_now:
-        workspace.refresh_now()
-    add_baserow_trace_attrs(update_now=update_now, workspace_id=workspace.id)
-
-    fields = (
+    fields = list(
         qs.filter(
             table__database__workspace_id=workspace.id,
             table__database__trashed=False,
@@ -109,6 +212,14 @@ def _run_periodic_field_type_update_per_workspace(
         .select_related("table")
         .order_by("table__database_id")
     )
+    # Nothing due for this field type: skip before refreshing `now` so an idle
+    # workspace isn't touched (and this is the only place we filter the fields).
+    if not fields:
+        return
+
+    if update_now:
+        workspace.refresh_now()
+    add_baserow_trace_attrs(update_now=update_now, workspace_id=workspace.id)
 
     # Grouping by database will allow us to pass the `database_id` to the update
     # function so recreating the dependency tree will be faster.
@@ -125,6 +236,10 @@ def _run_periodic_field_type_update_per_workspace(
                     skip_search_updates=True,
                     database_id=database_id,
                 )
+        except SoftTimeLimitExceeded:
+            # One-shot signal: let it propagate so the batch stops cleanly instead of
+            # being swallowed and running until the hard limit SIGKILLs the task.
+            raise
         except Exception:
             tb = traceback.format_exc()
             field_ids = ", ".join(str(field.id) for field in fields_in_db)
@@ -141,6 +256,94 @@ def _run_periodic_field_type_update_per_workspace(
                 {field.table_id for field in database_updated_fields}
             )
             notify_table_views_updates.delay(updated_table_ids)
+
+
+@app.task(
+    bind=True,
+    queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME,
+    soft_time_limit=BATCH_UPDATE_SOFT_TIME_LIMIT,
+    time_limit=BATCH_UPDATE_HARD_TIME_LIMIT,
+)
+def update_workspaces_periodic_fields(
+    self,
+    workspace_ids: list[int],
+    update_now: bool = True,
+    batch_index: int = 0,
+    run_token: Optional[str] = None,
+):
+    """
+    Updates all periodic fields for a batch of workspaces. Extends the per-cycle run
+    lock's TTL before each workspace, but only while this cycle still owns it. If the
+    lock has lapsed or a newer cycle took over (e.g. after a long queue delay), the batch
+    stops instead of running unprotected and risking an overlap. Heartbeating per
+    workspace (rather than once at the start) keeps the TTL fresh through a long batch, so
+    the next serialized batch still finds the lock held when it dequeues.
+    """
+
+    flag = SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL)
+    for workspace_id in workspace_ids:
+        if not flag.extend_if(run_token):
+            # Warn (not info): this drops the rest of the batch's work for the cycle,
+            # so operators should see it. A newer cycle owns the lock or it expired.
+            logger.warning(
+                "update_workspaces_periodic_fields batch {batch_index} stopped: the run "
+                "lock is no longer held by this cycle, so its remaining workspaces are "
+                "skipped this cycle.",
+                batch_index=batch_index,
+            )
+            return
+        try:
+            _update_workspace_periodic_fields(workspace_id, update_now)
+        except SoftTimeLimitExceeded:
+            # The soft limit fired: stop cleanly so the task succeeds and the chord
+            # callback releases the lock. Continuing would run until the hard limit
+            # SIGKILLs the batch, stranding the lock until its TTL. The unprocessed
+            # workspaces keep their stale `now` and are picked up next cycle.
+            logger.warning(
+                "update_workspaces_periodic_fields batch {batch_index} hit the soft time "
+                "limit; stopping so the lock is released and the rest run next cycle.",
+                batch_index=batch_index,
+            )
+            return
+        except Exception:
+            # Keep going so one failing workspace can't fail the whole batch. A failed
+            # batch would skip the chord callback and leave the run lock stranded until
+            # its TTL expires.
+            logger.exception(
+                "Periodic field update failed for workspace {workspace_id}.",
+                workspace_id=workspace_id,
+            )
+
+
+@app.task(queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME)
+def finish_periodic_fields_update(token: str):
+    """Chord callback: release the per-cycle run lock if we still own it."""
+
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).clear_if(token)
+
+
+def _update_workspace_periodic_fields(
+    workspace_id: int, update_now: bool = True
+) -> None:
+    workspace = Workspace.objects.filter(id=workspace_id, trashed=False).first()
+    if workspace is None:
+        return
+
+    started_at = time.monotonic()
+    for field_type_instance in field_type_registry.get_all():
+        # Each call filters the due fields once and early-returns (before refreshing
+        # `now`) when the workspace has none, so idle field types are a no-op.
+        _run_periodic_field_type_update_per_workspace(
+            field_type_instance, workspace, update_now
+        )
+
+    elapsed = time.monotonic() - started_at
+    if elapsed >= SLOW_WORKSPACE_LOG_THRESHOLD_SECONDS:
+        logger.warning(
+            "Periodic field update for workspace {workspace_id} took {elapsed:.1f}s.",
+            workspace_id=workspace_id,
+            elapsed=elapsed,
+        )
 
 
 @app.task(bind=True)

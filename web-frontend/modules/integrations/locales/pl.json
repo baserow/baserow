@@ -52,7 +52,7 @@
         "localBaserowUpdateRowDescription": "Aktualizuje istniejący wiersz w tabeli Baserow.",
         "localBaserowDeleteRow": "Usuń wiersz",
         "localBaserowDeleteRowDescription": "Usuwa jeden lub więcej wierszy z tabeli bazy Baserow.",
-        "localBaserowRowsCreated": "Wiersze zostały utworzone",
+        "localBaserowRowsCreated": "Dodanie wierszy",
         "localBaserowRowsCreatedDescription": "Uruchamia się, gdy w tabeli bazy Baserow tworzone są wiersze.",
         "localBaserowRowsUpdated": "Wiersze zostały zaktualizowane",
         "localBaserowRowsUpdatedDescription": "Uruchamia się, gdy w tabeli bazy Baserow aktualizowane są jakiekolwiek wiersze.",
@@ -100,9 +100,9 @@
         "localBaserowCreateRowsDescription": "Zbiorczo tworzy nowe wiersze w tabeli bazy Baserow.",
         "localBaserowUpdateRows": "Zbiorczo zaktualizuj wiersze",
         "localBaserowUpdateRowsDescription": "Zbiorczo aktualizuje istniejące wiersze w tabeli bazy Baserow.",
-        "localBaserowFieldsUpdated": "Uaktualnia konkretne wartości pól",
+        "localBaserowFieldsUpdated": "Uaktualnienie konkretnych wartości pól",
         "localBaserowFieldsUpdatedDescription": "Uruchamia się, gdy w określonych polach tabeli bazy Baserow są aktualizowane wiersze.",
-        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja uruchomi ten proces.",
+        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja rozpocznie ten proces.",
         "coreCSVFileReader": "Wczytaj plik CSV",
         "coreCSVFileReaderDescription": "Wczytuje wiersze z pliku CSV.",
         "coreStartWorkflow": "Uruchom proces",
@@ -208,7 +208,7 @@
         "searchFieldPlaceHolder": "Wprowadź frazę wyszukiwania...",
         "noTableChosenForFiltering": "Aby zacząć używać filtrów tego źródła danych, najpierw wybierz tabelę.",
         "noTableChosenForSorting": "Aby zacząć używać sortowań tego źródła danych, najpierw wybierz tabelę.",
-        "refinements": "Poprawki"
+        "refinements": "Dodatkowe szczegóły"
     },
     "coreHTTPRequestServiceForm": {
         "httpMethod": "Metoda HTTP",
@@ -393,11 +393,11 @@
     "localBaserowCreateRowsServiceForm": {
         "rowsLabel": "Wiersze",
         "rowsPlaceholder": "Wybierz listę obiektów typu \"wiersz\"",
-        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który po przetworzeniu tworzy tablicę obiektów wierszy. Jako klucze obiektów należy użyć nazw lub ID pól. Jednorazowo można utworzyć maksymalnie {limit} wierszy."
+        "rowsHelper": "Wynikiem musi być tablica obiektów wierszy lub ciąg JSON, który po przetworzeniu tworzy taką tablicę. Jako klucze obiektów należy użyć nazw lub ID pól. Jednorazowo można utworzyć do {limit} wierszy."
     },
     "localBaserowUpdateRowsServiceForm": {
         "rowsLabel": "Wiersze",
         "rowsPlaceholder": "Wybierz liste ID obiektów typu \"wiersz\"",
-        "rowsHelper": "Ta formuła musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który po przetworzeniu utworzy tablicę obiektów wierszy. Każdy obiekt musi zawierać atrybut identyfikacyjny. Jako klucz obiektu można użyć nazwy lub ID pola. Jednorazowo można zaktualizować maksymalnie {limit} wierszy."
+        "rowsHelper": "Wynikiem musi być tablica obiektów wierszy lub ciąg JSON, który po przetworzeniu utworzy taką tablicę. Każdy obiekt musi zawierać atrybut identyfikacyjny. Jako klucza obiektu można użyć nazwy lub ID pola. Jednorazowo można zaktualizować do {limit} wierszy."
     }
 }

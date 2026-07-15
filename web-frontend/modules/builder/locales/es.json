@@ -324,7 +324,7 @@
         "notificationLabel": "Mostrar notificación",
         "openPageLabel": "Abrir página",
         "logoutLabel": "Cerrar sesión",
-        "refreshDataSourceLabel": "Recargar fuente de datos",
+        "refreshDataSourceLabel": "Refrescar fuente de datos",
         "deleteRowLabel": "Borrar fila",
         "httpRequest": "Enviar solicitud HTTP",
         "errorNavigateToPageMissing": "Falta la propiedad «Navegar a»",
@@ -383,7 +383,14 @@
         "columnGapTitle": "Espacio entre columnas",
         "columnAmountTitle": "Disposición",
         "columnAmountName": "sin columnas | 1 columna | {columnaCantidad} columnas",
-        "verticalAlignment": "Alineación vertical"
+        "verticalAlignment": "Alineación vertical",
+        "customWeightsHelper": "Utiliza 0 cuando una columna deba ajustarse únicamente al ancho de su contenido. Las demás columnas repartirán el espacio sobrante.",
+        "errorCustomWeightsMinimum": "Los pesos de las columnas deben ser 0 o mayores",
+        "columnStackingTitle": "Apila columnas por tipo de dispositivo",
+        "customWeightsTitle": "Pesos personalizados de columnas",
+        "columnStackingHorizontal": "Lado a lado",
+        "customLayout": "Personalizado",
+        "columnStackingStacked": "Apilado"
     },
     "pageSettings": {
         "pageUpdatedTitle": "Cambiado",
@@ -1098,7 +1105,14 @@
         "menuItemAddSeparator": "Separador",
         "menuItemAddSpacer": "Espaciador",
         "eventDescription": "Para configurar acciones para este botón, abre la pestaña «Eventos» de este elemento.",
-        "noMenuItemsMessage": "Haz clic en «Añadir» para añadir tu primer elemento de menú."
+        "noMenuItemsMessage": "Haz clic en «Añadir» para añadir tu primer elemento de menú.",
+        "previewCompactMenuHelper": "Mostrar/ocultar la previsualización del menú compacto.",
+        "variant": "Variante por tipo de dispositivo",
+        "previewCompactMenuLabel": "Previsualizar menú compacto",
+        "openEditorCompactMenu": "Abrir menú",
+        "closeEditorCompactMenu": "Cerrar menú",
+        "expanded": "Expandido",
+        "compact": "Compacto"
     },
     "simpleContainerElementForm": {
         "noConfigurationOptions": "El elemento contenedor no tiene ninguna opción de configuración."
@@ -1178,11 +1192,16 @@
         "content": "Aquí es donde configuras las páginas de tu aplicación. Añade elementos, previsualiza el resultado y estructura tu aplicación exactamente como deseas."
     },
     "devicesGuidedTourStep": {
-        "title": "Vista previa en diferentes dispositivos",
-        "content": "Cambia entre las vistas previas de escritorio, tablet y móvil para ver cómo se ve tu aplicación en diferentes tamaños de pantalla. ¡Asegúrate de que tu diseño funcione perfectamente en todos los dispositivos!"
+        "title": "Previsualizar en diferentes dispositivos",
+        "content": "Cambia entre la previsualización de escritorio, tablet y móvil para ver cómo se ve tu aplicación en diferentes tamaños de pantalla. ¡Asegúrate de que tu diseño funcione perfectamente en todos los dispositivos!"
     },
     "previewPublishGuidedTourStep": {
         "title": "Previsualiza y publica tu aplicación",
-        "content": "Haz clic en **«Vista previa»** para probar tu aplicación de forma privada. Cuando estés listo, haz clic en **«Publicar»** para compartirla con el público a través de un dominio."
+        "content": "Haz clic en **«Previsualizar»** para probar tu aplicación de forma privada. Cuando estés listo, haz clic en **«Publicar»** para compartirla con el público a través de un dominio."
+    },
+    "workflowAction": {
+        "testActionDescription": "Ejecuta esta acción en modo previsualización para capturar su salida y hacerla disponible a las acciones siguientes.",
+        "sampleDataModalTitle": "Carga útil para {actionLabel}",
+        "sampleDataModalSubTitle": "Carga útil JSON"
     }
 }

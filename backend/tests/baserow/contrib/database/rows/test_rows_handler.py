@@ -2132,3 +2132,42 @@ def test_create_row_handler_default_value_priority(data_fixture):
         user, table, values={f"field_{text_field.id}": "user value"}, view=view
     )
     assert getattr(row3, f"field_{text_field.id}") == "user value"
+
+
+@pytest.mark.django_db
+def test_get_row_names_does_not_scale_queries_with_relational_primary(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    single_select_field = data_fixture.create_single_select_field(
+        table=table, name="Status", primary=True
+    )
+    options = [
+        data_fixture.create_select_option(
+            field=single_select_field, value=f"option-{i}", order=i
+        )
+        for i in range(3)
+    ]
+
+    model = table.get_model()
+    row_ids = []
+    for i in range(20):
+        row = model.objects.create(
+            **{f"field_{single_select_field.id}_id": options[i % len(options)].id}
+        )
+        row_ids.append(row.id)
+
+    n = 5
+    small_ids = row_ids[:n]
+    large_ids = row_ids[: 2 * n]
+
+    # Warm up to prime content-type/model caches so only the row count differs.
+    RowHandler().get_row_names(table, small_ids)
+    RowHandler().get_row_names(table, large_ids)
+
+    with CaptureQueriesContext(connection) as small_captured:
+        RowHandler().get_row_names(table, small_ids)
+
+    with CaptureQueriesContext(connection) as large_captured:
+        RowHandler().get_row_names(table, large_ids)
+
+    assert len(small_captured.captured_queries) == len(large_captured.captured_queries)

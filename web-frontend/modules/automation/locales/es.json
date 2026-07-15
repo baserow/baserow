@@ -119,7 +119,7 @@
         "localBaserowRowsDeletedLabel": "Filas eliminadas en {tableName}",
         "localBaserowCreateRowLabel": "Crear una fila en {tableName}",
         "localBaserowUpdateRowLabel": "Actualizar una fila en {tableName}",
-        "localBaserowDeleteRowLabel": "Eliminar una fila en {tableName}",
+        "localBaserowDeleteRowLabel": "Eliminar filas en {tableName}",
         "localBaserowGetRowLabel": "Leer una fila en {tableName}",
         "localBaserowListRowsLabel": "Listar filas en {tableName}",
         "localBaserowAggregateRowsLabel": "Resumir filas en {tableName}",
@@ -136,22 +136,29 @@
         "slackWriteMessageName": "Enviar un mensaje de Slack",
         "periodicTriggerLabel": "Disparador periódico",
         "aiAgent": "Prompt de IA",
-        "defaultEdgeLabelFallback": "Predeterminado"
+        "defaultEdgeLabelFallback": "Predeterminado",
+        "localBaserowFieldsUpdatedNoFieldLabel": "Los valores de campos específicos se actualizan en una tabla",
+        "localBaserowFieldsUpdatedMultipleLabel": "Los valores de {count} campos se actualizan en {tableName}",
+        "localBaserowFieldsUpdatedLabel": "{fieldName} se actualiza en {tableName}",
+        "localBaserowCreateRowsLabel": "Crear filas en lote en {tableName}",
+        "localBaserowUpdateRowsLabel": "Actualizar filas en lote en {tableName}",
+        "csvFileReaderLabel": "Leer un archivo CSV",
+        "startWorkflowLabel": "Iniciar {workflowName}"
     },
     "simulateDispatch": {
-        "testNodeDescription": "Prueba este evento para confirmar que la configuración es correcta. Los datos de esta prueba pueden usarse en pasos posteriores.",
+        "testNodeDescription": "Prueba este nodo para confirmar que la configuración es correcta. Los datos de esta prueba pueden usarse en pasos posteriores.",
         "triggerNodeAwaitingEvent": "El nodo está esperando. Por favor, dispara manualmente el evento para rellenar la carga útil y completar la prueba.",
         "errorNodeNotConfigured": "El nodo debe configurarse antes de que pueda probarse.",
         "errorPreviousNodesNotTested": "El nodo anterior «{node}» debe probarse primero.",
         "errorPreviousNodeNotConfigured": "El nodo anterior «{node}» debe configurarse.",
         "simulationInProgress": "La prueba del nodo está en curso...",
         "sampleDataCopied": "Carga útil copiada al portapapeles",
-        "buttonLabelTestAgain": "Probar evento nuevamente",
+        "buttonLabelTestAgain": "Probar el nodo nuevamente",
         "sampleDataModalTitle": "Carga útil para {nodeLabel}",
         "errorOccurred": "Ocurrió un error…",
         "sampleDataLabel": "Salida",
         "sampleDataCopy": "Copiar",
-        "buttonLabelTest": "Probar evento",
+        "buttonLabelTest": "Probar nodo",
         "buttonLabelShowPayload": "Mostrar carga útil",
         "buttonLabelShowError": "Mostrar error",
         "sampleDataModalSubTitle": "Carga útil JSON"
@@ -185,7 +192,9 @@
         "errorIntervalMissing": "Se requiere un intervalo.",
         "periodicTrigger": "Disparador periódico",
         "periodicTriggerTriggeredAt": "Disparado a las",
-        "coreHTTPTrigger": "Disparador HTTP"
+        "coreHTTPTrigger": "Disparador HTTP",
+        "coreManualTriggerDescription": "Se inicia solo cuando otra acción de flujo de trabajo inicia este flujo de trabajo",
+        "coreManualTrigger": "Disparador manual"
     },
     "workflowNode": {
         "displayLabelDebug": "ID: {id} | ID Previo: {previousNodeId} | {outputUid}",

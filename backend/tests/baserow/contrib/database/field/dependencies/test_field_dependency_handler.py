@@ -1,4 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from pytest_unordered import unordered
@@ -818,3 +820,48 @@ def test_can_import_database_with_formula_dependencies(data_fixture):
 
     assert r2.lookup == [{"id": 1, "value": "A"}]
     assert r2.lookup2 == [{"id": 1, "value": "A"}]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_link_row
+def test_get_via_dependants_of_link_field_num_queries_does_not_scale(data_fixture):
+    table = data_fixture.create_database_table()
+    linked_table = data_fixture.create_database_table(database=table.database)
+    link_field = data_fixture.create_link_row_field(
+        table=table, link_row_table=linked_table
+    )
+    dependency_field = data_fixture.create_text_field(table=table)
+
+    def add_via_dependants(count):
+        created_ids = []
+        for _ in range(count):
+            dependant = data_fixture.create_text_field(table=linked_table)
+            FieldDependency.objects.create(
+                dependency=dependency_field, dependant=dependant, via=link_field
+            )
+            created_ids.append(dependant.id)
+        return created_ids
+
+    def measure():
+        with CaptureQueriesContext(connection) as ctx:
+            dependants = FieldDependencyHandler.get_via_dependants_of_link_field(
+                link_field.specific
+            )
+        return len(ctx.captured_queries), dependants
+
+    first_ids = add_via_dependants(3)
+    FieldDependencyHandler.get_via_dependants_of_link_field(link_field.specific)
+    few_queries, few_dependants = measure()
+
+    second_ids = add_via_dependants(3)
+    FieldDependencyHandler.get_via_dependants_of_link_field(link_field.specific)
+    more_queries, more_dependants = measure()
+
+    assert more_queries == few_queries
+
+    assert len(more_dependants) == len(few_dependants) + 3
+    result_ids = {field.id for field, _, _ in more_dependants}
+    assert set(first_ids) | set(second_ids) <= result_ids
+    for field, field_type, via_path in more_dependants:
+        assert via_path == []
+        assert field_type == field_type_registry.get_by_model(field)

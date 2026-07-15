@@ -116,7 +116,7 @@
         "localBaserowRowsDeletedLabel": "{tableName} 테이블에서 행이 삭제되었습니다",
         "localBaserowCreateRowLabel": "{tableName} 테이블에 행을 생성합니다",
         "localBaserowUpdateRowLabel": "{tableName} 테이블의 행을 업데이트합니다",
-        "localBaserowDeleteRowLabel": "{tableName} 테이블에서 행을 삭제합니다",
+        "localBaserowDeleteRowLabel": "{tableName} 테이블의 행을 삭제합니다",
         "localBaserowGetRowLabel": "{tableName} 테이블에서 행을 읽습니다",
         "localBaserowListRowsLabel": "{tableName} 테이블의 행 목록",
         "localBaserowAggregateRowsLabel": "{tableName} 테이블의 행 요약",
@@ -133,7 +133,14 @@
         "aiAgent": "AI 프롬프트",
         "slackWriteMessageName": "슬랙 메시지를 보내세요",
         "slackWriteMessageLabel": "#{channel}에 메시지를 보내세요",
-        "defaultEdgeLabelFallback": "기본"
+        "defaultEdgeLabelFallback": "기본",
+        "localBaserowFieldsUpdatedLabel": "{fieldName} 필드가 {tableName} 테이블에서 업데이트되었습니다",
+        "localBaserowFieldsUpdatedMultipleLabel": "{count}개 필드의 값이 {tableName} 테이블에서 업데이트되었습니다",
+        "localBaserowFieldsUpdatedNoFieldLabel": "테이블의 특정 필드 값이 업데이트됩니다",
+        "localBaserowCreateRowsLabel": "{tableName} 테이블에 일괄적으로 행을 생성합니다",
+        "localBaserowUpdateRowsLabel": "{tableName} 테이블의 행들을 일괄 업데이트합니다",
+        "csvFileReaderLabel": "CSV 파일을 읽습니다",
+        "startWorkflowLabel": "{workflowName} 시작"
     },
     "workflowNode": {
         "actionDelete": "삭제",
@@ -165,7 +172,9 @@
         "periodicTriggerTriggeredAt": "트리거됨",
         "errorIntervalMissing": "간격이 필요합니다.",
         "coreHTTPTrigger": "HTTP 트리거",
-        "coreHTTPTriggerDescription": "워크플로를 트리거하기 위해 HTTP 요청을 수신합니다"
+        "coreHTTPTriggerDescription": "워크플로를 트리거하기 위해 HTTP 요청을 수신합니다",
+        "coreManualTrigger": "수동 트리거",
+        "coreManualTriggerDescription": "이 워크플로는 다른 워크플로 작업이 시작될 때만 시작됩니다"
     },
     "periodicTriggerServiceForm": {
         "intervalLabel": "간격",
@@ -200,9 +209,9 @@
         "errorNodeNotConfigured": "노드를 테스트하기 전에 먼저 구성해야 합니다.",
         "errorPreviousNodeNotConfigured": "이전 노드 \"{node}\"를 구성해야 합니다.",
         "errorPreviousNodesNotTested": "이전 노드 \"{node}\"를 먼저 테스트해야 합니다.",
-        "buttonLabelTest": "테스트 이벤트",
-        "buttonLabelTestAgain": "테스트 이벤트 다시 진행",
-        "testNodeDescription": "이 이벤트를 테스트하여 구성이 올바른지 확인하십시오. 이 테스트에서 얻은 데이터는 이후 단계에서 사용할 수 있습니다.",
+        "buttonLabelTest": "테스트 노드",
+        "buttonLabelTestAgain": "노드를 다시 테스트",
+        "testNodeDescription": "이 노드를 테스트하여 구성이 올바른지 확인하십시오. 이 테스트에서 얻은 데이터는 이후 단계에서 사용될 수 있습니다.",
         "buttonLabelShowPayload": "페이로드 표시",
         "buttonLabelShowError": "오류 표시",
         "sampleDataModalTitle": "{nodeLabel}에 대한 페이로드",

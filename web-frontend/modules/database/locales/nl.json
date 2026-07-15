@@ -541,7 +541,9 @@
         "duplicate": "Dupliceer veld",
         "dataSyncField": "Het veld is alleen-lezen en maakt deel uit van de data sync van de tabel.",
         "noWriteValues": "Wijzigingen in dit veld zijn beperkt.",
-        "dataSyncFieldTwoWaySync": "Het veld wordt gesynchroniseerd met de gegevenssynchronisatie van de tabel."
+        "dataSyncFieldTwoWaySync": "Het veld wordt gesynchroniseerd met de gegevenssynchronisatie van de tabel.",
+        "groupByField": "Groeperen op",
+        "ungroupByField": "Niet groeperen op"
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "Rij komt niet overeen met filters",

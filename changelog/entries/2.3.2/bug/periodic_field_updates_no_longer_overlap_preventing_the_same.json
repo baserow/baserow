@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Periodic field updates no longer overlap, preventing the same workspace from being processed twice at once.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-09"
+}

@@ -1135,6 +1135,152 @@ def test_sync_data_sync_table_single_select_field_and_making_changes(
     assert getattr(row_c, f"field_{single_select_field.id}_id") == options[1].id
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_single_select_field_with_default_and_making_changes(
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    source_single_select_field = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+    source_option_a = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="A", color="blue"
+    )
+    source_option_b = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="B", color="red"
+    )
+    source_option_c = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="C", color="green"
+    )
+
+    source_single_select_field.single_select_default = source_option_a.id
+    source_single_select_field.save()
+
+    source_model = source_table.get_model()
+    source_model.objects.create(
+        **{f"field_{source_single_select_field.id}_id": source_option_a.id}
+    )
+    source_model.objects.create(
+        **{f"field_{source_single_select_field.id}_id": source_option_b.id}
+    )
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{source_single_select_field.id}"],
+        source_table_id=source_table.id,
+    )
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    single_select_field = fields[1]
+    options = list(single_select_field.select_options.all())
+    assert single_select_field.single_select_default is not None
+
+    target_default_option = next(
+        o for o in options if o.id == single_select_field.single_select_default
+    )
+    assert target_default_option.value == "A"
+
+    # Modify source options: remove B, add D, rename C -> E
+    source_option_b.delete()
+    source_option_c.value = "E"
+    source_option_c.save()
+    enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="D", color="orange"
+    )
+
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    single_select_field.refresh_from_db()
+    options = list(single_select_field.select_options.all())
+    option_values = {o.value for o in options}
+    assert option_values == {"A", "D", "E"}
+
+    target_default_option = next(
+        o for o in options if o.id == single_select_field.single_select_default
+    )
+    assert target_default_option.value == "A"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_single_select_field_default_option_deleted(
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    source_single_select_field = enterprise_data_fixture.create_single_select_field(
+        table=source_table, name="Single select"
+    )
+    source_option_a = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="A", color="blue"
+    )
+    source_option_b = enterprise_data_fixture.create_select_option(
+        field=source_single_select_field, value="B", color="red"
+    )
+
+    source_single_select_field.single_select_default = source_option_a.id
+    source_single_select_field.save()
+
+    source_model = source_table.get_model()
+    source_model.objects.create(
+        **{f"field_{source_single_select_field.id}_id": source_option_b.id}
+    )
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{source_single_select_field.id}"],
+        source_table_id=source_table.id,
+    )
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    single_select_field = fields[1]
+    assert single_select_field.single_select_default is not None
+
+    # Delete the default option from source
+    source_option_a.delete()
+    source_single_select_field.single_select_default = None
+    source_single_select_field.save()
+
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    single_select_field.refresh_from_db()
+    assert single_select_field.single_select_default is None
+
+    options = list(single_select_field.select_options.all())
+    assert len(options) == 1
+    assert options[0].value == "B"
+
+
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)

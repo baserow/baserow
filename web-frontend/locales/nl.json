@@ -189,7 +189,8 @@
         "overflowDuration": "Waarde is te groot.",
         "minChars": "Min {min} tekens.",
         "maxChars": "Max {max} tekens.",
-        "higherThan": "De waarde is hoger dan {max}."
+        "higherThan": "De waarde is hoger dan {max}.",
+        "maxCharsExceeded": "Max {max} tekens (-{over})."
     },
     "fieldDocs": {
         "readOnly": "Dit is een alleen-lezen veld.",

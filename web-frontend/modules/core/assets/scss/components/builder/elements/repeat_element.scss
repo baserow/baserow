@@ -4,6 +4,11 @@
   }
 }
 
+.repeat-element__repeated-element {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
 .repeat-element__preview {
   opacity: 0.4;
   pointer-events: none;

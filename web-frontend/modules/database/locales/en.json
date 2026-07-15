@@ -701,6 +701,8 @@
     "createFilter": "Create filter",
     "duplicate": "Duplicate field",
     "sortField": "Sort",
+    "groupByField": "Group by",
+    "ungroupByField": "Don't group by",
     "hideField": "Hide field",
     "dataSyncField": "The field is read only and part of the table's data sync.",
     "dataSyncFieldTwoWaySync": "The field is synchronized with the table's data sync.",

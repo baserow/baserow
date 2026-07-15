@@ -27,12 +27,12 @@
         "coreHTTPRequest": "HTTP 요청 보내기",
         "localBaserowUpdateRow": "행 업데이트",
         "localBaserowCreateRowDescription": "Baserow 테이블에 새 행을 만듭니다.",
-        "localBaserowDeleteRowDescription": "Baserow 테이블에서 행을 삭제합니다.",
+        "localBaserowDeleteRowDescription": "Baserow 테이블에서 하나 이상의 행을 삭제합니다.",
         "localBaserowRowsUpdated": "행 업데이트됨",
         "localBaserowRowsDeleted": "행 삭제됨",
         "localBaserowRowsDeletedDescription": "Baserow 테이블에서 행이 삭제되면 발생합니다.",
         "localBaserowUpdateRowDescription": "Baserow 테이블의 기존 행을 업데이트합니다.",
-        "localBaserowRowsUpdatedDescription": "Baserow 테이블의 행이 업데이트될 때 트리거됩니다.",
+        "localBaserowRowsUpdatedDescription": "Baserow 테이블의 필드 중 하나라도 행이 업데이트될 때 트리거됩니다.",
         "localBaserowGetRowDescription": "Baserow 테이블에서 단일 행을 읽습니다.",
         "localBaserowListRowsDescription": "Baserow 테이블에서 여러 행을 읽습니다.",
         "localBaserowAggregateRowsDescription": "Baserow 테이블의 필드를 요약합니다.",
@@ -71,7 +71,24 @@
         "slackWriteMessageDescription": "특정 Slack 채널에 메시지를 보냅니다",
         "slackWriteMessageMissingChannel": "채널이 필요합니다.",
         "slackWriteMessageMissingMessage": "메시지가 필요합니다.",
-        "slackWriteMessageMissingIntegration": "Slack 통합이 선택되지 않았습니다."
+        "slackWriteMessageMissingIntegration": "Slack 통합이 선택되지 않았습니다.",
+        "coreManualTrigger": "수동 트리거",
+        "localBaserowCreateRows": "일괄적으로 행 생성",
+        "localBaserowCreateRowsDescription": "Baserow 테이블에 여러 개의 새 행을 생성합니다.",
+        "localBaserowUpdateRows": "일괄 업데이트 행",
+        "localBaserowUpdateRowsDescription": "Baserow 테이블의 기존 행 여러 개를 업데이트합니다.",
+        "localBaserowFieldsUpdated": "특정 필드 값이 업데이트됩니다",
+        "localBaserowFieldsUpdatedDescription": "Baserow 테이블의 특정 필드에서 행이 업데이트될 때 트리거됩니다.",
+        "coreManualTriggerDescription": "이 워크플로는 다른 워크플로 작업이 시작될 때만 시작됩니다.",
+        "coreCSVFileReader": "CSV 파일을 읽습니다",
+        "coreCSVFileReaderDescription": "CSV 파일에서 행을 읽습니다.",
+        "coreStartWorkflow": "워크플로 시작",
+        "coreStartWorkflowDescription": "자동화 워크플로우를 시작합니다.",
+        "errorNoRowsSelected": "선택된 행이 없습니다",
+        "errorCSVFileMissing": "CSV 파일 속성이 누락되었습니다",
+        "errorCSVContentMissing": "CSV 데이터 속성이 누락되었습니다",
+        "errorNoWorkflowSelected": "선택된 워크플로 없음",
+        "errorWorkflowNotImmediateDispatch": "선택한 워크플로는 즉시 시작될 수 있는 트리거를 사용해야 합니다."
     },
     "userSourceType": {
         "localBaserow": "Baserow 테이블 인증"
@@ -337,5 +354,48 @@
         "integrationDropdownLabel": "통합",
         "rowIdLabel": "행 ID",
         "rowIdPlaceholder": "단일 행 ID를 선택하세요"
+    },
+    "localBaserowFieldsUpdatedForm": {
+        "fieldLabel": "필드",
+        "fieldHelper": "워크플로는 이러한 필드 중 하나의 값이 변경될 때만 실행됩니다."
+    },
+    "coreCSVFileReaderServiceForm": {
+        "inputType": "소스",
+        "inputTypeFile": "파일",
+        "inputTypeContent": "콘텐츠",
+        "file": "CSV 파일",
+        "filePlaceholder": "CSV 파일을 선택하세요...",
+        "csv": "CSV 데이터",
+        "csvPlaceholder": "CSV 데이터를 입력하세요...",
+        "separator": "분리 기호",
+        "encoding": "인코딩",
+        "firstLineIsHeader": "첫 번째 줄이 헤더입니다",
+        "comma": "콤마",
+        "semicolon": "세미콜론",
+        "tab": "탭",
+        "pipe": "파이프",
+        "utf8": "UTF-8",
+        "utf8Bom": "UTF-8 with BOM",
+        "latin1": "라틴-1"
+    },
+    "coreStartWorkflowServiceForm": {
+        "automation": "자동",
+        "workflow": "워크플로",
+        "workflowHelperText": "수동 트리거가 있는 게시된 워크플로만 시작할 수 있습니다. 이 워크플로에 게시되지 않은 변경 사항이 있는 경우 가장 최근에 게시된 버전이 실행됩니다."
+    },
+    "localBaserowDeleteRowServiceForm": {
+        "rowIdLabel": "행 ID",
+        "rowIdPlaceholder": "행 ID 또는 행 ID 배열을 선택하세요",
+        "rowIdHelper": "행 ID를 하나 선택하거나 행 ID 배열을 선택하세요. 한 번에 최대 {limit}개의 행을 삭제할 수 있습니다."
+    },
+    "localBaserowCreateRowsServiceForm": {
+        "rowsLabel": "행",
+        "rowsPlaceholder": "행 객체 목록을 선택하세요",
+        "rowsHelper": "이 수식은 행 객체 배열 또는 행 객체로 파싱되는 JSON 문자열을 반환해야 합니다. 객체 키로는 필드 이름이나 필드 ID를 사용하세요. 한 번에 최대 {limit}개의 행을 생성할 수 있습니다."
+    },
+    "localBaserowUpdateRowsServiceForm": {
+        "rowsLabel": "행",
+        "rowsPlaceholder": "ID가 있는 행 객체 목록을 선택하세요",
+        "rowsHelper": "이 수식은 행 객체 배열 또는 행 객체로 파싱되는 JSON 문자열을 반환해야 합니다. 각 객체에는 id 속성이 포함되어야 합니다. 객체 키로는 필드 이름 또는 필드 ID를 사용하세요. 한 번에 최대 {limit}개의 행을 업데이트할 수 있습니다."
     }
 }

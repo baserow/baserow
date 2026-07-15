@@ -4201,9 +4201,11 @@ Yes. [Export tables](/user-docs/export-tables), [export views](/user-docs/export
 
 ### Can I recover an element (like a button, text, or container) after deleting it?
 
-Currently, when you delete an individual element or container within the Baserow Application Builder, it is permanently removed and cannot be recovered.
+Yes. Deleted Application Builder elements are moved to the Application Trash, where they can be restored for up to 3 days.
 
-Unlike deleting an entire Application or Database, which moves to your Workspace Trash Bin for 3 days, individual elements are not yet supported by the Trash Bin system.
+You can also use Undo and Redo to quickly reverse recent changes while editing your application.
+
+Once an element has been permanently removed from the trash (or after the 3-day retention period), it can no longer be recovered.
 
 ## Related resources
 

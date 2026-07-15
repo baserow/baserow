@@ -1,5 +1,22 @@
 # Changelog
 
+## Released 2.3.2
+
+### New features
+* [Database] Group rows by a field directly from its column menu
+
+### Bug fixes
+* [Database] Fixed data sync crash when syncing a single select field with a default value after source options are modified. [#5147](https://github.com/baserow/baserow/issues/5147)
+* [Database] Fixed group by settings not being persisted on personal views for viewer role users [#5709](https://github.com/baserow/baserow/issues/5709)
+* [Builder] Fixed a Repeat element bug that caused overflow when a record contains long unbroken text.
+* [Database] Fixes hourly and daily periodic data syncs silently skipping scheduled runs
+* [Builder] Improved element internal page navigation by requiring page parameter values. [#3110](https://github.com/baserow/baserow/issues/3110)
+* [Database] Fixes several N+1 query problems that slowed down some list endpoints
+* [Database] Periodic field updates no longer overlap, preventing the same workspace from being processed twice at once.
+* [Database] Prevents periodic field updates from timing out on large instances
+* [Integration] Resolved a bug which prevented advanced license customers from being able to access the Code and XLS actions.
+
+
 ## Released 2.3.1
 
 ### New features

@@ -611,9 +611,20 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         Returns WorkspaceUser queryset that will prefetch workspaces and their users.
         """
 
-        workspaceusers_with_user_and_profile = WorkspaceUser.objects.select_related(
-            "user"
-        ).select_related("user__profile")
+        from baserow.core.two_factor_auth.models import TwoFactorAuthProviderModel
+
+        workspaceusers_with_user_and_profile = (
+            WorkspaceUser.objects.select_related("user")
+            .select_related("user__profile")
+            .prefetch_related(
+                Prefetch(
+                    "user__two_factor_auth_provider",
+                    queryset=specific_queryset(
+                        TwoFactorAuthProviderModel.objects.all()
+                    ),
+                )
+            )
+        )
         workspaceuser_workspaces = WorkspaceUser.objects.select_related(
             "workspace"
         ).prefetch_related(

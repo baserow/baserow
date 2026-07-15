@@ -166,7 +166,7 @@
     "errorIframeUrlMissing": "Missing IFrame URL property",
     "errorIframeContentMissing": "Missing IFrame content",
     "errorNoMenuItem": "No menu item configured",
-    "errorMenuItemInError": "At least one menu is misconfigured",
+    "errorMenuItemInError": "At least one menu item is misconfigured",
     "errorSubMenuItemInError": "At least one sub menu is misconfigured"
   },
   "addElementButton": {

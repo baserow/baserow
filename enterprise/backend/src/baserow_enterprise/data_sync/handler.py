@@ -97,27 +97,30 @@ class EnterpriseDataSyncHandler:
         )
 
         is_null = Q(last_periodic_sync__isnull=True)
+        daily_due = Q(
+            # If the interval is daily, the last periodic sync timestamp must be
+            # yesterday or None meaning it hasn't been executed yet.
+            is_null | Q(last_periodic_sync__lt=beginning_of_day),
+            interval=DATA_SYNC_INTERVAL_DAILY,
+            # The data sync must be triggered at the time desired by the user.
+            when__lte=now_time,
+        )
+        hourly_due = Q(
+            # If the interval is hourly, the last periodic data sync timestamp
+            # must be at least an hour ago or None meaning it hasn't been
+            # executed yet.
+            is_null | Q(last_periodic_sync__lt=beginning_of_hour),
+            # Only the minute and second of `when` matter because it runs every hour.
+            Q(when__minute__lt=now.minute)
+            | Q(when__minute=now.minute, when__second__lte=now.second),
+            interval=DATA_SYNC_INTERVAL_HOURLY,
+        )
         all_to_trigger = (
             PeriodicDataSyncInterval.objects.filter(
-                Q(
-                    # If the interval is daily, the last periodic sync timestamp must be
-                    # yesterday or None meaning it hasn't been executed yet.
-                    is_null | Q(last_periodic_sync__lt=beginning_of_day),
-                    interval=DATA_SYNC_INTERVAL_DAILY,
-                )
-                | Q(
-                    # If the interval is hourly, the last periodic data sync timestamp
-                    # must be at least an hour ago or None meaning it hasn't been
-                    # executed yet.
-                    is_null | Q(last_periodic_sync__lt=beginning_of_hour),
-                    interval=DATA_SYNC_INTERVAL_HOURLY,
-                ),
+                daily_due | hourly_due,
                 # Skip deactivated periodic data sync because they're not working
                 # anymore.
                 automatically_deactivated=False,
-                # The now time must be higher than the now time because the data sync
-                # must be triggered at the desired the of the user.
-                when__lte=now_time,
             )
             .select_related("data_sync__table__database__workspace")
             # Take a lock on the periodic data sync because the `last_periodic_sync`
@@ -163,7 +166,9 @@ class EnterpriseDataSyncHandler:
                     )
                 else:
                     transaction.on_commit(
-                        lambda: sync_periodic_data_sync.delay(periodic_data_sync.id)
+                        lambda pds=periodic_data_sync: sync_periodic_data_sync.delay(
+                            pds.id
+                        )
                     )
             else:
                 periodic_data_sync.interval = DATA_SYNC_INTERVAL_MANUAL

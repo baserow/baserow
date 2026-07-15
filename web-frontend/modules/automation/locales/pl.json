@@ -79,7 +79,7 @@
         "integrationMessage": "Nowe integracje można utworzyć poprzez dodanie źródła danych, operacji lub uwierzytelnienia użytkownika."
     },
     "automationHeader": {
-        "startTestRun": "Rozpocznij test",
+        "startTestRun": "Przetestuj",
         "stopTestRun": "Zatrzymaj test",
         "publishBtn": "Opublikuj",
         "settingsBtn": "Ustawienia",
@@ -89,7 +89,7 @@
         "switchLabelDisabled": "Wyłączony",
         "switchLabelPaused": "Wstrzymany",
         "switchLabelLive": "Aktywny",
-        "lastPublished": "Data ostatniej publikacji"
+        "lastPublished": "Ostatnia publikacja"
     },
     "dataProviderType": {
         "currentIteration": "Bieżąca iteracja",
@@ -97,7 +97,7 @@
         "previousNode": "Poprzedni węzeł"
     },
     "nodeSidePanel": {
-        "labelTitle": "Etykieta"
+        "labelTitle": "Nazwa"
     },
     "historySidePanel": {
         "title": "Historia",
@@ -149,7 +149,7 @@
         "localBaserowFieldsUpdatedMultipleLabel": "Wartości {count} pól w tabeli {tableName} zostały zaktualizowane",
         "localBaserowFieldsUpdatedNoFieldLabel": "Poszczególne wartości pól zostały zaktualizowane",
         "localBaserowCreateRowsLabel": "Zbiorcze tworzenie wierszy w tabeli {tableName}",
-        "localBaserowUpdateRowsLabel": "Zbiorczo zaktualnizuj wiersze w tabeli {tableName}",
+        "localBaserowUpdateRowsLabel": "Zbiorczo zaktualizuj wiersze w tabeli {tableName}",
         "csvFileReaderLabel": "Wczytaj plik CSV",
         "startWorkflowLabel": "Uruchom proces {workflowName}"
     },
@@ -158,10 +158,10 @@
         "actionReplace": "Zamień",
         "actionDuplicate": "Zduplikuj",
         "actionConfigure": "Skonfiguruj",
-        "beforeLabelTrigger": "Rozpoczyna się, gdy",
+        "beforeLabelTrigger": "Uruchamia się, gdy",
         "beforeLabelAction": "Następnie",
         "beforeLabelCondition": "Jeśli warunek jest spełniony",
-        "beforeLabelConditionDefault": "Jeśli żaden warunek(ki) nie jest(są) spełnione",
+        "beforeLabelConditionDefault": "Jeśli żaden warunek nie jest spełniony",
         "beforeLabelRepeat": "Dla każdego elementu",
         "moreEdit": "Edytuj",
         "moreReplace": "Zastąp",
@@ -185,7 +185,7 @@
         "coreHTTPTrigger": "Trigger HTTP",
         "coreHTTPTriggerDescription": "Użyj żądania HTTP jako triggera procesu",
         "coreManualTrigger": "Trigger ręczny",
-        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja uruchomi ten proces"
+        "coreManualTriggerDescription": "Uruchamia się wyłącznie wtedy, gdy inna operacja rozpocznie ten proces"
     },
     "workflowEditor": {
         "chooseEvent": "Wybierz zdarzenie..."
@@ -202,7 +202,7 @@
         "testNodeDescription": "Przetestuj węzeł, aby potwierdzić poprawność konfiguracji. Dane z testu mogą być użyte w późniejszych krokach.",
         "buttonLabelShowPayload": "Pokaż payload",
         "buttonLabelShowError": "Pokaż błąd",
-        "sampleDataModalTitle": "Payload dla węzła {nodeLabel}",
+        "sampleDataModalTitle": "Payload węzła {nodeLabel}",
         "sampleDataModalSubTitle": "Payload JSON",
         "sampleDataCopy": "Kopiuj",
         "errorOccurred": "Wystąpił błąd...",
