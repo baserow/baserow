@@ -1,5 +1,5 @@
 import re
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.core.formula import (
@@ -13,9 +13,6 @@ from baserow.core.formula.parser.exceptions import (
 )
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.utils import to_path
-
-if TYPE_CHECKING:
-    from baserow.contrib.database.table.models import Table
 
 
 class BaserowFormulaReplaceFieldReferences(BaserowFormulaVisitor):
@@ -207,7 +204,7 @@ def extract_field_id_dependencies(
 
 
 def get_ai_prompt_error(
-    prompt: Union[str, BaserowFormulaObject], table: "Table"
+    prompt: Union[str, BaserowFormulaObject], table_id: int
 ) -> Optional[str]:
     """
     Validates an AI field prompt formula. Returns an error message when the prompt
@@ -229,7 +226,7 @@ def get_ai_prompt_error(
     if referenced_ids:
         existing_ids = set(
             Field.objects.filter(
-                id__in=referenced_ids, table=table, trashed=False
+                id__in=referenced_ids, table_id=table_id, trashed=False
             ).values_list("id", flat=True)
         )
         if referenced_ids - existing_ids:

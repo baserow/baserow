@@ -132,7 +132,7 @@ class AsyncGenerateAIFieldValuesView(APIView):
             context=ai_field.table,
         )
 
-        prompt_error = get_ai_prompt_error(ai_field.ai_prompt, ai_field.table)
+        prompt_error = get_ai_prompt_error(ai_field.ai_prompt, ai_field.table_id)
         if prompt_error:
             raise AIFieldPromptInvalidError(prompt_error)
 

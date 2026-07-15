@@ -72,7 +72,7 @@ class AIField(Field):
         # generation can be blocked. Recomputed whenever the field is serialized.
         if not self.table_id:
             return None
-        return get_ai_prompt_error(self.ai_prompt, self.table)
+        return get_ai_prompt_error(self.ai_prompt, self.table_id)
 
 
 class GenerateAIValuesJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):
