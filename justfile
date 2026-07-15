@@ -1216,7 +1216,7 @@ env-clear:
         echo "echo 'No .env.local found'"
     fi
 
-# Run changelog command (e.g., just changelog add, just changelog release 2.3.1)
+# Run changelog command (e.g., just changelog add, just changelog release 2.3.2)
 [positional-arguments]
 [group('5 - utilities')]
 [doc("Changelog: just changelog <add|release|generate|purge>")]
