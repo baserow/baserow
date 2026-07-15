@@ -15,15 +15,18 @@
       >
         {{ $t('rowEditFieldAI.generate') }}
       </Button>
-      <Button
+      <span
         v-else-if="rowIsCreated"
         v-tooltip="promptBroken ? $t('rowEditFieldAI.promptBroken') : null"
-        type="secondary"
-        :disabled="promptBroken"
-        :loading="generating"
-        @click="generate()"
-        >{{ $t('rowEditFieldAI.generate') }}</Button
       >
+        <Button
+          type="secondary"
+          :disabled="promptBroken"
+          :loading="generating"
+          @click="generate()"
+          >{{ $t('rowEditFieldAI.generate') }}</Button
+        >
+      </span>
       <div v-else>{{ $t('rowEditFieldAI.createRowBefore') }}</div>
       <component
         :is="deactivatedClickComponent[0]"

@@ -5,9 +5,11 @@
       ref="cell"
       class="grid-view__cell active"
     >
-      <div class="grid-field-button">
+      <div
+        v-tooltip="promptBroken ? $t('gridViewFieldAI.promptBroken') : null"
+        class="grid-field-button"
+      >
         <Button
-          v-tooltip="promptBroken ? $t('gridViewFieldAI.promptBroken') : null"
           type="secondary"
           size="tiny"
           :disabled="!modelAvailable || generating || promptBroken"
@@ -38,10 +40,12 @@
       @add-row-after="(...args) => $emit('add-row-after', ...args)"
     >
       <template v-if="!readOnly && editing" #default>
-        <div style="background-color: #fff; padding: 8px">
+        <div
+          v-tooltip="promptBroken ? $t('gridViewFieldAI.promptBroken') : null"
+          style="background-color: #fff; padding: 8px"
+        >
           <ButtonText
             v-if="!isDeactivated"
-            v-tooltip="promptBroken ? $t('gridViewFieldAI.promptBroken') : null"
             icon="iconoir-magic-wand"
             :disabled="!modelAvailable || generating || promptBroken"
             :loading="generating"
