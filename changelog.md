@@ -1,5 +1,170 @@
 # Changelog
 
+## Released 2.3.1
+
+### New features
+* [Database] Remembers whether you last opened the comments or history tab when editing a row [#2532](https://github.com/baserow/baserow/issues/2532)
+* [Builder] Added fixed positioning options to Application Builder header and footer containers. [#3559](https://github.com/baserow/baserow/issues/3559)
+* [Database] Adds a configurable maximum length for text based field values [#5688](https://github.com/baserow/baserow/issues/5688)
+
+### Bug fixes
+* [Integration] Fix the Send email action using instance SMTP sending from webmaster@localhost instead of the configured FROM_EMAIL. [#5640](https://github.com/baserow/baserow/issues/5640)
+* [Database] In a restricted view, a row edited so it no longer matches the filters is now removed immediately for the editing user instead of lingering until a refresh. [#5660](https://gitlab.com/baserow/baserow/-/issues/5660)
+* [Database] Fixed single select dropdown and presence badge overlap issues on group-by grid view [#5684](https://github.com/baserow/baserow/issues/5684)
+* [Core] Improve delete audit log entries performance.
+* [Builder] Improved anonymous builder dispatch.
+* [Database] Resolve the issue with two separate N+1 queries when creating rows.
+
+
+## Released 2.3.0
+
+### New features
+* [Database] Improve websocket management when the connection is lost [#1924](https://github.com/baserow/baserow/issues/1924)
+* [Database] Drag and drop ordering of sortings and group bys. [#2355](https://github.com/baserow/baserow/issues/2355)
+* [Database] Add clear button to the view search [#2753](https://github.com/baserow/baserow/issues/2753)
+* [Builder] Add burger variant to menu element [#3579](https://github.com/baserow/baserow/issues/3579)
+* [Builder] clear single-select record selector [#3719](https://github.com/baserow/baserow/issues/3719)
+* [Database] Show cell editing in real-time in the grid view [#3794](https://github.com/baserow/baserow/issues/3794)
+* [Core] Add to_json() and from_json() expressions. [#3879](https://github.com/baserow/baserow/issues/3879)
+* [Database] Add support for importing Excel files into database tables
+* [Database] Adds options to leave out the row ID and primary field columns when exporting data [#4680](https://github.com/baserow/baserow/issues/4680)
+* [Database] Show matching restricted view filters and allow setting default values [#4926](https://github.com/baserow/baserow/issues/4926)
+* [Core] Added new runtime formulas: number_format(), abs(), null(), to_duration(), and to_datetime(). [#4974](https://github.com/baserow/baserow/issues/4974)
+* [Builder] Improve drag and drop UX [#5143](https://github.com/baserow/baserow/issues/5143)
+* [Database] Import into an existing table is now available from the table context menu in the sidebar. [#5284](https://github.com/baserow/baserow/issues/5284)
+* [Database] Adds option to keep synced rows when they are deleted or hidden in the source table. [#5327](https://github.com/baserow/baserow/issues/5327)
+* [Core] Added the duration_format() advanced formula, arithmetic support for durations, and an optional duration format argument for the to_duration() function. [#5420](https://github.com/baserow/baserow/issues/5420)
+* [Integration] Add code service to execute arbitrary JavaScript code in workflow/builder [#5424](https://github.com/baserow/baserow/issues/5424)
+* [Core] Show the 2FA status in the admin user list and allow instance admins to remove a user's two-factor authentication. [#5492](https://github.com/baserow/baserow/issues/5492)
+* [Integration] Add batch operations for create/update/delete rows [#5543](https://github.com/baserow/baserow/issues/5543)
+* [Core] Added the range() runtime formula. [#5559](https://github.com/baserow/baserow/issues/5559)
+* [Integration] Add a `Start workflow` action to builder and automations [#5561](https://github.com/baserow/baserow/issues/5561)
+* [Integration] Add manual trigger to automations [#5561](https://github.com/baserow/baserow/issues/5561)
+* [Database] Changes to linked tables, formulas and lookups now appear without refreshing [#595](https://github.com/baserow/baserow/issues/595)
+* [Database] Add sort to kanban view [#764](https://github.com/baserow/baserow/issues/764)
+* [Database] Accept object with ID property as valid value for single/multiple select and link row fields
+* [Integration] Add CSV reader service for builder and automations
+* [Core] Add members management to builder applications, automations and dashboards
+* [Core] Add WebSocket connection and disconnect metrics
+* [Integration] Add XLS[X] reader service for builder and automation
+* [Automation] Added a new workflow trigger which only executes when specific fields' values change in a table.
+* [Database] Adds a "starts with" filter for text fields [#1943](https://github.com/baserow/baserow/issues/1943)
+* [Builder] Adds Column element layout presets
+* [Builder] Allow to click on checkbox label to check them for more browsers
+* [Builder] Allow to test actions in preview mode to capture the output
+* [Database] Collapse and expand groups in the grid view when grouping by one or more fields. [#2257](https://github.com/baserow/baserow/issues/2257)
+* [Core] Enables caching by default for improved performance
+* [Core] Hardened workspace invitation emails and user name validation to prevent phishing abuse
+* [Database] Introduced `drop_tsv_columns` management command that can drop the tsv_field_* columns that are not used anymore.
+* [Builder] Introduced undo/redo and trashing in Application Builder for pages and elements.
+* [Automation] Added methods, hooks, and model to track automation usage. [#5263](https://github.com/baserow/baserow/issues/5263)
+
+### Bug fixes
+* [Database] Replace placeholder example data in the JSON and XML import dialogs with clearer contact records so users can see a typical table import format [#2953](https://github.com/baserow/baserow/issues/2953)
+* [Builder] Show a loading overlay on application builder table elements while ad hoc filters, sorting, or search results are loading. [#3510](https://github.com/baserow/baserow/issues/3510)
+* [Database] Shows the circular field dependency error in the lookup field form. [#3637](https://github.com/baserow/baserow/issues/3637)
+* [Core] Fixed a bug where backslash chars couldn't be entered into the formula field. [#3720](https://github.com/baserow/baserow/issues/3720)
+* [Integration] Set a timeout for the SMTP email service. [#3867](https://github.com/baserow/baserow/issues/3867)
+* [Integration] Ensure control characters are allowed in the JSON payload of an HTTP request. [#3879](https://github.com/baserow/baserow/issues/3879)
+* [Database] Fixed flaky formula tests caused by randomly generated field names containing apostrophes [#4217](https://github.com/baserow/baserow/issues/4217)
+* [Database] Formulas and lookups through a link to the same table now update when the linked row changes [#4541](https://github.com/baserow/baserow/issues/4541)
+* [Builder] Ignore hidden form field when validation form container submit [#5203](https://github.com/baserow/baserow/issues/5203)
+* [Core] Prevent expected websocket keepalive timeout logs from being reported to Sentry. [#5224](https://github.com/baserow/baserow/issues/5224)
+* [Builder] Ensure user roles use locale-aware sorting. [#5268](https://github.com/baserow/baserow/issues/5268)
+* [Database] Fixed count() returning an array instead of a number for link row fields whose linked primary field is an array formula or lookup. [#5276](https://github.com/baserow/baserow/issues/5276)
+* [Core] Use the real client IP address in OpenTelemetry request traces when proxy headers are present. [#5277](https://github.com/baserow/baserow/issues/5277)
+* [Database] Fixed a bug where changing the primary field to a hidden field could keep it hidden in the grid view. [#5288](https://github.com/baserow/baserow/issues/5288)
+* [Database] Skip invalid formula fields in the periodic field update task. [#5298](https://github.com/baserow/baserow/issues/5298)
+* [Database] Detect Jira deployment type [#5306](https://github.com/baserow/baserow/issues/5306)
+* [Builder] Fix custom code editors when deleting the first line [#5310](https://github.com/baserow/baserow/issues/5310)
+* [Database] Fixed index(), first() and last() formulas crashing on partial arguments. [#5320](https://github.com/baserow/baserow/issues/5320)
+* [Database] Fixes inserting rows above or below in restricted views [#5344](https://github.com/baserow/baserow/issues/5344)
+* [Database] Fixed periodic recalculation of formulas that depend on now() across linked tables. [#5370](https://github.com/baserow/baserow/issues/5370)
+* [Database] Fix periodic field update crash after deleting a field referenced by a formula chain [#5371](https://github.com/baserow/baserow/issues/5371)
+* [Core] Fixes a server error when submitting an invalid email verification token [#5374](https://github.com/baserow/baserow/issues/5374)
+* [Core] Hide workspace import/export options for Builder and lower roles. [#5440](https://github.com/baserow/baserow/issues/5440)
+* [Database] Fix duplicated rows scaling comma-decimal formatted number values [#5445](https://github.com/baserow/baserow/issues/5445)
+* [Database] Fix airtable import when CDN omits Content-Length [#5472](https://github.com/baserow/baserow/issues/5472)
+* [Core] Fixed the application icon when duplication an application. [#5483](https://github.com/baserow/baserow/issues/5483)
+* [Database] Fix MCP create_rows failing when table has rich text fields with @mentions [#5493](https://github.com/baserow/baserow/issues/5493)
+* [Database] Fix undo/redo failing with PermissionDenied for editors on restricted views [#5506](https://github.com/baserow/baserow/issues/5506)
+* [Database] Allow invited editors to drag and drop cards in a restricted Kanban view [#5568](https://github.com/baserow/baserow/issues/5568)
+* [Core] Fixed formula function help tooltips appearing below the data explorer. [#5593](https://github.com/baserow/baserow/issues/5593)
+* [Core] Accepting a workspace invitation no longer changes the role of an existing member
+* [Builder] Add proper error when an InvalidFormulaError is raised
+* [Database] Added permission check to unique field values endpoint.
+* [Builder] Check permission on the element provided during a collection element data source dispatch
+* [Builder] Custom CSS and JS in published applications no longer require !important to override styles
+* [Core] Fix backend memory leak by updating Python to 3.14.6
+* [Automation] Fix broken workflow after node replacement
+* [Dashboard] Fix error when summarizing any array shaped field
+* [Automation] Fix export workflow with periodic triggers
+* [Integration] Fix importing applications with an SMTP integration that has blank credentials
+* [Database] Close the BZPOPMIN client when an MCP server connection is closed.
+* [Builder] Fix missing data during dispatch because of previous page visibility
+* [Builder] Fix missing data source content in collection element in page headers or footers
+* [Database] Fix multiple select field no value in row edit modal.
+* [Core] Fix spurious internal error logged when an MCP connection closes
+* [Core] Fixes a 403 error that could appear when impersonating a user from the admin area
+* [Integration] Fixes a crash when opening user source settings in the application builder
+* [Core] Fixes a crash when typing into inputs that unmount during an event
+* [Builder] Fixes a file upload error when updating a row that keeps an existing file
+* [Core] Fixes a guided tour crash when the highlighted element is not on the page [#5377](https://github.com/baserow/baserow/issues/5377)
+* [Database] Fixes a server error when adding a sort or grouping to certain views
+* [Database] Fixes a server error when creating or importing a table with malformed data [#3950](https://github.com/baserow/baserow/issues/3950)
+* [Database] Fixes an empty option showing at the top of link-to-table dropdowns in forms [#5549](https://github.com/baserow/baserow/issues/5549)
+* [Automation] Fixes automation runs not recording the real error when a node hits a database problem
+* [Core] Fixes background tasks being stopped early by the default time limit
+* [Database] Fixes link row Add new modal showing premature errors and crashing on URL formula fields [#3940](https://github.com/baserow/baserow/issues/3940)
+* [Database] Fixes multiple select filter options not showing as selected
+* [Database] Fixes periodic field updates being stopped before they finish
+* [Database] Fixes search index updates failing for tables with date-only formula fields [#5363](https://github.com/baserow/baserow/issues/5363)
+* [Database] Fixes the link to table field not showing the view it is limited to when editing
+* [Builder] Improve column element and data picker style for small screens
+* [Database] Improve permissions endpoint query performance by using union instead of OR.
+* [Database] Improves escaping of URLs and user input in database views
+* [Database] Lets you type negative numbers when filtering by rollup field [#3925](https://github.com/baserow/baserow/issues/3925)
+* [Database] Moving a row no longer modifies the updated_on value [#3054](https://github.com/baserow/baserow/issues/3054)
+* [Core] Only delete a workspace on account deletion when a deleted user was its last admin
+* [Core] Prevents a malicious display name from running scripts in rich text mentions
+* [Database] Prevents spreadsheet formula injection in CSV and Excel table exports
+* [Core] Real-time updates now recover when the window is refocused and keep retrying after repeated failures, instead of getting stuck asking to refresh
+* [Builder] Resolved a bug in application builder where deleting a row would display an error message.
+* [Builder] Resolved a bug which caused invalid expressions to not be styled as invalid.
+* [Builder] Resolved a bug which prevented custom favicons from appearing in previewed and published applications.
+* [Integration] Resolved a bug which prevented workspace exports from Baserow cloud to be imported into self-hosted environments if a specific generative AI model was chosen.
+* [Core] Resolved a sporadic 'querySelector' error which appeared after a dependency was upgraded.
+* [Core] Restores real-time updates when returning to an idle tab instead of asking to refresh
+* [Database] Search updates now retry automatically after a temporary database connection error
+* [Database] Shared and restricted views now update formula, lookup and link cells when related rows change [#5657](https://github.com/baserow/baserow/issues/5657)
+* [Database] Show the required-field error for an untouched, empty duration field when submitting a form [#5422](https://github.com/baserow/baserow/issues/5422)
+* [Database] Show unnamed row label for empty linked rows in form dropdowns [#5422](https://github.com/baserow/baserow/issues/5422)
+* [Database] Show unnamed row label in row history instead of empty boxes [#3674](https://github.com/baserow/baserow/issues/3674)
+* [Core] Stops invalid MCP requests from being logged as server errors
+* [Core] Upgrades backend dependencies to fix known security vulnerabilities
+
+### Refactors
+* [Database] Speed up loading rows for tables with many single or multiple select fields.
+* [Core] Bump to Nuxt4 [#5162](https://github.com/baserow/baserow/issues/5162)
+* [Automation] Remove Node ID in dispatch errors since the error is scoped to the node history. [#4800](https://github.com/baserow/baserow/issues/4800)
+* [Core] Refactored the Core HTTP Request service type to return a status code for timeouts. [#4973](https://github.com/baserow/baserow/issues/4973)
+* [Builder] Removed the unique constraint on Builder page names. [#5042](https://github.com/baserow/baserow/issues/5042)
+* [Automation] Make AutomationWorkflowHistory.original_workflow non-nullable. [#5236](https://github.com/baserow/baserow/issues/5236)
+* [Automation] Improved the performance of the Automation Workflow and Node history. [#5239](https://github.com/baserow/baserow/issues/5239)
+* [Automation] Introduce min retention days for history to keep more entries for recent workflow runs. [#5249](https://github.com/baserow/baserow/issues/5249)
+* [Automation] Allow to customize history entries from plugins [#5616](https://github.com/baserow/baserow/issues/5616)
+* [Automation] Added the Slack icon to Node History entries.
+* [Database] Field type column conversion in Postgres function instead of pg_temp.
+* [Core] Improve error handling in frontend
+* [Database] Improve list views endpoint performance when there are many views and fields.
+* [Core] Improved the frontend error message to be more specific.
+* [Database] Optimize pending search update scheduling for large imports and syncs.
+* [Core] Replace custom moveToBody mixin with Vue 3 built-in Teleport component.
+
+### Breaking API changes
+* [Database] Moving a row no longer updates the row's updated_on field. Last modified fields tied to updated_on (and formulas depending on them) are no longer recomputed when reordering rows. [#3054](https://github.com/baserow/baserow/issues/3054)
+
+
 ## Released 2.2.2
 
 ### New features

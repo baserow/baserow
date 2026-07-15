@@ -94,9 +94,12 @@
       content: '';
       border: solid 1px $color-primary-500;
       pointer-events: none;
+      z-index: 1;
 
       .page__header &,
-      .page__footer & {
+      .page__footer &,
+      .page__fixed-stack--header &,
+      .page__fixed-stack--footer & {
         border-color: $palette-purple-500;
       }
     }
@@ -111,6 +114,7 @@
       content: '';
       border: solid 1px $palette-neutral-300;
       pointer-events: none;
+      z-index: 1;
     }
   }
 
@@ -126,8 +130,23 @@
 
   @include absolute(-26px, auto, auto, 8px);
 
-  .element-preview--on-top & {
+  .element-preview--on-top &,
+  .page__fixed-stack--header + .page__header &,
+  .page__fixed-stack--header + .page__content & {
     @include absolute(auto, auto, -26px, 8px);
+  }
+}
+
+.page__header--element-selected .element-preview.element-preview--active,
+.page__content--element-selected .element-preview.element-preview--active,
+.page__footer--element-selected .element-preview.element-preview--active,
+.page__fixed-stack--element-selected .element-preview.element-preview--active {
+  // Raise only the editor chrome, not the section content.
+  &::before,
+  > .element-preview__tags,
+  > .element-preview__insert,
+  > .element-preview__menu {
+    z-index: 2;
   }
 }
 
@@ -153,7 +172,9 @@
     color: $white;
 
     .page__header &,
-    .page__footer & {
+    .page__footer &,
+    .page__fixed-stack--header &,
+    .page__fixed-stack--footer & {
       background-color: $palette-purple-500;
     }
   }

@@ -29,7 +29,10 @@ if (dsn && dsn !== '') {
     // SENTRY_TRACES_SAMPLE_RATE env var (shared with the backend).
     tracesSampleRate: parseFloat(config.public.sentryTracesSampleRate) || 0,
     replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 1.0,
+    // Sample rate for saving a session replay on error, configurable via the
+    // SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE env var to cap replay volume.
+    replaysOnErrorSampleRate:
+      parseFloat(config.public.sentryReplaysOnErrorSampleRate) || 0,
     ...(isDev ? { transport: makeFakeTransport } : {}),
     beforeSend(event, hint) {
       const err = hint?.originalException

@@ -1149,6 +1149,20 @@ class SelectOptionBaseFieldType extends FieldType {
   }
 }
 
+function maxFieldTextLengthError(app, value) {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+  const limit = app.$config.public.baserowMaxFieldTextLength
+  if (value.length > limit) {
+    return app.$i18n.t('fieldErrors.maxCharsExceeded', {
+      max: limit,
+      over: value.length - limit,
+    })
+  }
+  return null
+}
+
 export class TextFieldType extends FieldType {
   static getType() {
     return 'text'
@@ -1206,6 +1220,10 @@ export class TextFieldType extends FieldType {
 
   canUpsert() {
     return true
+  }
+
+  getValidationError(field, value) {
+    return maxFieldTextLengthError(this.app, value)
   }
 
   getSort(name, order) {
@@ -1329,6 +1347,10 @@ export class LongTextFieldType extends FieldType {
 
   canUpsert() {
     return true
+  }
+
+  getValidationError(field, value) {
+    return maxFieldTextLengthError(this.app, value)
   }
 
   getSort(name, order) {
@@ -3297,6 +3319,10 @@ export class URLFieldType extends FieldType {
   }
 
   getValidationError(field, value) {
+    const lengthError = maxFieldTextLengthError(this.app, value)
+    if (lengthError !== null) {
+      return lengthError
+    }
     if (value === null || value === '') {
       return null
     }

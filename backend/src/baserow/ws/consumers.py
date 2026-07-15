@@ -53,6 +53,11 @@ websocket_disconnects_counter = meter.create_counter(
     unit="1",
     description="Closed realtime WebSocket connections, labelled by close code.",
 )
+websocket_active_connections = meter.create_up_down_counter(
+    "baserow.websocket_active_connections",
+    unit="1",
+    description="Currently open realtime WebSocket connections.",
+)
 
 # Known close codes pass through; anything else becomes "other" to keep the
 # metric's label cardinality bounded.
@@ -185,6 +190,7 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         await self.accept()
         websocket_connections_counter.add(1)
+        websocket_active_connections.add(1)
 
         user = self.scope["user"]
         await self.send_json(
@@ -225,6 +231,7 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             await self._discard_all_channel_groups()
             await self.channel_layer.group_discard("users", self.channel_name)
         finally:
+            websocket_active_connections.add(-1)
             websocket_disconnects_counter.add(
                 1, attributes={"code": _bucket_close_code(code)}
             )

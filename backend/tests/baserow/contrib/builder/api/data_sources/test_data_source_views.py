@@ -2055,6 +2055,64 @@ def test_get_record_names(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_dispatch_data_source_anonymous_unpublished_builder_is_denied(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Ada"], ["Alan"]],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user, page=page, integration=integration, table=table
+    )
+
+    url = reverse(
+        "api:builder:data_source:dispatch", kwargs={"data_source_id": data_source.id}
+    )
+    # No authentication header: anonymous request.
+    response = api_client.post(url, {}, format="json")
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
+def test_get_record_names_anonymous_unpublished_builder_is_denied(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(name="Name", table=table, primary=True)
+    model = table.get_model(attribute_names=True)
+    row = model.objects.create(name="Ada")
+
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user, table=table, integration=integration
+    )
+
+    base_url = reverse(
+        "api:builder:data_source:record-names",
+        kwargs={"data_source_id": data_source.id},
+    )
+    # No authentication header: anonymous request.
+    response = api_client.get(f"{base_url}?record_ids={row.id}", format="json")
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
 def test_dispatch_data_sources_list_rows_with_elements(
     api_client, data_fixture, data_source_fixture
 ):

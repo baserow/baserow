@@ -76,10 +76,10 @@ export class SmartphoneDeviceType extends DeviceType {
   }
 
   get minWidth() {
-    return 420
+    return 500
   }
 
   get maxWidth() {
-    return 420
+    return 500
   }
 }

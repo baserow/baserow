@@ -92,19 +92,15 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
           'workflowActionTypes.errorNavigateToPageMissing'
         )
       }
-      if (
-        pathParametersInError(
-          workflowAction,
-          this.app.$store.getters['page/getVisiblePages'](
-            applicationContext.builder
-          )
-        )
-      ) {
+      const visiblePages = this.app.$store.getters['page/getVisiblePages'](
+        applicationContext.builder
+      )
+      if (pathParametersInError(workflowAction, visiblePages)) {
         return this.app.$i18n.t('workflowActionTypes.errorPageParameterInError')
       }
     } else if (
       workflowAction.navigation_type === 'custom' &&
-      !workflowAction.navigate_to_url
+      !workflowAction.navigate_to_url.formula
     ) {
       return this.app.$i18n.t('workflowActionTypes.errorNavigationUrlMissing')
     }

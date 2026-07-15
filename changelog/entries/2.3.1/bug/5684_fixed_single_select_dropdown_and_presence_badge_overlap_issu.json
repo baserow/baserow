@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed single select dropdown and presence badge overlap issues on group-by grid view",
+    "issue_origin": "github",
+    "issue_number": 5684,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-08"
+}

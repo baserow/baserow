@@ -321,6 +321,7 @@ class DataSourceService:
         CoreHandler().check_multiple_permissions(
             checks,
             workspace=data_sources[0].page.builder.workspace,
+            raise_exception=True,
         )
 
         results = self.handler.dispatch_data_sources(data_sources, dispatch_context)

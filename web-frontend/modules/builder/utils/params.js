@@ -15,19 +15,7 @@ export function defaultValueForParameterType(type) {
 // This needs to match QUERY_PARAM_EXACT_MATCH_REGEX from backend.
 export const QUERY_PARAM_REGEX = /^([A-Za-z][A-Za-z0-9_-]*)$/g
 
-/**
- * Responsible for detecting if a navigable record's path parameters have diverged
- * from the destination page's path parameters. This can happen if a record
- * points to a page, and then the page's parameters are altered.
- *
- * @param {Object} navigationObject - An `element` or `workflowAction` object
- *  which points to navigation data. In the case of an `element` this could be
- *  a button, and in the case of a `workflowAction` this could be an "open page"
- *  workflow action type.
- * @param {Array} pages - An array of "visible" pages in the application.
- * @returns {Boolean} Whether this navigable object has parameters in error.
- */
-export function pathParametersInError(navigationObject, pages) {
+function getNavigationPathParameters(navigationObject, pages) {
   if (
     navigationObject.navigation_type === 'page' &&
     !isNaN(navigationObject.navigate_to_page_id)
@@ -37,19 +25,64 @@ export function pathParametersInError(navigationObject, pages) {
     )
 
     if (destinationPage) {
-      const destinationPageParams = destinationPage.path_params || []
-      const pageParams = navigationObject.page_parameters || []
-
-      const destinationPageParamNames = destinationPageParams.map(
-        ({ name }) => name
-      )
-      const pageParamNames = pageParams.map(({ name }) => name)
-
-      if (!_.isEqual(destinationPageParamNames, pageParamNames)) {
-        return true
+      return {
+        destinationPageParams: destinationPage.path_params || [],
+        pageParams: navigationObject.page_parameters || [],
       }
     }
   }
+  return null
+}
+
+function pathParameterHasValue(pageParam) {
+  const value = pageParam?.value
+  if (value === null || typeof value === 'undefined') {
+    return false
+  }
+  if (typeof value === 'object') {
+    return Boolean(value.formula)
+  }
+  return Boolean(value)
+}
+
+function pathParameterNamesMismatch(destinationPageParams, pageParams) {
+  const destinationPageParamNames = destinationPageParams.map(
+    ({ name }) => name
+  )
+  const pageParamNames = pageParams.map(({ name }) => name)
+
+  return !_.isEqual(destinationPageParamNames, pageParamNames)
+}
+
+function pathParameterValuesMissing(destinationPageParams, pageParams) {
+  return destinationPageParams.some(({ name }) => {
+    const pageParam = pageParams.find((param) => param.name === name)
+    return !pathParameterHasValue(pageParam)
+  })
+}
+
+/**
+ * Responsible for detecting if a navigable record's path parameters are
+ * misconfigured. Parameters are in error when their saved names no longer match
+ * the destination page's path parameters, or when a required value is missing.
+ *
+ * @param {Object} navigationObject - An `element` or `workflowAction` object
+ *  which points to navigation data.
+ * @param {Array} pages - An array of "visible" pages in the application.
+ * @returns {Boolean} Whether this navigable object has parameters in error.
+ */
+export function pathParametersInError(navigationObject, pages) {
+  const pathParameters = getNavigationPathParameters(navigationObject, pages)
+
+  if (pathParameters) {
+    const { destinationPageParams, pageParams } = pathParameters
+
+    return (
+      pathParameterNamesMismatch(destinationPageParams, pageParams) ||
+      pathParameterValuesMissing(destinationPageParams, pageParams)
+    )
+  }
+
   return false
 }
 

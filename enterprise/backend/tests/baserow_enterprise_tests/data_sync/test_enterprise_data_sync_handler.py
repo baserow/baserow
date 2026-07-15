@@ -387,6 +387,76 @@ def test_call_periodic_data_sync_syncs_starts_task(
     assert args[0][0] == not_yet_executed_1.id
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.data_sync.handler.sync_periodic_data_sync")
+def test_call_periodic_data_sync_syncs_starts_task_for_each_due_sync(
+    mock_sync_periodic_data_sync,
+    enterprise_data_fixture,
+    synced_roles,
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    due = [
+        EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+            user=user,
+            data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+            interval="HOURLY",
+            when=time(hour=12, minute=10, second=1, microsecond=1),
+        )
+        for _ in range(3)
+    ]
+
+    with freeze_time("2024-10-10T12:15:00.00Z"):
+        with transaction.atomic():
+            EnterpriseDataSyncHandler.call_periodic_data_sync_syncs_that_are_due()
+
+    called_ids = {
+        call.args[0] for call in mock_sync_periodic_data_sync.delay.call_args_list
+    }
+    assert called_ids == {periodic_data_sync.id for periodic_data_sync in due}
+
+
+@pytest.mark.django_db
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+def test_call_hourly_periodic_data_sync_ignores_hour_of_when(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    minute_already_passed = (
+        EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+            user=user,
+            data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+            interval="HOURLY",
+            when=time(hour=15, minute=10, second=1, microsecond=1),
+        )
+    )
+
+    minute_not_yet_passed = (
+        EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+            user=user,
+            data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+            interval="HOURLY",
+            when=time(hour=8, minute=45, second=0),
+        )
+    )
+
+    with freeze_time("2024-10-10T10:30:00.00Z"):
+        EnterpriseDataSyncHandler.call_periodic_data_sync_syncs_that_are_due()
+        frozen_datetime = django_timezone.now()
+
+    minute_already_passed.refresh_from_db()
+    # executed because minute 10 has passed, despite the later hour in `when`.
+    assert minute_already_passed.last_periodic_sync == frozen_datetime
+
+    minute_not_yet_passed.refresh_from_db()
+    # not executed because minute 45 hasn't passed, despite the earlier hour in `when`.
+    assert minute_not_yet_passed.last_periodic_sync is None
+
+
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)

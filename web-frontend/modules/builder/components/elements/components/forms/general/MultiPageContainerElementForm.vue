@@ -2,6 +2,18 @@
   <form @submit.prevent @keydown.enter.prevent>
     <FormGroup
       small-label
+      :label="$t('multiPageContainerElementForm.behaviour')"
+      class="margin-bottom-2"
+      required
+    >
+      <RadioGroup
+        v-model="values.behaviour"
+        :options="behaviourOptions"
+        type="button"
+      />
+    </FormGroup>
+    <FormGroup
+      small-label
       :label="$t('multiPageContainerElementForm.display')"
       class="margin-bottom-2"
       required
@@ -47,7 +59,10 @@
 
 <script>
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import { SHARE_TYPES } from '@baserow/modules/builder/enums'
+import {
+  PAGE_ELEMENT_BEHAVIOURS,
+  SHARE_TYPES,
+} from '@baserow/modules/builder/enums'
 
 export default {
   name: 'MultiPageContainerElementForm',
@@ -55,14 +70,27 @@ export default {
   data() {
     return {
       values: {
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
         share_type: '',
         pages: [],
         styles: {},
       },
-      allowedValues: ['share_type', 'pages', 'styles'],
+      allowedValues: ['behaviour', 'share_type', 'pages', 'styles'],
     }
   },
   computed: {
+    behaviourOptions() {
+      return [
+        {
+          label: this.$t('pageElementBehaviour.normal'),
+          value: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+        },
+        {
+          label: this.$t('pageElementBehaviour.fixed'),
+          value: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+        },
+      ]
+    },
     computedPageShareType: {
       get() {
         return this.values.share_type

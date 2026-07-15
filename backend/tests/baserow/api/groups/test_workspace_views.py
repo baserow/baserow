@@ -1,4 +1,6 @@
+from django.db import connection
 from django.shortcuts import reverse
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
@@ -499,3 +501,43 @@ def test_create_initial_workspace(api_client, data_fixture):
     assert workspace_user.workspace.id == json_response["id"]
     assert workspace_user.workspace.name == "Test1's workspace"
     assert workspace_user.user == user
+
+
+@pytest.mark.django_db
+def test_list_workspaces_two_factor_auth_no_n_plus_one(api_client, data_fixture):
+    def build_workspace_and_get_token(member_count):
+        owner, token = data_fixture.create_user_and_token()
+        workspace = data_fixture.create_workspace(user=owner)
+        for _ in range(member_count - 1):
+            member = data_fixture.create_user()
+            data_fixture.create_user_workspace(
+                workspace=workspace, user=member, permissions="MEMBER"
+            )
+            # exercise the prefetched reverse relation with real providers
+            data_fixture.configure_base_totp(member)
+        return token
+
+    token_few = build_workspace_and_get_token(member_count=2)
+    token_many = build_workspace_and_get_token(member_count=6)
+
+    url = reverse("api:workspaces:list")
+
+    api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token_few}"})
+    api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token_many}"})
+
+    with CaptureQueriesContext(connection) as few_queries:
+        response_few = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token_few}"})
+    with CaptureQueriesContext(connection) as many_queries:
+        response_many = api_client.get(
+            url, **{"HTTP_AUTHORIZATION": f"JWT {token_many}"}
+        )
+
+    assert response_few.status_code == HTTP_200_OK
+    assert response_many.status_code == HTTP_200_OK
+    assert len(response_few.json()[0]["users"]) == 2
+    assert len(response_many.json()[0]["users"]) == 6
+
+    assert len(many_queries.captured_queries) == len(few_queries.captured_queries), (
+        f"N+1 on two_factor_auth: {len(few_queries.captured_queries)} queries for "
+        f"2 members vs {len(many_queries.captured_queries)} for 6 members"
+    )

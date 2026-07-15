@@ -931,3 +931,57 @@ describe('FieldType tests', () => {
     }
   )
 })
+
+describe.each([
+  { name: 'TextFieldType', FieldType: TextFieldType },
+  { name: 'LongTextFieldType', FieldType: LongTextFieldType },
+])('$name.getValidationError enforces maxFieldTextLength', ({ FieldType }) => {
+  const makeFieldType = (limit) =>
+    new FieldType({
+      app: {
+        $config: { public: { baserowMaxFieldTextLength: limit } },
+        $i18n: { t: (key, params) => `${key}:${params?.max}:${params?.over}` },
+      },
+    })
+
+  test.each([null, undefined, ''])(
+    'returns null for empty value %s',
+    (value) => {
+      expect(makeFieldType(10).getValidationError({}, value)).toBe(null)
+    }
+  )
+
+  test('returns null when the value length equals the limit', () => {
+    expect(makeFieldType(10).getValidationError({}, 'x'.repeat(10))).toBe(null)
+  })
+
+  test('returns an error with the number of chars over the limit', () => {
+    expect(makeFieldType(10).getValidationError({}, 'x'.repeat(13))).toBe(
+      'fieldErrors.maxCharsExceeded:10:3'
+    )
+  })
+})
+
+describe('URLFieldType.getValidationError enforces baserowMaxFieldTextLength', () => {
+  const makeFieldType = (limit) =>
+    new URLFieldType({
+      app: {
+        $config: { public: { baserowMaxFieldTextLength: limit } },
+        $i18n: { t: (key, params) => `${key}:${params?.max}:${params?.over}` },
+      },
+    })
+
+  test('returns the max chars error for an over-limit URL', () => {
+    expect(
+      makeFieldType(10).getValidationError({}, 'http://example.com/long')
+    ).toBe('fieldErrors.maxCharsExceeded:10:13')
+  })
+
+  test('still validates URL format for values under the limit', () => {
+    const fieldType = makeFieldType(100)
+    expect(fieldType.getValidationError({}, 'not a url')).toBe(
+      'fieldErrors.invalidUrl:undefined:undefined'
+    )
+    expect(fieldType.getValidationError({}, 'http://a.io')).toBe(null)
+  })
+})

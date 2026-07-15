@@ -1133,7 +1133,9 @@ def test_model_coming_out_of_cache_queries_correctly(
         )
 
         local_cache.clear()
-        with django_assert_num_queries(3):
+        # One query prefetches the select options of the two single select fields
+        # (a single query, since they share a content type).
+        with django_assert_num_queries(4):
             original_model = table.get_model()
 
         RowHandler().create_row(user=user, table=table, values={})

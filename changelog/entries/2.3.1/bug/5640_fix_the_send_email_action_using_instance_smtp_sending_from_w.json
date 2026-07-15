@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix the Send email action using instance SMTP sending from webmaster@localhost instead of the configured FROM_EMAIL.",
+    "issue_origin": "github",
+    "issue_number": 5640,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-07-08"
+}

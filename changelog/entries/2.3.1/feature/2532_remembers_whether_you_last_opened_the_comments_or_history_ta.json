@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Remembers whether you last opened the comments or history tab when editing a row",
+    "issue_origin": "github",
+    "issue_number": 2532,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-08"
+}

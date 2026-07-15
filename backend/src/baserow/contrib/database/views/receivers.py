@@ -52,13 +52,11 @@ def _notify_view_results_updated(view: View):
 
 @receiver([rows_updated, rows_created, rows_deleted])
 def notify_rows_signals(sender, rows, user, table, model, dependant_fields, **kwargs):
-    _notify_table_data_updated(table, model)
-
-    updated_tables = set()
+    models_by_table = {table: model}
     for field in dependant_fields:
-        updated_tables.add(field.table)
-    for updated_table in updated_tables:
-        _notify_table_data_updated(updated_table)
+        models_by_table.setdefault(field.table, None)
+
+    ViewSubscriptionHandler.notify_tables_views_updates(models_by_table)
 
 
 @receiver(view_updated)

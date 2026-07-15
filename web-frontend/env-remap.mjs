@@ -63,6 +63,8 @@ const envMapping = {
   SENTRY_DSN: 'NUXT_PUBLIC_SENTRY_DSN',
   SENTRY_ENVIRONMENT: 'NUXT_PUBLIC_SENTRY_ENVIRONMENT',
   SENTRY_TRACES_SAMPLE_RATE: 'NUXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE',
+  SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE:
+    'NUXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE',
   MEDIA_URL: 'NUXT_PUBLIC_MEDIA_URL',
   BASEROW_EXTRA_CLIENT_SCRIPT_URLS:
     'NUXT_PUBLIC_BASEROW_EXTRA_CLIENT_SCRIPT_URLS',
@@ -75,6 +77,21 @@ for (const [legacyKey, nuxtKey] of Object.entries(envMapping)) {
     process.env[nuxtKey] === undefined
   ) {
     process.env[nuxtKey] = process.env[legacyKey]
+  }
+}
+
+// Only override the default when a valid positive integer is provided.
+if (
+  process.env.BASEROW_MAX_FIELD_TEXT_LENGTH !== undefined &&
+  process.env.NUXT_PUBLIC_BASEROW_MAX_FIELD_TEXT_LENGTH === undefined
+) {
+  const maxFieldTextLength = parseInt(
+    process.env.BASEROW_MAX_FIELD_TEXT_LENGTH,
+    10
+  )
+  if (Number.isInteger(maxFieldTextLength) && maxFieldTextLength > 0) {
+    process.env.NUXT_PUBLIC_BASEROW_MAX_FIELD_TEXT_LENGTH =
+      String(maxFieldTextLength)
   }
 }
 

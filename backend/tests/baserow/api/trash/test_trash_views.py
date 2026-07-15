@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
+from django.db import connection
 from django.shortcuts import reverse
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from freezegun import freeze_time
@@ -1009,3 +1011,45 @@ def test_managed_trash_entries_excluded_from_contents(
             }
         ],
     }
+
+
+@pytest.mark.django_db
+def test_getting_trash_contents_does_not_scale_queries_with_number_of_entries(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+
+    def trash_rows(count):
+        workspace = data_fixture.create_workspace(user=user)
+        database = data_fixture.create_database_application(
+            user=user, workspace=workspace
+        )
+        table = data_fixture.create_database_table(user=user, database=database)
+        model = table.get_model()
+        for _ in range(count):
+            TrashHandler.trash(user, workspace, database, model.objects.create())
+        return workspace
+
+    def get_contents(workspace):
+        return api_client.get(
+            reverse(
+                "api:trash:contents",
+                kwargs={"workspace_id": workspace.id},
+            ),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    few_workspace = trash_rows(5)
+    many_workspace = trash_rows(10)
+
+    # Warm up so cold-cache and model generation don't skew the measured counts.
+    assert get_contents(few_workspace).status_code == HTTP_200_OK
+    assert get_contents(many_workspace).status_code == HTTP_200_OK
+
+    with CaptureQueriesContext(connection) as few_queries:
+        assert get_contents(few_workspace).status_code == HTTP_200_OK
+
+    with CaptureQueriesContext(connection) as many_queries:
+        assert get_contents(many_workspace).status_code == HTTP_200_OK
+
+    assert len(few_queries.captured_queries) == len(many_queries.captured_queries)

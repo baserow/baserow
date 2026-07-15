@@ -2,17 +2,21 @@
   <div
     ref="cell"
     class="grid-view__cell active"
-    :class="{ editing: editing }"
+    :class="{ editing: editing, invalid: editing && !isValid() }"
     @contextmenu="stopContextIfEditing($event)"
   >
     <div v-if="!editing" class="grid-field-text">{{ value }}</div>
-    <input
-      v-else
-      ref="input"
-      v-model="copy"
-      type="text"
-      class="grid-field-text__input"
-    />
+    <template v-else>
+      <input
+        ref="input"
+        v-model="copy"
+        type="text"
+        class="grid-field-text__input"
+      />
+      <div v-show="!isValid()" class="grid-view__cell-error align-right">
+        {{ getError() }}
+      </div>
+    </template>
   </div>
 </template>
 

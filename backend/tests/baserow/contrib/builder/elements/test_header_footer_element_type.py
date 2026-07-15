@@ -5,6 +5,7 @@ from baserow.contrib.builder.elements.element_types import (
     HeaderElementType,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.models import FooterElement, HeaderElement
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 
@@ -25,6 +26,32 @@ def test_header_footer_child_types_allowed():
             if not element_type.is_multi_page_element
         ]
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "model_class,element_type_class",
+    [
+        (HeaderElement, HeaderElementType),
+        (FooterElement, FooterElementType),
+    ],
+)
+def test_header_footer_position_fixed_field(
+    data_fixture, model_class, element_type_class
+):
+    page = data_fixture.create_builder_page()
+    shared_page = page.builder.shared_page
+    element = data_fixture.create_builder_element(
+        element_type_class,
+        page=shared_page,
+        behaviour=model_class.PAGE_BEHAVIOURS.FIXED,
+    )
+    element_type = element_type_registry.get(element_type_class.type)
+
+    serialized = element_type.export_serialized(element)
+
+    assert "behaviour" in element_type.allowed_fields
+    assert serialized["behaviour"] == model_class.PAGE_BEHAVIOURS.FIXED
 
 
 # Test prepare value

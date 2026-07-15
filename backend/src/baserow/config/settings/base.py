@@ -494,7 +494,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.2.2",
+    "VERSION": "2.3.1",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -842,6 +842,11 @@ if BASEROW_EXTRA_PUBLIC_URLS:
             EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES.append(hostname)
 
 FROM_EMAIL = os.getenv("FROM_EMAIL", "no-reply@localhost")
+# Align Django's built-in senders with the Baserow configured sender so that any
+# code relying on Django defaults (e.g. the `Send email` action using instance
+# SMTP) uses the configured FROM_EMAIL instead of `webmaster@localhost`.
+DEFAULT_FROM_EMAIL = FROM_EMAIL
+SERVER_EMAIL = FROM_EMAIL
 RESET_PASSWORD_TOKEN_MAX_AGE = 60 * 60 * 2  # 2 hours
 CHANGE_EMAIL_TOKEN_MAX_AGE = 60 * 60 * 12  # 12 hours
 
@@ -849,6 +854,8 @@ ROW_PAGE_SIZE_LIMIT = int(os.getenv("BASEROW_ROW_PAGE_SIZE_LIMIT", 200))
 BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
+
+MAX_FIELD_TEXT_LENGTH = int(os.getenv("BASEROW_MAX_FIELD_TEXT_LENGTH") or 1_000_000)
 
 # Per table, how many rows changed by a dependency cascade (formulas, lookups,
 # link row display values in other tables) are broadcast as exact realtime row
@@ -1156,6 +1163,11 @@ BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = int(
 )
 PERIODIC_FIELD_UPDATE_QUEUE_NAME = os.getenv(
     "BASEROW_PERIODIC_FIELD_UPDATE_QUEUE_NAME", "export"
+)
+# Number of tasks the periodic field update is split into. Defaults to 1 (a single
+# task, like the original job); raise it to spread the work across more workers.
+PERIODIC_FIELD_UPDATE_BATCH_COUNT = int(
+    os.getenv("BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT") or 1
 )
 
 BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES = int(
@@ -1486,7 +1498,7 @@ if SENTRY_DSN:
     # Sample rate for performance tracing (transactions), disabled when the console transport is used
     # (fake DSN in dev) to avoid spamming transaction envelopes to the console.
     sentry_traces_sample_rate = (
-        0 if sentry_transport else float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", 0.1))
+        0 if sentry_transport else float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", 0.01))
     )
 
     sentry_sdk.init(
@@ -1677,5 +1689,5 @@ BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY = os.getenv(
 )
 
 BASEROW_REALTIME_REPLAY_MAX_EVENTS = int(
-    os.getenv("BASEROW_REALTIME_REPLAY_MAX_EVENTS", 0)
+    os.getenv("BASEROW_REALTIME_REPLAY_MAX_EVENTS", 200)
 )

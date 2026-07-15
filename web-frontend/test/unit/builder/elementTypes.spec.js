@@ -19,6 +19,7 @@ import {
   CHOICE_OPTION_TYPES,
   IFRAME_SOURCE_TYPES,
   IMAGE_SOURCE_TYPES,
+  PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
 
 describe('elementTypes tests', () => {
@@ -1098,6 +1099,9 @@ describe('elementTypes tests', () => {
         value: { formula: "'Test'" },
       }
       expect(elementType.isInError(element, { page, element })).toBe(true)
+      expect(elementType.getErrorMessage(element, { page, element })).toBe(
+        'elementType.errorNavigationUrlMissing'
+      )
 
       // Otherwise it is valid
       element.navigate_to_url = { formula: 'http://localhost' }
@@ -1155,6 +1159,45 @@ describe('elementTypes tests', () => {
         true
       )
     })
+
+    test('Returns true if Button Element open page action has a missing page parameter value.', () => {
+      const targetPage = {
+        id: 1,
+        shared: false,
+        order: 1,
+        path_params: [{ name: 'id', type: 'numeric' }],
+      }
+      const page = {
+        id: 2,
+        shared: false,
+        order: 2,
+        name: 'Foo Page',
+        workflowActions: [
+          {
+            type: 'open_page',
+            element_id: 50,
+            page_parameters: [{ name: 'id', value: {} }],
+            navigation_type: 'page',
+            navigate_to_page_id: targetPage.id,
+          },
+        ],
+      }
+      const element = {
+        id: 50,
+        value: { formula: "'Click me'" },
+        page_id: page.id,
+      }
+      const builder = {
+        id: 1,
+        pages: [targetPage, page],
+      }
+      const elementType = testApp.$registry.get('element', 'button')
+
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
+    })
+
     test('Returns true if Button Element has errors, false otherwise', () => {
       const page = {
         id: 1,
@@ -1435,6 +1478,19 @@ describe('elementTypes tests', () => {
     })
   })
 
+  describe('MultiPageElementType tests', () => {
+    test.each(['header', 'footer'])(
+      '%s getDefaultValues returns normal positioning defaults',
+      (elementTypeName) => {
+        const elementType = testApp.$registry.get('element', elementTypeName)
+
+        expect(elementType.getDefaultValues({}, {})).toMatchObject({
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+        })
+      }
+    )
+  })
+
   describe('elementType elementAround tests', () => {
     let page, sharedPage, builder
     beforeEach(async () => {
@@ -1554,6 +1610,46 @@ describe('elementTypes tests', () => {
       expect(elementsAround.left).toBeNull()
       expect(elementsAround.right).toBeNull()
     })
+    test('for first fixed header ignores normal headers in the backend order.', async () => {
+      const fixedHeader1 = {
+        id: 115,
+        type: 'header',
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+      }
+      const fixedHeader2 = {
+        id: 116,
+        type: 'header',
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+      }
+
+      for (const [index, element] of [fixedHeader1, fixedHeader2].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page: sharedPage,
+          element: {
+            place_in_container: null,
+            ...element,
+            page_id: sharedPage.id,
+            order: `${index + 10}.0000`,
+          },
+        })
+      }
+
+      const elementType = testApp.$registry.get('element', 'header')
+      const storedFixedHeader1 = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], fixedHeader1.id)
+      const elementsAround = elementType.getElementsAround({
+        builder,
+        page,
+        element: storedFixedHeader1,
+        withSharedPage: false,
+      })
+
+      expect(elementsAround.before).toBeNull()
+      expect(elementsAround.after?.id).toEqual(fixedHeader2.id)
+      expect(elementsAround.left).toBeNull()
+      expect(elementsAround.right).toBeNull()
+    })
     test('for first footer.', () => {
       const elementType = testApp.$registry.get('element', 'footer')
       const firstFooter = testApp.$store.getters[
@@ -1599,6 +1695,46 @@ describe('elementTypes tests', () => {
       })
       expect(elementsAround.before?.id).toEqual(113)
       expect(elementsAround.after).toBeNull()
+      expect(elementsAround.left).toBeNull()
+      expect(elementsAround.right).toBeNull()
+    })
+    test('for first fixed footer ignores normal footers in the backend order.', async () => {
+      const fixedFooter1 = {
+        id: 117,
+        type: 'footer',
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+      }
+      const fixedFooter2 = {
+        id: 118,
+        type: 'footer',
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+      }
+
+      for (const [index, element] of [fixedFooter1, fixedFooter2].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page: sharedPage,
+          element: {
+            place_in_container: null,
+            ...element,
+            page_id: sharedPage.id,
+            order: `${index + 10}.0000`,
+          },
+        })
+      }
+
+      const elementType = testApp.$registry.get('element', 'footer')
+      const storedFixedFooter1 = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], fixedFooter1.id)
+      const elementsAround = elementType.getElementsAround({
+        builder,
+        page,
+        element: storedFixedFooter1,
+        withSharedPage: false,
+      })
+
+      expect(elementsAround.before).toBeNull()
+      expect(elementsAround.after?.id).toEqual(fixedFooter2.id)
       expect(elementsAround.left).toBeNull()
       expect(elementsAround.right).toBeNull()
     })
@@ -1883,6 +2019,48 @@ describe('elementTypes tests', () => {
       ).toBeNull()
     })
 
+    test('drag-and-drop between fixed and normal headers is disallowed', () => {
+      const headerType = testApp.$registry.get('element', 'header')
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          element: {
+            id: 341,
+            type: 'header',
+            behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+          },
+          referenceElement: {
+            id: 340,
+            type: 'header',
+            behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+          },
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined) → D&D context
+          pagePlace: 'header',
+          referencePagePlace: 'header',
+        })
+      ).not.toBeNull()
+    })
+
+    test('normal and fixed headers resolve to different page sections', () => {
+      const headerType = testApp.$registry.get('element', 'header')
+
+      expect(
+        headerType.getPageSection({
+          type: 'header',
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+        })
+      ).toBe('header')
+      expect(
+        headerType.getPageSection({
+          type: 'header',
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+        })
+      ).toBe('fixed-header')
+    })
+
     test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {
       // The empty content drop zone supplies referencePagePlace=content via
       // targetPagePlace, which must keep a header out of the content zone.
@@ -2112,6 +2290,48 @@ describe('elementTypes tests', () => {
           referencePagePlace: 'footer',
         })
       ).toBeNull()
+    })
+
+    test('drag-and-drop between fixed and normal footers is disallowed', () => {
+      const footerType = testApp.$registry.get('element', 'footer')
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          element: {
+            id: 441,
+            type: 'footer',
+            behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+          },
+          referenceElement: {
+            id: 440,
+            type: 'footer',
+            behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+          },
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined) → D&D context
+          pagePlace: 'footer',
+          referencePagePlace: 'footer',
+        })
+      ).not.toBeNull()
+    })
+
+    test('normal and fixed footers resolve to different page sections', () => {
+      const footerType = testApp.$registry.get('element', 'footer')
+
+      expect(
+        footerType.getPageSection({
+          type: 'footer',
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+        })
+      ).toBe('footer')
+      expect(
+        footerType.getPageSection({
+          type: 'footer',
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+        })
+      ).toBe('fixed-footer')
     })
 
     test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {

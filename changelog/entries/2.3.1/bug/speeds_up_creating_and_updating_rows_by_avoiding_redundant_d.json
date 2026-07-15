@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolve the issue with two separate N+1 queries when creating rows.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-07"
+}

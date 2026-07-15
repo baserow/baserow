@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "In a restricted view, a row edited so it no longer matches the filters is now removed immediately for the editing user instead of lingering until a refresh.",
+    "domain": "database",
+    "issue_number": 5660,
+    "bullet_points": [],
+    "created_at": "2026-07-08"
+}

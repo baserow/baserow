@@ -21,6 +21,10 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        # Runs inline (dispatch=False), which bypasses the per-cycle run lock, so this
+        # can process a workspace concurrently with an in-flight scheduled beat cycle.
         run_periodic_fields_updates(
-            options["workspace_id"], not options["dont_update_now"]
+            options["workspace_id"],
+            not options["dont_update_now"],
+            dispatch=False,
         )
