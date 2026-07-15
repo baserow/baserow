@@ -119,10 +119,6 @@
     }
   }
 
-  &.context__menu-item-link--active {
-    padding-right: 32px;
-  }
-
   &.context__menu-item-link--delete {
     &:hover:not(.disabled) {
       background: $palette-red-50;

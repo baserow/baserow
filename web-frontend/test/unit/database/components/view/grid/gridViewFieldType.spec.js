@@ -121,15 +121,15 @@ describe('GridViewFieldType group by menu item', () => {
     )
   })
 
-  test('shows "Don\'t group by this field" as selected and removes it on click', async () => {
+  test('shows "Don\'t group by this field" and removes it on click', async () => {
     const context = await populateStore([groupBy(textField.id)])
     const wrapper = await mountFieldType(context, textField)
 
     const item = findGroupByItem(wrapper)
     expect(item).toBeTruthy()
     expect(item.text()).toContain('gridViewFieldType.ungroupByField')
-    expect(item.classes()).toContain('context__menu-item-link--active')
-    expect(item.find('.context__menu-active-icon').exists()).toBe(true)
+    expect(item.classes()).not.toContain('context__menu-item-link--active')
+    expect(item.find('.context__menu-active-icon').exists()).toBe(false)
 
     const dispatch = vi.spyOn(store, 'dispatch').mockResolvedValue()
     await item.trigger('click')

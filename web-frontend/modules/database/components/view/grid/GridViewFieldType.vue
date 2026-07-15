@@ -278,7 +278,6 @@
         >
           <a
             class="context__menu-item-link"
-            :class="{ 'context__menu-item-link--active': groupByForField }"
             @click="toggleGroupBy($event, view, field)"
           >
             <i class="context__menu-item-icon iconoir-book-stack"></i>
@@ -287,10 +286,6 @@
                 ? $t('gridViewFieldType.ungroupByField')
                 : $t('gridViewFieldType.groupByField')
             }}
-            <i
-              v-if="groupByForField"
-              class="context__menu-active-icon iconoir-check"
-            ></i>
           </a>
         </li>
         <li
