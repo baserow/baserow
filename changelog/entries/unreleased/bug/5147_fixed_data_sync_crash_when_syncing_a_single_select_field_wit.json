@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed data sync crash when syncing a single select field with a default value after source options are modified.",
+    "issue_origin": "github",
+    "issue_number": 5147,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-14"
+}

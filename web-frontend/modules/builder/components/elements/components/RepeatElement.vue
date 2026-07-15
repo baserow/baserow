@@ -19,7 +19,11 @@
           :style="repeatedElementsStyles"
         >
           <!-- Iterate over each content -->
-          <div v-for="(content, index) in elementContent" :key="content.id">
+          <div
+            v-for="(content, index) in elementContent"
+            :key="content.id"
+            class="repeat-element__repeated-element"
+          >
             <!-- If the container has any children -->
             <template v-if="children.length > 0">
               <!-- Iterate over each child -->
@@ -253,7 +257,7 @@ export default {
           display: 'grid',
           'grid-template-columns': `repeat(${
             this.element.items_per_row[this.deviceTypeSelected]
-          }, 1fr)`,
+          }, minmax(0, 1fr))`,
           gap: `${this.element.vertical_gap}px ${this.element.horizontal_gap}px`,
         }
       }

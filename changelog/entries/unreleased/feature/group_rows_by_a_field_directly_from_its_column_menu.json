@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Group rows by a field directly from its column menu",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-10"
+}

@@ -39,11 +39,13 @@ COMMON_ADVANCED_FEATURES = [
     ADVANCED_WEBHOOKS,
     FIELD_LEVEL_PERMISSIONS,
     DATE_DEPENDENCY,
-    # application builder
+    # WAB
     BUILDER_SSO,
     BUILDER_NO_BRANDING,
     BUILDER_FILE_INPUT,
     BUILDER_CUSTOM_CODE,
+    CODE_RUNNER,
+    XLS_FILE_READER,
     # only self-hosted
     SSO,
 ]
@@ -106,8 +108,6 @@ class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
         ENTERPRISE_SETTINGS,
         SECURE_FILE_SERVE,
         DATA_SCANNER,
-        CODE_RUNNER,
-        XLS_FILE_READER,
     ]
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):

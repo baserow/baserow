@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved a bug which prevented advanced license customers from being able to access the Code and XLS actions.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-07-14"
+}
