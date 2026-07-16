@@ -237,6 +237,7 @@ def test_rating_field_modification(data_fixture):
         max_value=3,
     )
 
+    model = table.get_model(attribute_names=True)
     # Check value clamping on max_value modification
     assert [
         (f.id, f.text, f.rating, f.integer, f.decimal, f.boolean)

@@ -5,7 +5,6 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from django.db import transaction
-from django.db.models import TextField
 from django.urls import reverse
 
 import pytest
@@ -18,7 +17,10 @@ from baserow.contrib.database.fields.dependencies.update_collector import (
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.field_types import FormulaFieldType
-from baserow.contrib.database.fields.fields import BaserowExpressionField
+from baserow.contrib.database.fields.fields import (
+    BaserowExpressionField,
+    TruncatingTextField,
+)
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -1106,7 +1108,7 @@ def test_can_cache_and_uncache_formula_model_field(
     uncached = generated_models_cache.get("test_formula_key")
     assert uncached == formula_model_field
     assert isinstance(uncached, BaserowExpressionField)
-    assert uncached.__class__ == TextField
+    assert uncached.__class__ == TruncatingTextField
     assert str(uncached.expression) == str(formula_model_field.expression)
 
 

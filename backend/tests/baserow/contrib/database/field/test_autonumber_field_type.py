@@ -299,6 +299,7 @@ def test_undo_redo_update_autonumber_field(data_fixture):
     assert_undo_redo_actions_are_valid(actions, [UpdateFieldActionType])
 
     assert does_field_sequence_exist(autonumber_field.id) is True
+    model = table.get_model()
     row_values = model.objects.values_list(f"field_{autonumber_field.id}", flat=True)
     assert list(row_values) == [1, 2, 3]
 

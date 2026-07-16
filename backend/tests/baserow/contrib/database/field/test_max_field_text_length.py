@@ -44,7 +44,7 @@ def test_text_field_serializer_enforces_length_limit(
 @pytest.mark.django_db
 @pytest.mark.parametrize("field_type", ["text", "long_text"])
 @override_settings(MAX_FIELD_TEXT_LENGTH=10)
-def test_text_field_returns_existing_values_over_the_limit(
+def test_text_field_truncates_existing_values_over_the_limit(
     api_client, data_fixture, field_type
 ):
     user, jwt_token = data_fixture.create_user_and_token()
@@ -62,7 +62,53 @@ def test_text_field_returns_existing_values_over_the_limit(
     )
     response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {jwt_token}")
     assert response.status_code == HTTP_200_OK
-    assert response.json()[f"field_{field.id}"] == existing
+    assert response.json()[f"field_{field.id}"] == "x" * 10
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("field_type", ["text", "long_text"])
+@override_settings(MAX_FIELD_TEXT_LENGTH=10)
+def test_text_field_values_are_truncated_at_the_database_level(
+    api_client, data_fixture, field_type
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = FieldHandler().create_field(
+        user=user, table=table, type_name=field_type, name="Notes"
+    )
+
+    existing = "x" * 20 + "Z"
+    model = table.get_model()
+    row = model.objects.create(**{field.db_column: existing})
+
+    assert getattr(model.objects.get(pk=row.id), field.db_column) == "x" * 10
+
+    assert model.objects.filter(**{f"{field.db_column}__contains": "Z"}).exists()
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {jwt_token}")
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["results"][0][f"field_{field.id}"] == "x" * 10
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("field_type", ["text", "long_text"])
+@override_settings(MAX_FIELD_TEXT_LENGTH=10)
+def test_grid_view_returns_truncated_text_field_values(
+    api_client, data_fixture, field_type
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = FieldHandler().create_field(
+        user=user, table=table, type_name=field_type, name="Notes"
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    table.get_model().objects.create(**{field.db_column: "x" * 25})
+
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {jwt_token}")
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["results"][0][f"field_{field.id}"] == "x" * 10
 
 
 @pytest.mark.django_db

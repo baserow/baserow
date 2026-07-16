@@ -1,6 +1,7 @@
 from typing import Any, Optional
 from uuid import UUID
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Field
 from django.db.models.expressions import RawSQL
@@ -20,6 +21,15 @@ from baserow.core.fields import SyncedDateTimeField
 
 class BaserowLastModifiedField(SyncedDateTimeField):
     requires_refresh_after_update = True
+
+
+class TruncatingTextField(models.TextField):
+    def select_format(self, compiler, sql, params):
+        sql, params = super().select_format(compiler, sql, params)
+        max_length = settings.MAX_FIELD_TEXT_LENGTH
+        if max_length is not None:
+            sql = f"LEFT(({sql})::text, {int(max_length)})"
+        return sql, params
 
 
 class IgnoreMissingForwardManyToOneDescriptor(ForwardManyToOneDescriptor):

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Applies the text field character limit when reading rows",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-16"
+}

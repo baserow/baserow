@@ -1563,7 +1563,7 @@ def test_can_convert_formula_to_numeric_field(data_fixture):
         number_negative=True,
     )
 
-    row.refresh_from_db()
+    row = table.get_model().objects.get(pk=row.id)
     assert getattr(row, field_name) == 1
     assert Field.objects.all().count() == 1
     assert NumberField.objects.all().count() == 1

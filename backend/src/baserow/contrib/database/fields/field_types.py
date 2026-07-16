@@ -215,6 +215,7 @@ from .fields import (
     MultipleSelectManyToManyField,
     SingleSelectForeignKey,
     SyncedUserForeignKeyField,
+    TruncatingTextField,
 )
 from .fields import DurationField as DurationModelField
 from .handler import FieldHandler
@@ -355,7 +356,7 @@ class TextFieldMatchingRegexFieldType(FieldType, ABC):
         )
 
     def get_model_field(self, instance, **kwargs):
-        return models.TextField(
+        return TruncatingTextField(
             default="",
             blank=True,
             null=True,
@@ -421,7 +422,7 @@ class CharFieldMatchingRegexFieldType(TextFieldMatchingRegexFieldType):
         return super().get_serializer_field(instance, **kwargs)
 
     def get_model_field(self, instance, **kwargs):
-        return models.CharField(
+        return TruncatingTextField(
             default="",
             blank=True,
             null=True,
@@ -467,7 +468,7 @@ class TextFieldType(CollationSortMixin, FieldType):
         )
 
     def get_model_field(self, instance, **kwargs):
-        return models.TextField(
+        return TruncatingTextField(
             default=instance.text_default or None,
             blank=True,
             null=True,
@@ -545,7 +546,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         }
 
     def get_model_field(self, instance, **kwargs):
-        return models.TextField(
+        return TruncatingTextField(
             blank=True, null=True, db_index=instance.db_index, **kwargs
         )
 
