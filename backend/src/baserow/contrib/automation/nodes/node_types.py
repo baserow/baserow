@@ -25,6 +25,7 @@ from baserow.contrib.automation.nodes.models import (
     CoreGotoActionNode,
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
+    CoreInboundEmailTriggerNode,
     CoreIteratorActionNode,
     CoreManualTriggerNode,
     CorePeriodicTriggerNode,
@@ -56,6 +57,7 @@ from baserow.contrib.integrations.core.service_types import (
     CoreGotoServiceType,
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
+    CoreInboundEmailTriggerServiceType,
     CoreIteratorServiceType,
     CoreManualTriggerServiceType,
     CorePeriodicServiceType,
@@ -752,6 +754,13 @@ class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type
+
+
+class CoreInboundEmailTriggerNodeType(AutomationNodeTriggerType):
+    display_name = _("Start workflow by email")
+    type = "email_trigger"
+    model_class = CoreInboundEmailTriggerNode
+    service_type = CoreInboundEmailTriggerServiceType.type
 
 
 class CoreManualTriggerNodeType(AutomationNodeTriggerType):

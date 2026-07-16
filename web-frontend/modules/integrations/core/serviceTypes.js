@@ -1,4 +1,5 @@
 import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
+import CoreInboundEmailTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreInboundEmailTriggerServiceForm'
 import {
   DataSourceServiceTypeMixin,
   getFilesGroup,
@@ -294,6 +295,58 @@ export class CoreHTTPTriggerServiceType extends TriggerServiceTypeMixin(
 
   getOrder() {
     return 8
+  }
+}
+
+export class CoreInboundEmailTriggerServiceType extends TriggerServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'email_trigger'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.inboundEmailTriggerDescription')
+  }
+
+  get formComponent() {
+    return CoreInboundEmailTriggerServiceForm
+  }
+
+  get icon() {
+    return 'iconoir-mail'
+  }
+
+  getErrorMessage({ service }) {
+    if (service === undefined) {
+      return null
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  /**
+   * The sample data is a received email, so the sample data modal offers an
+   * HTML preview tab next to the JSON payload.
+   */
+  getSampleDataContentType(service) {
+    return 'html'
+  }
+
+  getSampleDataHtml(service) {
+    return service.sample_data?.data?.body_html || null
+  }
+
+  getOrder() {
+    return 8.5
   }
 }
 

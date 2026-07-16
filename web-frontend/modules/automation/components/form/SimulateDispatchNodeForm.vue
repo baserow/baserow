@@ -36,6 +36,8 @@
     <SampleDataViewer
       v-if="hasSampleData && !isLoading"
       :sample-data="sampleData"
+      :content-type="sampleDataContentType"
+      :sample-data-html="sampleDataHtml"
       :is-error="isErrorSample"
       :modal-title="sampleDataModalTitle"
       :modal-subtitle="$t('simulateDispatch.sampleDataModalSubTitle')"
@@ -106,6 +108,18 @@ const sampleData = computed(() => {
 const hasSampleData = computed(() => sample.value !== null)
 
 const isErrorSample = computed(() => Boolean(sample.value?._error))
+
+// Error samples are plain text, so they always render as JSON regardless of
+// the node's sample data content type.
+const sampleDataContentType = computed(() =>
+  isErrorSample.value
+    ? 'json'
+    : nodeType.value.getSampleDataContentType(props.node)
+)
+
+const sampleDataHtml = computed(() =>
+  isErrorSample.value ? null : nodeType.value.getSampleDataHtml(props.node)
+)
 
 /**
  * All previous nodes must have been tested, i.e. they must have sample

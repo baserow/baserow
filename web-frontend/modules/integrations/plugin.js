@@ -19,6 +19,7 @@ import {
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import {
   CoreCSVFileReaderServiceType,
+  CoreInboundEmailTriggerServiceType,
   CoreHTTPRequestServiceType,
   PeriodicTriggerServiceType,
   CoreRouterServiceType,
@@ -76,6 +77,7 @@ export default defineNuxtPlugin({
     $registry.register('service', new CoreRouterServiceType(context))
     $registry.register('service', new CoreGotoServiceType(context))
     $registry.register('service', new CoreHTTPTriggerServiceType(context))
+    $registry.register('service', new CoreInboundEmailTriggerServiceType(context))
     $registry.register('service', new CoreManualTriggerServiceType(context))
     $registry.register('service', new CoreIteratorServiceType(context))
     $registry.register('service', new CoreCSVFileReaderServiceType(context))

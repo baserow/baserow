@@ -6,6 +6,7 @@ from baserow.contrib.integrations.core.models import (
     CoreGotoService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
+    CoreInboundEmailTriggerService,
     CoreIteratorService,
     CoreManualTriggerService,
     CorePeriodicService,
@@ -182,6 +183,11 @@ class ServiceFixtures:
             kwargs["uid"] = uuid4()
 
         return self.create_service(CoreHTTPTriggerService, **kwargs)
+
+    def create_core_inbound_email_trigger_service(
+        self, **kwargs
+    ) -> CoreInboundEmailTriggerService:
+        return self.create_service(CoreInboundEmailTriggerService, **kwargs)
 
     def create_core_manual_trigger_service(self, **kwargs):
         return self.create_service(CoreManualTriggerService, **kwargs)

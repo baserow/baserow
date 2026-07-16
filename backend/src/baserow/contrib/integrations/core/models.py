@@ -1,5 +1,7 @@
+import secrets
 import uuid
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -46,6 +48,15 @@ class SMTPIntegration(Integration):
         null=True,
         help_text="The SMTP password for authentication.",
     )
+
+
+def generate_inbound_email_token() -> str:
+    """
+    Generates a high-entropy token used as the localpart of an inbound email
+    address. Lowercase hex keeps the localpart case-insensitivity-safe.
+    """
+
+    return secrets.token_hex(16)
 
 
 class CoreIteratorService(Service):
@@ -347,3 +358,34 @@ class CoreHTTPTriggerService(Service):
         default=False,
         help_text="Defines whether the service is published or not.",
     )
+
+
+class CoreInboundEmailTriggerService(Service):
+    """
+    A trigger service that starts a workflow when an email is delivered to its
+    generated inbound email address.
+    """
+
+    token = models.CharField(
+        max_length=32,
+        default=generate_inbound_email_token,
+        db_index=True,
+        help_text="The localpart of the generated inbound email address.",
+    )
+
+    is_public = models.BooleanField(
+        default=False,
+        help_text="Defines whether the service is published or not.",
+    )
+
+    @property
+    def email_address(self) -> str | None:
+        """
+        The full inbound email address for this trigger, or None when the
+        instance has no inbound email domain configured.
+        """
+
+        if not settings.INBOUND_EMAIL_DOMAIN:
+            return None
+
+        return f"{self.token}@{settings.INBOUND_EMAIL_DOMAIN}"

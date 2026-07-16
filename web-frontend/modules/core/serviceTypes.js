@@ -113,6 +113,23 @@ export class ServiceType extends Registerable {
   }
 
   /**
+   * The content type of the sample data returned by this service. Service
+   * types returning 'html' get an extra HTML preview tab in the sample data
+   * modal, rendering the value of `getSampleDataHtml`.
+   */
+  getSampleDataContentType(service) {
+    return 'json'
+  }
+
+  /**
+   * The HTML document to render in the sample data modal's HTML tab, for
+   * service types whose sample data content type is 'html'.
+   */
+  getSampleDataHtml(service) {
+    return null
+  }
+
+  /**
    * A hook called prior to an update to modify the new values
    * before they get persisted in the API.
    */

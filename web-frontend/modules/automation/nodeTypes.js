@@ -22,6 +22,7 @@ import {
 import LocalBaserowNodeServiceForm from '@baserow/modules/automation/components/workflow/LocalBaserowNodeServiceForm'
 import {
   CoreCSVFileReaderServiceType,
+  CoreInboundEmailTriggerServiceType,
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreGotoServiceType,
@@ -348,6 +349,27 @@ export class NodeType extends Registerable {
     return this.serviceType.getSampleData(service)
   }
 
+  /**
+   * The content type of this node's sample data. Nodes returning 'html' get
+   * an extra HTML preview tab in the sample data modal.
+   */
+  getSampleDataContentType({ service }) {
+    if (!service) {
+      return 'json'
+    }
+    return this.serviceType.getSampleDataContentType(service)
+  }
+
+  /**
+   * The HTML document rendered in the sample data modal's HTML tab.
+   */
+  getSampleDataHtml({ service }) {
+    if (!service) {
+      return null
+    }
+    return this.serviceType.getSampleDataHtml(service)
+  }
+
   getEdges({ node }) {
     return [{ uid: '', label: '' }]
   }
@@ -622,6 +644,35 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
 
   getDefaultLabel({ automation, node }) {
     return this.app.$i18n.t('serviceType.coreHTTPTrigger')
+  }
+}
+
+export class CoreInboundEmailTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'email_trigger'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.inboundEmailTriggerDescription')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreInboundEmailTriggerServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 4.5
+  }
+
+  getDefaultLabel({ automation, node }) {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
   }
 }
 
