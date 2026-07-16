@@ -315,6 +315,18 @@ describe('official TipTap Markdown integration', () => {
     expect(editor.getMarkdown()).toBe('Hello @1')
   })
 
+  test('does not parse mention IDs embedded in email-like text', () => {
+    const users = [{ user_id: 1, name: 'Jane Doe' }]
+    editor = createEditor('email@1.example and @1', { users })
+    const container = document.createElement('div')
+    container.innerHTML = editor.getHTML()
+
+    const mentions = container.querySelectorAll('[data-type="mention"]')
+    expect(mentions).toHaveLength(1)
+    expect(mentions[0].textContent).toBe('@Jane Doe')
+    expect(container.textContent).toBe('email@1.example and @Jane Doe')
+  })
+
   test('parses and serializes Markdown on the plain-text clipboard', () => {
     editor = createEditor('')
 

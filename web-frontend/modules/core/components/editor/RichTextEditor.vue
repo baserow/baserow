@@ -150,8 +150,8 @@ export default {
   },
   watch: {
     editable: {
-      handler(editable) {
-        this.editor.destroy()
+      handler() {
+        this.teardownEditor()
         this.createEditor()
       },
     },
@@ -172,19 +172,20 @@ export default {
     this.createEditor()
   },
   beforeUnmount() {
-    if (this.mousedownEvent !== null) {
-      this.$refs.root.removeEventListener('mousedown', this.mousedownEvent)
-    }
-    this.unregisterMenuScrollHandlers()
-  },
-  unmount() {
-    if (this.editor) {
-      this.editor.destroy()
-    }
-    this.unregisterResizeObserver()
+    this.teardownEditor()
   },
   methods: {
+    teardownEditor() {
+      this.unregisterAutoCollapseFloatingMenuHandler()
+      this.unregisterMenuScrollHandlers()
+      this.unregisterResizeObserver()
+      if (this.editor && !this.editor.isDestroyed) {
+        this.editor.destroy()
+      }
+      this.editor = null
+    },
     registerResizeObserver() {
+      this.unregisterResizeObserver()
       let lastWidth = null
       let lastHeight = null
       const resizeObserver = new ResizeObserver((entries) => {
@@ -334,10 +335,13 @@ export default {
         this.registerAutoCollapseFloatingMenuHandler()
         this.registerMenuScrollHandlers()
       } else {
+        this.unregisterAutoCollapseFloatingMenuHandler()
+        this.unregisterMenuScrollHandlers()
         this.unregisterResizeObserver()
       }
     },
     registerAutoCollapseFloatingMenuHandler() {
+      this.unregisterAutoCollapseFloatingMenuHandler()
       this.mousedownEvent = (event) => {
         if (this.$refs.floatingMenu?.isEventTargetInside(event)) {
           return
@@ -345,6 +349,12 @@ export default {
         this.$refs.floatingMenu?.collapse()
       }
       this.$refs.root.addEventListener('mousedown', this.mousedownEvent)
+    },
+    unregisterAutoCollapseFloatingMenuHandler() {
+      if (this.mousedownEvent !== null) {
+        this.$refs.root?.removeEventListener('mousedown', this.mousedownEvent)
+        this.mousedownEvent = null
+      }
     },
     getScrollElement() {
       return this.getConfiguredScrollElements()[0] ?? this.$refs.root

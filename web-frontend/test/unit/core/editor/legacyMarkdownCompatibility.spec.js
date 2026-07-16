@@ -182,6 +182,7 @@ describe('legacy database Markdown compatibility', () => {
       'mixed task and bullet list',
       'table',
       'definition without use',
+      'mention next to text',
     ])
     const regressions = []
 

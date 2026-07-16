@@ -56,9 +56,10 @@ export const createMention = ({
       tokenize(source) {
         const mentionIndex = source.search(USER_ID_REGEXP)
         if (mentionIndex > 0 && findMentionStart(source) === 0) {
+          const mention = source.slice(mentionIndex).match(USER_ID_REGEXP)
           return {
             type: 'mention',
-            raw: source.slice(0, mentionIndex),
+            raw: source.slice(0, mentionIndex + mention[0].length),
           }
         }
         const match = source.match(/^@(\d+)/)

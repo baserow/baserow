@@ -168,6 +168,39 @@ describe('RichTextEditor Markdown persistence', () => {
 
     expect(wrapper.vm.$refs.bubbleMenu.$el.style.visibility).toBe('hidden')
   })
+
+  test('destroys editor resources when unmounted', async () => {
+    const wrapper = await mountEditor('content')
+    const destroyEditor = vi.spyOn(wrapper.vm.editor, 'destroy')
+    const disconnectResizeObserver = vi.spyOn(
+      wrapper.vm.resizeObserver,
+      'disconnect'
+    )
+
+    wrapper.unmount()
+
+    expect(destroyEditor).toHaveBeenCalledOnce()
+    expect(disconnectResizeObserver).toHaveBeenCalledOnce()
+  })
+
+  test('keeps one root mousedown handler after recreating the editor', async () => {
+    const wrapper = await testApp.mount(RichTextEditor, {
+      props: {
+        modelValue: 'content',
+        enableRichTextFormatting: true,
+      },
+    })
+
+    await wrapper.setProps({ editable: false })
+    await wrapper.setProps({ editable: true })
+
+    const collapse = vi.spyOn(wrapper.vm.$refs.floatingMenu, 'collapse')
+    wrapper.vm.$refs.root.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true })
+    )
+
+    expect(collapse).toHaveBeenCalledOnce()
+  })
 })
 
 describe('RichTextEditor plain text mode', () => {
