@@ -37,6 +37,8 @@ Use metrics, rather than retained trace counts, for traffic and latency boards:
   endpoint, method, and response status.
 - `baserow.http.server.user.request.duration` provides authenticated request counts and
   latency by `user.id` without multiplying user cardinality by endpoint dimensions.
+- `baserow.workspace.invitation.created.calls` counts successful invitation creation
+  and resend operations by the acting `user.id`.
 - `baserow.celery.task.duration` provides completed task counts and latency by stable
   task, queue, and state.
 - `baserow.dependency.duration` provides database and Redis call counts and latency by

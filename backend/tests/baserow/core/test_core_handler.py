@@ -764,6 +764,32 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
 
 
 @pytest.mark.django_db
+@patch("baserow.core.handler.tracer.start_span")
+@patch("baserow.core.handler.CoreHandler.send_workspace_invitation_email")
+def test_create_workspace_invitation_emits_per_user_metric_observation(
+    mock_send_email, mock_start_span, data_fixture
+):
+    user_workspace = data_fixture.create_user_workspace()
+
+    CoreHandler().create_workspace_invitation(
+        user=user_workspace.user,
+        workspace=user_workspace.workspace,
+        email="test@example.com",
+        permissions="MEMBER",
+        base_url="http://localhost:3000/invite",
+    )
+
+    mock_start_span.assert_called_once_with(
+        "WorkspaceInvitation.created",
+        attributes={
+            "baserow.metric.observation": "workspace_invitation_created",
+            "user.id": user_workspace.user.id,
+        },
+    )
+    mock_start_span.return_value.end.assert_called_once_with()
+
+
+@pytest.mark.django_db
 def test_update_workspace_invitation(data_fixture):
     workspace_invitation = data_fixture.create_workspace_invitation()
     user = workspace_invitation.invited_by

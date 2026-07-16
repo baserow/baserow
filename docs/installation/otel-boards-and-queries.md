@@ -45,14 +45,15 @@ Use trace-ID-aware routing when running multiple Collectors.
 
 ## Metric sources
 
-Use these separate histogram families:
+Use these separate metric families:
 
-| Question                  | Metric                                      | Unit         | Dimensions                                                                                  |
-| ------------------------- | ------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------- |
-| Endpoint traffic          | `http.server.request.duration`              | Seconds      | Templated `http.route`, `http.request.method`, `http.response.status_code`, and error type. |
-| Authenticated users       | `baserow.http.server.user.request.duration` | Milliseconds | `user.id`, plus stable service and Collector identity.                                      |
-| Celery task execution     | `baserow.celery.task.duration`              | Seconds      | Stable task name, queue, and completion state.                                              |
-| Database/Redis dependency | `baserow.dependency.duration`               | Milliseconds | Stable database system, operation, status, service, and Collector identity.                 |
+| Question                  | Metric                                        | Unit         | Dimensions                                                                                  |
+| ------------------------- | --------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------- |
+| Endpoint traffic          | `http.server.request.duration`                | Seconds      | Templated `http.route`, `http.request.method`, `http.response.status_code`, and error type. |
+| Authenticated users       | `baserow.http.server.user.request.duration`   | Milliseconds | `user.id`, plus stable service and Collector identity.                                      |
+| Workspace invitations     | `baserow.workspace.invitation.created.calls` | Count        | `user.id`, plus stable service and Collector identity.                                      |
+| Celery task execution     | `baserow.celery.task.duration`                | Seconds      | Stable task name, queue, and completion state.                                              |
+| Database/Redis dependency | `baserow.dependency.duration`                 | Milliseconds | Stable database system, operation, status, service, and Collector identity.                 |
 
 The endpoint histogram covers all requests. The user histogram is generated from
 authenticated HTTP server spans before tail sampling, so trace sampling does not alter
@@ -131,6 +132,12 @@ Build these queries in the same metrics dataset:
 The per-user metric includes authenticated requests only. Requests aggregated into an
 overflow row remain visible in overall counts, but their individual users cannot be
 identified.
+
+To alert on invitation abuse, sum
+`baserow.workspace.invitation.created.calls` over the trigger window, group by
+`user.id`, exclude `otel.metric.overflow=true`, and alert when any user exceeds the
+chosen limit. The counter records successful invitation creation and resend operations
+without depending on trace retention or an HTTP route.
 
 The `otel.metric.overflow` column appears in the dataset schema only after the first
 overflow datapoint is ingested, and Honeycomb drops query filters on columns missing
@@ -243,8 +250,8 @@ The current metrics intentionally do not preserve every possible trace grouping:
 - Duration sums provide average concurrent load, not the exact overlap or peak
   concurrency waveform.
 - Per-user SQL time is available on retained traces, not as an all-traffic metric.
-- Exact action counts, exception-type trends, and rate-limit reasons require their own
-  bounded counters or histograms.
+- Exact action counts other than workspace invitation creation, exception-type trends,
+  and rate-limit reasons require their own bounded counters or histograms.
 
 Add a purpose-built metric only after defining its allowed dimensions and cardinality
 budget. For billing, quotas, abuse controls, or contractual usage reporting, use a
@@ -255,6 +262,7 @@ durable usage-accounting pipeline rather than best-effort OTLP metrics.
 - Endpoint metric counts match an independent request source within export delay.
 - `http.route` values are templates and contain no concrete identifiers.
 - Per-user request counts match an independent source while overflow is zero.
+- Per-user workspace invitation counts match successful creation and resend operations.
 - An alert exists for `otel.metric.overflow=true`.
 - Query granularity is the capture interval or a multiple of it.
 - Error, slow, and forced traces preserve dependency detail when retained.

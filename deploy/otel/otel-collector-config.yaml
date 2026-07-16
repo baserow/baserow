@@ -45,6 +45,14 @@ processors:
                     and span.name == "BZPOPMIN"
                     and span.status.code != STATUS_CODE_ERROR
                     and span.attributes["baserow.force_full_otel_trace"] != true
+    # Some application operations use short-lived spans only as
+    # sampling-independent metric observations. Remove them from retained traces so
+    # they do not add noise or consume the tail-sampling span budget.
+    filter/metric_observations:
+        error_mode: ignore
+        traces:
+            span:
+                - 'span.attributes["baserow.metric.observation"] != nil'
     # Drop sub-2ms successful db/redis leaf chatter from retained baseline traces after
     # the trace-wide sampling decision. Error, slow, and forced traces keep dependency
     # detail. If the tail sampler policy annotation is unavailable, this fails safe and
@@ -70,6 +78,16 @@ processors:
                 - "span.kind != SPAN_KIND_SERVER"
                 - 'span.attributes["user.id"] == nil'
                 - 'span.attributes["http.route"] == nil'
+    # Count successful invitation create/resend operations per actor without coupling
+    # the metric to the HTTP route or retaining its observation span.
+    filter/workspace_invitation_metrics:
+        error_mode: ignore
+        traces:
+            span:
+                - >-
+                    span.attributes["baserow.metric.observation"]
+                    != "workspace_invitation_created"
+                - 'span.attributes["user.id"] == nil'
     # Feed meaningful database and Redis observations into low-cardinality dependency
     # metrics before trace sampling and baseline compaction.
     filter/dependency_metrics:
@@ -195,6 +213,26 @@ connectors:
             - service.name
             - deployment.environment.name
             - k8s.namespace.name
+    # Purpose-built per-user action counter. The observation span is discarded from
+    # traces and the histogram is disabled, so this connector emits only the bounded
+    # `baserow.workspace.invitation.created.calls` counter.
+    span_metrics/workspace_invitations:
+        namespace: baserow.workspace.invitation.created
+        histogram:
+            disable: true
+        dimensions:
+            - name: user.id
+        exclude_dimensions:
+            [span.name, span.kind, status.code, otel.status_code]
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+        aggregation_cardinality_limit: ${env:BASEROW_OTEL_USER_METRICS_CARDINALITY_LIMIT:-50000}
+        metric_timestamp_cache_size: ${env:BASEROW_OTEL_USER_METRICS_CARDINALITY_LIMIT:-50000}
+        metrics_flush_interval: ${env:BASEROW_OTEL_USER_METRICS_FLUSH_INTERVAL:-60s}
+        series_expiration: ${env:BASEROW_OTEL_USER_METRICS_SERIES_EXPIRATION:-5m}
+        resource_metrics_key_attributes:
+            - service.name
+            - deployment.environment.name
+            - k8s.namespace.name
     # Exact, low-cardinality database/Redis call counts and duration distributions. The
     # histogram is generated before sampling after idle-poll filtering; raw statements,
     # table IDs, users, and span names are intentionally excluded.
@@ -256,6 +294,7 @@ service:
                     filter,
                     filter/2,
                     filter/redis_idle_polling,
+                    filter/metric_observations,
                     tail_sampling,
                     filter/fast_db_spans,
                     batch,
@@ -265,6 +304,10 @@ service:
             receivers: [otlp]
             processors: [memory_limiter, filter/user_request_metrics]
             exporters: [span_metrics/user_requests]
+        traces/workspace_invitation_metrics:
+            receivers: [otlp]
+            processors: [memory_limiter, filter/workspace_invitation_metrics]
+            exporters: [span_metrics/workspace_invitations]
         traces/dependency_metrics:
             receivers: [otlp]
             processors:
@@ -276,7 +319,12 @@ service:
             exporters: [span_metrics/dependencies]
         metrics:
             receivers:
-                [otlp, span_metrics/user_requests, span_metrics/dependencies]
+                [
+                    otlp,
+                    span_metrics/user_requests,
+                    span_metrics/workspace_invitations,
+                    span_metrics/dependencies,
+                ]
             processors:
                 [memory_limiter, filter/redundant_span_metric_calls, batch]
             exporters: [otlp_http/metrics]

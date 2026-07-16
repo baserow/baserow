@@ -132,6 +132,8 @@ WorkspaceForUpdate = NewType("WorkspaceForUpdate", Workspace)
 
 tracer = trace.get_tracer(__name__)
 
+WORKSPACE_INVITATION_CREATED_METRIC_OBSERVATION = "workspace_invitation_created"
+
 
 @dataclass
 class ApplicationUpdatedResult:
@@ -1184,6 +1186,19 @@ class CoreHandler:
         )
 
         self.send_workspace_invitation_email(invitation, base_url)
+
+        # Emit a sampling-independent metric observation without retaining another
+        # application span in the trace. The Collector turns this short-lived span
+        # into a cardinality-bounded per-user counter and then discards the span.
+        tracer.start_span(
+            "WorkspaceInvitation.created",
+            attributes={
+                "baserow.metric.observation": (
+                    WORKSPACE_INVITATION_CREATED_METRIC_OBSERVATION
+                ),
+                "user.id": user.id,
+            },
+        ).end()
 
         return invitation
 

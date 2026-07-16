@@ -304,6 +304,11 @@ request dimension; endpoint analytics continue to use
 `http.server.request.duration`. Keep the two families separate so user cardinality is
 not multiplied by route, method, and status.
 
+Successful workspace invitation creation and resend operations emit a short-lived
+metric observation span. The Collector converts it into the bounded
+`baserow.workspace.invitation.created.calls` counter, dimensioned only by `user.id`,
+then removes the observation span from retained traces.
+
 Completed Celery tasks emit `baserow.celery.task.duration` with bounded `task_name`,
 `queue`, and `state` dimensions. Use its histogram count and distribution for sampling-independent
 task volume and latency boards instead of counting sampled task traces.
