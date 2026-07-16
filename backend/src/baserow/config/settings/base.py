@@ -1253,6 +1253,20 @@ BASEROW_BACKEND_LOG_LEVEL = os.getenv("BASEROW_BACKEND_LOG_LEVEL", "INFO")
 BASEROW_BACKEND_DATABASE_LOG_LEVEL = os.getenv(
     "BASEROW_BACKEND_DATABASE_LOG_LEVEL", "ERROR"
 )
+BASEROW_OTEL_LOG_LEVEL = os.getenv("BASEROW_OTEL_LOG_LEVEL") or "WARNING"
+BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS = float(
+    os.getenv("BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS") or 10
+)
+BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS = float(
+    os.getenv("BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS") or 10
+)
+BASEROW_OTEL_SLOW_CELERY_TASK_EXCLUDED_QUEUES = frozenset(
+    queue.strip()
+    for queue in os.getenv(
+        "BASEROW_OTEL_SLOW_CELERY_TASK_EXCLUDED_QUEUES", "export"
+    ).split(",")
+    if queue.strip()
+)
 
 BASEROW_JOB_EXPIRATION_TIME_LIMIT = int(
     os.getenv("BASEROW_JOB_EXPIRATION_TIME_LIMIT", 30 * 24 * 60)  # 30 days
@@ -1450,6 +1464,8 @@ for plugin in [*BASEROW_BUILT_IN_PLUGINS, *BASEROW_BACKEND_PLUGIN_NAMES]:
 # memory footprint at startup. If any of these are found in sys.modules during startup,
 # a warning will be shown suggesting to either lazy-load them or remove them from this
 # list if they're legitimately needed at startup.
+# `mcp` is intentionally not included. Enterprise assistant tool types require
+# pydantic-ai during app registration, and pydantic-ai imports its MCP capability.
 BASEROW_LAZY_LOADED_LIBRARIES = [
     "openai",
     "anthropic",
@@ -1472,10 +1488,8 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-    from baserow.core.sentry import (
-        ConsoleSentryTransport,
-        drop_expected_asyncio_websocket_disconnect_events,
-    )
+    from baserow.core.sentry import drop_expected_asyncio_websocket_disconnect_events
+    from baserow.core.sentry_transport import ConsoleSentryTransport
 
     # Exclude integrations whose module-level imports are incompatible:
     # - pydantic_ai: sentry-sdk patches ToolManager._call_tool which was

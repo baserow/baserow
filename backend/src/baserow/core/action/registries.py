@@ -17,7 +17,11 @@ from baserow.api.sessions import (
 )
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
-from baserow.core.telemetry.utils import add_baserow_trace_attrs, baserow_trace_methods
+from baserow.core.telemetry.utils import (
+    BaserowTraceMeta,
+    add_baserow_trace_attrs,
+    baserow_trace,
+)
 
 from .models import Action
 from .signals import ActionCommandType, action_done
@@ -150,7 +154,7 @@ def render_action_type_description(
 
 class ActionType(
     Instance,
-    metaclass=baserow_trace_methods(tracer, only=["do", "undo", "redo"], abc=True),
+    metaclass=BaserowTraceMeta,
 ):
     type: str = NotImplemented
     description: ActionTypeDescription = ActionTypeDescription()
@@ -169,6 +173,7 @@ class ActionType(
         pass
 
     @classmethod
+    @baserow_trace(tracer)
     @abc.abstractmethod
     def do(cls, *args, **kwargs) -> Any:
         """
@@ -294,6 +299,7 @@ class ActionType(
 
 class UndoableActionTypeMixin:
     @classmethod
+    @baserow_trace(tracer)
     @abc.abstractmethod
     def undo(cls, user: AbstractUser, params: Any, action_being_undone: Action):
         """
@@ -309,6 +315,7 @@ class UndoableActionTypeMixin:
         pass
 
     @classmethod
+    @baserow_trace(tracer)
     @abc.abstractmethod
     def redo(cls, user: AbstractUser, params: Any, action_being_redone: Action):
         """

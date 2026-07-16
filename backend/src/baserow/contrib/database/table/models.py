@@ -937,7 +937,6 @@ class Table(
     def get_database_table_name(self):
         return f"{USER_TABLE_DATABASE_NAME_PREFIX}{self.id}"
 
-    @baserow_trace(tracer)
     def get_model(self, **kwargs):
         """
         Get model from local cache if the kwargs are the default values.
@@ -950,6 +949,7 @@ class Table(
             )
         return self._get_model(**kwargs)
 
+    @baserow_trace(tracer, allow_nested=True)
     def _get_model(
         self,
         fields=None,
@@ -1198,7 +1198,6 @@ class Table(
         field_attrs[FieldRuleHandler.STATE_COLUMN_NAME] = column
         return field_attrs
 
-    @baserow_trace(tracer)
     def _after_model_generation(self, attrs, model):
         # In some situations the field can only be added once the model class has been
         # generated. So for each field we will call the after_model_generation with
@@ -1214,7 +1213,6 @@ class Table(
                 field_object["field"], model, field_object["name"]
             )
 
-    @baserow_trace(tracer)
     def _fetch_and_generate_field_attrs(
         self,
         add_dependencies,

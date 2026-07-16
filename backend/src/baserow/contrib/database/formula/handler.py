@@ -3,8 +3,6 @@ from typing import Dict, Optional, Set, Tuple, Type
 
 from django.db.models import Expression, Model
 
-from opentelemetry import trace
-
 from baserow.contrib.database.fields.dependencies.types import FieldDependencies
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.formula.ast.function import CollapseManyBaserowFunction
@@ -44,13 +42,9 @@ from baserow.contrib.database.formula.types.visitors import (
 )
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
-from baserow.core.telemetry.utils import baserow_trace_methods
 
 if typing.TYPE_CHECKING:
     from baserow.contrib.database.fields.models import FormulaField
-
-
-tracer = trace.get_tracer(__name__)
 
 
 def _needs_periodic_update(expression: BaserowExpression):
@@ -96,7 +90,7 @@ def _has_lookup_expressions(expression):
     )
 
 
-class FormulaHandler(metaclass=baserow_trace_methods(tracer)):
+class FormulaHandler:
     """
     Contains all the methods used to interact with formulas and formula fields in
     Baserow.

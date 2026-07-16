@@ -15,7 +15,7 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import BaserowTraceMeta, baserow_trace
 from baserow.core.utils import Progress
 
 from .exceptions import (
@@ -34,7 +34,7 @@ class JobType(
     ModelInstanceMixin,
     MapAPIExceptionsInstanceMixin,
     Instance,
-    metaclass=baserow_trace_methods(tracer, only="do"),
+    metaclass=BaserowTraceMeta,
 ):
     """
     This abstract class represents a custom job type that can be added to the
@@ -134,6 +134,7 @@ class JobType(
         :param values: The provided values.
         """
 
+    @baserow_trace(tracer)
     def run(self, job: AnyJob, progress: Progress) -> Any:
         """
         This method is the task of this job type that will be executed asynchronously.

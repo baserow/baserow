@@ -85,7 +85,7 @@ from baserow.core.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.psycopg import is_index_row_size_error, is_unique_violation_error, sql
 from baserow.core.registries import OperationType
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
 from baserow.core.types import PermissionCheck
@@ -243,7 +243,7 @@ class RowM2MChangeTracker:
         }
 
 
-class RowHandler(metaclass=baserow_trace_methods(tracer)):
+class RowHandler:
     def _should_use_full_field_search_update_for_import(
         self,
         changed_rows: int,
@@ -2034,6 +2034,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return all_updated_rows, report
 
+    @baserow_trace(tracer)
     def import_rows(
         self,
         user: AbstractUser,
@@ -3456,6 +3457,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             user, "rows", trashed_rows_entry_id, parent_trash_item_id=table.id
         )
 
+    @baserow_trace(tracer)
     def recalculate_row_orders(self, table: Table, model: GeneratedTableModel = None):
         """
         Recalculates the order to whole numbers of all rows based on the existing

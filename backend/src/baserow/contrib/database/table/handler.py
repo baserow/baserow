@@ -9,8 +9,6 @@ from django.db.models.functions import Coalesce, Now
 from django.utils import translation
 from django.utils.translation import gettext as _
 
-from opentelemetry import trace
-
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.constants import RESERVED_BASEROW_FIELD_NAMES
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
@@ -39,7 +37,6 @@ from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig, application_type_registry
-from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.usage.registries import USAGE_UNIT_MB
 from baserow.core.user_files.models import UserFile
@@ -69,8 +66,6 @@ from .signals import table_created, table_deleted, table_updated, tables_reorder
 BATCH_SIZE = 1024
 
 TableForUpdate = NewType("TableForUpdate", Table)
-
-tracer = trace.get_tracer(__name__)
 
 
 class TableUsageHandler:
@@ -243,7 +238,7 @@ class TableUsageHandler:
         return total_tables_counted
 
 
-class TableHandler(metaclass=baserow_trace_methods(tracer)):
+class TableHandler:
     @classmethod
     def get_tables(
         cls, base_queryset: Optional[QuerySet[Table]] = None

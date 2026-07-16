@@ -40,7 +40,6 @@ from django.utils.encoding import force_str
 
 from django_cte import With
 from loguru import logger
-from opentelemetry import trace
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.field_filters import FILTER_TYPE_OR, FilterBuilder
@@ -59,13 +58,10 @@ from baserow.contrib.database.search.regexes import (
 from baserow.contrib.database.search.tasks import schedule_update_search_data
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.core.psycopg import errors
-from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.utils import to_camel_case
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import Table
-
-tracer = trace.get_tracer(__name__)
 
 
 class SearchMode(str, Enum):
@@ -178,11 +174,7 @@ class SearchDatabaseSchemaEditor(BaseDatabaseSchemaEditor):
     sql_delete_table = "DROP TABLE IF EXISTS %(table)s CASCADE"
 
 
-class SearchHandler(
-    metaclass=baserow_trace_methods(
-        tracer, exclude=["full_text_enabled", "search_config"]
-    )
-):
+class SearchHandler:
     @classmethod
     def get_workspace_search_table_name(cls, workspace_id: int) -> str:
         """

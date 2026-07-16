@@ -51,7 +51,7 @@ from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import generate_hash, get_baserow_saas_base_url
 from baserow.throttling.handler import rate_limit
 
-from ..telemetry.utils import baserow_trace_methods
+from ..telemetry.utils import baserow_trace
 from .emails import (
     AccountDeleted,
     AccountDeletionCanceled,
@@ -87,7 +87,7 @@ tracer = trace.get_tracer(__name__)
 LAST_LOGIN_UPDATE_DELAY = timedelta(minutes=1)
 
 
-class UserHandler(metaclass=baserow_trace_methods(tracer)):
+class UserHandler:
     def get_active_user(
         self,
         user_id: Optional[int] = None,
@@ -716,6 +716,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         for plugin in plugin_registry.registry.values():
             plugin.user_signed_in(user)
 
+    @baserow_trace(tracer)
     def delete_user_log_entries_older_than(self, cutoff: datetime):
         """
         Deletes all UserLogEntry entries that are older than the given cutoff date.
@@ -783,6 +784,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
 
         user_restored.send(self, performed_by=user, user=user)
 
+    @baserow_trace(tracer)
     def delete_expired_users_and_related_workspaces_if_last_admin(
         self, grace_delay: Optional[timedelta] = None
     ):
@@ -1044,6 +1046,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
             how=how,
         )
 
+    @baserow_trace(tracer)
     def share_onboarding_details_with_baserow(
         self, email, team, role, size, country, how
     ):

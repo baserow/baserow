@@ -54,6 +54,9 @@ Baserow by following one the guides below:
   the supported and recommended runtime dependencies.
 * [Monitoring Baserow](installation/monitoring.md): Learn how to monitor your Baserow
   server using open telemetry.
+* [Build OpenTelemetry boards and queries](installation/otel-boards-and-queries.md):
+  Configure request, endpoint, and per-user metrics boards and investigate retained
+  traces.
 * [Setup AI-assistant](installation/ai-assistant.md): A quick guide on how to setup the
   AI-assistant.
 

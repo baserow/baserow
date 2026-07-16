@@ -1,20 +1,36 @@
 import logging
+import os
 import sys
+from time import monotonic_ns
 
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 
 from celery import signals
 from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
+from opentelemetry.instrumentation.utils import suppress_instrumentation
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-from opentelemetry.trace import Span
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.trace import Span, Status, StatusCode
 
 from baserow.core.psycopg import is_psycopg3
-from baserow.core.telemetry.provider import DifferentSamplerPerLibraryTracerProvider
-from baserow.core.telemetry.utils import BatchBaggageSpanProcessor, otel_is_enabled
+from baserow.core.telemetry.sampling import (
+    OTEL_FORCE_FULL_TRACE_ATTRIBUTE,
+    OTEL_FORCE_FULL_TRACE_QUERY_PARAMETER,
+    ForceFullTraceSampler,
+)
+from baserow.core.telemetry.utils import (
+    BatchBaggageSpanProcessor,
+    baserow_trace_entrypoint,
+    otel_is_enabled,
+)
 from baserow.core.utils import get_user_remote_ip_address_from_request
 
 OTEL_CLIENT_IP_ATTRIBUTE_NAMES = ("client.address", "net.peer.ip")
+OTEL_REQUEST_STARTED_AT_ATTRIBUTE = "_baserow_otel_request_started_at"
+OTEL_REQUEST_DURATION_ATTRIBUTE = "baserow.http.request.duration_ms"
+OTEL_SLOW_REQUEST_ATTRIBUTE = "baserow.http.request.slow"
+_django_lifecycle_instrumented = False
 
 
 class LogGuruCompatibleLoggerHandler(LoggingHandler):
@@ -93,7 +109,7 @@ def setup_telemetry(add_django_instrumentation: bool):
         if not isinstance(existing_provider, ProxyTracerProvider):
             print("Provider already configured not reconfiguring...")
         else:
-            provider = DifferentSamplerPerLibraryTracerProvider()
+            provider = _create_tracer_provider()
             processor = BatchBaggageSpanProcessor(OTLPSpanExporter())
             provider.add_span_processor(processor)
             trace.set_tracer_provider(provider)
@@ -127,11 +143,11 @@ def _setup_log_exporting(logger):
     set_logger_provider(logger_provider)
     exporter = OTLPLogExporter()
     handler = LogGuruCompatibleLoggerHandler(
-        level=settings.BASEROW_BACKEND_LOG_LEVEL,
+        level=settings.BASEROW_OTEL_LOG_LEVEL,
         logger_provider=logger_provider,
     )
     logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
-    logger.add(handler, format="{message}", level=settings.BASEROW_BACKEND_LOG_LEVEL)
+    logger.add(handler, format="{message}", level=settings.BASEROW_OTEL_LOG_LEVEL)
     logger.info("Logger open telemetry exporting setup.")
 
 
@@ -152,7 +168,6 @@ def _setup_celery_metrics():
 
 def _setup_standard_backend_instrumentation():
     from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
-    from opentelemetry.instrumentation.celery import CeleryInstrumentor
     from opentelemetry.instrumentation.redis import RedisInstrumentor
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
@@ -163,22 +178,151 @@ def _setup_standard_backend_instrumentation():
             Psycopg2Instrumentor as PsycopgInstrumentor,
         )
 
+    from baserow.core.telemetry.celery import BaserowCeleryInstrumentor
+
     BotocoreInstrumentor().instrument()
     PsycopgInstrumentor().instrument()
     RequestsInstrumentor().instrument()
-    CeleryInstrumentor().instrument()
+    BaserowCeleryInstrumentor().instrument()
     RedisInstrumentor().instrument()
 
 
 def _setup_django_process_instrumentation():
     from opentelemetry.instrumentation.django import DjangoInstrumentor
 
-    DjangoInstrumentor().instrument(request_hook=_set_real_client_ip_on_request_span)
+    DjangoInstrumentor().instrument(
+        request_hook=_prepare_request_span,
+        response_hook=_finish_request_span,
+        excluded_urls=_django_excluded_urls(),
+    )
 
 
-def _set_real_client_ip_on_request_span(span: Span, request: HttpRequest):
+def _create_drf_view_dispatch_wrapper(tracer):
+    def trace_drf_view_dispatch(wrapped, instance, args, kwargs):
+        request = args[0] if args else kwargs["request"]
+        method_name = str(getattr(request, "method", "unknown")).lower()
+        view_class = type(instance)
+        view_name = view_class.__name__
+
+        with baserow_trace_entrypoint(tracer, f"{view_name}.{method_name}") as span:
+            if span is not None and span.is_recording():
+                span.set_attribute("baserow.api.view", view_name)
+                span.set_attribute("baserow.api.view_module", view_class.__module__)
+                span.set_attribute("baserow.api.method", method_name)
+
+            response = wrapped(*args, **kwargs)
+            if (
+                span is not None
+                and span.is_recording()
+                and getattr(response, "status_code", 0) >= 500
+            ):
+                span.set_status(Status(StatusCode.ERROR))
+            return response
+
+    return trace_drf_view_dispatch
+
+
+def _create_drf_response_render_wrapper(tracer):
+    def trace_drf_response_render(wrapped, instance, args, kwargs):
+        with tracer.start_as_current_span("DRFResponse.render") as span:
+            renderer = getattr(instance, "accepted_renderer", None)
+            if span.is_recording() and renderer is not None:
+                span.set_attribute("baserow.response.renderer", type(renderer).__name__)
+            return wrapped(*args, **kwargs)
+
+    return trace_drf_response_render
+
+
+def _create_silk_response_processing_wrapper(tracer):
+    def trace_silk_response_processing(wrapped, instance, args, kwargs):
+        with tracer.start_as_current_span("Silk.persist_profile"):
+            # The profiler's own database writes are implementation details. Retain
+            # one timing span without producing dependency spans for every write.
+            with suppress_instrumentation():
+                return wrapped(*args, **kwargs)
+
+    return trace_silk_response_processing
+
+
+def setup_django_lifecycle_instrumentation():
+    """Trace selected high-value phases after Django has initialized."""
+
+    global _django_lifecycle_instrumented
+    if _django_lifecycle_instrumented or not otel_is_enabled():
+        return
+
+    from django.conf import settings
+
+    from wrapt import wrap_function_wrapper
+
+    tracer = trace.get_tracer("baserow.api.views")
+    wrap_function_wrapper(
+        "rest_framework.views",
+        "APIView.dispatch",
+        _create_drf_view_dispatch_wrapper(tracer),
+    )
+    wrap_function_wrapper(
+        "rest_framework.response",
+        "Response.render",
+        _create_drf_response_render_wrapper(tracer),
+    )
+
+    if "silk.middleware.SilkyMiddleware" in settings.MIDDLEWARE:
+        wrap_function_wrapper(
+            "silk.middleware",
+            "SilkyMiddleware.process_response",
+            _create_silk_response_processing_wrapper(tracer),
+        )
+
+    _django_lifecycle_instrumented = True
+
+
+def _django_excluded_urls() -> str:
+    """
+    Health checks produce no diagnostic value as traces, so they are always
+    excluded on top of any operator-provided exclusions.
+    """
+
+    operator_excluded = os.environ.get("OTEL_PYTHON_DJANGO_EXCLUDED_URLS", "")
+    return f"{operator_excluded},_health" if operator_excluded else "_health"
+
+
+def _create_tracer_provider() -> TracerProvider:
+    """
+    Create one trace-wide sampler for every instrumentation scope.
+
+    OpenTelemetry sampling decisions must be consistent across a trace. Using a
+    different sampler for Django, database, Redis, or application spans produces
+    root-only or otherwise fragmented traces.
+    """
+
+    provider = TracerProvider()
+    provider.sampler = ForceFullTraceSampler(provider.sampler)
+    return provider
+
+
+def _prepare_request_span(span: Span, request: HttpRequest):
     if span and span.is_recording():
+        setattr(request, OTEL_REQUEST_STARTED_AT_ATTRIBUTE, monotonic_ns())
+        if request.GET.get(OTEL_FORCE_FULL_TRACE_QUERY_PARAMETER) == "true":
+            span.set_attribute(OTEL_FORCE_FULL_TRACE_ATTRIBUTE, True)
         ip_address = get_user_remote_ip_address_from_request(request)
         if ip_address:
             for attribute_name in OTEL_CLIENT_IP_ATTRIBUTE_NAMES:
                 span.set_attribute(attribute_name, ip_address)
+
+
+def _finish_request_span(span: Span, request: HttpRequest, response: HttpResponse):
+    from django.conf import settings
+
+    if not span or not span.is_recording():
+        return
+
+    started_at = getattr(request, OTEL_REQUEST_STARTED_AT_ATTRIBUTE, None)
+    if started_at is None:
+        return
+
+    duration_ms = (monotonic_ns() - started_at) / 1_000_000
+    span.set_attribute(OTEL_REQUEST_DURATION_ATTRIBUTE, duration_ms)
+    if duration_ms >= settings.BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS * 1000:
+        span.set_attribute(OTEL_SLOW_REQUEST_ATTRIBUTE, True)

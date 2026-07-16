@@ -57,7 +57,7 @@ from baserow.core.storage import (
     _create_storage_dir_if_missing_and_open,
     get_default_storage,
 )
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
@@ -78,7 +78,7 @@ SIGNATURE_NAME = "manifest_signature.json"
 INDENT = settings.DEBUG and 4 or None
 
 
-class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
+class ImportExportHandler:
     def get_workspace_or_raise(self, user: AbstractUser, workspace_id: int):
         """
         Retrieves a workspace by its ID and checks if the user has read permissions.
@@ -1219,6 +1219,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         resource.marked_for_deletion = True
         resource.save()
 
+    @baserow_trace(tracer)
     def permanently_delete_trashed_resources(self):
         """
         Deletes all resources that are marked for deletion. This function ensure no

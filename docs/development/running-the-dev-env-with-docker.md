@@ -63,7 +63,7 @@ The Docker dev environment runs these services:
 | `caddy` | Reverse proxy for media files | 4000 |
 | `mailhog` | Email testing UI | 8025 |
 | `mjml-email-compiler` | MJML to HTML email compiler | 28101 |
-| `otel-collector` | OpenTelemetry metrics | 4317 |
+| `otel-collector` | OpenTelemetry OTLP/HTTP telemetry | 4318 |
 | `volume-permissions-fixer` | Fixes media file permissions on startup | - |
 | `web-frontend-storybook` | Component development UI | 6006 |
 | `celery-flower` | Celery task monitoring | 5555 |

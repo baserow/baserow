@@ -108,7 +108,7 @@ from .signals import (
     workspaces_reordered,
 )
 from .storage import get_default_storage
-from .telemetry.utils import baserow_trace_methods, disable_instrumentation
+from .telemetry.utils import baserow_trace, disable_instrumentation
 from .trash.handler import TrashHandler
 from .types import (
     Actor,
@@ -140,7 +140,7 @@ class ApplicationUpdatedResult:
     updated_app_allowed_values: Dict[str, Any]
 
 
-class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context")):
+class CoreHandler:
     default_create_allowed_fields = ["name", "init_with_data"]
     default_update_allowed_fields = ["name"]
 
@@ -216,6 +216,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         settings_instance.save()
         return settings_instance
 
+    @baserow_trace(tracer, allow_nested=True)
     def check_multiple_permissions(
         self,
         checks: List[PermissionCheck],
@@ -308,6 +309,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         return result
 
+    @baserow_trace(tracer, allow_nested=True)
     def check_permission_for_multiple_actors(
         self,
         actors: List[Actor],
@@ -338,6 +340,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         return [actor for (actor, _, _), result in checked.items() if result is True]
 
+    @baserow_trace(tracer, allow_nested=True)
     def check_permissions(
         self,
         actor: Actor,
@@ -426,6 +429,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
                 f"{operation_name}."
             )
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_permissions(
         self, actor: Actor, workspace: Optional[Workspace] = None
     ) -> List[PermissionObjectResult]:
@@ -483,6 +487,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         return result
 
+    @baserow_trace(tracer, allow_nested=True)
     def filter_queryset(
         self,
         actor: Actor,

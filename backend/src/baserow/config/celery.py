@@ -1,5 +1,3 @@
-from django.conf import settings
-
 from celery import Celery, signals
 
 from baserow.config.helpers import check_lazy_loaded_libraries
@@ -55,9 +53,6 @@ signals.task_postrun.connect(close_old_db_connections)
 
 @signals.worker_process_init.connect
 def on_worker_init(**kwargs):
-    # This is only needed in asgi.py
-    settings.BASEROW_LAZY_LOADED_LIBRARIES.append("mcp")
-
     # Check that libraries meant to be lazy-loaded haven't been imported at startup.
     # This runs after Django is fully loaded, so it catches imports from all apps.
     check_lazy_loaded_libraries()

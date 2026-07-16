@@ -27,7 +27,9 @@ services:
       - BASEROW_BACKEND_DEBUGGER_ENABLED
       - BASEROW_BACKEND_DEBUGGER_PORT=${BASEROW_BACKEND_DEBUGGER_PORT:-5678}
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
+      - BASEROW_ENABLE_SILK
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL}
     build:
       dockerfile: ./backend/Dockerfile
@@ -123,6 +125,7 @@ services:
     command: "watch-py celery-worker"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
     volumes:
       - ./docs:/baserow/docs
@@ -142,6 +145,7 @@ services:
     command: "watch-py celery-exportworker"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
     volumes:
       - ./docs:/baserow/docs
@@ -161,6 +165,7 @@ services:
     command: "watch-py celery-beat"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_TRACES_SAMPLER=always_on
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
@@ -245,11 +250,17 @@ services:
       local:
 
   otel-collector:
-    image: otel/opentelemetry-collector:0.106.1
-    command: ["--config=/etc/otel-collector-config.yaml"]
+    image: otel/opentelemetry-collector-contrib:0.153.0
+    command:
+      - "--config=/etc/otel-collector-config.yaml"
+      - "--feature-gates=processor.tailsamplingprocessor.recordpolicy"
     environment:
       HONEYCOMB_API_KEY:
       HONEYCOMB_METRICS_DATASET: baserow-dev-metrics
+      BASEROW_OTEL_TAIL_SAMPLING_MAX_SPANS_PER_SECOND: ${BASEROW_OTEL_TAIL_SAMPLING_MAX_SPANS_PER_SECOND:-250}
+      BASEROW_OTEL_USER_METRICS_CARDINALITY_LIMIT: ${BASEROW_OTEL_USER_METRICS_CARDINALITY_LIMIT:-50000}
+      BASEROW_OTEL_USER_METRICS_FLUSH_INTERVAL: ${BASEROW_OTEL_USER_METRICS_FLUSH_INTERVAL:-60s}
+      BASEROW_OTEL_USER_METRICS_SERIES_EXPIRATION: ${BASEROW_OTEL_USER_METRICS_SERIES_EXPIRATION:-5m}
     volumes:
       - $PWD/deploy/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     networks:
