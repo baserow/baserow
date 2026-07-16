@@ -61,22 +61,18 @@ class dummy_context:
 
 class BaserowASGIHandler(ASGIHandler):
     """
-    Django's `ASGIHandler.handle` keeps every request's response, rendered content, and
-    serialized rows in memory long after the response has been sent. Its disconnect
-    watcher raises `RequestAborted`, and when `handle` calls `task.result()` the
-    re-raise grafts the `handle` frame onto the exception's traceback. The exception
-    stays stored on the completed task, the task sits in the `tasks` list in that same
-    frame's locals, so exception -> traceback -> frame -> tasks -> task -> exception
-    forms a reference cycle that pins the frame's `request` and `response` locals until
-    a full cyclic garbage collection pass happens to run.
+    Django's disconnect watcher raises `RequestAborted`, whose traceback ends up in a
+    reference cycle with the `handle` frame that pins the request and response in
+    memory until a full garbage collection pass. On Django 5.2 completing the watcher
+    normally is behavior-identical (`handle` ignores the result and cancels the
+    in-flight request via `asyncio.wait`), and no cycle is created.
 
-    On Django, `handle` treats a disconnect watcher that completed normally exactly the
-    same as one that raised `RequestAborted` (the exception is caught and ignored, and
-    `process_request` is cancelled purely based on `asyncio.wait(FIRST_COMPLETED)`), so
-    returning instead of raising is behavior-identical and never creates the exception,
-    the traceback, or the cycle. Combined with `BaserowJSONRenderer`, this makes the
-    whole per-request object graph reference-count collectable as soon as the response
-    has been sent.
+    Streaming responses are not covered: on mid-stream disconnect an iterator that
+    references the view can still keep the response in a cycle.
+
+    TODO: re-evaluate before Django >= 6.1, where only a raising watcher aborts the
+    in-flight request. `test_handle_cancels_in_flight_request_on_disconnect` fails
+    loudly in that case.
     """
 
     async def listen_for_disconnect(self, receive):

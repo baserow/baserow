@@ -1,12 +1,37 @@
+from typing import Any, Iterator
+
 from rest_framework.renderers import JSONRenderer
+from rest_framework.serializers import BaseSerializer
 
 
-def _release_serializer_references(serializer):
+def _iter_serializer_outputs(data: Any) -> Iterator[BaseSerializer]:
+    """
+    Yields the serializer of every `ReturnList`/`ReturnDict` anywhere in the response
+    data tree. Serializer outputs can sit at the top level, inside plain lists (e.g.
+    the job and application APIs), or in deeper mappings (e.g. the kanban and calendar
+    grouped-row responses).
+    """
+
+    stack = [data]
+    seen = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, (dict, list, tuple)) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        serializer = getattr(node, "serializer", None)
+        if serializer is not None:
+            yield serializer
+        stack.extend(node.values() if isinstance(node, dict) else node)
+
+
+def _release_serializer_references(serializer: BaseSerializer) -> None:
     """
     Severs the references a DRF serializer graph keeps to the serialized payload. The
     serializer skeleton itself stays cyclic (that is inherent to DRF and small), but
-    `instance`, `_args`, `_kwargs`, and `_data` pin the fetched model instances and the
-    serialized output, which is where the actual memory sits.
+    `instance`, `_args`, `_kwargs`, `_data`, and `_context` pin the fetched model
+    instances, the serialized output, the request, and arbitrary context payloads,
+    which is where the actual memory sits.
     """
 
     current = serializer
@@ -21,8 +46,9 @@ def _release_serializer_references(serializer):
                 instance_dict[attribute] = None
         if "_args" in instance_dict:
             instance_dict["_args"] = ()
-        if "_kwargs" in instance_dict:
-            instance_dict["_kwargs"] = {}
+        for attribute in ("_kwargs", "_context"):
+            if attribute in instance_dict:
+                instance_dict[attribute] = {}
         current = instance_dict.get("child")
 
 
@@ -50,41 +76,34 @@ class BaserowJSONRenderer(JSONRenderer):
     a memory leak.
 
     The `serializer` backreference and the renderer context exist purely so that
-    renderers, in practice only the browsable API's `HTMLFormRenderer`, can inspect
-    them while rendering. The JSON renderer is the last consumer of both, so after
-    producing the bytes it can sever these references. That makes the whole payload
-    reference-count collectable the moment the handler drops the response, leaving only
-    the small serializer/view skeleton for the regular garbage collector.
-
-    A `JSONRenderer` that, after rendering, breaks the DRF reference cycles described
-    in this module's docstring so the per-request payload is freed by reference
-    counting instead of lingering as cyclic garbage. The browsable API and any other
-    renderer are unaffected because they use their own renderer classes.
+    renderers can inspect them while rendering. When this renderer produces the final
+    response it is their last consumer, so after producing the bytes it severs these
+    references, making the payload reference-count collectable the moment the handler
+    drops the response. The cleanup is skipped when another renderer (e.g. the
+    browsable API) delegates to this render and still needs the context afterwards.
     """
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
         rendered = super().render(data, accepted_media_type, renderer_context)
 
-        # The serializer output is either the data itself or, for paginated and
-        # composite responses, one of the top level values (e.g. under `results`).
-        candidates = [data]
-        if isinstance(data, dict):
-            candidates += list(data.values())
-        for candidate in candidates:
-            serializer = getattr(candidate, "serializer", None)
-            if serializer is not None:
-                _release_serializer_references(serializer)
+        response = (
+            renderer_context.get("response")
+            if isinstance(renderer_context, dict)
+            else None
+        )
+        if response is None or getattr(response, "accepted_renderer", None) is not self:
+            return rendered
 
-        if isinstance(renderer_context, dict):
-            view = renderer_context.get("view")
-            if view is not None:
-                view.response = None
-                view.request = None
-                view.args = ()
-                view.kwargs = {}
-            response = renderer_context.get("response")
-            renderer_context.clear()
-            if response is not None:
-                response.renderer_context = None
+        for serializer in _iter_serializer_outputs(data):
+            _release_serializer_references(serializer)
+
+        view = renderer_context.get("view")
+        if view is not None:
+            view.response = None
+            view.request = None
+            view.args = ()
+            view.kwargs = {}
+        renderer_context.clear()
+        response.renderer_context = None
 
         return rendered
