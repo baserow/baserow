@@ -94,9 +94,12 @@ def update_application_user_over_limit_state(
 def notify_workspaces_approaching_application_user_limit() -> None:
     """
     Loops over every workspace that has at least one user source and notifies its
-    members when it reaches a warning threshold or its application user limit. This is
-    meant to be called after the application user counts have been refreshed so that
-    application users added directly (e.g. as table rows) are also taken into account.
+    members when it reaches a warning threshold or its application user limit. On
+    self-hosted this is driven by the periodic license check via
+    `LicenseType.handle_application_user_usage`, on SaaS by its own periodic task.
+    Both read the user source counts that are periodically refreshed by
+    `count_all_user_source_users`, so that application users added directly (e.g.
+    as table rows) are also taken into account.
     """
 
     workspace_ids = (
@@ -131,8 +134,8 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
 
     workspace = user_source.application.workspace
 
-    # The periodic user source count stamps the moment a workspace goes over its
-    # limit. Only refuse logins when that happened longer than the grace period
+    # The periodic application user limit check stamps the moment a workspace goes
+    # over its limit. Only refuse logins when that happened longer than the grace period
     # ago, so the workspace has time to upgrade or reduce its usage first. This is
     # a single cheap query on the login path.
     grace_period_cutoff = now() - timedelta(

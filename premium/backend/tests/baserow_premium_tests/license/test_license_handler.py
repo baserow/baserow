@@ -15,6 +15,7 @@ from rest_framework.status import HTTP_200_OK
 
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import IsNotAdminError
+from baserow.core.registries import plugin_registry
 from baserow_premium.license.exceptions import (
     FeaturesNotAvailableError,
     InvalidLicenseError,
@@ -28,7 +29,10 @@ from baserow_premium.license.exceptions import (
 )
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.license.license_types import PremiumLicenseType
 from baserow_premium.license.models import License, LicenseUser
+from baserow_premium.license.plugin import LicensePlugin
+from baserow_premium.plugins import PremiumPlugin
 
 VALID_ONE_SEAT_LICENSE = (
     # id: "1", instance_id: "1"
@@ -554,6 +558,30 @@ def test_check_licenses_without_authority_check(premium_data_fixture):
         assert License.objects.all().count() == 1
         assert license_object.users.all().count() == 2
         assert license_object.last_check.year == 2021
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch(
+    "baserow_premium.license.registries.ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_check_licenses_calls_the_application_user_usage_hook(
+    mock_aggregate_user_source_counts, premium_data_fixture
+):
+    mock_aggregate_user_source_counts.return_value = 5
+    license_object = premium_data_fixture.create_premium_license(
+        license=VALID_PREMIUM_TEN_SEAT_TEN_APP_USER_LICENSE.decode()
+    )
+
+    with patch.object(
+        PremiumLicenseType, "handle_application_user_usage"
+    ) as mock_handle_usage:
+        LicenseHandler.check_licenses([license_object])
+
+    # The hook is called on every check with the current usage, not only when the
+    # license is over its application user limit, so license types can also clear
+    # previously raised warnings when the usage drops again.
+    mock_handle_usage.assert_called_once_with(5, license_object)
 
 
 @override_settings(DEBUG=True)
@@ -1134,7 +1162,16 @@ def test_add_active_licenses_to_settings(api_client, data_fixture):
             cached_untrusted_instance_wide=True,
         )
 
-        response = api_client.get(reverse("api:settings:get"))
+        # Force the self-hosted license plugin so environments whose plugin grants
+        # extra instance wide license types (e.g. SaaS) don't leak into the
+        # response.
+        premium_plugin = plugin_registry.get_by_type(PremiumPlugin)
+        with patch.object(
+            premium_plugin,
+            "get_license_plugin",
+            lambda cache_queries=False: LicensePlugin(cache_queries),
+        ):
+            response = api_client.get(reverse("api:settings:get"))
         assert response.status_code == HTTP_200_OK
         response_json = response.json()
         assert len(response_json.keys()) > 1

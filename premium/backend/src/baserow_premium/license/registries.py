@@ -86,6 +86,21 @@ class LicenseType(abc.ABC, Instance):
     def handle_seat_overflow(self, seats_taken: int, license_object: License):
         pass
 
+    def handle_application_user_usage(
+        self, application_users_taken: int, license_object: License
+    ):
+        """
+        Called by the periodic license check with the current application user
+        usage counted towards this license. Unlike `handle_seat_overflow` this is
+        called on every check, not only when the license is over its limit, so
+        implementations can also clear previously raised warnings when the usage
+        drops again. The default implementation does nothing.
+
+        :param application_users_taken: The number of application users counted
+            towards this license.
+        :param license_object: The license the usage was calculated for.
+        """
+
     def _calculate_stacked_license_builder_usage(
         self, total_application_users_taken: int
     ) -> dict[str, BuilderUsageSummary]:

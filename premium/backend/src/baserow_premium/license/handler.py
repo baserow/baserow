@@ -441,6 +441,14 @@ class LicenseHandler:
                     seat_summary.seats_taken, license_object
                 )
 
+            builder_summary = license_object.license_type.get_builder_usage_summary(
+                license_object
+            )
+            if builder_summary is not None:
+                license_object.license_type.handle_application_user_usage(
+                    builder_summary.application_users_taken, license_object
+                )
+
             license_object.last_check = datetime.now(tz=timezone.utc)
             license_object.save()
 
