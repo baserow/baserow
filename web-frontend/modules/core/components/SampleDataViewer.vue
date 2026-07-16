@@ -25,6 +25,8 @@
     <SampleDataModal
       ref="sampleDataModalRef"
       :sample-data="sampleData"
+      :content-type="contentType"
+      :sample-data-html="sampleDataHtml"
       :title="modalTitle"
       :subtitle="modalSubtitle"
     />
@@ -42,6 +44,16 @@ export default {
   props: {
     sampleData: {
       type: null,
+      required: false,
+      default: null,
+    },
+    contentType: {
+      type: String,
+      required: false,
+      default: 'json',
+    },
+    sampleDataHtml: {
+      type: String,
       required: false,
       default: null,
     },
