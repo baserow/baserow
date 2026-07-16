@@ -70,10 +70,8 @@ decision. When that request publishes a Celery task, the marker is propagated to
 task's independently sampled trace.
 
 `BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS` controls the slow-request marker and
-`BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS` controls the task marker. Expected
-long-running queues listed in
-`BASEROW_OTEL_SLOW_CELERY_TASK_EXCLUDED_QUEUES` are excluded from duration-based slow
-classification. Task errors remain eligible for error retention.
+`BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS` controls the task marker for every
+queue. Task errors remain eligible for error retention regardless of duration.
 `BASEROW_OTEL_LOG_LEVEL` separately controls OTLP log volume without changing local
 backend logging. See [Configuration](configuration.md) for current defaults.
 

@@ -233,8 +233,8 @@ Useful trace queries include:
 
 - Root spans with error status for request-level failures.
 - `baserow.http.request.slow=true` for requests above the configured threshold.
-- `baserow.celery.task.slow=true` for tasks above their configured threshold and not
-  running on an excluded queue.
+- `baserow.celery.task.slow=true` for tasks in any queue above the configured
+  threshold.
 - `baserow.force_full_otel_trace=true` for explicitly requested traces.
 - A known trace ID when moving from an application error or log to its trace.
 

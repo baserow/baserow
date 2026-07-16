@@ -108,10 +108,10 @@ processors:
     # requests intentionally bypass the bounded sampling budget below.
     #
     # All other traces prioritize errors and explicitly marked slow HTTP/Celery traces
-    # while bounding the total number of spans exported per second. Queue-aware task
-    # marking excludes expected long-running queues such as export. Policy order also
-    # prevents a slow error trace from consuming both budgets. The final always-sample
-    # policy uses the remaining capacity for a representative baseline of normal traffic.
+    # while bounding the total number of spans exported per second. All Celery queues
+    # use the configured duration threshold. Policy order also prevents a slow error
+    # trace from consuming both budgets. The final always-sample policy uses the
+    # remaining capacity for a representative baseline of normal traffic.
     tail_sampling:
         decision_wait: 30s
         num_traces: 100000

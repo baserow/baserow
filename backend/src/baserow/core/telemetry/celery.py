@@ -148,8 +148,6 @@ class BaserowCeleryInstrumentor(CeleryInstrumentor):
                     )
                     if (
                         settings.BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS > 0
-                        and queue
-                        not in settings.BASEROW_OTEL_SLOW_CELERY_TASK_EXCLUDED_QUEUES
                         and duration_seconds
                         >= settings.BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS
                     ):

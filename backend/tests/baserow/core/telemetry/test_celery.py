@@ -51,7 +51,6 @@ def _fake_task(carrier=None, queue="celery"):
 
 @override_settings(
     BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS=10,
-    BASEROW_OTEL_SLOW_CELERY_TASK_EXCLUDED_QUEUES=frozenset({"export"}),
 )
 def test_celery_task_gets_independent_linked_trace_and_one_domain_operation():
     instrumentor, provider, exporter = _instrumentor_with_memory_exporter()
@@ -117,15 +116,14 @@ def test_celery_task_gets_independent_linked_trace_and_one_domain_operation():
     ("threshold", "queue", "expected_slow"),
     [
         (10, "celery", True),
-        (10, "export", False),
+        (10, "export", True),
         (0, "celery", False),
     ],
 )
-def test_celery_slow_task_classification_is_queue_aware(
+def test_celery_slow_task_classification_monitors_every_queue(
     settings, threshold, queue, expected_slow
 ):
     settings.BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS = threshold
-    settings.BASEROW_OTEL_SLOW_CELERY_TASK_EXCLUDED_QUEUES = frozenset({"export"})
     instrumentor, provider, exporter = _instrumentor_with_memory_exporter()
     task = _fake_task(queue=queue)
 
