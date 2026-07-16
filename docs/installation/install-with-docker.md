@@ -289,6 +289,35 @@ docker run \
   baserow/baserow:2.3.3
 ```
 
+### With inbound email triggers enabled
+
+The "Start workflow by email" automation trigger needs the bundled mox mail
+server to receive email for a dedicated inbound domain (e.g.
+`inbound.yourdomain.com`) and forward it to Baserow. Setting
+`BASEROW_INBOUND_EMAIL_DOMAIN` and `BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET`
+enables the embedded email receiver, which listens for SMTP on port 25.
+
+You must also create an MX record for the inbound domain pointing at this
+host, and port 25 must be reachable from the internet. By default the
+receiver offers STARTTLS with a self-signed certificate; see
+`BASEROW_INBOUND_EMAIL_TLS_MODE` in [configuration](configuration.md) to
+provide a real certificate.
+
+```bash
+docker run \
+  -d \
+  --name baserow \
+  -e BASEROW_PUBLIC_URL=https://www.yourdomain.com \
+  -e BASEROW_INBOUND_EMAIL_DOMAIN=inbound.yourdomain.com \
+  -e BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET=$(tr -dc 'a-z0-9' < /dev/urandom | head -c 32) \
+  -v baserow_data:/baserow/data \
+  -p 80:80 \
+  -p 443:443 \
+  -p 25:25 \
+  --restart unless-stopped \
+  baserow/baserow:2.3.1
+```
+
 ### With a Postgresql server running on the same host as the Baserow docker container
 
 This is assuming you are using the postgresql server bundled by ubuntu. If not then you

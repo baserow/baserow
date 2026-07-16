@@ -1,0 +1,24 @@
+.inbound-email-trigger-service-form__copy-address {
+  position: relative;
+  text-decoration: none;
+  user-select: none;
+  color: $palette-neutral-1000;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-1000;
+  }
+}
+
+.inbound-email-trigger-service-form__email-address {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+  background-color: $palette-neutral-100;
+  line-height: 140%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+
+  @include rounded($rounded);
+}
