@@ -144,6 +144,14 @@ processors:
               boolean_attribute:
                   key: baserow.force_full_otel_trace
                   value: true
+            # A -1 budget is the explicit low-traffic opt-out from bounded sampling.
+            # The drop policies above still remove deliberately suppressed telemetry.
+            - name: retain-all-eligible-traces
+              type: ottl_condition
+              ottl_condition:
+                  error_mode: ignore
+                  span:
+                      - "${env:BASEROW_OTEL_TAIL_SAMPLING_MAX_SPANS_PER_SECOND:-250} == -1"
             - name: bounded-priority-sampling
               type: composite
               composite:

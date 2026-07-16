@@ -78,13 +78,16 @@ backend logging. See [Configuration](configuration.md) for current defaults.
 ### Retain every eligible trace
 
 Lower-traffic installations can retain every eligible trace by keeping
-`OTEL_TRACES_SAMPLER=always_on` and setting
-`BASEROW_OTEL_TAIL_SAMPLING_MAX_SPANS_PER_SECOND` comfortably above their peak span
-rate. The [composite policy allocations](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor#tail-sampling-processor)
-have independent capacity, so leave enough headroom that no error, slow, or baseline
-allocation is exhausted. This retains complete traces, not only root spans.
-Deliberately filtered low-value telemetry, such as routine `OPTIONS`/`HEAD` requests,
-successful Redis idle waits, and internal metric observations, remains excluded.
+`OTEL_TRACES_SAMPLER=always_on` and setting:
+
+```bash
+BASEROW_OTEL_TAIL_SAMPLING_MAX_SPANS_PER_SECOND=-1
+```
+
+This selects an always-sample tail policy and retains complete traces, not only root
+spans. Deliberately filtered low-value telemetry, such as routine `OPTIONS`/`HEAD`
+requests, successful Redis idle waits, and internal metric observations, remains
+excluded. Use a positive value to restore bounded priority sampling.
 
 Set `OTEL_SEMCONV_STABILITY_OPT_IN=http` to emit the stable
 `http.server.request.duration` histogram with templated `http.route`,
