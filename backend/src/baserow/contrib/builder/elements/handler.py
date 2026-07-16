@@ -186,11 +186,11 @@ class ElementHandler:
 
         elements = self.get_elements(page, use_cache=use_element_cache)
         grouped_elements = {}
-        for element in elements:
+        for el in elements:
             # Pre-populate the page relation so that parent_element_id lookups
             # (which call _get_graph() → self.page) don't trigger extra queries.
-            element.page = page
-            grouped_elements[element.id] = element
+            el.page = page
+            grouped_elements[el.id] = el
         element = grouped_elements[element.id]
 
         ancestry = []
