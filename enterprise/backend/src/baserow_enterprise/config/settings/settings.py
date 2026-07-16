@@ -1,6 +1,6 @@
 import os
 
-from baserow.config.settings.utils import enum_member_by_value
+from baserow.config.settings.utils import enum_member_by_value, str_to_bool
 from baserow_enterprise.secure_file_serve.constants import SecureFileServePermission
 
 
@@ -40,8 +40,8 @@ def setup(settings):
         os.getenv("BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT", False)
     )
 
-    settings.BASEROW_SSO_ALLOW_PRIVATE_ADDRESS = bool(
-        os.getenv("BASEROW_SSO_ALLOW_PRIVATE_ADDRESS", False)
+    settings.BASEROW_SSO_ALLOW_PRIVATE_ADDRESS = str_to_bool(
+        os.getenv("BASEROW_SSO_ALLOW_PRIVATE_ADDRESS", "false")
     )
 
     serve_files_through_backend_permission = (

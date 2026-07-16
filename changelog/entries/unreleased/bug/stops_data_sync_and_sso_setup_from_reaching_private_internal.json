@@ -1,9 +1,0 @@
-{
-    "type": "bug",
-    "message": "Stops data sync and SSO setup from reaching private internal network addresses",
-    "issue_origin": "github",
-    "issue_number": null,
-    "domain": "integration",
-    "bullet_points": [],
-    "created_at": "2026-06-09"
-}
