@@ -189,6 +189,42 @@ def test_import_manifest_rejects_path_traversal_version(
 
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
+def test_import_manifest_rejects_unknown_schema_version(
+    data_fixture, use_tmp_media_root, tmp_path
+):
+    # A well-formed `x.y.z` version without a matching schema file must return a
+    # normal invalid file error instead of an unhandled `FileNotFoundError`.
+    user = data_fixture.create_user()
+
+    data_fixture.create_import_export_trusted_source()
+    zip_name = "interesting_database_unknown_version.zip"
+
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name=zip_name, is_valid=True
+    )
+
+    new_zip_path = change_file_content_in_zip(
+        INTERESTING_DB_EXPORT_PATH,
+        f"{tmp_path}/{zip_name}",
+        "manifest.json",
+        json.dumps({"version": "999.999.999"}),
+    )
+
+    with open(new_zip_path, "rb") as export_file:
+        content = export_file.read()
+        data_fixture.create_import_export_resource_file(
+            resource=resource, content=content
+        )
+
+    with open(new_zip_path, "rb") as zip_file_handle:
+        with zipfile.ZipFile(zip_file_handle, "r") as zip_file:
+            with pytest.raises(ImportExportResourceInvalidFile) as err:
+                ImportExportHandler().validate_manifest(zip_file=zip_file)
+    assert str(err.value) == "Manifest file is corrupted: unsupported version."
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
 def test_import_no_trusted_source(data_fixture, use_tmp_media_root, tmp_path):
     user = data_fixture.create_user()
 

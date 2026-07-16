@@ -40,6 +40,10 @@ def setup(settings):
         os.getenv("BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT", False)
     )
 
+    settings.BASEROW_SSO_ALLOW_PRIVATE_ADDRESS = bool(
+        os.getenv("BASEROW_SSO_ALLOW_PRIVATE_ADDRESS", False)
+    )
+
     serve_files_through_backend_permission = (
         os.getenv("BASEROW_SERVE_FILES_THROUGH_BACKEND_PERMISSION", "")
         or SecureFileServePermission.DISABLED.value

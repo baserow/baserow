@@ -13,7 +13,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from advocate.exceptions import UnacceptableAddressException
 from baserow.core.registries import auth_provider_type_registry
+from baserow_enterprise.sso.exceptions import InvalidProviderUrl
 from baserow_enterprise.sso.oauth2.auth_provider_types import (
     OAuth2AuthProviderMixin,
     OpenIdConnectAuthProviderType,
@@ -474,3 +476,11 @@ def test_openid_get_wellknown_urls():
         jwks_url="http://example.com/jwks",
         issuer="http://example.com/issuer",
     )
+
+
+def test_openid_get_wellknown_urls_private_address_blocked():
+    # By default the well-known fetch goes through advocate, so a provider URL
+    # pointing to a private address must be rejected before any request is made.
+    with pytest.raises(InvalidProviderUrl) as err:
+        OpenIdConnectAuthProviderType().get_wellknown_urls("http://127.0.0.1:9")
+    assert isinstance(err.value.__cause__, UnacceptableAddressException)

@@ -1,0 +1,9 @@
+{
+    "type": "breaking_change",
+    "message": "OpenID Connect SSO providers hosted on a private network address no longer work by default. Set the `BASEROW_SSO_ALLOW_PRIVATE_ADDRESS` env var to allow it.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-16"
+}
