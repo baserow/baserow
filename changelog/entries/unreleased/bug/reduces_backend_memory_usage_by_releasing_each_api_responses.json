@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Reduce backend memory usage by releasing each API response's memory right after it is sent",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-16"
+}

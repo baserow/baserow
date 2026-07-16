@@ -3,6 +3,7 @@ import os
 import sys
 
 from django.conf import settings
+from django.core.handlers.asgi import ASGIHandler
 
 from loguru import logger
 
@@ -56,6 +57,34 @@ class dummy_context:
 
     async def __aexit__(self, exc_type, exc, traceback):
         pass
+
+
+class BaserowASGIHandler(ASGIHandler):
+    """
+    Django's `ASGIHandler.handle` keeps every request's response, rendered content, and
+    serialized rows in memory long after the response has been sent. Its disconnect
+    watcher raises `RequestAborted`, and when `handle` calls `task.result()` the
+    re-raise grafts the `handle` frame onto the exception's traceback. The exception
+    stays stored on the completed task, the task sits in the `tasks` list in that same
+    frame's locals, so exception -> traceback -> frame -> tasks -> task -> exception
+    forms a reference cycle that pins the frame's `request` and `response` locals until
+    a full cyclic garbage collection pass happens to run.
+
+    On Django, `handle` treats a disconnect watcher that completed normally exactly the
+    same as one that raised `RequestAborted` (the exception is caught and ignored, and
+    `process_request` is cancelled purely based on `asyncio.wait(FIRST_COMPLETED)`), so
+    returning instead of raising is behavior-identical and never creates the exception,
+    the traceback, or the cycle. Combined with `BaserowJSONRenderer`, this makes the
+    whole per-request object graph reference-count collectable as soon as the response
+    has been sent.
+    """
+
+    async def listen_for_disconnect(self, receive):
+        message = await receive()
+        if message["type"] == "http.disconnect":
+            return
+        # This should never happen.
+        assert False, "Invalid ASGI message after request body: %s" % message["type"]
 
 
 class ConcurrencyLimiterASGI:

@@ -404,7 +404,7 @@ REST_FRAMEWORK = {
         "baserow.api.user_sources.authentication.UserSourceJSONWebTokenAuthentication",
         "baserow.api.authentication.JSONWebTokenAuthentication",
     ),
-    "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
+    "DEFAULT_RENDERER_CLASSES": ("baserow.api.renderers.BaserowJSONRenderer",),
     "DEFAULT_SCHEMA_CLASS": "baserow.api.openapi.AutoSchema",
 }
 
