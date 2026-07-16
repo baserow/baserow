@@ -72,6 +72,8 @@ const fitContent = (schema, state, nodeType, children) => {
       if (wrappedMatch) {
         fitted.push(wrapped)
         match = wrappedMatch
+      } else {
+        state.lossy = true
       }
       continue
     }

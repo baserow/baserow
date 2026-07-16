@@ -1,4 +1,5 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { plainTextToMarkdown } from '@baserow/modules/core/editor/richTextClipboard'
 import FunctionalGridViewFieldRichText from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldRichText'
 
 describe('FunctionalGridViewFieldRichText component', () => {
@@ -23,6 +24,20 @@ describe('FunctionalGridViewFieldRichText component', () => {
     expect(wrapper.find('h1').text()).toBe('Title')
     expect(wrapper.find('strong').text()).toBe('bold')
     expect(wrapper.find('code').text()).toBe('code')
+  })
+
+  test('renders every repeated blank line pasted from plain text', async () => {
+    const wrapper = await mountComponent(
+      plainTextToMarkdown('ciao\n\n\n\nmiao')
+    )
+
+    expect(wrapper.findAll('p').map((paragraph) => paragraph.text())).toEqual([
+      'ciao',
+      '',
+      '',
+      '',
+      'miao',
+    ])
   })
 
   test('renders links without href so unselected cells stay inert', async () => {

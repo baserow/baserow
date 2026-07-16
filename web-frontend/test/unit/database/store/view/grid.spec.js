@@ -507,6 +507,31 @@ describe('Grid view store', () => {
     expect(flatStore.getters['grid/getAllRows'][0].field_1).toBe('99')
   })
 
+  test('updateRowValue discards a save for a row without an id (row modal closed mid-edit)', async () => {
+    const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
+    const view = { id: 1, filters: [], sortings: [], group_bys: [] }
+
+    let patched = false
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(() => {
+      patched = true
+      return [200, { items: [], metadata: {} }]
+    })
+
+    await expect(
+      store.dispatch('grid/updateRowValue', {
+        table: { id: 1 },
+        view,
+        fields,
+        row: {},
+        field: fields[0],
+        value: 'x',
+        oldValue: '',
+      })
+    ).resolves.toBeUndefined()
+
+    expect(patched).toBe(false)
+  })
+
   test('createNewRows keeps a sorted-mismatched row appended below the buffer in place with a move warning', async () => {
     const fields = [
       {

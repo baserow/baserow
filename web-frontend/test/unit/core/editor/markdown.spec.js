@@ -73,6 +73,26 @@ describe('official TipTap Markdown integration', () => {
     expect(editor.getJSON()).toStrictEqual(document)
   })
 
+  test('preserves multiple empty paragraphs at both document boundaries', () => {
+    const document = {
+      type: 'doc',
+      content: [
+        paragraph(),
+        paragraph(),
+        paragraph('A'),
+        paragraph(),
+        paragraph(),
+      ],
+    }
+    editor = createEditor(document)
+
+    const reopened = reopen(editor)
+    editor = reopened.editor
+
+    expect(reopened.markdown).toBe('&nbsp;\n\n&nbsp;\n\nA\n\n\n\n&nbsp;')
+    expect(editor.getJSON()).toStrictEqual(document)
+  })
+
   test.each([
     ['leading', [paragraph(), paragraph('A')], '&nbsp;\n\nA'],
     ['trailing', [paragraph('A'), paragraph()], 'A\n\n&nbsp;'],

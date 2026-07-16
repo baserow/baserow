@@ -18,6 +18,7 @@ import { listRows } from "../../fixtures/database/rows";
 import { getClient } from "../../client";
 
 const NOTES_FIELD_INDEX = 0;
+const PLAIN_NOTES_FIELD_INDEX = 1;
 
 type ExtensionCase = {
   name: string;
@@ -139,6 +140,10 @@ test.describe("Rich text field", () => {
           type: "long_text",
           settings: { long_text_enable_rich_text: true },
         },
+        {
+          name: "Plain notes",
+          type: "long_text",
+        },
       ],
     });
   });
@@ -219,5 +224,53 @@ test.describe("Rich text field", () => {
     await expect(preview.locator("h1")).toHaveText("Typed heading");
     await expect(preview.locator("p").first()).toHaveText("First line");
     await expect(preview.locator("p br")).toBeAttached();
+  });
+
+  test("cell copy converts newlines losslessly between plain and rich text", async ({
+    browserName,
+    page,
+  }) => {
+    test.skip(
+      browserName !== "chromium",
+      "Playwright cannot deliver clipboard data to Firefox.",
+    );
+
+    const plainText = "first\n\n\nlast";
+    await resetRows(g, [
+      { Name: "plain source", Notes: "", "Plain notes": plainText },
+      { Name: "plain target", Notes: "", "Plain notes": "" },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.writeClipboard("");
+
+    await grid.selectFieldCell(0, PLAIN_NOTES_FIELD_INDEX);
+    await grid.copyShortcut();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toContain(plainText);
+
+    await grid.selectFieldCell(0, NOTES_FIELD_INDEX);
+    await grid.pasteShortcut();
+
+    const expectedMarkdown = "first\n\n&nbsp;\n\n&nbsp;\n\nlast";
+    await expect(async () => {
+      const rows = await listRows(g.user, g.table);
+      expect(rows[0].Notes).toBe(expectedMarkdown);
+    }).toPass({ timeout: 10_000 });
+
+    await grid.selectFieldCell(0, NOTES_FIELD_INDEX);
+    await grid.copyShortcut();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toContain(expectedMarkdown);
+
+    await grid.selectFieldCell(1, PLAIN_NOTES_FIELD_INDEX);
+    await grid.pasteShortcut();
+
+    await expect(async () => {
+      const rows = await listRows(g.user, g.table);
+      expect(rows[1]["Plain notes"]).toBe(plainText);
+    }).toPass({ timeout: 10_000 });
   });
 });

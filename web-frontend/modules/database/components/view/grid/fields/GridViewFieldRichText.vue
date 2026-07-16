@@ -30,6 +30,7 @@
       :mentionable-users="workspace ? workspace.users : null"
       :thin-scrollbar="true"
       :menu-container="getMenuContainer"
+      :scrollable-area-element="getScrollableAreaElement"
     />
     <i
       v-if="editing && !isModalOpen()"
@@ -104,6 +105,9 @@ export default {
   methods: {
     getMenuContainer() {
       return document.body
+    },
+    getScrollableAreaElement() {
+      return this.$el?.closest('.grid-view__body') ?? null
     },
     isModalOpen() {
       return this.$refs.expandedModal?.isOpen()

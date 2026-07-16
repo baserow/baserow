@@ -62,4 +62,64 @@ describe('LongTextFieldType rich text switching', () => {
     expect(fieldType.getCanGroupByInView(richField)).toBe(false)
     expect(fieldType.getCanGroupByInView(plainField)).toBe(true)
   })
+
+  test('preserves repeated blank lines when pasting plain text into rich text', () => {
+    const copiedValue = fieldType.prepareRichValueForCopy(
+      plainField,
+      'ciao\n\n\n\nmiao'
+    )
+
+    expect(
+      fieldType.prepareValueForPaste(richField, 'ciao\n\n\n\nmiao', copiedValue)
+    ).toBe('ciao\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\nmiao')
+  })
+
+  test('keeps a single plain text newline as a Markdown line break', () => {
+    const copiedValue = fieldType.prepareRichValueForCopy(
+      plainField,
+      'ciao\nmiao'
+    )
+
+    expect(
+      fieldType.prepareValueForPaste(richField, 'ciao\nmiao', copiedValue)
+    ).toBe('ciao  \nmiao')
+  })
+
+  test('keeps copied rich Markdown unchanged', () => {
+    const markdown = '# Heading\n\nA  \nB'
+    const copiedValue = fieldType.prepareRichValueForCopy(richField, markdown)
+
+    expect(
+      fieldType.prepareValueForPaste(richField, markdown, copiedValue)
+    ).toBe(markdown)
+  })
+
+  test('strips empty-paragraph sentinels when pasting rich into plain text', () => {
+    const markdown = 'alpha\n\nbeta\n\n&nbsp;\n\ngamma'
+    const copiedValue = fieldType.prepareRichValueForCopy(richField, markdown)
+
+    expect(
+      fieldType.prepareValueForPaste(plainField, markdown, copiedValue)
+    ).toBe('alpha\nbeta\n\ngamma')
+  })
+
+  test('undoes Markdown hard breaks when pasting rich into plain text', () => {
+    const markdown = 'ciao  \nmiao'
+    const copiedValue = fieldType.prepareRichValueForCopy(richField, markdown)
+
+    expect(
+      fieldType.prepareValueForPaste(plainField, markdown, copiedValue)
+    ).toBe('ciao\nmiao')
+  })
+
+  test('leaves plain-source clipboard untouched when pasting into plain text', () => {
+    const copiedValue = fieldType.prepareRichValueForCopy(
+      plainField,
+      'ciao\nmiao'
+    )
+
+    expect(
+      fieldType.prepareValueForPaste(plainField, 'ciao\nmiao', copiedValue)
+    ).toBe('ciao\nmiao')
+  })
 })

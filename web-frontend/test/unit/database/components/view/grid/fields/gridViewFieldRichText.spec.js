@@ -1,12 +1,20 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import GridViewFieldRichText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldRichText'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
 
 // Stubbing the tiptap-backed editor keeps the test focused on the modal flow. Like
 // the real editor, its serialized output reflects live content, not the lagging prop.
 const RichTextEditorStub = {
   name: 'RichTextEditor',
-  props: { modelValue: { type: [String, Object], default: '' } },
+  props: {
+    modelValue: { type: [String, Object], default: '' },
+    menuContainer: { type: [Object, Function], default: undefined },
+    scrollableAreaElement: {
+      type: [Object, Array, Function],
+      default: null,
+    },
+  },
   emits: ['update:modelValue'],
   data() {
     return { content: this.modelValue || '' }
@@ -149,6 +157,59 @@ describe('GridViewFieldRichText component', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.vm.onPaste()).toBe(true)
+  })
+
+  test('moves the floating menu when the grid scrolls', async () => {
+    const gridBody = document.createElement('div')
+    gridBody.className = 'grid-view__body'
+    document.body.appendChild(gridBody)
+
+    const wrapper = await testApp.mount(GridViewFieldRichText, {
+      attachTo: gridBody,
+      props: {
+        field,
+        value: 'hello',
+        selected: true,
+        readOnly: false,
+        storePrefix: 'page/',
+        workspaceId: 10,
+      },
+      global: {
+        stubs: {
+          FieldRichTextModal: {
+            template: '<div></div>',
+            methods: { isOpen: () => false },
+          },
+        },
+      },
+    })
+    wrapper.vm.edit()
+    await new Promise((resolve) => setTimeout(resolve))
+
+    const editor = wrapper.findComponent(RichTextEditor)
+    let selectionTop = 200
+    let coordinateReads = 0
+    editor.vm.editor.view.coordsAtPos = () => {
+      coordinateReads++
+      return {
+        top: selectionTop,
+        bottom: selectionTop + 20,
+        left: 700,
+        right: 700,
+      }
+    }
+    editor.vm.editor.commands.focus()
+    editor.vm.editor.commands.setTextSelection(1)
+    editor.vm.$refs.root.dispatchEvent(new Event('scroll'))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    const initialCoordinateReads = coordinateReads
+    selectionTop = 120
+    gridBody.dispatchEvent(new Event('scroll'))
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    expect(coordinateReads).toBeGreaterThan(initialCoordinateReads)
+    gridBody.remove()
   })
 
   test('shows the error and blocks closing while the modal value is over the limit', async () => {

@@ -13,15 +13,17 @@
         ref="bubbleMenu"
         :editor="editor"
         :visible="bubbleMenuVisible"
-        :append-to="menuContainer"
+        :append-to="resolvedMenuContainer"
         :scroll-target="scrollElement"
+        :visibility-targets="visibilityElements"
       />
       <RichTextEditorFloatingMenu
         ref="floatingMenu"
         :editor="editor"
         :visible="floatingMenuVisible"
-        :append-to="menuContainer"
+        :append-to="resolvedMenuContainer"
         :scroll-target="scrollElement"
+        :visibility-targets="visibilityElements"
       />
     </div>
     <EditorContent
@@ -41,7 +43,7 @@ import _ from 'lodash'
 import { mapGetters } from 'vuex'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Placeholder } from '@tiptap/extension-placeholder'
-import { isActive, posToDOMRect } from '@tiptap/core'
+import { isActive } from '@tiptap/core'
 
 import RichTextEditorBubbleMenu from '@baserow/modules/core/components/editor/RichTextEditorBubbleMenu'
 import RichTextEditorFloatingMenu from '@baserow/modules/core/components/editor/RichTextEditorFloatingMenu'
@@ -51,6 +53,11 @@ import {
   createRichTextEditorExtensions,
 } from '@baserow/modules/core/editor/richTextExtensions'
 import { createMention } from '@baserow/modules/core/editor/mention'
+import {
+  decodeQuotedGridCell,
+  plainTextToRichTextContent,
+} from '@baserow/modules/core/editor/richTextClipboard'
+import { isRichTextSelectionVisible } from '@baserow/modules/core/editor/richTextMenuPosition'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -98,7 +105,7 @@ export default {
       default: false,
     },
     scrollableAreaElement: {
-      type: Object,
+      type: [Object, Array, Function],
       default: null,
     },
     thinScrollbar: {
@@ -121,6 +128,9 @@ export default {
       mousedownEvent: null,
       scrollEvent: null,
       scrollElement: null,
+      scrollEventElements: [],
+      visibilityElements: [],
+      scrollAnimationFrame: null,
     }
   },
   computed: {
@@ -130,6 +140,12 @@ export default {
     canUploadImages() {
       const enableImages = false
       return this.editable && this.enableRichTextFormatting && enableImages
+    },
+    // Body-level default: floating-ui's fixed strategy mis-positions under a
+    // positioned ancestor. Keep the lookup lazy so server rendering never touches
+    // the browser-only document global.
+    resolvedMenuContainer() {
+      return this.menuContainer ?? (() => document.body)
     },
   },
   watch: {
@@ -151,16 +167,15 @@ export default {
   },
   mounted() {
     this.scrollElement = this.getScrollElement()
+    this.visibilityElements = this.getVisibilityElements()
+    this.scrollEventElements = this.getScrollEventElements()
     this.createEditor()
   },
   beforeUnmount() {
     if (this.mousedownEvent !== null) {
       this.$refs.root.removeEventListener('mousedown', this.mousedownEvent)
     }
-    if (this.scrollEvent !== null) {
-      const elem = this.getScrollElement()
-      elem.removeEventListener('scroll', this.scrollEvent)
-    }
+    this.unregisterMenuScrollHandlers()
   },
   unmount() {
     if (this.editor) {
@@ -192,13 +207,10 @@ export default {
         if (sizeChanged && this.editor && this.scrollElement) {
           requestAnimationFrame(() => {
             if (!this.editor || !this.scrollElement) return
-            const { from, to } = this.editor.state.selection
-            const selectionRect = posToDOMRect(this.editor.view, from, to)
-            const containerRect = this.scrollElement.getBoundingClientRect()
-            const inBounds =
-              selectionRect.bottom > containerRect.top &&
-              selectionRect.top < containerRect.bottom
-            this.setMenuScrollVisibility(inBounds)
+            this.setMenuScrollVisibility(
+              isRichTextSelectionVisible(this.editor, this.visibilityElements)
+            )
+            this.updateMenuPosition()
           })
         }
       })
@@ -269,13 +281,19 @@ export default {
           },
           handlePaste: (view, event) => {
             const plainText = event.clipboardData.getData('text/plain')
-            if (plainText.startsWith('"') && plainText.endsWith('"')) {
-              const cleanText = plainText.slice(1, -1)
+            const gridCellText = decodeQuotedGridCell(plainText)
+            const plainTextWithBlankLines =
+              this.enableRichTextFormatting &&
+              !event.clipboardData.getData('text/html') &&
+              /\r?\n[\t ]*\r?\n/.test(plainText)
+                ? plainText
+                : null
+            const textToInsert = gridCellText ?? plainTextWithBlankLines
+            if (textToInsert !== null) {
               this.editor.commands.insertContent(
-                cleanText,
                 this.enableRichTextFormatting
-                  ? { contentType: 'markdown' }
-                  : undefined
+                  ? plainTextToRichTextContent(textToInsert)
+                  : textToInsert
               )
               return true
             }
@@ -314,7 +332,7 @@ export default {
       if (this.editable) {
         this.registerResizeObserver()
         this.registerAutoCollapseFloatingMenuHandler()
-        this.registerAutoHideBubbleMenuHandler()
+        this.registerMenuScrollHandlers()
       } else {
         this.unregisterResizeObserver()
       }
@@ -329,7 +347,31 @@ export default {
       this.$refs.root.addEventListener('mousedown', this.mousedownEvent)
     },
     getScrollElement() {
-      return this.scrollableAreaElement ?? this.$refs.root
+      return this.getConfiguredScrollElements()[0] ?? this.$refs.root
+    },
+    getConfiguredScrollElements() {
+      const configured =
+        typeof this.scrollableAreaElement === 'function'
+          ? this.scrollableAreaElement()
+          : this.scrollableAreaElement
+      return (Array.isArray(configured) ? configured : [configured]).filter(
+        Boolean
+      )
+    },
+    getVisibilityElements() {
+      return [
+        ...new Set([this.$refs.root, ...this.getConfiguredScrollElements()]),
+      ]
+    },
+    getScrollEventElements() {
+      const elements = []
+      let element = this.$refs.root
+      while (element) {
+        elements.push(element)
+        element = element.parentElement
+      }
+      elements.push(window)
+      return [...new Set(elements)]
     },
     setMenuScrollVisibility(visible) {
       const floatingEl = this.$refs.floatingMenu?.$el
@@ -337,23 +379,42 @@ export default {
       if (floatingEl) floatingEl.style.visibility = visible ? '' : 'hidden'
       if (bubbleEl) bubbleEl.style.visibility = visible ? '' : 'hidden'
     },
-    registerAutoHideBubbleMenuHandler() {
+    updateMenuPosition() {
+      if (!this.editor) return
+      const transaction = this.editor.state.tr
+        .setMeta('inlineBubbleMenu', 'updatePosition')
+        .setMeta('floatingBlockMenu', 'updatePosition')
+      this.editor.view.dispatch(transaction)
+    },
+    registerMenuScrollHandlers() {
+      this.unregisterMenuScrollHandlers()
       this.scrollEvent = () => {
-        if (!this.editor) return
-
-        const { from, to } = this.editor.state.selection
-        const selectionRect = posToDOMRect(this.editor.view, from, to)
-        const containerRect = this.scrollElement.getBoundingClientRect()
-
-        const inBounds =
-          selectionRect.bottom > containerRect.top &&
-          selectionRect.top < containerRect.bottom
-
-        this.setMenuScrollVisibility(inBounds)
+        if (this.scrollAnimationFrame !== null) return
+        this.scrollAnimationFrame = requestAnimationFrame(() => {
+          this.scrollAnimationFrame = null
+          if (!this.editor) return
+          this.setMenuScrollVisibility(
+            isRichTextSelectionVisible(this.editor, this.visibilityElements)
+          )
+          this.updateMenuPosition()
+        })
       }
 
-      const elem = this.getScrollElement()
-      elem.addEventListener('scroll', this.scrollEvent)
+      this.scrollEventElements.forEach((element) =>
+        element.addEventListener('scroll', this.scrollEvent)
+      )
+    },
+    unregisterMenuScrollHandlers() {
+      if (this.scrollEvent !== null) {
+        this.scrollEventElements.forEach((element) =>
+          element.removeEventListener('scroll', this.scrollEvent)
+        )
+        this.scrollEvent = null
+      }
+      if (this.scrollAnimationFrame !== null) {
+        cancelAnimationFrame(this.scrollAnimationFrame)
+        this.scrollAnimationFrame = null
+      }
     },
     focus() {
       this.editor.commands.focus('end')

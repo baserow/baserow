@@ -12,6 +12,8 @@
       :editable="!readOnly"
       :enable-rich-text-formatting="true"
       :mentionable-users="workspace ? workspace.users : null"
+      :menu-container="getMenuContainer"
+      :scrollable-area-element="getScrollableAreaElement"
       @focus="select()"
       @blur="unselect()"
     ></RichTextEditor>
@@ -57,9 +59,16 @@ export default {
       this.$super(rowEditFieldInput).unselect()
       this.editing = false
     },
+    getMenuContainer() {
+      // Body-level so floating-ui's fixed strategy anchors to the viewport, not a modal ancestor.
+      return document.body
+    },
+    getScrollableAreaElement() {
+      return this.$el?.closest('.modal__box-content') ?? null
+    },
     beforeSave() {
-      // Reserializing an untouched legacy value could rewrite it on mere blur.
-      if (!this.$refs.input.isDirty()) {
+      // No ref (modal teardown) or an unchanged value means nothing to reserialize.
+      if (!this.$refs.input?.isDirty()) {
         return this.value
       }
       return this.$refs.input.serializeToMarkdown()

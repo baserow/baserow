@@ -1,4 +1,5 @@
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import { plainTextToMarkdown } from '@baserow/modules/core/editor/richTextClipboard'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
 describe('RichTextEditor Markdown persistence', () => {
@@ -74,6 +75,98 @@ describe('RichTextEditor Markdown persistence', () => {
     const emitted = wrapper.emitted('update:modelValue')
     expect(emitted).toBeTruthy()
     expect(emitted.at(-1)[0]).toMatchObject({ type: 'doc' })
+  })
+
+  test('preserves repeated blank lines pasted from a quoted grid cell', async () => {
+    const wrapper = await mountEditor('')
+
+    await wrapper.find('.tiptap').trigger('paste', {
+      clipboardData: {
+        getData: (type) => (type === 'text/plain' ? '"ciao\n\n\n\nmiao"' : ''),
+      },
+    })
+
+    expect(
+      wrapper.findAll('.tiptap p').map((paragraph) => paragraph.text())
+    ).toStrictEqual(['ciao', '', '', '', 'miao'])
+    expect(
+      wrapper
+        .findAll('.tiptap p')
+        .slice(1, 4)
+        .every((paragraph) => paragraph.find('br').exists())
+    ).toBe(true)
+    const reopened = await mountEditor(wrapper.vm.serializeToMarkdown())
+
+    expect(reopened.find('.tiptap').html()).toBe(wrapper.find('.tiptap').html())
+  })
+
+  test('preserves repeated blank lines pasted as plain text', async () => {
+    const wrapper = await mountEditor('')
+
+    await wrapper.find('.tiptap').trigger('paste', {
+      clipboardData: {
+        getData: (type) => (type === 'text/plain' ? 'ciao\n\n\n\nmiao' : ''),
+      },
+    })
+
+    const paragraphs = wrapper.findAll('.tiptap p')
+    expect(paragraphs.map((paragraph) => paragraph.text())).toStrictEqual([
+      'ciao',
+      '',
+      '',
+      '',
+      'miao',
+    ])
+    expect(
+      paragraphs.slice(1, 4).every((paragraph) => paragraph.find('br').exists())
+    ).toBe(true)
+    const reopened = await mountEditor(wrapper.vm.serializeToMarkdown())
+
+    expect(reopened.find('.tiptap').html()).toBe(wrapper.find('.tiptap').html())
+  })
+
+  test('renders repeated plain text newlines converted to Markdown', async () => {
+    const markdown = plainTextToMarkdown('ciao\n\n\n\nmiao')
+    const wrapper = await mountEditor(markdown)
+
+    expect(
+      wrapper.findAll('.tiptap p').map((paragraph) => paragraph.text())
+    ).toStrictEqual(['ciao', '', '', '', 'miao'])
+    const reopened = await mountEditor(wrapper.vm.serializeToMarkdown())
+
+    expect(reopened.find('.tiptap').html()).toBe(wrapper.find('.tiptap').html())
+  })
+
+  test('keeps the selection menu hidden after its selection scrolls away', async () => {
+    const wrapper = await testApp.mount(RichTextEditor, {
+      props: {
+        modelValue: 'selected text',
+        enableRichTextFormatting: true,
+      },
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+
+    wrapper.vm.$refs.root.getBoundingClientRect = () => ({
+      top: 100,
+      bottom: 200,
+    })
+    wrapper.vm.editor.view.coordsAtPos = () => ({
+      top: 300,
+      bottom: 320,
+      left: 100,
+      right: 100,
+    })
+    wrapper.vm.editor.commands.focus()
+    wrapper.vm.editor.commands.setTextSelection({ from: 1, to: 9 })
+    await new Promise((resolve) => setTimeout(resolve))
+
+    // Force it visible so the assertion proves the scroll handler hid it, not an
+    // earlier selection-time visibility update.
+    wrapper.vm.$refs.bubbleMenu.$el.style.visibility = 'visible'
+    wrapper.vm.$refs.root.dispatchEvent(new Event('scroll'))
+    await new Promise((resolve) => setTimeout(resolve))
+
+    expect(wrapper.vm.$refs.bubbleMenu.$el.style.visibility).toBe('hidden')
   })
 })
 

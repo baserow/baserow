@@ -93,4 +93,13 @@ describe('RowEditFieldRichText component', () => {
 
     expect(wrapper.find('.tiptap').attributes('contenteditable')).toBe('false')
   })
+
+  test('keeps the value without throwing when the editor ref is gone', async () => {
+    const wrapper = await mountComponent()
+    // The child editor unmounts before the modal-close blur reaches beforeSave.
+    wrapper.vm.$refs.input = null
+
+    expect(() => wrapper.vm.beforeSave()).not.toThrow()
+    expect(wrapper.vm.beforeSave()).toBe('**bold** text')
+  })
 })
