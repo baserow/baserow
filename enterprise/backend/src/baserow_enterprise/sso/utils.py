@@ -26,6 +26,22 @@ def get_sso_request_function() -> Callable:
         return advocate.request
 
 
+def enforce_sso_ssrf_protection(session: requests.Session) -> requests.Session:
+    """
+    Mounts advocate's validating adapter on the given session so that requests made
+    through it can't reach Baserow's internal network (SSRF protection). This guards
+    OAuth2 fetches whose URLs come from admin/builder configured providers or from
+    their well-known documents, like the token and user info endpoints. Can be
+    disabled by setting the `BASEROW_SSO_ALLOW_PRIVATE_ADDRESS` Django setting to
+    `True`.
+    """
+
+    if settings.BASEROW_SSO_ALLOW_PRIVATE_ADDRESS is not True:
+        session.mount("http://", advocate.ValidatingHTTPAdapter())
+        session.mount("https://", advocate.ValidatingHTTPAdapter())
+    return session
+
+
 def is_sso_feature_active():
     return LicenseHandler.instance_has_feature(SSO)
 

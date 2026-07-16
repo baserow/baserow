@@ -901,6 +901,35 @@ def test_create_data_sync_table_invalid_auth(enterprise_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_sync_data_sync_table_private_address_blocked(enterprise_data_fixture):
+    # By default the Jira client session goes through advocate, so a Jira URL
+    # pointing to a private address must fail with a clear sync error instead of
+    # reaching Baserow's internal network.
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="jira_issues",
+        synced_properties=["jira_id"],
+        jira_url="http://127.0.0.1:9",
+        jira_project_key="",
+        jira_username="test@test.nl",
+        jira_api_token="test_token",
+    )
+    data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert data_sync.last_error == (
+        "The provided Jira URL is not allowed because it points to a private address."
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_jira_error_message(enterprise_data_fixture):
     _mock_server_info_cloud()

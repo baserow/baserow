@@ -25,6 +25,19 @@ def get_data_sync_request_function() -> Callable:
         return advocate.request
 
 
+def get_data_sync_session() -> requests.Session:
+    """
+    Returns the HTTP session that must be used for outgoing data sync requests made
+    through client libraries that accept a `requests` session (e.g. the Jira client).
+    Works like `get_data_sync_request_function`, but for session based clients.
+    """
+
+    if settings.BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS is True:
+        return requests.Session()
+    else:
+        return advocate.Session()
+
+
 def normalize_datetime(d):
     if d.tzinfo is None:
         d = d.replace(tzinfo=timezone.utc)

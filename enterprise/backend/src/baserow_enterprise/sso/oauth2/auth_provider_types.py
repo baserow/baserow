@@ -23,6 +23,7 @@ from baserow.core.cache import global_cache
 from baserow_enterprise.api.sso.oauth2.errors import ERROR_INVALID_PROVIDER_URL
 from baserow_enterprise.sso.exceptions import AuthFlowError, InvalidProviderUrl
 from baserow_enterprise.sso.utils import (
+    enforce_sso_ssrf_protection,
     get_sso_request_function,
     is_sso_feature_active,
 )
@@ -128,15 +129,20 @@ class BaseOAuth2AuthProviderMixin:
 
         redirect_uri = self.get_callback_url(instance)
         if "oauth_state" in session:
-            return OAuth2Session(
+            oauth = OAuth2Session(
                 instance.client_id,
                 redirect_uri=redirect_uri,
                 scope=self.SCOPE,
                 state=session.pop("oauth_state"),
             )
-        return OAuth2Session(
-            instance.client_id, redirect_uri=redirect_uri, scope=self.SCOPE
-        )
+        else:
+            oauth = OAuth2Session(
+                instance.client_id, redirect_uri=redirect_uri, scope=self.SCOPE
+            )
+        # The token and user info URLs can come from an admin/builder configured
+        # provider or its well-known document, so the session itself must also
+        # block private addresses.
+        return enforce_sso_ssrf_protection(oauth)
 
     def get_user_info_url(self, instance: AuthProviderModel) -> str:
         return self.USER_INFO_URL

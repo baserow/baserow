@@ -9,7 +9,10 @@ from baserow_enterprise.api.sso.utils import (
     redirect_user_on_success,
     urlencode_user_tokens,
 )
-from baserow_enterprise.sso.utils import get_sso_request_function
+from baserow_enterprise.sso.utils import (
+    enforce_sso_ssrf_protection,
+    get_sso_request_function,
+)
 
 
 @override_settings(BASEROW_SSO_ALLOW_PRIVATE_ADDRESS=False)
@@ -23,6 +26,22 @@ def test_get_sso_request_function_blocks_private_address_by_default():
 @override_settings(BASEROW_SSO_ALLOW_PRIVATE_ADDRESS=True)
 def test_get_sso_request_function_allows_private_address_when_enabled():
     assert get_sso_request_function() is requests.request
+
+
+@override_settings(BASEROW_SSO_ALLOW_PRIVATE_ADDRESS=False)
+def test_enforce_sso_ssrf_protection_blocks_private_address_by_default():
+    session = enforce_sso_ssrf_protection(requests.Session())
+    with pytest.raises(advocate.UnacceptableAddressException):
+        session.get("http://127.0.0.1:9", timeout=5)
+
+
+@override_settings(BASEROW_SSO_ALLOW_PRIVATE_ADDRESS=True)
+def test_enforce_sso_ssrf_protection_disabled_when_private_addresses_allowed():
+    session = requests.Session()
+    assert enforce_sso_ssrf_protection(session) is session
+    assert not isinstance(
+        session.get_adapter("http://example.com"), advocate.ValidatingHTTPAdapter
+    )
 
 
 def test_get_valid_front_url():

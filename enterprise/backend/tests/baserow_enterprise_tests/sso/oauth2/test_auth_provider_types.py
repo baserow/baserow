@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from advocate.exceptions import UnacceptableAddressException
 from baserow.core.registries import auth_provider_type_registry
-from baserow_enterprise.sso.exceptions import InvalidProviderUrl
+from baserow_enterprise.sso.exceptions import AuthFlowError, InvalidProviderUrl
 from baserow_enterprise.sso.oauth2.auth_provider_types import (
     OAuth2AuthProviderMixin,
     OpenIdConnectAuthProviderType,
@@ -483,4 +483,28 @@ def test_openid_get_wellknown_urls_private_address_blocked():
     # pointing to a private address must be rejected before any request is made.
     with pytest.raises(InvalidProviderUrl) as err:
         OpenIdConnectAuthProviderType().get_wellknown_urls("http://127.0.0.1:9")
+    assert isinstance(err.value.__cause__, UnacceptableAddressException)
+
+
+@pytest.mark.django_db
+def test_get_oauth_token_private_address_blocked(enterprise_data_fixture):
+    # The token endpoint URL comes from the provider's well-known document, which
+    # the guard on the base URL doesn't constrain, so the OAuth2 session itself
+    # must refuse to fetch private addresses.
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="openid_connect",
+        client_id="test_client_id",
+        secret="test_secret",
+        name="provider1",
+        base_url="https://gitlab.com",
+        authorization_url="https://gitlab.com/oauth/authorize",
+        access_token_url="https://127.0.0.1:9/oauth/token",
+        user_info_url="https://127.0.0.1:9/api/v4/user",
+    )
+    provider_type_instance = auth_provider_type_registry.get_by_model(provider)
+
+    with pytest.raises(AuthFlowError) as err:
+        provider_type_instance.get_oauth_token_and_response(
+            provider, "code", SessionBase()
+        )
     assert isinstance(err.value.__cause__, UnacceptableAddressException)

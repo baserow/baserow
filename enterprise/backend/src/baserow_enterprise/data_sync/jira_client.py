@@ -5,7 +5,9 @@ from typing import Any, Iterator, List, Optional
 from atlassian import Jira
 from requests.exceptions import HTTPError, RequestException
 
+from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.database.data_sync.exceptions import SyncError
+from baserow.contrib.database.data_sync.utils import get_data_sync_session
 from baserow.core.utils import ChildProgressBuilder
 
 from .models import (
@@ -69,6 +71,9 @@ def _create_jira(instance: JiraIssuesDataSync) -> Jira:
         "url": instance.jira_url,
         "cloud": False,
         "timeout": 10,
+        # The URL is user configured, so the session must block private addresses
+        # unless the setting explicitly allows them (SSRF protection).
+        "session": get_data_sync_session(),
     }
 
     if instance.jira_authentication == JIRA_ISSUES_DATA_SYNC_API_TOKEN:
@@ -153,11 +158,13 @@ def fetch_issues(
 ) -> List[dict]:
     """Fetch all issues matching a JQL query from a Jira instance."""
 
-    jira = _create_jira(instance)
     issues: List[dict] = []
     progress = None
 
     try:
+        # Creating the client already probes the server info, so it must be inside
+        # the try block to convert a blocked private address into a sync error.
+        jira = _create_jira(instance)
         for i, page in enumerate(_iter_pages(jira, jql)):
             if progress is None:
                 total = int(page.get("total") or 0)
@@ -176,6 +183,11 @@ def fetch_issues(
         return issues
     except SyncError:
         raise
+    except UnacceptableAddressException:
+        raise SyncError(
+            "The provided Jira URL is not allowed because it points to a private "
+            "address."
+        )
     except HTTPError as e:
         raise SyncError(_first_error_message(e))
     except RequestException as e:

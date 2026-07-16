@@ -3,7 +3,10 @@ from django.test.utils import override_settings
 import requests
 
 import advocate
-from baserow.contrib.database.data_sync.utils import get_data_sync_request_function
+from baserow.contrib.database.data_sync.utils import (
+    get_data_sync_request_function,
+    get_data_sync_session,
+)
 
 
 @override_settings(BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=False)
@@ -16,3 +19,15 @@ def test_get_data_sync_request_function_blocks_private_address_by_default():
 @override_settings(BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=True)
 def test_get_data_sync_request_function_allows_private_address_when_enabled():
     assert get_data_sync_request_function() is requests.request
+
+
+@override_settings(BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=False)
+def test_get_data_sync_session_blocks_private_address_by_default():
+    assert isinstance(get_data_sync_session(), advocate.Session)
+
+
+@override_settings(BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=True)
+def test_get_data_sync_session_allows_private_address_when_enabled():
+    session = get_data_sync_session()
+    assert isinstance(session, requests.Session)
+    assert not isinstance(session, advocate.Session)
