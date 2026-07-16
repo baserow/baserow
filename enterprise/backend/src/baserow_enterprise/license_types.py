@@ -100,7 +100,7 @@ class AdvancedLicenseType(LicenseType):
         self, application_users_taken: int, license_object: License
     ):
         """
-        Notifies the members of every workspace that approaches or exceeds the
+        Notifies the admins of every workspace that approaches or exceeds the
         application user limit, and keeps the over limit state that drives the
         login enforcement grace period up to date.
         """

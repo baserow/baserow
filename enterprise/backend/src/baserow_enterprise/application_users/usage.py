@@ -41,7 +41,7 @@ def get_application_user_usage_and_limit(
 
 def check_application_user_limit(workspace: Workspace) -> None:
     """
-    Sends an in-app notification to the workspace members when the application user
+    Sends an in-app notification to the workspace admins when the application user
     usage reaches one of the configured warning thresholds or the limit itself
     (100%). Notifications are deduped per `(workspace, threshold)`, and cleared again
     when usage drops back below a threshold so that re-crossing it (e.g. after an
@@ -94,7 +94,7 @@ def update_application_user_over_limit_state(
 def notify_workspaces_approaching_application_user_limit() -> None:
     """
     Loops over every workspace that has at least one user source and notifies its
-    members when it reaches a warning threshold or its application user limit. On
+    admins when it reaches a warning threshold or its application user limit. On
     self-hosted this is driven by the periodic license check via
     `LicenseType.handle_application_user_usage`, on SaaS by its own periodic task.
     Both read the user source counts that are periodically refreshed by
@@ -127,7 +127,7 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
         for longer than the grace period.
     """
 
-    # Soft limit: the limit is only used to notify workspace members and nobody
+    # Soft limit: the limit is only used to notify workspace admins and nobody
     # is blocked from signing in.
     if not settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED:
         return

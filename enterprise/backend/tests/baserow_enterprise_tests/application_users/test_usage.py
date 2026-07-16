@@ -8,7 +8,7 @@ import pytest
 from baserow_premium_tests.fixtures import VALID_PREMIUM_5_SEAT_10_APP_USER_LICENSE
 
 from baserow.core.cache import local_cache
-from baserow.core.notifications.models import Notification
+from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import plugin_registry
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
 from baserow_enterprise.application_users.models import ApplicationUserOverLimit
@@ -253,15 +253,19 @@ def test_update_application_user_over_limit_state(data_fixture):
     "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
-def test_license_check_notifies_workspaces_over_the_application_user_limit(
+def test_license_check_notifies_workspace_admins_over_the_application_user_limit(
     mock_aggregate_user_source_counts,
     data_fixture,
     premium_data_fixture,
     django_capture_on_commit_callbacks,
 ):
     mock_aggregate_user_source_counts.return_value = OVER_THE_LICENSE_LIMIT
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        user=member, workspace=workspace, permissions="MEMBER"
+    )
     builder = data_fixture.create_builder_application(workspace=workspace)
     data_fixture.create_local_baserow_table_user_source(application=builder)
 
@@ -281,6 +285,14 @@ def test_license_check_notifies_workspaces_over_the_application_user_limit(
         type=ApplicationUserLimitNotificationType.type, workspace=workspace
     )
     assert sorted(n.data["threshold"] for n in notifications) == [80, 100]
+    # Only the workspace admins are notified, because they are the ones who can
+    # act on the limit. Regular members don't receive the notification.
+    recipient_ids = set(
+        NotificationRecipient.objects.filter(
+            notification__in=notifications
+        ).values_list("recipient_id", flat=True)
+    )
+    assert recipient_ids == {admin.id}
     assert ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
 
 

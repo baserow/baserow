@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext as _
 
-from baserow.core.notifications.handler import NotificationHandler
+from baserow.core.notifications.helpers import notify_admins_in_workspace
 from baserow.core.notifications.models import Notification
 from baserow.core.notifications.registries import NotificationType
 
@@ -26,15 +26,12 @@ class ApplicationUserLimitNotificationType(NotificationType):
     type = "application_user_limit"
 
     @classmethod
-    def notify_recipients(cls, workspace, threshold, usage, limit):
-        recipients = list(
-            workspace.users.filter(
-                profile__to_be_deleted=False,
-                is_active=True,
-            ).select_related("profile")
-        )
-        if not recipients:
-            return []
+    def notify_admins_in_workspace(cls, workspace, threshold, usage, limit):
+        """
+        Creates a notification of this type for each admin in the workspace. Only
+        admins are notified because they are the ones who can act on the limit,
+        e.g. by upgrading the license or subscription.
+        """
 
         data = ApplicationUserLimitNotificationData(
             workspace_id=workspace.id,
@@ -44,14 +41,7 @@ class ApplicationUserLimitNotificationType(NotificationType):
             limit=limit,
             enforced=settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED,
         )
-
-        return NotificationHandler.create_direct_notification_for_users(
-            notification_type=cls.type,
-            recipients=recipients,
-            data=asdict(data),
-            sender=None,
-            workspace=workspace,
-        )
+        return notify_admins_in_workspace(workspace, cls.type, asdict(data))
 
     @classmethod
     def get_notification_title(cls, notification):
@@ -64,8 +54,8 @@ class ApplicationUserLimitNotificationType(NotificationType):
 
 def notify_application_user_threshold(workspace, usage, limit, threshold):
     """
-    Creates a single `application_user_limit` notification for the workspace, deduped
-    per `(workspace, threshold)`.
+    Creates a single `application_user_limit` notification for the workspace admins,
+    deduped per `(workspace, threshold)`.
 
     :param workspace: The workspace that reached the threshold.
     :param usage: The current application user usage.
@@ -82,7 +72,7 @@ def notify_application_user_threshold(workspace, usage, limit, threshold):
         if already_sent:
             return
 
-        ApplicationUserLimitNotificationType.notify_recipients(
+        ApplicationUserLimitNotificationType.notify_admins_in_workspace(
             workspace=workspace,
             threshold=threshold,
             usage=usage,
