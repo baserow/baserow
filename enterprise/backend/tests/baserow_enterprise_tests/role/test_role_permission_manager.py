@@ -29,6 +29,7 @@ from baserow.contrib.database.table.operations import (
     ReadDatabaseTableOperationType,
     UpdateDatabaseTableOperationType,
 )
+from baserow.core.ai_provider.operations import ManageAIProvidersOperationType
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
@@ -1435,6 +1436,7 @@ def test_all_operations_are_in_at_least_one_default_role(data_fixture):
         CreateWorkspaceOperationType.type,
         ListWorkspacesOperationType.type,
         UpdateSettingsOperationType.type,
+        ManageAIProvidersOperationType.type,
         ClearNotificationsOperationType.type,
         ListNotificationsOperationType.type,
         MarkNotificationAsReadOperationType.type,

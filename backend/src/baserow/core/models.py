@@ -20,6 +20,7 @@ from baserow.core.jobs.models import Job
 from baserow.core.user_files.models import UserFile
 
 from .action.models import Action
+from .ai_provider.models import AIProviderConfig, AIProviderModel
 from .integrations.models import Integration
 from .mixins import (
     CreatedAndUpdatedOnMixin,
@@ -52,6 +53,8 @@ __all__ = [
     "Service",
     "Notification",
     "BlacklistedToken",
+    "AIProviderConfig",
+    "AIProviderModel",
     "ExportApplicationsJob",
     "ImportApplicationsJob",
     "ImportExportResource",

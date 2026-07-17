@@ -485,7 +485,10 @@ def test_get_permissions(data_fixture):
         {
             "name": "staff",
             "permissions": {
-                "staff_only_operations": ["settings.update"],
+                "staff_only_operations": [
+                    "settings.update",
+                    "settings.manage_ai_providers",
+                ],
                 "is_staff": True,
             },
         },
@@ -543,7 +546,10 @@ def test_get_permissions(data_fixture):
         {
             "name": "staff",
             "permissions": {
-                "staff_only_operations": ["settings.update"],
+                "staff_only_operations": [
+                    "settings.update",
+                    "settings.manage_ai_providers",
+                ],
                 "is_staff": True,
             },
         },
@@ -618,7 +624,10 @@ def test_get_permissions(data_fixture):
         {
             "name": "staff",
             "permissions": {
-                "staff_only_operations": ["settings.update"],
+                "staff_only_operations": [
+                    "settings.update",
+                    "settings.manage_ai_providers",
+                ],
                 "is_staff": False,
             },
         },
@@ -676,7 +685,10 @@ def test_get_permissions(data_fixture):
         {
             "name": "staff",
             "permissions": {
-                "staff_only_operations": ["settings.update"],
+                "staff_only_operations": [
+                    "settings.update",
+                    "settings.manage_ai_providers",
+                ],
                 "is_staff": False,
             },
         },
@@ -751,7 +763,10 @@ def test_get_permissions(data_fixture):
         {
             "name": "staff",
             "permissions": {
-                "staff_only_operations": ["settings.update"],
+                "staff_only_operations": [
+                    "settings.update",
+                    "settings.manage_ai_providers",
+                ],
                 "is_staff": False,
             },
         },
@@ -809,7 +824,10 @@ def test_get_permissions(data_fixture):
         {
             "name": "staff",
             "permissions": {
-                "staff_only_operations": ["settings.update"],
+                "staff_only_operations": [
+                    "settings.update",
+                    "settings.manage_ai_providers",
+                ],
                 "is_staff": False,
             },
         },
@@ -884,7 +902,10 @@ def test_get_permissions(data_fixture):
         {
             "name": "staff",
             "permissions": {
-                "staff_only_operations": ["settings.update"],
+                "staff_only_operations": [
+                    "settings.update",
+                    "settings.manage_ai_providers",
+                ],
                 "is_staff": False,
             },
         },

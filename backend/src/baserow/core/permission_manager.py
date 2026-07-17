@@ -20,6 +20,7 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
 )
 
+from .ai_provider.operations import ManageAIProvidersOperationType
 from .exceptions import (
     IsNotAdminError,
     PermissionDenied,
@@ -80,7 +81,10 @@ class StaffOnlyPermissionManagerType(PermissionManagerType):
     type = "staff"
     supported_actor_types = [UserSubjectType.type]
 
-    STAFF_ONLY_OPERATIONS = [UpdateSettingsOperationType.type]
+    STAFF_ONLY_OPERATIONS = [
+        UpdateSettingsOperationType.type,
+        ManageAIProvidersOperationType.type,
+    ]
 
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
         result = {}
