@@ -46,6 +46,11 @@ export default {
   },
   methods: {
     async generate() {
+      // Guard every caller and not just the disabled button.
+      if (!this.modelAvailable || this.generating || this.promptBroken) {
+        return
+      }
+
       this.generating = true
       try {
         await FieldService(this.$client).generateAIFieldValues(this.field.id, [

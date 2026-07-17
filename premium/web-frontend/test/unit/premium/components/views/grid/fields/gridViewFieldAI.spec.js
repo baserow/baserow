@@ -58,4 +58,19 @@ describe('GridViewFieldAI component', () => {
 
     expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
   })
+
+  test('Enter key does not trigger generation when the prompt is broken', async () => {
+    await testApp.getStore().dispatch('workspace/forceCreate', workspace)
+
+    const wrapper = await mountComponent({ ...aiField, error: 'boom' })
+
+    // Selecting an empty cell and pressing Enter triggers `generate()`; the
+    // broken prompt guard must stop it before any request is made.
+    wrapper.vm.select()
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+    await wrapper.vm.$nextTick()
+
+    expect(testApp.mock.history.post).toHaveLength(0)
+    wrapper.vm.beforeUnSelect()
+  })
 })

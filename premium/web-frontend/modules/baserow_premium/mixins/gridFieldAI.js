@@ -63,6 +63,11 @@ export default {
         return
       }
 
+      // Guard every caller (button, Enter key) and not just the disabled button.
+      if (!this.modelAvailable || this.generating || this.promptBroken) {
+        return
+      }
+
       const rowId = this.$parent.row.id
       this.$store.dispatch(
         this.storePrefix + 'view/grid/setPendingFieldOperations',
