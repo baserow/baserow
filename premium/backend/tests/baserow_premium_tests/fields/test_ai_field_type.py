@@ -1308,6 +1308,33 @@ def test_create_ai_field_with_references(premium_data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
+def test_ai_field_ignores_cross_table_references_in_dependencies(
+    premium_data_fixture,
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    other_table = premium_data_fixture.create_database_table(user=user)
+    other_field = premium_data_fixture.create_text_field(table=other_table)
+
+    ai_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="ai",
+        name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt=f"get('fields.field_{other_field.id}')",
+    )
+
+    # A reference to another table's field is invalid, so it must not create a
+    # dependency edge that would let that field's changes touch this one.
+    assert ai_field.error is not None
+    assert not FieldDependency.objects.filter(dependant_id=ai_field.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
 def test_create_ai_field_auto_update_user(premium_data_fixture):
     """
     Test if AI field type handler sets the user when auto-update flag is set.
