@@ -21,7 +21,7 @@ For direct package-manager use, backend commands run through `uv` and frontend c
 
 ## Coding Style & Naming Conventions
 
-Python targets Python 3.14, uses 4-space indentation, and is formatted and linted with Ruff (`just b lint`, `just b fix`) with an 88-character line length. Follow existing Django app/module naming and keep new tests in `test_*.py` or `*_test.py` files. Frontend code uses ESLint, Stylelint, and Prettier (`just f lint`, `just f fix`); SCSS should follow BEM-style naming already used in `web-frontend/modules`. Use `$palette-*` color variables in CSS; `$color-*` variables are legacy compatibility aliases and should not be used for new styles.
+Python targets Python 3.14, uses 4-space indentation, and is formatted and linted with Ruff (`just b lint`, `just b fix`) with an 88-character line length. Follow existing Django app/module naming and keep new tests in `test_*.py` or `*_test.py` files. Frontend code uses ESLint, Stylelint, and Prettier (`just f lint`, `just f fix`); SCSS should follow BEM-style naming already used in `web-frontend/modules`. Put frontend styles in a dedicated SCSS file and import it through the appropriate SCSS bundle; do not add `<style>` or `<style scoped>` blocks to Vue single-file components. Use `$palette-*` color variables in CSS; `$color-*` variables are legacy compatibility aliases and should not be used for new styles.
 
 ## Localization
 
@@ -31,11 +31,11 @@ When adding or changing UI copy, update the English locale files only. Do not ad
 
 Backend code uses Django, Django REST Framework, Celery, PostgreSQL, Redis, and pytest/pytest-django. Python dependencies are managed with `uv`.
 
-Frontend code uses Vue 3, Nuxt 3, Vuex, Vite, Vitest, Storybook, SCSS, ESLint, Stylelint, Prettier, and `yarn`. Render functions must use Vue 3 semantics, for example importing `h` from `vue` instead of expecting `render(h)` to receive it. JSX-bearing frontend files must use a `.jsx` or `.tsx` extension so Vite can parse them.
+Frontend code uses Vue 3, Nuxt 4, Vuex, Vite, Vitest, Storybook, SCSS, ESLint, Stylelint, Prettier, and `yarn`. Render functions must use Vue 3 semantics, for example importing `h` from `vue` instead of expecting `render(h)` to receive it. JSX-bearing frontend files must use a `.jsx` or `.tsx` extension so Vite can parse them.
 
 ## Testing Guidelines
 
-Backend tests use `pytest` with `pytest-django`; frontend tests use `vitest`; browser flows live in `e2e-tests/`. Add unit tests for backend changes and targeted frontend tests for component or store behavior. 
+Backend tests use `pytest` with `pytest-django`; frontend tests use `vitest`; browser flows live in `e2e-tests/`. Add unit tests for backend changes and targeted frontend tests for component or store behavior.
 
 Examples: `just b test tests/path/`, `just b test-coverage`, `just f test -- --coverage`, `just f yarn test:core path/to/test`.
 
@@ -64,8 +64,8 @@ Do not commit secrets or local overrides. Use `.env.local` for development, keep
 
 - On a specific branch, always merge backend migrations file instead of creating new ones only if it was created on the very same branch.
 - Django migrations must be executed with zero downtime. This means the new database schema must remain compatible with the previous application version during the deployment.
-  - Every new field must define a `db_default`.
-  - Do not remove fields unless you are certain they are no longer used by the previous application version. Instead, keep the field and add a `# TODO ZDM: remove this field in the next version` comment so it can be safely removed in a subsequent release.
+    - Every new field must define a `db_default`.
+    - Do not remove fields unless you are certain they are no longer used by the previous application version. Instead, keep the field and add a `# TODO ZDM: remove this field in the next version` comment so it can be safely removed in a subsequent release.
 - CSS classes respect BEM methodology.
 - When working on translations, only update english unless told otherwise. Other languages are handled with Weblate. Don't nest keys too much, just keep one level of nesting.
 

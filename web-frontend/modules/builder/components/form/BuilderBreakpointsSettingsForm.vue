@@ -97,10 +97,3 @@ export default {
   },
 }
 </script>
-
-<style scoped lang="scss">
-.builder-breakpoints-settings-form__input {
-  width: 140px;
-  max-width: 100%;
-}
-</style>
