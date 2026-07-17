@@ -80,11 +80,11 @@ export class BreakpointsBuilderSettingsType extends BuilderSettingType {
   }
 
   get icon() {
-    return 'iconoir-phone'
+    return 'iconoir-move-ruler'
   }
 
   getOrder() {
-    return 2
+    return 30
   }
 
   get component() {
