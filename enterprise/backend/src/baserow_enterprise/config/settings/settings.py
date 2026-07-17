@@ -41,7 +41,7 @@ def setup(settings):
     )
 
     settings.BASEROW_SSO_ALLOW_PRIVATE_ADDRESS = str_to_bool(
-        os.getenv("BASEROW_SSO_ALLOW_PRIVATE_ADDRESS", "true")
+        os.getenv("BASEROW_SSO_ALLOW_PRIVATE_ADDRESS") or "true"
     )
 
     serve_files_through_backend_permission = (
