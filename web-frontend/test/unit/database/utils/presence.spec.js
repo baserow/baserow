@@ -37,6 +37,22 @@ describe('isUserPresenceEnabled', () => {
   test('disabled when visible users is missing', () => {
     expect(isUserPresenceEnabled({ $config: { public: {} } })).toBe(false)
   })
+
+  test('disabled on public views even when visible users > 0', () => {
+    const vm = {
+      $config: { public: { baserowPresenceVisibleUsers: '3' } },
+      $store: { getters: { 'page/view/public/getIsPublic': true } },
+    }
+    expect(isUserPresenceEnabled(vm)).toBe(false)
+  })
+
+  test('enabled when not a public view and visible users > 0', () => {
+    const vm = {
+      $config: { public: { baserowPresenceVisibleUsers: '3' } },
+      $store: { getters: { 'page/view/public/getIsPublic': false } },
+    }
+    expect(isUserPresenceEnabled(vm)).toBe(true)
+  })
 })
 
 describe('getPresenceVisibleUsers', () => {

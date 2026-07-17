@@ -11,10 +11,12 @@ export function tablePresenceSpaceName(tableId) {
 
 /**
  * Whether user presence is active for this client. Requires
- * BASEROW_PRESENCE_VISIBLE_USERS > 0. The backend enforces the same check
- * authoritatively; this only skips presence UI and focus emitter setup.
+ * BASEROW_PRESENCE_VISIBLE_USERS > 0 and a non-public (authenticated editor)
+ * context. Public-view visitors never set up presence tracking or focus
+ * emission on the frontend; the backend enforces the same boundary.
  */
 export function isUserPresenceEnabled(vm) {
+  if (vm.$store?.getters['page/view/public/getIsPublic']) return false
   return getPresenceVisibleUsers(vm) > 0
 }
 
