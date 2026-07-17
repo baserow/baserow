@@ -252,9 +252,11 @@ export default {
         : null
     },
     maxWidth() {
-      return this.deviceType?.maxWidth
-        ? `${this.deviceType.maxWidth}px`
-        : 'unset'
+      const maxWidth = this.getDeviceMaxWidth(this.deviceType)
+      return maxWidth ? `${maxWidth}px` : 'unset'
+    },
+    devicePreviewWidth() {
+      return this.getDeviceMinWidth(this.deviceType)
     },
     parentOfElementSelected() {
       return this.$store.getters['element/getParent'](
@@ -285,9 +287,9 @@ export default {
     },
   },
   watch: {
-    deviceType(value) {
+    devicePreviewWidth() {
       this.$nextTick(() => {
-        this.updatePreviewScale(value)
+        this.updatePreviewScale()
       })
     },
     elementSelectedId(newValue) {
@@ -354,10 +356,22 @@ export default {
     },
     onWindowResized() {
       this.$nextTick(() => {
-        this.updatePreviewScale(this.deviceType)
+        this.updatePreviewScale()
       })
     },
-    updatePreviewScale(deviceType) {
+    getDeviceMinWidth(deviceType) {
+      if (deviceType?.getMinWidth) {
+        return deviceType.getMinWidth(this.builder)
+      }
+      return deviceType?.minWidth
+    },
+    getDeviceMaxWidth(deviceType) {
+      if (deviceType?.getMaxWidth) {
+        return deviceType.getMaxWidth(this.builder)
+      }
+      return deviceType?.maxWidth
+    },
+    updatePreviewScale() {
       // The widths are the minimum width the preview must have. If the preview dom
       // element becomes smaller than the target, it will be scaled down so that the
       // actual width remains the same, and it will preview the correct device.
@@ -365,7 +379,7 @@ export default {
       const { clientWidth: currentWidth, clientHeight: currentHeight } =
         this.$refs.preview
 
-      const targetWidth = deviceType?.minWidth
+      const targetWidth = this.devicePreviewWidth
       let scale = 1
 
       if (currentWidth < targetWidth) {

@@ -53,22 +53,39 @@ def lazy_get_instance_public_serializer_class():
     return PublicBuilderSerializer
 
 
+def lazy_get_request_serializer_mixin():
+    from baserow.contrib.builder.api.serializers import (
+        BuilderBreakpointsSerializerMixin,
+    )
+
+    return BuilderBreakpointsSerializerMixin
+
+
 class BuilderApplicationType(ApplicationType):
     type = "builder"
     model_class = Builder
     supports_actions = False
     supports_integrations = True
     supports_user_sources = True
-    allowed_fields = ["favicon_file", "login_page_id"]
+    allowed_fields = [
+        "favicon_file",
+        "login_page_id",
+        "mobile_breakpoint",
+        "tablet_breakpoint",
+    ]
     serializer_field_names = [
         "favicon_file",
         "login_page_id",
+        "mobile_breakpoint",
+        "tablet_breakpoint",
         "pages",
         "theme",
     ]
     public_serializer_field_names = [
         "favicon_file",
         "login_page_id",
+        "mobile_breakpoint",
+        "tablet_breakpoint",
         "pages",
         "theme",
         "user_sources",
@@ -76,11 +93,13 @@ class BuilderApplicationType(ApplicationType):
     request_serializer_field_names = [
         "favicon_file",
         "login_page_id",
+        "mobile_breakpoint",
+        "tablet_breakpoint",
     ]
 
     serializer_mixins = [lazy_get_instance_serializer_class]
     public_serializer_mixins = [lazy_get_instance_public_serializer_class]
-    request_serializer_mixins = []
+    request_serializer_mixins = [lazy_get_request_serializer_mixin]
     data_provider_type_registry = builder_data_provider_type_registry
 
     # Builder applications are imported second.
@@ -108,6 +127,14 @@ class BuilderApplicationType(ApplicationType):
                 default=None,
                 help_text=Builder._meta.get_field("login_page").help_text,
                 validators=[login_page_id_validator],
+            ),
+            "mobile_breakpoint": serializers.IntegerField(
+                required=False,
+                help_text="The maximum width in pixels for the mobile layout.",
+            ),
+            "tablet_breakpoint": serializers.IntegerField(
+                required=False,
+                help_text="The maximum width in pixels for the tablet layout.",
             ),
         }
 
@@ -258,6 +285,8 @@ class BuilderApplicationType(ApplicationType):
             user_sources=serialized_user_sources,
             favicon_file=serialized_favicon_file,
             login_page=serialized_login_page,
+            mobile_breakpoint=builder.mobile_breakpoint,
+            tablet_breakpoint=builder.tablet_breakpoint,
             **serialized_builder,
         )
 
@@ -366,6 +395,8 @@ class BuilderApplicationType(ApplicationType):
         serialized_integrations = serialized_values.pop("integrations")
         serialized_user_sources = serialized_values.pop("user_sources")
         serialized_theme = serialized_values.pop("theme")
+        mobile_breakpoint = serialized_values.pop("mobile_breakpoint", None)
+        tablet_breakpoint = serialized_values.pop("tablet_breakpoint", None)
 
         (
             builder_progress,
@@ -394,6 +425,12 @@ class BuilderApplicationType(ApplicationType):
         )
 
         builder = application.specific
+        # Breakpoints were added after builder applications already existed. An
+        # export without them is therefore an implicit legacy configuration, not a
+        # newly-created builder application that should receive the new defaults.
+        builder.mobile_breakpoint = mobile_breakpoint
+        builder.tablet_breakpoint = tablet_breakpoint
+        builder.save(update_fields=["mobile_breakpoint", "tablet_breakpoint"])
 
         if not serialized_integrations:
             progress.increment(

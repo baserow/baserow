@@ -45,10 +45,19 @@
   },
   "builderSettingTypes": {
     "generalName": "General",
+    "breakpointsName": "Breakpoints",
     "integrationsName": "Integrations",
     "themeName": "Theme",
     "domainsName": "Domains",
     "userSourcesName": "Users"
+  },
+  "breakpointSettings": {
+    "titleOverview": "Breakpoints",
+    "mobileLabel": "Mobile breakpoint",
+    "tabletLabel": "Tablet breakpoint",
+    "desktopDescription": "Desktop: above {breakpoint}px",
+    "mobileMustBeLessThanTablet": "The mobile breakpoint must be less than the tablet breakpoint.",
+    "tabletMustBeGreaterThanMobile": "The tablet breakpoint must be greater than the mobile breakpoint."
   },
   "createPageModal": {
     "header": "Create page",

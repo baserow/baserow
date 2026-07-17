@@ -7,6 +7,35 @@ import pytest
 
 
 @pytest.mark.once_per_day_in_ci
+def test_0076_builder_breakpoints_preserves_existing_applications(
+    migrator, teardown_table_metadata
+):
+    migrate_from = [("builder", "0075_container_element_positioning_behaviour")]
+    migrate_to = [("builder", "0076_builder_breakpoints")]
+
+    old_state = migrator.migrate(migrate_from)
+
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Builder = old_state.apps.get_model("builder", "Builder")
+
+    workspace = Workspace.objects.create(name="Workspace")
+    builder = Builder.objects.create(
+        order=1,
+        name="Builder",
+        workspace=workspace,
+        content_type=ContentType.objects.get_for_model(Builder),
+    )
+
+    new_state = migrator.migrate(migrate_to)
+    Builder = new_state.apps.get_model("builder", "Builder")
+    builder = Builder.objects.get(id=builder.id)
+
+    assert builder.mobile_breakpoint is None
+    assert builder.tablet_breakpoint is None
+
+
+@pytest.mark.once_per_day_in_ci
 def test_0010_remove_orphan_collection_fields_forwards(
     migrator, teardown_table_metadata
 ):

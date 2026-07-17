@@ -5,12 +5,14 @@ import IntegrationSettingsComponent from '@baserow/modules/builder/components/se
 import ThemeSettingsComponent from '@baserow/modules/builder/components/settings/ThemeSettings'
 import DomainsSettingsComponent from '@baserow/modules/builder/components/settings/DomainsSettings'
 import UserSourcesSettingsComponent from '@baserow/modules/builder/components/settings/UserSourcesSettings'
+import BreakpointsSettingsComponent from '@baserow/modules/builder/components/settings/BreakpointsSettings'
 
 const GeneralSettings = markRaw(GeneralSettingsComponent)
 const IntegrationSettings = markRaw(IntegrationSettingsComponent)
 const ThemeSettings = markRaw(ThemeSettingsComponent)
 const DomainsSettings = markRaw(DomainsSettingsComponent)
 const UserSourcesSettings = markRaw(UserSourcesSettingsComponent)
+const BreakpointsSettings = markRaw(BreakpointsSettingsComponent)
 
 export class BuilderSettingType extends Registerable {
   static getType() {
@@ -65,6 +67,28 @@ export class GeneralBuilderSettingsType extends BuilderSettingType {
 
   get component() {
     return GeneralSettings
+  }
+}
+
+export class BreakpointsBuilderSettingsType extends BuilderSettingType {
+  static getType() {
+    return 'breakpoints'
+  }
+
+  get name() {
+    return this.app.$i18n.t('builderSettingTypes.breakpointsName')
+  }
+
+  get icon() {
+    return 'iconoir-phone'
+  }
+
+  getOrder() {
+    return 2
+  }
+
+  get component() {
+    return BreakpointsSettings
   }
 }
 

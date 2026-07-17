@@ -8,6 +8,7 @@ import pl from '@baserow/modules/builder/locales/pl.json'
 import ko from '@baserow/modules/builder/locales/ko.json'
 import {
   GeneralBuilderSettingsType,
+  BreakpointsBuilderSettingsType,
   DomainsBuilderSettingsType,
   IntegrationsBuilderSettingsType,
   ThemeBuilderSettingsType,
@@ -204,6 +205,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'builderSettings',
       new GeneralBuilderSettingsType(context)
+    )
+    $registry.register(
+      'builderSettings',
+      new BreakpointsBuilderSettingsType(context)
     )
     $registry.register(
       'builderSettings',

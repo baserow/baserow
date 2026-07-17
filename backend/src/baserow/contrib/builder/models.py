@@ -25,6 +25,18 @@ __all__ = [
 
 
 class Builder(Application):
+    mobile_breakpoint = models.IntegerField(
+        default=640,
+        db_default=None,
+        null=True,
+    )
+
+    tablet_breakpoint = models.IntegerField(
+        default=1024,
+        db_default=None,
+        null=True,
+    )
+
     favicon_file = models.ForeignKey(
         UserFile,
         on_delete=models.SET_NULL,

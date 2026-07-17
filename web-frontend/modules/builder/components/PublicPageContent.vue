@@ -34,6 +34,7 @@ import {
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
+import { getBuilderResponsiveStyles } from '@baserow/modules/builder/utils/breakpoints'
 import { useRoute, useRouter } from '#imports'
 
 defineOptions({
@@ -156,7 +157,13 @@ const headConfig = computed(() => {
     bodyAttrs: {
       class: 'public-page',
     },
-    style: [{ innerHTML: `:root { ${cssVars} }`, type: 'text/css' }],
+    style: [
+      { innerHTML: `:root { ${cssVars} }`, type: 'text/css' },
+      {
+        innerHTML: getBuilderResponsiveStyles(props.builder),
+        type: 'text/css',
+      },
+    ],
   }
 
   if (faviconLinks.value) {

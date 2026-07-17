@@ -6,24 +6,6 @@
   grid-template-columns: var(--grid-template-columns);
 }
 
-@media (min-width: 768px) {
-  .column-element--public.column-element--stack-desktop {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (min-width: 501px) and (max-width: 768px) {
-  .column-element--public.column-element--stack-tablet {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 500px) {
-  .column-element--public.column-element--stack-smartphone {
-    grid-template-columns: 1fr;
-  }
-}
-
 .column-element__column {
   position: relative;
   display: flex;

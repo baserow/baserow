@@ -14,6 +14,44 @@ if TYPE_CHECKING:
     from baserow.contrib.builder.application_types import BuilderApplicationType
 
 
+class BuilderBreakpointsSerializerMixin:
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        mobile_breakpoint = attrs.get(
+            "mobile_breakpoint", getattr(self.instance, "mobile_breakpoint", None)
+        )
+        tablet_breakpoint = attrs.get(
+            "tablet_breakpoint", getattr(self.instance, "tablet_breakpoint", None)
+        )
+
+        if mobile_breakpoint is None and tablet_breakpoint is None:
+            return attrs
+
+        if mobile_breakpoint is None or tablet_breakpoint is None:
+            raise serializers.ValidationError(
+                {
+                    "mobile_breakpoint": [
+                        "The mobile and tablet breakpoints must be configured together."
+                    ],
+                    "tablet_breakpoint": [
+                        "The mobile and tablet breakpoints must be configured together."
+                    ],
+                }
+            )
+
+        if mobile_breakpoint >= tablet_breakpoint:
+            raise serializers.ValidationError(
+                {
+                    "tablet_breakpoint": [
+                        "The tablet breakpoint must be greater than the mobile breakpoint."
+                    ]
+                }
+            )
+
+        return attrs
+
+
 class BuilderSerializer(serializers.Serializer):
     """
     The builder serializer.

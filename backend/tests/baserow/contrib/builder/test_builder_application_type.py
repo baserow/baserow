@@ -779,6 +779,8 @@ def test_builder_application_export(data_fixture):
         "type": "builder",
         "favicon_file": None,
         "login_page": page_2_serialized,
+        "mobile_breakpoint": 640,
+        "tablet_breakpoint": 1024,
     }
 
     assert serialized == reference

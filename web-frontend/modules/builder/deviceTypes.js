@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { getBuilderBreakpoints } from '@baserow/modules/builder/utils/breakpoints'
 
 export class DeviceType extends Registerable {
   get iconClass() {
@@ -15,6 +16,14 @@ export class DeviceType extends Registerable {
 
   get maxWidth() {
     return 0
+  }
+
+  getMinWidth(builder) {
+    return this.minWidth
+  }
+
+  getMaxWidth(builder) {
+    return this.maxWidth
   }
 }
 
@@ -38,6 +47,10 @@ export class DesktopDeviceType extends DeviceType {
   get maxWidth() {
     return null // Can be as wide as you want
   }
+
+  getMinWidth(builder) {
+    return getBuilderBreakpoints(builder).tablet + 1
+  }
 }
 
 export class TabletDeviceType extends DeviceType {
@@ -60,6 +73,14 @@ export class TabletDeviceType extends DeviceType {
   get maxWidth() {
     return 768
   }
+
+  getMinWidth(builder) {
+    return getBuilderBreakpoints(builder).tablet
+  }
+
+  getMaxWidth(builder) {
+    return getBuilderBreakpoints(builder).tablet
+  }
 }
 
 export class SmartphoneDeviceType extends DeviceType {
@@ -81,5 +102,13 @@ export class SmartphoneDeviceType extends DeviceType {
 
   get maxWidth() {
     return 500
+  }
+
+  getMinWidth(builder) {
+    return getBuilderBreakpoints(builder).mobile
+  }
+
+  getMaxWidth(builder) {
+    return getBuilderBreakpoints(builder).mobile
   }
 }
