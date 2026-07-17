@@ -61,6 +61,13 @@ export default {
       required: false,
       default: '',
     },
+    // Resolver returning the scrollable preview container, provided by the
+    // component that owns it (FormViewPreview) instead of a DOM lookup here.
+    getScrollAreaElement: {
+      type: Function,
+      required: false,
+      default: null,
+    },
   },
   emits: ['change'],
   data() {
@@ -69,8 +76,8 @@ export default {
       dirty: false,
       // Initial content handed to the editor when entering edit mode.
       buffer: '',
-      // Scrolling ancestor of the form preview, so the editor's floating/bubble
-      // menu sticks to the cursor line while the page scrolls.
+      // Scrolling container of the form preview, so the editor's floating/
+      // bubble menu sticks to the cursor line while the page scrolls.
       scrollAreaElement: null,
     }
   },
@@ -85,8 +92,8 @@ export default {
         return
       }
       // Resolve the form preview's scroll container so the editor menus track
-      // it. Falls back to the editor's own root when not found.
-      this.scrollAreaElement = this.$el.closest('.form-view__preview')
+      // it. When no resolver is provided the editor falls back to its own root.
+      this.scrollAreaElement = this.getScrollAreaElement?.() || null
       this.buffer = this.value || ''
       this.dirty = false
       this.editing = true

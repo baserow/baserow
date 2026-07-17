@@ -7,11 +7,10 @@
           <span v-if="field.required" class="form-view__field-required">*</span>
         </div>
         <div v-if="field.description" class="form-view__field-description">
-          <RichTextEditor
-            :model-value="field.description"
-            :editable="false"
-            :enable-rich-text-formatting="true"
-          ></RichTextEditor>
+          <FormViewDescription
+            :value="field.description"
+            read-only
+          ></FormViewDescription>
         </div>
         <component
           :is="selectedFieldComponent.component"
@@ -35,12 +34,12 @@
 
 <script>
 import FieldContext from '@baserow/modules/database/components/field/FieldContext'
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
 
 export default {
   name: 'FormPageField',
-  components: { FieldContext, RichTextEditor },
+  components: { FieldContext, FormViewDescription },
   props: {
     slug: {
       type: String,

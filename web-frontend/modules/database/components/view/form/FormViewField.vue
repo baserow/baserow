@@ -56,6 +56,7 @@
             :value="fieldOptions.description || ''"
             :read-only="readOnly"
             :placeholder="$t('formViewField.descriptionPlaceholder')"
+            :get-scroll-area-element="getScrollAreaElement"
             @change="$emit('updated-field-options', { description: $event })"
           ></FormViewDescription>
         </div>
@@ -227,6 +228,12 @@ export default {
       type: Boolean,
       required: false,
       default: true,
+    },
+    // Resolves the scrollable preview container owned by FormViewPreview.
+    getScrollAreaElement: {
+      type: Function,
+      required: false,
+      default: null,
     },
   },
   emits: ['updated-field-options', 'hide'],

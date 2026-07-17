@@ -315,6 +315,7 @@
   display: flex;
   align-items: flex-start;
   gap: 5px;
+  min-width: 0;
 }
 
 .form-view__description-rendered {
@@ -324,7 +325,7 @@
 
 .form-view__description-placeholder {
   flex: 1 1 auto;
-  color: $color-neutral-500;
+  color: $palette-neutral-700;
   cursor: text;
 }
 
@@ -369,6 +370,9 @@
   margin: 0;
   display: inline-block;
   line-height: 20px;
+
+  // Wrap long unbroken words instead of overflowing horizontally.
+  overflow-wrap: anywhere;
 
   @include flex-align-items(5px);
 }
@@ -529,6 +533,9 @@
   margin-bottom: 20px;
   color: $color-neutral-500;
   display: inline-block;
+
+  // Wrap long unbroken words instead of overflowing horizontally.
+  overflow-wrap: anywhere;
 }
 
 .form-view-field-edit {

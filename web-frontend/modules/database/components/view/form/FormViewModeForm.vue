@@ -16,11 +16,10 @@
         <Thumbnail v-if="logoImage !== null" :src="logoImage.url" width="200" />
         <h1 v-if="title !== ''" class="form-view__title">{{ title }}</h1>
         <div v-if="description !== ''" class="form-view__description">
-          <RichTextEditor
-            :model-value="description"
-            :editable="false"
-            :enable-rich-text-formatting="true"
-          ></RichTextEditor>
+          <FormViewDescription
+            :value="description"
+            read-only
+          ></FormViewDescription>
         </div>
       </div>
       <FormPageField
@@ -65,7 +64,7 @@ import baseFormViewMode from '@baserow/modules/database/mixins/baseFormViewMode'
 import FormPageField from '@baserow/modules/database/components/view/form/FormPageField'
 import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
 import FormViewSubmitted from '@baserow/modules/database/components/view/form/FormViewSubmitted'
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 
 export default {
   name: 'FormViewModeForm',
@@ -73,7 +72,7 @@ export default {
     FormViewSubmitted,
     FormPageField,
     FormViewPoweredBy,
-    RichTextEditor,
+    FormViewDescription,
   },
   mixins: [baseFormViewMode],
   emits: ['submit'],

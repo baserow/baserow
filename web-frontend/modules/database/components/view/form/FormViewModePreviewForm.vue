@@ -65,6 +65,7 @@
             :value="view.description || ''"
             :read-only="readOnly"
             :placeholder="$t('formViewModePreviewForm.descriptionPlaceholder')"
+            :get-scroll-area-element="getScrollAreaElement"
             @change="updateForm({ description: $event })"
           ></FormViewDescription>
         </div>
@@ -94,6 +95,7 @@
           :field-options="fieldOptions[field.id]"
           :fields="fields"
           :read-only="readOnly"
+          :get-scroll-area-element="getScrollAreaElement"
           @hide="updateFieldOptionsOfField(view, field, { enabled: false })"
           @updated-field-options="
             updateFieldOptionsOfField(view, field, $event)
@@ -178,6 +180,12 @@ export default {
     readOnly: {
       type: Boolean,
       required: true,
+    },
+    // Resolves the scrollable preview container owned by FormViewPreview.
+    getScrollAreaElement: {
+      type: Function,
+      required: false,
+      default: null,
     },
   },
   emits: ['ordered-fields'],

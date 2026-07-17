@@ -2,7 +2,9 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import FormPageField from '@baserow/modules/database/components/view/form/FormPageField'
 
 // Read-only stub: exposes the markdown handed to the editor so we can assert it is
-// forwarded for rendering (the real editor parses markdown; tiptap is out of scope here).
+// forwarded for rendering (the real editor parses markdown; tiptap is out of scope
+// here). FormPageField renders through FormViewDescription's read-only branch; the
+// stub is applied deeply, so it replaces the editor inside it.
 const RichTextEditorStub = {
   name: 'RichTextEditor',
   props: {

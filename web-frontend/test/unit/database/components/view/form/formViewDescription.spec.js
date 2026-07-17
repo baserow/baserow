@@ -8,6 +8,7 @@ const RichTextEditorStub = {
   props: {
     modelValue: { type: [String, Object], default: '' },
     editable: { type: Boolean, default: false },
+    scrollableAreaElement: { default: null },
   },
   emits: ['update:modelValue', 'blur'],
   data() {
@@ -83,6 +84,22 @@ describe('FormViewDescription', () => {
     const editor = await startEditing(wrapper)
     expect(editor.exists()).toBe(true)
     expect(editor.props('editable')).toBe(true)
+  })
+
+  test('hands the resolved scroll container to the editor when editing', async () => {
+    const container = document.createElement('div')
+    const wrapper = await mountComponent({
+      value: 'text',
+      getScrollAreaElement: () => container,
+    })
+    const editor = await startEditing(wrapper)
+    expect(editor.props('scrollableAreaElement')).toBe(container)
+  })
+
+  test('editor gets no scroll container when no resolver is provided', async () => {
+    const wrapper = await mountComponent({ value: 'text' })
+    const editor = await startEditing(wrapper)
+    expect(editor.props('scrollableAreaElement')).toBe(null)
   })
 
   test('emits change with markdown after an edit and blur', async () => {
