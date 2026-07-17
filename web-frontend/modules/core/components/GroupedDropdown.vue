@@ -115,6 +115,19 @@ const props = defineProps({
   items: {
     type: Array,
     required: true,
+    /**
+     * A flat list of selectable items, or a list of groups containing direct
+     * selectable items.
+     */
+    validator: (items) => {
+      const isGroup = (item) => Array.isArray(item?.children)
+      const isAction = (item) => item != null && !isGroup(item)
+      const containsGroups = items.some(isGroup)
+
+      return containsGroups
+        ? items.every((item) => isGroup(item) && item.children.every(isAction))
+        : items.every(isAction)
+    },
   },
   modelValue: {
     validator: () => true,
@@ -187,17 +200,28 @@ const activeGroupKey = ref(null)
 const currentValue = computed(() =>
   props.modelValue !== undefined ? props.modelValue : props.value
 )
-const nonEmptyItems = computed(() => removeEmptyGroups(props.items))
-const hasGroupedItems = computed(() => nonEmptyItems.value.some(hasChildren))
+const isGroupedInput = computed(() => props.items.some(isGroup))
+const nonEmptyItems = computed(() =>
+  isGroupedInput.value
+    ? removeEmptyGroups(props.items)
+    : props.items.filter(isAction)
+)
+const hasGroupedItems = computed(
+  () => isGroupedInput.value && nonEmptyItems.value.length > 0
+)
 const visibleItems = computed(() => {
   const normalizedQuery = normalizeSearchValue(query.value)
   if (!normalizedQuery) {
     return nonEmptyItems.value
   }
-  return filterGroupedItems(nonEmptyItems.value, normalizedQuery)
+  return isGroupedInput.value
+    ? filterGroupedItems(nonEmptyItems.value, normalizedQuery)
+    : nonEmptyItems.value.filter((item) =>
+        itemMatchesQuery(item, normalizedQuery)
+      )
 })
 const groupedItems = computed(() =>
-  visibleItems.value.filter((item) => hasChildren(item))
+  isGroupedInput.value ? visibleItems.value : []
 )
 const selectableGroups = computed(() =>
   groupedItems.value.filter((item) => !item.disabled)
@@ -206,7 +230,7 @@ const selectedResult = computed(() =>
   findSelectedItem(nonEmptyItems.value, currentValue.value)
 )
 const selectedGroupKey = computed(() =>
-  getItemIdentity(selectedResult.value?.ancestors[0])
+  getItemIdentity(selectedResult.value?.group)
 )
 const activeGroup = computed(
   () =>
@@ -219,30 +243,15 @@ const activeGroup = computed(
     selectableGroups.value[0] ||
     null
 )
-const navigationItems = computed(() =>
-  groupedItems.value.length ? visibleItems.value : []
-)
 const navigationMenuItems = computed(() =>
-  navigationItems.value.map((item) =>
-    hasChildren(item) ? { ...item, value: getItemIdentity(item) } : item
-  )
+  groupedItems.value.map((item) => ({
+    ...item,
+    value: getItemIdentity(item),
+  }))
 )
-const activeNavigationValue = computed(() => {
-  if (
-    selectedResult.value &&
-    selectedResult.value.ancestors.length === 0 &&
-    navigationItems.value.includes(selectedResult.value.item)
-  ) {
-    return selectedResult.value.item.value
-  }
-  return getItemIdentity(activeGroup.value)
-})
+const activeNavigationValue = computed(() => getItemIdentity(activeGroup.value))
 const actionItems = computed(() =>
-  activeGroup.value
-    ? activeGroup.value.children
-    : navigationItems.value.length
-      ? []
-      : visibleItems.value
+  isGroupedInput.value ? activeGroup.value?.children || [] : visibleItems.value
 )
 const selectedLabel = computed(() => selectedResult.value?.item.label || '')
 const selectedImage = computed(() => {
@@ -253,7 +262,7 @@ const selectedImage = computed(() => {
   return (
     result.item.selectedImage ||
     result.item.image ||
-    result.ancestors.at(-1)?.image ||
+    result.group?.image ||
     null
   )
 })
@@ -263,10 +272,7 @@ const selectedIcon = computed(() => {
     return null
   }
   return (
-    result.item.selectedIcon ||
-    result.item.icon ||
-    result.ancestors.at(-1)?.icon ||
-    null
+    result.item.selectedIcon || result.item.icon || result.group?.icon || null
   )
 })
 const contextStyle = computed(() => ({
@@ -291,53 +297,49 @@ function itemMatchesQuery(item, normalizedQuery) {
 }
 
 function removeEmptyGroups(items) {
-  return items.reduce((filteredItems, item) => {
-    if (Array.isArray(item.children)) {
-      const children = removeEmptyGroups(item.children)
-      if (children.length) {
-        filteredItems.push({ ...item, children })
-      }
-    } else {
-      filteredItems.push(item)
-    }
-    return filteredItems
-  }, [])
+  return items
+    .filter(isGroup)
+    .map((group) => ({
+      ...group,
+      children: group.children.filter(isAction),
+    }))
+    .filter(({ children }) => children.length > 0)
 }
 
-function filterGroupedItems(items, normalizedQuery) {
-  return items.reduce((filteredItems, item) => {
-    if (hasChildren(item)) {
-      const children = filterGroupedItems(item.children, normalizedQuery)
-      if (children.length) {
-        filteredItems.push({ ...item, children })
-      }
-    } else if (itemMatchesQuery(item, normalizedQuery)) {
-      filteredItems.push(item)
-    }
-    return filteredItems
-  }, [])
+function filterGroupedItems(groups, normalizedQuery) {
+  return groups
+    .map((group) => {
+      const children = group.children.filter((item) =>
+        itemMatchesQuery(item, normalizedQuery)
+      )
+      return children.length ? { ...group, children } : null
+    })
+    .filter(Boolean)
 }
 
-function hasChildren(item) {
-  return Array.isArray(item.children) && item.children.length > 0
+function isGroup(item) {
+  return Array.isArray(item?.children)
+}
+
+function isAction(item) {
+  return item != null && !isGroup(item)
 }
 
 function getItemIdentity(item) {
   return item?.id ?? item?.value ?? item?.label ?? null
 }
 
-function findSelectedItem(items, value, ancestors = []) {
+function findSelectedItem(items, value) {
   for (const item of items) {
-    if (hasChildren(item)) {
-      const result = findSelectedItem(item.children, value, [
-        ...ancestors,
-        item,
-      ])
-      if (result) {
-        return result
+    if (isGroup(item)) {
+      const selectedItem = item.children.find((child) =>
+        Object.is(child.value, value)
+      )
+      if (selectedItem) {
+        return { item: selectedItem, group: item }
       }
     } else if (Object.is(item.value, value)) {
-      return { item, ancestors }
+      return { item, group: null }
     }
   }
   return null
@@ -395,11 +397,7 @@ function onHidden() {
 }
 
 function selectNavigationItem(item) {
-  if (hasChildren(item)) {
-    activeGroupKey.value = getItemIdentity(item)
-    return
-  }
-  selectItem(item)
+  activeGroupKey.value = getItemIdentity(item)
 }
 
 function selectItem(item) {
@@ -411,7 +409,7 @@ function selectItem(item) {
 }
 
 async function navigateToActions(item) {
-  if (!hasChildren(item) || item.disabled) {
+  if (item.disabled) {
     return
   }
   activeGroupKey.value = getItemIdentity(item)

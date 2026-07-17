@@ -1,4 +1,5 @@
 import { defineComponent } from 'vue'
+import { vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 import GroupedDropdown from '@baserow/modules/core/components/GroupedDropdown'
@@ -259,5 +260,38 @@ describe('GroupedDropdown', () => {
 
     expect(wrapper.find('.grouped-dropdown__navigation').exists()).toBe(false)
     expect(wrapper.find('.menu-list__item-label').text()).toBe('Repeat')
+  })
+
+  test('does not render nested groups as selectable actions', () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    try {
+      const wrapper = mountComponent({
+        emptyText: 'No actions found',
+        items: [
+          {
+            id: 'local-baserow',
+            label: 'Local Baserow',
+            children: [
+              {
+                id: 'database-actions',
+                label: 'Database actions',
+                children: [
+                  { id: 'get-row', label: 'Get row', value: 'get-row' },
+                ],
+              },
+            ],
+          },
+        ],
+      })
+
+      expect(wrapper.find('.grouped-dropdown__panels').exists()).toBe(false)
+      expect(wrapper.find('.grouped-dropdown__empty').text()).toBe(
+        'No actions found'
+      )
+      expect(consoleWarn).toHaveBeenCalled()
+    } finally {
+      consoleWarn.mockRestore()
+    }
   })
 })

@@ -46,7 +46,8 @@ export default {
   argTypes: {
     items: {
       control: 'object',
-      description: 'Flat or nested dropdown items.',
+      description:
+        'Flat selectable items or one-level groups with direct selectable children.',
     },
     modelValue: {
       control: 'select',
