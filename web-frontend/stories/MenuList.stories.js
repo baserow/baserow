@@ -3,7 +3,7 @@ import { expect, fn } from 'storybook/test'
 import Badge from '@baserow/modules/core/components/Badge'
 import MenuList from '@baserow/modules/core/components/MenuList'
 
-import { compactMenuListItems, menuListItems } from './menuListFixtures'
+import { menuListItems, simpleMenuListItems } from './menuListFixtures'
 
 const renderMenu = (args) => ({
   components: { MenuList },
@@ -83,9 +83,9 @@ export const Default = {
   render: renderMenu,
 }
 
-export const Compact = {
+export const WithoutDescriptions = {
   args: {
-    items: compactMenuListItems,
+    items: simpleMenuListItems,
     modelValue: 'refresh-data',
     searchable: false,
     showDescriptions: false,

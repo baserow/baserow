@@ -14,28 +14,26 @@
   max-height: 420px;
   overflow: hidden scroll;
   margin: 0;
-  padding: 8px;
+  padding: 4px;
 }
 
 .menu-list__item {
-  margin: 0 0 4px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
+  margin: 0;
 }
 
 .menu-list__item-button {
   display: flex;
   width: 100%;
-  min-height: 44px;
+  min-height: 36px;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   border: 0;
-  padding: 10px 12px;
+  padding: 8px 10px;
   color: $palette-neutral-1200;
   background: transparent;
   font: inherit;
+  font-size: 13px;
+  line-height: 20px;
   text-align: left;
   cursor: pointer;
 
@@ -44,7 +42,7 @@
   &:hover,
   &:focus-visible,
   &.menu-list__item-button--active {
-    background-color: $palette-neutral-100;
+    background-color: rgba($palette-neutral-1300, 0.04);
   }
 
   &:focus-visible {
@@ -82,6 +80,13 @@
   flex: 0 0 16px;
 }
 
+.menu-list__item-button--with-description {
+  .menu-list__item-image,
+  .menu-list__item-icon {
+    margin-top: 2px;
+  }
+}
+
 .menu-list__item-content {
   display: flex;
   min-width: 0;
@@ -99,7 +104,9 @@
 
 .menu-list__item-label {
   min-width: 0;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 20px;
 
   @extend %ellipsis;
 }
@@ -108,7 +115,7 @@
   color: $palette-neutral-900;
   font-size: 12px;
   font-weight: 400;
-  line-height: 18px;
+  line-height: 20px;
   white-space: normal;
 
   .menu-list__item-button--disabled & {

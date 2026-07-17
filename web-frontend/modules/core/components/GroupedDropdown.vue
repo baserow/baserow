@@ -67,6 +67,7 @@
           >
             <MenuList
               ref="navigationMenu"
+              class="grouped-dropdown__menu-list"
               :items="navigationMenuItems"
               :model-value="activeNavigationValue"
               :empty-text="emptyText"
@@ -86,6 +87,7 @@
           >
             <MenuList
               ref="actionMenu"
+              class="grouped-dropdown__menu-list"
               :items="actionItems"
               :model-value="currentValue"
               :empty-text="emptyText"

@@ -68,7 +68,7 @@ export const menuListItems = [
   },
 ]
 
-export const compactMenuListItems = [
+export const simpleMenuListItems = [
   {
     id: 'open-page',
     label: 'Open page',

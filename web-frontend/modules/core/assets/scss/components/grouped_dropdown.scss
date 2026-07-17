@@ -39,64 +39,15 @@
 .grouped-dropdown__navigation,
 .grouped-dropdown__actions {
   min-width: 0;
+}
 
-  .menu-list {
-    min-width: 0;
-  }
-
-  .menu-list__items {
-    max-height: 420px;
-    padding: 4px;
-  }
-
-  .menu-list__item {
-    margin-bottom: 0;
-  }
-
-  .menu-list__item-button {
-    min-height: 36px;
-    padding: 8px 10px;
-    gap: 10px;
-    font-size: 13px;
-    line-height: 20px;
-
-    &:hover,
-    &:focus-visible,
-    &.menu-list__item-button--active {
-      background-color: rgba($palette-neutral-1300, 0.04);
-    }
-  }
-
-  .menu-list__item-label {
-    font-size: 13px;
-    line-height: 20px;
-  }
+.grouped-dropdown__menu-list {
+  min-width: 0;
 }
 
 .grouped-dropdown__navigation {
   border-right: 1px solid $palette-neutral-200;
   background-color: $palette-neutral-25;
-
-  .menu-list {
-    background-color: transparent;
-  }
-}
-
-.grouped-dropdown__actions {
-  .menu-list__item-image,
-  .menu-list__item-icon {
-    margin-top: 2px;
-  }
-
-  .menu-list__item-content {
-    gap: 4px;
-  }
-
-  .menu-list__item-description {
-    color: $palette-neutral-900;
-    font-size: 12px;
-    line-height: 20px;
-  }
 }
 
 .grouped-dropdown__actions--only {
