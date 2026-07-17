@@ -8,7 +8,7 @@
     }"
   >
     <div
-      v-tooltip="$t('getFormulaComponent.errorTooltip')"
+      v-tooltip="$t('getExpressionComponent.errorTooltip')"
       tooltip-position="top"
       :hide-tooltip="!isInvalid"
       @click.stop="emitToEditor('data-node-clicked', node)"

@@ -382,11 +382,11 @@
   "localBaserowCreateRowsServiceForm": {
     "rowsLabel": "Rows",
     "rowsPlaceholder": "Choose a list of row objects",
-    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Use field names or field IDs as object keys. Up to {limit} rows can be created at once."
+    "rowsHelper": "The expression must return an array of row objects, or a JSON string that parses to one. Use field names or field IDs as object keys. Up to {limit} rows can be created at once."
   },
   "localBaserowUpdateRowsServiceForm": {
     "rowsLabel": "Rows",
     "rowsPlaceholder": "Choose a list of row objects with IDs",
-    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
+    "rowsHelper": "The expression must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
   }
 }
