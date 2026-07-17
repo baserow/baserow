@@ -8,6 +8,7 @@ from celery_singleton import DuplicateTaskError, Singleton
 from baserow.celery_singleton_backend import SingletonAutoRescheduleFlag
 from baserow.config.celery import app
 from baserow.core.jobs.handler import JobHandler
+from baserow_premium.fields.exceptions import AIFieldPromptInvalidError
 from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField, AIFieldScheduledUpdate
 from baserow_premium.license.features import PREMIUM
@@ -90,13 +91,18 @@ def generate_scheduled_ai_field_generation(field_id: int):
 
     # Synchronously run the job while keeping the singleton lock, to avoid
     # multiple concurrent job runs for the same field.
-    jh.create_and_start_job(
-        user,
-        GenerateAIValuesJobType.type,
-        field_id=field_id,
-        is_auto_update=True,
-        sync=True,
-    )
+    try:
+        jh.create_and_start_job(
+            user,
+            GenerateAIValuesJobType.type,
+            field_id=field_id,
+            is_auto_update=True,
+            sync=True,
+        )
+    except AIFieldPromptInvalidError:
+        # The prompt is broken, so there's nothing to generate. The scheduled rows
+        # are kept so they can be processed once the prompt is fixed.
+        return
 
     if flag.is_set():
         _schedule_generate_ai_value_generation(field_id)

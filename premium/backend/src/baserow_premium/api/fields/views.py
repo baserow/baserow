@@ -47,7 +47,6 @@ from baserow_premium.fields.actions import GenerateFormulaWithAIActionType
 from baserow_premium.fields.exceptions import AIFieldPromptInvalidError
 from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField
-from baserow_premium.fields.visitors import get_ai_prompt_error
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 
@@ -132,10 +131,8 @@ class AsyncGenerateAIFieldValuesView(APIView):
             context=ai_field.table,
         )
 
-        prompt_error = get_ai_prompt_error(ai_field.ai_prompt, ai_field.table_id)
-        if prompt_error:
-            raise AIFieldPromptInvalidError(prompt_error)
-
+        # An invalid prompt raises `AIFieldPromptInvalidError` from the job type's
+        # `prepare_values`, mapped to a 400 by `map_exceptions` above.
         job = JobHandler().create_and_start_job(
             request.user,
             GenerateAIValuesJobType.type,

@@ -370,8 +370,12 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             field_ids = set()
         if field_instance.ai_file_field_id is not None:
             field_ids.add(field_instance.ai_file_field_id)
+        # Scoped to the field's table, matching `get_ai_prompt_error`; a prompt
+        # can only reference fields in the same table.
         existing_field_ids = set(
-            Field.objects.filter(id__in=field_ids).values_list("id", flat=True)
+            Field.objects.filter(
+                id__in=field_ids, table_id=field_instance.table_id
+            ).values_list("id", flat=True)
         )
         # A trashed referenced field is declared as a broken reference (by name,
         # like formula fields) so the edge survives and restoring the field

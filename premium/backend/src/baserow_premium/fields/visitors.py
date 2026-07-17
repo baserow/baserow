@@ -2,6 +2,7 @@ import re
 from typing import Dict, Optional, Union
 
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
+from baserow.core.cache import local_cache
 from baserow.core.formula import (
     BaserowFormula,
     BaserowFormulaObject,
@@ -170,9 +171,10 @@ class AIFieldIDExtractingVisitor(BaserowFormulaVisitor):
 
         args = [expr.accept(self) for expr in function_argument_expressions]
 
-        # Detect get("'fields.field_XXX'") references
+        # Detect get('fields.field_XXX') references. The parser accepts both
+        # single and double quoted string literals, so strip either style.
         if function_name == "get" and args and args[0]:
-            if field_id_match := FIELD_ID_RE.match(args[0].strip("'")):
+            if field_id_match := FIELD_ID_RE.match(args[0].strip("'\"")):
                 self.field_ids.add(int(field_id_match.group(1)))
 
     def visitLeftWhitespaceOrComments(
@@ -203,6 +205,25 @@ def extract_field_id_dependencies(
     return visitor.field_ids
 
 
+def get_table_field_ids(table_id: int) -> set[int]:
+    """
+    Returns the ids of the non-trashed fields in the given table, cached per
+    request/task so validating many AI fields doesn't repeat the query. The cache
+    is invalidated by `table_schema_changed` (see receivers.py).
+    """
+
+    from baserow.contrib.database.fields.models import Field
+
+    return local_cache.get(
+        f"ai_prompt_table_field_ids_{table_id}",
+        lambda: set(
+            Field.objects.filter(table_id=table_id, trashed=False).values_list(
+                "id", flat=True
+            )
+        ),
+    )
+
+
 def get_ai_prompt_error(
     prompt: Union[str, BaserowFormulaObject], table_id: int
 ) -> Optional[str]:
@@ -211,8 +232,6 @@ def get_ai_prompt_error(
     cannot be parsed or references a field that does not exist (non-trashed) in the
     given table. Returns None for an empty or valid prompt.
     """
-
-    from baserow.contrib.database.fields.models import Field
 
     formula_str = prompt if isinstance(prompt, str) else prompt["formula"]
     if not formula_str:
@@ -223,13 +242,7 @@ def get_ai_prompt_error(
     except BaserowFormulaException:
         return "The prompt formula could not be parsed."
 
-    if referenced_ids:
-        existing_ids = set(
-            Field.objects.filter(
-                id__in=referenced_ids, table_id=table_id, trashed=False
-            ).values_list("id", flat=True)
-        )
-        if referenced_ids - existing_ids:
-            return "The prompt references a field that no longer exists."
+    if referenced_ids and referenced_ids - get_table_field_ids(table_id):
+        return "The prompt references a field that no longer exists."
 
     return None

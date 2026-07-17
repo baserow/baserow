@@ -1,7 +1,9 @@
 import pytest
 
+from baserow.core.cache import local_cache
 from baserow.core.formula import BaserowFormulaSyntaxError
 from baserow_premium.fields.visitors import (
+    extract_field_id_dependencies,
     get_ai_prompt_error,
     replace_field_id_references,
 )
@@ -64,6 +66,36 @@ def test_get_ai_prompt_error_detects_missing_field_reference(premium_data_fixtur
     # field_999999 does not exist in this table.
     prompt = "get('fields.field_999999')"
     assert get_ai_prompt_error(prompt, table.id) is not None
+
+
+@pytest.mark.field_ai
+def test_extract_field_id_dependencies_supports_both_quote_styles():
+    assert extract_field_id_dependencies("get('fields.field_1')") == {1}
+    assert extract_field_id_dependencies('get("fields.field_1")') == {1}
+
+
+@pytest.mark.django_db
+def test_get_ai_prompt_error_detects_double_quoted_missing_field_reference(
+    premium_data_fixture,
+):
+    table = premium_data_fixture.create_database_table()
+    prompt = 'get("fields.field_999999")'
+    assert get_ai_prompt_error(prompt, table.id) is not None
+
+
+@pytest.mark.django_db
+def test_get_ai_prompt_error_caches_field_ids_per_table(
+    premium_data_fixture, django_assert_num_queries
+):
+    table = premium_data_fixture.create_database_table()
+    text_field = premium_data_fixture.create_text_field(table=table)
+    prompt = f"get('fields.field_{text_field.id}')"
+
+    with local_cache.context():
+        # The second validation reuses the cached field ids.
+        with django_assert_num_queries(1):
+            assert get_ai_prompt_error(prompt, table.id) is None
+            assert get_ai_prompt_error(prompt, table.id) is None
 
 
 @pytest.mark.django_db
