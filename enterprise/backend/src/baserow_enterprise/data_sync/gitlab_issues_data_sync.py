@@ -320,7 +320,7 @@ class GitLabIssuesDataSyncType(DataSyncType):
         except UnacceptableAddressException:
             raise SyncError(
                 "The provided GitLab URL is not allowed because it points to a "
-                "private address."
+                "private address or non-standard port."
             )
         except RequestException as e:
             raise SyncError(f"Error fetching GitLab Issues: {str(e)}")

@@ -2,7 +2,6 @@ import base64
 import hashlib
 import json
 import os
-import re
 import uuid
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -72,6 +71,8 @@ tracer = trace.get_tracer(__name__)
 
 WORKSPACE_EXPORTS_LIMIT = 5
 EXPORT_FORMAT_VERSION = "1.0.0"
+# Manifest versions that have a schema file in `import_export/schema`.
+SUPPORTED_MANIFEST_VERSIONS = frozenset({EXPORT_FORMAT_VERSION})
 MANIFEST_NAME = "manifest.json"
 SIGNATURE_NAME = "manifest_signature.json"
 INDENT = settings.DEBUG and 4 or None
@@ -646,13 +647,10 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
             manifest_version = manifest_data.get("version")
             # The version comes from the untrusted uploaded archive and is used to
-            # build a file path, so it must be strictly validated to prevent path
-            # traversal (e.g. a version like `1.0.0/../../../secret`).
-            if not isinstance(manifest_version, str) or not re.fullmatch(
-                r"\d+\.\d+\.\d+", manifest_version
-            ):
+            # build a file path, so only explicitly supported versions are accepted.
+            if manifest_version not in SUPPORTED_MANIFEST_VERSIONS:
                 raise ImportExportResourceInvalidFile(
-                    "Manifest file is corrupted: invalid version."
+                    "Manifest file is corrupted: unsupported version."
                 )
             manifest_schema_file = f"schema_v{manifest_version}.json"
 

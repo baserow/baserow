@@ -1206,7 +1206,7 @@ INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
     os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
 )
 BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS = str_to_bool(
-    os.getenv("BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS", "false")
+    os.getenv("BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS", "true")
 )
 INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 # The minimum amount of minutes the periodic task's "minute" interval

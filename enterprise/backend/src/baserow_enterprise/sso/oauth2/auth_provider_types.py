@@ -62,6 +62,12 @@ class BaseOAuth2AuthProviderMixin:
     - self.SCOPE
     """
 
+    # True when the provider's endpoint URLs can be configured by an admin/builder
+    # (e.g. GitLab, OpenID Connect). Only those providers need SSRF protection on
+    # their OAuth2 session; providers with hardcoded URLs (Google, GitHub,
+    # Facebook) are left untouched so proxies keep working for them.
+    has_admin_configurable_urls = False
+
     def get_base_url(self, instance: AuthProviderModel) -> str:
         """
         Returns base URL for the provider instance.
@@ -141,8 +147,10 @@ class BaseOAuth2AuthProviderMixin:
             )
         # The token and user info URLs can come from an admin/builder configured
         # provider or its well-known document, so the session itself must also
-        # block private addresses.
-        return enforce_sso_ssrf_protection(oauth)
+        # block private addresses. Providers with hardcoded URLs are skipped.
+        if self.has_admin_configurable_urls:
+            return enforce_sso_ssrf_protection(oauth)
+        return oauth
 
     def get_user_info_url(self, instance: AuthProviderModel) -> str:
         return self.USER_INFO_URL
@@ -393,6 +401,7 @@ class GitLabAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
     model_class = GitLabAuthProviderModel
     allowed_fields = ["name", "base_url", "client_id", "secret"]
     serializer_field_names = ["name", "base_url", "client_id", "secret"]
+    has_admin_configurable_urls = True
 
     AUTHORIZATION_PATH = "/oauth/authorize"
     SCOPE = ["read_user"]
@@ -451,6 +460,7 @@ class OpenIdConnectAuthProviderTypeMixin:
     """
 
     type = "openid_connect"
+    has_admin_configurable_urls = True
     allowed_fields = [
         "name",
         "base_url",

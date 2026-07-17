@@ -16,10 +16,10 @@ from baserow_enterprise.sso.utils import (
 
 
 @override_settings(BASEROW_SSO_ALLOW_PRIVATE_ADDRESS=False)
-def test_get_sso_request_function_blocks_private_address_by_default():
-    # By default SSO requests to the OpenID Connect well-known/JWKS endpoints must go
-    # through advocate so that an admin/builder configured provider URL can't be used
-    # to reach Baserow's internal network (SSRF protection).
+def test_get_sso_request_function_blocks_private_address_when_not_allowed():
+    # When private addresses are not allowed, SSO requests to the OpenID Connect
+    # well-known/JWKS endpoints must go through advocate so that an admin/builder
+    # configured provider URL can't reach Baserow's internal network.
     assert get_sso_request_function() is advocate.request
 
 
@@ -29,10 +29,11 @@ def test_get_sso_request_function_allows_private_address_when_enabled():
 
 
 @override_settings(BASEROW_SSO_ALLOW_PRIVATE_ADDRESS=False)
-def test_enforce_sso_ssrf_protection_blocks_private_address_by_default():
+def test_enforce_sso_ssrf_protection_blocks_private_address_when_not_allowed():
     session = enforce_sso_ssrf_protection(requests.Session())
     with pytest.raises(advocate.UnacceptableAddressException):
-        session.get("http://127.0.0.1:9", timeout=5)
+        # Port 80 is in advocate's whitelist, so the private IP check itself is hit.
+        session.get("http://127.0.0.1:80", timeout=5)
 
 
 @override_settings(BASEROW_SSO_ALLOW_PRIVATE_ADDRESS=True)

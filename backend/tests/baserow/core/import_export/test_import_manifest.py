@@ -150,14 +150,18 @@ def test_import_without_signature_data(data_fixture, use_tmp_media_root, tmp_pat
         "1.0",
         "latest",
         "",
+        # An oversized version must not reach `open()` (ENAMETOOLONG -> 500).
+        f"{'1' * 300}.0.0",
+        # Unicode digits (matched by `\d`) must not be accepted either.
+        "١.٠.٠",
     ],
 )
 def test_import_manifest_rejects_path_traversal_version(
     data_fixture, use_tmp_media_root, tmp_path, malicious_version
 ):
-    # The manifest `version` is used to build a schema file path. A version that is
-    # not a strict `x.y.z` must be rejected before the path is opened so that the
-    # untrusted archive can't trigger an arbitrary file read (path traversal).
+    # The manifest `version` is used to build a schema file path. Only explicitly
+    # supported versions are accepted, so the untrusted archive can't trigger an
+    # arbitrary file read (path traversal) or a filesystem error.
     user = data_fixture.create_user()
 
     data_fixture.create_import_export_trusted_source()
@@ -184,7 +188,7 @@ def test_import_manifest_rejects_path_traversal_version(
         with zipfile.ZipFile(zip_file_handle, "r") as zip_file:
             with pytest.raises(ImportExportResourceInvalidFile) as err:
                 ImportExportHandler().validate_manifest(zip_file=zip_file)
-    assert str(err.value) == "Manifest file is corrupted: invalid version."
+    assert str(err.value) == "Manifest file is corrupted: unsupported version."
 
 
 @pytest.mark.import_export_workspace
@@ -192,8 +196,8 @@ def test_import_manifest_rejects_path_traversal_version(
 def test_import_manifest_rejects_unknown_schema_version(
     data_fixture, use_tmp_media_root, tmp_path
 ):
-    # A well-formed `x.y.z` version without a matching schema file must return a
-    # normal invalid file error instead of an unhandled `FileNotFoundError`.
+    # A well-formed `x.y.z` version that is not in the supported set must return
+    # a normal invalid file error.
     user = data_fixture.create_user()
 
     data_fixture.create_import_export_trusted_source()

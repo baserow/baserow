@@ -924,7 +924,8 @@ def test_sync_data_sync_table_private_address_blocked(enterprise_data_fixture):
     )
     data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
     assert data_sync.last_error == (
-        "The provided Jira URL is not allowed because it points to a private address."
+        "The provided Jira URL is not allowed because it points to a private "
+        "address or non-standard port."
     )
 
 

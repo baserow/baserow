@@ -9,14 +9,21 @@ import requests
 import advocate
 from baserow.contrib.database.fields.models import Field, SelectOption
 
+# User facing error when advocate blocks a request. Advocate rejects private
+# addresses and only allows ports 80, 443, 8000, 8080 and 8443.
+DATA_SYNC_BLOCKED_URL_ERROR = (
+    "The provided URL is not allowed because it resolves to a private network "
+    "address, or uses a port other than 80, 443, 8000, 8080 or 8443."
+)
+
 
 def get_data_sync_request_function() -> Callable:
     """
     Returns the request function that must be used for outgoing data sync HTTP
-    requests. In production the advocate library is used so that user configured URLs
-    (e.g. a self-hosted GitLab instance) can't be used to reach Baserow's internal
-    network. This SSRF protection can be disabled by setting the
-    `BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS` Django setting to `True`.
+    requests. When the `BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS` Django setting is
+    `False`, the advocate library is used so that user configured URLs (e.g. a
+    self-hosted GitLab instance) can't be used to reach Baserow's internal network
+    (SSRF protection). The setting defaults to `True` for backwards compatibility.
     """
 
     if settings.BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS is True:

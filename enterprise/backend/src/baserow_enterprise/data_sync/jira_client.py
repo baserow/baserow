@@ -186,7 +186,7 @@ def fetch_issues(
     except UnacceptableAddressException:
         raise SyncError(
             "The provided Jira URL is not allowed because it points to a private "
-            "address."
+            "address or non-standard port."
         )
     except HTTPError as e:
         raise SyncError(_first_error_message(e))

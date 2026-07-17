@@ -1,9 +1,0 @@
-{
-    "type": "breaking_change",
-    "message": "Data syncs that fetch from a user configured URL (such as a self-hosted GitLab or Jira instance) can no longer reach private network addresses by default. Set the `BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS` env var to allow it.",
-    "issue_origin": "github",
-    "issue_number": null,
-    "domain": "database",
-    "bullet_points": [],
-    "created_at": "2026-07-16"
-}
