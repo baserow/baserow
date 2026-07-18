@@ -1,12 +1,21 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
+    <p class="builder-breakpoints-settings-form__description margin-bottom-3">
+      {{ $t('breakpointSettings.description') }}
+    </p>
     <FormGroup
-      :label="$t('breakpointSettings.mobileLabel')"
       :error-message="getFirstErrorMessage('mobile_breakpoint')"
       required
       small-label
       class="margin-bottom-2"
     >
+      <template #label>
+        <i
+          class="builder-breakpoints-settings-form__label-icon baserow-icon-smartphone"
+          aria-hidden="true"
+        ></i>
+        {{ $t('breakpointSettings.mobileLabel') }}
+      </template>
       <FormInput
         v-model="v$.values.mobile_breakpoint.$model"
         class="builder-breakpoints-settings-form__input"
@@ -17,12 +26,18 @@
       </FormInput>
     </FormGroup>
     <FormGroup
-      :label="$t('breakpointSettings.tabletLabel')"
       :error-message="getFirstErrorMessage('tablet_breakpoint')"
       required
       small-label
       class="margin-bottom-2"
     >
+      <template #label>
+        <i
+          class="builder-breakpoints-settings-form__label-icon baserow-icon-tablet"
+          aria-hidden="true"
+        ></i>
+        {{ $t('breakpointSettings.tabletLabel') }}
+      </template>
       <FormInput
         v-model="v$.values.tablet_breakpoint.$model"
         class="builder-breakpoints-settings-form__input"
@@ -32,13 +47,22 @@
         <template #suffix>px</template>
       </FormInput>
     </FormGroup>
-    <p class="margin-top-3">
-      {{
-        $t('breakpointSettings.desktopDescription', {
-          breakpoint: values.tablet_breakpoint,
-        })
-      }}
-    </p>
+    <FormGroup small-label class="margin-top-3">
+      <template #label>
+        <i
+          class="builder-breakpoints-settings-form__label-icon iconoir-apple-imac-2021"
+          aria-hidden="true"
+        ></i>
+        {{ $t('breakpointSettings.desktopLabel') }}
+      </template>
+      <p class="builder-breakpoints-settings-form__desktop-value">
+        {{
+          $t('breakpointSettings.desktopDescription', {
+            breakpoint: values.tablet_breakpoint,
+          })
+        }}
+      </p>
+    </FormGroup>
   </form>
 </template>
 

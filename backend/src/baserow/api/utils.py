@@ -389,17 +389,18 @@ def get_serializer_class(
 
     attrs = {"Meta": Meta}
 
-    def validate(self, value):
-        if required_fields:
+    if required_fields:
+
+        def validate(self, value):
             for field_name in required_fields:
                 if field_name not in value:
                     raise serializers.ValidationError(
                         {f"{field_name}": "This field is required."}
                     )
 
-        return value
+            return value
 
-    attrs["validate"] = validate
+        attrs["validate"] = validate
     mixins = base_mixins or []
     serializer_class = type(
         str(model_.__name__ + "Serializer"),

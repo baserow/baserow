@@ -53,9 +53,11 @@
   },
   "breakpointSettings": {
     "titleOverview": "Breakpoints",
+    "description": "Choose when your app switches between mobile, tablet, and desktop layouts. Changes apply in the editor now and to your published app after you publish.",
     "mobileLabel": "Mobile breakpoint",
     "tabletLabel": "Tablet breakpoint",
-    "desktopDescription": "Desktop: above {breakpoint}px",
+    "desktopLabel": "Desktop breakpoint",
+    "desktopDescription": "Above {breakpoint}px",
     "mobileMustBeLessThanTablet": "The mobile breakpoint must be less than the tablet breakpoint.",
     "tabletMustBeGreaterThanMobile": "The tablet breakpoint must be greater than the mobile breakpoint."
   },

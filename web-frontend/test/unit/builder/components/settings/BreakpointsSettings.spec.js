@@ -28,8 +28,7 @@ describe('BreakpointsSettings', () => {
             template: '<button :disabled="disabled"><slot /></button>',
           },
           Error: true,
-          FormGroup: true,
-          FormInput: true,
+          FormGroup: { template: '<div><slot /></div>' },
         },
       },
     })
@@ -70,6 +69,19 @@ describe('BreakpointsSettings', () => {
 
     resolveUpdate()
     await firstUpdate
+  })
+
+  test('saves the values entered in the breakpoint inputs', async () => {
+    const [mobileInput, tabletInput] = wrapper.findAll('input')
+
+    await mobileInput.setValue('700')
+    await tabletInput.setValue('1100')
+    wrapper.findComponent({ name: 'BuilderBreakpointsSettingsForm' }).vm.submit()
+
+    expect(dispatch).toHaveBeenCalledWith('application/update', {
+      application: builder,
+      values: { mobile_breakpoint: 700, tablet_breakpoint: 1100 },
+    })
   })
 
   test('keeps the entered values after a server error', async () => {
