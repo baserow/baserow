@@ -76,7 +76,9 @@ describe('BreakpointsSettings', () => {
 
     await mobileInput.setValue('700')
     await tabletInput.setValue('1100')
-    wrapper.findComponent({ name: 'BuilderBreakpointsSettingsForm' }).vm.submit()
+    wrapper
+      .findComponent({ name: 'BuilderBreakpointsSettingsForm' })
+      .vm.submit()
 
     expect(dispatch).toHaveBeenCalledWith('application/update', {
       application: builder,
