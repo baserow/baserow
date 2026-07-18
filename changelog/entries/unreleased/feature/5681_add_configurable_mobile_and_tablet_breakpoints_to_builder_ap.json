@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add configurable mobile and tablet breakpoints to Builder applications.",
+    "issue_origin": "github",
+    "issue_number": 5681,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-07-18"
+}
