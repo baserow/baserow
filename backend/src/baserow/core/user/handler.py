@@ -51,7 +51,7 @@ from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import generate_hash, get_baserow_saas_base_url
 from baserow.throttling.handler import rate_limit
 
-from ..telemetry.utils import baserow_trace
+from ..telemetry.utils import baserow_trace, baserow_trace_handler
 from .emails import (
     AccountDeleted,
     AccountDeletionCanceled,
@@ -87,6 +87,7 @@ tracer = trace.get_tracer(__name__)
 LAST_LOGIN_UPDATE_DELAY = timedelta(minutes=1)
 
 
+@baserow_trace_handler
 class UserHandler:
     def get_active_user(
         self,

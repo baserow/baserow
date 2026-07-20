@@ -12,7 +12,7 @@ from opentelemetry import baggage, context
 from opentelemetry.context import Context, attach, detach, set_value
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace import Status, StatusCode, Tracer, get_current_span
+from opentelemetry.trace import Status, StatusCode, Tracer, get_current_span, get_tracer
 
 from baserow.core.telemetry.sampling import OTEL_FORCE_FULL_TRACE_ATTRIBUTE
 
@@ -154,6 +154,14 @@ def baserow_trace_entrypoint(tracer: Tracer, span_name: str):
         yield span
 
 
+@contextmanager
+def baserow_trace_phase(tracer: Tracer, span_name: str):
+    """Create one important phase below an entry point or domain operation."""
+
+    with _baserow_trace_span(tracer, span_name, _BASEROW_SPAN_LEVEL_PHASE) as span:
+        yield span
+
+
 def _baserow_trace_func(wrapped_func, tracer: Tracer, allow_nested: bool = False):
     span_level = (
         _BASEROW_SPAN_LEVEL_PHASE if allow_nested else _BASEROW_SPAN_LEVEL_OPERATION
@@ -200,6 +208,29 @@ def _trace_method_descriptor(value, tracer: Tracer, allow_nested: bool):
     raise TypeError(
         "baserow_trace can only decorate functions, classmethods, or staticmethods"
     )
+
+
+def baserow_trace_handler(handler_class):
+    """
+    Trace public methods declared by an explicitly selected main handler class.
+
+    Handler methods use the domain-operation span level. Consequently, a handler
+    called by a DRF view is visible, handler-to-handler calls collapse below their
+    outer handler, and handlers called from an action don't duplicate the action span.
+    Private helpers and methods already configured with ``@baserow_trace`` are left
+    untouched.
+    """
+
+    tracer = get_tracer(handler_class.__module__)
+    for attr, value in list(vars(handler_class).items()):
+        if attr.startswith("_") or _get_baserow_trace_config(value) is not None:
+            continue
+        if not (
+            inspect.isfunction(value) or isinstance(value, (classmethod, staticmethod))
+        ):
+            continue
+        setattr(handler_class, attr, _trace_method_descriptor(value, tracer, False))
+    return handler_class
 
 
 class BaserowTraceMeta(ABCMeta):

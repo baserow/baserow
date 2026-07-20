@@ -37,6 +37,7 @@ from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.usage.registries import USAGE_UNIT_MB
 from baserow.core.user_files.models import UserFile
@@ -238,6 +239,7 @@ class TableUsageHandler:
         return total_tables_counted
 
 
+@baserow_trace_handler
 class TableHandler:
     @classmethod
     def get_tables(

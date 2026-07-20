@@ -16,6 +16,7 @@ from baserow.core.telemetry.utils import (
     BatchBaggageSpanProcessor,
     baserow_trace,
     baserow_trace_entrypoint,
+    baserow_trace_handler,
 )
 
 
@@ -170,6 +171,43 @@ def test_baserow_trace_only_traces_decorated_methods_and_supports_descriptors():
         "<locals>.Example.class_operation",
         "test_baserow_trace_only_traces_decorated_methods_and_supports_descriptors."
         "<locals>.Example.static_operation",
+    ]
+    provider.shutdown()
+
+
+def test_baserow_trace_handler_traces_public_methods_and_collapses_nested_calls():
+    provider, tracer, exporter = _tracer_with_memory_exporter()
+
+    with patch("baserow.core.telemetry.utils.get_tracer", return_value=tracer):
+
+        @baserow_trace_handler
+        class ExampleHandler:
+            def get_item(self):
+                self.check_permissions()
+                return self.list_items()
+
+            def list_items(self):
+                return ["item"]
+
+            @baserow_trace(tracer, allow_nested=True)
+            def check_permissions(self):
+                return True
+
+            def _build_item(self):
+                return "item"
+
+    handler = ExampleHandler()
+
+    assert handler.get_item() == ["item"]
+    assert handler.list_items() == ["item"]
+    assert handler._build_item() == "item"
+    assert [span.name for span in exporter.get_finished_spans()] == [
+        "test_baserow_trace_handler_traces_public_methods_and_collapses_nested_calls."
+        "<locals>.ExampleHandler.check_permissions",
+        "test_baserow_trace_handler_traces_public_methods_and_collapses_nested_calls."
+        "<locals>.ExampleHandler.get_item",
+        "test_baserow_trace_handler_traces_public_methods_and_collapses_nested_calls."
+        "<locals>.ExampleHandler.list_items",
     ]
     provider.shutdown()
 

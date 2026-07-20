@@ -60,7 +60,7 @@ from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
-from baserow.core.telemetry.utils import baserow_trace
+from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     ChildProgressBuilder,
@@ -78,6 +78,7 @@ AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 tracer = trace.get_tracer(__name__)
 
 
+@baserow_trace_handler
 class AutomationWorkflowHandler:
     allowed_fields = [
         "name",

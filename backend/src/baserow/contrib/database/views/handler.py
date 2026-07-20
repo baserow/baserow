@@ -113,7 +113,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
-from baserow.core.telemetry.utils import baserow_trace
+from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     MirrorDict,
@@ -681,6 +681,7 @@ class ViewIndexingHandler:
             view.save(update_fields=["db_index_name"])
 
 
+@baserow_trace_handler
 class ViewHandler:
     PUBLIC_VIEW_TOKEN_ALGORITHM = "HS256"  # nosec
 

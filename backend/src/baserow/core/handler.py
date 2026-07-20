@@ -108,7 +108,11 @@ from .signals import (
     workspaces_reordered,
 )
 from .storage import get_default_storage
-from .telemetry.utils import baserow_trace, disable_instrumentation
+from .telemetry.utils import (
+    baserow_trace,
+    baserow_trace_handler,
+    disable_instrumentation,
+)
 from .trash.handler import TrashHandler
 from .types import (
     Actor,
@@ -142,6 +146,7 @@ class ApplicationUpdatedResult:
     updated_app_allowed_values: Dict[str, Any]
 
 
+@baserow_trace_handler
 class CoreHandler:
     default_create_allowed_fields = ["name", "init_with_data"]
     default_update_allowed_fields = ["name"]

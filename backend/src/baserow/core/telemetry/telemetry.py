@@ -17,11 +17,13 @@ from baserow.core.psycopg import is_psycopg3
 from baserow.core.telemetry.sampling import (
     OTEL_FORCE_FULL_TRACE_ATTRIBUTE,
     OTEL_FORCE_FULL_TRACE_QUERY_PARAMETER,
+    DropOrphanImplementationSpansSampler,
     ForceFullTraceSampler,
 )
 from baserow.core.telemetry.utils import (
     BatchBaggageSpanProcessor,
     baserow_trace_entrypoint,
+    baserow_trace_phase,
     otel_is_enabled,
 )
 from baserow.core.utils import get_user_remote_ip_address_from_request
@@ -31,6 +33,7 @@ OTEL_REQUEST_STARTED_AT_ATTRIBUTE = "_baserow_otel_request_started_at"
 OTEL_REQUEST_DURATION_ATTRIBUTE = "baserow.http.request.duration_ms"
 OTEL_SLOW_REQUEST_ATTRIBUTE = "baserow.http.request.slow"
 _django_lifecycle_instrumented = False
+_baserow_signal_instrumented = False
 
 
 class LogGuruCompatibleLoggerHandler(LoggingHandler):
@@ -185,12 +188,13 @@ def _setup_standard_backend_instrumentation():
     RequestsInstrumentor().instrument()
     BaserowCeleryInstrumentor().instrument()
     RedisInstrumentor().instrument()
+    setup_baserow_signal_instrumentation()
 
 
 def _setup_django_process_instrumentation():
-    from opentelemetry.instrumentation.django import DjangoInstrumentor
+    from baserow.core.telemetry.django import BaserowDjangoInstrumentor
 
-    DjangoInstrumentor().instrument(
+    BaserowDjangoInstrumentor().instrument(
         request_hook=_prepare_request_span,
         response_hook=_finish_request_span,
         excluded_urls=_django_excluded_urls(),
@@ -222,6 +226,18 @@ def _create_drf_view_dispatch_wrapper(tracer):
     return trace_drf_view_dispatch
 
 
+def _create_drf_initial_wrapper(tracer):
+    def trace_drf_initial(wrapped, instance, args, kwargs):
+        with tracer.start_as_current_span("DRF.initial") as span:
+            if span.is_recording():
+                view_class = type(instance)
+                span.set_attribute("baserow.api.view", view_class.__name__)
+                span.set_attribute("baserow.api.view_module", view_class.__module__)
+            return wrapped(*args, **kwargs)
+
+    return trace_drf_initial
+
+
 def _create_drf_response_render_wrapper(tracer):
     def trace_drf_response_render(wrapped, instance, args, kwargs):
         with tracer.start_as_current_span("DRFResponse.render") as span:
@@ -244,6 +260,70 @@ def _create_silk_response_processing_wrapper(tracer):
     return trace_silk_response_processing
 
 
+def _callable_name(value) -> str:
+    module = getattr(value, "__module__", None)
+    qualname = getattr(value, "__qualname__", None)
+    if module and qualname:
+        return f"{module}.{qualname}"
+
+    value_type = value if isinstance(value, type) else type(value)
+    return f"{value_type.__module__}.{value_type.__qualname__}"
+
+
+def _create_baserow_signal_send_wrapper(tracer):
+    baserow_module_prefixes = ("baserow.", "baserow_premium.", "baserow_enterprise.")
+
+    def trace_baserow_signal_send(wrapped, instance, args, kwargs):
+        from django.dispatch import Signal
+
+        current_span = trace.get_current_span()
+        if type(instance) is not Signal or not current_span.is_recording():
+            return wrapped(*args, **kwargs)
+
+        sender = args[0] if args else kwargs.get("sender")
+        sync_receivers, async_receivers = instance._live_receivers(sender)
+        receiver_names = [
+            _callable_name(receiver) for receiver in [*sync_receivers, *async_receivers]
+        ]
+        baserow_receivers = [
+            name for name in receiver_names if name.startswith(baserow_module_prefixes)
+        ]
+        if not baserow_receivers:
+            return wrapped(*args, **kwargs)
+
+        first_receiver = baserow_receivers[0].rsplit(".", 1)[-1]
+        remaining_receivers = len(receiver_names) - 1
+        span_name = f"Signal.send {first_receiver}"
+        if remaining_receivers:
+            span_name += f" +{remaining_receivers}"
+
+        with baserow_trace_phase(tracer, span_name) as span:
+            if span is not None and span.is_recording():
+                span.set_attribute("baserow.signal.sender", _callable_name(sender))
+                span.set_attribute("baserow.signal.receiver_count", len(receiver_names))
+                span.set_attribute("baserow.signal.receivers", receiver_names)
+            return wrapped(*args, **kwargs)
+
+    return trace_baserow_signal_send
+
+
+def setup_baserow_signal_instrumentation():
+    """Trace aggregate execution time for Baserow-owned Django signal receivers."""
+
+    global _baserow_signal_instrumented
+    if _baserow_signal_instrumented:
+        return
+
+    from wrapt import wrap_function_wrapper
+
+    wrap_function_wrapper(
+        "django.dispatch.dispatcher",
+        "Signal.send",
+        _create_baserow_signal_send_wrapper(trace.get_tracer("baserow.signals")),
+    )
+    _baserow_signal_instrumented = True
+
+
 def setup_django_lifecycle_instrumentation():
     """Trace selected high-value phases after Django has initialized."""
 
@@ -260,6 +340,11 @@ def setup_django_lifecycle_instrumentation():
         "rest_framework.views",
         "APIView.dispatch",
         _create_drf_view_dispatch_wrapper(tracer),
+    )
+    wrap_function_wrapper(
+        "rest_framework.views",
+        "APIView.initial",
+        _create_drf_initial_wrapper(tracer),
     )
     wrap_function_wrapper(
         "rest_framework.response",
@@ -283,7 +368,9 @@ def _django_excluded_urls() -> str:
     excluded on top of any operator-provided exclusions.
     """
 
-    operator_excluded = os.environ.get("OTEL_PYTHON_DJANGO_EXCLUDED_URLS", "")
+    operator_excluded = os.environ.get(
+        "OTEL_PYTHON_DJANGO_EXCLUDED_URLS"
+    ) or os.environ.get("OTEL_PYTHON_EXCLUDED_URLS", "")
     return f"{operator_excluded},_health" if operator_excluded else "_health"
 
 
@@ -297,7 +384,9 @@ def _create_tracer_provider() -> TracerProvider:
     """
 
     provider = TracerProvider()
-    provider.sampler = ForceFullTraceSampler(provider.sampler)
+    provider.sampler = DropOrphanImplementationSpansSampler(
+        ForceFullTraceSampler(provider.sampler)
+    )
     return provider
 
 
@@ -324,5 +413,8 @@ def _finish_request_span(span: Span, request: HttpRequest, response: HttpRespons
 
     duration_ms = (monotonic_ns() - started_at) / 1_000_000
     span.set_attribute(OTEL_REQUEST_DURATION_ATTRIBUTE, duration_ms)
-    if duration_ms >= settings.BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS * 1000:
+    if (
+        settings.BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS > 0
+        and duration_ms >= settings.BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS * 1000
+    ):
         span.set_attribute(OTEL_SLOW_REQUEST_ATTRIBUTE, True)

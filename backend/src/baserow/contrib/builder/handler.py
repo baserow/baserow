@@ -12,6 +12,7 @@ from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.core.cache import global_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -29,6 +30,7 @@ SENTINEL = "__no_results__"
 User = get_user_model()
 
 
+@baserow_trace_handler
 class BuilderHandler:
     def get_builder(self, builder_id: int) -> Builder:
         """

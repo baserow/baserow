@@ -10,10 +10,64 @@ from opentelemetry.util.types import Attributes
 
 OTEL_FORCE_FULL_TRACE_QUERY_PARAMETER = "force_full_otel_trace"
 OTEL_FORCE_FULL_TRACE_ATTRIBUTE = "baserow.force_full_otel_trace"
+OTEL_METRIC_OBSERVATION_ATTRIBUTE = "baserow.metric.observation"
+
+_ALLOWED_ROOT_SPAN_KINDS = frozenset((SpanKind.SERVER, SpanKind.CONSUMER))
 
 _FORCE_FULL_TRACE_QUERY_PATTERN = re.compile(
     rf"(?:^|[?&]){OTEL_FORCE_FULL_TRACE_QUERY_PARAMETER}=true(?:$|[&#])"
 )
+
+
+class DropOrphanImplementationSpansSampler(Sampler):
+    """
+    Prevent implementation details from becoming one-span traces.
+
+    Client and internal instrumentation can execute without an active request or task
+    context, for example during startup, an excluded health request, or background
+    framework work. OpenTelemetry otherwise treats those spans as roots. Only server
+    requests, task consumers, and intentional metric observations may start a Baserow
+    trace; every span kind remains eligible when it has a valid parent.
+    """
+
+    def __init__(self, delegate: Sampler):
+        self.delegate = delegate
+
+    def should_sample(
+        self,
+        parent_context: Context | None,
+        trace_id: int,
+        name: str,
+        kind: SpanKind | None = None,
+        attributes: Attributes = None,
+        links: Sequence[Link] | None = None,
+        trace_state: TraceState | None = None,
+    ) -> SamplingResult:
+        parent_span_context = trace.get_current_span(parent_context).get_span_context()
+        is_metric_observation = (attributes or {}).get(
+            OTEL_METRIC_OBSERVATION_ATTRIBUTE
+        ) is not None
+        if (
+            not parent_span_context.is_valid
+            and kind not in _ALLOWED_ROOT_SPAN_KINDS
+            and not is_metric_observation
+        ):
+            return SamplingResult(Decision.DROP, trace_state=trace_state)
+
+        return self.delegate.should_sample(
+            parent_context,
+            trace_id,
+            name,
+            kind,
+            attributes,
+            links,
+            trace_state,
+        )
+
+    def get_description(self) -> str:
+        return (
+            f"DropOrphanImplementationSpansSampler({self.delegate.get_description()})"
+        )
 
 
 class ForceFullTraceSampler(Sampler):
@@ -62,11 +116,10 @@ class ForceFullTraceSampler(Sampler):
                     break
 
         if force_full_trace:
-            parent_trace_state = parent_span.get_span_context().trace_state
             return SamplingResult(
                 Decision.RECORD_AND_SAMPLE,
-                {OTEL_FORCE_FULL_TRACE_ATTRIBUTE: True},
-                parent_trace_state,
+                {**(attributes or {}), OTEL_FORCE_FULL_TRACE_ATTRIBUTE: True},
+                trace_state,
             )
 
         return self.delegate.should_sample(

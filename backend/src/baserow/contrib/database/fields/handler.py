@@ -57,6 +57,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry, User
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
@@ -157,6 +158,7 @@ def _validate_field_name(
 T = TypeVar("T", bound="Field")
 
 
+@baserow_trace_handler
 class FieldHandler:
     def get_field(
         self,

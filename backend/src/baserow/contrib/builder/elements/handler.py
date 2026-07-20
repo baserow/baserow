@@ -47,6 +47,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.storage import ExportZipFile
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import MirrorDict, extract_allowed
 
 old_element_type_map = {"dropdown": "choice"}
@@ -54,6 +55,7 @@ old_element_type_map = {"dropdown": "choice"}
 DeferredImportCallback = Callable[[Element, Dict[str, Any], Dict[str, Any]], None]
 
 
+@baserow_trace_handler
 class ElementHandler:
     allowed_fields_create = [
         "visibility",

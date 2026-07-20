@@ -113,7 +113,11 @@ processors:
     # trace from consuming both budgets. The final always-sample policy uses the
     # remaining capacity for a representative baseline of normal traffic.
     tail_sampling:
-        decision_wait: 30s
+        # Keep long-running task traces eligible until their root arrives, but decide
+        # shortly after a completed HTTP or Celery root is received. This avoids holding
+        # ordinary request traces for the complete maximum wait.
+        decision_wait: ${env:BASEROW_OTEL_TAIL_SAMPLING_DECISION_WAIT:-5m}
+        decision_wait_after_root_received: ${env:BASEROW_OTEL_TAIL_SAMPLING_DECISION_WAIT_AFTER_ROOT_RECEIVED:-5s}
         num_traces: 100000
         expected_new_traces_per_sec: 1000
         # Drop policies are evaluated first by the processor. After they do not match,

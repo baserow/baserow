@@ -68,7 +68,9 @@ class BaserowCeleryInstrumentor(CeleryInstrumentor):
 
     _instance = None
     _is_instrumented_by_opentelemetry = False
-    _baserow_task_started_at = {}
+
+    def __init__(self):
+        self._baserow_task_started_at = {}
 
     def _trace_before_publish(self, *args, **kwargs):
         super()._trace_before_publish(*args, **kwargs)

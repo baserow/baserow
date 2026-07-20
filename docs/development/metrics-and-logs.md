@@ -166,6 +166,27 @@ class SomeClass:
         pass
 ```
 
+Primary domain handlers can opt in with `@baserow_trace_handler`. It traces the public
+methods declared directly on that handler, while leaving private helpers and explicitly
+configured `@baserow_trace` methods unchanged. Use it on orchestration handlers reached
+directly from API views, not on low-level utility classes. Handler-to-handler calls
+collapse below the outer handler, and handlers called by an action collapse below the
+action, so this also makes read requests useful without duplicating write traces.
+
+```python
+from baserow.core.telemetry.utils import baserow_trace_handler
+
+
+@baserow_trace_handler
+class TableHandler:
+    def get_table(self, table_id):
+        pass
+
+    def _build_queryset(self):
+        # Private implementation helpers are deliberately not traced.
+        pass
+```
+
 ### Tracing overridden contract methods
 
 For an abstract or polymorphic contract such as `ActionType` or `JobType`, use
@@ -190,10 +211,27 @@ class ActionType(metaclass=BaserowTraceMeta):
         pass
 ```
 
-Prefer one action, job, workflow, or expensive query boundary. Do not instrument
-getters, serializers, constructors, signal receivers, or every step of handler
-choreography. Add a nested phase only when it answers a recurring performance question
-that automatic dependency spans cannot answer.
+Prefer a main handler, action, job, workflow, or expensive query boundary. Do not
+instrument serializers, constructors, individual signal receivers, low-level helper
+classes, or every step of internal choreography. Add a nested phase only when it
+answers a recurring performance question that automatic dependency spans cannot
+answer.
+
+The standard instrumentation already provides a bounded trace skeleton: concrete DRF
+view entry points; DRF authentication, standard permission, and throttling setup;
+public methods on selected primary Core, Database, Builder, Automation, and Dashboard
+handlers; nested handler calls collapse below their outer operation;
+concrete `ActionType.do`, `ActionType.undo`, `ActionType.redo`, and `JobType.run`
+implementations; selected domain phases such as Baserow permission checks and table model
+generation; aggregate Baserow signal dispatch; database, Redis, and outbound HTTP calls;
+and response rendering. A signal dispatch produces one span for the combined receiver
+time, with `baserow.signal.receivers` identifying the participating hooks. It
+deliberately does not produce one span per receiver.
+
+Inbound HTTP requests and Celery tasks each start independently sampled Baserow traces.
+If either operation was initiated by another trace, its root links to the remote or
+producer span instead of joining that trace as a child. This keeps tail-sampling
+lifecycles independent while preserving cross-trace navigation.
 
 ### Adding attributes to the current span
 
@@ -279,6 +317,12 @@ All Baserow processes sending to that collector must use the same always-on SDK 
 OTEL_TRACES_SAMPLER=always_on
 ```
 
+`always_on` is the delegate sampling policy for eligible traces. Baserow still rejects
+parentless implementation spans at the SDK boundary: only HTTP `SERVER` spans, Celery
+`CONSUMER` spans, and internal metric observations may start traces. Database, Redis,
+outbound HTTP, Silk, handler, and other internal spans remain eligible when a valid
+request or task parent exists, but are not exported as isolated one-span traces.
+
 Do not sample Django root spans separately from database, Redis, Celery, or application
 spans. Per-instrumentation sampling creates root-only and otherwise fragmented traces.
 
@@ -291,7 +335,9 @@ the explicit escape-hatch query parameter to the backend request:
 
 The request span is marked with `baserow.force_full_otel_trace=true`, and the tail
 sampler retains the whole trace before evaluating its bounded policies. The one global
-SDK sampler also recognizes this query before making its sampling decision.
+SDK sampler also recognizes this query before making its sampling decision. The flag is
+not authenticated, so public deployments must restrict or rate-limit it upstream when
+unbounded forced traces are not an acceptable cost risk.
 
 Configure the collector's total span budget and policy allocation in
 `deploy/otel/otel-collector-config.yaml`. When running multiple collectors, divide the

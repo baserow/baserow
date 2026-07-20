@@ -1457,8 +1457,6 @@ for plugin in [*BASEROW_BUILT_IN_PLUGINS, *BASEROW_BACKEND_PLUGIN_NAMES]:
 # memory footprint at startup. If any of these are found in sys.modules during startup,
 # a warning will be shown suggesting to either lazy-load them or remove them from this
 # list if they're legitimately needed at startup.
-# `mcp` is intentionally not included. Enterprise assistant tool types require
-# pydantic-ai during app registration, and pydantic-ai imports its MCP capability.
 BASEROW_LAZY_LOADED_LIBRARIES = [
     "openai",
     "anthropic",

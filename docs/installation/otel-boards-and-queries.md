@@ -211,14 +211,25 @@ from `baserow.dependency.duration`.
 
 Application spans form a semantic skeleton rather than mirroring every Python call. An
 HTTP trace contains its request root, one concrete API view entry point such as
-`GridViewView.get`, one outermost action/job or selected domain operation, and at most
-one level of explicitly important phases such as permission evaluation or cache-miss
-model generation. Every Celery execution starts a new task trace linked to the trace
-that published it, then uses the task root followed by the same operation/phase levels.
+`GridViewView.get`, top-level calls to selected primary handlers or one outermost
+action/job operation, and at most one level of explicitly important phases such as
+permission evaluation or cache-miss model generation. Nested handler calls collapse
+below the outer handler, and handler calls inside an action collapse below the action.
+Every Celery execution starts a new task trace linked to the trace that published it,
+then uses the task root followed by the same operation/phase levels.
 Automatic database, Redis, and outbound HTTP spans remain children of their
-nearest semantic span. Selected framework siblings show time outside the view without
-tracing every middleware; for example, `DRFResponse.render` measures response
-serialization.
+nearest semantic span. `DRF.initial` separates authentication, standard permissions,
+and throttling from the view body. Baserow signal dispatches produce one aggregate span
+for all receivers and expose their names in `baserow.signal.receivers`, rather than
+creating a span for every hook. Selected framework siblings show time outside the view
+without tracing every middleware; for example, `DRFResponse.render` measures response
+rendering.
+
+Only HTTP server spans, Celery consumer spans, and internal metric observations may
+start traces. Parentless Redis commands, outbound calls, Silk persistence, handler
+methods, and other implementation spans are rejected at the SDK boundary. If these
+appear as isolated roots, at least one process is running older instrumentation or a
+different tracer provider.
 
 For a specific request, add this backend query parameter:
 
@@ -228,6 +239,11 @@ For a specific request, add this backend query parameter:
 
 The SDK and Collector recognize the marker, and the Collector retains that complete
 trace outside the normal error, slow-request, and baseline budget.
+
+This flag is unauthenticated and bypasses the bundled Collector's normal trace budget.
+For public installations, restrict or rate-limit it at the reverse proxy, or add a
+Collector-side budget for forced traces. See
+[Monitoring your Baserow server](monitoring.md) for the accepted-risk details.
 
 Useful trace queries include:
 

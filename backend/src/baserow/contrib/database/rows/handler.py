@@ -85,7 +85,7 @@ from baserow.core.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.psycopg import is_index_row_size_error, is_unique_violation_error, sql
 from baserow.core.registries import OperationType
-from baserow.core.telemetry.utils import baserow_trace
+from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
 from baserow.core.types import PermissionCheck
@@ -243,6 +243,7 @@ class RowM2MChangeTracker:
         }
 
 
+@baserow_trace_handler
 class RowHandler:
     def _should_use_full_field_search_update_for_import(
         self,

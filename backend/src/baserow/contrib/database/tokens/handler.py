@@ -18,6 +18,7 @@ from baserow.contrib.database.tokens.constants import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import object_scope_type_registry
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.types import PermissionCheck
 from baserow.core.utils import random_string
 
@@ -35,6 +36,7 @@ from .operations import (
 )
 
 
+@baserow_trace_handler
 class TokenHandler:
     def get_by_key(self, key):
         """

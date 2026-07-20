@@ -69,11 +69,42 @@ policies. The global SDK sampler recognizes the same marker before making its sa
 decision. When that request publishes a Celery task, the marker is propagated to the
 task's independently sampled trace.
 
+The query parameter is an operational escape hatch, not an authorization mechanism.
+Any caller that can reach the endpoint can set it, and the bundled Collector exempts
+forced traces from its normal sampling and span-pruning budgets. On an internet-facing
+installation, restrict or rate-limit this parameter at the reverse proxy, or put forced
+traces under a Collector-side budget. Downstream ingestion limits remain the final
+cost-control backstop.
+
 `BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS` controls the slow-request marker and
 `BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS` controls the task marker for every
 queue. Task errors remain eligible for error retention regardless of duration.
 `BASEROW_OTEL_LOG_LEVEL` separately controls OTLP log volume without changing local
 backend logging. See [Configuration](configuration.md) for current defaults.
+
+The bundled Collector waits up to `BASEROW_OTEL_TAIL_SAMPLING_DECISION_WAIT` (`5m` by
+default) for a trace root. After the completed root arrives, it waits only
+`BASEROW_OTEL_TAIL_SAMPLING_DECISION_WAIT_AFTER_ROOT_RECEIVED` (`5s` by default) before
+deciding. Ordinary HTTP traces are therefore normally held for their request duration
+plus this short grace period, not for five minutes. Long-running Celery traces remain
+eligible for completion-based error and slow-trace policies until the maximum wait.
+
+Every inbound HTTP request starts an independently sampled Baserow trace. When a request
+contains upstream trace context, the Baserow root links to that remote span instead of
+becoming its child. The link preserves navigation between the traces while ensuring the
+Collector can always recognize the completed Baserow request as a root and apply the
+short post-root grace period.
+
+Queued Celery tasks consume no trace-buffer space. Running tasks consume space only
+after they emit a span, and normally leave the buffer shortly after their root arrives.
+The steady-state requirement is therefore approximately active rootless task traces
+plus the incoming HTTP trace rate multiplied by the root-arrival grace period, with
+headroom for bursts and orphaned traces. Span-heavy tasks can still exhaust the 512 MiB
+memory limit before the `num_traces: 100000` count is reached. Monitor
+`otelcol_processor_tail_sampling_sampling_trace_dropped_too_early` and
+`otelcol_processor_tail_sampling_sampling_trace_removal_age`, and shorten the maximum
+wait or use a dedicated Celery sampling pipeline if long-running task traces cause
+pressure.
 
 ### Retain every eligible trace
 
@@ -87,7 +118,9 @@ BASEROW_OTEL_TAIL_SAMPLING_MAX_SPANS_PER_SECOND=-1
 This selects an always-sample tail policy and retains complete traces, not only root
 spans. Deliberately filtered low-value telemetry, such as routine `OPTIONS`/`HEAD`
 requests, successful Redis idle waits, and internal metric observations, remains
-excluded. Use a positive value to restore bounded priority sampling.
+excluded. Parentless Redis, outbound HTTP, Silk, handler, and other implementation
+spans are also rejected by the SDK instead of becoming isolated traces. Use a positive
+value to restore bounded priority sampling.
 
 Set `OTEL_SEMCONV_STABILITY_OPT_IN=http` to emit the stable
 `http.server.request.duration` histogram with templated `http.route`,
