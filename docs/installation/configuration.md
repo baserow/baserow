@@ -270,6 +270,8 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 | SENTRY\_BACKEND\_DSN         | If provided, will instantiate Sentry SDK for the backend with this DSN. It will override SENTRY\_DSN                                                                                 | "" (empty string) |
 | SENTRY\_TRACES\_SAMPLE\_RATE | The sample rate for Sentry performance tracing (transactions), shared by the backend and frontend. A float between 0 and 1, where 0 disables tracing and 1 traces every transaction. | 0.01              |
 | SENTRY\_REPLAYS\_ON\_ERROR\_SAMPLE\_RATE | The frontend sample rate for saving a Sentry session replay when an error occurs. A float between 0 and 1, where 0 disables error replays and 1 saves a replay for every error. | 0.1               |
+| SENTRY\_MONITOR\_BEAT\_TASKS | Automatically create Sentry cron monitors for the celery beat periodic tasks, so missed or failed runs are reported. Only used when a backend Sentry DSN is configured.               | true              |
+| SENTRY\_EXCLUDE\_BEAT\_TASKS | Comma separated list of task names or regexes excluded from the Sentry cron monitors, e.g. `baserow.core.usage.tasks.run_calculate_storage,payment-check-.*`.                        | "" (empty string) |
 | BASEROW\_OSS\_ONLY           | If not empty, it will only start the MIT licensed open source version, without premium and enterprise.                                                                               | "" (empty string) |
 
 ### User file upload Configuration
