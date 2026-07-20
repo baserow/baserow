@@ -15,6 +15,7 @@
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
       :clipboard-markdown-resolver="resolveClipboardMarkdown"
+      :upload-file="readOnly ? null : uploadUserFile"
       @focus="select()"
       @blur="unselect()"
     ></RichTextEditor>
@@ -27,6 +28,7 @@
 
 <script>
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import UserFileService from '@baserow/modules/core/services/userFile'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
@@ -36,7 +38,6 @@ export default {
   mixins: [rowEditField, rowEditFieldInput],
   data() {
     return {
-      // local copy of the value storing the JSON representation of the rich text editor
       richCopy: '',
     }
   },
@@ -55,6 +56,9 @@ export default {
   },
   methods: {
     resolveClipboardMarkdown: getRichTextClipboardContent,
+    async uploadUserFile(file) {
+      return await UserFileService(this.$client).uploadFile(file)
+    },
     getError() {
       return this.getValidationError(this.$refs.input?.serializeToMarkdown())
     },
@@ -70,7 +74,6 @@ export default {
       return this.$el?.closest('.modal__box-content') ?? null
     },
     beforeSave() {
-      // No ref (modal teardown) or an unchanged value means nothing to reserialize.
       if (!this.$refs.input?.isDirty()) {
         return this.value
       }

@@ -12,9 +12,14 @@ import {
   createRichTextContentExtensions,
   MARKDOWN_OPTIONS,
 } from '@baserow/modules/core/editor/richTextExtensions'
+import {
+  preprocessRichTextImages,
+  replaceImagesWithPlaceholder,
+  stripUnresolvedImageRefs,
+} from '@baserow/modules/core/editor/richTextImageUtils'
 
 const previewMarkdownManager = new MarkdownManager({
-  extensions: createRichTextContentExtensions({ enableImages: true }),
+  extensions: createRichTextContentExtensions(),
   marked: createMarkedInstance(),
   markedOptions: MARKDOWN_OPTIONS,
 })
@@ -59,6 +64,15 @@ export const parseMarkdown = (
     loggedUserId = null,
   } = {}
 ) => {
+  let content = value || ''
+
+  if (enableImages) {
+    content = preprocessRichTextImages(content).content
+    content = stripUnresolvedImageRefs(content)
+  } else {
+    content = replaceImagesWithPlaceholder(content)
+  }
+
   const md = new Markdown({ html: false })
 
   // task lists
@@ -66,7 +80,6 @@ export const parseMarkdown = (
 
   // link
   if (!openLinkOnClick) {
-    // Remove the href attribute from the link to avoid the user clicking on it.
     md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
       const hrefIndex = tokens[idx].attrIndex('href')
       if (hrefIndex >= 0) {
@@ -75,7 +88,6 @@ export const parseMarkdown = (
       return self.renderToken(tokens, idx, options)
     }
   } else {
-    // Add target="_blank" and rel="noopener noreferrer nofollow" to all links.
     md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
       const targetIndex = tokens[idx].attrIndex('target')
       if (targetIndex < 0) {
@@ -86,7 +98,6 @@ export const parseMarkdown = (
         tokens[idx].attrPush(['rel', 'noopener noreferrer nofollow'])
       }
 
-      // Prevent container handlers from being called when clicking on a link.
       const onClickIndex = tokens[idx].attrIndex('onmousedown')
       if (onClickIndex < 0) {
         tokens[idx].attrPush([
@@ -100,10 +111,9 @@ export const parseMarkdown = (
 
   if (enableImages) {
     md.renderer.rules.image = function (tokens, idx, options, env, self) {
-      // Show only the first image in the preview.
       const style = tokens[idx].attrIndex('style')
       if (style < 0) {
-        tokens[idx].attrPush(['style', 'display: block;'])
+        tokens[idx].attrPush(['style', 'display: block; max-width: 100%;'])
       }
       return self.renderToken(tokens, idx, options)
     }
@@ -114,5 +124,5 @@ export const parseMarkdown = (
   // mentions
   md.use(parseMention(workspaceUsers || [], loggedUserId))
 
-  return md.render(prepareMarkdownForPreview(value || ''))
+  return md.render(prepareMarkdownForPreview(content))
 }
