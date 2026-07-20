@@ -6,6 +6,10 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceSort,
 )
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.services.models import (
+    SERVICE_FILTER_TYPE_AND,
+    SERVICE_FILTER_TYPES,
+)
 
 
 class LocalBaserowTableServiceSortSerializer(serializers.ModelSerializer):
@@ -67,6 +71,13 @@ class LocalBaserowTableServiceFilterGroupSerializer(serializers.ModelSerializer)
         default=None,
         help_text="The id of the parent filter group, or null for a group directly "
         "under the service.",
+    )
+    filter_type = serializers.ChoiceField(
+        choices=SERVICE_FILTER_TYPES,
+        required=False,
+        default=SERVICE_FILTER_TYPE_AND,
+        help_text="Indicates whether all the filters in the group should match (AND) "
+        "or any of them (OR). Defaults to AND when omitted from the payload.",
     )
 
     class Meta:

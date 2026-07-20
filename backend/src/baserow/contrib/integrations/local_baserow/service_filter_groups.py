@@ -70,8 +70,7 @@ class LocalBaserowServiceGroupedFiltersAdapter(GroupedFiltersAdapter):
                 )
             except Exception as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
-                    f"The {field_name} service filter formula can't be "
-                    "resolved: {exc}"
+                    f"The {field_name} service filter formula can't be resolved: {exc}"
                 ) from exc
         else:
             resolved_value = service_filter.value["formula"]
