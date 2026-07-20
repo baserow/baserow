@@ -1512,11 +1512,18 @@ if SENTRY_DSN:
     sentry_monitor_beat_tasks = not sentry_transport and str_to_bool(
         os.getenv("SENTRY_MONITOR_BEAT_TASKS") or "true"
     )
-    sentry_exclude_beat_tasks = [
-        task.strip()
-        for task in (os.getenv("SENTRY_EXCLUDE_BEAT_TASKS") or "").split(",")
-        if task.strip()
-    ]
+    # Validate patterns here: sentry-sdk matches them unguarded on every beat
+    # dispatch, so one invalid regex would stop all periodic tasks from being sent.
+    sentry_exclude_beat_tasks = []
+    for task in (os.getenv("SENTRY_EXCLUDE_BEAT_TASKS") or "").split(","):
+        task = task.strip()
+        if not task:
+            continue
+        try:
+            re.compile(task)
+            sentry_exclude_beat_tasks.append(task)
+        except re.error:
+            logger.warning(f"[SENTRY] Ignoring invalid exclude beat task: {task}")
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
