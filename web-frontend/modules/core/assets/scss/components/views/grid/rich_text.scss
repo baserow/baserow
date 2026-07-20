@@ -8,6 +8,16 @@
   &--preview {
     height: 100%;
     overflow: hidden;
+
+    img {
+      display: inline-block;
+      max-height: 28px;
+      width: auto;
+      margin: 2px 4px 2px 0;
+      border-radius: 3px;
+      vertical-align: middle;
+      object-fit: contain;
+    }
   }
 }
 
@@ -29,12 +39,14 @@
 
 .grid-field-rich-text__textarea-expand-icon {
   position: absolute;
-  right: 10px;
-  top: 10px;
+  right: 8px;
+  top: 8px;
   cursor: pointer;
   font-size: 12px;
   line-height: 12px;
-  background-color: white;
+  padding: 4px;
+  border-radius: 4px;
+  background-color: $white;
 
   &:hover {
     color: $color-primary-600;
