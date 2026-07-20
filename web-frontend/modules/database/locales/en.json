@@ -60,7 +60,42 @@
   },
   "sidebar": {
     "viewAPI": "View API Docs",
-    "createTable": "New table"
+    "createTable": "New table",
+    "adminContentCategory": "Content"
+  },
+  "adminType": {
+    "databaseViews": "Views"
+  },
+  "viewsAdmin": {
+    "title": "Views"
+  },
+  "viewsAdminTable": {
+    "allViews": "All views",
+    "onlyPublic": "Only publicly shared views",
+    "name": "View",
+    "type": "Type",
+    "table": "Table",
+    "database": "Database",
+    "workspace": "Workspace",
+    "public": "Publicly shared",
+    "passwordProtected": "Password",
+    "ownedBy": "Owner",
+    "createdOn": "Created on"
+  },
+  "viewsAdminRotateSlugModal": {
+    "title": "Refresh URL",
+    "refreshWarning": "Are you sure that you want to refresh the URL of {viewName}? After refreshing, a new URL will be generated and it will not be possible to access the view via the old URL. Everyone that has the old URL, won't be able to access the view anymore.",
+    "generateNewURL": "Generate new URL"
+  },
+  "viewsAdminContext": {
+    "copyPublicUrl": "Copy public URL",
+    "openPublicView": "Open public view in new tab",
+    "showWorkspaceViews": "Show all views in this workspace",
+    "rotateSlug": "Rotate slug",
+    "makePrivate": "Make private",
+    "makePublic": "Make public",
+    "publicUrlCopiedTitle": "Public URL copied",
+    "publicUrlCopiedMessage": "The public URL of the view has been copied to your clipboard."
   },
   "sidebarItem": {
     "exportTable": "Export table",

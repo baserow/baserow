@@ -26,7 +26,9 @@
         <div class="data-table__actions">
           <CrudTableSearch
             v-if="enableSearch"
+            ref="crudTableSearch"
             :loading="loading"
+            :initial-search-term="defaultSearch || ''"
             @search-changed="doSearch"
           />
           <slot name="header-right-side"></slot>
@@ -239,6 +241,15 @@ export default {
       type: Boolean,
       default: true,
     },
+    /**
+     * Optionally makes the table start with the provided search query already applied,
+     * for example based on a route query parameter.
+     */
+    defaultSearch: {
+      required: false,
+      type: String,
+      default: null,
+    },
   },
   emits: ['row-context', 'rows-update'],
   data() {
@@ -246,7 +257,8 @@ export default {
       loading: true,
       page: 1,
       totalPages: 0,
-      searchQuery: false,
+      lastFetchId: 0,
+      searchQuery: this.defaultSearch || false,
       rows: [],
       columnSorts: this.defaultColumnSorts,
     }
@@ -309,6 +321,13 @@ export default {
       this.searchQuery = searchQuery
       await this.fetch(1)
     },
+    setSearch(searchQuery) {
+      if (this.$refs.crudTableSearch) {
+        this.$refs.crudTableSearch.setSearchTerm(searchQuery)
+      } else {
+        this.doSearch(searchQuery)
+      }
+    },
     /**
      * Fetches the rows of a given page and adds them to the state.
      */
@@ -317,6 +336,9 @@ export default {
         page = 1
       }
 
+      // A newer request can resolve before an older one, so the response of an
+      // older request must never overwrite the state of a newer one.
+      const fetchId = ++this.lastFetchId
       this.loading = true
       try {
         const { data } = await this.service.fetch(
@@ -328,6 +350,10 @@ export default {
           this.service.options
         )
 
+        if (fetchId !== this.lastFetchId) {
+          return
+        }
+
         if (this.service.options.isPaginated) {
           this.page = page
           this.totalPages = Math.max(Math.ceil(data.count / 100), 1)
@@ -335,6 +361,9 @@ export default {
 
         this.rows = _.isArray(data) ? data : data.results
       } catch (error) {
+        if (fetchId !== this.lastFetchId) {
+          return
+        }
         notifyIf(error, 'row')
       }
 

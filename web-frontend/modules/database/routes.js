@@ -77,3 +77,13 @@ export const routes = [
     meta: { layout: 'login' },
   },
 ]
+
+// Routes that must be added as children of the core `root` route so that they
+// inherit its layout and middlewares.
+export const rootChildRoutes = [
+  {
+    name: 'admin-database-views',
+    path: '/admin/database-views',
+    file: path.resolve(__dirname, 'pages/admin/views.vue'),
+  },
+]

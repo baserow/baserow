@@ -1,0 +1,107 @@
+import { TestApp } from '@baserow/test/helpers/testApp'
+import ViewsAdminTable from '@baserow/modules/database/components/admin/views/ViewsAdminTable'
+import ViewsAdminContext from '@baserow/modules/database/components/admin/views/contexts/ViewsAdminContext'
+import flushPromises from 'flush-promises'
+
+// Mock out debounce so we dont have to wait or simulate waiting for the search
+// debounce.
+vi.mock('lodash/debounce', () => ({ default: vi.fn((fn) => fn) }))
+
+describe('ViewsAdminTable component', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => await testApp.afterEach())
+
+  function aView(view = {}) {
+    return {
+      id: 1,
+      name: 'Grid view',
+      slug: 'view-slug',
+      type: 'grid',
+      table_id: 10,
+      table_name: 'Table',
+      database_id: 20,
+      database_name: 'Database',
+      workspace_id: 30,
+      workspace_name: 'Workspace',
+      public: true,
+      public_view_has_password: false,
+      owned_by_id: 40,
+      owned_by_username: 'owner@baserow.io',
+      ownership_type: 'collaborative',
+      created_on: '2026-07-20T12:00:00.000000Z',
+      ...view,
+    }
+  }
+
+  function thereAreViews(views, params) {
+    testApp.mock
+      .onGet('/database/admin/views/', { params })
+      .reply(200, { count: views.length, results: views })
+  }
+
+  test('public views are listed with the only public filter on by default', async () => {
+    thereAreViews([aView()], { page: 1, only_public: 'true' })
+
+    const viewsAdmin = await testApp.mount(ViewsAdminTable, {})
+    await flushPromises()
+
+    expect(viewsAdmin.find('.switch--active').exists()).toBe(true)
+    const body = viewsAdmin.find('tbody')
+    expect(body.text()).toContain('Grid view')
+    expect(body.text()).toContain('Table')
+    expect(body.text()).toContain('Workspace')
+    expect(body.text()).toContain('owner@baserow.io')
+    expect(body.find('.iconoir-globe').exists()).toBe(true)
+  })
+
+  test('toggling the only public filter fetches all views', async () => {
+    thereAreViews([aView()], { page: 1, only_public: 'true' })
+    thereAreViews(
+      [aView(), aView({ id: 2, name: 'Private view', public: false })],
+      { page: 1 }
+    )
+
+    const viewsAdmin = await testApp.mount(ViewsAdminTable, {})
+    await flushPromises()
+    expect(viewsAdmin.findAll('tbody tr').length).toBe(1)
+
+    await viewsAdmin.find('.switch').trigger('click')
+    await flushPromises()
+
+    expect(viewsAdmin.find('.switch--active').exists()).toBe(false)
+    expect(viewsAdmin.findAll('tbody tr').length).toBe(2)
+    expect(viewsAdmin.find('tbody').text()).toContain('Private view')
+  })
+
+  test('show workspace views turns the filter off and searches on the workspace id', async () => {
+    thereAreViews([aView()], { page: 1, only_public: 'true' })
+    thereAreViews([aView()], { page: 1 })
+    thereAreViews(
+      [aView(), aView({ id: 2, name: 'Private view', public: false })],
+      { page: 1, search: '30' }
+    )
+
+    const viewsAdmin = await testApp.mount(ViewsAdminTable, {})
+    await flushPromises()
+
+    await viewsAdmin.find('.data-table__more').trigger('click')
+    const context = viewsAdmin.findComponent(ViewsAdminContext)
+    const showWorkspaceViewsLink = context
+      .findAll('.context__menu-item-link')
+      .find((link) =>
+        link.text().includes('viewsAdminContext.showWorkspaceViews')
+      )
+    await showWorkspaceViewsLink.trigger('click')
+    await flushPromises()
+
+    expect(viewsAdmin.find('.switch--active').exists()).toBe(false)
+    expect(viewsAdmin.find('input').element.value).toBe('30')
+    expect(viewsAdmin.findAll('tbody tr').length).toBe(2)
+    expect(viewsAdmin.find('tbody').text()).toContain('Private view')
+  })
+})

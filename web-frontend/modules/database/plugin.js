@@ -1,4 +1,5 @@
 import { defineNuxtPlugin } from '#app'
+import { DatabaseViewsAdminType } from '@baserow/modules/database/adminTypes'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import {
   DuplicateTableJobType,
@@ -399,6 +400,7 @@ export default defineNuxtPlugin({
 
     $registry.register('plugin', new DatabasePlugin(context))
     $registry.register('application', new DatabaseApplicationType(context))
+    $registry.register('admin', new DatabaseViewsAdminType(context))
 
     $registry.register('job', new DuplicateTableJobType(context))
     $registry.register('job', new SyncDataSyncTableJobType(context))

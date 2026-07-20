@@ -46,6 +46,22 @@
   display: flex;
 }
 
+.data-table__filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 40px;
+  margin-bottom: 20px;
+}
+
+.data-table__cell-link {
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .data-table__body {
   min-height: 0;
   height: 100%;
