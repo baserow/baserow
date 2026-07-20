@@ -5,7 +5,6 @@ import SelectRowContent from '@baserow/modules/database/components/row/SelectRow
 import RowService from '@baserow/modules/database/services/row'
 import FieldService from '@baserow/modules/database/services/field'
 import ViewService from '@baserow/modules/database/services/view'
-import { populateField } from '@baserow/modules/database/store/field'
 
 vi.mock('@baserow/modules/database/services/row', () => ({
   default: vi.fn(),
@@ -123,7 +122,7 @@ describe('SelectRowContent', () => {
 
   test('select() toggles existing row to unselected in multiple mode', async () => {
     setupStoreWithDatabase()
-    const { createFn } = setupServiceMocks()
+    setupServiceMocks()
 
     const wrapper = await mountContent([{ id: 42, value: 'Existing' }])
 
