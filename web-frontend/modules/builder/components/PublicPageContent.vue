@@ -34,7 +34,6 @@ import {
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
-import { getBuilderResponsiveStyles } from '@baserow/modules/builder/utils/breakpoints'
 import { useRoute, useRouter } from '#imports'
 
 defineOptions({
@@ -146,6 +145,14 @@ const themeStyle = computed(() =>
   )
 )
 
+const elementResponsiveStyles = computed(() =>
+  $registry
+    .getList('element')
+    .map((elementType) => elementType.getPublicResponsiveStyles(props.builder))
+    .filter(Boolean)
+    .join('\n')
+)
+
 const headConfig = computed(() => {
   const cssVars = Object.entries(themeStyle.value)
     .map(([key, value]) => `\n${key}: ${value};`)
@@ -160,7 +167,7 @@ const headConfig = computed(() => {
     style: [
       { innerHTML: `:root { ${cssVars} }`, type: 'text/css' },
       {
-        innerHTML: getBuilderResponsiveStyles(props.builder),
+        innerHTML: elementResponsiveStyles.value,
         type: 'text/css',
       },
     ],

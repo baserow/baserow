@@ -109,6 +109,22 @@ describe('elementTypes tests', () => {
       const elementType = testApp.$registry.get('element', 'column')
       expect(elementType.getDisplayName({}, {})).toBe('elementType.column')
     })
+    test('ColumnElementType provides its public responsive styles', () => {
+      const elementType = testApp.$registry.get('element', 'column')
+      const styles = elementType.getPublicResponsiveStyles({
+        mobile_breakpoint: 640,
+        tablet_breakpoint: 1024,
+      })
+
+      expect(styles).toContain('@media (min-width: 1025px)')
+      expect(styles).toContain(
+        '@media (min-width: 641px) and (max-width: 1024px)'
+      )
+      expect(styles).toContain('@media (max-width: 640px)')
+      expect(styles).toContain(
+        '.column-element--public.column-element--stack-smartphone'
+      )
+    })
     test('InputTextElementType label and default_value variations', () => {
       const elementType = testApp.$registry.get('element', 'input_text')
       expect(

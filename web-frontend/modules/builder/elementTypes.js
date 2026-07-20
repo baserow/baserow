@@ -65,6 +65,7 @@ import {
   MultiPageElementTypeMixin,
 } from '@baserow/modules/builder/elementTypeMixins'
 import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
+import { getBuilderBreakpoints } from '@baserow/modules/builder/utils/breakpoints'
 
 import {
   VISIBILITY_NOT_LOGGED,
@@ -128,6 +129,16 @@ export class ElementType extends Registerable {
 
   get component() {
     return null
+  }
+
+  /**
+   * Returns the responsive CSS required when this element is rendered publicly.
+   *
+   * @param {Object} builder The application builder being rendered.
+   * @returns {string}
+   */
+  getPublicResponsiveStyles(builder) {
+    return ''
   }
 
   get editComponent() {
@@ -1120,6 +1131,30 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
 
   get generalFormComponent() {
     return ColumnElementForm
+  }
+
+  getPublicResponsiveStyles(builder) {
+    const { mobile, tablet } = getBuilderBreakpoints(builder)
+
+    return `
+      @media (min-width: ${tablet + 1}px) {
+        .column-element--public.column-element--stack-desktop {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (min-width: ${mobile + 1}px) and (max-width: ${tablet}px) {
+        .column-element--public.column-element--stack-tablet {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: ${mobile}px) {
+        .column-element--public.column-element--stack-smartphone {
+          grid-template-columns: 1fr;
+        }
+      }
+    `
   }
 
   getElementPlaces(element) {
