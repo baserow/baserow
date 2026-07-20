@@ -180,7 +180,6 @@ class QuerysetSerializer(abc.ABC):
                 if not field_object["field"].primary
             ]
         self.ordered_field_objects = ordered_field_objects
-
         self.field_serializers = []
         if include_row_id:
             self.field_serializers.append(lambda row: ("id", "id", row.id))
@@ -300,7 +299,9 @@ class QuerysetSerializer(abc.ABC):
                 result = ""
             else:
                 result = field_object["type"].get_export_value(
-                    value, field_object, rich_value=self.can_handle_rich_value
+                    value,
+                    field_object,
+                    rich_value=self.can_handle_rich_value,
                 )
 
             return (

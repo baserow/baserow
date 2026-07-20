@@ -105,16 +105,68 @@ const normalizeNode = (schema, state, nodeJson) => {
 
   let children = (nodeJson.content ?? []).flatMap((child) => {
     const normalized = normalizeNode(schema, state, child)
-    return normalized ? [normalized] : []
+    if (!normalized) return []
+    return Array.isArray(normalized) ? normalized : [normalized]
   })
+  if (nodeType.name === 'paragraph' && children.length > 0) {
+    const firstText = children.find((c) => c.isText)
+    const isNbspSentinel =
+      firstText && ['&nbsp;', '\u00a0'].includes(firstText.text)
+    if (
+      isNbspSentinel &&
+      children.every(
+        (c) => c === firstText || c.type.name === 'hardBreak' || c.isBlock
+      )
+    ) {
+      const blockChildren = children.filter((c) => c.isBlock)
+      if (blockChildren.length > 0) {
+        const emptyPara = nodeType.createAndFill(null, null, marks)
+        return emptyPara ? [emptyPara, ...blockChildren] : blockChildren
+      }
+      children = []
+    }
+  }
+
+  // When a paragraph contains block-level children (e.g. an image node with
+  // group:'block'), ProseMirror's content model rejects them as inline content.
+  // Instead of marking the entire document as lossy, hoist block children out of
+  // the paragraph so they become siblings in the parent node.
   if (
     nodeType.name === 'paragraph' &&
-    children.length === 1 &&
-    children[0].isText &&
-    ['&nbsp;', '\u00a0'].includes(children[0].text)
+    children.some((child) => child.isBlock)
   ) {
-    children = []
+    const result = []
+    let inlines = []
+
+    for (const child of children) {
+      if (child.isBlock) {
+        if (inlines.length > 0) {
+          const para = nodeType.createAndFill(
+            nodeJson.attrs,
+            Fragment.from(inlines),
+            marks
+          )
+          if (para) result.push(para)
+          inlines = []
+        }
+        result.push(child)
+      } else {
+        inlines.push(child)
+      }
+    }
+
+    if (inlines.length > 0) {
+      const para = nodeType.createAndFill(
+        nodeJson.attrs,
+        Fragment.from(inlines),
+        marks
+      )
+      if (para) result.push(para)
+    }
+
+    return result.length === 1 ? result[0] : result
   }
+
   const content = fitContent(schema, state, nodeType, children)
 
   const normalized = nodeType.createAndFill(nodeJson.attrs, content, marks)
