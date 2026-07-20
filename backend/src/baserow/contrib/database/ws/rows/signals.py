@@ -64,7 +64,9 @@ def rows_created(
             RealtimeRowMessages.rows_created(
                 table_id=table.id,
                 serialized_rows=get_row_serializer_class(
-                    model, RowSerializer, is_response=True
+                    model,
+                    RowSerializer,
+                    is_response=True,
                 )(rows, many=True).data,
                 metadata=row_metadata_registry.generate_and_merge_metadata_for_rows(
                     user, table, [row.id for row in rows]

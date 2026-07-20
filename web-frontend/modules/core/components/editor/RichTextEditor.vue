@@ -3,10 +3,8 @@
     ref="root"
     class="rich-text-editor"
     :class="{ 'rich-text-editor--scrollbar-thin': thinScrollbar }"
-    @drop.prevent="dropImage($event)"
+    @drop.prevent
     @dragover.prevent
-    @dragenter.prevent="dragEnter($event)"
-    @dragleave="dragLeave($event)"
   >
     <div v-if="editable && enableRichTextFormatting">
       <RichTextEditorBubbleMenu
@@ -60,6 +58,7 @@ import {
   plainTextToRichTextContent,
 } from '@baserow/modules/core/editor/richTextClipboard'
 import { isRichTextSelectionVisible } from '@baserow/modules/core/editor/richTextMenuPosition'
+import { preprocessRichTextImages } from '@baserow/modules/core/editor/richTextImageUtils'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -122,6 +121,10 @@ export default {
       type: Function,
       default: null,
     },
+    uploadFile: {
+      type: Function,
+      default: null,
+    },
   },
   emits: ['blur', 'focus', 'update:modelValue', 'stop-edit'],
   data() {
@@ -144,8 +147,7 @@ export default {
       loggedUserId: 'auth/getUserId',
     }),
     canUploadImages() {
-      const enableImages = false
-      return this.editable && this.enableRichTextFormatting && enableImages
+      return this.editable && this.enableRichTextFormatting && !!this.uploadFile
     },
     // Body-level default: floating-ui's fixed strategy mis-positions under a
     // positioned ancestor. Keep the lookup lazy so server rendering never touches
@@ -163,11 +165,7 @@ export default {
     },
     modelValue(value) {
       if (!_.isEqual(value, this.editor.getJSON())) {
-        this.editor.commands.setContent(value, {
-          emitUpdate: false,
-          contentType: this.getContentType(value),
-        })
-        this.initialDocument = clone(this.editor.getJSON())
+        this.loadContent(value)
       }
     },
   },
@@ -270,13 +268,19 @@ export default {
     },
     createEditor() {
       const extensions = this.getConfiguredExtensions()
+      let content = this.modelValue
+      let nameMap = null
+      if (typeof content === 'string') {
+        const result = preprocessRichTextImages(content)
+        content = result.content
+        nameMap = result.nameMap
+      }
       this.editor = new Editor({
-        content: this.modelValue,
+        content,
         contentType: this.getContentType(this.modelValue),
         editable: this.editable,
         editorProps: {
           handleClickOn: (view, pos, node, nodePos, event, direct) => {
-            // Open links in a new tab when the user clicks on them while holding Cmd/Ctrl..
             if (
               isActive(view.state, 'link') &&
               isOsSpecificModifierPressed(event)
@@ -286,7 +290,38 @@ export default {
               return true
             }
           },
+          handleDrop: (view, event) => {
+            if (!this.canUploadImages || !event.dataTransfer) {
+              return false
+            }
+            const files = Array.from(event.dataTransfer.files).filter((file) =>
+              file.type.startsWith('image/')
+            )
+            if (files.length === 0) {
+              return false
+            }
+            event.preventDefault()
+            this.uploadFiles(files)
+            return true
+          },
           handlePaste: (view, event) => {
+            if (this.canUploadImages) {
+              const items = event.clipboardData?.items
+                ? Array.from(event.clipboardData.items)
+                : []
+              const imageItems = items.filter((item) =>
+                item.type.startsWith('image/')
+              )
+              if (imageItems.length > 0) {
+                const files = imageItems
+                  .map((item) => item.getAsFile())
+                  .filter(Boolean)
+                if (files.length > 0) {
+                  this.uploadFiles(files)
+                  return true
+                }
+              }
+            }
             const plainText = event.clipboardData.getData('text/plain')
             const copiedFromRichTextEditor =
               this.enableRichTextFormatting &&
@@ -331,8 +366,10 @@ export default {
           },
         },
         extensions,
-        onUpdate: () => {
-          this.$emit('update:modelValue', clone(this.editor.getJSON()))
+        onUpdate: ({ transaction }) => {
+          if (!transaction.getMeta('applyNameMap')) {
+            this.$emit('update:modelValue', clone(this.editor.getJSON()))
+          }
         },
         onFocus: ({ editor, event }) => {
           this.bubbleMenuVisible = true
@@ -342,7 +379,7 @@ export default {
         },
         onBlur: ({ editor, event }) => {
           if (this.isEventFromMenu(event)) {
-            return // Do not emit a blur event if it is coming from one of the editor's menu.
+            return
           }
           this.$emit('blur')
         },
@@ -355,6 +392,9 @@ export default {
           this.setMenuScrollVisibility(true)
         },
       })
+      if (nameMap && Object.keys(nameMap).length > 0) {
+        this.applyNameMap(nameMap)
+      }
       this.initialDocument = clone(this.editor.getJSON())
       this.setupEditor()
     },
@@ -466,6 +506,43 @@ export default {
     isDirty() {
       return !_.isEqual(this.editor.getJSON(), this.initialDocument)
     },
+    loadContent(value) {
+      let content = value
+      let nameMap = null
+      if (typeof content === 'string') {
+        const result = preprocessRichTextImages(content)
+        content = result.content
+        nameMap = result.nameMap
+      }
+      this.editor.commands.setContent(content, {
+        emitUpdate: false,
+        contentType: this.getContentType(value),
+      })
+      if (nameMap && Object.keys(nameMap).length > 0) {
+        this.applyNameMap(nameMap)
+      }
+      this.initialDocument = clone(this.editor.getJSON())
+    },
+    applyNameMap(nameMap) {
+      const { tr } = this.editor.state
+      let modified = false
+      this.editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'image' && node.attrs.src) {
+          const name = nameMap[node.attrs.src]
+          if (name && node.attrs.userFileName !== name) {
+            tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              userFileName: name,
+            })
+            modified = true
+          }
+        }
+      })
+      if (modified) {
+        tr.setMeta('applyNameMap', true)
+        this.editor.view.dispatch(tr)
+      }
+    },
     isEventFromMenu(event) {
       return (
         this.$refs.bubbleMenu?.isEventTargetInside(event) ||
@@ -479,47 +556,37 @@ export default {
     },
     addImages(imageFiles) {
       for (const image of imageFiles) {
-        this.editor.commands.setImage({
-          src: image.url,
-          alt: image.original_name.split('.')[0],
-        })
+        this.editor
+          .chain()
+          .setImage({
+            src: image.url,
+            alt: image.original_name.replace(/\.[^.]+$/, ''),
+            userFileName: image.name,
+          })
+          .createParagraphNear()
+          .run()
       }
-    },
-    async dropImage(event) {
-      const files = [...event.dataTransfer.items].map((item) =>
-        item.getAsFile()
-      )
-      const images = files.filter((file) => file?.type.startsWith('image/'))
-      if (images.length === 0) {
-        return
-      }
-      await this.uploadFiles(images)
     },
     async uploadFiles(fileArray) {
-      this.dragging = false
-
       if (!this.canUploadImages) {
         return
       }
 
       const files = fileArray.map((file) => ({ id: uuid(), file }))
 
-      // First add the file ids to the loading list so the user sees a visual loading
-      // indication for each file.
       files.forEach((file) => {
         this.loadings.push({ id: file.id })
       })
 
-      // Now upload the files one by one to not overload the backend. When finished,
-      // regardless of is has succeeded, the loading state for that file can be removed
-      // because it has already been added as a file.
       for (const fileObj of files) {
         const id = fileObj.id
         const file = fileObj.file
 
-        // FIXME: provide uploadUserFile as prop
         try {
-          const { data } = await this.uploadUserFile(file)
+          const { data } = await this.uploadFile(file)
+          if (!this.editor || this.editor.isDestroyed) {
+            return
+          }
           this.addImages([data])
         } catch (error) {
           notifyIf(error, 'userFile')
@@ -527,21 +594,6 @@ export default {
 
         const index = this.loadings.findIndex((l) => l.id === id)
         this.loadings.splice(index, 1)
-      }
-    },
-    dragEnter(event) {
-      if (!this.canUploadImages) {
-        return
-      }
-      this.dragging = true
-      this.dragTarget = event.target
-    },
-    dragLeave(event) {
-      if (this.dragTarget === event.target && !this.canUploadImages) {
-        event.stopPropagation()
-        event.preventDefault()
-        this.dragging = false
-        this.dragTarget = null
       }
     },
   },

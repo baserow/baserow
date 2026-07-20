@@ -131,6 +131,34 @@
   opacity: 0.2;
 }
 
+.rich-text-editor__content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 8px 0;
+  border-radius: 4px;
+  cursor: pointer;
+
+  /* stylelint-disable selector-class-pattern */
+  &.ProseMirror-selectednode {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba($palette-blue-500, 0.2);
+    filter: brightness(0.95);
+  }
+  /* stylelint-enable selector-class-pattern */
+}
+
+.field-rich-text--preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 200px;
+  height: auto;
+  margin: 4px 0;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
 .rich-text-editor__mention,
 span[data-type='mention'] {
   padding: 0 2px;
