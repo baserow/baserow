@@ -12,7 +12,10 @@ class TwoFactorAccessToken(Token):
 
 class Require2faToken(permissions.BasePermission):
     """
-    Require that the provided JWT is two factor access token type.
+    Require that the provided JWT is a two factor access token and extract
+    the user identity from it. Sets ``request.two_factor_user_id`` so
+    downstream views can resolve the authenticated user from the token
+    rather than trusting client-supplied fields.
     """
 
     def has_permission(self, request, view):
@@ -24,6 +27,9 @@ class Require2faToken(permissions.BasePermission):
 
         try:
             token = TwoFactorAccessToken(token_string)
-            return token.token_type == "2fa"  # nosec
-        except (InvalidToken, TokenError):
+            if token.token_type != "2fa":  # nosec
+                return False
+            request.two_factor_user_id = token.payload["user_id"]
+            return True
+        except (InvalidToken, TokenError, KeyError):
             return False

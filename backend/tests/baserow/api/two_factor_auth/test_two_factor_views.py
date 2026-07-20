@@ -595,3 +595,177 @@ def test_verify_totp_backup_code_view_invalid(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
     assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("use_correct_email", [True, False])
+def test_verify_totp_uses_token_identity_not_body_email(
+    api_client, data_fixture, use_correct_email
+):
+    """
+    The verify endpoint resolves the user from the 2FA token, not from
+    the email field in the request body. A valid TOTP code for the token
+    owner succeeds regardless of what email is sent in the body.
+    """
+
+    user, _ = data_fixture.create_user_and_token()
+    with freeze_time("2020-02-01 00:00"):
+        provider = data_fixture.configure_totp(user)
+
+    with freeze_time("2020-02-01 00:01"):
+        response = api_client.post(
+            reverse("api:user:token_auth"),
+            {"email": user.email, "password": "password"},
+            format="json",
+        )
+        two_fa_token = response.json()["token"]
+
+        totp = pyotp.TOTP(provider.secret)
+        valid_code = totp.now()
+
+        body_email = user.email if use_correct_email else "wrong@example.com"
+        url = reverse("api:two_factor_auth:verify")
+        response = api_client.post(
+            url,
+            {
+                "type": "totp",
+                "email": body_email,
+                "code": valid_code,
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
+        )
+
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK, response_json
+        assert response_json["user"]["id"] == user.id
+
+
+@pytest.mark.django_db
+def test_verify_totp_cross_account_splicing_blocked(api_client, data_fixture):
+    """
+    An attacker who obtains their own 2FA token must not be able to use it
+    with a victim's email and TOTP code to get the victim's session.
+    The endpoint resolves user from the token — so the attacker's TOTP
+    code is checked, not the victim's.
+    """
+
+    attacker, _ = data_fixture.create_user_and_token(email="attacker@test.com")
+    victim, _ = data_fixture.create_user_and_token(email="victim@test.com")
+
+    with freeze_time("2020-02-01 00:00"):
+        data_fixture.configure_totp(attacker)
+        victim_provider = data_fixture.configure_totp(victim)
+
+    with freeze_time("2020-02-01 00:01"):
+        response = api_client.post(
+            reverse("api:user:token_auth"),
+            {"email": attacker.email, "password": "password"},
+            format="json",
+        )
+        attacker_2fa_token = response.json()["token"]
+
+        victim_totp = pyotp.TOTP(victim_provider.secret)
+        victim_code = victim_totp.now()
+
+        url = reverse("api:two_factor_auth:verify")
+        response = api_client.post(
+            url,
+            {
+                "type": "totp",
+                "email": victim.email,
+                "code": victim_code,
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {attacker_2fa_token}",
+        )
+
+        # The endpoint uses the attacker's token identity, so the victim's
+        # TOTP code is checked against the attacker's secret and fails.
+        response_json = response.json()
+        assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
+        assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"
+
+
+@pytest.mark.django_db
+def test_verify_totp_deleted_user_in_token(api_client, data_fixture):
+    """
+    If the user referenced by the 2FA token has been deleted between token
+    issuance and verification, the endpoint returns VerificationFailed.
+    """
+
+    user, _ = data_fixture.create_user_and_token()
+    data_fixture.configure_totp(user)
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": user.email, "password": "password"},
+        format="json",
+    )
+    two_fa_token = response.json()["token"]
+
+    user.delete()
+
+    url = reverse("api:two_factor_auth:verify")
+    response = api_client.post(
+        url,
+        {
+            "type": "totp",
+            "email": "deleted@test.com",
+            "code": "123456",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
+    assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"
+
+
+@pytest.mark.django_db
+def test_verify_totp_rate_limit_keyed_to_token_user_id(api_client, data_fixture):
+    """
+    Rate limiting is keyed to the user_id from the token, not the email
+    in the request body. Sending different emails in the body should still
+    hit the same rate limit bucket when the same token is used.
+    """
+
+    user, _ = data_fixture.create_user_and_token()
+    data_fixture.configure_totp(user)
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": user.email, "password": "password"},
+        format="json",
+    )
+    two_fa_token = response.json()["token"]
+
+    url = reverse("api:two_factor_auth:verify")
+
+    for i in range(10):
+        response = api_client.post(
+            url,
+            {
+                "type": "totp",
+                "email": f"different{i}@test.com",
+                "code": "000000",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
+        )
+
+    # 11th request with same token should be rate limited
+    response = api_client.post(
+        url,
+        {
+            "type": "totp",
+            "email": "yet-another@test.com",
+            "code": "000000",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
+    )
+
+    assert response.status_code == 429, response.json()
+    assert response.json()["error"] == "ERROR_RATE_LIMIT_EXCEEDED"
