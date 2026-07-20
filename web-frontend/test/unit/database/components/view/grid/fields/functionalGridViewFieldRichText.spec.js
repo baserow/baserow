@@ -65,4 +65,27 @@ describe('FunctionalGridViewFieldRichText component', () => {
     expect(wrapper.find('img').exists()).toBe(false)
     expect(window.hacked).toBeUndefined()
   })
+
+  test('replaces image references with placeholder emoji', async () => {
+    const wrapper = await mountComponent('![photo][abc_def.png] some text')
+
+    const text = wrapper.text()
+    expect(text).toContain('🖼 photo')
+    expect(text).toContain('some text')
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(text).not.toContain('[abc_def.png]')
+  })
+
+  test('replaces image with URL format using placeholder', async () => {
+    const wrapper = await mountComponent(
+      '![chart][file123.png](https://example.com/file123.png) description'
+    )
+
+    const text = wrapper.text()
+    expect(text).toContain('🖼 chart')
+    expect(text).toContain('description')
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(text).not.toContain('file123.png')
+    expect(text).not.toContain('https://example.com')
+  })
 })
