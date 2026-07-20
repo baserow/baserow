@@ -1008,6 +1008,32 @@ def test_admin_impersonate_staff_or_superuser(api_client, data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_admin_impersonate_deactivated_user(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(
+        email="test@test.nl",
+        password="password",
+        first_name="Test1",
+        is_staff=True,
+    )
+    user_to_impersonate = data_fixture.create_user(
+        email="specific_user@test.nl",
+        password="password",
+        first_name="Test1",
+        is_active=False,
+    )
+    response = api_client.post(
+        reverse("api:admin:users:impersonate"),
+        {"user": user_to_impersonate.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["user"][0].startswith("Invalid pk")
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_admin_users_endpoint_includes_two_factor_auth(api_client, data_fixture):
     staff_user, token = data_fixture.create_user_and_token(
         email="staff@test.nl",
