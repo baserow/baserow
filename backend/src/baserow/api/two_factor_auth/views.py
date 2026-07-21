@@ -27,12 +27,10 @@ from baserow.api.two_factor_auth.serializers import (
     TwoFactorAuthSerializer,
     VerifyTOTPSerializer,
 )
-from baserow.api.two_factor_auth.tokens import Require2faToken
-from baserow.api.user.errors import ERROR_DEACTIVATED_USER
+from baserow.api.two_factor_auth.tokens import TwoFactorTokenAuthentication
 from baserow.api.user.schemas import authenticated_user_response_schema
 from baserow.api.user.serializers import log_in_user
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
-from baserow.core.models import User
 from baserow.core.two_factor_auth.actions import (
     ConfigureTwoFactorAuthActionType,
     DisableTwoFactorAuthActionType,
@@ -50,7 +48,6 @@ from baserow.core.two_factor_auth.registries import (
     TOTPAuthProviderType,
     two_factor_auth_type_registry,
 )
-from baserow.core.user.exceptions import DeactivatedUserException
 from baserow.throttling.exceptions import RateLimitExceededException
 from baserow.throttling.handler import rate_limit
 from baserow.throttling.types import RateLimit
@@ -179,7 +176,8 @@ class DisableTwoFactorAuthView(APIView):
 
 
 class VerifyTOTPAuthView(APIView):
-    permission_classes = (Require2faToken,)
+    authentication_classes = (TwoFactorTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         tags=["Auth"],
@@ -193,12 +191,7 @@ class VerifyTOTPAuthView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
-            401: get_error_schema(
-                [
-                    "ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED",
-                    "ERROR_DEACTIVATED_USER",
-                ]
-            ),
+            401: get_error_schema(["ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"]),
             404: get_error_schema(["ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST"]),
             429: get_error_schema(["ERROR_RATE_LIMIT_EXCEEDED"]),
         },
@@ -208,7 +201,6 @@ class VerifyTOTPAuthView(APIView):
             TwoFactorAuthTypeDoesNotExist: ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST,
             VerificationFailed: ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED,
             RateLimitExceededException: ERROR_RATE_LIMIT_EXCEEDED,
-            DeactivatedUserException: ERROR_DEACTIVATED_USER,
         }
     )
     @validate_body(VerifyTOTPSerializer, return_validated=True)
@@ -218,13 +210,7 @@ class VerifyTOTPAuthView(APIView):
         Verifies TOTP two-factor authentication.
         """
 
-        # Resolve user from the token identity, not from the client-supplied
-        # email. The email field is kept in the serializer for backward
-        # compatibility but intentionally unused.
-        user_id = request.two_factor_user_id
-        user = User.objects.filter(id=user_id).first()
-        if not user:
-            raise VerificationFailed
+        user = request.user
 
         def verify():
             TwoFactorAuthHandler().verify(
@@ -236,7 +222,7 @@ class VerifyTOTPAuthView(APIView):
 
         rate_limit(
             rate=RateLimit.from_string("10/m"),
-            key=f"two_fa_verify:totp:{user_id}",
+            key=f"two_fa_verify:totp:{user.id}",
             raise_exception=True,
         )(verify)()
 

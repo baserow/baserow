@@ -407,7 +407,12 @@ def test_disable_2fa_view(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_verify_totp_view_missing_email(api_client, data_fixture):
+def test_verify_totp_view_without_email(api_client, data_fixture):
+    """
+    The email field is deprecated and optional. Omitting it should not
+    cause a validation error — the request proceeds to TOTP verification.
+    """
+
     user, token = data_fixture.create_user_and_token()
     data_fixture.configure_totp(user)
     response = api_client.post(
@@ -429,8 +434,8 @@ def test_verify_totp_view_missing_email(api_client, data_fixture):
     )
 
     response_json = response.json()
-    assert response.status_code == HTTP_400_BAD_REQUEST, response_json
-    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
+    assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"
 
 
 @pytest.mark.django_db
@@ -653,45 +658,41 @@ def test_verify_totp_cross_account_splicing_blocked(api_client, data_fixture):
     attacker, _ = data_fixture.create_user_and_token(email="attacker@test.com")
     victim, _ = data_fixture.create_user_and_token(email="victim@test.com")
 
-    with freeze_time("2020-02-01 00:00"):
-        data_fixture.configure_totp(attacker)
-        victim_provider = data_fixture.configure_totp(victim)
+    data_fixture.configure_totp(attacker)
+    victim_provider = data_fixture.configure_totp(victim)
+    victim_backup_code = victim_provider.backup_codes[0]
 
-    with freeze_time("2020-02-01 00:01"):
-        response = api_client.post(
-            reverse("api:user:token_auth"),
-            {"email": attacker.email, "password": "password"},
-            format="json",
-        )
-        attacker_2fa_token = response.json()["token"]
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": attacker.email, "password": "password"},
+        format="json",
+    )
+    attacker_2fa_token = response.json()["token"]
 
-        victim_totp = pyotp.TOTP(victim_provider.secret)
-        victim_code = victim_totp.now()
+    url = reverse("api:two_factor_auth:verify")
+    response = api_client.post(
+        url,
+        {
+            "type": "totp",
+            "email": victim.email,
+            "backup_code": victim_backup_code,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {attacker_2fa_token}",
+    )
 
-        url = reverse("api:two_factor_auth:verify")
-        response = api_client.post(
-            url,
-            {
-                "type": "totp",
-                "email": victim.email,
-                "code": victim_code,
-            },
-            format="json",
-            HTTP_AUTHORIZATION=f"Bearer {attacker_2fa_token}",
-        )
-
-        # The endpoint uses the attacker's token identity, so the victim's
-        # TOTP code is checked against the attacker's secret and fails.
-        response_json = response.json()
-        assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
-        assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"
+    # The endpoint uses the attacker's token identity, so the victim's
+    # backup code is checked against the attacker's codes and fails.
+    response_json = response.json()
+    assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
+    assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"
 
 
 @pytest.mark.django_db
 def test_verify_totp_deleted_user_in_token(api_client, data_fixture):
     """
     If the user referenced by the 2FA token has been deleted between token
-    issuance and verification, the endpoint returns VerificationFailed.
+    issuance and verification, the authentication layer rejects the request.
     """
 
     user, _ = data_fixture.create_user_and_token()
@@ -711,16 +712,48 @@ def test_verify_totp_deleted_user_in_token(api_client, data_fixture):
         url,
         {
             "type": "totp",
-            "email": "deleted@test.com",
             "code": "123456",
         },
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
     )
 
-    response_json = response.json()
-    assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
-    assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_verify_totp_deactivated_user_in_token(api_client, data_fixture):
+    """
+    If the user referenced by the 2FA token has been deactivated between
+    token issuance and verification, the authentication layer rejects the
+    request.
+    """
+
+    user, _ = data_fixture.create_user_and_token()
+    data_fixture.configure_totp(user)
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": user.email, "password": "password"},
+        format="json",
+    )
+    two_fa_token = response.json()["token"]
+
+    user.is_active = False
+    user.save()
+
+    url = reverse("api:two_factor_auth:verify")
+    response = api_client.post(
+        url,
+        {
+            "type": "totp",
+            "code": "123456",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
@@ -748,11 +781,13 @@ def test_verify_totp_rate_limit_keyed_to_token_user_id(api_client, data_fixture)
             url,
             {
                 "type": "totp",
-                "email": f"different{i}@test.com",
-                "code": "000000",
+                "backup_code": "XXXXX-XXXXX",
             },
             format="json",
             HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
+        )
+        assert response.status_code != 429, (
+            f"Request {i + 1} was rate limited prematurely"
         )
 
     # 11th request with same token should be rate limited
@@ -760,8 +795,7 @@ def test_verify_totp_rate_limit_keyed_to_token_user_id(api_client, data_fixture)
         url,
         {
             "type": "totp",
-            "email": "yet-another@test.com",
-            "code": "000000",
+            "backup_code": "XXXXX-XXXXX",
         },
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {two_fa_token}",
