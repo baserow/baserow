@@ -6,25 +6,26 @@ The preview authentication process works as follows:
    :class:`BuilderPreviewGrantView` for a preview URL. This request uses the
    editor's normal login, so Baserow can first check that they are allowed to
    see the builder.
-2. The URL contains a short-lived, signed token. Think of this token as a
-   temporary preview pass which names the one draft builder that may be viewed.
-3. When the browser opens that URL, frontend middleware sends the token to
-   :class:`BuilderPreviewExchangeView`. This view checks and consumes the pass,
-   creates a separate preview session in a protected HttpOnly cookie, and
-   redirects the browser to the same preview URL without the token visible in
-   the address bar.
-4. The preview frontend calls :class:`BuilderPreviewCurrentView` and the other
-   draft rendering endpoints. ``BuilderPreviewAuthentication`` reads the
-   protected cookie and represents the visitor as a restricted preview actor.
-   That actor can render only the builder named in the pass; it does not receive
-   the editor's wider account permissions.
+2. The URL contains a short-lived, signed grant which names the one draft
+   builder that may be viewed. Frontend middleware sends the browser to
+   :class:`BuilderPreviewExchangeView` to consume it.
+3. The exchange sets the backend-origin preview cookie used by browser API
+   calls, stores a random one-time SSR handoff, and redirects to the preview
+   URL with only that opaque handoff code.
+4. Preview middleware posts the handoff server-to-server to
+   :class:`BuilderPreviewHandoffView`, writes the returned session into an
+   HttpOnly preview-origin cookie, and redirects to a URL without credentials.
+5. During SSR, Nuxt forwards only that companion credential under the backend
+   cookie name. ``BuilderPreviewAuthentication`` represents the visitor as a
+   restricted preview actor which can render only the builder named in the
+   original grant.
 
 The pass and cookie expire after ``BUILDER_PREVIEW_GRANT_TTL``. The first exchange
 atomically creates a short-lived global-cache entry, so later exchanges of the
 same pass are rejected.
 """
 
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from django.conf import settings
 from django.http import HttpResponseRedirect
@@ -45,10 +46,13 @@ from baserow.api.schemas import get_error_schema
 from baserow.contrib.builder.api.preview.serializers import (
     BuilderPreviewGrantRequestSerializer,
     BuilderPreviewGrantResponseSerializer,
+    BuilderPreviewHandoffRequestSerializer,
+    BuilderPreviewHandoffResponseSerializer,
 )
 from baserow.contrib.builder.errors import ERROR_BUILDER_DOES_NOT_EXIST
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.preview import (
+    BUILDER_PREVIEW_HANDOFF_QUERY_PARAM,
     BuilderPreviewGrantHandler,
     BuilderPreviewGrantInvalid,
     get_builder_preview_cookie_name,
@@ -164,13 +168,13 @@ class BuilderPreviewCurrentView(APIView):
 
 
 class BuilderPreviewExchangeView(APIView):
-    """Turn the token in a preview URL into a protected browser cookie.
+    """Turn the token in a preview URL into a browser cookie and SSR handoff.
 
     The browser reaches this endpoint before loading the clean preview page.
     No existing login is required because the signed, unexpired token is the
     proof of access. After validation, a separate preview-session token is placed
-    in an HttpOnly cookie so page scripts cannot read it, then the browser is
-    redirected to a URL where the exchange token is no longer visible.
+    in an HttpOnly backend-origin cookie and behind a random one-time handoff.
+    The browser is redirected with the opaque handoff, never the session itself.
     """
 
     permission_classes = (AllowAny,)
@@ -226,6 +230,8 @@ class BuilderPreviewExchangeView(APIView):
             else "None"
         )
         secure = backend_url.scheme == "https" or same_site == "None"
+        handoff_code = BuilderPreviewGrantHandler().create_handoff(session_token)
+        redirect_to = self._add_handoff_to_redirect(redirect_to, handoff_code)
         response = HttpResponseRedirect(redirect_to)
         response.set_cookie(
             get_builder_preview_cookie_name(),
@@ -237,6 +243,19 @@ class BuilderPreviewExchangeView(APIView):
             path="/api/",
         )
         return response
+
+    @staticmethod
+    def _add_handoff_to_redirect(redirect_to: str, handoff_code: str) -> str:
+        """Add the opaque handoff while preserving the redirect query and fragment."""
+
+        parsed = urlparse(redirect_to)
+        query = [
+            (key, value)
+            for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+            if key != BUILDER_PREVIEW_HANDOFF_QUERY_PARAM
+        ]
+        query.append((BUILDER_PREVIEW_HANDOFF_QUERY_PARAM, handoff_code))
+        return urlunparse(parsed._replace(query=urlencode(query)))
 
     def _is_allowed_redirect(self, redirect_to):
         """Check that the post-exchange redirect stays on the preview website.
@@ -284,3 +303,41 @@ class BuilderPreviewExchangeView(APIView):
 
         parts = hostname.split(".")
         return ".".join(parts[-2:]) if len(parts) >= 2 else hostname
+
+
+class BuilderPreviewHandoffView(APIView):
+    """Let the preview Nuxt server consume an opaque one-time handoff code."""
+
+    permission_classes = (AllowAny,)
+    authentication_classes = ()
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "no-store"
+        return response
+
+    @extend_schema(
+        tags=["Builder preview"],
+        operation_id="exchange_builder_preview_handoff",
+        request=BuilderPreviewHandoffRequestSerializer,
+        responses={
+            200: BuilderPreviewHandoffResponseSerializer,
+            404: None,
+        },
+    )
+    @validate_body(BuilderPreviewHandoffRequestSerializer)
+    def post(self, request, data):
+        try:
+            preview_session, expires_in = BuilderPreviewGrantHandler().exchange_handoff(
+                data[BUILDER_PREVIEW_HANDOFF_QUERY_PARAM]
+            )
+        except BuilderPreviewGrantInvalid:
+            response = Response(status=404)
+        else:
+            response = Response(
+                {
+                    "preview_session": preview_session,
+                    "expires_in": expires_in,
+                }
+            )
+        return response

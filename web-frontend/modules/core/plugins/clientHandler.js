@@ -1,8 +1,12 @@
 import axios from 'axios'
-import { showError, useRuntimeConfig } from '#imports'
+import { showError, useCookie, useRuntimeConfig } from '#imports'
 
 import { upperCaseFirst } from '@baserow/modules/core/utils/string'
 import { makeRefreshAuthInterceptor } from '@baserow/modules/core/plugins/clientAuthRefresh'
+import {
+  getBuilderPreviewCookieName,
+  getBuilderPreviewSsrCookieName,
+} from '@baserow/modules/core/utils/builderPreview'
 
 export class ResponseErrorMessage {
   constructor(title, message) {
@@ -528,7 +532,7 @@ export function makeErrorResponseInterceptor(
 /**
  * Add the user related headers according to the current authentication status.
  */
-export const prepareRequestHeaders = (store) => (config) => {
+export const prepareRequestHeaders = (store, previewSsrAuth) => (config) => {
   const application = store.getters['userSourceUser/getCurrentApplication']
   const currentApplicationMode =
     store.getters['userSourceUser/getCurrentApplicationMode']
@@ -539,6 +543,9 @@ export const prepareRequestHeaders = (store) => (config) => {
     config.withCredentials = true
     config.headers ||= {}
     config.headers['X-Baserow-Builder-Preview'] = 'true'
+    if (previewSsrAuth.session) {
+      config.headers.Cookie = `${previewSsrAuth.backendCookieName}=${previewSsrAuth.session}`
+    }
   }
 
   const isUserSourceAuthenticated =
@@ -615,11 +622,22 @@ export default defineNuxtPlugin({
     const runtimeConfig = useRuntimeConfig()
     const store = nuxtApp.$store
 
+    const previewSsrAuth = {}
+    if (import.meta.server) {
+      previewSsrAuth.session = useCookie(
+        getBuilderPreviewSsrCookieName(runtimeConfig)
+      ).value
+      previewSsrAuth.backendCookieName =
+        getBuilderPreviewCookieName(runtimeConfig)
+    }
+
     const client = createAxiosInstance(runtimeConfig)
 
     const clientErrorMap = new ClientErrorMap(nuxtApp)
 
-    client.interceptors.request.use(prepareRequestHeaders(store))
+    client.interceptors.request.use(
+      prepareRequestHeaders(store, previewSsrAuth)
+    )
 
     client.interceptors.response.use(
       null,

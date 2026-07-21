@@ -13,8 +13,9 @@ const makeStore = (mode) => ({
   },
 })
 
-const prepareConfig = (mode, usePreviewAuth) => {
-  return prepareRequestHeaders(makeStore(mode))({
+const prepareConfig = (mode, usePreviewAuth, previewSsrAuth = {}) => {
+  const prepareHeaders = prepareRequestHeaders(makeStore(mode), previewSsrAuth)
+  return prepareHeaders({
     headers: {},
     usePreviewAuth,
     withCredentials: false,
@@ -41,5 +42,22 @@ describe('preview request headers', () => {
 
     expect(config.withCredentials).toBe(false)
     expect(config.headers).not.toHaveProperty('X-Baserow-Builder-Preview')
+  })
+
+  test('forwards only the companion credential for preview-auth SSR requests', () => {
+    const previewSsrAuth = {
+      backendCookieName: 'test_baserow_builder_preview',
+      session: 'signed-session',
+    }
+
+    const previewConfig = prepareConfig('preview', true, previewSsrAuth)
+    const unmarkedConfig = prepareConfig('preview', false, previewSsrAuth)
+    const publicConfig = prepareConfig('public', true, previewSsrAuth)
+
+    expect(previewConfig.headers.Cookie).toBe(
+      'test_baserow_builder_preview=signed-session'
+    )
+    expect(unmarkedConfig.headers).not.toHaveProperty('Cookie')
+    expect(publicConfig.headers).not.toHaveProperty('Cookie')
   })
 })

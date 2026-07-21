@@ -3,24 +3,27 @@ import { createError, showError } from '#imports'
 export const BUILDER_PREVIEW_SESSION_INVALID =
   'ERROR_BUILDER_PREVIEW_SESSION_INVALID'
 
+export const createBuilderPreviewSessionError = (i18n) => {
+  const error = createError({
+    statusCode: 401,
+    message: i18n.t('publicPage.previewSessionExpiredTitle'),
+    data: {
+      report: false,
+      error: BUILDER_PREVIEW_SESSION_INVALID,
+    },
+    fatal: true,
+  })
+  error.content = i18n.t('publicPage.previewSessionExpiredDescription')
+  return error
+}
+
 export const makeBuilderPreviewSessionErrorInterceptor = (
   i18n,
   nuxtErrorHandler
 ) => {
   return (error) => {
     if (error.response?.data?.error === BUILDER_PREVIEW_SESSION_INVALID) {
-      const previewSessionError = createError({
-        statusCode: 401,
-        message: i18n.t('publicPage.previewSessionExpiredTitle'),
-        data: {
-          report: false,
-          error: BUILDER_PREVIEW_SESSION_INVALID,
-        },
-        fatal: true,
-      })
-      previewSessionError.content = i18n.t(
-        'publicPage.previewSessionExpiredDescription'
-      )
+      const previewSessionError = createBuilderPreviewSessionError(i18n)
       nuxtErrorHandler(previewSessionError)
       return Promise.reject(previewSessionError)
     }

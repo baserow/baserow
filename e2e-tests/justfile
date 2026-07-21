@@ -233,6 +233,10 @@ up: _ensure-images
             -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS={{ button_rate_limit }}/m \
             -e BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }} \
             -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
+            -e PUBLIC_BACKEND_URL=http://localhost:{{ backend_port }} \
+            -e PUBLIC_WEB_FRONTEND_URL=http://localhost:{{ frontend_port }} \
+            -e BASEROW_BUILDER_PREVIEW_URL=http://localhost:{{ frontend_port }} \
+            -e BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }} \
             -p {{ backend_port }}:8000 \
             {{ backend_image }} gunicorn
     fi

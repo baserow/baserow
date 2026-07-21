@@ -7,3 +7,12 @@ class BuilderPreviewGrantRequestSerializer(serializers.Serializer):
 
 class BuilderPreviewGrantResponseSerializer(serializers.Serializer):
     url = serializers.URLField()
+
+
+class BuilderPreviewHandoffRequestSerializer(serializers.Serializer):
+    preview_handoff = serializers.CharField()
+
+
+class BuilderPreviewHandoffResponseSerializer(serializers.Serializer):
+    preview_session = serializers.CharField()
+    expires_in = serializers.IntegerField(min_value=1)

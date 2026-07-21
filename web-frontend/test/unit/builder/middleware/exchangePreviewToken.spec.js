@@ -1,19 +1,31 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
-const { navigateTo, unsetToken, useNuxtApp, useRequestURL, useRuntimeConfig } =
-  vi.hoisted(() => ({
-    navigateTo: vi.fn(),
-    unsetToken: vi.fn(),
-    useNuxtApp: vi.fn(() => ({ app: true })),
-    useRequestURL: vi.fn(),
-    useRuntimeConfig: vi.fn(),
-  }))
+const {
+  navigateTo,
+  previewCookie,
+  unsetToken,
+  useCookie,
+  useNuxtApp,
+  useRequestURL,
+  useRuntimeConfig,
+} = vi.hoisted(() => ({
+  navigateTo: vi.fn(),
+  previewCookie: { value: null },
+  unsetToken: vi.fn(),
+  useCookie: vi.fn(),
+  useNuxtApp: vi.fn(() => ({
+    app: true,
+    $i18n: { t: (key) => key },
+  })),
+  useRequestURL: vi.fn(),
+  useRuntimeConfig: vi.fn(),
+}))
 
 vi.mock('#imports', () => ({
   defineNuxtRouteMiddleware: vi.fn((middleware) => middleware),
   navigateTo,
+  useCookie,
   useNuxtApp,
-  useRequestEvent: vi.fn(),
   useRequestURL,
   useRuntimeConfig,
 }))
@@ -23,19 +35,19 @@ vi.mock('@baserow/modules/core/utils/auth', async (importOriginal) => ({
   unsetToken,
 }))
 
-vi.mock('h3', () => ({
-  appendResponseHeader: vi.fn(),
-}))
-
 const {
   default: exchangePreviewToken,
-  canExchangePreviewTokenDuringSsr,
+  exchangePreviewHandoffInSsr,
+  exchangePreviewHandoffOnce,
   getCleanPreviewUrl,
+  getPreviewHandoff,
   getPreviewToken,
 } = await import('@baserow/modules/builder/middleware/exchangePreviewToken')
 
 beforeEach(() => {
   vi.clearAllMocks()
+  previewCookie.value = null
+  useCookie.mockReturnValue(previewCookie)
 })
 
 describe('exchangePreviewToken middleware helpers', () => {
@@ -57,7 +69,7 @@ describe('exchangePreviewToken middleware helpers', () => {
 
   test('removes the preview token from the clean preview URL', () => {
     const requestUrl = new URL(
-      'https://preview.example.com/page?foo=bar&preview_token=token'
+      'https://preview.example.com/page?foo=bar&preview_token=token&preview_handoff=handoff'
     )
 
     expect(
@@ -65,18 +77,73 @@ describe('exchangePreviewToken middleware helpers', () => {
     ).toBe('https://preview.example.com/page?foo=bar')
   })
 
-  test('only exchanges during SSR when preview and backend share an origin', () => {
-    const requestUrl = new URL('https://preview.example.com/page')
+  test('gets the preview handoff from the request URL', () => {
+    const requestUrl = new URL(
+      'https://preview.example.com/page?preview_handoff=handoff-code'
+    )
 
-    expect(
-      canExchangePreviewTokenDuringSsr(
-        requestUrl,
-        'https://preview.example.com'
-      )
-    ).toBe(true)
-    expect(
-      canExchangePreviewTokenDuringSsr(requestUrl, 'https://api.example.com')
-    ).toBe(false)
+    expect(getPreviewHandoff({ query: {} }, requestUrl)).toBe('handoff-code')
+  })
+
+  test('exchanges a handoff through the private backend and sets the SSR cookie', async () => {
+    const config = {
+      privateBackendUrl: 'http://backend:8000/',
+      public: {
+        baserowFrontendCookiePrefix: 'test_',
+        builderPreviewPathPrefix: '/builder-preview',
+        builderPreviewUrl: 'https://preview.example.com',
+      },
+    }
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        preview_session: 'signed-session',
+        expires_in: 1234,
+      }),
+    })
+
+    await exchangePreviewHandoffInSsr('handoff-code', config, fetch, useCookie)
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://backend:8000/api/builder/preview/handoff/',
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ preview_handoff: 'handoff-code' }),
+      }
+    )
+    expect(useCookie).toHaveBeenCalledWith('test_baserow_builder_preview_ssr', {
+      httpOnly: true,
+      maxAge: 1234,
+      path: '/builder-preview',
+      sameSite: 'lax',
+      secure: true,
+    })
+    expect(previewCookie.value).toBe('signed-session')
+  })
+
+  test('only exchanges a handoff once per Nuxt request', async () => {
+    const nuxtApp = {}
+    const exchange = vi.fn().mockResolvedValue({
+      expiresIn: 1234,
+      previewSession: 'signed-session',
+    })
+
+    const results = await Promise.all([
+      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', {}, exchange),
+      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', {}, exchange),
+      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', {}, exchange),
+    ])
+
+    expect(exchange).toHaveBeenCalledOnce()
+    expect(results).toEqual([
+      { expiresIn: 1234, previewSession: 'signed-session' },
+      { expiresIn: 1234, previewSession: 'signed-session' },
+      { expiresIn: 1234, previewSession: 'signed-session' },
+    ])
   })
 
   test('clears the previous user-source session before exchanging a token', async () => {
@@ -88,6 +155,7 @@ describe('exchangePreviewToken middleware helpers', () => {
         builderPreviewUrl: 'https://preview.example.com',
         publicBackendUrl: 'https://api.example.com',
       },
+      privateBackendUrl: 'http://backend:8000',
     })
 
     await exchangePreviewToken({ query: { preview_token: 'new-token' } })

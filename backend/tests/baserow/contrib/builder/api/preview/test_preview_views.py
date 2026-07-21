@@ -16,6 +16,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.builder.preview import (
+    BUILDER_PREVIEW_HANDOFF_QUERY_PARAM,
     BUILDER_PREVIEW_TOKEN_QUERY_PARAM,
     BuilderPreviewGrantHandler,
     BuilderPreviewGrantInvalid,
@@ -30,6 +31,10 @@ def preview_grant_url(builder_id):
 
 def preview_exchange_url(token):
     return f"/api/builder/preview/exchange/{token}/"
+
+
+def preview_handoff_url():
+    return "/api/builder/preview/handoff/"
 
 
 @pytest.mark.django_db
@@ -56,24 +61,137 @@ def test_editor_with_read_access_can_create_and_exchange_preview_token(
 
     assert preview_url.startswith("https://preview.example.com/dashboard")
 
-    clean_url = "https://preview.example.com/dashboard"
+    clean_url = "https://preview.example.com/dashboard?foo=bar"
     response = api_client.get(
         preview_exchange_url(preview_token),
         {"redirect": clean_url},
     )
 
     assert response.status_code == HTTP_302_FOUND
-    assert response["Location"] == clean_url
+    parsed_redirect = urlparse(response["Location"])
+    redirect_query = parse_qs(parsed_redirect.query)
+    handoff_code = redirect_query.pop(BUILDER_PREVIEW_HANDOFF_QUERY_PARAM)[0]
+    assert parsed_redirect._replace(query="").geturl() == (
+        "https://preview.example.com/dashboard"
+    )
+    assert redirect_query == {"foo": ["bar"]}
+    assert preview_token not in response["Location"]
     preview_cookie = response.cookies[get_builder_preview_cookie_name()]
     assert preview_cookie["httponly"]
     assert preview_cookie["secure"]
     assert preview_cookie.value != preview_token
+    assert preview_cookie.value not in response["Location"]
+
+    handoff_response = api_client.post(
+        preview_handoff_url(),
+        {BUILDER_PREVIEW_HANDOFF_QUERY_PARAM: handoff_code},
+        format="json",
+    )
+
+    assert handoff_response.status_code == HTTP_200_OK
+    assert handoff_response.json()["preview_session"] == preview_cookie.value
+    assert 0 < handoff_response.json()["expires_in"] <= 30 * 60
+    assert handoff_response["Cache-Control"] == "no-store"
 
     second_response = api_client.get(
         preview_exchange_url(preview_token),
         {"redirect": clean_url},
     )
     assert second_response.status_code == HTTP_404_NOT_FOUND
+
+    reused_handoff_response = api_client.post(
+        preview_handoff_url(),
+        {BUILDER_PREVIEW_HANDOFF_QUERY_PARAM: handoff_code},
+        format="json",
+    )
+    assert reused_handoff_response.status_code == HTTP_404_NOT_FOUND
+    assert reused_handoff_response["Cache-Control"] == "no-store"
+
+
+@pytest.mark.django_db
+def test_exchange_redirect_preserves_query_and_fragment(
+    api_client, data_fixture, settings
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    settings.BUILDER_PREVIEW_URL = "https://preview.example.com"
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+
+    response = api_client.get(
+        preview_exchange_url(token),
+        {
+            "redirect": (
+                "https://preview.example.com/builder-preview/page"
+                "?foo=one&foo=two&blank=#section"
+            )
+        },
+    )
+
+    redirect = urlparse(response["Location"])
+    assert redirect.path == "/builder-preview/page"
+    assert parse_qs(redirect.query, keep_blank_values=True) == {
+        "foo": ["one", "two"],
+        "blank": [""],
+        BUILDER_PREVIEW_HANDOFF_QUERY_PARAM: [
+            parse_qs(redirect.query)[BUILDER_PREVIEW_HANDOFF_QUERY_PARAM][0]
+        ],
+    }
+    assert redirect.fragment == "section"
+
+
+@pytest.mark.django_db
+def test_invalid_and_expired_preview_handoffs_return_no_store_404(
+    api_client, data_fixture, settings
+):
+    invalid_response = api_client.post(
+        preview_handoff_url(),
+        {BUILDER_PREVIEW_HANDOFF_QUERY_PARAM: "invalid"},
+        format="json",
+    )
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    settings.BUILDER_PREVIEW_GRANT_TTL = timedelta(minutes=30)
+    with freeze_time("2024-01-01 12:00:00"):
+        handler = BuilderPreviewGrantHandler()
+        token = handler.create_grant(builder, user)
+        _, session_token = handler.exchange_token(token)
+        handoff_code = handler.create_handoff(session_token)
+
+    with freeze_time("2024-01-01 12:01:01"):
+        expired_response = api_client.post(
+            preview_handoff_url(),
+            {BUILDER_PREVIEW_HANDOFF_QUERY_PARAM: handoff_code},
+            format="json",
+        )
+
+    for response in (invalid_response, expired_response):
+        assert response.status_code == HTTP_404_NOT_FOUND
+        assert response["Cache-Control"] == "no-store"
+
+
+@pytest.mark.django_db
+def test_concurrent_preview_handoff_exchanges_only_succeed_once(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    handler = BuilderPreviewGrantHandler()
+    token = handler.create_grant(builder, user)
+    _, session_token = handler.exchange_token(token)
+    handoff_code = handler.create_handoff(session_token)
+    barrier = Barrier(2)
+
+    def exchange():
+        barrier.wait()
+        try:
+            handler.exchange_handoff(handoff_code)
+        except BuilderPreviewGrantInvalid:
+            return False
+        return True
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: exchange(), range(2)))
+
+    assert sorted(results) == [False, True]
 
 
 @pytest.mark.django_db

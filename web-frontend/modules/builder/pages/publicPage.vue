@@ -351,9 +351,6 @@ const {
       path,
       mode,
     }
-  },
-  {
-    server: mode !== 'preview',
   }
 )
 

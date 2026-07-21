@@ -1,5 +1,7 @@
 import secrets
+import time
 from dataclasses import dataclass
+from re import fullmatch
 from urllib.parse import urlencode, urljoin
 
 from django.conf import settings
@@ -12,9 +14,12 @@ from baserow.core.cache import global_cache
 BUILDER_PREVIEW_COOKIE_BASE_NAME = "baserow_builder_preview"
 BUILDER_PREVIEW_HEADER = "X-Baserow-Builder-Preview"
 BUILDER_PREVIEW_TOKEN_QUERY_PARAM = "preview_token"
+BUILDER_PREVIEW_HANDOFF_QUERY_PARAM = "preview_handoff"
 BUILDER_PREVIEW_GRANT_TOKEN_SALT = "builder-preview-grant"
 BUILDER_PREVIEW_SESSION_TOKEN_SALT = "builder-preview-session"
 BUILDER_PREVIEW_GRANT_CACHE_KEY = "builder_preview_grant_{grant_id}"
+BUILDER_PREVIEW_HANDOFF_CACHE_KEY = "builder_preview_handoff_{handoff_code}"
+BUILDER_PREVIEW_HANDOFF_TTL_SECONDS = 60
 
 
 def get_builder_preview_cookie_name() -> str:
@@ -75,6 +80,55 @@ class BuilderPreviewGrantHandler:
         session_token = self.get_session_signer().dumps(self._actor_to_payload(actor))
         return actor, session_token
 
+    def create_handoff(self, session_token: str) -> str:
+        """Store a short-lived code which Nuxt can exchange for the session."""
+
+        payload = {
+            "preview_session": session_token,
+            "expires_at": time.time() + self.get_token_ttl_seconds(),
+        }
+        while True:
+            handoff_code = secrets.token_urlsafe(32)
+            cached_payload = global_cache.get(
+                self.get_handoff_cache_key(handoff_code),
+                default=payload,
+                timeout=BUILDER_PREVIEW_HANDOFF_TTL_SECONDS,
+            )
+            if cached_payload == payload:
+                return handoff_code
+
+    def exchange_handoff(self, handoff_code: str) -> tuple[str, int]:
+        """Atomically consume a handoff and return its session and lifetime."""
+
+        if fullmatch(r"[A-Za-z0-9_-]{43}", handoff_code) is None:
+            raise BuilderPreviewGrantInvalid
+
+        consumed_payload = []
+
+        def consume(payload):
+            consumed_payload.append(payload)
+            return None
+
+        global_cache.update(
+            self.get_handoff_cache_key(handoff_code),
+            callback=consume,
+            default_value=None,
+            timeout=BUILDER_PREVIEW_HANDOFF_TTL_SECONDS,
+        )
+        payload = consumed_payload[0]
+        if not isinstance(payload, dict):
+            raise BuilderPreviewGrantInvalid
+
+        try:
+            session_token = payload["preview_session"]
+            expires_in = int(payload["expires_at"] - time.time())
+        except (KeyError, TypeError, ValueError) as exc:
+            raise BuilderPreviewGrantInvalid from exc
+
+        if not isinstance(session_token, str) or expires_in <= 0:
+            raise BuilderPreviewGrantInvalid
+        return session_token, expires_in
+
     def actor_from_token(self, token: str) -> BuilderPreviewActor:
         return self._actor_from_token(token, self.get_session_signer())
 
@@ -128,6 +182,10 @@ class BuilderPreviewGrantHandler:
     @staticmethod
     def get_grant_cache_key(grant_id: int) -> str:
         return BUILDER_PREVIEW_GRANT_CACHE_KEY.format(grant_id=grant_id)
+
+    @staticmethod
+    def get_handoff_cache_key(handoff_code: str) -> str:
+        return BUILDER_PREVIEW_HANDOFF_CACHE_KEY.format(handoff_code=handoff_code)
 
     @staticmethod
     def get_token_ttl_seconds() -> int:

@@ -4,6 +4,7 @@ from baserow.contrib.builder.api.preview.views import (
     BuilderPreviewCurrentView,
     BuilderPreviewExchangeView,
     BuilderPreviewGrantView,
+    BuilderPreviewHandoffView,
 )
 
 app_name = "baserow.contrib.builder.api.preview"
@@ -18,6 +19,11 @@ urlpatterns = [
         r"exchange/(?P<token>[^/]+)/$",
         BuilderPreviewExchangeView.as_view(),
         name="exchange",
+    ),
+    re_path(
+        r"handoff/$",
+        BuilderPreviewHandoffView.as_view(),
+        name="handoff",
     ),
     re_path(
         r"current/$",
