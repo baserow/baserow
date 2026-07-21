@@ -327,8 +327,8 @@ def test_a_single_saved_model_uses_the_same_test_endpoint(
     "payload",
     [
         {},
+        {"model_ids": []},
         {"model_ids": [1, 1]},
-        {"provider_type": "openai", "model_identifiers": ["gpt-5"]},
     ],
 )
 def test_model_test_request_validation(

@@ -9,6 +9,7 @@ from baserow.core.psycopg import is_unique_violation_error
 
 from .constants import (
     AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY,
+    AI_PROVIDER_TEST_MAX_TOKENS,
     AI_PROVIDER_TEST_STATUS_FAILURE,
     AI_PROVIDER_TEST_STATUS_SUCCESS,
 )
@@ -238,7 +239,7 @@ class AIProviderHandler:
                 model_identifier,
                 "OK",
                 settings_override=settings_override,
-                model_settings_override={"max_tokens": 16},
+                model_settings_override={"max_tokens": AI_PROVIDER_TEST_MAX_TOKENS},
             )
         except Exception as exc:
             status = AI_PROVIDER_TEST_STATUS_FAILURE

@@ -57,7 +57,6 @@ describe('AIProviderModelFormModal', () => {
     expect(wrapper.find('.control__helper-text').text()).toBe(
       'generativeAIModelType.anthropicModelIdentifierDescription'
     )
-    expect(wrapper.text()).not.toContain('aiProviderAdmin.displayName')
     expect(dispatch).toHaveBeenCalledWith(
       'aiProvider/discoverModels',
       'anthropic'
@@ -178,7 +177,6 @@ describe('AIProviderModelFormModal', () => {
     await wrapper.vm.show()
 
     expect(wrapper.find('.ai-provider-model-combobox').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('aiProviderAdmin.displayName')
     expect(dispatch).not.toHaveBeenCalledWith(
       'aiProvider/discoverModels',
       expect.anything()

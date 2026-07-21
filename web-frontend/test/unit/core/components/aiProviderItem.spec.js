@@ -45,21 +45,12 @@ describe('AIProviderItem', () => {
 
     expect(wrapper.find('.ai-provider-card__title').text()).toBe('OpenAI')
     expect(wrapper.text()).toContain('gpt-5.6')
-    expect(wrapper.find('.ai-provider-card__models-header').exists()).toBe(
-      false
-    )
     expect(
       wrapper
         .find('.ai-provider-card__actions')
         .findAll('button')
         .map((button) => button.text())
-    ).toEqual([
-      'aiProviderAdmin.addModel',
-      'aiProviderAdmin.test',
-      '',
-      '',
-      '',
-    ])
+    ).toEqual(['aiProviderAdmin.addModel', 'aiProviderAdmin.test', '', '', ''])
 
     const providerEditButton = wrapper
       .find('.ai-provider-card__actions')

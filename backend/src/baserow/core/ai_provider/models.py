@@ -24,6 +24,8 @@ class AIProviderConfig(CreatedAndUpdatedOnMixin, models.Model):
 
 
 class AIProviderModel(models.Model):
+    """An AI model exposed by an instance AI provider."""
+
     class TestStatus(models.TextChoices):
         SUCCESS = AI_PROVIDER_TEST_STATUS_SUCCESS, "Success"
         FAILURE = AI_PROVIDER_TEST_STATUS_FAILURE, "Failure"

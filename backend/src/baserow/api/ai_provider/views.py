@@ -19,7 +19,6 @@ from baserow.core.ai_provider.exceptions import (
     AIProviderTypeNotSupported,
     InvalidAIProviderSettings,
 )
-from baserow.core.ai_provider.provider_types import get_provider_type_metadata
 from baserow.core.ai_provider.service import AIProviderService
 from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 
@@ -46,7 +45,9 @@ from .serializers import (
 )
 
 
-def _invalid_settings_error(exc):
+def _invalid_settings_error(
+    exc: InvalidAIProviderSettings,
+) -> tuple[str, int, str]:
     fields = []
     for field, errors in exc.errors.items():
         if isinstance(errors, (list, tuple)):
@@ -240,7 +241,8 @@ class AIProviderTypesView(APIView):
     @map_exceptions(EXCEPTION_MAP)
     def get(self, request):
         _ensure_feature_enabled()
-        AIProviderService.check_permissions(request.user)
         return Response(
-            AIProviderTypeSerializer(get_provider_type_metadata(), many=True).data
+            AIProviderTypeSerializer(
+                AIProviderService.list_provider_types(request.user), many=True
+            ).data
         )

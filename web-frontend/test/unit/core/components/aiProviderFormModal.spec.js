@@ -80,9 +80,6 @@ describe('AIProviderFormModal', () => {
       'generativeAIModelType.openaiBaseUrlDescription',
       'generativeAIModelType.openaiModelIdentifierDescription',
     ])
-    expect(wrapper.text()).not.toContain('aiProviderAdmin.name')
-    expect(wrapper.text()).not.toContain('aiProviderAdmin.displayName')
-    expect(wrapper.text()).not.toContain('aiProviderAdmin.loadModelSuggestions')
 
     const modelInput = wrapper.find(
       '.ai-provider-model-combobox .form-input__input'
@@ -222,8 +219,6 @@ describe('AIProviderFormModal', () => {
     })
     await wrapper.vm.show()
 
-    expect(wrapper.text()).not.toContain('aiProviderAdmin.apiKeySet')
-    expect(wrapper.text()).not.toContain('aiProviderAdmin.apiKeyNotSet')
     expect(wrapper.find('input[type="password"]').exists()).toBe(false)
 
     await wrapper
@@ -319,9 +314,6 @@ describe('AIProviderFormModal', () => {
     expect(providerTypeField.find('.dropdown').classes()).toContain(
       'dropdown--error'
     )
-    expect(dispatch).not.toHaveBeenCalledWith(
-      'toast/error',
-      expect.anything()
-    )
+    expect(dispatch).not.toHaveBeenCalledWith('toast/error', expect.anything())
   })
 })

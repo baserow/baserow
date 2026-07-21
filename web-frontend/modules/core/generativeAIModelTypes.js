@@ -100,7 +100,9 @@ export class OpenAIModelType extends GenerativeAIModelType {
   }
 
   getModelIdentifierDescription() {
-    return this.$t('generativeAIModelType.openaiModelIdentifierDescription')
+    return this.app.$i18n.t(
+      'generativeAIModelType.openaiModelIdentifierDescription'
+    )
   }
 
   canPromptWithFiles() {
@@ -138,7 +140,9 @@ export class AnthropicModelType extends GenerativeAIModelType {
   }
 
   getModelIdentifierDescription() {
-    return this.$t('generativeAIModelType.anthropicModelIdentifierDescription')
+    return this.app.$i18n.t(
+      'generativeAIModelType.anthropicModelIdentifierDescription'
+    )
   }
 
   getOrder() {
@@ -180,7 +184,9 @@ export class MistralModelType extends GenerativeAIModelType {
   }
 
   getModelIdentifierDescription() {
-    return this.$t('generativeAIModelType.mistralModelIdentifierDescription')
+    return this.app.$i18n.t(
+      'generativeAIModelType.mistralModelIdentifierDescription'
+    )
   }
 
   getOrder() {
@@ -222,7 +228,9 @@ export class OllamaModelType extends GenerativeAIModelType {
   }
 
   getModelIdentifierDescription() {
-    return this.$t('generativeAIModelType.ollamaModelIdentifierDescription')
+    return this.app.$i18n.t(
+      'generativeAIModelType.ollamaModelIdentifierDescription'
+    )
   }
 
   canPromptWithFiles() {
@@ -271,7 +279,9 @@ export class OpenRouterModelType extends GenerativeAIModelType {
   }
 
   getModelIdentifierDescription() {
-    return this.$t('generativeAIModelType.openRouterModelIdentifierDescription')
+    return this.app.$i18n.t(
+      'generativeAIModelType.openRouterModelIdentifierDescription'
+    )
   }
 
   canPromptWithFiles() {

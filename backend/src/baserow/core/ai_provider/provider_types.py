@@ -1,13 +1,18 @@
 from typing import Any
 
+from django.conf import settings
+
 from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
-from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.generative_ai.registries import (
+    GenerativeAIModelType,
+    generative_ai_model_type_registry,
+)
 
 from .constants import PROVIDER_ENVIRONMENT_SETTINGS
 from .exceptions import AIProviderTypeNotSupported, InvalidAIProviderSettings
 
 
-def get_supported_provider_type(provider_type: str):
+def get_supported_provider_type(provider_type: str) -> GenerativeAIModelType:
     if provider_type not in PROVIDER_ENVIRONMENT_SETTINGS:
         raise AIProviderTypeNotSupported(provider_type)
     try:
@@ -103,8 +108,6 @@ def validate_provider_settings(
 
 
 def get_environment_provider_values(provider_type: str) -> dict[str, Any]:
-    from django.conf import settings
-
     config = PROVIDER_ENVIRONMENT_SETTINGS[provider_type]
     api_key_setting = config["api_key"]
     api_key = getattr(settings, api_key_setting, None) if api_key_setting else ""
@@ -125,7 +128,7 @@ def get_environment_provider_values(provider_type: str) -> dict[str, Any]:
     }
 
 
-def normalize_model_identifiers(values) -> list[str]:
+def normalize_model_identifiers(values: str | list[str] | None) -> list[str]:
     if isinstance(values, str):
         values = values.split(",")
     result = []
