@@ -58,7 +58,11 @@ export default (client) => {
         {
           refresh_token: refreshToken,
         },
-        { skipAuthRefresh: true, usePreviewAuth: true }
+        {
+          skipAuthRefresh: true,
+          usePreviewAuth: true,
+          isUserSourceAuth: true,
+        }
       )
     },
     blacklistToken(refreshToken) {
@@ -68,7 +72,7 @@ export default (client) => {
         {
           refresh_token: refreshToken,
         },
-        { skipAuthRefresh: true }
+        { skipAuthRefresh: true, isUserSourceAuth: true }
       )
     },
   }
