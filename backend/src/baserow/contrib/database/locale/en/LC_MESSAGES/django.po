@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 19:38+0000\n"
+"POT-Creation-Date: 2026-07-21 18:19+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,6 +35,26 @@ msgstr ""
 msgid ""
 "in view \"%(view_name)s\" (%(view_id)s) of table \"%(table_name)s\" "
 "(%(table_id)s) in database \"%(database_name)s\" (%(database_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/database/admin/views/actions.py:22
+msgid "Admin changed view public sharing"
+msgstr ""
+
+#: src/baserow/contrib/database/admin/views/actions.py:24
+#, python-format
+msgid ""
+"Admin \"%(user_email)s\" (%(user_id)s) changed the publicly shared state to "
+"%(public)s "
+msgstr ""
+
+#: src/baserow/contrib/database/admin/views/actions.py:82
+msgid "Admin rotated view slug"
+msgstr ""
+
+#: src/baserow/contrib/database/admin/views/actions.py:83
+#, python-format
+msgid "Admin \"%(user_email)s\" (%(user_id)s) rotated the public slug URL "
 msgstr ""
 
 #: src/baserow/contrib/database/airtable/actions.py:23

@@ -31,6 +31,7 @@ class ViewsAdminHandler:
         self._raise_if_not_permitted(requesting_user)
         self._raise_if_not_shareable(view)
 
+        view = view.specific
         old_view = deepcopy(view)
         view.public = public
         view.save()
@@ -55,6 +56,7 @@ class ViewsAdminHandler:
         self._raise_if_not_permitted(requesting_user)
         self._raise_if_not_shareable(view)
 
+        view = view.specific
         old_view = deepcopy(view)
         view.rotate_slug()
         view.save()

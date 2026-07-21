@@ -78,6 +78,42 @@ describe('ViewsAdminTable component', () => {
     expect(viewsAdmin.find('tbody').text()).toContain('Private view')
   })
 
+  test('the search route query is applied to the initial fetch', async () => {
+    thereAreViews([aView()], { page: 1, only_public: 'true', search: 'Grid' })
+
+    const viewsAdmin = await testApp.mount(ViewsAdminTable, {
+      route: '/?search=Grid',
+    })
+    await flushPromises()
+
+    expect(viewsAdmin.find('input').element.value).toBe('Grid')
+    expect(viewsAdmin.find('tbody').text()).toContain('Grid view')
+  })
+
+  test('making a view private keeps the updated row visible', async () => {
+    thereAreViews([aView()], { page: 1, only_public: 'true' })
+    testApp.mock
+      .onPatch('/database/admin/views/1/')
+      .reply(200, aView({ public: false }))
+
+    const viewsAdmin = await testApp.mount(ViewsAdminTable, {})
+    await flushPromises()
+    expect(viewsAdmin.find('tbody .iconoir-globe').exists()).toBe(true)
+
+    await viewsAdmin.find('.data-table__more').trigger('click')
+    const context = viewsAdmin.findComponent(ViewsAdminContext)
+    const makePrivateLink = context
+      .findAll('.context__menu-item-link')
+      .find((link) => link.text().includes('viewsAdminContext.makePrivate'))
+    await makePrivateLink.trigger('click')
+    await flushPromises()
+
+    // The row deliberately remains visible even though it no longer matches the
+    // only public filter, so that the change can easily be undone if needed.
+    expect(viewsAdmin.findAll('tbody tr').length).toBe(1)
+    expect(viewsAdmin.find('tbody .iconoir-globe').exists()).toBe(false)
+  })
+
   test('show workspace views turns the filter off and searches on the workspace id', async () => {
     thereAreViews([aView()], { page: 1, only_public: 'true' })
     thereAreViews([aView()], { page: 1 })

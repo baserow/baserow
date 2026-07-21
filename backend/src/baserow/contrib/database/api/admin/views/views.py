@@ -10,7 +10,11 @@ from baserow.api.admin.views import AdminListingView
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.pagination import PageNumberPaginationWithApproximateCount
 from baserow.api.schemas import get_error_schema
-from baserow.contrib.database.admin.views.handler import ViewsAdminHandler
+from baserow.config.settings.utils import str_to_bool
+from baserow.contrib.database.admin.views.actions import (
+    RotateViewSlugAdminActionType,
+    UpdateViewPublicAdminActionType,
+)
 from baserow.contrib.database.api.views.errors import (
     ERROR_CANNOT_SHARE_VIEW_TYPE,
     ERROR_VIEW_DOES_NOT_EXIST,
@@ -21,6 +25,7 @@ from baserow.contrib.database.views.exceptions import (
 )
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
+from baserow.core.action.registries import action_type_registry
 
 from .serializers import AdminViewSerializer, AdminViewUpdateSerializer
 
@@ -64,8 +69,7 @@ class AdminViewsView(AdminListingView):
             table__database__workspace__template__isnull=True,
         )
 
-        only_public = request.GET.get("only_public", "false").lower() in ("true", "1")
-        if only_public:
+        if str_to_bool(str(request.GET.get("only_public"))):
             queryset = queryset.filter(public=True)
 
         return queryset
@@ -135,7 +139,7 @@ class AdminViewView(APIView):
     @transaction.atomic
     def patch(self, request, view_id, data):
         view = ViewHandler().get_view(int(view_id))
-        view = ViewsAdminHandler().update_view_public(
+        view = action_type_registry.get_by_type(UpdateViewPublicAdminActionType).do(
             request.user, view, data["public"]
         )
 
@@ -176,6 +180,8 @@ class AdminViewRotateSlugView(APIView):
     @transaction.atomic
     def post(self, request, view_id):
         view = ViewHandler().get_view(int(view_id))
-        view = ViewsAdminHandler().rotate_view_slug(request.user, view)
+        view = action_type_registry.get_by_type(RotateViewSlugAdminActionType).do(
+            request.user, view
+        )
 
         return Response(AdminViewSerializer(view).data)

@@ -16,6 +16,7 @@ from rest_framework.status import (
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.view_types import GridViewType
+from baserow.core.action.signals import action_done
 
 
 @pytest.mark.django_db
@@ -335,26 +336,45 @@ def test_admin_list_views_number_of_queries_is_constant(api_client, data_fixture
 
 @pytest.mark.django_db
 def test_admin_can_update_view_public(api_client, data_fixture):
-    _, token = data_fixture.create_user_and_token(is_staff=True)
+    admin_user, token = data_fixture.create_user_and_token(is_staff=True)
     # The staff user is deliberately not a member of the view's workspace.
     view = data_fixture.create_grid_view(public=True)
 
     url = reverse("api:database:admin:views:edit", kwargs={"view_id": view.id})
-    with patch(
-        "baserow.contrib.database.admin.views.handler.view_updated.send"
-    ) as mock_view_updated:
-        response = api_client.patch(
-            url,
-            {"public": False},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
+    received_actions = []
+
+    def receiver(sender, user, action_type, action_params, workspace, **kwargs):
+        received_actions.append((user, action_type, action_params, workspace))
+
+    action_done.connect(receiver)
+    try:
+        with patch(
+            "baserow.contrib.database.admin.views.handler.view_updated.send"
+        ) as mock_view_updated:
+            response = api_client.patch(
+                url,
+                {"public": False},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+    finally:
+        action_done.disconnect(receiver)
+
     assert response.status_code == HTTP_200_OK
     assert response.json()["public"] is False
     view.refresh_from_db()
     assert view.public is False
     assert mock_view_updated.call_count == 1
     assert mock_view_updated.call_args[1]["view"].id == view.id
+
+    assert len(received_actions) == 1
+    acting_user, action_type, action_params, workspace = received_actions[0]
+    assert acting_user.id == admin_user.id
+    assert action_type.type == "admin_update_view_public"
+    assert action_params["view_id"] == view.id
+    assert action_params["public"] is False
+    assert action_params["original_public"] is True
+    assert workspace.id == view.table.database.workspace_id
 
     # It must also be possible to make the view public again because it could
     # mistakenly have been made private.
@@ -372,9 +392,59 @@ def test_admin_can_update_view_public(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_admin_can_rotate_view_slug(api_client, data_fixture):
-    _, token = data_fixture.create_user_and_token(is_staff=True)
+    admin_user, token = data_fixture.create_user_and_token(is_staff=True)
     view = data_fixture.create_grid_view(public=True)
     old_slug = str(view.slug)
+    received_actions = []
+
+    def receiver(sender, user, action_type, action_params, **kwargs):
+        received_actions.append((user, action_type, action_params))
+
+    action_done.connect(receiver)
+    try:
+        response = api_client.post(
+            reverse(
+                "api:database:admin:views:rotate_slug", kwargs={"view_id": view.id}
+            ),
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    finally:
+        action_done.disconnect(receiver)
+
+    assert response.status_code == HTTP_200_OK
+    view.refresh_from_db()
+    assert str(view.slug) != old_slug
+    assert response.json()["slug"] == str(view.slug)
+
+    assert len(received_actions) == 1
+    acting_user, action_type, action_params = received_actions[0]
+    assert acting_user.id == admin_user.id
+    assert action_type.type == "admin_rotate_view_slug"
+    assert action_params["view_id"] == view.id
+    assert action_params["original_slug"] == old_slug
+    assert action_params["slug"] == str(view.slug)
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_admin_view_actions_use_the_specific_view_in_realtime_events(
+    mock_broadcast_to_channel_group, api_client, data_fixture
+):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+    table = data_fixture.create_database_table()
+    data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(
+        table=table, public=False, create_options=False
+    )
+
+    response = api_client.patch(
+        reverse("api:database:admin:views:edit", kwargs={"view_id": view.id}),
+        {"public": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
 
     response = api_client.post(
         reverse("api:database:admin:views:rotate_slug", kwargs={"view_id": view.id}),
@@ -382,9 +452,8 @@ def test_admin_can_rotate_view_slug(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
-    view.refresh_from_db()
-    assert str(view.slug) != old_slug
-    assert response.json()["slug"] == str(view.slug)
+
+    assert mock_broadcast_to_channel_group.delay.call_count > 0
 
 
 @pytest.mark.django_db
@@ -413,27 +482,39 @@ def test_admin_view_actions_with_unknown_view_or_unshareable_type(
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
 
+    received_actions = []
+
+    def receiver(sender, **kwargs):
+        received_actions.append(kwargs)
+
     # `get_for_class` is lru_cached, so the mapping to the real `GridViewType` can
     # already be cached by earlier tests, making `patch.dict` on the registry
     # unreliable here.
-    with patch.object(
-        view_type_registry, "get_for_class", return_value=UnShareableViewType()
-    ):
-        response = api_client.patch(
-            reverse("api:database:admin:views:edit", kwargs={"view_id": view.id}),
-            {"public": False},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-        assert response.status_code == HTTP_400_BAD_REQUEST
-        assert response.json()["error"] == "ERROR_CANNOT_SHARE_VIEW_TYPE"
+    action_done.connect(receiver)
+    try:
+        with patch.object(
+            view_type_registry, "get_for_class", return_value=UnShareableViewType()
+        ):
+            response = api_client.patch(
+                reverse("api:database:admin:views:edit", kwargs={"view_id": view.id}),
+                {"public": False},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+            assert response.status_code == HTTP_400_BAD_REQUEST
+            assert response.json()["error"] == "ERROR_CANNOT_SHARE_VIEW_TYPE"
 
-        response = api_client.post(
-            reverse(
-                "api:database:admin:views:rotate_slug", kwargs={"view_id": view.id}
-            ),
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-        assert response.status_code == HTTP_400_BAD_REQUEST
-        assert response.json()["error"] == "ERROR_CANNOT_SHARE_VIEW_TYPE"
+            response = api_client.post(
+                reverse(
+                    "api:database:admin:views:rotate_slug", kwargs={"view_id": view.id}
+                ),
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+            assert response.status_code == HTTP_400_BAD_REQUEST
+            assert response.json()["error"] == "ERROR_CANNOT_SHARE_VIEW_TYPE"
+    finally:
+        action_done.disconnect(receiver)
+
+    # A failed operation must not be recorded in the audit log.
+    assert received_actions == []

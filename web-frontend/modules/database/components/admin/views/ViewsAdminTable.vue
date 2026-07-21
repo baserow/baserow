@@ -5,6 +5,7 @@
     :service="service"
     row-id-key="id"
     :filters="filters"
+    :default-search="defaultSearch"
     @row-context="onRowContext"
   >
     <template #title>
@@ -53,6 +54,10 @@ export default {
     }
   },
   computed: {
+    defaultSearch() {
+      const { search } = this.$route.query
+      return search ? String(search) : null
+    },
     filters() {
       return this.onlyPublic ? { only_public: 'true' } : {}
     },

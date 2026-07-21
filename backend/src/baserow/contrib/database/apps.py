@@ -157,6 +157,14 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(UpdateViewFilterGroupActionType())
         action_type_registry.register(DeleteViewFilterGroupActionType())
 
+        from baserow.contrib.database.admin.views.actions import (
+            RotateViewSlugAdminActionType,
+            UpdateViewPublicAdminActionType,
+        )
+
+        action_type_registry.register(UpdateViewPublicAdminActionType())
+        action_type_registry.register(RotateViewSlugAdminActionType())
+
         from baserow.contrib.database.data_sync.actions import (
             CreateDataSyncTableActionType,
             SyncDataSyncTableActionType,
