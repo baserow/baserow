@@ -84,7 +84,6 @@ from baserow.core.services.registries import (
     TriggerServiceTypeMixin,
 )
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
-from baserow.core.utils import MirrorDict
 from baserow.version import VERSION as BASEROW_VERSION
 
 # Captures potential runtime formula function calls, e.g. `get(`, `concat(`, etc.
@@ -1351,19 +1350,12 @@ class CoreGotoServiceType(CoreServiceType):
         if instance.id in pending_destinations:
             original_destination_id = pending_destinations[instance.id]
             service_mapping = id_mapping.get("services", {})
-            # `in keys()` tests genuine membership: a partial duplicate seeds
-            # the service mapping with a MirrorDict whose catch-all __contains__
-            # would otherwise echo any id back as if it had been remapped.
-            if original_destination_id in service_mapping.keys():
-                instance.destination_service_id = service_mapping[
-                    original_destination_id
-                ]
-            elif isinstance(service_mapping, MirrorDict):
-                # A partial duplicate doesn't remap the destination, so keep
-                # pointing at the original destination service.
-                instance.destination_service_id = original_destination_id
-            else:
-                instance.destination_service_id = None
+            # A partial duplicate seeds the service mapping with a MirrorDict,
+            # whose `get` echoes back any unmapped id, so the destination is
+            # carried over unchanged. A regular dict returns None instead.
+            instance.destination_service_id = service_mapping.get(
+                original_destination_id
+            )
             updated_models.add(instance)
 
         return updated_models
