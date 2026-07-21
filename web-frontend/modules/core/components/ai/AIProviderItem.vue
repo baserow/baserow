@@ -40,23 +40,21 @@
         <Button
           type="secondary"
           size="small"
+          icon="iconoir-edit"
           :disabled="providerTestRunning"
+          :aria-label="$t('action.edit')"
+          :title="$t('action.edit')"
           @click="$emit('edit-provider', provider)"
-        >
-          {{ $t('action.edit') }}
-        </Button>
+        />
         <Button
           type="secondary"
           size="small"
+          :icon="toggleActionIcon(provider.is_active)"
           :disabled="providerTestRunning"
+          :aria-label="toggleActionTitle(provider.is_active)"
+          :title="toggleActionTitle(provider.is_active)"
           @click="$emit('toggle-provider', provider)"
-        >
-          {{
-            provider.is_active
-              ? $t('aiProviderAdmin.disable')
-              : $t('aiProviderAdmin.enable')
-          }}
-        </Button>
+        />
         <Button
           type="danger"
           size="small"
@@ -125,23 +123,21 @@
           <Button
             type="secondary"
             size="small"
+            icon="iconoir-edit"
             :disabled="isModelTesting(model)"
+            :aria-label="$t('action.edit')"
+            :title="$t('action.edit')"
             @click="$emit('edit-model', provider, model)"
-          >
-            {{ $t('action.edit') }}
-          </Button>
+          />
           <Button
             type="secondary"
             size="small"
+            :icon="toggleActionIcon(model.is_enabled)"
             :disabled="isModelTesting(model)"
+            :aria-label="toggleActionTitle(model.is_enabled)"
+            :title="toggleActionTitle(model.is_enabled)"
             @click="$emit('toggle-model', model)"
-          >
-            {{
-              model.is_enabled
-                ? $t('aiProviderAdmin.disable')
-                : $t('aiProviderAdmin.enable')
-            }}
-          </Button>
+          />
           <Button
             type="danger"
             size="small"
@@ -198,6 +194,14 @@ export default {
   methods: {
     isModelTesting(model) {
       return this.testingModelIds.includes(model.id)
+    },
+    toggleActionIcon(isEnabled) {
+      return isEnabled ? 'iconoir-eye-off' : 'iconoir-eye-empty'
+    },
+    toggleActionTitle(isEnabled) {
+      return isEnabled
+        ? this.$t('aiProviderAdmin.disable')
+        : this.$t('aiProviderAdmin.enable')
     },
   },
 }

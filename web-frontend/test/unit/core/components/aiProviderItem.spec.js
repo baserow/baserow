@@ -1,6 +1,13 @@
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
+function expectIconAction(button, icon, title) {
+  expect(button.find(`.${icon}`).exists()).toBe(true)
+  expect(button.attributes('title')).toBe(title)
+  expect(button.attributes('aria-label')).toBe(title)
+  expect(button.classes()).toContain('button--icon-only')
+}
+
 describe('AIProviderItem', () => {
   let testApp = null
 
@@ -49,10 +56,24 @@ describe('AIProviderItem', () => {
     ).toEqual([
       'aiProviderAdmin.addModel',
       'aiProviderAdmin.test',
-      'action.edit',
-      'aiProviderAdmin.disable',
+      '',
+      '',
       '',
     ])
+
+    const providerEditButton = wrapper
+      .find('.ai-provider-card__actions')
+      .findAll('button')[2]
+    expectIconAction(providerEditButton, 'iconoir-edit', 'action.edit')
+
+    const providerDisableButton = wrapper
+      .find('.ai-provider-card__actions')
+      .findAll('button')[3]
+    expectIconAction(
+      providerDisableButton,
+      'iconoir-eye-off',
+      'aiProviderAdmin.disable'
+    )
 
     const deleteProviderButton = wrapper
       .find('.ai-provider-card__actions')
@@ -88,6 +109,59 @@ describe('AIProviderItem', () => {
       .findAll('button')[0]
     expect(modelTestButton.attributes('title')).toBe(
       'aiProviderAdmin.testModelButtonTitle'
+    )
+
+    const modelActionButtons = wrapper
+      .find('.ai-provider-model__actions')
+      .findAll('button')
+    const modelEditButton = modelActionButtons[1]
+    expectIconAction(modelEditButton, 'iconoir-edit', 'action.edit')
+
+    const modelDisableButton = modelActionButtons[2]
+    expectIconAction(
+      modelDisableButton,
+      'iconoir-eye-off',
+      'aiProviderAdmin.disable'
+    )
+  })
+
+  test('uses enable actions for an inactive provider and disabled model', async () => {
+    const wrapper = await testApp.mount(AIProviderItem, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'openai',
+          is_active: false,
+          models: [
+            {
+              id: 2,
+              model_identifier: 'gpt-5.6',
+              is_enabled: false,
+              last_test_status: null,
+            },
+          ],
+        },
+      },
+    })
+
+    expect(wrapper.findAll('.iconoir-eye-empty')).toHaveLength(2)
+
+    const providerEnableButton = wrapper
+      .find('.ai-provider-card__actions')
+      .findAll('button')[3]
+    expectIconAction(
+      providerEnableButton,
+      'iconoir-eye-empty',
+      'aiProviderAdmin.enable'
+    )
+
+    const modelEnableButton = wrapper
+      .find('.ai-provider-model__actions')
+      .findAll('button')[2]
+    expectIconAction(
+      modelEnableButton,
+      'iconoir-eye-empty',
+      'aiProviderAdmin.enable'
     )
   })
 
