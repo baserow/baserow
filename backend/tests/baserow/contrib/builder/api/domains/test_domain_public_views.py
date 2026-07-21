@@ -39,8 +39,8 @@ from baserow.core.user_sources.user_source_user import UserSourceUser
 
 def authenticate_builder_preview(api_client, builder, user):
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
-    BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name()] = token
+    _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
 
 @pytest.fixture

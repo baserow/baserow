@@ -1,4 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 from django.urls import reverse
@@ -10,8 +13,10 @@ from rest_framework.status import HTTP_200_OK, HTTP_302_FOUND, HTTP_404_NOT_FOUN
 from baserow.contrib.builder.preview import (
     BUILDER_PREVIEW_TOKEN_QUERY_PARAM,
     BuilderPreviewGrantHandler,
+    BuilderPreviewGrantInvalid,
     get_builder_preview_cookie_name,
 )
+from baserow.core.cache import global_cache
 
 
 def preview_grant_url(builder_id):
@@ -54,14 +59,16 @@ def test_editor_with_read_access_can_create_and_exchange_preview_token(
 
     assert response.status_code == HTTP_302_FOUND
     assert response["Location"] == clean_url
-    assert response.cookies[get_builder_preview_cookie_name()]["httponly"]
-    assert response.cookies[get_builder_preview_cookie_name()]["secure"]
+    preview_cookie = response.cookies[get_builder_preview_cookie_name()]
+    assert preview_cookie["httponly"]
+    assert preview_cookie["secure"]
+    assert preview_cookie.value != preview_token
 
     second_response = api_client.get(
         preview_exchange_url(preview_token),
         {"redirect": clean_url},
     )
-    assert second_response.status_code == HTTP_302_FOUND
+    assert second_response.status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -176,6 +183,58 @@ def test_preview_token_uses_configured_ttl(api_client, data_fixture, settings):
 
     assert valid_response.status_code == HTTP_302_FOUND
     assert expired_response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_preview_grant_cache_entry_is_created_only_when_exchanged(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    handler = BuilderPreviewGrantHandler()
+
+    with patch.object(global_cache, "get", wraps=global_cache.get) as cache_get:
+        token = handler.create_grant(builder, user)
+
+        cache_get.assert_not_called()
+
+        handler.exchange_token(token)
+
+        cache_get.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_concurrent_preview_token_exchanges_only_succeed_once(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    handler = BuilderPreviewGrantHandler()
+    token = handler.create_grant(builder, user)
+    barrier = Barrier(2)
+
+    def exchange():
+        barrier.wait()
+        try:
+            handler.exchange_token(token)
+        except BuilderPreviewGrantInvalid:
+            return False
+        return True
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: exchange(), range(2)))
+
+    assert sorted(results) == [False, True]
+
+
+@pytest.mark.django_db
+def test_unexchanged_grant_token_does_not_authenticate_preview(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+    api_client.cookies[get_builder_preview_cookie_name()] = token
+
+    response = api_client.get(reverse("api:builder:preview:current"), format="json")
+
+    assert response.status_code != HTTP_200_OK
 
 
 @pytest.mark.django_db
@@ -308,8 +367,9 @@ def test_expired_preview_cookie_is_rejected(api_client, data_fixture, settings):
 
     with freeze_time("2024-01-01 12:00:00"):
         token = BuilderPreviewGrantHandler().create_grant(builder, user)
+        _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
 
-    api_client.cookies[get_builder_preview_cookie_name()] = token
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
     with freeze_time("2024-01-01 12:30:01"):
         response = api_client.get(

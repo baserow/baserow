@@ -530,7 +530,7 @@ class BuilderApplicationType(ApplicationType):
         """
         Legacy preview URLs contained the builder id and must remain supported for
         existing SAML RelayState configurations. New preview URLs cannot identify
-        the builder because their state lives in the grant cookie.
+        the builder because their state lives in the preview-session cookie.
 
         Otherwise, we try to match a published domain and return the related
         application id.

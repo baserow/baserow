@@ -46,8 +46,8 @@ from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormu
 
 def authenticate_builder_preview(api_client, builder, user):
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
-    BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name()] = token
+    _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
 
 @pytest.mark.django_db

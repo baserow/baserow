@@ -175,8 +175,8 @@ def test_obtain_json_web_token_unpublished_with_preview_cookie(
     builder = data_fixture.create_builder_application(user=user)
     user_source = data_fixture.create_user_source_with_first_type(application=builder)
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
-    BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name()] = token
+    _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
     url = reverse(
         "api:user_sources:token_auth", kwargs={"user_source_id": user_source.id}
@@ -616,8 +616,8 @@ def test_refresh_json_web_token_unpublished_with_preview_cookie(
     builder = data_fixture.create_builder_application(user=user)
     user_source = data_fixture.create_user_source_with_first_type(application=builder)
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
-    BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name()] = token
+    _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
     url = reverse("api:user_sources:token_refresh")
 

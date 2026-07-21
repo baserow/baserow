@@ -9,18 +9,19 @@ The preview authentication process works as follows:
 2. The URL contains a short-lived, signed token. Think of this token as a
    temporary preview pass which names the one draft builder that may be viewed.
 3. When the browser opens that URL, frontend middleware sends the token to
-   :class:`BuilderPreviewExchangeView`. This view checks the pass, stores it in
-   a protected HttpOnly cookie, and redirects the browser to the same preview
-   URL without the token visible in the address bar.
+   :class:`BuilderPreviewExchangeView`. This view checks and consumes the pass,
+   creates a separate preview session in a protected HttpOnly cookie, and
+   redirects the browser to the same preview URL without the token visible in
+   the address bar.
 4. The preview frontend calls :class:`BuilderPreviewCurrentView` and the other
    draft rendering endpoints. ``BuilderPreviewAuthentication`` reads the
    protected cookie and represents the visitor as a restricted preview actor.
    That actor can render only the builder named in the pass; it does not receive
    the editor's wider account permissions.
 
-The pass and cookie expire after ``BUILDER_PREVIEW_GRANT_TTL``. The token is
-signed rather than stored in the database, so it may be exchanged again until
-it expires.
+The pass and cookie expire after ``BUILDER_PREVIEW_GRANT_TTL``. The first exchange
+atomically creates a short-lived global-cache entry, so later exchanges of the
+same pass are rejected.
 """
 
 from urllib.parse import urlparse
@@ -128,7 +129,7 @@ class BuilderPreviewCurrentView(APIView):
         operation_id="get_current_builder_preview",
         description=(
             "Returns the public serialized draft builder related to the current "
-            "preview grant cookie."
+            "preview session cookie."
         ),
         responses={
             200: ForcedPublicPolymorphicApplicationResponseSerializer,
@@ -166,9 +167,9 @@ class BuilderPreviewExchangeView(APIView):
 
     The browser reaches this endpoint before loading the clean preview page.
     No existing login is required because the signed, unexpired token is the
-    proof of access. After validation, the token is placed in an HttpOnly cookie
-    so page scripts cannot read it, then the browser is redirected to a URL
-    where the token is no longer visible.
+    proof of access. After validation, a separate preview-session token is placed
+    in an HttpOnly cookie so page scripts cannot read it, then the browser is
+    redirected to a URL where the exchange token is no longer visible.
     """
 
     permission_classes = (AllowAny,)
@@ -194,7 +195,7 @@ class BuilderPreviewExchangeView(APIView):
         responses={302: None, 404: None},
     )
     def get(self, request, token: str):
-        """Validate the preview pass, set its cookie, and redirect the browser.
+        """Consume the preview pass, set a session cookie, and redirect the browser.
 
         Invalid or expired tokens return ``404`` without creating a cookie. The
         requested redirect is accepted only when it points to the configured
@@ -204,7 +205,7 @@ class BuilderPreviewExchangeView(APIView):
         """
 
         try:
-            actor = BuilderPreviewGrantHandler().exchange_token(token)
+            actor, session_token = BuilderPreviewGrantHandler().exchange_token(token)
         except BuilderPreviewGrantInvalid:
             return Response(status=404)
 
@@ -227,7 +228,7 @@ class BuilderPreviewExchangeView(APIView):
         response = HttpResponseRedirect(redirect_to)
         response.set_cookie(
             get_builder_preview_cookie_name(),
-            token,
+            session_token,
             max_age=int(settings.BUILDER_PREVIEW_GRANT_TTL.total_seconds()),
             httponly=True,
             secure=secure,
