@@ -3,17 +3,9 @@
     <div class="placeholder__logo">
       <a
         :href="
-          $router.resolve({
-            name: routeName,
-            params: { pathMatch: '' },
-          }).fullPath
+          $router.resolve(homeRoute).fullPath
         "
-        @click.prevent="
-          clearAndNavigate({
-            name: routeName,
-            params: { pathMatch: '' },
-          })
-        "
+        @click.prevent="clearAndNavigate(homeRoute)"
       >
         <Logo class="placeholder__logo-image" />
       </a>
@@ -24,7 +16,14 @@
     </p>
     <p v-else class="placeholder__content">{{ content }}</p>
     <div class="placeholder__action">
-      <Button type="primary" icon="iconoir-home" size="large" @click="onHome()">
+      <Button
+        tag="a"
+        :href="$router.resolve(homeRoute).fullPath"
+        type="primary"
+        icon="iconoir-home"
+        size="large"
+        @click.prevent="onHome"
+      >
         {{ $t('action.backToHome') }}
       </Button>
     </div>
@@ -66,28 +65,24 @@ export default {
     routeName() {
       return this.$route.name
     },
+    homeRoute() {
+      return {
+        name: this.routeName,
+        params: { pathMatch: '' },
+        query: null,
+      }
+    },
   },
   methods: {
     clearAndNavigate(to) {
       window.location.replace(this.$router.resolve(to).fullPath)
     },
-    async onHome() {
-      if (
-        ['application-builder-page', 'application-builder-preview'].includes(
-          this.routeName
-        )
-      ) {
-        if (this.$route.params.pathMatch === '/') {
-          // Reload the current page
-          this.$router.go(0)
-        } else {
-          // Navigate to the home route
-          this.clearAndNavigate({
-            name: this.routeName,
-            params: { pathMatch: '' },
-            query: null, // Remove query parameters
-          })
-        }
+    onHome() {
+      const homePath = this.$router.resolve(this.homeRoute).path
+      if (this.$route.path === homePath) {
+        this.$router.go(0)
+      } else {
+        this.clearAndNavigate(this.homeRoute)
       }
     },
   },

@@ -33,7 +33,7 @@ const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
   // Redirect to home page after logout
   return redirect({
     name: 'application-builder-page',
-    params: { pathMatch: '/' },
+    params: { pathMatch: '' },
   })
 }
 
