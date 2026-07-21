@@ -7,7 +7,6 @@
     </h2>
     <FormGroup
       :label="$t('aiProviderAdmin.modelIdentifier')"
-      :error-message="modelIdentifierError"
       required
       class="margin-bottom-2"
     >
@@ -28,6 +27,12 @@
         :error="Boolean(modelIdentifierError)"
         @input="modelIdentifierError = ''"
       />
+      <p
+        v-if="modelIdentifierError"
+        class="control__messages--error ai-provider-form__field-error"
+      >
+        {{ modelIdentifierError }}
+      </p>
       <div v-if="!model" class="ai-provider-form__hint">
         {{ $t('aiProviderAdmin.modelDiscoveryHelp') }}
       </div>

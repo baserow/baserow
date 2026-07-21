@@ -222,10 +222,25 @@ describe('AIProviderModelFormModal', () => {
     expect(modelField.find('.form-input').classes()).toContain(
       'form-input--error'
     )
-    expect(dispatch).not.toHaveBeenCalledWith(
-      'toast/error',
-      expect.anything()
-    )
+    const fieldContentOrder = modelField
+      .findAll(
+        '.form-input, .control__messages--error, .ai-provider-form__hint, .control__helper-text'
+      )
+      .map((element) =>
+        [
+          'form-input',
+          'control__messages--error',
+          'ai-provider-form__hint',
+          'control__helper-text',
+        ].find((className) => element.classes().includes(className))
+      )
+    expect(fieldContentOrder).toEqual([
+      'form-input',
+      'control__messages--error',
+      'ai-provider-form__hint',
+      'control__helper-text',
+    ])
+    expect(dispatch).not.toHaveBeenCalledWith('toast/error', expect.anything())
 
     await wrapper
       .find('.ai-provider-model-combobox .form-input__input')
