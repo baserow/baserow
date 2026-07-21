@@ -89,7 +89,7 @@ const emit = defineEmits([
 ])
 
 // Injected dependencies
-const app = useNuxtApp()
+const { $registry } = useNuxtApp()
 const workflow = inject('workflow')
 const workflowDebug = inject('workflowDebug')
 
@@ -122,7 +122,7 @@ const gotoJumps = computed(() => {
   return assignGotoMarkers({
     nodes: props.nodes,
     getConnectionsFor: (node) =>
-      app.$registry
+      $registry
         .get('node', node.type)
         .getConnections({ workflow: workflow.value, node }),
   })
