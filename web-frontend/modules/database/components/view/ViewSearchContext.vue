@@ -16,7 +16,6 @@
           :placeholder="$t('viewSearchContext.searchInRows')"
           class="margin-bottom-2"
           :can-clear="true"
-          @keyup="searchIfChanged"
         ></FormInput>
       </div>
       <div
@@ -76,6 +75,11 @@ export default {
       loading: false,
     }
   },
+  watch: {
+    activeSearchTerm() {
+      this.searchIfChanged()
+    },
+  },
   methods: {
     focus() {
       this.$nextTick(function () {
@@ -83,6 +87,8 @@ export default {
       })
     },
     setActiveSearchTerm(value) {
+      this.lastSearch = value
+      this.lastHide = this.hideRowsNotMatchingSearch
       this.activeSearchTerm = value
       this.$emit('search-changed', this.activeSearchTerm)
       this.search(true)
