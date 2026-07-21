@@ -1,6 +1,27 @@
 /**
  * Make sure only baserow routes are available for instance public hostname.
  */
+export const shouldRemoveRoute = (
+  route,
+  {
+    isWebFrontendHostname,
+    isBuilderPreviewHostname,
+    isBuilderPreviewRequest,
+  }
+) => {
+  if (isWebFrontendHostname) {
+    const isPreviewRouteOnAnotherHost =
+      route.meta?.previewBuilderRoute && !isBuilderPreviewRequest
+    return route.meta?.publishedBuilderRoute || isPreviewRouteOnAnotherHost
+  }
+
+  if (isBuilderPreviewHostname) {
+    return !route.meta?.previewBuilderRoute
+  }
+
+  return !route.meta?.publishedBuilderRoute
+}
+
 export default defineNuxtPlugin({
   name: 'router',
   dependsOn: [
@@ -39,26 +60,15 @@ export default defineNuxtPlugin({
 
     // Ensure only routes for the current hostname role are available.
     for (const r of router.getRoutes()) {
-      if ($isWebFrontendHostname) {
-        const isPreviewRouteOnAnotherHost =
-          r.meta?.previewBuilderRoute && !isBuilderPreviewRequest
-        if (
-          (r.meta?.publishedBuilderRoute || isPreviewRouteOnAnotherHost) &&
-          router.hasRoute(r.name)
-        ) {
-          router.removeRoute(r.name)
-        }
-      } else if (isBuilderPreviewHostname) {
-        if (!r.meta?.previewBuilderRoute && router.hasRoute(r.name)) {
-          router.removeRoute(r.name)
-        }
-      } else {
-        if (
-          (!r.meta?.publishedBuilderRoute || r.meta?.previewBuilderRoute) &&
-          router.hasRoute(r.name)
-        ) {
-          router.removeRoute(r.name)
-        }
+      if (
+        shouldRemoveRoute(r, {
+          isWebFrontendHostname: $isWebFrontendHostname,
+          isBuilderPreviewHostname,
+          isBuilderPreviewRequest,
+        }) &&
+        router.hasRoute(r.name)
+      ) {
+        router.removeRoute(r.name)
       }
     }
   },
