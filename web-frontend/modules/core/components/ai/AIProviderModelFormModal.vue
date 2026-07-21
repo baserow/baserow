@@ -7,6 +7,7 @@
     </h2>
     <FormGroup
       :label="$t('aiProviderAdmin.modelIdentifier')"
+      :error-message="modelIdentifierError"
       required
       class="margin-bottom-2"
     >
@@ -16,10 +17,17 @@
         :suggestions="availableSuggestions"
         :loading="discoveryLoading"
         :unavailable="discoveryUnavailable"
+        :error="Boolean(modelIdentifierError)"
         :placeholder="$t('aiProviderAdmin.modelIdentifier')"
         @focus="discoverModelsIfNeeded"
+        @input="modelIdentifierError = ''"
       />
-      <FormInput v-else v-model="values.model_identifier" />
+      <FormInput
+        v-else
+        v-model="values.model_identifier"
+        :error="Boolean(modelIdentifierError)"
+        @input="modelIdentifierError = ''"
+      />
       <div v-if="!model" class="ai-provider-form__hint">
         {{ $t('aiProviderAdmin.modelDiscoveryHelp') }}
       </div>
@@ -56,6 +64,7 @@ export default {
   data() {
     return {
       loading: false,
+      modelIdentifierError: '',
       discoveryLoading: false,
       discoveryFailed: false,
       discoverySupported: true,
@@ -121,6 +130,7 @@ export default {
       }
     },
     async submit() {
+      this.modelIdentifierError = ''
       this.loading = true
       const values = {
         model_identifier: this.values.model_identifier.trim(),
@@ -138,11 +148,16 @@ export default {
         this.$emit('saved', result)
         this.hide()
       } catch (error) {
+        const errorCode = error.response?.data?.error
+        const detail = error.response?.data?.detail
+        const errorMessage = detail?.message || detail
+        if (errorCode === 'ERROR_AI_PROVIDER_MODEL_ALREADY_CONFIGURED') {
+          this.modelIdentifierError = errorMessage
+          return
+        }
         this.$store.dispatch('toast/error', {
           title: this.$t('aiProviderAdmin.saveModelError'),
-          message:
-            error.response?.data?.detail?.message ||
-            error.response?.data?.detail,
+          message: errorMessage,
         })
       } finally {
         this.loading = false

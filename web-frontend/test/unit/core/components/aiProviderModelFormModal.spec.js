@@ -184,4 +184,56 @@ describe('AIProviderModelFormModal', () => {
       expect.anything()
     )
   })
+
+  test('shows and clears a duplicate identifier error on the model field', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation((action) => {
+        if (action === 'aiProvider/createModel') {
+          return Promise.reject({
+            response: {
+              data: {
+                error: 'ERROR_AI_PROVIDER_MODEL_ALREADY_CONFIGURED',
+                detail:
+                  'That model identifier is already configured for this provider.',
+              },
+            },
+          })
+        }
+        return Promise.resolve()
+      })
+    const wrapper = await testApp.mount(AIProviderModelFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', models: [] },
+      },
+    })
+    await wrapper.vm.show()
+    const modelInput = wrapper.find(
+      '.ai-provider-model-combobox .form-input__input'
+    )
+    await modelInput.setValue('gpt-5.4')
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    const modelField = wrapper.find('.control')
+    expect(modelField.find('.control__messages--error').text()).toBe(
+      'That model identifier is already configured for this provider.'
+    )
+    expect(modelField.find('.form-input').classes()).toContain(
+      'form-input--error'
+    )
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'toast/error',
+      expect.anything()
+    )
+
+    await wrapper
+      .find('.ai-provider-model-combobox .form-input__input')
+      .setValue('gpt-5.4-mini')
+    await flushPromises()
+    expect(wrapper.find('.control__messages--error').exists()).toBe(false)
+    expect(wrapper.find('.form-input').classes()).not.toContain(
+      'form-input--error'
+    )
+  })
 })

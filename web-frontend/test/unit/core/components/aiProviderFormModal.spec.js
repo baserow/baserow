@@ -276,4 +276,52 @@ describe('AIProviderFormModal', () => {
       wrapper.find('.actions button').attributes('disabled')
     ).toBeUndefined()
   })
+
+  test('shows a duplicate provider type error on the provider type field', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation((action) => {
+        if (action === 'aiProvider/create') {
+          return Promise.reject({
+            response: {
+              data: {
+                error: 'ERROR_AI_PROVIDER_TYPE_ALREADY_CONFIGURED',
+                detail: 'That AI provider type is already configured.',
+              },
+            },
+          })
+        }
+        return Promise.resolve()
+      })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        providerTypes: [
+          {
+            type: 'openai',
+            name: 'OpenAI',
+            uses_api_key: true,
+            extra_fields: [],
+          },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    await wrapper.find('input[type="password"]').setValue('valid-secret')
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    const providerTypeField = wrapper
+      .findAll('.control')
+      .find((control) => control.find('.dropdown').exists())
+    expect(providerTypeField.find('.control__messages--error').text()).toBe(
+      'That AI provider type is already configured.'
+    )
+    expect(providerTypeField.find('.dropdown').classes()).toContain(
+      'dropdown--error'
+    )
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'toast/error',
+      expect.anything()
+    )
+  })
 })

@@ -11,6 +11,7 @@
     <FormInput
       ref="input"
       :model-value="currentValue"
+      :error="error"
       :loading="loading"
       :placeholder="placeholder"
       autocomplete="off"
@@ -66,6 +67,7 @@ export default {
     suggestions: { type: Array, default: () => [] },
     loading: { type: Boolean, default: false },
     unavailable: { type: Boolean, default: false },
+    error: { type: Boolean, default: false },
     placeholder: { type: String, default: '' },
   },
   emits: ['input', 'update:modelValue', 'focus'],

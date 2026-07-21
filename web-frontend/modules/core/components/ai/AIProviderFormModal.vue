@@ -10,10 +10,15 @@
 
     <FormGroup
       :label="$t('aiProviderAdmin.providerType')"
+      :error-message="providerTypeError"
       required
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.provider_type" :disabled="!!provider">
+      <Dropdown
+        v-model="values.provider_type"
+        :disabled="!!provider"
+        :error="Boolean(providerTypeError)"
+      >
         <DropdownItem
           v-for="providerType in providerTypes"
           :key="providerType.type"
@@ -132,6 +137,7 @@ export default {
       this.provider?.provider_type || this.providerTypes[0]?.type
     return {
       loading: false,
+      providerTypeError: '',
       apiKeyEditing: false,
       discoveryLoading: false,
       discoveryFailed: false,
@@ -191,6 +197,7 @@ export default {
   },
   watch: {
     'values.provider_type'() {
+      this.providerTypeError = ''
       this.extraSettings = {}
       this.resetModelDiscovery()
     },
@@ -258,6 +265,7 @@ export default {
       )
     },
     async submit() {
+      this.providerTypeError = ''
       this.loading = true
       const values = {
         extra_settings: this.getExtraSettings(),
@@ -283,11 +291,16 @@ export default {
         this.$emit('saved', result)
         this.hide()
       } catch (error) {
+        const errorCode = error.response?.data?.error
+        const detail = error.response?.data?.detail
+        const errorMessage = detail?.message || detail
+        if (errorCode === 'ERROR_AI_PROVIDER_TYPE_ALREADY_CONFIGURED') {
+          this.providerTypeError = errorMessage
+          return
+        }
         this.$store.dispatch('toast/error', {
           title: this.$t('aiProviderAdmin.saveError'),
-          message:
-            error.response?.data?.detail?.message ||
-            error.response?.data?.detail,
+          message: errorMessage,
         })
       } finally {
         this.loading = false
