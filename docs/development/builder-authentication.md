@@ -11,7 +11,7 @@ COMPOSE_PROFILES=...,authentication
 Start the development environment normally with `just dc-dev up`. Keycloak is then
 available at:
 
-* `http://keycloak:8080` from other Docker Compose services.
+* `http://keycloak.internal:8080` from other Docker Compose services.
 * `http://localhost:8081` from the host and browser.
 
 Set `BASEROW_KEYCLOAK_PORT` in `.env.docker-dev` to change the host port. This is
@@ -30,13 +30,19 @@ The imported `baserow-dev` realm has one test user:
 
 These fixed credentials are intended for local development only.
 
+NOTE: if you are using the local dev env, you need to add a domain to your hosts file
+to access the keycloak instance otherwise `localhost` is not considered as valid URL
+by the frontend URL validator.
+
 ## OpenID Connect
 
 Add an OpenID Connect authentication provider to a Builder user source with:
 
 * Name: `Keycloak development`
-* Base URL from Docker: `http://keycloak:8080/realms/baserow-dev`
-* Base URL from a natively running backend (you need to add a domain to your hosts file as localhost is not a valid url): `http://<anydomain>:8081/realms/baserow-dev`
+* Base URL from Docker: `http://keycloak.internal:8080/realms/baserow-dev`. The
+  `keycloak.internal` alias (see `docker-compose.dev.yml`) resolves to the Keycloak
+  container from other Compose services.
+* Base URL from a natively running backend (you must use a custom domain, see note above): `http://<keycloak_domain>:8081/realms/baserow-dev`
 * Client ID: `baserow-builder`
 * Secret: `baserow-builder-secret`
 

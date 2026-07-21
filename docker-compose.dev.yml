@@ -255,6 +255,11 @@ services:
       - ./deploy/keycloak/baserow-dev-realm.json:/opt/keycloak/data/import/baserow-dev-realm.json:ro
     networks:
       local:
+        # Dotted alias so a Docker-internal backend can reach Keycloak with a URL
+        # the frontend OIDC form accepts (its `url` validator rejects dotless
+        # hostnames like `keycloak` and private IPs). See docs/development/builder-authentication.md.
+        aliases:
+          - keycloak.internal
 
   # When switching between dev and local the media files in the media volume will be
   # owned by different users. Ensure that we chown them to the user appropriate for the
