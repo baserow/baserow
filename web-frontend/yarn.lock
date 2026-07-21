@@ -12596,9 +12596,9 @@ tar-stream@^3.0.0:
     streamx "^2.15.0"
 
 tar@^7.4.0:
-  version "7.5.16"
-  resolved "https://registry.yarnpkg.com/tar/-/tar-7.5.16.tgz#f11e063afed4554f758049d082909e37d6b53ced"
-  integrity sha512-56adEpPMouktRlBLXiaYFFzZ/3+JXa8P9n7WbR+ibIjtviN55mEaOkiysCnPnWm+7kkui1Dn8J9l+g6zV8731w==
+  version "7.5.20"
+  resolved "https://registry.yarnpkg.com/tar/-/tar-7.5.20.tgz#37a65aa911cbd69864002e14bf8a926a5551e240"
+  integrity sha512-9FcyK4PA6+WbzlTM9WhQm6vB5W7cP7dUiPsv1g7YDwEQnQ1CGpK3MGlKk/ITVWMk05kHZuBhmVhiv8LZoy/PFQ==
   dependencies:
     "@isaacs/fs-minipass" "^4.0.0"
     chownr "^3.0.0"
@@ -12721,7 +12721,7 @@ tiptap-markdown@0.9.0:
     markdown-it-task-lists "^2.1.1"
     prosemirror-markdown "^1.11.1"
 
-tldjs@^2.3.1:
+tldjs@^2.3.2:
   version "2.3.2"
   resolved "https://registry.yarnpkg.com/tldjs/-/tldjs-2.3.2.tgz#46bc9b7ec7d8d5afc01ece590914c208b7f308d2"
   integrity sha512-EORDwFMSZKrHPUVDhejCMDeAovRS5d8jZKiqALFiPp3cjKjEldPkxBY39ZSx3c45awz3RpKwJD1cCgGxEfy8/A==
