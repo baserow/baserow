@@ -74,6 +74,14 @@
           >
           </ViewContext>
         </li>
+        <PublicViewMenu
+          v-if="isPublic && hasSelectedView"
+          :database="database"
+          :table="table"
+          :view="view"
+          :fields="fields"
+          :store-prefix="storePrefix"
+        ></PublicViewMenu>
         <component
           :is="component"
           v-for="(component, index) in getAdditionalTableHeaderComponents(
@@ -255,6 +263,7 @@ import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ViewsContext from '@baserow/modules/database/components/view/ViewsContext'
 import ViewContext from '@baserow/modules/database/components/view/ViewContext'
+import PublicViewMenu from '@baserow/modules/database/components/view/PublicViewMenu'
 import ViewFilter from '@baserow/modules/database/components/view/ViewFilter'
 import ViewSort from '@baserow/modules/database/components/view/ViewSort'
 import ViewDecoratorMenu from '@baserow/modules/database/components/view/ViewDecoratorMenu'
@@ -284,6 +293,7 @@ export default {
     ViewSort,
     ViewSearch,
     ViewContext,
+    PublicViewMenu,
   },
   /**
    * Because there is no hook that is called before the route changes, we need the

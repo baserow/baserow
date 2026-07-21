@@ -1,28 +1,9 @@
 <template>
-  <li
-    v-if="view.allow_public_export"
-    class="header__filter-item header__filter-item--no-margin-left"
-  >
-    <a
-      ref="target"
-      class="header__filter-link"
-      @click="$refs.context.toggle($event.target, 'bottom', 'left', 4)"
-    >
-      <i class="header__filter-icon baserow-icon-more-vertical"></i>
+  <li v-if="view.allow_public_export" class="context__menu-item">
+    <a class="context__menu-item-link" @click="$refs.exportModal.show()">
+      <i class="context__menu-item-icon iconoir-share-ios"></i>
+      {{ $t('publicViewExport.export') }}
     </a>
-    <Context ref="context">
-      <ul class="context__menu">
-        <li class="context__menu-item">
-          <a
-            class="context__menu-item-link"
-            @click=";[$refs.exportModal.show(), $refs.context.hide()]"
-          >
-            <i class="context__menu-item-icon iconoir-share-ios"></i>
-            {{ $t('publicViewExport.export') }}
-          </a>
-        </li>
-      </ul>
-    </Context>
     <ExportTableModal
       ref="exportModal"
       :view="view"
@@ -47,7 +28,7 @@ import {
 } from '@baserow/modules/database/utils/view'
 
 export default {
-  name: 'PublicViewExport',
+  name: 'PublicViewExportMenuItem',
   components: { ExportTableModal },
   props: {
     database: {
@@ -64,10 +45,6 @@ export default {
     },
     fields: {
       type: Array,
-      required: true,
-    },
-    isPublicView: {
-      type: Boolean,
       required: true,
     },
     storePrefix: {

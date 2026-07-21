@@ -1093,6 +1093,17 @@ class DatabaseConfig(AppConfig):
         notification_type_registry.register(WebhookDeactivatedNotificationType())
         notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
+        from baserow.contrib.database.views.abuse_reports import (
+            DatabaseViewAbuseReportResourceType,
+        )
+        from baserow.core.abuse_reports.registries import (
+            abuse_report_resource_type_registry,
+        )
+
+        abuse_report_resource_type_registry.register(
+            DatabaseViewAbuseReportResourceType()
+        )
+
         from baserow.contrib.database.mcp.fields.tools import (
             CreateFieldsMcpTool,
             DeleteFieldsMcpTool,

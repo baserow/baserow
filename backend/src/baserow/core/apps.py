@@ -489,6 +489,14 @@ class CoreConfig(AppConfig):
         )
         notification_type_registry.register(BaserowVersionUpgradeNotificationType())
 
+        from baserow.core.abuse_reports.actions import SubmitAbuseReportActionType
+        from baserow.core.abuse_reports.notification_types import (
+            AbuseReportCreatedNotificationType,
+        )
+
+        action_type_registry.register(SubmitAbuseReportActionType())
+        notification_type_registry.register(AbuseReportCreatedNotificationType())
+
         from baserow.core.generative_ai.generative_ai_model_types import (
             AnthropicGenerativeAIModelType,
             MistralGenerativeAIModelType,

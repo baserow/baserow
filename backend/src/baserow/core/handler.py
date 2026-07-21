@@ -216,6 +216,7 @@ class CoreHandler:
                 "co_branding_logo",
                 "email_verification",
                 "verify_import_signature",
+                "allow_reporting_abuse",
             ],
             settings_instance,
         )

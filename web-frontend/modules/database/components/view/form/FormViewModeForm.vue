@@ -32,11 +32,8 @@
         :class="{ hidden: field._.hiddenViaQueryParam }"
         @input="updateValue('field_' + field.field.id, $event)"
       ></FormPageField>
-      <div
-        class="form-view__actions"
-        :class="{ 'form-view__actions--single': !showLogo }"
-      >
-        <FormViewPoweredBy v-if="showLogo"></FormViewPoweredBy>
+      <div class="form-view__actions">
+        <FormViewPoweredBy :show-logo="showLogo"></FormViewPoweredBy>
         <div class="form-view__submit">
           <Button
             type="primary"

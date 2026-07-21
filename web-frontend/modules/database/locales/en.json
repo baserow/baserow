@@ -982,6 +982,13 @@
     "noFieldsTitle": "This form doesn't have any fields",
     "noFieldsContent": "Click on a field in the left sidebar to add one."
   },
+  "formViewPoweredBy": {
+    "reportAbuse": "Report abuse"
+  },
+  "publicViewMenu": {
+    "reportAbuse": "Report abuse",
+    "moreOptions": "More options"
+  },
   "table": {
     "adjacentRow": {
       "toast": {

@@ -103,11 +103,8 @@
         >
         </FormViewField>
       </div>
-      <div
-        class="form-view__actions"
-        :class="{ 'form-view__actions--single': !view.show_logo }"
-      >
-        <FormViewPoweredBy v-if="view.show_logo"></FormViewPoweredBy>
+      <div class="form-view__actions">
+        <FormViewPoweredBy :show-logo="view.show_logo"></FormViewPoweredBy>
         <div class="form-view__submit">
           <Editable
             ref="submit_text"

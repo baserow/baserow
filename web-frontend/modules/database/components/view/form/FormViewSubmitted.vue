@@ -11,7 +11,7 @@
     </template>
     <!-- prettier-ignore -->
     <div v-else class="form-view__submitted-message whitespace-pre-wrap">{{ submitActionMessageOrDefault }}</div>
-    <FormViewPoweredBy v-if="showLogo"></FormViewPoweredBy>
+    <FormViewPoweredBy :show-logo="showLogo"></FormViewPoweredBy>
   </div>
 </template>
 

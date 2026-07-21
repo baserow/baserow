@@ -113,6 +113,20 @@
   max-width: 100%;
 }
 
+.abuse-report-notification__description {
+  // The notification panel sets `nowrap` at the root for other notification
+  // types, but the description preview must wrap normally.
+  white-space: normal;
+  overflow-wrap: anywhere;
+  margin-top: 4px;
+}
+
+.abuse-report-notification__full-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-bottom: 20px;
+}
+
 .notification-panel__notification-status {
   flex: 0 0 16px;
   text-align: right;

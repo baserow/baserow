@@ -75,15 +75,16 @@
   &.form-view-survey__footer--absolute {
     position: absolute;
   }
-
-  &--single {
-    justify-content: flex-end;
-  }
 }
 
 .form-view-survey__pagination {
   display: flex;
   align-items: center;
+
+  // Keeps the pagination on the right even when the powered by footer renders
+  // nothing, because `justify-content: space-between` would align a single child
+  // left.
+  margin-left: auto;
 }
 
 .form-view-survey__order-fields {

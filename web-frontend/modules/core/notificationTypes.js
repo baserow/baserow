@@ -4,6 +4,7 @@ import WorkspaceInvitationCreatedNotification from '@baserow/modules/core/compon
 import WorkspaceInvitationAcceptedNotification from '@baserow/modules/core/components/notifications/WorkspaceInvitationAcceptedNotification'
 import WorkspaceInvitationRejectedNotification from '@baserow/modules/core/components/notifications/WorkspaceInvitationRejectedNotification'
 import BaserowVersionUpgradeNotification from '@baserow/modules/core/components/notifications/BaserowVersionUpgradeNotification'
+import AbuseReportCreatedNotification from '@baserow/modules/core/components/notifications/AbuseReportCreatedNotification'
 import NotificationImgIcon from '@baserow/modules/core/components/notifications/NotificationImgIcon'
 import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 
@@ -93,5 +94,23 @@ export class BaserowVersionUpgradeNotificationType extends NotificationType {
 
   getContentComponent() {
     return BaserowVersionUpgradeNotification
+  }
+}
+
+export class AbuseReportCreatedNotificationType extends NotificationType {
+  static getType() {
+    return 'abuse_report_created'
+  }
+
+  getIconComponent() {
+    return NotificationImgIcon
+  }
+
+  getIconComponentProps() {
+    return { icon: BaserowIcon }
+  }
+
+  getContentComponent() {
+    return AbuseReportCreatedNotification
   }
 }

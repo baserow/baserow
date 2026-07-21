@@ -658,7 +658,9 @@
     "emailVerificationRecommended": "Recommended",
     "emailVerificationEnforced": "Enforced",
     "settingsVerifyImportSignature": "Verify import signature",
-    "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with."
+    "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with.",
+    "settingAllowReportingAbuseName": "Allow reporting abuse",
+    "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views and forms can report them for abuse, and all instance admins are notified about the report."
   },
   "formSidebar": {
     "fields": "Fields",
@@ -854,6 +856,30 @@
   },
   "versionUpgradeNotification": {
     "title": "{version} is here! Check out what's new."
+  },
+  "abuseReportCreatedNotification": {
+    "title": "{resourceName} has been reported for abuse by {reporterEmail}",
+    "openResource": "Open the reported page",
+    "showMore": "Show more",
+    "detailsTitle": "Abuse report",
+    "reportedBy": "Reported by {reporterName} ({reporterEmail})."
+  },
+  "reportAbuseModal": {
+    "title": "Report abuse",
+    "description": "Do you believe this page is being used for phishing, impersonation, scams or other abusive purposes? Let the administrators of this Baserow instance know by submitting the form below.",
+    "submit": "Submit report",
+    "close": "Close",
+    "successTitle": "Thank you for your report",
+    "successDescription": "The report has been submitted and the administrators of this Baserow instance have been notified so that they can take action.",
+    "reportingDisabledTitle": "Reporting is disabled",
+    "reportingDisabledDescription": "Reporting abuse has been disabled by the administrator of this Baserow instance."
+  },
+  "reportAbuseForm": {
+    "nameLabel": "Your name",
+    "emailLabel": "Your email address",
+    "descriptionLabel": "Why are you reporting this page?",
+    "descriptionHelper": "Please describe in detail why you believe this page is abusive.",
+    "descriptionPlaceholder": "For example: this page pretends to be a login page of another company and asks visitors for their password."
   },
   "emailNotifications": {
     "title": "Email notifications",

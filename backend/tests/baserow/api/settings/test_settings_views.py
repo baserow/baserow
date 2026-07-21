@@ -304,3 +304,32 @@ def test_partial_update_does_not_overwrite_email_verification(api_client, data_f
     settings = CoreHandler().get_settings()
     assert settings.email_verification == "recommended"
     assert response_json["email_verification"] == "recommended"
+
+
+@pytest.mark.django_db
+def test_allow_reporting_abuse_setting(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token(is_staff=True)
+    user_2, token_2 = data_fixture.create_user_and_token()
+
+    response = api_client.get(reverse("api:settings:get"))
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["allow_reporting_abuse"] is True
+
+    response = api_client.patch(
+        reverse("api:settings:update"),
+        {"allow_reporting_abuse": False},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token_2}",
+    )
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert CoreHandler().get_settings().allow_reporting_abuse is True
+
+    response = api_client.patch(
+        reverse("api:settings:update"),
+        {"allow_reporting_abuse": False},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["allow_reporting_abuse"] is False
+    assert CoreHandler().get_settings().allow_reporting_abuse is False

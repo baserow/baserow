@@ -11,7 +11,7 @@
             Use Baserow to add at least one field.
           </div>
         </div>
-        <FormViewPoweredBy v-if="showLogo"></FormViewPoweredBy>
+        <FormViewPoweredBy :show-logo="showLogo"></FormViewPoweredBy>
       </div>
       <component
         :is="component"
