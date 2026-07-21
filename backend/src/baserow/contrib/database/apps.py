@@ -196,6 +196,7 @@ class DatabaseConfig(AppConfig):
         from .fields.field_types import (
             AutonumberFieldType,
             BooleanFieldType,
+            ButtonFieldType,
             CountFieldType,
             CreatedByFieldType,
             CreatedOnFieldType,
@@ -250,6 +251,7 @@ class DatabaseConfig(AppConfig):
         field_type_registry.register(AutonumberFieldType())
         field_type_registry.register(PasswordFieldType())
         field_type_registry.register(FormViewEditRowFieldType())
+        field_type_registry.register(ButtonFieldType())
 
         from .fields.field_aggregations import (
             AverageFieldAggregationType,

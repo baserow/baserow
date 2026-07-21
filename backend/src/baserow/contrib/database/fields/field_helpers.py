@@ -303,6 +303,13 @@ def construct_all_possible_field_kwargs(
         "form_view_edit_row": [
             {"name": "form_view_edit_row", "form_view_id": form_view.id}
         ],
+        "button": [
+            {
+                "name": "button",
+                "label": "Open",
+                "url_formula": "'https://example.com'",
+            }
+        ],
         "ai": [
             {
                 "name": "ai",

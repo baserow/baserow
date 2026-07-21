@@ -156,6 +156,7 @@ from baserow.core.expressions import DateTrunc
 from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
+from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
@@ -217,11 +218,16 @@ from .fields import (
     SyncedUserForeignKeyField,
 )
 from .fields import DurationField as DurationModelField
+from .formula_visitors import (
+    extract_field_id_dependencies,
+    replace_field_id_references,
+)
 from .handler import FieldHandler
 from .models import (
     AbstractSelectOption,
     AutonumberField,
     BooleanField,
+    ButtonField,
     CountField,
     CreatedByField,
     CreatedOnField,
@@ -7882,3 +7888,127 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
         self, row, field_name, value, id_mapping, cache, files_zip, storage
     ):
         pass
+
+
+class ButtonFieldType(ReadOnlyFieldType):
+    """
+    Read-only field whose cells render a button opening a URL resolved
+    client-side from the row's values. Stores configuration only; the cell
+    column is always empty.
+    """
+
+    type = "button"
+    model_class = ButtonField
+    allowed_fields = ["label", "url_formula"]
+    serializer_field_names = ["label", "url_formula", "error"]
+    serializer_field_overrides = {
+        "label": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            default="",
+            max_length=255,
+            help_text="The text shown on the button. Falls back to the resolved "
+            "URL when empty.",
+        ),
+        "url_formula": FormulaSerializerField(
+            required=False,
+            help_text="Formula resolved per row in the client to build the URL "
+            "the button opens. Can reference the row's fields via "
+            "get('fields.field_<id>').",
+        ),
+        "error": serializers.CharField(
+            required=False,
+            read_only=True,
+            allow_null=True,
+            help_text="The error message if the field's URL formula is broken, "
+            "else null.",
+        ),
+    }
+    can_be_in_form_view = False
+    _can_order_by_types = []
+    _can_be_primary_field = False
+    can_get_unique_values = False
+    keep_data_on_duplication = False
+
+    def get_serializer_field(self, instance, **kwargs):
+        return serializers.BooleanField(required=False, allow_null=True, **kwargs)
+
+    def get_model_field(self, instance, **kwargs):
+        # A column is mandatory (model generation has no column-less path);
+        # keep the cheapest possible always-null one.
+        return models.BooleanField(default=None, db_default=None, null=True, **kwargs)
+
+    def is_searchable(self, field) -> bool:
+        return False
+
+    def random_value(self, instance, fake, cache):
+        return None
+
+    def get_export_value(self, value, field_object, rich_value=False):
+        # The URL only exists client-side; exports stay empty.
+        return "" if not rich_value else None
+
+    def get_field_dependencies(self, field_instance, field_cache):
+        try:
+            field_ids = set(
+                extract_field_id_dependencies(field_instance.url_formula["formula"])
+            )
+        except BaserowFormulaException:
+            # Unparseable formulas surface via `error` and have no deps.
+            field_ids = set()
+        existing_field_ids = set(
+            Field.objects.filter(
+                id__in=field_ids, table_id=field_instance.table_id
+            ).values_list("id", flat=True)
+        )
+        trashed_names = Field.objects_and_trash.filter(
+            id__in=field_ids - existing_field_ids,
+            table_id=field_instance.table_id,
+            trashed=True,
+        ).values_list("name", flat=True)
+        return [
+            FieldDependency(dependency_id=field_id, dependant=field_instance, via=None)
+            for field_id in field_ids
+            if field_id in existing_field_ids
+        ] + [
+            FieldDependency(
+                broken_reference_field_name=name, dependant=field_instance, via=None
+            )
+            for name in trashed_names
+        ]
+
+    def field_dependency_updated(
+        self,
+        field,
+        updated_field,
+        updated_old_field,
+        update_collector,
+        field_cache,
+        via_path_to_starting_table=None,
+    ):
+        # Referenced-field changes can flip the computed `error`; push a
+        # re-serialization without touching cell values (None statement).
+        update_collector.add_field_with_pending_update_statement(
+            field, None, via_path_to_starting_table
+        )
+        super().field_dependency_updated(
+            field,
+            updated_field,
+            updated_old_field,
+            update_collector,
+            field_cache,
+            via_path_to_starting_table,
+        )
+
+    def after_import_serialized(self, field, field_cache, id_mapping):
+        if field.url_formula:
+            try:
+                field.url_formula = replace_field_id_references(
+                    field.url_formula, id_mapping["database_fields"]
+                )
+                field.save()
+            except (KeyError, BaserowFormulaException):
+                # Missing mapping / unparseable formula: keep as-is so the
+                # import succeeds; broken state surfaces via `error`.
+                pass
+        FieldDependencyHandler.rebuild_dependencies([field], field_cache)
