@@ -311,6 +311,24 @@
   }
 }
 
+.form-view__description-editor {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.form-view__description-rendered {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.form-view__description-placeholder {
+  flex: 1 1 auto;
+  color: $palette-neutral-700;
+  cursor: text;
+}
+
 .form-view__cover {
   position: relative;
   display: flex;
@@ -352,6 +370,12 @@
   margin: 0;
   display: inline-block;
   line-height: 20px;
+
+  // Wrap long unbroken words instead of overflowing horizontally. The
+  // max-width keeps the inline-block clamped to the form column; without it
+  // the flex editor wrapper inside makes it shrink-to-fit its max-content.
+  overflow-wrap: anywhere;
+  max-width: 100%;
 
   @include flex-align-items(5px);
 }
@@ -512,6 +536,12 @@
   margin-bottom: 20px;
   color: $color-neutral-500;
   display: inline-block;
+
+  // Wrap long unbroken words instead of overflowing horizontally. The
+  // max-width keeps the inline-block clamped to the form column; without it
+  // the flex editor wrapper inside makes it shrink-to-fit its max-content.
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .form-view-field-edit {

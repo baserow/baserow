@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Show anonymous public view visitors in editor's presence bar",
+    "issue_origin": "github",
+    "issue_number": 5702,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-10"
+}

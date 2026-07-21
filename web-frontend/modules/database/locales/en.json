@@ -728,6 +728,7 @@
     "copyCellsWithHeader": "Copy cells with header",
     "generateCellsValues": "Generate values with AI",
     "generateAllAiValues": "Generate all AI values",
+    "promptBroken": "The prompt is broken and must be fixed before values can be generated.",
     "rowCount": "No rows | 1 row | {count} rows",
     "hiddenRowsInsertedTitle": "Rows added",
     "hiddenRowsInsertedMessage": "{number} newly added rows have been added, but are not visible because of the active filters.",

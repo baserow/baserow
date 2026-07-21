@@ -30,14 +30,34 @@ function hexToRgb(hex) {
 
 const PALETTE_RGB = PALETTE.map(hexToRgb)
 
+export const ANONYMOUS_USER_ID = -1
+
 function _colorIndex(userId) {
   return (Math.imul(userId, 2654435761) >>> 0) % PALETTE.length
 }
 
-export function getPresenceUserColor(userId) {
+function _stringHash(str) {
+  let h = 0
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0
+  }
+  return (h >>> 0) % PALETTE.length
+}
+
+export function getAnonymousDisplayName(presenceId) {
+  return `Anonymous #${(presenceId || '').slice(0, 4)}`
+}
+
+export function getPresenceColor(userId, presenceId) {
+  if (userId === ANONYMOUS_USER_ID && presenceId) {
+    return PALETTE[_stringHash(presenceId)]
+  }
   return PALETTE[_colorIndex(userId)]
 }
 
-export function getPresenceUserColorRgb(userId) {
+export function getPresenceColorRgb(userId, presenceId) {
+  if (userId === ANONYMOUS_USER_ID && presenceId) {
+    return PALETTE_RGB[_stringHash(presenceId)]
+  }
   return PALETTE_RGB[_colorIndex(userId)]
 }

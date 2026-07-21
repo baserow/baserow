@@ -156,9 +156,9 @@ class BaserowImpersonateAuthTokenSerializer(serializers.Serializer):
     """
 
     User = get_user_model()
-    # It's not allowed to impersonate a superuser or staff.
+    # It's not allowed to impersonate a superuser, staff or deactivated user.
     user = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(is_superuser=False, is_staff=False)
+        queryset=User.objects.filter(is_superuser=False, is_staff=False, is_active=True)
     )
 
     class Meta:

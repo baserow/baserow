@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Workspace import now strictly validates the manifest schema version, and an unsupported version returns a clear invalid file error.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-06-09"
+}

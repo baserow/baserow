@@ -166,6 +166,8 @@ x-backend-variables:
   BASEROW_WEBHOOKS_REQUEST_TIMEOUT_SECONDS:
   BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS:
   BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
+  BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS:
+  BASEROW_SSO_ALLOW_PRIVATE_ADDRESS:
   BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES:
   BASEROW_ENTERPRISE_AUDIT_LOG_RETENTION_DAYS:
   BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT:
@@ -217,7 +219,7 @@ x-backend-variables:
 
 services:
   backend:
-    image: baserow/backend:2.3.2
+    image: baserow/backend:2.3.3
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
@@ -232,7 +234,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:2.3.2
+    image: baserow/web-frontend:2.3.3
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
@@ -293,7 +295,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:2.3.2
+    image: baserow/backend:2.3.3
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -314,7 +316,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:2.3.2
+    image: baserow/backend:2.3.3
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -335,7 +337,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:2.3.2
+    image: baserow/backend:2.3.3
     restart: unless-stopped
     command: celery-beat
     environment:

@@ -3,6 +3,7 @@ import os
 import sys
 
 from django.conf import settings
+from django.core.handlers.asgi import ASGIHandler
 
 from loguru import logger
 
@@ -56,6 +57,30 @@ class dummy_context:
 
     async def __aexit__(self, exc_type, exc, traceback):
         pass
+
+
+class BaserowASGIHandler(ASGIHandler):
+    """
+    Django's disconnect watcher raises `RequestAborted`, whose traceback ends up in a
+    reference cycle with the `handle` frame that pins the request and response in
+    memory until a full garbage collection pass. On Django 5.2 completing the watcher
+    normally is behavior-identical (`handle` ignores the result and cancels the
+    in-flight request via `asyncio.wait`), and no cycle is created.
+
+    Streaming responses are not covered: on mid-stream disconnect an iterator that
+    references the view can still keep the response in a cycle.
+
+    TODO: re-evaluate before Django >= 6.1, where only a raising watcher aborts the
+    in-flight request. `test_handle_cancels_in_flight_request_on_disconnect` fails
+    loudly in that case.
+    """
+
+    async def listen_for_disconnect(self, receive):
+        message = await receive()
+        if message["type"] == "http.disconnect":
+            return
+        # This should never happen.
+        assert False, "Invalid ASGI message after request body: %s" % message["type"]
 
 
 class ConcurrencyLimiterASGI:

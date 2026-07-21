@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Monitor celery beat periodic tasks with Sentry cron monitors when Sentry is enabled",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-20"
+}

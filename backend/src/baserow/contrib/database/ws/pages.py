@@ -1,6 +1,7 @@
 from typing import Any
 
 from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
 
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
@@ -84,6 +85,20 @@ def table_presence_space_name(table_id: int) -> str | None:
 class PublicViewPageType(PageType):
     type = "view"
     parameters = ["slug", "token"]
+
+    def get_presence_space_name(self, slug=None, token=None, **kwargs) -> str | None:
+        if not slug:
+            return None
+        try:
+            view = ViewHandler().get_public_view_by_slug(
+                AnonymousUser(), slug, authorization_token=token
+            )
+        except (ViewDoesNotExist, NoAuthorizationToPubliclySharedView):
+            return None
+        return table_presence_space_name(view.table_id)
+
+    def filter_focus_for_recipient(self, page_parameters, focus, focus_type) -> bool:
+        return False
 
     def can_add(self, user, web_socket_id, slug, token=None, **kwargs):
         """

@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "OAuth2 and OpenID Connect SSO providers with admin configurable URLs can now be blocked from reaching private network addresses by setting the `BASEROW_SSO_ALLOW_PRIVATE_ADDRESS` env var to `false`.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-16"
+}

@@ -1,6 +1,6 @@
 {
   "name": "baserow",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -84,7 +84,7 @@
     "@zip.js/zip.js": "^2.8.26",
     "antlr4": "4.9.3",
     "async-mutex": "0.4.0",
-    "axios": "1.17.0",
+    "axios": "1.18.0",
     "bignumber.js": "9.1.1",
     "chart.js": "3.9.1",
     "chartjs-adapter-moment": "1.0.1",

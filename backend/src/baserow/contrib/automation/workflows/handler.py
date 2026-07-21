@@ -60,7 +60,7 @@ from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     ChildProgressBuilder,
@@ -78,7 +78,7 @@ AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 tracer = trace.get_tracer(__name__)
 
 
-class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
+class AutomationWorkflowHandler:
     allowed_fields = [
         "name",
         "allow_test_run_until",
@@ -696,6 +696,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         return cloned_automation, id_mapping
 
+    @baserow_trace(tracer)
     def publish(
         self,
         workflow: AutomationWorkflow,
@@ -1230,6 +1231,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             lambda: start_workflow_celery_task.delay(workflow.id, history.id)
         )
 
+    @baserow_trace(tracer)
     def start_workflow(
         self,
         workflow: AutomationWorkflow,

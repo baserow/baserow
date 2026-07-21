@@ -327,7 +327,8 @@
   },
   "gridViewFieldAI": {
     "generate": "Generate",
-    "regenerate": "Regenerate"
+    "regenerate": "Regenerate",
+    "promptBroken": "The prompt is broken and must be fixed before values can be generated."
   },
   "fieldAISubForm": {
     "prompt": "Prompt",
@@ -340,11 +341,13 @@
     "outputTypeChangedWarning": "Clears the generated cell values.",
     "autoUpdate": "Auto update",
     "autoUpdateHelp": "When enabled, the AI field value will be automatically regenerated when any of the referenced fields in the prompt are updated.",
-    "autoUpdateDescription": "Regenerate when referenced fields change"
+    "autoUpdateDescription": "Regenerate when referenced fields change",
+    "invalidPrompt": "The prompt formula is invalid."
   },
   "rowEditFieldAI": {
     "generate": "Generate",
-    "createRowBefore": "The AI value can be generated after the row has been created."
+    "createRowBefore": "The AI value can be generated after the row has been created.",
+    "promptBroken": "The prompt is broken and must be fixed before values can be generated."
   },
   "aiFormulaModal": {
     "title": "Generate formula using AI",

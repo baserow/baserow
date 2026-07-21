@@ -4,6 +4,8 @@ from zipfile import ZipFile
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
+from opentelemetry import trace
+
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
@@ -25,12 +27,16 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.services.types import DispatchResult
+from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.workflow_actions.handler import WorkflowActionHandler
 from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.workflow_actions.registries import WorkflowActionType
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
+
+
+tracer = trace.get_tracer(__name__)
 
 
 class BuilderWorkflowActionHandler(WorkflowActionHandler):
@@ -170,6 +176,7 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
 
         return super().create_workflow_action(workflow_action_type, **kwargs).specific
 
+    @baserow_trace(tracer)
     def dispatch_workflow_action(
         self,
         workflow_action: BuilderWorkflowServiceAction,

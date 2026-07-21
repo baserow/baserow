@@ -12,6 +12,10 @@ export default {
     modelAvailable() {
       return this.isModelAvailable(this.$parent, this.$props)
     },
+    // Indicates if the field's prompt is broken and can't be used to generate values.
+    promptBroken() {
+      return !!this.field.error
+    },
     isDeactivated() {
       return this.$registry
         .get('field', this.field.type)
@@ -56,6 +60,11 @@ export default {
     async generate() {
       if (this.isDeactivated) {
         this.$refs.clickModal.show()
+        return
+      }
+
+      // Guard every caller (button, Enter key) and not just the disabled button.
+      if (!this.modelAvailable || this.generating || this.promptBroken) {
         return
       }
 

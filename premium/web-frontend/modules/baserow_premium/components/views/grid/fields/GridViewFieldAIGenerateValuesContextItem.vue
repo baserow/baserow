@@ -1,9 +1,10 @@
 <template>
   <li class="context__menu-item">
     <a
+      v-tooltip="promptBroken ? $t('gridView.promptBroken') : null"
       class="context__menu-item-link"
       :class="{
-        disabled: !modelAvailable || !hasPremium,
+        disabled: !modelAvailable || !hasPremium || promptBroken,
         'context__menu-item-link--loading': loading,
       }"
       @click.prevent.stop="generateAIFieldValues()"
@@ -64,10 +65,14 @@ export default {
     hasPremium() {
       return this.$hasFeature(PremiumFeatures.PREMIUM, this.workspace.id)
     },
+    // Indicates if the field's prompt is broken and can't be used to generate values.
+    promptBroken() {
+      return !!this.field.error
+    },
   },
   methods: {
     async generateAIFieldValues($event) {
-      if (!this.modelAvailable || !this.hasPremium) {
+      if (!this.modelAvailable || !this.hasPremium || this.promptBroken) {
         return
       }
 

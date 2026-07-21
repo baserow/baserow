@@ -71,6 +71,8 @@ tracer = trace.get_tracer(__name__)
 
 WORKSPACE_EXPORTS_LIMIT = 5
 EXPORT_FORMAT_VERSION = "1.0.0"
+# Manifest versions that have a schema file in `import_export/schema`.
+SUPPORTED_MANIFEST_VERSIONS = frozenset({EXPORT_FORMAT_VERSION})
 MANIFEST_NAME = "manifest.json"
 SIGNATURE_NAME = "manifest_signature.json"
 INDENT = settings.DEBUG and 4 or None
@@ -644,10 +646,22 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                 raise ImportExportResourceInvalidFile("Manifest file is corrupted.")
 
             manifest_version = manifest_data.get("version")
+            # The version comes from the untrusted uploaded archive and is used to
+            # build a file path, so only explicitly supported versions are accepted.
+            if manifest_version not in SUPPORTED_MANIFEST_VERSIONS:
+                raise ImportExportResourceInvalidFile(
+                    "Manifest file is corrupted: unsupported version."
+                )
             manifest_schema_file = f"schema_v{manifest_version}.json"
 
-            with open(f"{schema_dir}/{manifest_schema_file}") as schema_file:
-                schema = json.load(schema_file)
+            schema_path = os.path.join(schema_dir, manifest_schema_file)
+            try:
+                with open(schema_path) as schema_file:
+                    schema = json.load(schema_file)
+            except FileNotFoundError:
+                raise ImportExportResourceInvalidFile(
+                    "Manifest file is corrupted: unsupported version."
+                )
 
             try:
                 validate(instance=manifest_data, schema=schema)

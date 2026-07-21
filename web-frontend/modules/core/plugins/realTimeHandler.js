@@ -722,6 +722,13 @@ export class RealTimeHandler {
       })
     })
 
+    this.registerEvent('presence.editors_active', ({ store }, data) => {
+      store.dispatch('presence/handleEditorsActive', {
+        space: data.space,
+        active: data.active,
+      })
+    })
+
     this.registerEvent('force_disconnect', ({ store }) => {
       this.reconnect = false
       logoutAndRedirectToLogin(this.context.app.router, store, false, true)

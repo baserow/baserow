@@ -6,8 +6,12 @@
           {{ field.name }}
           <span v-if="field.required" class="form-view__field-required">*</span>
         </div>
-        <!-- prettier-ignore -->
-        <div v-if="field.description" class="form-view__field-description whitespace-pre-wrap">{{ field.description }}</div>
+        <div v-if="field.description" class="form-view__field-description">
+          <FormViewDescription
+            :value="field.description"
+            read-only
+          ></FormViewDescription>
+        </div>
         <component
           :is="selectedFieldComponent.component"
           :key="field.field.id"
@@ -30,11 +34,12 @@
 
 <script>
 import FieldContext from '@baserow/modules/database/components/field/FieldContext'
+import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
 
 export default {
   name: 'FormPageField',
-  components: { FieldContext },
+  components: { FieldContext, FormViewDescription },
   props: {
     slug: {
       type: String,

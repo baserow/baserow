@@ -404,7 +404,7 @@ REST_FRAMEWORK = {
         "baserow.api.user_sources.authentication.UserSourceJSONWebTokenAuthentication",
         "baserow.api.authentication.JSONWebTokenAuthentication",
     ),
-    "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
+    "DEFAULT_RENDERER_CLASSES": ("baserow.api.renderers.BaserowJSONRenderer",),
     "DEFAULT_SCHEMA_CLASS": "baserow.api.openapi.AutoSchema",
 }
 
@@ -494,7 +494,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.3.2",
+    "VERSION": "2.3.3",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -1217,6 +1217,9 @@ OAUTH_BACKEND_URL = os.getenv("BASEROW_OAUTH_BACKEND_URL") or PUBLIC_BACKEND_URL
 INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
     os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
 )
+BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS = str_to_bool(
+    os.getenv("BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS") or "true"
+)
 INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 # The minimum amount of minutes the periodic task's "minute" interval
 # supports. Self-hosters can run every minute, if they choose to.
@@ -1466,6 +1469,7 @@ if SENTRY_DSN:
     import sentry_sdk
     import sentry_sdk.integrations as _sentry_integrations
     from loguru import logger
+    from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
@@ -1501,9 +1505,35 @@ if SENTRY_DSN:
         0 if sentry_transport else float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", 0.01))
     )
 
+    # Auto-create Sentry cron monitors for celery beat tasks. Beat dispatches tasks
+    # with sentry-monitor-* headers and workers send the check-ins, so both processes
+    # need this integration; they all load these settings. Disabled with the console
+    # transport (fake DSN in dev) to avoid spamming check-in envelopes to the console.
+    sentry_monitor_beat_tasks = not sentry_transport and str_to_bool(
+        os.getenv("SENTRY_MONITOR_BEAT_TASKS") or "true"
+    )
+    # Validate patterns here: sentry-sdk matches them unguarded on every beat
+    # dispatch, so one invalid regex would stop all periodic tasks from being sent.
+    sentry_exclude_beat_tasks = []
+    for task in (os.getenv("SENTRY_EXCLUDE_BEAT_TASKS") or "").split(","):
+        task = task.strip()
+        if not task:
+            continue
+        try:
+            re.compile(task)
+            sentry_exclude_beat_tasks.append(task)
+        except re.error:
+            logger.warning(f"[SENTRY] Ignoring invalid exclude beat task: {task}")
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
+        integrations=[
+            DjangoIntegration(signals_spans=False, middleware_spans=False),
+            CeleryIntegration(
+                monitor_beat_tasks=sentry_monitor_beat_tasks,
+                exclude_beat_tasks=sentry_exclude_beat_tasks,
+            ),
+        ],
         traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
         before_send=drop_expected_asyncio_websocket_disconnect_events,

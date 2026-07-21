@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix link row field modal unselecting newly created rows due to a race condition with real-time updates",
+    "issue_origin": "github",
+    "issue_number": 5735,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-17"
+}

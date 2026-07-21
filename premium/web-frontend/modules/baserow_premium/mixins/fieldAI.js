@@ -29,6 +29,10 @@ export default {
         .get('field', this.field.type)
         .isDeactivated(this.workspaceId)
     },
+    // Indicates if the field's prompt is broken and can't be used to generate values.
+    promptBroken() {
+      return !!this.field.error
+    },
     deactivatedClickComponent() {
       return this.$registry
         .get('field', this.field.type)
@@ -42,6 +46,11 @@ export default {
   },
   methods: {
     async generate() {
+      // Guard every caller and not just the disabled button.
+      if (!this.modelAvailable || this.generating || this.promptBroken) {
+        return
+      }
+
       this.generating = true
       try {
         await FieldService(this.$client).generateAIFieldValues(this.field.id, [

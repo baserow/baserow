@@ -135,7 +135,6 @@
   },
   "localBaserowGetRowForm": {
     "rowFieldLabel": "Row ID",
-    "invalidFormula": "The formula is invalid",
     "rowFieldPlaceHolder": "Choose a single row ID",
     "rowFieldHelpText": "Leave this value empty to return the first row.",
     "searchFieldPlaceHolder": "Enter a search term...",
@@ -179,8 +178,8 @@
     "noCompatibleFilterTypesErrorTitle": "No compatible filter types",
     "noCompatibleFilterTypesErrorMessage": "None of your fields have any compatible filter types",
     "textFilterInputPlaceholder": "Enter text...",
-    "formulaFilterInputPlaceholder": "Choose a formula...",
-    "useFormulaForValue": "Use a formula for this filter",
+    "expressionFilterInputPlaceholder": "Choose an expression...",
+    "useExpressionForValue": "Use an expression for this filter",
     "useDefaultForValue": "Use the default filter for this field"
   },
   "localBaserowTableServiceSortForm": {
@@ -383,11 +382,11 @@
   "localBaserowCreateRowsServiceForm": {
     "rowsLabel": "Rows",
     "rowsPlaceholder": "Choose a list of row objects",
-    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Use field names or field IDs as object keys. Up to {limit} rows can be created at once."
+    "rowsHelper": "The expression must return an array of row objects, or a JSON string that parses to one. Use field names or field IDs as object keys. Up to {limit} rows can be created at once."
   },
   "localBaserowUpdateRowsServiceForm": {
     "rowsLabel": "Rows",
     "rowsPlaceholder": "Choose a list of row objects with IDs",
-    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
+    "rowsHelper": "The expression must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
   }
 }

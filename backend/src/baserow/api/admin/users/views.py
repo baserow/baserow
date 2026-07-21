@@ -299,7 +299,8 @@ class UserAdminImpersonateView(GenericAPIView):
         description=(
             "This endpoint allows staff to impersonate another user by requesting a "
             "JWT token and user object. The requesting user must have staff access in "
-            "order to do this. It's not possible to impersonate a superuser or staff."
+            "order to do this. It's not possible to impersonate a superuser, staff "
+            "or deactivated user."
         ),
         request=BaserowImpersonateAuthTokenSerializer,
         responses={

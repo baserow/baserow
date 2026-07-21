@@ -1604,9 +1604,9 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerService
 
-    allowed_fields = ["uid", "exclude_get", "is_public"]
+    allowed_fields = ["exclude_get", "is_public"]
     serializer_field_names = ["uid", "exclude_get", "is_public"]
-    request_serializer_field_names = ["uid", "exclude_get"]
+    request_serializer_field_names = ["exclude_get"]
 
     class SerializedDict(ServiceDict):
         uid: str
@@ -1796,15 +1796,6 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             import_export_config=import_export_config,
             **kwargs,
         )
-
-    def export_prepared_values(
-        self, instance: CoreHTTPTriggerService
-    ) -> dict[str, Any]:
-        values = super().export_prepared_values(instance)
-
-        values["uid"] = str(values["uid"])
-
-        return values
 
 
 class CoreManualTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
