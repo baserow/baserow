@@ -23,6 +23,7 @@ export default defineNuxtModule({
 
     // Add global plugin
     addPlugin(resolve('./plugins/global.js'))
+    addPlugin(resolve('./plugins/clientHandler.js'))
     addPlugin(resolve('./plugins/router.js'))
     addPlugin(resolve('./plugins/realtime.js'))
 

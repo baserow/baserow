@@ -10,6 +10,7 @@ from baserow.contrib.builder.models import Builder
 from baserow.core.cache import global_cache
 
 BUILDER_PREVIEW_COOKIE_BASE_NAME = "baserow_builder_preview"
+BUILDER_PREVIEW_HEADER = "X-Baserow-Builder-Preview"
 BUILDER_PREVIEW_TOKEN_QUERY_PARAM = "preview_token"
 BUILDER_PREVIEW_GRANT_TOKEN_SALT = "builder-preview-grant"
 BUILDER_PREVIEW_SESSION_TOKEN_SALT = "builder-preview-session"

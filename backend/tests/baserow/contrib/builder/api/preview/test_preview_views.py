@@ -8,7 +8,12 @@ from django.urls import reverse
 
 import pytest
 from freezegun import freeze_time
-from rest_framework.status import HTTP_200_OK, HTTP_302_FOUND, HTTP_404_NOT_FOUND
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_302_FOUND,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_404_NOT_FOUND,
+)
 
 from baserow.contrib.builder.preview import (
     BUILDER_PREVIEW_TOKEN_QUERY_PARAM,
@@ -337,6 +342,7 @@ def test_exchanged_preview_cookie_returns_current_preview_builder(
     response = api_client.get(
         reverse("api:builder:preview:current"),
         format="json",
+        HTTP_X_BASEROW_BUILDER_PREVIEW="true",
     )
 
     assert response.status_code == HTTP_200_OK
@@ -380,4 +386,71 @@ def test_expired_preview_cookie_is_rejected(api_client, data_fixture, settings):
             format="json",
         )
 
-    assert response.status_code != HTTP_200_OK
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json() == {
+        "error": "ERROR_BUILDER_PREVIEW_SESSION_INVALID",
+        "detail": "The builder preview session is missing, invalid, or expired.",
+    }
+
+
+@pytest.mark.django_db
+def test_tampered_preview_cookie_returns_preview_session_invalid(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+    _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = f"{session_token}tampered"
+
+    response = api_client.get(
+        reverse("api:builder:preview:current"),
+        format="json",
+        HTTP_X_BASEROW_BUILDER_PREVIEW="true",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json() == {
+        "error": "ERROR_BUILDER_PREVIEW_SESSION_INVALID",
+        "detail": "The builder preview session is missing, invalid, or expired.",
+    }
+
+
+@pytest.mark.django_db
+def test_marked_preview_request_without_cookie_returns_preview_session_invalid(
+    api_client,
+):
+    response = api_client.get(
+        reverse("api:builder:preview:current"),
+        format="json",
+        HTTP_X_BASEROW_BUILDER_PREVIEW="true",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json() == {
+        "error": "ERROR_BUILDER_PREVIEW_SESSION_INVALID",
+        "detail": "The builder preview session is missing, invalid, or expired.",
+    }
+
+
+@pytest.mark.django_db
+def test_unmarked_request_without_cookie_can_access_published_builder(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    data_fixture.create_builder_page(builder=builder, user=user)
+    builder.workspace = None
+    builder.save()
+    data_fixture.create_builder_custom_domain(published_to=builder)
+
+    response = api_client.get(
+        reverse(
+            "api:builder:domains:get_builder_by_id",
+            kwargs={"builder_id": builder.id},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["id"] == builder.id

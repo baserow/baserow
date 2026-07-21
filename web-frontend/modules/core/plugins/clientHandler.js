@@ -533,6 +533,8 @@ export const prepareRequestHeaders = (store) => (config) => {
 
   if (usePreviewCredentials) {
     config.withCredentials = true
+    config.headers ||= {}
+    config.headers['X-Baserow-Builder-Preview'] = 'true'
   }
 
   const isUserSourceAuthenticated =

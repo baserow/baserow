@@ -535,6 +535,8 @@
   "publicPage": {
     "siteNotFound": "Site not found",
     "pageNotFound": "Page not found",
+    "previewSessionExpiredTitle": "Preview session expired",
+    "previewSessionExpiredDescription": "Close this tab and reopen the preview from the Application Builder.",
     "loginToastTitle": "Authentication Successful",
     "loginToastMessage": "You have been successfully signed in.",
     "authorizedToastTitle": "Authentication Required",

@@ -137,6 +137,12 @@ const {
           )
         }
       } catch (e) {
+        if (
+          e.response?.data?.error === 'ERROR_BUILDER_PREVIEW_SESSION_INVALID' ||
+          e.data?.error === 'ERROR_BUILDER_PREVIEW_SESSION_INVALID'
+        ) {
+          throw e
+        }
         throw createError({
           statusCode: 404,
           message: $i18n.t('publicPage.siteNotFound'),

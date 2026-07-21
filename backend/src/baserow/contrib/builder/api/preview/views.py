@@ -133,6 +133,7 @@ class BuilderPreviewCurrentView(APIView):
         ),
         responses={
             200: ForcedPublicPolymorphicApplicationResponseSerializer,
+            401: get_error_schema(["ERROR_BUILDER_PREVIEW_SESSION_INVALID"]),
             404: get_error_schema(
                 ["ERROR_BUILDER_DOES_NOT_EXIST", "ERROR_APPLICATION_DOES_NOT_EXIST"]
             ),
