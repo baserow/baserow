@@ -9,6 +9,11 @@ import { resolveButtonUrl } from '@baserow/modules/database/utils/buttonField'
 export default {
   computed: {
     resolvedButtonValue() {
+      // A broken formula (e.g. referencing a deleted field) must disable
+      // the button rather than resolve to a misleading URL.
+      if (this.field.error) {
+        return { url: '', label: this.field.label }
+      }
       const fields =
         this.allFieldsInTable?.length > 0
           ? this.allFieldsInTable

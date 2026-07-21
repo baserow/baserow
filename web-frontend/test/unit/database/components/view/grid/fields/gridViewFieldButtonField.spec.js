@@ -54,4 +54,14 @@ describe('GridViewFieldButtonField', () => {
     })
     expect(wrapper.find('a').attributes('href')).toBeUndefined()
   })
+
+  test('renders a disabled button when the field has a broken formula error, even if the URL would otherwise resolve', async () => {
+    const wrapper = await mountCell({
+      field: {
+        ...field,
+        error: 'The formula references a field that no longer exists.',
+      },
+    })
+    expect(wrapper.find('a').attributes('href')).toBeUndefined()
+  })
 })
