@@ -1,0 +1,49 @@
+import { TestApp } from '@baserow/test/helpers/testApp'
+import { resolveButtonUrl } from '@baserow/modules/database/utils/buttonField'
+
+describe('buttonField utils', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const fields = [{ id: 1, type: 'text', name: 'Slug' }]
+  const row = { id: 10, field_1: 'ada' }
+
+  test('resolves field references against the row', () => {
+    const field = {
+      id: 2,
+      type: 'button',
+      label: 'Open',
+      url_formula: {
+        formula: "concat('https://example.com/', get('fields.field_1'))",
+        mode: 'simple',
+      },
+    }
+    expect(resolveButtonUrl(testApp._app.$registry, field, row, fields)).toBe(
+      'https://example.com/ada'
+    )
+  })
+
+  test('returns empty string for empty or broken formulas', () => {
+    const empty = { url_formula: { formula: '', mode: 'simple' } }
+    const broken = { url_formula: { formula: 'concat(broken', mode: 'simple' } }
+    const missingRef = {
+      url_formula: { formula: "get('fields.field_99')", mode: 'simple' },
+    }
+    expect(resolveButtonUrl(testApp._app.$registry, empty, row, fields)).toBe(
+      ''
+    )
+    expect(resolveButtonUrl(testApp._app.$registry, broken, row, fields)).toBe(
+      ''
+    )
+    expect(
+      resolveButtonUrl(testApp._app.$registry, missingRef, row, fields)
+    ).toBe('')
+  })
+})

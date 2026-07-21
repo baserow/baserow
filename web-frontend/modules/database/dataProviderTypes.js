@@ -27,4 +27,27 @@ export class FieldsDataProviderType extends DataProviderType {
       ),
     }
   }
+
+  /**
+   * Resolves get('fields.field_<id>') against the row in the application
+   * context, mirroring the backend HumanReadableFieldsDataProviderType.
+   */
+  getDataChunk(applicationContext, path) {
+    const [fieldRef] = path
+    const { row, fields } = applicationContext
+    if (!row || !fields) {
+      return ''
+    }
+    const field = fields.find((f) => `field_${f.id}` === fieldRef)
+    if (!field) {
+      return ''
+    }
+    const value = row[fieldRef]
+    if (value === null || value === undefined) {
+      return ''
+    }
+    return this.app.$registry
+      .get('field', field.type)
+      .toHumanReadableString(field, value)
+  }
 }
