@@ -99,7 +99,7 @@ def validate_provider_settings(
     validated = dict(serializer.validated_data)
     validated.pop("api_key", None)
     validated.pop("models", None)
-    return validated
+    return {name: value for name, value in validated.items() if value not in (None, "")}
 
 
 def get_environment_provider_values(provider_type: str) -> dict[str, Any]:

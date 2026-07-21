@@ -148,6 +148,26 @@ def test_provider_connection_settings_are_required(
 
 
 @pytest.mark.django_db
+def test_blank_optional_provider_settings_are_not_stored(
+    api_client, staff_headers, enabled_ai_providers
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "openai",
+            "api_key": "secret",
+            "extra_settings": {"organization": "", "base_url": ""},
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_201_CREATED
+    assert response.json()["extra_settings"] == {}
+    assert AIProviderConfig.objects.get().extra_settings == {}
+
+
+@pytest.mark.django_db
 def test_provider_type_metadata_marks_required_connection_settings(
     api_client, staff_headers, enabled_ai_providers
 ):
@@ -303,53 +323,10 @@ def test_a_single_saved_model_uses_the_same_test_endpoint(
 
 
 @pytest.mark.django_db
-def test_multiple_unsaved_models_can_be_tested_before_creating_the_provider(
-    api_client, staff_headers, enabled_ai_providers
-):
-    with patch(
-        "baserow.core.generative_ai.generative_ai_model_types."
-        "MistralGenerativeAIModelType.prompt",
-        side_effect=[None, Exception("bad credential transient-secret")],
-    ) as prompt:
-        response = api_client.post(
-            reverse("api:ai_provider:test_models"),
-            {
-                "provider_type": "mistral",
-                "api_key": "transient-secret",
-                "model_identifiers": ["mistral-large", "custom-model"],
-            },
-            format="json",
-            **staff_headers,
-        )
-
-    assert response.status_code == HTTP_200_OK
-    assert response.json()["results"] == [
-        {
-            "model_id": None,
-            "model_identifier": "mistral-large",
-            "status": "success",
-            "error": "",
-            "tested_at": response.json()["results"][0]["tested_at"],
-        },
-        {
-            "model_id": None,
-            "model_identifier": "custom-model",
-            "status": "failure",
-            "error": "bad credential [redacted]",
-            "tested_at": response.json()["results"][1]["tested_at"],
-        },
-    ]
-    assert prompt.call_count == 2
-    assert not AIProviderConfig.objects.exists()
-    assert "transient-secret" not in response.content.decode()
-
-
-@pytest.mark.django_db
 @pytest.mark.parametrize(
     "payload",
     [
         {},
-        {"model_ids": [1], "provider_type": "openai"},
         {"model_ids": [1, 1]},
         {"provider_type": "openai", "model_identifiers": ["gpt-5"]},
     ],

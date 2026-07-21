@@ -230,7 +230,7 @@ class AIProviderHandler:
         model_identifier: str,
         settings_override: dict[str, Any],
         secret_values: list[str],
-        model_id: int | None = None,
+        model_id: int,
     ) -> dict[str, Any]:
         model_type = get_supported_provider_type(provider_type)
         try:
@@ -249,7 +249,6 @@ class AIProviderHandler:
 
         return {
             "model_id": model_id,
-            "model_identifier": model_identifier,
             "status": status,
             "error": error,
             "tested_at": timezone.now(),
@@ -281,37 +280,6 @@ class AIProviderHandler:
             )
             results.append(result)
         return results
-
-    @classmethod
-    def test_unsaved_models(
-        cls,
-        provider_type: str,
-        model_identifiers: list[str],
-        api_key: str = "",
-        extra_settings: dict[str, Any] | None = None,
-    ) -> list[dict[str, Any]]:
-        extra_settings = extra_settings or {}
-        model_identifiers = [identifier.strip() for identifier in model_identifiers]
-        validated_extra_settings = validate_provider_settings(
-            provider_type,
-            api_key,
-            extra_settings,
-            model_identifiers,
-            require_credentials=True,
-        )
-        settings_override = dict(validated_extra_settings)
-        settings_override["api_key"] = api_key
-        settings_override["models"] = model_identifiers
-        secret_values = cls._secret_values(api_key, validated_extra_settings)
-        return [
-            cls._test_model(
-                provider_type,
-                model_identifier,
-                settings_override,
-                secret_values,
-            )
-            for model_identifier in model_identifiers
-        ]
 
     @staticmethod
     def _secret_values(api_key: str, extra_settings: dict[str, Any]) -> list[str]:

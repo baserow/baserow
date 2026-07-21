@@ -147,6 +147,12 @@ describe('AIProviderItem', () => {
     expect(
       wrapper
         .find('.ai-provider-card__actions')
+        .findAll('button')[0]
+        .attributes('disabled')
+    ).toBeDefined()
+    expect(
+      wrapper
+        .find('.ai-provider-card__actions')
         .findAll('button')[2]
         .attributes('disabled')
     ).toBeDefined()

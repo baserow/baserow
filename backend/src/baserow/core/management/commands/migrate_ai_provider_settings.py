@@ -32,14 +32,14 @@ class Command(BaseCommand):
             AIProviderConfig.objects.values_list("provider_type", flat=True)
         )
         planned = []
-        skipped = []
+        skipped_count = 0
         for provider_type in PROVIDER_ENVIRONMENT_SETTINGS:
             values = get_environment_provider_values(provider_type)
             provider_name = PROVIDER_ENVIRONMENT_SETTINGS[provider_type]["name"]
             if not values["configured"]:
                 continue
             if provider_type in existing_types:
-                skipped.append(values)
+                skipped_count += 1
                 self.stdout.write(
                     self.style.WARNING(
                         f"{provider_name}: keeping existing database configuration."
@@ -68,7 +68,7 @@ class Command(BaseCommand):
                 f"credential set: {'yes' if values['api_key'] else 'no'}."
             )
 
-        if not planned and not skipped:
+        if not planned and not skipped_count:
             self.stdout.write(
                 self.style.WARNING(
                     "No legacy AI provider environment settings are configured, so "
@@ -86,12 +86,13 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(
                     f"Preview complete: {len(planned)} provider(s) to import, "
-                    f"{len(skipped)} left unchanged. No changes were written; re-run "
+                    f"{skipped_count} left unchanged. No changes were written; re-run "
                     "with --apply to import missing providers."
                 )
             )
             return
 
+        imported_count = 0
         with transaction.atomic():
             for values in planned:
                 if AIProviderConfig.objects.filter(
@@ -107,9 +108,10 @@ class Command(BaseCommand):
                         for identifier in values["models"]
                     ],
                 )
+                imported_count += 1
 
         self.stdout.write(
-            self.style.SUCCESS(f"Imported {len(planned)} missing provider(s).")
+            self.style.SUCCESS(f"Imported {imported_count} missing provider(s).")
         )
 
     @staticmethod

@@ -1009,7 +1009,6 @@
     "removeModel": "Remove model",
     "editModel": "Edit model",
     "modelIdentifier": "Model identifier",
-    "modelIdentifierLabel": "Provider model identifier",
     "modelDiscoveryHelp": "Choose a model known by Pydantic AI or enter any custom identifier.",
     "modelDiscoveryUnavailable": "Known model suggestions are unavailable. Enter an identifier manually.",
     "modelDiscoveryEmpty": "Pydantic AI has no known models for this provider. Enter an identifier manually.",

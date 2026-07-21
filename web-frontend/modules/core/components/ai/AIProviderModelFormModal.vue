@@ -6,7 +6,7 @@
       }}
     </h2>
     <FormGroup
-      :label="$t('aiProviderAdmin.modelIdentifierLabel')"
+      :label="$t('aiProviderAdmin.modelIdentifier')"
       required
       class="margin-bottom-2"
     >

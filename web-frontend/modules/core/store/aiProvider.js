@@ -45,9 +45,7 @@ export const mutations = {
   },
   UPDATE_MODEL_TEST_RESULTS(state, results) {
     const resultsById = new Map(
-      results
-        .filter((result) => result.model_id !== null)
-        .map((result) => [result.model_id, result])
+      results.map((result) => [result.model_id, result])
     )
     for (const provider of state.providers) {
       for (const model of provider.models) {

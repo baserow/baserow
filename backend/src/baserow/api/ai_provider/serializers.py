@@ -77,62 +77,19 @@ class AIProviderModelsTestRequestSerializer(serializers.Serializer):
     model_ids = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
         allow_empty=False,
-        required=False,
+        required=True,
     )
-    provider_type = serializers.CharField(max_length=32, required=False)
-    model_identifiers = serializers.ListField(
-        child=serializers.CharField(max_length=255),
-        allow_empty=False,
-        required=False,
-    )
-    api_key = serializers.CharField(
-        max_length=512, required=False, allow_blank=True, write_only=True
-    )
-    extra_settings = serializers.DictField(required=False)
 
     def validate(self, attrs):
-        saved_mode = "model_ids" in attrs
-        transient_mode = any(
-            key in attrs
-            for key in (
-                "provider_type",
-                "model_identifiers",
-                "api_key",
-                "extra_settings",
-            )
-        )
-        if saved_mode == transient_mode:
+        if len(attrs["model_ids"]) != len(set(attrs["model_ids"])):
             raise serializers.ValidationError(
-                "Provide either model_ids or transient provider settings."
+                {"model_ids": "Model IDs must be unique."}
             )
-        if saved_mode:
-            if len(attrs["model_ids"]) != len(set(attrs["model_ids"])):
-                raise serializers.ValidationError(
-                    {"model_ids": "Model IDs must be unique."}
-                )
-            return attrs
-        if "provider_type" not in attrs:
-            raise serializers.ValidationError(
-                {"provider_type": "This field is required."}
-            )
-        if "model_identifiers" not in attrs:
-            raise serializers.ValidationError(
-                {"model_identifiers": "This field is required."}
-            )
-        normalized_identifiers = [
-            identifier.strip() for identifier in attrs["model_identifiers"]
-        ]
-        if len(normalized_identifiers) != len(set(normalized_identifiers)):
-            raise serializers.ValidationError(
-                {"model_identifiers": "Model identifiers must be unique."}
-            )
-        attrs["model_identifiers"] = normalized_identifiers
         return attrs
 
 
 class AIProviderModelTestResultSerializer(serializers.Serializer):
-    model_id = serializers.IntegerField(allow_null=True)
-    model_identifier = serializers.CharField()
+    model_id = serializers.IntegerField()
     status = serializers.ChoiceField(choices=AIProviderModel.TestStatus.choices)
     error = serializers.CharField(allow_blank=True)
     tested_at = serializers.DateTimeField()

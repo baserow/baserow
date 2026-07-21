@@ -41,6 +41,7 @@ def test_command_previews_then_imports_without_printing_secrets(settings):
         "gpt-4o",
         "gpt-4o-mini",
     ]
+    assert "Imported 1 missing provider(s)." in out.getvalue()
     assert "super-secret" not in out.getvalue()
 
 

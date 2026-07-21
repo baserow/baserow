@@ -23,6 +23,7 @@
           type="secondary"
           size="small"
           icon="iconoir-plus"
+          :disabled="providerTestRunning"
           @click="$emit('add-model', provider)"
         >
           {{ $t('aiProviderAdmin.addModel') }}

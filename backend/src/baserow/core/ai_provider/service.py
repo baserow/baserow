@@ -75,10 +75,6 @@ class AIProviderService:
         AIProviderHandler.delete_model(model)
 
     @classmethod
-    def test_models(cls, user, **values):
+    def test_models(cls, user, model_ids: list[int]):
         cls._check_permissions(user)
-        if "model_ids" in values:
-            return AIProviderHandler.test_models(
-                AIProviderHandler.get_models(values["model_ids"])
-            )
-        return AIProviderHandler.test_unsaved_models(**values)
+        return AIProviderHandler.test_models(AIProviderHandler.get_models(model_ids))
