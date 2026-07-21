@@ -29,5 +29,10 @@ export function resolveButtonUrl($registry, field, row, fields) {
     formulaFunctions,
     runtimeFormulaContext
   )
-  return result === null || result === undefined ? '' : `${result}`
+  if (result === null || result === undefined) {
+    return ''
+  }
+  // Row values often contain spaces; browsers accept them in URLs by
+  // encoding, but our URL validation does not, so encode whitespace here.
+  return `${result}`.trim().replace(/\s/g, (c) => encodeURIComponent(c))
 }

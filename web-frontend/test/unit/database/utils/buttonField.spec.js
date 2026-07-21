@@ -30,6 +30,22 @@ describe('buttonField utils', () => {
     )
   })
 
+  test('encodes whitespace in resolved values so the URL stays valid', () => {
+    const field = {
+      id: 2,
+      type: 'button',
+      label: 'Open',
+      url_formula: {
+        formula: "concat('https://example.com/item-', get('fields.field_1'))",
+        mode: 'simple',
+      },
+    }
+    const spacedRow = { id: 11, field_1: 'Red Button' }
+    expect(
+      resolveButtonUrl(testApp._app.$registry, field, spacedRow, fields)
+    ).toBe('https://example.com/item-Red%20Button')
+  })
+
   test('returns empty string for empty or broken formulas', () => {
     const empty = { url_formula: { formula: '', mode: 'simple' } }
     const broken = { url_formula: { formula: 'concat(broken', mode: 'simple' } }
