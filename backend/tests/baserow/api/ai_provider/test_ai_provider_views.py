@@ -13,7 +13,11 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
+from baserow.core.ai_provider.models import (
+    AIProviderConfig,
+    AIProviderModel,
+    AIProviderWorkspaceOverride,
+)
 
 AI_PROVIDER_API_CASES = (
     ("get", "list"),
@@ -107,6 +111,199 @@ def test_every_ai_provider_api_method_is_feature_gated(
 
     assert response.status_code == HTTP_403_FORBIDDEN
     assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+
+
+@pytest.mark.django_db
+def test_workspace_admin_manages_owned_and_inherited_providers(
+    api_client, data_fixture, enabled_ai_providers
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    workspace_query = f"?workspace_id={workspace.id}"
+    instance_provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-secret"
+    )
+    AIProviderModel.objects.create(
+        provider_config=instance_provider, model_identifier="instance-model"
+    )
+
+    response = api_client.get(
+        reverse("api:ai_provider:list") + workspace_query, **headers
+    )
+
+    assert response.status_code == HTTP_200_OK
+    inherited = response.json()[0]
+    assert inherited["read_only"] is True
+    assert inherited["workspace_enabled"] is True
+    assert inherited["source_is_active"] is True
+    assert "api_key" not in inherited
+
+    response = api_client.patch(
+        reverse("api:ai_provider:item", kwargs={"provider_id": instance_provider.id})
+        + workspace_query,
+        {"is_active": False},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["workspace_enabled"] is False
+    assert response.json()["is_active"] is False
+    assert AIProviderWorkspaceOverride.objects.filter(
+        workspace=workspace, provider_config=instance_provider
+    ).exists()
+
+    response = api_client.patch(
+        reverse("api:ai_provider:item", kwargs={"provider_id": instance_provider.id})
+        + workspace_query,
+        {"api_key": "replacement"},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_AI_PROVIDER_IS_READ_ONLY"
+
+    response = api_client.post(
+        reverse("api:ai_provider:list") + workspace_query,
+        {
+            "provider_type": "openai",
+            "api_key": "workspace-secret",
+            "models": [{"model_identifier": "workspace-model"}],
+        },
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_201_CREATED
+    workspace_provider_id = response.json()["id"]
+    assert response.json()["read_only"] is False
+    assert response.json()["models"][0]["model_identifier"] == "workspace-model"
+    workspace_model_id = response.json()["models"][0]["id"]
+
+    response = api_client.patch(
+        reverse("api:ai_provider:model_item", kwargs={"model_id": workspace_model_id})
+        + workspace_query,
+        {"is_enabled": False},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["is_enabled"] is False
+
+    response = api_client.patch(
+        reverse(
+            "api:ai_provider:model_item",
+            kwargs={"model_id": instance_provider.models.get().id},
+        )
+        + workspace_query,
+        {"is_enabled": False},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+
+    response = api_client.get(
+        reverse("api:ai_provider:list") + workspace_query, **headers
+    )
+    assert len(response.json()) == 2
+    assert {provider["id"] for provider in response.json()} == {
+        instance_provider.id,
+        workspace_provider_id,
+    }
+
+    with patch(
+        "baserow.core.ai_provider.handler.AIProviderHandler.test_models",
+        return_value=[],
+    ) as test_models:
+        response = api_client.post(
+            reverse("api:ai_provider:test_models") + workspace_query,
+            {
+                "model_ids": [
+                    instance_provider.models.get().id,
+                    workspace_model_id,
+                ]
+            },
+            format="json",
+            **headers,
+        )
+    assert response.status_code == HTTP_200_OK
+    assert {model.id for model in test_models.call_args.args[0]} == {
+        instance_provider.models.get().id,
+        workspace_model_id,
+    }
+
+    response = api_client.delete(
+        reverse("api:ai_provider:item", kwargs={"provider_id": workspace_provider_id})
+        + workspace_query,
+        **headers,
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+    response = api_client.get(
+        reverse("api:ai_provider:list") + workspace_query, **headers
+    )
+    assert response.json()[0]["id"] == instance_provider.id
+    assert response.json()[0]["workspace_enabled"] is False
+
+
+@pytest.mark.django_db
+def test_workspace_provider_api_requires_workspace_admin_permission(
+    api_client, data_fixture, enabled_ai_providers
+):
+    owner = data_fixture.create_user()
+    member, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=owner)
+    data_fixture.create_user_workspace(
+        user=member, workspace=workspace, permissions="MEMBER"
+    )
+
+    response = api_client.get(
+        reverse("api:ai_provider:list") + f"?workspace_id={workspace.id}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_INVALID_GROUP_PERMISSIONS"
+
+
+@pytest.mark.django_db
+def test_workspace_models_cannot_reuse_instance_provider_credentials(
+    api_client, data_fixture, enabled_ai_providers
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    workspace_query = f"?workspace_id={workspace.id}"
+    instance_provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-secret"
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:ai_provider:create_model",
+            kwargs={"provider_id": instance_provider.id},
+        )
+        + workspace_query,
+        {"model_identifier": "expensive-workspace-model"},
+        format="json",
+        **headers,
+    )
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_AI_PROVIDER_DOES_NOT_EXIST"
+
+    response = api_client.post(
+        reverse("api:ai_provider:list") + workspace_query,
+        {
+            "provider_type": "openai",
+            "models": [{"model_identifier": "expensive-workspace-model"}],
+        },
+        format="json",
+        **headers,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "api_key" in response.json()["detail"]
+    assert not AIProviderConfig.objects.filter(workspace=workspace).exists()
+    assert not instance_provider.models.exists()
 
 
 @pytest.mark.django_db

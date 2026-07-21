@@ -34,6 +34,10 @@ class AIFieldHandler:
         Return the generative AI model type for the given AI field, raising if
         the configured model is not enabled for the workspace.
 
+        The field stores the provider type and model identifier as logical keys;
+        the model type registry resolves the effective workspace or instance
+        provider configuration.
+
         :param ai_field: The AI field to validate.
         :raises ModelDoesNotBelongToType: If the model is not enabled.
         """
@@ -146,10 +150,17 @@ class AIFieldHandler:
             generative_ai_model_type.supports_files
             and ai_field.ai_file_field_id is not None
         )
+        settings_override = generative_ai_model_type.get_model_settings_override(
+            ai_field.ai_generative_ai_model, workspace
+        )
+        if settings_override is not None:
+            prompt_kwargs["settings_override"] = settings_override
         try:
             if use_files:
                 ai_files = cls._collect_ai_files(ai_field, row)
-                prepared = generative_ai_model_type.prepare_files(ai_files, workspace)
+                prepared = generative_ai_model_type.prepare_files(
+                    ai_files, workspace, settings_override
+                )
                 if prepared:
                     prompt_kwargs["content"] = [f.content for f in prepared]
                 skipped = [f for f in ai_files if f.content is None]
@@ -171,7 +182,9 @@ class AIFieldHandler:
             # cleanup uses ai_files (not prepared) so that files uploaded
             # before a mid-prepare failure are still cleaned up.
             if ai_files:
-                generative_ai_model_type.cleanup_files(ai_files, workspace)
+                generative_ai_model_type.cleanup_files(
+                    ai_files, workspace, settings_override
+                )
 
         # 4. Resolve choice if needed
         if choices is not None:

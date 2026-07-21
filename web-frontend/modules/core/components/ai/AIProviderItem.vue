@@ -1,68 +1,40 @@
 <template>
   <section
     class="ai-provider-card"
-    :class="{ 'ai-provider-card--inactive': !provider.is_active }"
+    :class="{
+      'ai-provider-card--inactive': !provider.is_active,
+      'ai-provider-card--embedded': embedded,
+    }"
   >
     <header class="ai-provider-card__header">
       <div class="ai-provider-card__heading">
         <div class="ai-provider-card__title-row">
-          <h2 class="ai-provider-card__title">
-            {{ providerType?.name || provider.provider_type }}
-          </h2>
-          <Badge :color="provider.is_active ? 'green' : 'neutral'">
-            {{
-              provider.is_active
-                ? $t('aiProviderAdmin.active')
-                : $t('aiProviderAdmin.inactive')
-            }}
+          <component
+            :is="embedded ? 'h3' : 'h2'"
+            class="ai-provider-card__title"
+          >
+            {{ title || providerType?.name || provider.provider_type }}
+          </component>
+          <Badge v-if="sourceLabel" :color="sourceColor" bold>
+            {{ sourceLabel }}
+          </Badge>
+          <Badge v-else-if="provider.read_only" color="cyan" bold>
+            {{ $t('aiProviderAdmin.inherited') }}
+          </Badge>
+          <Badge
+            v-if="showStatusBadge"
+            :color="provider.is_active ? 'green' : 'neutral'"
+          >
+            {{ providerStatusLabel }}
           </Badge>
         </div>
       </div>
       <div class="ai-provider-card__actions">
-        <Button
-          type="secondary"
-          size="small"
-          icon="iconoir-plus"
+        <AIProviderActionsMenu
+          :actions="providerMenuActions"
           :disabled="providerTestRunning"
-          @click="$emit('add-model', provider)"
-        >
-          {{ $t('aiProviderAdmin.addModel') }}
-        </Button>
-        <Button
-          type="secondary"
-          size="small"
-          :disabled="provider.models.length === 0 || providerTestRunning"
-          :title="$t('aiProviderAdmin.testAllModelsButtonTitle')"
-          @click="$emit('test-all-models', provider)"
-        >
-          {{ $t('aiProviderAdmin.test') }}
-        </Button>
-        <Button
-          type="secondary"
-          size="small"
-          icon="iconoir-edit"
-          :disabled="providerTestRunning"
-          :aria-label="$t('action.edit')"
-          :title="$t('action.edit')"
-          @click="$emit('edit-provider', provider)"
-        />
-        <Button
-          type="secondary"
-          size="small"
-          :icon="toggleActionIcon(provider.is_active)"
-          :disabled="providerTestRunning"
-          :aria-label="toggleActionTitle(provider.is_active)"
-          :title="toggleActionTitle(provider.is_active)"
-          @click="$emit('toggle-provider', provider)"
-        />
-        <Button
-          type="danger"
-          size="small"
-          icon="iconoir-bin"
-          :disabled="providerTestRunning"
-          :aria-label="$t('action.delete')"
-          :title="$t('action.delete')"
-          @click="$emit('delete-provider', provider)"
+          :title="$t('aiProviderAdmin.moreActions')"
+          @select="onProviderAction"
         />
       </div>
     </header>
@@ -72,7 +44,10 @@
         v-for="model in provider.models"
         :key="model.id"
         class="ai-provider-model"
-        :class="{ 'ai-provider-model--inactive': !model.is_enabled }"
+        :class="{
+          'ai-provider-model--inactive': !model.is_enabled,
+          'ai-provider-model--overridden': modelAnnotation(model)?.muted,
+        }"
       >
         <div
           class="ai-provider-model__identity"
@@ -81,71 +56,52 @@
           }"
         >
           <div class="ai-provider-model__name-row">
-            <strong>{{ model.model_identifier }}</strong>
+            <span class="ai-provider-model__name">
+              {{ model.model_identifier }}
+            </span>
             <Badge v-if="!model.is_enabled" color="neutral">
               {{ $t('aiProviderAdmin.modelDisabled') }}
             </Badge>
+            <Badge
+              v-if="modelAnnotation(model)"
+              v-tooltip="modelAnnotation(model).tooltip"
+              class="ai-provider-model__annotation-badge"
+              color="yellow"
+              bold
+              :aria-label="modelAnnotation(model).tooltip"
+            >
+              {{ modelAnnotation(model).label }}
+            </Badge>
           </div>
         </div>
-        <div class="ai-provider-model__status">
+        <div class="ai-provider-model__status" role="status" aria-live="polite">
+          <span v-if="isModelTesting(model)" class="ai-provider-model__testing">
+            {{ $t('aiProviderAdmin.testing') }}
+          </span>
           <span
-            v-if="model.last_test_status === 'success'"
+            v-else-if="model.last_test_status === 'success'"
             class="color-success"
           >
             <i class="iconoir-check-circle" />
             {{ $t('aiProviderAdmin.testPassed') }}
           </span>
           <template v-else-if="model.last_test_status === 'failure'">
-            <span class="color-error">
+            <span
+              v-tooltip:[tooltipOptions]="model.last_test_error"
+              class="ai-provider-model__test-failed color-error"
+            >
               <i class="iconoir-warning-circle" />
               {{ $t('aiProviderAdmin.testFailed') }}
-            </span>
-            <span
-              v-if="model.last_test_error"
-              v-tooltip:[tooltipOptions]="model.last_test_error"
-              class="ai-provider-model__error"
-            >
-              {{ model.last_test_error }}
             </span>
           </template>
           <span v-else>{{ $t('aiProviderAdmin.notTested') }}</span>
         </div>
         <div class="ai-provider-model__actions">
-          <Button
-            type="secondary"
-            size="small"
-            :loading="isModelTesting(model)"
-            :title="$t('aiProviderAdmin.testModelButtonTitle')"
-            @click="$emit('test-model', model)"
-          >
-            {{ $t('aiProviderAdmin.test') }}
-          </Button>
-          <Button
-            type="secondary"
-            size="small"
-            icon="iconoir-edit"
+          <AIProviderActionsMenu
+            :actions="modelMenuActions(model)"
             :disabled="isModelTesting(model)"
-            :aria-label="$t('action.edit')"
-            :title="$t('action.edit')"
-            @click="$emit('edit-model', provider, model)"
-          />
-          <Button
-            type="secondary"
-            size="small"
-            :icon="toggleActionIcon(model.is_enabled)"
-            :disabled="isModelTesting(model)"
-            :aria-label="toggleActionTitle(model.is_enabled)"
-            :title="toggleActionTitle(model.is_enabled)"
-            @click="$emit('toggle-model', model)"
-          />
-          <Button
-            type="danger"
-            size="small"
-            icon="iconoir-bin"
-            :disabled="isModelTesting(model)"
-            :aria-label="$t('action.delete')"
-            :title="$t('action.delete')"
-            @click="$emit('delete-model', model)"
+            :title="$t('aiProviderAdmin.moreActions')"
+            @select="onModelAction($event, model)"
           />
         </div>
       </div>
@@ -157,12 +113,22 @@
 </template>
 
 <script>
+import AIProviderActionsMenu from '@baserow/modules/core/components/ai/AIProviderActionsMenu'
+
 export default {
   name: 'AIProviderItem',
+  components: { AIProviderActionsMenu },
   props: {
     provider: { type: Object, required: true },
     providerType: { type: Object, default: null },
     testingModelIds: { type: Array, default: () => [] },
+    embedded: { type: Boolean, default: false },
+    title: { type: String, default: '' },
+    sourceLabel: { type: String, default: '' },
+    sourceColor: { type: String, default: 'neutral' },
+    hideActiveStatus: { type: Boolean, default: false },
+    modelAnnotations: { type: Object, default: () => ({}) },
+    statusLabel: { type: String, default: '' },
   },
   emits: [
     'edit-provider',
@@ -190,10 +156,118 @@ export default {
     providerTestRunning() {
       return this.provider.models.some((model) => this.isModelTesting(model))
     },
+    providerToggleState() {
+      return this.provider.read_only
+        ? this.provider.workspace_enabled
+        : this.provider.is_active
+    },
+    showStatusBadge() {
+      return !this.hideActiveStatus || !this.provider.is_active
+    },
+    providerStatusLabel() {
+      if (this.statusLabel) return this.statusLabel
+      if (this.provider.read_only && !this.provider.source_is_active) {
+        return this.$t('aiProviderAdmin.inactiveAtInstance')
+      }
+      return this.provider.is_active
+        ? this.$t('aiProviderAdmin.active')
+        : this.$t('aiProviderAdmin.inactive')
+    },
+    providerMenuActions() {
+      const actions = []
+      if (!this.provider.read_only) {
+        actions.push({
+          key: 'add-model',
+          label: this.$t('aiProviderAdmin.addModel'),
+          icon: 'iconoir-plus',
+        })
+      }
+      if (this.provider.models.length > 0) {
+        actions.push({
+          key: 'test',
+          label: this.$t('aiProviderAdmin.testAllModels'),
+          icon: 'iconoir-play',
+        })
+      }
+      if (!this.provider.read_only) {
+        actions.push({
+          key: 'edit',
+          label: this.$t('action.edit'),
+          icon: 'iconoir-edit',
+        })
+      }
+      actions.push({
+        key: 'toggle',
+        label: this.toggleActionTitle(this.providerToggleState),
+        icon: this.toggleActionIcon(this.providerToggleState),
+      })
+      if (!this.provider.read_only) {
+        actions.push({
+          key: 'delete',
+          label: this.$t('action.delete'),
+          icon: 'iconoir-bin',
+          danger: true,
+        })
+      }
+      return actions
+    },
   },
   methods: {
     isModelTesting(model) {
       return this.testingModelIds.includes(model.id)
+    },
+    modelAnnotation(model) {
+      return this.modelAnnotations[model.id] || null
+    },
+    modelMenuActions(model) {
+      const actions = [
+        {
+          key: 'test',
+          label: this.$t('aiProviderAdmin.testModel'),
+          icon: 'iconoir-play',
+        },
+      ]
+      if (this.provider.read_only) return actions
+      actions.push(
+        {
+          key: 'edit',
+          label: this.$t('action.edit'),
+          icon: 'iconoir-edit',
+        },
+        {
+          key: 'toggle',
+          label: this.toggleActionTitle(model.is_enabled),
+          icon: this.toggleActionIcon(model.is_enabled),
+        },
+        {
+          key: 'delete',
+          label: this.$t('action.delete'),
+          icon: 'iconoir-bin',
+          danger: true,
+        }
+      )
+      return actions
+    },
+    onProviderAction(action) {
+      const event = {
+        'add-model': 'add-model',
+        test: 'test-all-models',
+        edit: 'edit-provider',
+        toggle: 'toggle-provider',
+        delete: 'delete-provider',
+      }[action]
+      this.$emit(event, this.provider)
+    },
+    onModelAction(action, model) {
+      if (action === 'test') {
+        this.$emit('test-model', model)
+      } else if (action === 'edit') {
+        this.$emit('edit-model', this.provider, model)
+      } else if (action === 'toggle') {
+        this.$emit('toggle-model', model)
+      } else if (action === 'delete') {
+        this.$emit('delete-model', model)
+      }
     },
     toggleActionIcon(isEnabled) {
       return isEnabled ? 'iconoir-eye-off' : 'iconoir-eye-empty'

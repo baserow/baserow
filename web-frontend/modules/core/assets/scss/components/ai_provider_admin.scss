@@ -69,14 +69,14 @@
   gap: 8px;
 }
 
-.ai-provider-card__actions,
-.ai-provider-model__actions {
+.ai-provider-card__actions {
   flex-shrink: 0;
   flex-wrap: wrap;
 }
 
-.ai-provider-model__actions {
-  margin-left: auto;
+.ai-provider-actions-menu {
+  display: flex;
+  flex-shrink: 0;
 }
 
 .ai-provider-card__title {
@@ -85,17 +85,16 @@
 }
 
 .ai-provider-card__models {
-  padding: 0 20px;
+  padding: 0;
 }
 
 .ai-provider-model {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 8px 16px;
+  gap: 4px 16px;
   min-height: 60px;
-  padding: 10px 12px;
-  margin: 0 -12px;
+  padding: 10px 20px;
   border-top: 1px solid $palette-neutral-200;
 }
 
@@ -110,18 +109,28 @@
   gap: 8px;
 }
 
+.ai-provider-model__name {
+  display: block;
+  overflow: hidden;
+  min-width: 0;
+  font-weight: 400;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-provider-model__annotation-badge {
+  flex: 0 0 auto;
+  cursor: help;
+}
+
 .ai-provider-model__identity {
   display: flex;
   min-width: 0;
-  flex: 1 1 180px;
   flex-direction: column;
   gap: 4px;
-
-  strong {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .ai-provider-model__identity--inactive {
@@ -132,24 +141,55 @@
 .ai-provider-model__status {
   display: flex;
   min-width: 0;
-  flex: 1 1 160px;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 6px;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
   color: $palette-neutral-900;
   font-size: 12px;
+  white-space: nowrap;
+
+  > span:first-child {
+    flex-shrink: 0;
+  }
 }
 
-.ai-provider-model__error {
-  overflow: hidden;
-  color: $palette-neutral-900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.ai-provider-model__test-failed {
+  cursor: help;
+}
+
+.ai-provider-model__testing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: $palette-blue-700;
+
+  @include loading-spinner($palette-blue-500, 12px, 0.2em, before);
+}
+
+.ai-provider-model__actions {
+  align-self: center;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.ai-provider-model--overridden {
+  background: $palette-neutral-50;
+
+  .ai-provider-model__identity,
+  .ai-provider-model__status {
+    color: $palette-neutral-700;
+  }
 }
 
 .ai-provider-card__empty {
   margin: 0;
-  padding: 4px 20px 22px;
+  padding: 12px 20px;
   color: $palette-neutral-900;
+  font-size: 12px;
 }
 
 .ai-provider-form__secret-status {
@@ -188,19 +228,62 @@
   margin-bottom: 8px;
 }
 
+.ai-provider-workspace-settings .ai-provider-admin__header {
+  padding-right: 64px;
+}
+
+.ai-provider-hierarchy {
+  overflow: hidden;
+  border: 1px solid $palette-neutral-300;
+  background: $palette-neutral-0;
+
+  @include rounded($rounded-md);
+}
+
+.ai-provider-hierarchy__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 20px;
+  background: $palette-neutral-25;
+}
+
+.ai-provider-hierarchy__title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.ai-provider-hierarchy__layers {
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.ai-provider-card--embedded {
+  border: 0;
+  border-radius: 0;
+}
+
+.ai-provider-card--embedded + .ai-provider-card--embedded {
+  border-top: 1px solid $palette-neutral-300;
+}
+
+.ai-provider-card--embedded .ai-provider-card__title {
+  font-size: 16px;
+}
+
+.ai-provider-card--embedded .ai-provider-card__header {
+  padding: 16px 20px;
+}
+
 @media (max-width: 900px) {
-  .ai-provider-card__header,
-  .ai-provider-admin__header {
+  .ai-provider-admin__header,
+  .ai-provider-hierarchy__header {
     flex-direction: column;
+    align-items: flex-start;
   }
 
-  .ai-provider-model__identity,
-  .ai-provider-model__status {
-    flex-basis: 100%;
-  }
-
-  .ai-provider-model__actions {
-    margin-left: 0;
+  .ai-provider-workspace-settings .ai-provider-admin__header {
+    padding-right: 48px;
   }
 
   .ai-provider-form__model-row {

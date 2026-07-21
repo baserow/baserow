@@ -25,6 +25,11 @@ ERROR_AI_PROVIDER_MODEL_ALREADY_CONFIGURED = (
     HTTP_400_BAD_REQUEST,
     "That model identifier is already configured for this provider.",
 )
+ERROR_AI_PROVIDER_IS_READ_ONLY = (
+    "ERROR_AI_PROVIDER_IS_READ_ONLY",
+    HTTP_400_BAD_REQUEST,
+    "Inherited instance AI providers are read-only in a workspace.",
+)
 ERROR_INVALID_AI_PROVIDER_SETTINGS = (
     "ERROR_INVALID_AI_PROVIDER_SETTINGS",
     HTTP_400_BAD_REQUEST,

@@ -18,6 +18,10 @@ class AIProviderModelAlreadyConfigured(Exception):
     pass
 
 
+class AIProviderIsReadOnly(Exception):
+    pass
+
+
 class InvalidAIProviderSettings(Exception):
     def __init__(self, errors):
         self.errors = errors

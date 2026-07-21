@@ -64,6 +64,7 @@ export default {
   props: {
     provider: { type: Object, required: true },
     model: { type: Object, default: null },
+    workspaceId: { type: Number, default: null },
   },
   emits: ['hidden', 'saved'],
   data() {
@@ -123,7 +124,12 @@ export default {
       try {
         const result = await this.$store.dispatch(
           'aiProvider/discoverModels',
-          this.provider.provider_type
+          this.workspaceId === null
+            ? this.provider.provider_type
+            : {
+                providerType: this.provider.provider_type,
+                workspaceId: this.workspaceId,
+              }
         )
         this.discoveredModels = result.models || []
         this.discoverySupported = result.supported !== false
@@ -145,10 +151,16 @@ export default {
           ? await this.$store.dispatch('aiProvider/updateModel', {
               modelId: this.model.id,
               values,
+              ...(this.workspaceId === null
+                ? {}
+                : { workspaceId: this.workspaceId }),
             })
           : await this.$store.dispatch('aiProvider/createModel', {
               providerId: this.provider.id,
               values,
+              ...(this.workspaceId === null
+                ? {}
+                : { workspaceId: this.workspaceId }),
             })
         this.$emit('saved', result)
         this.hide()

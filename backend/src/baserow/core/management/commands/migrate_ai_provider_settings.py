@@ -29,7 +29,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         should_apply = options["apply"]
         existing_types = set(
-            AIProviderConfig.objects.values_list("provider_type", flat=True)
+            AIProviderConfig.objects.filter(workspace__isnull=True).values_list(
+                "provider_type", flat=True
+            )
         )
         planned = []
         skipped_count = 0
@@ -96,7 +98,8 @@ class Command(BaseCommand):
         with transaction.atomic():
             for values in planned:
                 if AIProviderConfig.objects.filter(
-                    provider_type=values["provider_type"]
+                    workspace__isnull=True,
+                    provider_type=values["provider_type"],
                 ).exists():
                     continue
                 AIProviderHandler.create_provider(

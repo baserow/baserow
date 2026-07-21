@@ -3,6 +3,7 @@ import aiProviderService from '@baserow/modules/core/services/aiProvider'
 export const state = () => ({
   providers: [],
   providerTypes: [],
+  workspaceId: null,
   loading: false,
   loaded: false,
 })
@@ -13,6 +14,9 @@ export const mutations = {
   },
   SET_PROVIDER_TYPES(state, providerTypes) {
     state.providerTypes = providerTypes
+  },
+  SET_WORKSPACE_ID(state, workspaceId) {
+    state.workspaceId = workspaceId
   },
   SET_LOADING(state, loading) {
     state.loading = loading
@@ -66,71 +70,96 @@ export const mutations = {
 }
 
 export const actions = {
-  async fetchInitial({ commit }) {
+  async fetchInitial({ commit }, { workspaceId = null } = {}) {
     commit('SET_LOADING', true)
     try {
-      const service = aiProviderService(this.$client)
+      const service = aiProviderService(this.$client, workspaceId)
       const [providers, providerTypes] = await Promise.all([
         service.fetchAll(),
         service.fetchTypes(),
       ])
       commit('SET_PROVIDERS', providers.data)
       commit('SET_PROVIDER_TYPES', providerTypes.data)
+      commit('SET_WORKSPACE_ID', workspaceId)
       commit('SET_LOADED', true)
     } finally {
       commit('SET_LOADING', false)
     }
   },
-  async refresh({ commit }) {
-    const { data } = await aiProviderService(this.$client).fetchAll()
+  async refresh({ commit, state }) {
+    const { data } = await aiProviderService(
+      this.$client,
+      state.workspaceId
+    ).fetchAll()
     commit('SET_PROVIDERS', data)
     return data
   },
-  async create({ commit }, values) {
-    const { data } = await aiProviderService(this.$client).create(values)
+  async create({ commit }, payload) {
+    const workspaceId = payload.workspaceId ?? null
+    const values = workspaceId === null ? payload : payload.values
+    const { data } = await aiProviderService(this.$client, workspaceId).create(
+      values
+    )
     commit('ADD_PROVIDER', data)
     return data
   },
-  async update({ commit }, { providerId, values }) {
-    const { data } = await aiProviderService(this.$client).update(
+  async update({ commit }, { providerId, values, workspaceId = null }) {
+    const { data } = await aiProviderService(this.$client, workspaceId).update(
       providerId,
       values
     )
     commit('UPDATE_PROVIDER', data)
     return data
   },
-  async delete({ commit }, providerId) {
-    await aiProviderService(this.$client).delete(providerId)
+  async delete({ commit }, payload) {
+    const providerId =
+      typeof payload === 'object' ? payload.providerId : payload
+    const workspaceId =
+      typeof payload === 'object' ? (payload.workspaceId ?? null) : null
+    await aiProviderService(this.$client, workspaceId).delete(providerId)
     commit('DELETE_PROVIDER', providerId)
   },
-  async createModel({ commit }, { providerId, values }) {
-    const { data } = await aiProviderService(this.$client).createModel(
-      providerId,
-      values
-    )
+  async createModel({ commit }, { providerId, values, workspaceId = null }) {
+    const { data } = await aiProviderService(
+      this.$client,
+      workspaceId
+    ).createModel(providerId, values)
     commit('ADD_MODEL', { providerId, model: data })
     return data
   },
-  async discoverModels(_context, providerType) {
-    const { data } = await aiProviderService(this.$client).discoverModels(
-      providerType
-    )
+  async discoverModels(_context, payload) {
+    const providerType =
+      typeof payload === 'object' ? payload.providerType : payload
+    const workspaceId =
+      typeof payload === 'object' ? (payload.workspaceId ?? null) : null
+    const { data } = await aiProviderService(
+      this.$client,
+      workspaceId
+    ).discoverModels(providerType)
     return data
   },
-  async updateModel({ commit }, { modelId, values }) {
-    const { data } = await aiProviderService(this.$client).updateModel(
-      modelId,
-      values
-    )
+  async updateModel({ commit }, { modelId, values, workspaceId = null }) {
+    const { data } = await aiProviderService(
+      this.$client,
+      workspaceId
+    ).updateModel(modelId, values)
     commit('UPDATE_MODEL', data)
     return data
   },
-  async deleteModel({ commit }, modelId) {
-    await aiProviderService(this.$client).deleteModel(modelId)
+  async deleteModel({ commit }, payload) {
+    const modelId = typeof payload === 'object' ? payload.modelId : payload
+    const workspaceId =
+      typeof payload === 'object' ? (payload.workspaceId ?? null) : null
+    await aiProviderService(this.$client, workspaceId).deleteModel(modelId)
     commit('DELETE_MODEL', modelId)
   },
-  async testModels({ commit }, values) {
-    const { data } = await aiProviderService(this.$client).testModels(values)
+  async testModels({ commit }, payload) {
+    const workspaceId = payload.workspaceId ?? null
+    const values = workspaceId === null ? payload : payload.values
+    const { data } = await aiProviderService(
+      this.$client,
+      workspaceId
+    ).testModels(values)
     commit('UPDATE_MODEL_TEST_RESULTS', data.results)
     return data.results
   },

@@ -15,6 +15,7 @@ describe('AI provider store', () => {
   let service
 
   beforeEach(() => {
+    vi.clearAllMocks()
     service = {
       fetchAll: vi.fn().mockResolvedValue({ data: [{ id: 1 }] }),
       fetchTypes: vi.fn().mockResolvedValue({ data: [{ type: 'openai' }] }),
@@ -58,13 +59,52 @@ describe('AI provider store', () => {
 
   test('refresh replaces provider state without reloading provider types', async () => {
     const commit = vi.fn()
+    const storeState = makeState()
 
-    const providers = await actions.refresh.call({ $client: {} }, { commit })
+    const providers = await actions.refresh.call(
+      { $client: {} },
+      { commit, state: storeState }
+    )
 
+    expect(aiProviderService).toHaveBeenCalledWith({}, null)
     expect(service.fetchAll).toHaveBeenCalledOnce()
     expect(service.fetchTypes).not.toHaveBeenCalled()
     expect(commit).toHaveBeenCalledWith('SET_PROVIDERS', [{ id: 1 }])
     expect(providers).toEqual([{ id: 1 }])
+  })
+
+  test('workspace actions scope all requests to the workspace', async () => {
+    const committed = []
+    await actions.fetchInitial.call(
+      { $client: {} },
+      { commit: (type, payload) => committed.push([type, payload]) },
+      { workspaceId: 42 }
+    )
+
+    expect(aiProviderService).toHaveBeenCalledWith({}, 42)
+    expect(committed).toContainEqual(['SET_WORKSPACE_ID', 42])
+
+    const values = { is_active: false }
+    await actions.update.call(
+      { $client: {} },
+      { commit: vi.fn() },
+      { providerId: 1, values, workspaceId: 42 }
+    )
+
+    expect(aiProviderService).toHaveBeenLastCalledWith({}, 42)
+    expect(service.update).toHaveBeenCalledWith(1, values)
+  })
+
+  test('refresh preserves the loaded workspace scope', async () => {
+    const storeState = makeState()
+    storeState.workspaceId = 42
+
+    await actions.refresh.call(
+      { $client: {} },
+      { commit: vi.fn(), state: storeState }
+    )
+
+    expect(aiProviderService).toHaveBeenCalledWith({}, 42)
   })
 
   test('update sends exactly the fields supplied by the form', async () => {

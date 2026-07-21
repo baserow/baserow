@@ -1,0 +1,192 @@
+import { flushPromises } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+
+import AIProviderActionsMenu from '@baserow/modules/core/components/ai/AIProviderActionsMenu'
+import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
+import { TestApp } from '@baserow/test/helpers/testApp'
+
+describe('AIProviderWorkspaceSettings', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+    vi.restoreAllMocks()
+  })
+
+  test('shows inherited providers read-only and scopes their toggle', async () => {
+    const inherited = {
+      id: 1,
+      provider_type: 'openai',
+      is_active: true,
+      workspace_enabled: true,
+      source_is_active: true,
+      read_only: true,
+      models: [],
+    }
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [inherited])
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
+      {
+        type: 'anthropic',
+        name: 'Anthropic',
+        uses_api_key: true,
+        extra_fields: [],
+      },
+    ])
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue(undefined)
+    testApp.mock.onGet('/workspaces/').reply(200, [
+      {
+        id: 42,
+        name: 'Workspace',
+        generative_ai_models_enabled: {},
+      },
+    ])
+
+    const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
+      props: { workspace: { id: 42 } },
+    })
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/fetchInitial', {
+      workspaceId: 42,
+    })
+    expect(wrapper.text()).toContain('aiProviderAdmin.inherited')
+    expect(
+      wrapper
+        .find('.ai-provider-admin__header')
+        .find('button')
+        .attributes('disabled')
+    ).toBeUndefined()
+
+    const providerActionsMenu = wrapper
+      .find('.ai-provider-card__actions')
+      .findComponent(AIProviderActionsMenu)
+    providerActionsMenu.vm.$emit('select', 'toggle')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      workspaceId: 42,
+      values: { is_active: false },
+    })
+    expect(dispatch).toHaveBeenCalledWith('workspace/forceUpdate', {
+      workspace: { id: 42 },
+      values: {
+        id: 42,
+        name: 'Workspace',
+        generative_ai_models_enabled: {},
+      },
+    })
+
+    const addWorkspaceConfiguration = wrapper
+      .find('.ai-provider-hierarchy__header')
+      .find('button')
+    await addWorkspaceConfiguration.trigger('click')
+    await flushPromises()
+
+    const providerTypeDropdown = wrapper.find('.modal__box .dropdown')
+    expect(providerTypeDropdown.text()).toContain('OpenAI')
+    expect(providerTypeDropdown.text()).not.toContain('Anthropic')
+  })
+
+  test('groups workspace and inherited configurations and explains model overrides', async () => {
+    const inherited = {
+      id: 1,
+      provider_type: 'openai',
+      is_active: true,
+      workspace_enabled: true,
+      source_is_active: true,
+      read_only: true,
+      models: [
+        {
+          id: 11,
+          model_identifier: 'shared-model',
+          is_enabled: true,
+          last_test_status: null,
+        },
+        {
+          id: 12,
+          model_identifier: 'instance-model',
+          is_enabled: true,
+          last_test_status: null,
+        },
+      ],
+    }
+    const workspaceProvider = {
+      id: 2,
+      provider_type: 'openai',
+      is_active: true,
+      workspace_enabled: true,
+      source_is_active: true,
+      read_only: false,
+      models: [
+        {
+          id: 21,
+          model_identifier: 'shared-model',
+          is_enabled: true,
+          last_test_status: null,
+        },
+        {
+          id: 22,
+          model_identifier: 'workspace-model',
+          is_enabled: true,
+          last_test_status: null,
+        },
+      ],
+    }
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [
+      inherited,
+      workspaceProvider,
+    ])
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
+    ])
+    vi.spyOn(testApp.store, 'dispatch').mockResolvedValue(undefined)
+
+    const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
+      props: { workspace: { id: 42 } },
+    })
+    await flushPromises()
+
+    expect(wrapper.findAll('.ai-provider-hierarchy')).toHaveLength(1)
+    expect(wrapper.findAll('.ai-provider-card--embedded')).toHaveLength(2)
+    expect(wrapper.text()).toContain(
+      'generativeAIWorkspaceSettings.instanceConfiguration'
+    )
+    expect(wrapper.text()).toContain(
+      'generativeAIWorkspaceSettings.workspaceConfiguration'
+    )
+    expect(wrapper.findAll('.ai-provider-model--overridden')).toHaveLength(1)
+    expect(wrapper.find('.ai-provider-hierarchy__description').exists()).toBe(
+      false
+    )
+    expect(wrapper.find('.badge--green').exists()).toBe(false)
+    expect(wrapper.find('.badge--purple').exists()).toBe(false)
+    expect(wrapper.findAll('.ai-provider-model .badge')).toHaveLength(1)
+    const overrideBadge = wrapper.find(
+      '.ai-provider-model--overridden .ai-provider-model__annotation-badge'
+    )
+    expect(overrideBadge.classes()).toContain('badge--yellow')
+    expect(overrideBadge.text()).toBe(
+      'generativeAIWorkspaceSettings.overridden'
+    )
+    expect(overrideBadge.attributes('aria-label')).toBe(
+      'generativeAIWorkspaceSettings.overriddenByWorkspace'
+    )
+    expect(
+      wrapper.findAll('.ai-provider-model__annotation-badge')
+    ).toHaveLength(1)
+    expect(
+      wrapper
+        .find('.ai-provider-admin__header')
+        .find('button')
+        .attributes('disabled')
+    ).toBeDefined()
+  })
+})

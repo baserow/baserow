@@ -1,91 +1,101 @@
 <template>
   <div>
-    <h2 class="box__title">{{ $t('generativeAIWorkspaceSettings.title') }}</h2>
-    <p>{{ $t('generativeAIWorkspaceSettings.description') }}</p>
-    <Error :error="error"></Error>
-    <Alert v-if="success" ref="success" type="success">
-      <template #title>{{
-        $t('generativeAIWorkspaceSettings.changedTitle')
-      }}</template>
-      <p>{{ $t('generativeAIWorkspaceSettings.changedDescription') }}</p>
-    </Alert>
-    <div v-if="fetchLoading">
-      <div class="loading"></div>
-    </div>
-    <form v-else @submit.prevent="updateSettings">
-      <div
-        v-for="[type, modelType] in modelTypes"
-        :key="type"
-        class="margin-top-3"
-      >
-        <Expandable card>
-          <template #header="{ toggle, expanded }">
-            <div class="flex flex-100 justify-content-space-between">
-              <div>
-                <div class="margin-bottom-1">
-                  <strong>{{ modelType.getName() }}</strong>
+    <AIProviderWorkspaceSettings
+      v-if="databaseProvidersEnabled"
+      :workspace="workspace"
+    />
+    <template v-else>
+      <h2 class="box__title">
+        {{ $t('generativeAIWorkspaceSettings.title') }}
+      </h2>
+      <p>{{ $t('generativeAIWorkspaceSettings.description') }}</p>
+      <Error :error="error"></Error>
+      <Alert v-if="success" ref="success" type="success">
+        <template #title>{{
+          $t('generativeAIWorkspaceSettings.changedTitle')
+        }}</template>
+        <p>{{ $t('generativeAIWorkspaceSettings.changedDescription') }}</p>
+      </Alert>
+      <div v-if="fetchLoading">
+        <div class="loading"></div>
+      </div>
+      <form v-else @submit.prevent="updateSettings">
+        <div
+          v-for="[type, modelType] in modelTypes"
+          :key="type"
+          class="margin-top-3"
+        >
+          <Expandable card>
+            <template #header="{ toggle, expanded }">
+              <div class="flex flex-100 justify-content-space-between">
+                <div>
+                  <div class="margin-bottom-1">
+                    <strong>{{ modelType.getName() }}</strong>
+                  </div>
+                  <div>
+                    <a @click="toggle">
+                      <template v-if="expanded">{{
+                        $t('generativeAIWorkspaceSettings.hideSettings')
+                      }}</template>
+                      <template v-else>{{
+                        $t('generativeAIWorkspaceSettings.openSettings')
+                      }}</template>
+                      <i
+                        :class="
+                          expanded
+                            ? 'iconoir-nav-arrow-down'
+                            : 'iconoir-nav-arrow-right'
+                        "
+                      />
+                    </a>
+                  </div>
                 </div>
                 <div>
-                  <a @click="toggle">
-                    <template v-if="expanded">{{
-                      $t('generativeAIWorkspaceSettings.hideSettings')
-                    }}</template>
-                    <template v-else>{{
-                      $t('generativeAIWorkspaceSettings.openSettings')
-                    }}</template>
-                    <i
-                      :class="
-                        expanded
-                          ? 'iconoir-nav-arrow-down'
-                          : 'iconoir-nav-arrow-right'
-                      "
-                    />
-                  </a>
+                  {{
+                    isEnabled(type)
+                      ? $t('common.enabled')
+                      : $t('common.disabled')
+                  }}
                 </div>
               </div>
-              <div>
-                {{
-                  isEnabled(type) ? $t('common.enabled') : $t('common.disabled')
-                }}
-              </div>
-            </div>
-          </template>
-          <template #default>
-            <FormGroup
-              v-for="setting in modelType.getSettings()"
-              :key="setting.key"
-              small-label
-              :label="setting.label"
-              :error="v$.settings[type][setting.key].$error"
-              :error-message="
-                getSettingErrorMessage(v$.settings[type][setting.key])
-              "
-              required
-              class="margin-bottom-2"
-            >
-              <FormInput
-                v-model.trim="v$.settings[type][setting.key].$model"
+            </template>
+            <template #default>
+              <FormGroup
+                v-for="setting in modelType.getSettings()"
+                :key="setting.key"
+                small-label
+                :label="setting.label"
                 :error="v$.settings[type][setting.key].$error"
-                :placeholder="setting.placeholder || null"
-              />
+                :error-message="
+                  getSettingErrorMessage(v$.settings[type][setting.key])
+                "
+                required
+                class="margin-bottom-2"
+              >
+                <FormInput
+                  v-model.trim="v$.settings[type][setting.key].$model"
+                  :error="v$.settings[type][setting.key].$error"
+                  :placeholder="setting.placeholder || null"
+                />
 
-              <template v-if="setting.description" #helper>
-                <MarkdownIt :content="setting.description" />
-              </template>
-            </FormGroup>
-          </template>
-        </Expandable>
-      </div>
-      <div class="actions actions--right">
-        <Button
-          :disabled="updateLoading || v$.$invalid || !v$.$anyDirty"
-          :loading="updateLoading"
-          icon="iconoir-edit-pencil"
-        >
-          {{ $t('generativeAIWorkspaceSettings.submitButton') }}
-        </Button>
-      </div>
-    </form>
+                <template v-if="setting.description" #helper>
+                  <MarkdownIt :content="setting.description" />
+                </template>
+              </FormGroup>
+            </template>
+          </Expandable>
+        </div>
+        <div class="actions actions--right">
+          <Button
+            :disabled="updateLoading || v$.$invalid || !v$.$anyDirty"
+            :loading="updateLoading"
+            icon="iconoir-edit-pencil"
+          >
+            {{ $t('generativeAIWorkspaceSettings.submitButton') }}
+          </Button>
+        </div>
+      </form>
+    </template>
   </div>
 </template>
 
@@ -93,8 +103,11 @@
 import { useVuelidate } from '@vuelidate/core'
 import error from '@baserow/modules/core/mixins/error'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
+import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
+import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
+  components: { AIProviderWorkspaceSettings },
   mixins: [error],
   props: {
     workspace: {
@@ -114,6 +127,9 @@ export default {
     }
   },
   computed: {
+    databaseProvidersEnabled() {
+      return this.$featureFlagIsEnabled(FF_AI_PROVIDERS)
+    },
     modelTypes() {
       return this.$registry
         .getOrderedList('generativeAIModel')
@@ -122,7 +138,9 @@ export default {
     },
   },
   async mounted() {
-    await this.fetchSettings()
+    if (!this.databaseProvidersEnabled) {
+      await this.fetchSettings()
+    }
   },
   methods: {
     async fetchSettings() {

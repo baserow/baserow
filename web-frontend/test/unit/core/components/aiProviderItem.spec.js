@@ -1,11 +1,17 @@
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
+import AIProviderActionsMenu from '@baserow/modules/core/components/ai/AIProviderActionsMenu'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
-function expectIconAction(button, icon, title) {
-  expect(button.find(`.${icon}`).exists()).toBe(true)
-  expect(button.attributes('title')).toBe(title)
-  expect(button.attributes('aria-label')).toBe(title)
-  expect(button.classes()).toContain('button--icon-only')
+function expectMenuAction(menu, action, icon, label) {
+  const item = menu.find(`[data-action="${action}"]`)
+  expect(item.exists()).toBe(true)
+  expect(item.find(`.${icon}`).exists()).toBe(true)
+  expect(item.text()).toBe(label)
+}
+
+async function openMenu(menu) {
+  await menu.find('button').trigger('click')
+  await menu.vm.$nextTick()
 }
 
 describe('AIProviderItem', () => {
@@ -44,76 +50,94 @@ describe('AIProviderItem', () => {
     })
 
     expect(wrapper.find('.ai-provider-card__title').text()).toBe('OpenAI')
-    expect(wrapper.text()).toContain('gpt-5.6')
+    const modelName = wrapper.find('.ai-provider-model__name')
+    expect(modelName.text()).toBe('gpt-5.6')
+    expect(modelName.element.tagName).toBe('SPAN')
     expect(
       wrapper
         .find('.ai-provider-card__actions')
         .findAll('button')
         .map((button) => button.text())
-    ).toEqual(['aiProviderAdmin.addModel', 'aiProviderAdmin.test', '', '', ''])
+    ).toEqual([''])
 
-    const providerEditButton = wrapper
+    const providerMenu = wrapper
       .find('.ai-provider-card__actions')
-      .findAll('button')[2]
-    expectIconAction(providerEditButton, 'iconoir-edit', 'action.edit')
-
-    const providerDisableButton = wrapper
-      .find('.ai-provider-card__actions')
-      .findAll('button')[3]
-    expectIconAction(
-      providerDisableButton,
+      .findComponent(AIProviderActionsMenu)
+    await openMenu(providerMenu)
+    expect(providerMenu.findAll('[data-action]')).toHaveLength(5)
+    expectMenuAction(
+      providerMenu,
+      'add-model',
+      'iconoir-plus',
+      'aiProviderAdmin.addModel'
+    )
+    expectMenuAction(
+      providerMenu,
+      'test',
+      'iconoir-play',
+      'aiProviderAdmin.testAllModels'
+    )
+    expectMenuAction(providerMenu, 'edit', 'iconoir-edit', 'action.edit')
+    expectMenuAction(
+      providerMenu,
+      'toggle',
       'iconoir-eye-off',
       'aiProviderAdmin.disable'
     )
+    expectMenuAction(providerMenu, 'delete', 'iconoir-bin', 'action.delete')
+    expect(providerMenu.find('[data-action="delete"]').classes()).toContain(
+      'context__menu-item-link--delete'
+    )
+    const providerMenuTrigger = providerMenu.find('button')
+    expect(providerMenuTrigger.attributes('title')).toBe(
+      'aiProviderAdmin.moreActions'
+    )
+    expect(providerMenuTrigger.attributes('aria-label')).toBe(
+      'aiProviderAdmin.moreActions'
+    )
 
-    const deleteProviderButton = wrapper
-      .find('.ai-provider-card__actions')
-      .findAll('button')[4]
-    expect(deleteProviderButton.find('.iconoir-bin').exists()).toBe(true)
-    expect(deleteProviderButton.attributes('title')).toBe('action.delete')
-    expect(deleteProviderButton.attributes('aria-label')).toBe('action.delete')
-    expect(deleteProviderButton.classes()).toContain('button--icon-only')
-
-    await wrapper
-      .find('.ai-provider-card__actions')
-      .findAll('button')[1]
-      .trigger('click')
-    expect(
-      wrapper
-        .find('.ai-provider-card__actions')
-        .findAll('button')[1]
-        .attributes('title')
-    ).toBe('aiProviderAdmin.testAllModelsButtonTitle')
-    expect(
-      wrapper
-        .find('.ai-provider-card__actions')
-        .findAll('button')[1]
-        .find('i')
-        .exists()
-    ).toBe(false)
+    await providerMenu.find('[data-action="test"]').trigger('click')
     expect(wrapper.emitted('test-all-models')).toEqual([
       [expect.objectContaining({ id: 1 })],
     ])
+    await providerMenu.find('[data-action="add-model"]').trigger('click')
+    expect(wrapper.emitted('add-model')).toEqual([
+      [expect.objectContaining({ id: 1 })],
+    ])
 
-    const modelTestButton = wrapper
-      .find('.ai-provider-model__actions')
-      .findAll('button')[0]
-    expect(modelTestButton.attributes('title')).toBe(
-      'aiProviderAdmin.testModelButtonTitle'
+    const modelActions = wrapper.find('.ai-provider-model__actions')
+    const modelActionButtons = modelActions.findAll('button')
+    expect(modelActionButtons).toHaveLength(1)
+    const modelMenu = modelActions.findComponent(AIProviderActionsMenu)
+    await openMenu(modelMenu)
+    expect(modelMenu.findAll('[data-action]')).toHaveLength(4)
+    expectMenuAction(
+      modelMenu,
+      'test',
+      'iconoir-play',
+      'aiProviderAdmin.testModel'
     )
-
-    const modelActionButtons = wrapper
-      .find('.ai-provider-model__actions')
-      .findAll('button')
-    const modelEditButton = modelActionButtons[1]
-    expectIconAction(modelEditButton, 'iconoir-edit', 'action.edit')
-
-    const modelDisableButton = modelActionButtons[2]
-    expectIconAction(
-      modelDisableButton,
+    expectMenuAction(modelMenu, 'edit', 'iconoir-edit', 'action.edit')
+    expectMenuAction(
+      modelMenu,
+      'toggle',
       'iconoir-eye-off',
       'aiProviderAdmin.disable'
     )
+    expectMenuAction(modelMenu, 'delete', 'iconoir-bin', 'action.delete')
+
+    await providerMenu.find('[data-action="edit"]').trigger('click')
+    expect(wrapper.emitted('edit-provider')).toEqual([
+      [expect.objectContaining({ id: 1 })],
+    ])
+    await modelMenu.find('[data-action="edit"]').trigger('click')
+    expect(wrapper.emitted('edit-model')).toEqual([
+      [expect.objectContaining({ id: 1 }), expect.objectContaining({ id: 2 })],
+    ])
+    await modelMenu.find('[data-action="test"]').trigger('click')
+    expect(wrapper.emitted('test-model')).toEqual([
+      [expect.objectContaining({ id: 2 })],
+    ])
   })
 
   test('uses enable actions for an inactive provider and disabled model', async () => {
@@ -135,28 +159,31 @@ describe('AIProviderItem', () => {
       },
     })
 
-    expect(wrapper.findAll('.iconoir-eye-empty')).toHaveLength(2)
-
-    const providerEnableButton = wrapper
+    const providerMenu = wrapper
       .find('.ai-provider-card__actions')
-      .findAll('button')[3]
-    expectIconAction(
-      providerEnableButton,
+      .findComponent(AIProviderActionsMenu)
+    await openMenu(providerMenu)
+    expect(providerMenu.findAll('[data-action]')).toHaveLength(5)
+    expectMenuAction(
+      providerMenu,
+      'toggle',
       'iconoir-eye-empty',
       'aiProviderAdmin.enable'
     )
 
-    const modelEnableButton = wrapper
+    const modelMenu = wrapper
       .find('.ai-provider-model__actions')
-      .findAll('button')[2]
-    expectIconAction(
-      modelEnableButton,
+      .findComponent(AIProviderActionsMenu)
+    await openMenu(modelMenu)
+    expectMenuAction(
+      modelMenu,
+      'toggle',
       'iconoir-eye-empty',
       'aiProviderAdmin.enable'
     )
   })
 
-  test('disables the provider test action when there are no models', async () => {
+  test('omits the provider test action when there are no models', async () => {
     const wrapper = await testApp.mount(AIProviderItem, {
       props: {
         provider: {
@@ -168,15 +195,13 @@ describe('AIProviderItem', () => {
       },
     })
 
-    const testButton = wrapper
+    const providerMenu = wrapper
       .find('.ai-provider-card__actions')
-      .findAll('button')[1]
+      .findComponent(AIProviderActionsMenu)
+    await openMenu(providerMenu)
 
-    expect(testButton.text()).toBe('aiProviderAdmin.test')
-    expect(testButton.attributes('disabled')).toBeDefined()
-    expect(testButton.attributes('title')).toBe(
-      'aiProviderAdmin.testAllModelsButtonTitle'
-    )
+    expect(providerMenu.find('[data-action="test"]').exists()).toBe(false)
+    expect(providerMenu.find('[data-action="add-model"]').exists()).toBe(true)
   })
 
   test('shows loading feedback on a model while it is being tested', async () => {
@@ -199,33 +224,189 @@ describe('AIProviderItem', () => {
       },
     })
 
-    const providerTestButton = wrapper
+    const providerMenuButton = wrapper
       .find('.ai-provider-card__actions')
-      .findAll('button')[1]
-    const modelTestButton = wrapper
+      .find('button')
+    const modelMenuButton = wrapper
       .find('.ai-provider-model__actions')
-      .findAll('button')[0]
+      .find('button')
 
-    expect(providerTestButton.attributes('disabled')).toBeDefined()
-    expect(modelTestButton.classes()).toContain('button--loading')
-    expect(modelTestButton.attributes('disabled')).toBeDefined()
+    expect(providerMenuButton.attributes('disabled')).toBeDefined()
+    expect(modelMenuButton.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.ai-provider-model__testing').text()).toBe(
+      'aiProviderAdmin.testing'
+    )
+    expect(wrapper.find('.ai-provider-model__status').attributes('role')).toBe(
+      'status'
+    )
+    expect(
+      wrapper.find('.ai-provider-model__status').attributes('aria-live')
+    ).toBe('polite')
+  })
+
+  test('shows compact test statuses and the full failure error in a tooltip', async () => {
+    const error = 'The complete provider error returned by the API.'
+    const wrapper = await testApp.mount(AIProviderItem, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'openai',
+          is_active: true,
+          models: [
+            {
+              id: 2,
+              model_identifier: 'gpt-5.6',
+              is_enabled: true,
+              last_test_status: 'failure',
+              last_test_error: error,
+            },
+            {
+              id: 3,
+              model_identifier: 'gpt-5.6-mini',
+              is_enabled: true,
+              last_test_status: 'success',
+            },
+            {
+              id: 4,
+              model_identifier: 'gpt-5.6-nano',
+              is_enabled: true,
+              last_test_status: null,
+            },
+          ],
+        },
+      },
+    })
+
+    const statuses = wrapper.findAll('.ai-provider-model__status')
+    const failed = statuses[0].find('.ai-provider-model__test-failed')
+
+    expect(statuses.map((status) => status.text())).toEqual([
+      'aiProviderAdmin.testFailed',
+      'aiProviderAdmin.testPassed',
+      'aiProviderAdmin.notTested',
+    ])
+    expect(wrapper.text()).not.toContain(error)
+    expect(failed.find('.iconoir-warning-circle').exists()).toBe(true)
+    expect(statuses[1].find('.iconoir-check-circle').exists()).toBe(true)
+
+    await failed.trigger('mouseenter')
+    expect(document.querySelector('.tooltip__content').textContent).toBe(error)
+  })
+
+  test('shows inherited providers as read-only except for tests and workspace toggle', async () => {
+    const provider = {
+      id: 1,
+      provider_type: 'openai',
+      is_active: true,
+      workspace_enabled: true,
+      source_is_active: true,
+      read_only: true,
+      models: [
+        {
+          id: 2,
+          model_identifier: 'gpt-5.6',
+          is_enabled: true,
+          last_test_status: null,
+        },
+      ],
+    }
+    const wrapper = await testApp.mount(AIProviderItem, {
+      props: { provider },
+    })
+
+    expect(wrapper.text()).toContain('aiProviderAdmin.inherited')
+    expect(wrapper.find('.badge--cyan').text()).toBe(
+      'aiProviderAdmin.inherited'
+    )
     expect(
       wrapper
         .find('.ai-provider-card__actions')
-        .findAll('button')[0]
-        .attributes('disabled')
-    ).toBeDefined()
-    expect(
-      wrapper
-        .find('.ai-provider-card__actions')
-        .findAll('button')[2]
-        .attributes('disabled')
-    ).toBeDefined()
+        .findAll('button')
+        .map((button) => button.text())
+    ).toEqual([''])
     expect(
       wrapper
         .find('.ai-provider-model__actions')
-        .findAll('button')[1]
-        .attributes('disabled')
-    ).toBeDefined()
+        .findAll('button')
+        .map((button) => button.text())
+    ).toEqual([''])
+
+    const providerMenu = wrapper
+      .find('.ai-provider-card__actions')
+      .findComponent(AIProviderActionsMenu)
+    await openMenu(providerMenu)
+    expect(providerMenu.findAll('[data-action]')).toHaveLength(2)
+    expectMenuAction(
+      providerMenu,
+      'test',
+      'iconoir-play',
+      'aiProviderAdmin.testAllModels'
+    )
+    expectMenuAction(
+      providerMenu,
+      'toggle',
+      'iconoir-eye-off',
+      'aiProviderAdmin.disable'
+    )
+    const modelMenu = wrapper
+      .find('.ai-provider-model__actions')
+      .findComponent(AIProviderActionsMenu)
+    await openMenu(modelMenu)
+    expect(modelMenu.findAll('[data-action]')).toHaveLength(1)
+    expectMenuAction(
+      modelMenu,
+      'test',
+      'iconoir-play',
+      'aiProviderAdmin.testModel'
+    )
+
+    await providerMenu.find('[data-action="toggle"]').trigger('click')
+    expect(wrapper.emitted('toggle-provider')).toEqual([[provider]])
+  })
+
+  test('renders an embedded source badge and overridden model badge', async () => {
+    const wrapper = await testApp.mount(AIProviderItem, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'openai',
+          is_active: true,
+          models: [
+            {
+              id: 2,
+              model_identifier: 'gpt-5.6',
+              is_enabled: true,
+              last_test_status: null,
+            },
+          ],
+        },
+        embedded: true,
+        hideActiveStatus: true,
+        title: 'Instance',
+        sourceLabel: 'Inherited',
+        sourceColor: 'cyan',
+        modelAnnotations: {
+          2: {
+            label: 'Overridden',
+            tooltip: 'Overridden by workspace',
+            muted: true,
+          },
+        },
+      },
+    })
+
+    expect(wrapper.classes()).toContain('ai-provider-card--embedded')
+    expect(wrapper.find('.ai-provider-card__title').element.tagName).toBe('H3')
+    expect(wrapper.find('.badge--cyan').text()).toBe('Inherited')
+    expect(wrapper.find('.badge--green').exists()).toBe(false)
+    const annotation = wrapper.find('.ai-provider-model__annotation-badge')
+    expect(annotation.classes()).toContain('badge--yellow')
+    expect(annotation.text()).toBe('Overridden')
+    expect(annotation.attributes('aria-label')).toBe('Overridden by workspace')
+
+    await annotation.trigger('mouseenter')
+    expect(document.querySelector('.tooltip__content').textContent).toBe(
+      'Overridden by workspace'
+    )
   })
 })
