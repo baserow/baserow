@@ -174,7 +174,8 @@
     "ai": "AI prompt",
     "multipleCollaboratorsDropdown": "Dropdown",
     "multipleCollaboratorsCheckboxes": "Checkboxes",
-    "defaultValueFunctionNow": "Current date"
+    "defaultValueFunctionNow": "Current date",
+    "button": "Button"
   },
   "fieldErrors": {
     "invalidNumber": "Invalid number",
@@ -224,7 +225,8 @@
     "uuid": "A read-only unique and persistent uuid.",
     "autonumber": "A read-only field that automatically increments a number for each new row.",
     "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it.",
-    "formViewEditRow": "A read-only field that generates a unique, signed URL allowing the row to be edited through the linked form view."
+    "formViewEditRow": "A read-only field that generates a unique, signed URL allowing the row to be edited through the linked form view.",
+    "button": "A read-only button that opens a URL computed from the row's values."
   },
   "fieldConstraint": {
     "uniqueWithEmpty": "Unique with empty"

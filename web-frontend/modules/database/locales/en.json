@@ -1211,6 +1211,13 @@
     "notPublic": "(not public)",
     "formDoesNotExist": "The selected form does not exist anymore."
   },
+  "fieldButtonSubForm": {
+    "label": "Label",
+    "labelPlaceholder": "Open",
+    "url": "URL",
+    "urlPlaceholder": "e.g. concat('https://example.com/', get('fields.field_1'))",
+    "invalidUrl": "The URL formula is invalid."
+  },
   "editRowLink": {
     "editRow": "Edit row"
   },

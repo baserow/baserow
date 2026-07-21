@@ -185,6 +185,11 @@ import ViewFilterTypeNumber from '@baserow/modules/database/components/view/View
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
 import FormViewFieldOptionsAllowedSelectOptions from '@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions'
 import FieldFormViewEditRowSubForm from '@baserow/modules/database/components/field/FieldFormViewEditRowSubForm'
+import FieldButtonSubForm from '@baserow/modules/database/components/field/FieldButtonSubForm'
+import GridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButtonField'
+import FunctionalGridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldButtonField'
+import RowEditFieldButtonField from '@baserow/modules/database/components/row/RowEditFieldButtonField'
+import RowCardFieldButtonField from '@baserow/modules/database/components/card/RowCardFieldButtonField'
 
 export class FieldType extends Registerable {
   /**
@@ -5384,5 +5389,84 @@ export class FormViewEditRowFieldType extends FieldType {
       count: formNames.length,
       formNames: formNames.join(', '),
     })
+  }
+}
+
+export class ButtonFieldType extends FieldType {
+  static getType() {
+    return 'button'
+  }
+
+  getIconClass() {
+    return 'iconoir-cursor-pointer'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('fieldType.button')
+  }
+
+  getFormComponent() {
+    return FieldButtonSubForm
+  }
+
+  getGridViewFieldComponent() {
+    return GridViewFieldButtonField
+  }
+
+  getFunctionalGridViewFieldComponent() {
+    return FunctionalGridViewFieldButtonField
+  }
+
+  getRowEditFieldComponent() {
+    return RowEditFieldButtonField
+  }
+
+  getCardComponent() {
+    return RowCardFieldButtonField
+  }
+
+  getFormViewFieldComponents() {
+    return {}
+  }
+
+  isReadOnlyField() {
+    return true
+  }
+
+  getCanBePrimaryField() {
+    return false
+  }
+
+  getCanSortInView() {
+    return false
+  }
+
+  getCanGroupByInView() {
+    return false
+  }
+
+  canBeDefaultValue() {
+    return false
+  }
+
+  getEmptyValue() {
+    return null
+  }
+
+  getDocsDataType() {
+    return null
+  }
+
+  getDocsDescription(field) {
+    return this.app.$i18n.t('fieldDocs.button')
+  }
+
+  getDocsRequestExample() {
+    return 'it is invalid to include request data for this field as it is read only'
+  }
+
+  getDocsResponseExample() {
+    return null
   }
 }
