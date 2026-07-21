@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeFirstNodeMustBeTrigger,
@@ -85,6 +86,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
 
 
 class AutomationNodeActionNodeType(AutomationNodeType):
@@ -366,6 +368,18 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
     type = "goto"
     model_class = CoreGotoActionNode
     service_type = CoreGotoServiceType.type
+
+    def get_history_status(self, dispatch_result: DispatchResult) -> str:
+        """
+        A "Go to" node only jumps when its condition resolves to true, so a
+        dispatch without a destination means the jump was not followed. The
+        history is marked as skipped in that case, so it isn't presented as
+        if execution had been redirected.
+        """
+
+        if dispatch_result.destination_service_id is None:
+            return HistoryStatusChoices.SKIPPED
+        return HistoryStatusChoices.SUCCESS
 
     def get_history_destination_node(
         self, node: AutomationNode

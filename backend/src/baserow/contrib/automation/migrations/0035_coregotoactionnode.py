@@ -21,4 +21,14 @@ class Migration(migrations.Migration):
             },
             bases=('automation.automationnode',),
         ),
+        migrations.AlterField(
+            model_name='automationnodehistory',
+            name='status',
+            field=models.CharField(choices=[('success', 'Success'), ('error', 'Error'), ('disabled', 'Disabled'), ('started', 'Started'), ('skipped', 'Skipped')], max_length=8),
+        ),
+        migrations.AlterField(
+            model_name='automationworkflowhistory',
+            name='status',
+            field=models.CharField(choices=[('success', 'Success'), ('error', 'Error'), ('disabled', 'Disabled'), ('started', 'Started'), ('skipped', 'Skipped')], max_length=8),
+        ),
     ]

@@ -40,11 +40,7 @@
 
           <div class="node-history__spacer"></div>
 
-          <Badge
-            rounded
-            :color="status === 'error' ? 'red' : 'green'"
-            size="small"
-          >
+          <Badge rounded :color="statusBadgeColor" size="small">
             {{ statusLabel }}
           </Badge>
         </div>
@@ -138,7 +134,7 @@
 
       <div class="node-history__spacer"></div>
 
-      <Badge rounded :color="status === 'error' ? 'red' : 'green'" size="small">
+      <Badge rounded :color="statusBadgeColor" size="small">
         {{ statusLabel }}
       </Badge>
     </div>
@@ -275,15 +271,37 @@ const iterationHasError = (group) => {
 
 const hasOwnError = computed(() => props.nodeHistory.status === 'error')
 
+/**
+ * A node that ran without doing anything, e.g. a "Go to node" whose condition
+ * resolved to false, so no jump was followed.
+ */
 const status = computed(() => {
   const childError = props.errorDescendantNodeIds.has(props.nodeHistory.node)
-  return hasOwnError.value || childError ? 'error' : 'success'
+  if (hasOwnError.value || childError) return 'error'
+  if (props.nodeHistory.status === 'skipped') return 'skipped'
+  return 'success'
 })
 
 const statusLabel = computed(() => {
-  return status.value === 'success'
-    ? app.$i18n.t('historySidePanel.statusSuccessBadge')
-    : app.$i18n.t('historySidePanel.statusErrorBadge')
+  switch (status.value) {
+    case 'error':
+      return app.$i18n.t('historySidePanel.statusErrorBadge')
+    case 'skipped':
+      return app.$i18n.t('historySidePanel.statusSkippedBadge')
+    default:
+      return app.$i18n.t('historySidePanel.statusSuccessBadge')
+  }
+})
+
+const statusBadgeColor = computed(() => {
+  switch (status.value) {
+    case 'error':
+      return 'red'
+    case 'skipped':
+      return 'neutral'
+    default:
+      return 'green'
+  }
 })
 
 const errorMessage = computed(() => props.nodeHistory.message)

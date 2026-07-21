@@ -8,6 +8,7 @@ from rest_framework.exceptions import PermissionDenied
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
     AutomationNodeNotReplaceable,
@@ -182,6 +183,21 @@ class AutomationNodeType(
         """
 
         return None
+
+    def get_history_status(self, dispatch_result: DispatchResult) -> str:
+        """
+        Returns the status the node history should be marked with after a
+        successful dispatch. Most node types always did something, so they
+        report a success. Node types whose dispatch can legitimately be a
+        no-op (e.g. a "Go to" node whose condition resolved to false) override
+        this to report a skip instead, so run histories don't suggest that
+        something happened.
+
+        :param dispatch_result: The result of the node's dispatch.
+        :return: The history status to store on the node history.
+        """
+
+        return HistoryStatusChoices.SUCCESS
 
     def is_replaceable_with(self, other_node_type: "AutomationNodeType") -> bool:
         """

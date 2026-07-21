@@ -1,6 +1,7 @@
 import pytest
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.models import AutomationNodeHistory
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
 )
@@ -198,6 +199,10 @@ def test_dispatch_node_jumps_to_destination_when_condition_true(data_fixture):
         leaf = leaf.tasks[0]
     assert leaf.args[0] == destination.id
 
+    # The jump was followed, so the run is a regular success.
+    node_history = AutomationNodeHistory.objects.get(node=goto_node)
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+
 
 @pytest.mark.django_db
 def test_dispatch_node_falls_through_when_condition_false(data_fixture):
@@ -213,6 +218,10 @@ def test_dispatch_node_falls_through_when_condition_false(data_fixture):
     # The goto node is the last node in the graph, so falling through ends the branch.
     result = AutomationNodeHandler().dispatch_node(goto_node.id, history.id)
     assert result is None
+
+    # No jump was followed, so the history must not suggest one happened.
+    node_history = AutomationNodeHistory.objects.get(node=goto_node)
+    assert node_history.status == HistoryStatusChoices.SKIPPED
 
 
 def _cross_level_goto_workflow(data_fixture):

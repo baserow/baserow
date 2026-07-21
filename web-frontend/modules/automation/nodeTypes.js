@@ -1244,11 +1244,14 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
 
   /**
    * Append the node the workflow jumped to, e.g. "Go to node → List rows".
+   * A skipped run means the condition resolved to false and no jump was
+   * followed, so the destination is left out to avoid implying otherwise.
    * @param nodeHistory - The history entry of the Go to node's run.
    * @returns {string} - The label for the history entry.
    */
   getHistoryLabel({ nodeHistory }) {
     const label = super.getHistoryLabel({ nodeHistory })
+    if (nodeHistory.status === 'skipped') return label
     const destination = this.getHistoryDestinationLabel({ nodeHistory })
     if (!destination) return label
     return this.app.$i18n.t('nodeType.gotoHistoryLabel', {

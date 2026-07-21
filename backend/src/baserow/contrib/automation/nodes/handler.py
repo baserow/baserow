@@ -632,7 +632,7 @@ class AutomationNodeHandler:
         # can accurately rely on the completed_on field.
         now = timezone.now()
         node_history.completed_on = now
-        node_history.status = HistoryStatusChoices.SUCCESS
+        node_history.status = node_type.get_history_status(dispatch_result)
         node_history.save()
 
         # The post-dispatch hook should also be able to safely access the

@@ -124,6 +124,22 @@ describe('CoreGotoNodeType', () => {
       )
     })
 
+    test('omits the destination when the jump was skipped', () => {
+      // The condition resolved to false, so no jump was followed and the
+      // configured destination must not be presented as if it had been.
+      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      expect(
+        nodeType.getHistoryLabel({
+          nodeHistory: {
+            node_label: 'Go to node',
+            status: 'skipped',
+            destination_label: 'Fetch the row',
+            destination_node_type: 'local_baserow_get_row',
+          },
+        })
+      ).toBe('Go to node')
+    })
+
     test('omits the destination when none was recorded', () => {
       const nodeType = new CoreGotoNodeType({ app: makeApp() })
       expect(
