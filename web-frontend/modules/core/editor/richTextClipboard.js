@@ -1,5 +1,31 @@
 const normalizeNewlines = (text) => text.replace(/\r\n?/g, '\n')
 
+const RICH_TEXT_EDITOR_CLIPBOARD_KEY = 'baserow.richTextEditorClipboardData'
+
+export const rememberRichTextEditorClipboard = (text) => {
+  try {
+    localStorage.setItem(RICH_TEXT_EDITOR_CLIPBOARD_KEY, text)
+  } catch {
+    // Clipboard serialization must keep working when storage is unavailable.
+  }
+}
+
+export const isRichTextEditorClipboard = (text) => {
+  try {
+    const copiedText = localStorage.getItem(RICH_TEXT_EDITOR_CLIPBOARD_KEY)
+    if (
+      copiedText !== null &&
+      normalizeNewlines(copiedText) === normalizeNewlines(text)
+    ) {
+      return true
+    }
+    localStorage.removeItem(RICH_TEXT_EDITOR_CLIPBOARD_KEY)
+  } catch {
+    // A missing marker means the paste must follow the external plain-text path.
+  }
+  return false
+}
+
 const needsEmptyParagraphs = (text) =>
   text.startsWith('\n') || text.endsWith('\n') || text.includes('\n\n')
 

@@ -29,6 +29,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Marked } from 'marked'
 
 import { ScalableImage } from '@baserow/modules/core/editor/image'
+import { rememberRichTextEditorClipboard } from '@baserow/modules/core/editor/richTextClipboard'
 import {
   decodeInlineCodeText,
   LegacyNumericHtmlEntity,
@@ -182,10 +183,25 @@ const MarkdownClipboard = Extension.create({
   name: 'markdownClipboard',
   priority: 1000,
   addProseMirrorPlugins() {
+    const rememberCopiedSelection = (view) => {
+      if (!view.state.selection.empty) {
+        rememberRichTextEditorClipboard(
+          serializeMarkdownClipboard(
+            this.editor,
+            view.state.selection.content()
+          )
+        )
+      }
+      return false
+    }
     return [
       new Plugin({
         key: new PluginKey('markdownClipboard'),
         props: {
+          handleDOMEvents: {
+            copy: rememberCopiedSelection,
+            cut: rememberCopiedSelection,
+          },
           clipboardTextParser: (text, _context, plainText) =>
             parseMarkdownClipboard(this.editor, text, plainText),
           clipboardTextSerializer: (slice) =>

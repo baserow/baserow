@@ -31,6 +31,7 @@
       :thin-scrollbar="true"
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
+      :clipboard-markdown-resolver="resolveClipboardMarkdown"
     />
     <i
       v-if="editing && !isModalOpen()"
@@ -60,6 +61,7 @@ import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
 import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
+import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   components: { RichTextEditor, FieldRichTextModal },
@@ -103,6 +105,7 @@ export default {
     },
   },
   methods: {
+    resolveClipboardMarkdown: getRichTextClipboardContent,
     getMenuContainer() {
       return document.body
     },

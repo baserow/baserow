@@ -51,10 +51,12 @@ import { EnterStopEditExtension } from '@baserow/modules/core/editor/enterStopEd
 import {
   createPlainTextEditorExtensions,
   createRichTextEditorExtensions,
+  parseMarkdownClipboard,
 } from '@baserow/modules/core/editor/richTextExtensions'
 import { createMention } from '@baserow/modules/core/editor/mention'
 import {
   decodeQuotedGridCell,
+  isRichTextEditorClipboard,
   plainTextToRichTextContent,
 } from '@baserow/modules/core/editor/richTextClipboard'
 import { isRichTextSelectionVisible } from '@baserow/modules/core/editor/richTextMenuPosition'
@@ -115,6 +117,10 @@ export default {
     menuContainer: {
       type: [Object, Function],
       default: undefined,
+    },
+    clipboardMarkdownResolver: {
+      type: Function,
+      default: null,
     },
   },
   emits: ['blur', 'focus', 'update:modelValue', 'stop-edit'],
@@ -282,9 +288,32 @@ export default {
           },
           handlePaste: (view, event) => {
             const plainText = event.clipboardData.getData('text/plain')
-            const gridCellText = decodeQuotedGridCell(plainText)
+            const copiedFromRichTextEditor =
+              this.enableRichTextFormatting &&
+              isRichTextEditorClipboard(plainText)
+            const resolvedClipboardMarkdown =
+              this.enableRichTextFormatting &&
+              !copiedFromRichTextEditor &&
+              this.clipboardMarkdownResolver
+                ? this.clipboardMarkdownResolver(plainText)
+                : null
+            if (typeof resolvedClipboardMarkdown === 'string') {
+              const slice = parseMarkdownClipboard(
+                this.editor,
+                resolvedClipboardMarkdown,
+                false
+              )
+              view.dispatch(
+                view.state.tr.replaceSelection(slice).scrollIntoView()
+              )
+              return true
+            }
+            const gridCellText = copiedFromRichTextEditor
+              ? null
+              : decodeQuotedGridCell(plainText)
             const plainTextWithBlankLines =
               this.enableRichTextFormatting &&
+              !copiedFromRichTextEditor &&
               !event.clipboardData.getData('text/html') &&
               /\r?\n[\t ]*\r?\n/.test(plainText)
                 ? plainText

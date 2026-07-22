@@ -159,6 +159,63 @@ describe('GridViewFieldRichText component', () => {
     expect(wrapper.vm.onPaste()).toBe(true)
   })
 
+  test('parses a copied rich text grid cell when pasting while editing', async () => {
+    const markdown = '# title\n\n\n\nciao\n\n\n\nmiao\n\n&nbsp;'
+    const gridBody = document.createElement('div')
+    gridBody.className = 'grid-view__body'
+    document.body.appendChild(gridBody)
+
+    const wrapper = await testApp.mount(GridViewFieldRichText, {
+      attachTo: gridBody,
+      props: {
+        field,
+        value: '',
+        selected: true,
+        readOnly: false,
+        storePrefix: 'page/',
+        workspaceId: 10,
+      },
+      global: {
+        stubs: {
+          FieldRichTextModal: {
+            template: '<div></div>',
+            methods: { isOpen: () => false },
+          },
+        },
+      },
+    })
+    const copyData = wrapper.vm.prepareValuesForCopy(
+      [field],
+      [{ field_1: markdown }]
+    )
+    const { tsvData } = wrapper.vm.formatClipboardDataAndStoreRichCopy(copyData)
+
+    expect(tsvData).toBe(`"${markdown}"`)
+
+    wrapper.vm.edit()
+    await new Promise((resolve) => setTimeout(resolve))
+
+    const editor = wrapper.findComponent(RichTextEditor)
+    await editor.find('.tiptap').trigger('paste', {
+      clipboardData: {
+        getData: (type) => (type === 'text/plain' ? tsvData : ''),
+      },
+    })
+
+    expect(editor.find('h1').text()).toBe('title')
+    expect(editor.findAll('.tiptap p').map((node) => node.text())).toEqual([
+      'ciao',
+      '',
+      'miao',
+      '',
+    ])
+    expect(editor.find('.tiptap').text()).not.toContain('&nbsp;')
+    expect(editor.vm.serializeToMarkdown()).toBe(
+      '# title\n\nciao\n\n\n\nmiao\n\n&nbsp;'
+    )
+    gridBody.remove()
+  })
+
   test('moves the floating menu when the grid scrolls', async () => {
     const gridBody = document.createElement('div')
     gridBody.className = 'grid-view__body'

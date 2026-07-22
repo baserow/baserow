@@ -24,6 +24,7 @@
           :enable-rich-text-formatting="true"
           :mentionable-users="mentionableUsers"
           :model-value="modelValue"
+          :clipboard-markdown-resolver="resolveClipboardMarkdown"
           @update:model-value="$emit('update:modelValue', $event)"
         ></RichTextEditor>
       </div>
@@ -35,6 +36,7 @@
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 import Alert from '@baserow/modules/core/components/Alert'
 import modal from '@baserow/modules/core/mixins/modal'
+import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'FieldRichTextModal',
@@ -68,6 +70,7 @@ export default {
     },
   },
   methods: {
+    resolveClipboardMarkdown: getRichTextClipboardContent,
     show() {
       this.$nextTick(() => {
         this.$refs.editor.focus()

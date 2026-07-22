@@ -14,6 +14,7 @@
       :mentionable-users="workspace ? workspace.users : null"
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
+      :clipboard-markdown-resolver="resolveClipboardMarkdown"
       @focus="select()"
       @blur="unselect()"
     ></RichTextEditor>
@@ -28,6 +29,7 @@
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
+import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   components: { RichTextEditor },
@@ -52,6 +54,7 @@ export default {
     },
   },
   methods: {
+    resolveClipboardMarkdown: getRichTextClipboardContent,
     getError() {
       return this.getValidationError(this.$refs.input?.serializeToMarkdown())
     },

@@ -125,6 +125,47 @@ describe('RichTextEditor Markdown persistence', () => {
     expect(reopened.find('.tiptap').html()).toBe(wrapper.find('.tiptap').html())
   })
 
+  test('preserves trailing empty paragraphs copied from another rich text editor', async () => {
+    const markdown = 'Line1\n\n\n\nLine3\n\n\n\nline5\n\n&nbsp;'
+    const source = await mountEditor(markdown)
+    const clipboard = {}
+    const clipboardData = {
+      clearData: () => {
+        Object.keys(clipboard).forEach((type) => delete clipboard[type])
+      },
+      getData: (type) => clipboard[type] ?? '',
+      setData: (type, value) => {
+        clipboard[type] = value
+      },
+    }
+    const copyEvent = new Event('copy', {
+      bubbles: true,
+      cancelable: true,
+    })
+    Object.defineProperty(copyEvent, 'clipboardData', {
+      value: clipboardData,
+    })
+
+    source.vm.editor.commands.selectAll()
+    source.find('.tiptap').element.dispatchEvent(copyEvent)
+    expect(clipboard['text/plain']).toBe(markdown)
+
+    const target = await mountEditor('')
+    await target.find('.tiptap').trigger('paste', {
+      // Some browsers only expose text/plain here. The editor-copy marker must
+      // still prevent this Markdown from being inserted as literal plain text.
+      clipboardData: {
+        getData: (type) =>
+          type === 'text/plain' ? clipboard['text/plain'] : '',
+      },
+    })
+
+    expect(
+      target.findAll('.tiptap p').map((paragraph) => paragraph.text())
+    ).toStrictEqual(['Line1', '', 'Line3', '', 'line5', ''])
+    expect(target.vm.serializeToMarkdown()).toBe(markdown)
+  })
+
   test('renders repeated plain text newlines converted to Markdown', async () => {
     const markdown = plainTextToMarkdown('ciao\n\n\n\nmiao')
     const wrapper = await mountEditor(markdown)
