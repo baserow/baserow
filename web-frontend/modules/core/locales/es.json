@@ -155,7 +155,7 @@
         "workspaces": "Espacios de trabajo"
     },
     "trashContents": {
-        "message": "Restaurar elementos eliminados del pasado {duration}",
+        "message": "Restaurar elementos eliminados de los últimos {duration}",
         "empty": "No se ha eliminado nada en los últimos tres días.",
         "emptyButtonTrashed": "Eliminar {type} permanentemente",
         "emptyButtonNotTrashed": "Vaciar la papelera del {type}",
