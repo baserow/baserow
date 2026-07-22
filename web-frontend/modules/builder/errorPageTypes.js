@@ -1,5 +1,11 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import { ErrorPageType } from '@baserow/modules/core/errorPageTypes'
-import PublicSiteErrorPage from '@baserow/modules/builder/components/PublicSiteErrorPage'
+
+const PublicSiteErrorPage = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/PublicSiteErrorPage'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class PublicSiteErrorPageType extends ErrorPageType {
   getComponent() {

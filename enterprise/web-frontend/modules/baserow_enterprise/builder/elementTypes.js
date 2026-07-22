@@ -1,11 +1,8 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import {
   ElementType,
   FormElementType,
 } from '@baserow/modules/builder/elementTypes'
-import AuthFormElement from '@baserow_enterprise/builder/components/elements/AuthFormElement'
-import AuthFormElementForm from '@baserow_enterprise/builder/components/elements/AuthFormElementForm'
-import FileInputElement from '@baserow_enterprise/builder/components/elements/FileInputElement'
-import FileInputElementForm from '@baserow_enterprise/builder/components/elements/FileInputElementForm'
 import GraphElement from '@baserow_enterprise/builder/components/elements/GraphElement'
 import GraphElementForm from '@baserow_enterprise/builder/components/elements/GraphElementForm'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -26,6 +23,27 @@ import elementImageFileInput from '@baserow_enterprise/assets/images/builder/ele
 import ChartBarWidgetSvg from '@baserow_premium/assets/images/chart_bar.svg?url'
 
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
+
+const AuthFormElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_enterprise/builder/components/elements/AuthFormElement'),
+  hydrate: hydrateOnIdle(),
+})
+const AuthFormElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_enterprise/builder/components/elements/AuthFormElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FileInputElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_enterprise/builder/components/elements/FileInputElement'),
+  hydrate: hydrateOnIdle(),
+})
+const FileInputElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_enterprise/builder/components/elements/FileInputElementForm'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class AuthFormElementType extends ElementType {
   static getType() {
