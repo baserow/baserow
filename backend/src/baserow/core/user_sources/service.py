@@ -205,6 +205,15 @@ class UserSourceService:
             user_source, kwargs, user_source_type.sensitive_fields
         )
 
+        # `extract_undo_redo_values` can't serialise related managers, so the nested
+        # `auth_providers` (which hold e.g. the password field) are captured here so
+        # that undo/redo restores them.
+        if "auth_providers" in kwargs:
+            original_values["auth_providers"] = user_source_type.export_auth_providers(
+                user_source
+            )
+            new_values["auth_providers"] = kwargs["auth_providers"]
+
         prepared_values = user_source_type.prepare_values(kwargs, user, user_source)
 
         # Detect if a user re-count is required. Per user source type

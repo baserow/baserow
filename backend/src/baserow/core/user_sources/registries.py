@@ -158,6 +158,20 @@ class UserSourceType(
             )
             self.update_user_count(queryset)
 
+    def export_auth_providers(self, user_source: UserSource) -> List[Dict[str, Any]]:
+        """
+        Returns the user source's auth providers in the request / `prepare_values`
+        shape, so they can be captured for undo/redo (the generic
+        `extract_undo_redo_values` cannot serialise the related `auth_providers`).
+        """
+
+        return [
+            {"type": ap.get_type().type, **ap.get_type().export_prepared_values(ap)}
+            for ap in AppAuthProviderHandler.list_app_auth_providers_for_user_source(
+                user_source
+            )
+        ]
+
     def serialize_property(
         self,
         instance: UserSource,

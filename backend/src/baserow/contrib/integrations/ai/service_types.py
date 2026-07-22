@@ -15,6 +15,7 @@ from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
 )
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -157,24 +158,33 @@ class AIAgentServiceType(ServiceType):
                 instance.integration_id if instance else None
             )
             if integration_id and ai_model:
-                integration = (
-                    IntegrationHandler().get_integration(integration_id).specific
-                )
-                integration_type = AIIntegrationType()
-                provider_settings = integration_type.get_provider_settings(
-                    integration, ai_type
-                )
-                available_models = ai_model_type.call_get_enabled_models(
-                    workspace=integration.application.workspace,
-                    settings_override=provider_settings or None,
-                )
-
-                if ai_model not in available_models:
-                    raise DRFValidationError(
-                        {
-                            "ai_generative_ai_model": f"Model '{ai_model}' is not available for provider '{ai_type}'."
-                        }
+                try:
+                    integration = (
+                        IntegrationHandler().get_integration(integration_id).specific
                     )
+                except IntegrationDoesNotExist:
+                    # The integration has been trashed (e.g. a concurrent edit), so its
+                    # available models can't be resolved. Skip the best-effort model
+                    # validation rather than raising a 500; the trashed integration is
+                    # surfaced as a misconfiguration separately (at dispatch).
+                    integration = None
+
+                if integration is not None:
+                    integration_type = AIIntegrationType()
+                    provider_settings = integration_type.get_provider_settings(
+                        integration, ai_type
+                    )
+                    available_models = ai_model_type.call_get_enabled_models(
+                        workspace=integration.application.workspace,
+                        settings_override=provider_settings or None,
+                    )
+
+                    if available_models and ai_model not in available_models:
+                        raise DRFValidationError(
+                            {
+                                "ai_generative_ai_model": f"Model '{ai_model}' is not available for provider '{ai_type}'."
+                            }
+                        )
 
         return super().prepare_values(values, user, instance)
 

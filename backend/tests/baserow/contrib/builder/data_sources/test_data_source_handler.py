@@ -20,6 +20,7 @@ from baserow.contrib.integrations.local_baserow.models import (
 )
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.services.registries import service_type_registry
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyStr
 
@@ -739,3 +740,65 @@ def test_get_data_source_with_trashed_integration(data_fixture):
 
     assert result.id == data_source.id
     assert result.service.integration is None
+
+
+@pytest.mark.django_db
+def test_create_data_source_with_duplicate_name_is_allowed(data_fixture):
+    page = data_fixture.create_builder_page()
+    first = DataSourceHandler().create_data_source(page=page, name="Data source")
+    second = DataSourceHandler().create_data_source(page=page, name="Data source")
+
+    # Data source names are not unique (like database table names), so two data
+    # sources on the same page may share a name.
+    assert first.name == second.name == "Data source"
+    assert first.id != second.id
+
+
+@pytest.mark.django_db
+def test_export_data_source_preserves_trashed_integration_id(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration=integration
+    )
+
+    TrashHandler.trash(user, builder.workspace, builder, integration)
+
+    # The fetch (and therefore the export) must keep the FK id even though the
+    # integration is trashed, so a same-builder duplicate reconnects on restore.
+    exported = DataSourceHandler().export_data_source(
+        DataSourceHandler().get_data_sources(page=page)[0]
+    )
+    assert exported["service"]["integration_id"] == integration.id
+
+
+@pytest.mark.django_db
+def test_import_data_source_drops_integration_from_another_application(data_fixture):
+    user = data_fixture.create_user()
+    builder_a = data_fixture.create_builder_application(user=user)
+    page_a = data_fixture.create_builder_page(builder=builder_a)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder_a, user=user
+    )
+    data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page_a, integration=integration
+    )
+    TrashHandler.trash(user, builder_a.workspace, builder_a, integration)
+
+    exported = DataSourceHandler().export_data_source(
+        DataSourceHandler().get_data_sources(page=page_a)[0]
+    )
+
+    # Import into a *different* application. The trashed integration was not part of
+    # the import (absent from `id_mapping`), so its id must not resolve to
+    # `builder_a`'s integration — the imported data source is left misconfigured.
+    builder_b = data_fixture.create_builder_application(user=user)
+    page_b = data_fixture.create_builder_page(builder=builder_b)
+    imported = DataSourceHandler().import_data_source(
+        page_b, exported, {"integrations": {}}
+    )
+    assert imported.service.integration_id is None

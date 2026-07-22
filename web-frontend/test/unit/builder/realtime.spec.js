@@ -200,7 +200,7 @@ describe('builder realtime workflow_actions_reordered', () => {
     )
 
     expect(dispatchedWith(store, 'builderWorkflowAction/forceOrder')).toEqual([
-      { page: regularPage, order: [3, 1, 2] },
+      { page: regularPage, order: [3, 1, 2], elementId: 5 },
     ])
   })
 

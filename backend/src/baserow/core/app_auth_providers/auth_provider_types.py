@@ -41,6 +41,18 @@ class AppAuthProviderType(
     compatible or False if not.
     """
 
+    def export_prepared_values(self, instance: AuthProviderModelSubClass) -> dict:
+        """
+        Returns a serializable dict of this auth provider's values in the
+        `prepare_values` shape, so they can be re-created - e.g. to capture a user
+        source's auth providers for undo/redo, since the generic
+        `extract_undo_redo_values` cannot serialise related models. This is the
+        counterpart of `prepare_values` (mirroring `ServiceType.export_prepared_values`);
+        types with foreign-key fields override this to emit the `_id` form.
+        """
+
+        return {key: getattr(instance, key) for key in self.allowed_fields}
+
     def check_user_source_compatibility(self, user_source):
         """
         Given a particular instance of a user source returns if it's compatible

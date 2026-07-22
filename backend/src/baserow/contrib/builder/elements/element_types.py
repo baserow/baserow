@@ -29,6 +29,7 @@ from baserow.contrib.builder.api.elements.serializers import (
     MenuItemSerializer,
     NestedMenuItemsMixin,
 )
+from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
@@ -768,7 +769,12 @@ class RecordSelectorElementType(
             msg = "A valid data source is required"
             raise ElementImproperlyConfigured(msg)
 
-        data_source = DataSourceHandler().get_data_source(element.data_source_id)
+        try:
+            data_source = DataSourceHandler().get_data_source(element.data_source_id)
+        except DataSourceDoesNotExist:
+            # The referenced data source has been trashed; the element is misconfigured
+            # (treated the same as having no data source) rather than crashing.
+            raise ElementImproperlyConfigured("A valid data source is required")
 
         service = data_source.service
         service_type = service.get_type()

@@ -361,6 +361,9 @@ export class WorkflowActionServiceType extends WorkflowActionType {
   getErrorMessage(workflowAction, applicationContext) {
     const serviceError = this.serviceType.getErrorMessage({
       service: workflowAction.service,
+      // Pass the builder so the service type can resolve the service's integration
+      // and flag the action as in-error when that integration has been trashed.
+      application: applicationContext.builder,
     })
 
     if (serviceError) {

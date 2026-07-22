@@ -98,8 +98,16 @@ const mutations = {
         : workflowAction
     )
   },
-  ORDER_ITEMS(state, { page, order }) {
+  ORDER_ITEMS(state, { page, order, elementId = null }) {
     page.workflowActions.forEach((workflowAction) => {
+      // Only reorder the actions belonging to the targeted element. Without this,
+      // actions of other elements (not present in `order`) would fall into the
+      // `index === -1` branch and have their order reset to 0, visibly reshuffling
+      // them - which is what happened when reordering one element's actions
+      // reordered another's.
+      if (elementId !== null && workflowAction.element_id !== elementId) {
+        return
+      }
       const index = order.findIndex((value) => value === workflowAction.id)
       workflowAction.order = index === -1 ? 0 : index + 1
     })
@@ -135,8 +143,8 @@ const actions = {
   forceSet({ commit }, { page, workflowAction, values }) {
     commit('SET_ITEM', { page, workflowAction, values })
   },
-  forceOrder({ commit }, { page, order }) {
-    commit('ORDER_ITEMS', { page, order })
+  forceOrder({ commit }, { page, order, elementId = null }) {
+    commit('ORDER_ITEMS', { page, order, elementId })
   },
   async create(
     { dispatch },
@@ -276,13 +284,14 @@ const actions = {
         : getters.getWorkflowActions(page)
 
     const oldOrder = workflowActions.map(({ id }) => id)
+    const elementId = element !== null ? element.id : null
 
-    commit('ORDER_ITEMS', { page, order })
+    commit('ORDER_ITEMS', { page, order, elementId })
 
     try {
       await WorkflowActionService($client).order(page.id, order, element.id)
     } catch (error) {
-      commit('ORDER_ITEMS', { page, order: oldOrder })
+      commit('ORDER_ITEMS', { page, order: oldOrder, elementId })
       throw error
     }
   },

@@ -167,7 +167,7 @@ def test_create_data_source_bad_request(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
+def test_create_data_source_with_duplicate_name_is_allowed(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
@@ -184,11 +184,10 @@ def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
-        "detail": f"The data source name '{data_source.name}' already exists.",
-    }
+    # Data source names are not unique (like database table names), so creating a
+    # second data source with the same name on the same page is allowed.
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == data_source.name
 
 
 @pytest.mark.django_db
@@ -320,7 +319,7 @@ def test_update_data_source_page(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
+def test_update_data_source_with_duplicate_name_is_allowed_on_same_page(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
@@ -342,11 +341,10 @@ def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
-        "detail": f"The data source name '{data_source_1.name}' already exists.",
-    }
+    # Data source names are not unique, so renaming one to match a sibling on the
+    # same page is allowed.
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == data_source_1.name
 
 
 @pytest.mark.django_db

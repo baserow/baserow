@@ -47,6 +47,9 @@ class LocalBaserowPasswordAppAuthProviderType(AppAuthProviderType):
     class SerializedDict(AppAuthProviderTypeDict):
         password_field_id: int
 
+    def export_prepared_values(self, instance: LocalBaserowPasswordAppAuthProvider):
+        return {"password_field_id": instance.password_field_id}
+
     def can_create_new_providers(
         self, user_source: Optional[UserSourceSubClass] = None, **kwargs
     ) -> bool:

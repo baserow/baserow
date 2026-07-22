@@ -55,6 +55,10 @@ class BuilderWorkflowAction(
         Element, on_delete=models.CASCADE, null=True, default=None
     )
 
+    # Overrides `TrashableModelMixin.trashed` solely to add `db_default` so the
+    # column keeps a database-level default.
+    trashed = models.BooleanField(default=False, db_default=False, db_index=True)
+
     # The default manager hides actions that are trashed themselves or whose element
     # has been trashed. `trash`/`objects_and_trash` come from `TrashableModelMixin` and
     # are used for the workflow action's own trash/restore. Use

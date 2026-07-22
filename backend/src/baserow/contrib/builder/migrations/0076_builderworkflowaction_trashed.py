@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='builderworkflowaction',
             name='trashed',
-            field=models.BooleanField(db_index=True, default=False),
+            field=models.BooleanField(db_default=False, db_index=True, default=False),
         ),
     ]

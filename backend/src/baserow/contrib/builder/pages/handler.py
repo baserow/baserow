@@ -388,7 +388,14 @@ class PageHandler:
         if page_path.endswith("/"):
             page_path = page_path[:-1]
 
-        existing_paths = list(builder.page_set.values_list("path", flat=True))
+        # Include trashed (soft-deleted) pages: the `(builder, path)` uniqueness is
+        # enforced at the database level and still counts trashed rows, so proposing a
+        # path a trashed page still holds would raise an IntegrityError on insert.
+        existing_paths = list(
+            Page.objects_and_trash.filter(builder=builder).values_list(
+                "path", flat=True
+            )
+        )
         return find_unused_name(
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
@@ -499,7 +506,10 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects if base_queryset is None else base_queryset
+        # Include trashed (soft-deleted) pages: the `(builder, path)` uniqueness is
+        # enforced at the database level and still counts trashed rows, so a path a
+        # trashed page still holds must be treated as taken.
+        queryset = Page.objects_and_trash if base_queryset is None else base_queryset
 
         existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
 

@@ -427,6 +427,9 @@ export const registerRealtimeEvents = (realtime) => {
     store.dispatch('builderWorkflowAction/forceOrder', {
       page: ctx.page,
       order: data.order,
+      // Scope the reorder to the element the actions belong to, so another
+      // element's actions aren't reshuffled.
+      elementId: data.element_id,
     })
   })
 

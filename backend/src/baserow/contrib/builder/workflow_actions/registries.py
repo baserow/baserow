@@ -211,6 +211,11 @@ class BuilderWorkflowActionType(
                 imported_element_id, cache.get("imported_element_map", None)
             )
 
+        # `parent` is the target page; expose its builder so `deserialize_property`
+        # can drop a service's integration reference when it belongs to another
+        # application (see LocalBaserowWorkflowActionType.deserialize_property).
+        import_context["target_builder_id"] = parent.builder_id
+
         created_instance = super().import_serialized(
             parent,
             serialized_values,
