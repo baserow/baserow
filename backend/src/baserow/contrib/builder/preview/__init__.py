@@ -19,7 +19,6 @@ BUILDER_PREVIEW_GRANT_TOKEN_SALT = "builder-preview-grant"
 BUILDER_PREVIEW_SESSION_TOKEN_SALT = "builder-preview-session"
 BUILDER_PREVIEW_GRANT_CACHE_KEY = "builder_preview_grant_{grant_id}"
 BUILDER_PREVIEW_HANDOFF_CACHE_KEY = "builder_preview_handoff_{handoff_code}"
-BUILDER_PREVIEW_HANDOFF_TTL_SECONDS = 60
 
 
 def get_builder_preview_cookie_name(builder_id: int) -> str:
@@ -96,7 +95,7 @@ class BuilderPreviewGrantHandler:
             cached_payload = global_cache.get(
                 self.get_handoff_cache_key(handoff_code),
                 default=payload,
-                timeout=BUILDER_PREVIEW_HANDOFF_TTL_SECONDS,
+                timeout=settings.BUILDER_PREVIEW_HANDOFF_TTL_SECONDS,
             )
             if cached_payload == payload:
                 return handoff_code
@@ -117,7 +116,7 @@ class BuilderPreviewGrantHandler:
             self.get_handoff_cache_key(handoff_code),
             callback=consume,
             default_value=None,
-            timeout=BUILDER_PREVIEW_HANDOFF_TTL_SECONDS,
+            timeout=settings.BUILDER_PREVIEW_HANDOFF_TTL_SECONDS,
         )
         payload = consumed_payload[0]
         if not isinstance(payload, dict):

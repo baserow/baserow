@@ -210,6 +210,32 @@ def test_invalid_and_expired_preview_handoffs_return_no_store_404(
 
 
 @pytest.mark.django_db
+def test_preview_handoff_uses_configured_lifetime(api_client, data_fixture, settings):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    settings.BUILDER_PREVIEW_HANDOFF_TTL_SECONDS = 5 * 60
+
+    with freeze_time("2024-01-01 12:00:00"):
+        handler = BuilderPreviewGrantHandler()
+        token = handler.create_grant(builder, user)
+        _, session_token = handler.exchange_token(token)
+        handoff_code = handler.create_handoff(session_token, builder.id)
+
+    with freeze_time("2024-01-01 12:01:01"):
+        response = api_client.post(
+            preview_handoff_url(),
+            {
+                BUILDER_PREVIEW_HANDOFF_QUERY_PARAM: handoff_code,
+                "builder_id": builder.id,
+            },
+            format="json",
+        )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["preview_session"] == session_token
+
+
+@pytest.mark.django_db
 def test_preview_handoff_rejects_route_builder_mismatch(api_client, data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
