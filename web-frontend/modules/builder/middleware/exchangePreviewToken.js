@@ -17,6 +17,11 @@ import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { createBuilderPreviewSessionError } from '@baserow/modules/builder/plugins/previewClientHandler'
 
 const PREVIEW_HANDOFF_QUERY_PARAM = 'preview_handoff'
+const PREVIEW_HANDOFF_EXCHANGE_CACHE_TTL_MS = 10_000
+// A browser can issue duplicate document requests for the handoff URL. Keep the
+// backend exchange promise at module scope so every request handled by this Nitro
+// process shares the one-time result.
+const previewHandoffExchangeScope = {}
 
 export const getPreviewToken = (to, requestUrl) => {
   const rawPreviewToken = requestUrl.searchParams.get('preview_token')
@@ -44,12 +49,11 @@ export const getCleanPreviewUrl = (requestUrl, builderPreviewUrl) => {
   return cleanUrl
 }
 
-export const exchangePreviewHandoffInSsr = async (
+export const exchangePreviewHandoff = async (
   handoffCode,
   builderId,
   config,
-  fetch = globalThis.fetch,
-  getCookie = useCookie
+  fetch = globalThis.fetch
 ) => {
   const response = await fetch(
     `${config.privateBackendUrl.replace(/\/$/, '')}/api/builder/preview/handoff/`,
@@ -80,6 +84,18 @@ export const exchangePreviewHandoffInSsr = async (
   if (receivedBuilderId !== builderId) {
     throw new Error('The builder preview handoff belongs to another builder.')
   }
+
+  return { expiresIn, previewSession }
+}
+
+export const setPreviewHandoffCookie = (
+  builderId,
+  config,
+  { expiresIn, previewSession },
+  getCookie = useCookie
+) => {
+  // Each duplicate SSR response must set its own cookie even though they share the
+  // same backend exchange promise.
   const previewCookie = getCookie(
     getBuilderPreviewSsrCookieName(config, builderId),
     {
@@ -91,26 +107,53 @@ export const exchangePreviewHandoffInSsr = async (
     }
   )
   previewCookie.value = previewSession
-
-  return { expiresIn, previewSession }
 }
 
-export const exchangePreviewHandoffOnce = (
-  nuxtApp,
+export const exchangePreviewHandoffInSsr = async (
   handoffCode,
   builderId,
   config,
-  exchange = exchangePreviewHandoffInSsr
+  fetch = globalThis.fetch,
+  getCookie = useCookie
 ) => {
-  nuxtApp._builderPreviewHandoffExchanges ||= new Map()
-  if (!nuxtApp._builderPreviewHandoffExchanges.has(handoffCode)) {
-    nuxtApp._builderPreviewHandoffExchanges.set(
-      handoffCode,
-      exchange(handoffCode, builderId, config)
-    )
-  }
-  return nuxtApp._builderPreviewHandoffExchanges.get(handoffCode)
+  const previewSession = await exchangePreviewHandoff(
+    handoffCode,
+    builderId,
+    config,
+    fetch
+  )
+  setPreviewHandoffCookie(builderId, config, previewSession, getCookie)
+
+  return previewSession
 }
+
+export const exchangePreviewHandoffOnce = (
+  exchangeScope,
+  handoffCode,
+  builderId,
+  config,
+  exchange = exchangePreviewHandoff
+) => {
+  exchangeScope._builderPreviewHandoffExchanges ||= new Map()
+  if (!exchangeScope._builderPreviewHandoffExchanges.has(handoffCode)) {
+    const exchangePromise = exchange(handoffCode, builderId, config)
+    exchangeScope._builderPreviewHandoffExchanges.set(
+      handoffCode,
+      exchangePromise
+    )
+    const scheduleCleanup = () => {
+      const cleanupTimer = setTimeout(
+        () => exchangeScope._builderPreviewHandoffExchanges.delete(handoffCode),
+        PREVIEW_HANDOFF_EXCHANGE_CACHE_TTL_MS
+      )
+      cleanupTimer.unref?.()
+    }
+    exchangePromise.then(scheduleCleanup, scheduleCleanup)
+  }
+  return exchangeScope._builderPreviewHandoffExchanges.get(handoffCode)
+}
+
+export const getPreviewHandoffExchangeScope = () => previewHandoffExchangeScope
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig()
@@ -145,14 +188,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (import.meta.client) {
-    return navigateTo(requestUrl.toString(), {
-      external: true,
-      redirectCode: 302,
-    })
+    throw createBuilderPreviewSessionError(nuxtApp.$i18n)
   }
 
   try {
-    await exchangePreviewHandoffOnce(nuxtApp, previewHandoff, builderId, config)
+    const previewSession = await exchangePreviewHandoffOnce(
+      getPreviewHandoffExchangeScope(),
+      previewHandoff,
+      builderId,
+      config
+    )
+    setPreviewHandoffCookie(builderId, config, previewSession)
   } catch {
     throw createBuilderPreviewSessionError(nuxtApp.$i18n)
   }

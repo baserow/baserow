@@ -40,8 +40,10 @@ const {
   exchangePreviewHandoffInSsr,
   exchangePreviewHandoffOnce,
   getCleanPreviewUrl,
+  getPreviewHandoffExchangeScope,
   getPreviewHandoff,
   getPreviewToken,
+  setPreviewHandoffCookie,
 } = await import('@baserow/modules/builder/middleware/exchangePreviewToken')
 
 beforeEach(() => {
@@ -180,5 +182,77 @@ describe('exchangePreviewToken middleware helpers', () => {
     expect(unsetToken.mock.calls[0][2]).toEqual({
       path: '/builder-preview/42',
     })
+  })
+
+  test('deduplicates handoff exchanges across SSR requests', async () => {
+    const config = {
+      public: {
+        baserowFrontendCookiePrefix: 'test_',
+        builderPreviewUrl: 'https://preview.example.com',
+      },
+    }
+    const exchange = vi.fn().mockResolvedValue({
+      previewSession: 'signed-session',
+      expiresIn: 1234,
+    })
+    const firstScope = getPreviewHandoffExchangeScope()
+    const secondScope = getPreviewHandoffExchangeScope()
+
+    const sessions = await Promise.all([
+      exchangePreviewHandoffOnce(
+        firstScope,
+        'handoff-code',
+        42,
+        config,
+        exchange
+      ),
+      exchangePreviewHandoffOnce(
+        secondScope,
+        'handoff-code',
+        42,
+        config,
+        exchange
+      ),
+    ])
+    const firstCookie = { value: null }
+    const secondCookie = { value: null }
+    setPreviewHandoffCookie(42, config, sessions[0], () => firstCookie)
+    setPreviewHandoffCookie(42, config, sessions[1], () => secondCookie)
+
+    expect(firstScope).toBe(secondScope)
+    expect(exchange).toHaveBeenCalledOnce()
+    expect(firstCookie.value).toBe('signed-session')
+    expect(secondCookie.value).toBe('signed-session')
+  })
+
+  test('removes completed handoff exchanges from the process cache', async () => {
+    vi.useFakeTimers()
+    try {
+      const exchange = vi.fn().mockResolvedValue({
+        previewSession: 'signed-session',
+        expiresIn: 1234,
+      })
+      const exchangeScope = getPreviewHandoffExchangeScope()
+
+      await exchangePreviewHandoffOnce(
+        exchangeScope,
+        'expiring-handoff-code',
+        42,
+        {},
+        exchange
+      )
+      await vi.advanceTimersByTimeAsync(10_000)
+      await exchangePreviewHandoffOnce(
+        exchangeScope,
+        'expiring-handoff-code',
+        42,
+        {},
+        exchange
+      )
+
+      expect(exchange).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
