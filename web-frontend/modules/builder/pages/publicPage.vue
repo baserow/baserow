@@ -14,7 +14,10 @@
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { useAsyncData, useNuxtApp, navigateTo, createError } from '#app'
-import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
+import {
+  resolveApplicationRoute,
+  stripBuilderPreviewPathPrefix,
+} from '@baserow/modules/builder/utils/routing'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import _ from 'lodash'
@@ -73,12 +76,19 @@ const routeMode =
     ? route.meta.builderPageMode
     : null
 const mode = routeMode || props.mode
-const routePathMatch =
+const rawRoutePathMatch =
   props.pathMatch !== null
     ? props.pathMatch
     : Array.isArray(route.params.pathMatch)
       ? route.params.pathMatch.join('/')
       : route.params.pathMatch || ''
+const routePathMatch =
+  mode === 'preview'
+    ? stripBuilderPreviewPathPrefix(
+        rawRoutePathMatch,
+        nuxtApp.$config.public.builderPreviewPathPrefix
+      )
+    : rawRoutePathMatch
 
 if (mode === 'preview') {
   useHead({

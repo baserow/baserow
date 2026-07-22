@@ -1,12 +1,5 @@
 import path from 'path'
 
-const builderPreviewPathPrefix = (
-  process.env.NUXT_PUBLIC_BUILDER_PREVIEW_PATH_PREFIX ?? '/builder-preview'
-)
-  .split('/')
-  .filter(Boolean)
-  .join('/')
-
 export const routes = [
   {
     name: 'builder-page',
@@ -21,10 +14,11 @@ export const routes = [
   },
   {
     name: 'application-builder-preview',
-    // This route to the preview of the builder page
-    path: builderPreviewPathPrefix
-      ? `/${builderPreviewPathPrefix}/:pathMatch(.*)*`
-      : '/:pathMatch(.*)*',
+    // The configured preview prefix is only available at runtime in production
+    // images, after Nuxt has compiled this route. Match every possible preview
+    // path here; the router plugin limits this route to preview requests and the
+    // public page strips the runtime prefix before resolving the builder page.
+    path: '/:pathMatch(.*)*',
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
     meta: {
       previewBuilderRoute: true,

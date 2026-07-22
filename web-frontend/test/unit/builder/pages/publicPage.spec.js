@@ -26,6 +26,9 @@ vi.mock('#app', async (importOriginal) => ({
   useNuxtApp: () => ({
     $i18n: { t: (key) => key },
     $registry: {},
+    $config: {
+      public: { builderPreviewPathPrefix: '/builder-preview' },
+    },
   }),
 }))
 

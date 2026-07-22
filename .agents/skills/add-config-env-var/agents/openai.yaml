@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Config Env Var"
+  short_description: "Add and propagate a Baserow env variable"
+  default_prompt: "Use $add-config-env-var to add a configuration environment variable across the relevant Baserow backend, frontend, deployment, documentation, and test files."

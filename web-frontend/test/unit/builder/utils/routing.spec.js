@@ -1,6 +1,9 @@
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
+import {
+  resolveApplicationRoute,
+  stripBuilderPreviewPathPrefix,
+} from '@baserow/modules/builder/utils/routing'
 
 const createBuilderRouter = () =>
   createRouter({
@@ -33,5 +36,18 @@ describe('resolveApplicationRoute', () => {
 
     expect(found?.[0]).toBe(homepage)
     expect(found?.[1]).toBe('')
+  })
+})
+
+describe('stripBuilderPreviewPathPrefix', () => {
+  test.each([
+    ['builder-preview', '/builder-preview', ''],
+    ['builder-preview/', '/builder-preview', ''],
+    ['builder-preview/products/42', '/builder-preview', 'products/42'],
+    ['custom/preview/products/42', '//custom/preview//', 'products/42'],
+    ['products/42', '', 'products/42'],
+    ['products/42', '/builder-preview', 'products/42'],
+  ])('strips the configured prefix from %s', (path, prefix, expected) => {
+    expect(stripBuilderPreviewPathPrefix(path, prefix)).toBe(expected)
   })
 })

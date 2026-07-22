@@ -7,13 +7,24 @@ vi.mock('#imports', () => ({
   useRuntimeConfig: vi.fn(),
 }))
 
-const { shouldRemoveRoute } = await import(
-  '@baserow/modules/builder/plugins/router'
-)
+const { shouldRemoveRoute } =
+  await import('@baserow/modules/builder/plugins/router')
 
 const publishedHostname = {
   isWebFrontendHostname: false,
   isBuilderPreviewHostname: false,
+  isBuilderPreviewRequest: false,
+}
+
+const webFrontendPreviewRequest = {
+  isWebFrontendHostname: true,
+  isBuilderPreviewHostname: true,
+  isBuilderPreviewRequest: true,
+}
+
+const webFrontendRegularRequest = {
+  isWebFrontendHostname: true,
+  isBuilderPreviewHostname: true,
   isBuilderPreviewRequest: false,
 }
 
@@ -36,5 +47,17 @@ describe('builder router route filtering', () => {
     const route = { meta: {} }
 
     expect(shouldRemoveRoute(route, publishedHostname)).toBe(true)
+  })
+
+  test('keeps the catch-all preview route for a prefixed preview request', () => {
+    const route = { meta: { previewBuilderRoute: true } }
+
+    expect(shouldRemoveRoute(route, webFrontendPreviewRequest)).toBe(false)
+  })
+
+  test('removes the catch-all preview route for regular frontend requests', () => {
+    const route = { meta: { previewBuilderRoute: true } }
+
+    expect(shouldRemoveRoute(route, webFrontendRegularRequest)).toBe(true)
   })
 })
