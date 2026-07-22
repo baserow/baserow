@@ -150,7 +150,14 @@ sequenceDiagram
 Failure behavior matches the builder: execution stops at the first failing action, the
 rest are skipped, and the user sees an error toast. Nothing is rolled back, since
 sequences can contain irreversible effects (an email cannot be unsent). Retries,
-on-error action stacks, and per-click run history are out of scope.
+on-error action stacks, and per-click run history are out of scope, and so is rate
+limiting until external action types arrive.
+
+Dispatch is serialized per button cell: while a click is running, the endpoint rejects
+further clicks for the same field and row, so a double click cannot run a sequence
+twice. Row changes made by actions fire the normal side effects (webhooks, automation
+triggers, realtime updates), the same as a manual edit; buttons add no loop guard of
+their own beyond what automation already applies to its triggers.
 
 Local row actions dispatch synchronously in the request. Slow external actions later
 move behind the existing job/Celery pattern with realtime completion, so the API treats
@@ -167,6 +174,10 @@ The database module registers two data providers for button dispatch:
 - **A previous-action provider** modeled on the builder's `PreviousActionProviderType`
   and automation's `PreviousNodeProviderType`, with identifier remapping on import, so
   all three modules keep the same design.
+
+The raw row provider is a snapshot taken at dispatch time: every action sees the row as
+it was when the user clicked, even after an earlier action changed or deleted it;
+fresher values come from the previous-action provider.
 
 ### 5. Integrations and ownership
 
@@ -200,14 +211,29 @@ by who may configure it. The action editor offers the tables the integration's u
 reach, and if that user loses access to a target table, clicks fail with the standard
 error toast rather than silently skipping.
 
+Who may configure is therefore the real permission boundary, and it is the existing
+field one: creating a button field, editing its actions, and binding an integration to a
+service follow field update permissions, so the builder role and above. Binding an
+existing integration is the elevation step: anyone who can edit fields can put another
+member's authority behind a button, exactly as any editor of a builder application can
+today, and the database accepts the same trade-off.
+
 Attribution does not follow that rule, because the database is stricter here than the
 builder. Row history is a feature every collaborator sees; if a click shows up as an
 edit by whoever configured the integration, the database shows wrong information in a
-core UI. The builder never surfaces this, since its end users see no row history. The
-dispatch context therefore carries the clicking user as the initiator, and row changes
-made by button actions record the initiator in row history from the first version. This
-works in v1 because every click comes from an authenticated editor or above (section 7);
-anonymous initiators only become a question if buttons ever reach public views.
+core UI. The builder never surfaces this, since its end users see no row history. Row
+changes made by button actions therefore record the clicking user as the initiator in
+row history from the first version. This works in v1 because every click comes from an
+authenticated editor or above (section 7); anonymous initiators only become a question
+if buttons ever reach public views.
+
+Row history takes its user from the `action_done` signal, which reports whoever the
+action ran as, and a registered action lands in that user's undo stack. Recording the
+clicking user instead means the action pipeline carries an initiator distinct from the
+acting user, supplied by the dispatch context, with click-triggered actions registering
+outside any undo scope (clicks are never undoable, section 8). That is a small extension
+to shared core machinery, so its design lands with the builder and automation teams
+before implementation starts.
 
 The planned Agent feature (virtual users for integrations) changes who the authorized
 user is, not this attribution decision; how the audit log evolves is left to that work.
@@ -251,6 +277,8 @@ it. Concretely:
 - Clicking is a distinct operation on the dispatch endpoint, where permissions attach:
   editor role minimum, disabled in public views and for viewers and commenters, enforced
   backend-side.
+- The dispatch endpoint accepts user sessions only; database API tokens cannot click in
+  the first version, since a token has no role or identity to record.
 - A future per-field "who can click" permission (a role-based permission on that
   endpoint) fits without rework; it is out of scope for the first version.
 
@@ -263,6 +291,9 @@ it. Concretely:
   be reconfigured (Local Baserow self-heals).
 - **Trash and restore.** Actions and services follow the field, as builder actions
   follow their element.
+- **Deleting or trashing a target table or field.** Services keep the dangling reference
+  and the button enters the reconfigure state rather than failing only at click time;
+  restoring from trash heals it without reconfiguration.
 - **Field type conversion.** Converting away deletes actions and services; converting
   into a button starts empty. Both directions are destructive, like other fields that
   carry configuration.
@@ -312,8 +343,9 @@ defer unifying execution until a real need appears.
 
 ## Consequences
 
-- The button field ships without waiting on a cross-team refactor; the only upstream
-  dependency is the small automation inheritance change.
+- The button field ships without waiting on a cross-team refactor; the upstream
+  dependencies are the small automation inheritance change and the initiator extension
+  to the core action pipeline (section 5).
 - The database module gains integrations, the largest work item here (settings UI,
   import/export handling, reconfigure states) and the main schedule risk.
 - Row history records the clicking user as the initiator from the first version, so the
