@@ -5,7 +5,11 @@
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n-t keypath="webhookPayloadTooLargeNotification.body" tag="span">
+      <i18n-t
+        scope="global"
+        keypath="webhookPayloadTooLargeNotification.body"
+        tag="span"
+      >
         <template #name>
           <strong>{{ notification.data.webhook_name }}</strong>
         </template>

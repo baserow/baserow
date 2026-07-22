@@ -2,7 +2,11 @@
   <Modal ref="modal" @show="init()">
     <h2 class="box__title">{{ $t('fieldPermissionModal.title') }}</h2>
     <p>
-      <i18n-t keypath="fieldPermissionModal.description" tag="span">
+      <i18n-t
+        scope="global"
+        keypath="fieldPermissionModal.description"
+        tag="span"
+      >
         <template #fieldName>
           <strong>{{ field.name }}</strong>
         </template>

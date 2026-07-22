@@ -68,7 +68,7 @@
     </Radio>
     <Alert class="margin-bottom-2">
       <template #title>{{ $t('visibilityForm.warningTitle') }}</template>
-      <i18n-t keypath="visibilityForm.warningMessage" tag="p">
+      <i18n-t scope="global" keypath="visibilityForm.warningMessage" tag="p">
         <template #link>
           <a
             href="https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api"

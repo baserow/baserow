@@ -2060,6 +2060,7 @@
 </template>
 
 <script>
+import { useHead } from '#app'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 import ColorPickerContext from '@baserow/modules/core/components/ColorPickerContext.vue'
@@ -2073,6 +2074,9 @@ export default {
     ColorPickerContext,
     Toasts,
     Paginator,
+  },
+  setup() {
+    useHead({ title: 'Style guide' })
   },
   data() {
     return {
@@ -2113,11 +2117,6 @@ export default {
         { value: 'b', icon: 'iconoir-align-center' },
         { value: 'c', icon: 'iconoir-align-right' },
       ],
-    }
-  },
-  head() {
-    return {
-      title: 'Style guide',
     }
   },
   computed: {
