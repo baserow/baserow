@@ -201,7 +201,7 @@
         "errorIframeUrlMissing": "Falta la propiedad «URL del iFrame»",
         "errorIframeContentMissing": "Falta el contenido de «iFrame»",
         "errorNoMenuItem": "No se ha configurado ningún elemento de menú",
-        "errorMenuItemInError": "Al menos un menú está mal configurado",
+        "errorMenuItemInError": "Al menos un elemento del menú está mal configurado",
         "errorSubMenuItemInError": "Al menos un submenú está mal configurado"
     },
     "verticalAlignmentSelector": {
@@ -565,7 +565,9 @@
     "pagePreview": {
         "emptyMessage": "Haz clic para crear un elemento",
         "header": "ENCABEZAMIENTO",
-        "footer": "PIE DE PÁGINA"
+        "footer": "PIE DE PÁGINA",
+        "fixedHeader": "ENCABEZADO FIJO",
+        "fixedFooter": "PIE DE PÁGINA FIJO"
     },
     "eventTypes": {
         "submitLabel": "Al enviar",
@@ -1203,5 +1205,9 @@
         "testActionDescription": "Ejecuta esta acción en modo previsualización para capturar su salida y hacerla disponible a las acciones siguientes.",
         "sampleDataModalTitle": "Carga útil para {actionLabel}",
         "sampleDataModalSubTitle": "Carga útil JSON"
+    },
+    "pageElementBehaviour": {
+        "normal": "Normal",
+        "fixed": "Fijo"
     }
 }
