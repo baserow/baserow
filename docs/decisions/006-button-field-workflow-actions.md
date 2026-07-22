@@ -1,386 +1,331 @@
-# How the button field shares workflow actions, services, and integrations across modules
+# ADR 006: How the Button Field Shares Workflow Actions Across Modules
 
-Issue: https://github.com/baserow/baserow/issues/1722
-
-Status: draft, under review in the pull request that adds this document. It is updated
-as the review discussion progresses and will state the final decision before it is
-merged.
+|              |                                                |
+| ------------ | ---------------------------------------------- |
+| Status       | Proposed                                       |
+| Date         | 2026-07-22                                     |
+| Issue        | https://github.com/baserow/baserow/issues/1722 |
+| Author       | Al Amin (@alamin-br)                           |
+| Contributors | Davide (@silvestrid), Jérémie (@jrmi)          |
 
 ## Summary
 
-The button field is a new database field type whose cells render a button. Clicking
-it executes an ordered list of configured actions with the clicked row as context,
-and each action's result available to the actions after it.
+The button field is a new database field type whose cells render a button. Clicking it
+runs an ordered list of configured actions with the clicked row as context, and each
+action's result available to the actions after it.
 
-Baserow already has two modules that execute configured, service-backed actions: the
-application builder and the automation module. The database module becomes the third
-consumer. The first draft of this document framed that as a model-inheritance choice.
-Review showed the model hierarchy is the cheap part; the expensive decisions are the
-ones around it. This document therefore decides:
-
-1. Which classes the database module shares or mirrors (the original question).
-2. How action types are structured so that frontend-only actions remain possible.
-3. How execution and failure behave.
-4. How actions read the clicked row and each other's results.
-5. How integrations become available to the database module.
-6. Which user the actions run as, and how that changes with the upcoming Agent
-   feature.
-7. How import/export, duplication, snapshots, and templates keep working.
-8. What kind of field a button actually is, and who may click it.
-9. How the field behaves under common operations (trash, conversion, undo, user
-   deletion).
+The application builder and the automation module already execute configured,
+service-backed actions; the database module becomes the third consumer. This document
+decides how that consumer is built: which classes are shared, how integrations reach the
+database module, which user the actions run as, how import/export keeps working, and how
+execution, failures, and permissions behave.
 
 ## Context
 
-### The three existing building blocks
+**The core base** (`baserow/core/workflow_actions`) is an abstract `WorkflowAction` with
+generic mixins and no fields of its own, plus a registry base and a generic CRUD
+handler. It contains no execution logic; its job is to keep the module implementations
+consistent so they can be merged later.
 
-**The core workflow action base** (`baserow/core/workflow_actions`) is deliberately
-thin. `WorkflowAction` is an abstract model that combines generic mixins
-(polymorphic content type, created/updated timestamps, hierarchy, registry access)
-and defines no fields of its own. The module also provides `WorkflowActionType` (a
-registry base with a `dispatch()` contract and import/export mixins) and
-`WorkflowActionHandler` (generic polymorphic CRUD). It contains no execution logic.
-Its value is not inherited behavior but a common shape: consumers that subclass it
-get the same polymorphism, registry wiring, CRUD, and serialization patterns, which
-keeps their implementations mergeable later.
+**The builder** (`contrib/builder/workflow_actions`) subclasses it.
+`BuilderWorkflowAction` holds page, element, event, and order; the `service` foreign key
+sits on the abstract `BuilderWorkflowServiceAction`, because action types come in two
+kinds: service-backed ones (thin shells forwarding to
+`ServiceHandler().dispatch_service()`) and frontend-only ones (notification, open page,
+logout, refresh data source) that never reach the backend. After each dispatch, data
+providers get a `post_dispatch()` hook, which is how `previous_action` results reach
+later actions.
 
-**The builder implementation** (`contrib/builder/workflow_actions`) subclasses the
-core base. `BuilderWorkflowAction` is the concrete model (page, element, event,
-order). The `service` foreign key is not on that model; it sits on an abstract
-subclass, `BuilderWorkflowServiceAction`. That split exists because the builder has
-two kinds of action types:
+**Automation** (`contrib/automation/nodes`) did not reuse the core base:
+`AutomationNode` holds a `OneToOneField(Service)` and executes as a graph. Review
+established there was no technical blocker behind that: the team was unsure the base
+would fit and never came back to it. Adopting it now is mostly an inheritance change.
 
-- Service-backed types (create/update/delete rows, HTTP request, SMTP email, Slack
-  message, AI agent, and so on). These are thin shells: their `dispatch()` forwards
-  to `ServiceHandler().dispatch_service()`, and all real behavior lives in
-  `core/services` and `contrib/integrations`.
-- Frontend-only types (notification, open page, logout, refresh data source). These
-  never reach the backend; the base type's `dispatch()` raises, and the client
-  executes them.
+Three constraints shape everything below:
 
-Dispatching walks the ordered actions. After each dispatch, the handler gives every
-registered data provider a `post_dispatch()` hook, which is how the
-`previous_action` provider captures results for later actions in the same sequence.
-
-**The automation implementation** (`contrib/automation/nodes`) did not reuse the
-core base. `AutomationNode` holds a `OneToOneField(Service)` and models execution as
-a graph (nodes, edges, previous-node outputs) rather than a flat ordered list.
-Review of this document resolved a question the first draft left open: there was no
-hard incompatibility behind that choice. The automation team was unsure the core
-base would fit and never revisited the decision. Adopting the base in automation now
-is mostly an inheritance change, and the automation team has offered to make it.
-
-### Why this is more than a model-inheritance question
-
-Three facts, all surfaced during review, shape most of this document:
-
-- **Integrations are application-level objects.** Services need an integration, an
-  integration belongs to an application, and the database application type does not
-  support integrations today. Enabling the flag is one line; making import/export,
-  duplication, snapshots, and templates behave correctly is the real work.
-- **Actions run as the integration's user.** A `LocalBaserowIntegration` has an
-  `authorized_user`, set by default to whoever created the integration, and every
-  permission check and data access in its services runs as that user. Reused
-  unchanged, a button click would be attributed to whoever configured the field,
-  not whoever clicked it.
-- **Import ordering assumes integrations live outside the database.** Builder and
-  automation integrations can reference database tables because databases import
-  first (`import_application_priority`). A database integration that references its
-  own application's tables breaks that assumption: the integration would need
-  objects that are created in the same import.
+- Integrations are application-level objects, and the database application type does not
+  support them today. Enabling the flag is one line; import/export, duplication, and
+  templates are the real work.
+- Local Baserow services run every permission check as the integration's
+  `authorized_user`, by default its creator. Reused unchanged, a click would be
+  attributed to whoever configured the field, not whoever clicked.
+- Cross-application import order (databases first) cannot help an integration that lives
+  in the database application and references its own tables.
 
 ## Decision
 
 ### 1. Model layer: converge on the core base, mirror the builder
 
-Two steps, agreed with the builder and automation maintainers during review:
+1. A small preparatory PR, offered by the automation team, makes automation adopt the
+   core `workflow_actions` base classes, removing the one existing divergence.
+2. The database module mirrors `contrib/builder/workflow_actions` with database concepts
+   substituted: `DatabaseWorkflowAction` (foreign key to the button field, `order`),
+   abstract `DatabaseWorkflowServiceAction` holding the `service` foreign key, a type
+   registry, and a handler and service layer that enforce permissions.
 
-1. A small preparatory change makes the automation module adopt the core
-   `workflow_actions` base classes. This removes the one existing divergence, so
-   the button field joins a pattern all modules share rather than picking a side.
-   The automation team offered to open this PR.
-2. The database module adds a layer mirroring `contrib/builder/workflow_actions`
-   with database concepts substituted: a concrete `DatabaseWorkflowAction`
-   subclassing the core `WorkflowAction`, with a foreign key to the button field
-   and an `order` field; an abstract `DatabaseWorkflowServiceAction` subclass
-   holding the `service` foreign key; a `database_workflow_action_type_registry`;
-   and a handler plus permissioned service layer shaped like the builder's.
+```mermaid
+classDiagram
+    class WorkflowAction {
+        <<abstract, baserow.core>>
+    }
+    class BuilderWorkflowAction {
+        page
+        element
+        event
+        order
+    }
+    class BuilderWorkflowServiceAction {
+        <<abstract>>
+        service : FK Service
+    }
+    class AutomationNode {
+        workflow
+        service : OneToOne Service
+        graph edges
+    }
+    class DatabaseWorkflowAction {
+        field : FK button field
+        order
+    }
+    class DatabaseWorkflowServiceAction {
+        <<abstract>>
+        service : FK Service
+    }
 
-To be explicit about what is and is not reused: the core base grants no execution
-behavior, so step 2 is a disciplined re-implementation of a thin layer, not code
-reuse. The heavy machinery (request handling, dispatch, the service and integration
-types themselves) lives in `core/services` and `contrib/integrations` and is
-consumed unchanged. Keeping the three module layers the same shape is what makes a
-later extraction of a shared execution abstraction cheap, if a fourth consumer or a
-need for branching ever justifies it.
+    WorkflowAction <|-- BuilderWorkflowAction : exists today
+    BuilderWorkflowAction <|-- BuilderWorkflowServiceAction
+    WorkflowAction <|-- AutomationNode : step 1, preparatory PR
+    WorkflowAction <|-- DatabaseWorkflowAction : step 2, this feature
+    DatabaseWorkflowAction <|-- DatabaseWorkflowServiceAction
+```
 
-The builder team also raised that the most valuable thing to share may be the
-builder's action dispatch process itself, generalized to serve both modules,
-especially if both end up mixing frontend and backend actions. We treat that as a
-promising follow-up to explore together; it is not a prerequisite for the button
-field and does not change the model decision above.
+The core base contains no behavior, so step 2 re-implements a thin layer rather than
+reusing code; the heavy machinery in `core/services` and `contrib/integrations` is used
+as is. Keeping all three modules the same shape is what makes merging them into one
+shared implementation cheap later. Generalizing the builder's dispatch process to serve
+both modules is a promising follow-up with the builder team, not a prerequisite.
 
 ### 2. Action types: service-backed first, frontend actions kept possible
 
-The first version registers service-backed types only: create row(s), update
-row(s), and delete row(s), all backed by the existing Local Baserow services.
-External types (HTTP request, SMTP email, Slack message) and code execution follow
-in later releases behind the license tiers where those services already sit.
+The first version registers service-backed types only: create, update, and delete
+row(s), backed by the existing Local Baserow services. External types (HTTP request,
+SMTP email, Slack) and code execution follow later, with the same premium or enterprise
+licensing those services already have elsewhere.
 
-The first draft said "service-backed types only" as a design principle. Review
-pushed back with concrete frontend-only actions that make sense for a button: show
-a success toast using a previous action's result, navigate to a URL or table, apply
-a temporary filter, sort, or search. We accept that direction. The concession in
-the data model is exactly the builder's: the `service` foreign key goes on the
-abstract `DatabaseWorkflowServiceAction`, not on the base model, so frontend-only
-types can be added later without a schema migration. Which frontend actions to
-build, and when, stays a product decision outside this document.
+Frontend-only actions (success toast, navigate to a URL or table, apply a temporary
+filter) will likely be wanted later. The `service` foreign key therefore goes on the
+abstract `DatabaseWorkflowServiceAction`, exactly as in the builder, so frontend-only
+types can be added later without a schema migration.
 
 ### 3. Execution flow and failure behavior
 
-Dispatch mirrors the builder: an endpoint receives the click, loads the action
-sequence, builds a `DatabaseDispatchContext`, and dispatches each service-backed
-action in order through the registry. Progress is broadcast the way the AI field
-does it: state changes ride the existing row realtime channel, so every open view
-sees the button enter and leave its loading state. No bespoke websocket layer.
+A dispatch endpoint receives the click, builds a `DatabaseDispatchContext`, and
+dispatches the actions in order. State changes are broadcast over the existing row
+realtime channel, as the AI field already does, so every open view sees the loading
+state.
 
-On failure, behavior matches the builder exactly, confirmed with the builder team
-as the intended common behavior: execution stops at the first failing action, the
-remaining actions do not run, and the clicking user sees an error toast naming the
-failed action. Nothing already executed is rolled back, because a sequence may
-contain effects that cannot be reversed (an email cannot be unsent). Retries,
-alternate on-error action stacks, and a per-click run history are explicitly out of
-scope here; they are candidates for later releases and, ideally, for a solution
-shared with the builder.
+```mermaid
+sequenceDiagram
+    actor User as Clicking user
+    participant API as Dispatch endpoint
+    participant H as DatabaseWorkflowActionHandler
+    participant SH as ServiceHandler
+    participant WS as Realtime channel
 
-Local row actions dispatch synchronously within the request, like builder actions
-today. When slow or external actions arrive (HTTP, email), execution should move
-behind the existing job/Celery pattern with realtime completion updates, as the AI
-field already does. The API contract for the dispatch endpoint must therefore not
-promise synchronous completion; clients treat "dispatched" and "completed" as
-separate states from the start.
+    User->>API: click (button field id, row id)
+    API->>WS: button enters loading state (all open views)
+    loop actions in order
+        API->>H: dispatch(action, DatabaseDispatchContext)
+        H->>SH: dispatch_service(service, context)
+        SH-->>H: result
+        Note over H: post_dispatch stores the result<br/>for later actions (previous_action)
+    end
+    alt an action fails
+        H-->>User: error toast naming the failed action
+        Note over H: remaining actions are skipped,<br/>completed actions stay
+    end
+    API->>WS: button back to idle, row updates broadcast
+```
+
+Failure behavior matches the builder: execution stops at the first failing action, the
+rest are skipped, and the user sees an error toast. Nothing is rolled back, since
+sequences can contain irreversible effects (an email cannot be unsent). Retries,
+on-error action stacks, and per-click run history are out of scope.
+
+Local row actions dispatch synchronously in the request. Slow external actions later
+move behind the existing job/Celery pattern with realtime completion, so the API treats
+"dispatched" and "completed" as separate states from the start.
 
 ### 4. Row context and result chaining
 
-The database module registers its own data provider registry for button dispatch,
-with two providers:
+The database module registers two data providers for button dispatch:
 
-- **A raw row provider.** Action parameter formulas resolve the clicked row's
-  values with their real types. We deliberately do not reuse the AI field's
-  `HumanReadableFieldsDataProviderType` for this: it stringifies every value, which
-  is correct inside a text prompt and wrong when writing a number, date, or link
-  into another row. The human-readable provider remains the right tool where prose
-  is wanted (and stays available to an AI-agent action's prompt, for example).
-- **A previous-action provider**, modeled on the builder's
-  `PreviousActionProviderType` and automation's `PreviousNodeProviderType`, exposing
-  each action's dispatch result to the actions after it, with identifier remapping
-  on import so references survive export/import. A third sibling of an existing
-  pair, not a new shape, so the three can be merged if execution is ever
-  consolidated.
+- **A raw row provider** exposing the clicked row's values with their real types. The AI
+  field's `HumanReadableFieldsDataProviderType` is not reused for this: it stringifies
+  every value, which is right for prompt text and wrong for writing numbers, dates, or
+  links into rows.
+- **A previous-action provider** modeled on the builder's `PreviousActionProviderType`
+  and automation's `PreviousNodeProviderType`, with identifier remapping on import, so
+  all three modules keep the same design.
 
-### 5. Integrations become available to the database module
+### 5. Integrations and ownership
 
 The database application type enables `supports_integrations`. Integrations stay
-application-level objects, managed in an application-level settings modal patterned
-on the builder's, and they behave like builder integrations when the application is
-duplicated, exported, imported, or snapshotted.
-
-We considered attaching integration configuration to the button field itself
-instead. Rejected: integrations are deliberately reusable, permission-checked,
-application-scoped objects. Embedding them per field would fragment credential
-management, multiply copies of the same SMTP or Slack configuration across fields,
-and diverge from every other module for no capability gain. A field-level shortcut
-in the UI ("create an integration from here") can still open the same
+application-level objects managed in a settings modal patterned on the builder's, and
+behave the same under duplication, export/import, and snapshots. Per-field integration
+configuration was considered and rejected: it fragments credential management and
+diverges from every other module; a field-level shortcut can still open the same
 application-level objects.
 
-Setting the flag is the trivial 5% of this decision; the consequences for
-import/export are the other 95% and are covered in section 7.
+```mermaid
+flowchart LR
+    subgraph app ["Database application"]
+        BF["Button field"] -->|ordered 1..n| WA["Workflow actions"]
+        WA -->|each backs onto| S["Service"]
+        I["Integrations<br/>(application-level settings)"]
+    end
+    S -->|configured via| I
+    I -->|permission checks run as| AU["Integration's authorized_user"]
+    AU --> T["Target tables and rows"]
+    U["Clicking user"] -->|recorded as initiator<br/>in row history| T
+```
 
-### 6. Which user the actions run as
+**Which user do actions run as, and who is the change attributed to?** These are two
+separate questions, and the first version answers them separately.
 
-Today, every Local Baserow service call runs as the integration's
-`authorized_user`, by default the user who created the integration. Export strips
-this field (it is sensitive) and import rebinds it to the importing user.
+Permission checks keep the builder and automation behavior: services run as the
+integration's `authorized_user`. This is what lets a button run predefined actions the
+clicking user could not do directly, which is the point of the field, and it is guarded
+by who may configure it. The action editor offers the tables the integration's user can
+reach, and if that user loses access to a target table, clicks fail with the standard
+error toast rather than silently skipping.
 
-**For the first version we change nothing.** Button actions run as the
-integration's `authorized_user`, and row changes are attributed to that user in row
-history and the audit log. This is a documented, temporary limitation, and it is
-the same limitation the builder and automation live with today.
+Attribution does not follow that rule, because the database is stricter here than the
+builder. Row history is a feature every collaborator sees; if a click shows up as an
+edit by whoever configured the integration, the database shows wrong information in a
+core UI. The builder never surfaces this, since its end users see no row history. The
+dispatch context therefore carries the clicking user as the initiator, and row changes
+made by button actions record the initiator in row history from the first version. This
+works in v1 because every click comes from an authenticated editor or above (section 7);
+anonymous initiators only become a question if buttons ever reach public views.
 
-The proper fix is already planned by the builder team for the near term: the
-**Agent** feature introduces workspace-scoped virtual users that replace real users
-in integrations. When it lands, button integrations bind to agents, and audit
-entries gain initiator metadata with the goal of recording three things: the acting
-agent, the real initiator, and the origin, as in "row created by agent Y, initiated
-by user X clicking button field Z". For a publicly shared view the initiator is
-recorded as anonymous. The button field adopts this as soon as it exists rather
-than building its own attribution mechanism now and migrating off it later.
+The planned Agent feature (virtual users for integrations) changes who the authorized
+user is, not this attribution decision; how the audit log evolves is left to that work.
 
-Two deliberate consequences of this model, settled during review:
+### 6. Import, export, duplication, and sharing
 
-- A click may perform actions the clicking user could not perform directly. That is
-  a feature, not a leak: a button is a predefined, admin-configured operation, and
-  its power comes from the integration (later the agent), guarded by who is allowed
-  to configure the field. The action editor therefore offers the tables the
-  integration's user (later the agent) can reach, not the editing user's tables.
-- If that user or agent loses permission on a target table, clicks fail loudly at
-  dispatch time with the standard error toast. No silent skipping, no fallback.
+Table and field ids inside service configurations and previous-action references remap
+through the standard `id_mapping` on import, as builder services already do. The hard
+case is ordering: an integration inside a database can point at tables of that same
+database, which do not exist yet mid-import. The builder has the same problem with
+formulas and solves it in two passes: import everything, register the references that
+cannot be resolved yet, and resolve them once the import completes. We reuse that
+mechanism.
 
-### 7. Import, export, duplication, and sharing
+```mermaid
+flowchart TD
+    A["Import all application objects"] --> B{"Reference already<br/>resolvable via id_mapping?"}
+    B -->|yes| C["Link immediately"]
+    B -->|no| D["Register as deferred reference"]
+    C --> E["Import completes"]
+    D --> E
+    E --> F["Second pass resolves deferred references"]
+    F --> G["after_import hooks run;<br/>unconfigured integrations surface<br/>as reconfigure states on buttons"]
+```
 
-**Ordering.** Cross-application ordering is solved today by importing databases
-before builder and automation applications. That cannot help an integration that
-lives in the database application and references its own tables. We adopt the
-mechanism the builder already uses for the equivalent problem (formulas referencing
-objects that do not exist yet): deferred, post-import resolution. The import
-creates all objects first, including button fields and their actions; references
-that cannot be resolved yet are registered instead of resolved inline; after the
-import completes, a second pass resolves them. This is confirmed with the builder
-team as the intended pattern rather than inventing new ordering rules between
-applications.
+Exports and templates strip sensitive integration fields, as today. The Local Baserow
+integration self-heals: `after_import` rebinds `authorized_user` to the importing user.
+External integrations cannot; their buttons render disabled with an error indicator
+pointing at the integration to reconfigure. The builder needs the same reconfigure
+experience; both modules should share one solution.
 
-**Credentials.** Exports and templates strip sensitive integration fields, as they
-do today. For the Local Baserow integration, the existing `after_import` hook
-rebinds `authorized_user` to the importing user, so a re-imported database with
-row-action buttons works immediately. External integrations (SMTP, Slack, HTTP
-credentials) cannot self-heal: after import the service exists with its
-configuration but without credentials. This "reconfigure your integrations" state
-is new for database users, so it must be explicit: a button whose integration is
-unconfigured renders disabled with an error indicator, and the field editor points
-at the integration to fix. Once Agents land, the automatic rebinding for Local
-Baserow disappears too, and this reconfiguration surface becomes the shared,
-normal path; the builder team plans the same UX and we intend to share it.
+### 7. What kind of field is a button, and who may click it
 
-**Duplication and snapshots** follow from the above: duplicating a field duplicates
-its actions and their services; duplicating or snapshotting the application also
-copies its integrations; identifier remapping covers table, field, and view
-references inside action configurations, and previous-action references remap
-through the standard id-mapping tables.
+A button is not a read-only field in the current sense (a server-computed column). It
+stores no cell value, is interactive, and users may eventually have different rights to
+it. Concretely:
 
-### 8. What kind of field is a button, and who may click it
+- No stored value; no filtering, sorting, or grouping.
+- Row write endpoints reject it through the same path as read-only fields, but the API
+  documentation describes it as an action field, not a computed one.
+- Clicking is a distinct operation on the dispatch endpoint, where permissions attach:
+  editor role minimum, disabled in public views and for viewers and commenters, enforced
+  backend-side.
+- A future per-field "who can click" permission (a role-based permission on that
+  endpoint) fits without rework; it is out of scope for the first version.
 
-A button is not a read-only field in the sense the database module uses the term
-today. Existing read-only fields are table columns whose values the server
-computes; users cannot write them but also cannot interact with them. A button
-stores no cell value at all, is interactive, and different users may eventually
-have different rights to use it.
+### 8. Behavior under common operations
 
-Practically, the field type behaves as follows:
-
-- No stored cell value, and no participation in filtering, sorting, or grouping.
-- Row write endpoints reject values for it, the same enforcement path read-only
-  fields use. It shares that mechanic without inheriting the category's meaning;
-  API documentation should describe it as an action field, not a computed one.
-- Clicking is a distinct operation on a dedicated dispatch endpoint, which is where
-  permissions attach. In the first version: executing buttons require at least the
-  editor role, and they are disabled in publicly shared views and for viewers and
-  commenters, enforced at the endpoint, not merely hidden in the UI.
-- A future per-field "who can click" permission (an RBAC operation on the dispatch
-  endpoint) fits this model without rework. It is out of scope for the first
-  version.
-
-### 9. Behavior under common operations
-
-| Operation | Behavior |
-| --- | --- |
-| Field duplication | Actions and their services are duplicated; both fields point at the same application-level integrations. |
-| Application duplication, snapshot, export/import | Integrations are copied with the application; deferred post-import resolution reconnects self-references; sensitive credentials strip and must be reconfigured (Local Baserow self-heals until Agents land). |
-| Trash and restore | Actions and services follow the field through trash and restore, as builder actions follow their element. |
-| Field type conversion | Converting a button to another type deletes its actions and services. Converting another type into a button starts with an empty action list. Both are destructive one-way conversions, like other configuration-carrying fields. |
-| Undo/redo | Configuration changes (field settings, action list edits) are undoable like other field updates. Clicks are not undoable, even when every action in the sequence touches only rows, because sequences may include irreversible effects and a partially undoable button is more confusing than a consistently non-undoable one. |
-| Deleting the integration's user | Deleting the `authorized_user` cascades away the Local Baserow integration; the services survive with a null integration and the affected buttons enter the same disabled, "reconfigure integration" error state as after a credential-stripped import. The Agent feature removes this failure mode, since agents are not deletable user accounts. |
-| Failure mid-sequence | Execution stops, later actions do not run, completed actions stay, the user sees an error toast (section 3). |
+- **Field duplication.** Actions and services are duplicated; both fields point at the
+  same application-level integrations.
+- **Application duplication, snapshot, export/import.** Integrations are copied with the
+  application; deferred resolution reconnects self-references; stripped credentials must
+  be reconfigured (Local Baserow self-heals).
+- **Trash and restore.** Actions and services follow the field, as builder actions
+  follow their element.
+- **Field type conversion.** Converting away deletes actions and services; converting
+  into a button starts empty. Both directions are destructive, like other fields that
+  carry configuration.
+- **Undo/redo.** Configuration changes are undoable like other field updates. Clicks are
+  never undoable, even when a sequence only touches rows: a partially undoable button is
+  more confusing than none.
+- **Deleting the integration's user.** The Local Baserow integration cascades away;
+  services survive with a null integration and the buttons enter the reconfigure state.
+- **Failure mid-sequence.** Execution stops, later actions are skipped, completed
+  actions stay, and the user sees an error toast (section 3).
 
 ## Options considered for the model layer
 
-### Option 1: database-scoped `DatabaseWorkflowAction`, mirroring the builder (chosen, with a preparatory step)
+### Option 1: `DatabaseWorkflowAction` mirroring the builder (chosen)
 
-Add `contrib/database` workflow actions subclassing the core abstract
-`WorkflowAction`, with a registry, handler, and service layer mirroring
-`contrib/builder/workflow_actions`, preceded by the small change that brings
-automation onto the same base.
+Database-scoped subclass of the core base, mirroring `contrib/builder/workflow_actions`,
+preceded by the automation convergence PR.
 
-Pros:
-
-- Proven shape; the builder demonstrates it for element-triggered, ordered,
-  service-backed actions, which is exactly the button's shape.
-- Fastest path that still converges: after the preparatory step, all three modules
-  share one ancestry, and the expensive machinery (services, integrations) is
-  consumed unchanged.
-- Module isolation: database depends on core only, not on builder or automation
-  internals.
-
-Cons:
-
-- The thin module layer (model, registry, execution loop, previous-result
-  provider) is re-implemented a third time. Reviewers sized this honestly: the
-  existing builder action types are mostly empty shells around shared services, so
-  the duplication is small, but it is not zero.
-- Consolidation of execution itself is deferred, not solved.
+- Pro: a proven pattern that fits the button exactly; no cross-team refactor; database
+  depends only on core.
+- Con: the thin module layer is re-implemented a third time (small: builder action types
+  are mostly empty shells around shared services); execution consolidation is deferred,
+  not solved.
 
 ### Option 2: node/service model, following the automation pattern
 
-Give the button field an ordered list of records each holding a
-`OneToOneField(Service)`, like `AutomationNode`, skipping the `WorkflowAction` base.
+An ordered list of records each holding a `OneToOneField(Service)`, like
+`AutomationNode`, skipping the `WorkflowAction` base.
 
-Pros:
+- Pro: matches automation's "every node is a service" invariant.
+- Con: `AutomationNode` is coupled to workflows and graph traversal a flat list does not
+  need; it rules out frontend-only action types; and it diverges from the core base just
+  as bringing automation onto it becomes nearly free.
 
-- Matches automation's "every node is a service" invariant.
-- Could later inherit automation features such as routers and run history.
+### Option 3: extract a shared action-sequence abstraction into core first
 
-Cons:
+Refactor core to own ordered service-backed execution with context chaining, port
+builder and automation, then build the button field on top.
 
-- `AutomationNode` is coupled to workflows and graph traversal (edges,
-  previous-node outputs); reusing it means first extracting those parts, a refactor
-  of a shipped module.
-- A flat ordered list needs none of the graph machinery.
-- It would also foreclose frontend-only action types, which review concluded we
-  want to keep possible (section 2).
-- It diverges from the core abstraction at the exact moment review established
-  that converging automation onto it is nearly free.
+- Pro: one implementation instead of three; future consumers become cheap.
+- Con: a large cross-team refactor with migration risk, blocking the feature on work
+  with no user-facing value, before the third real consumer exists to show what the
+  right abstraction is.
 
-### Option 3: extract a shared executable action-sequence abstraction into core first
-
-Refactor so core owns "ordered, service-backed action sequence with context
-chaining" (models, execution loop, previous-result provider), port builder and
-automation onto it, then build the button field on top.
-
-Pros:
-
-- One implementation of execution and chaining instead of three.
-- Future consumers become cheap.
-
-Cons:
-
-- A large cross-team refactor of two shipped modules, with migration risk, blocking
-  a large feature on work with no user-facing value of its own.
-- The right shared abstraction is not yet known; the button field is the third data
-  point that would inform it. Extracting after three real consumers exist is
-  cheaper than guessing now and migrating later.
-
-The chosen path takes Option 1 and borrows the cheap part of Option 3: unify the
-base classes now (nearly free), defer unifying execution until the need is proven.
+The chosen path is Option 1 plus the cheap part of Option 3: unify the base classes now,
+defer unifying execution until a real need appears.
 
 ## Consequences
 
-- The button field ships without waiting on any cross-team refactor; the only
-  upstream dependency is a small, offered, inheritance-only automation change.
-- The database module gains integrations, which is the largest single work item in
-  this document (settings UI, import/export handling, reconfiguration states) and
-  the main schedule risk.
-- Attribution is knowingly imperfect in the first version and fixed by adopting
-  Agents, not by building throwaway mechanics.
-- Three parallel thin execution layers exist until a real consolidation trigger
-  appears. The mitigations are structural: shared base classes, same layer shape,
-  sibling data providers.
+- The button field ships without waiting on a cross-team refactor; the only upstream
+  dependency is the small automation inheritance change.
+- The database module gains integrations, the largest work item here (settings UI,
+  import/export handling, reconfigure states) and the main schedule risk.
+- Row history records the clicking user as the initiator from the first version, so the
+  database never shows wrong attribution.
+- Until a merge is justified, three similar thin layers exist side by side; the shared
+  base classes keep them cheap to unify.
 
 ## Revisit triggers
 
-- A fourth consumer of ordered service-backed actions appears, or the button field
-  needs branching or routers: extract the shared execution abstraction (Option 3)
-  instead of copying a fourth time.
-- The Agent feature lands: bind button integrations to agents and add initiator
-  metadata to audit entries.
-- Frontend-only button actions get prioritized: pick up the shared, generalized
-  dispatch-process discussion with the builder team before implementing them
-  independently.
+- A fourth consumer appears, or buttons need branching/routers: extract the shared
+  execution abstraction (Option 3) instead of copying a fourth time.
+- The Agent feature lands: revisit which user button integrations run as and how clicks
+  appear in the audit log.
+- Frontend-only button actions are prioritized: design the shared dispatch mechanism
+  with the builder team before building one alone.
