@@ -16,12 +16,9 @@
           </a>
         </li>
         <li class="context__menu-item">
-          <a
-            class="context__menu-item-link"
-            @click.prevent="showWorkspaceViews"
-          >
+          <a class="context__menu-item-link" @click.prevent="searchWorkspaceId">
             <i class="context__menu-item-icon iconoir-search"></i>
-            {{ $t('viewsAdminContext.showWorkspaceViews') }}
+            {{ $t('viewsAdminContext.searchWorkspaceId') }}
           </a>
         </li>
         <li class="context__menu-item">
@@ -82,7 +79,7 @@ export default {
       type: Object,
     },
   },
-  emits: ['update', 'show-workspace-views'],
+  emits: ['update', 'search-workspace-id'],
   data() {
     return {
       updatePublicLoading: false,
@@ -118,8 +115,8 @@ export default {
       window.open(this.publicUrl, '_blank')
       this.hide()
     },
-    showWorkspaceViews() {
-      this.$emit('show-workspace-views', this.view.workspace_id)
+    searchWorkspaceId() {
+      this.$emit('search-workspace-id', this.view.workspace_id)
       this.hide()
     },
     async updatePublic(publicValue) {

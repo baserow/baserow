@@ -23,7 +23,7 @@
         ref="viewsAdminContext"
         :view="editView"
         @update="slotProps.updateRow"
-        @show-workspace-views="showWorkspaceViews"
+        @search-workspace-id="searchWorkspaceId"
       ></ViewsAdminContext>
     </template>
   </CrudTable>
@@ -162,7 +162,7 @@ export default {
       this.editView = row
       this.$refs.viewsAdminContext[action](target, 'bottom', 'left', 4)
     },
-    async showWorkspaceViews(workspaceId) {
+    async searchWorkspaceId(workspaceId) {
       // Turn the public only filter off so that all the views of the workspace are
       // visible, and search on the workspace id, which also matches the workspace id
       // column. Wait for the changed filters to propagate to the CrudTable so that

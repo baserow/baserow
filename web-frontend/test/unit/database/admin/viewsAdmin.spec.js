@@ -114,7 +114,7 @@ describe('ViewsAdminTable component', () => {
     expect(viewsAdmin.find('tbody .iconoir-globe').exists()).toBe(false)
   })
 
-  test('show workspace views turns the filter off and searches on the workspace id', async () => {
+  test('search workspace id turns the filter off and searches on the workspace id', async () => {
     thereAreViews([aView()], { page: 1, only_public: 'true' })
     thereAreViews([aView()], { page: 1 })
     thereAreViews(
@@ -127,12 +127,12 @@ describe('ViewsAdminTable component', () => {
 
     await viewsAdmin.find('.data-table__more').trigger('click')
     const context = viewsAdmin.findComponent(ViewsAdminContext)
-    const showWorkspaceViewsLink = context
+    const searchWorkspaceIdLink = context
       .findAll('.context__menu-item-link')
       .find((link) =>
-        link.text().includes('viewsAdminContext.showWorkspaceViews')
+        link.text().includes('viewsAdminContext.searchWorkspaceId')
       )
-    await showWorkspaceViewsLink.trigger('click')
+    await searchWorkspaceIdLink.trigger('click')
     await flushPromises()
 
     expect(viewsAdmin.find('.switch--active').exists()).toBe(false)

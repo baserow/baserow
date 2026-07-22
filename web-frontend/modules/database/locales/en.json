@@ -90,7 +90,7 @@
   "viewsAdminContext": {
     "copyPublicUrl": "Copy public URL",
     "openPublicView": "Open public view in new tab",
-    "showWorkspaceViews": "Show all views in this workspace",
+    "searchWorkspaceId": "Search this workspace ID",
     "rotateSlug": "Rotate slug",
     "makePrivate": "Make private",
     "makePublic": "Make public",
