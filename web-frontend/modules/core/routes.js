@@ -134,11 +134,6 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/template.vue'),
   },
   {
-    name: 'health-check',
-    path: '/_health/:trailing()?',
-    file: path.resolve(__dirname, 'pages/_health.vue'),
-  },
-  {
     name: 'notification-redirect',
     path: '/notification/:workspaceId/:notificationId',
     file: path.resolve(__dirname, 'pages/notificationRedirect.vue'),

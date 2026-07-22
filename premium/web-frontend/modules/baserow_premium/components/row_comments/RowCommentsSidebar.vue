@@ -96,7 +96,7 @@ import {
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import RowComment from '@baserow_premium/components/row_comments/RowComment'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import { RichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 

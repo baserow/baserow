@@ -50,7 +50,7 @@ export default defineNuxtModule({
     const { resolve } = createResolver(import.meta.url)
 
     addPlugin(resolve('./plugin.js'))
-    addPlugin(resolve('./plugins/realtime.js'))
+    addPlugin({ src: resolve('./plugins/realtime.js'), mode: 'client' })
 
     addRouteMiddleware({
       name: 'dashboardLoading',

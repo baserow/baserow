@@ -67,7 +67,7 @@ services:
         # reducing the chance the containers screw up the bind mounted folders.
         UID: $UID
         GID: $GID
-    command: "nuxt-dev"
+    command: "nuxt-dev-no-attach"
     ports:
       - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_WEB_FRONTEND_DEV_PORT:-3000}:3000"
     volumes:

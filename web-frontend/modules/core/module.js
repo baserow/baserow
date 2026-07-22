@@ -124,16 +124,16 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/registry.js'))
     addPlugin(resolve('plugins/permissions.js'))
     addPlugin(resolve('plugins/bus.js'))
-    addPlugin(resolve('plugins/realTimeHandler.js'))
+    addPlugin({ src: resolve('plugins/realTimeHandler.js'), mode: 'client' })
     addPlugin(resolve('plugins/hasFeature.js'))
     addPlugin(resolve('plugins/featureFlags.js'))
     addPlugin(resolve('plugins/papa.js'))
-    addPlugin(resolve('plugins/ensureRender.js'))
+    addPlugin({ src: resolve('plugins/ensureRender.js'), mode: 'client' })
     addPlugin(resolve('plugins/version.js'))
-    addPlugin(resolve('plugins/posthog.js'))
-    addPlugin(resolve('plugins/sentry-user.js'))
+    addPlugin({ src: resolve('plugins/posthog.js'), mode: 'client' })
+    addPlugin({ src: resolve('plugins/sentry-user.js'), mode: 'client' })
     addPlugin(resolve('plugins/vueDatepicker.js'))
-    addPlugin(resolve('plugins/routeMounted.js'))
+    addPlugin({ src: resolve('plugins/routeMounted.js'), mode: 'client' })
     addPlugin(resolve('plugins/storeRegister.js'))
     addPlugin(resolve('plugins/isWebFrontendHostname.js'))
 
@@ -191,7 +191,11 @@ export default defineNuxtModule({
     // Changes the stroke-width of the iconoir svg files because this way, we don't
     // have to fork the repository and change it there.
     const iconoirCssPath = require.resolve('iconoir/css/iconoir.css')
-    const patchedIconoirPath = resolve('./assets/scss/vendor/iconoir.scss')
+    // node_modules/.cache survives the buildDir wipe during `nuxt build` and is unwatched.
+    const patchedIconoirPath = pathe.join(
+      nuxt.options.rootDir,
+      'node_modules/.cache/baserow/iconoir.scss'
+    )
 
     mkdirSync(pathe.dirname(patchedIconoirPath), { recursive: true })
     const originalIconoirCss = readFileSync(iconoirCssPath, 'utf-8')

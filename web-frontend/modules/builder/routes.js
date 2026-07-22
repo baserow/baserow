@@ -15,12 +15,6 @@ export const routes = [
     meta: { publishedBuilderRoute: true },
   },
   {
-    name: 'builder-health-check',
-    path: '/_health',
-    file: path.resolve(__dirname, '../core/pages/_health.vue'),
-    meta: { publishedBuilderRoute: true },
-  },
-  {
     name: 'application-builder-preview',
     // This route to the preview of the builder page
     path: '/builder/:builderId/preview/:pathMatch(.*)*',

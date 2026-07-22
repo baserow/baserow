@@ -31,7 +31,7 @@
 </template>
 
 <script>
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import { RichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 import notificationContent from '@baserow/modules/core/mixins/notificationContent'
 
 export default {

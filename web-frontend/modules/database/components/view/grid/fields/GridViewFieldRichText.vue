@@ -56,7 +56,10 @@
 </template>
 
 <script>
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import {
+  loadRichTextEditor,
+  RichTextEditor,
+} from '@baserow/modules/core/components/editor/richTextEditorAsync'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
@@ -152,8 +155,10 @@ export default {
       return this.$refs[ref].serializeToMarkdown()
     },
     afterEdit() {
-      this.$nextTick(() => {
-        this.$refs.input.focus()
+      loadRichTextEditor().then(() => {
+        this.$nextTick(() => {
+          this.$refs.input?.focus()
+        })
       })
     },
     onExpandedModalHidden() {

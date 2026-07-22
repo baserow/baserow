@@ -26,7 +26,7 @@
 </template>
 
 <script>
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import { RichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
