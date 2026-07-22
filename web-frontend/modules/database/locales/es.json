@@ -513,8 +513,8 @@
         "deleteView": "Eliminar vista",
         "importFile": "Importar archivo",
         "duplicateView": "Duplicar vista",
-        "toPersonal": "A personal",
-        "toCollaborative": "A colaboración",
+        "toPersonal": "Pasar a personal",
+        "toCollaborative": "Pasar a colaborativo",
         "defaultRowValues": "Valores predeterminados de fila"
     },
     "deleteViewModal": {
@@ -541,7 +541,9 @@
         "duplicate": "Duplicar campo",
         "dataSyncField": "El campo es de sólo lectura y forma parte de la sincronización de datos de la tabla.",
         "dataSyncFieldTwoWaySync": "El campo está sincronizado con la sincronización de datos de la tabla.",
-        "noWriteValues": "Los cambios en este campo están restringidos."
+        "noWriteValues": "Los cambios en este campo están restringidos.",
+        "groupByField": "Agrupar por",
+        "ungroupByField": "No agrupar por"
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "La fila no coincide con los filtros",
@@ -873,7 +875,7 @@
         "errorEmptyFileNameMessage": "No puede establecer un nombre vacío para un archivo."
     },
     "viewOwnershipType": {
-        "collaborative": "Colabora",
+        "collaborative": "Colaborativo",
         "personal": "Personal",
         "collaborativeDescription": "Todos pueden ver todos los datos y cambiar las propiedades si tienen los permisos."
     },
