@@ -1,3 +1,5 @@
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 import pytest
@@ -12,6 +14,7 @@ from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
     AutomationWorkflowHistory,
 )
+from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.workflows.constants import WorkflowState
 
 
@@ -445,6 +448,53 @@ def test_get_destination_labels_without_custom_label(data_fixture):
             "label": "",
         }
     }
+
+
+@pytest.mark.django_db
+def test_get_destination_labels_query_count_does_not_grow_with_loops(data_fixture):
+    """
+    A "Go to node" that loops writes one history entry per pass. Resolving a
+    destination costs several queries, so they must be resolved once per node
+    rather than once per pass, otherwise a long loop causes an N+1.
+    """
+
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+    destination = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, reference_node=trigger, label="destination node"
+    )
+    goto_node = data_fixture.create_core_goto_node(
+        workflow=workflow, reference_node=destination
+    )
+    goto_node.service.specific.destination_service = destination.service
+    goto_node.service.specific.save()
+
+    service = AutomationHistoryService()
+
+    def count_queries_for(passes):
+        workflow_history = data_fixture.create_automation_workflow_history(
+            user=user, workflow=workflow
+        )
+        for _ in range(passes):
+            data_fixture.create_automation_node_history(
+                user=user, workflow_history=workflow_history, node=goto_node
+            )
+            data_fixture.create_automation_node_history(
+                user=user, workflow_history=workflow_history, node=destination
+            )
+        # Fetched the same way the API view does, so the node histories carry
+        # non-specific nodes.
+        node_histories = service.get_node_histories(user, workflow_history.id)
+        with CaptureQueriesContext(connection) as captured:
+            labels = AutomationHistoryHandler().get_destination_labels(node_histories)
+        assert len(labels) == passes
+        return len(captured.captured_queries)
+
+    # Warm the content type cache so it doesn't skew the first measurement.
+    count_queries_for(1)
+
+    assert count_queries_for(1) == count_queries_for(10)
 
 
 @pytest.mark.django_db

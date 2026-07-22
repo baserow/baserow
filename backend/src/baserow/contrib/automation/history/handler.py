@@ -302,14 +302,25 @@ class AutomationHistoryHandler:
         custom label.
         """
 
+        # A node can be dispatched many times within a single run when a jump
+        # loops execution back to it, so we resolve each distinct node only
+        # once. Resolving a destination costs several queries, and the result
+        # only depends on the node, not on the individual dispatch.
+        resolved: Dict[int, Optional[Dict[str, Any]]] = {}
         labels = {}
         for nh in node_histories:
             node = nh.node
-            destination = node.get_type().get_history_destination_node(node)
-            if destination is not None:
-                labels[nh.id] = {
-                    "id": destination.id,
-                    "type": destination.get_type().type,
-                    "label": destination.label,
-                }
+            if node.id not in resolved:
+                destination = node.get_type().get_history_destination_node(node)
+                resolved[node.id] = (
+                    {
+                        "id": destination.id,
+                        "type": destination.get_type().type,
+                        "label": destination.label,
+                    }
+                    if destination is not None
+                    else None
+                )
+            if (destination_label := resolved[node.id]) is not None:
+                labels[nh.id] = destination_label
         return labels
