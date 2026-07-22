@@ -12,9 +12,10 @@ const actions = {
     return await dispatch('application/forceCreate', data, { root: true })
   },
 
-  async fetchPreview({ dispatch }) {
+  async fetchPreview({ dispatch }, { builderId }) {
     const { $client } = this
-    const { data } = await PublishedBuilderService($client).fetchPreview()
+    const { data } =
+      await PublishedBuilderService($client).fetchPreview(builderId)
 
     return await dispatch('application/forceCreate', data, { root: true })
   },

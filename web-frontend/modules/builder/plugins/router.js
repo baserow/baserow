@@ -3,11 +3,7 @@
  */
 export const shouldRemoveRoute = (
   route,
-  {
-    isWebFrontendHostname,
-    isBuilderPreviewHostname,
-    isBuilderPreviewRequest,
-  }
+  { isWebFrontendHostname, isBuilderPreviewHostname, isBuilderPreviewRequest }
 ) => {
   if (isWebFrontendHostname) {
     const isPreviewRouteOnAnotherHost =
@@ -45,16 +41,9 @@ export default defineNuxtPlugin({
       runtimeConfig.public.builderPreviewUrl
     ).hostname
     const isBuilderPreviewHostname = builderPreviewHostname === requestHostname
-    const builderPreviewPathPrefix = `/${(
-      runtimeConfig.public.builderPreviewPathPrefix || ''
-    )
-      .split('/')
-      .filter(Boolean)
-      .join('/')}`
     const isBuilderPreviewPath =
-      builderPreviewPathPrefix !== '/' &&
-      (requestUrl.pathname === builderPreviewPathPrefix ||
-        requestUrl.pathname.startsWith(`${builderPreviewPathPrefix}/`))
+      requestUrl.pathname === '/builder-preview' ||
+      requestUrl.pathname.startsWith('/builder-preview/')
     const isBuilderPreviewRequest =
       isBuilderPreviewHostname || isBuilderPreviewPath
 

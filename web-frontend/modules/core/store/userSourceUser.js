@@ -7,6 +7,18 @@ import {
   unsetToken,
   userSourceCookieTokenName,
 } from '@baserow/modules/core/utils/auth'
+import {
+  getBuilderPreviewCookiePath,
+  getBuilderPreviewUserSourceCookieName,
+} from '@baserow/modules/core/utils/builderPreview'
+
+const getUserSourceCookie = (getters, application) =>
+  getters.getCurrentApplicationMode === 'preview'
+    ? {
+        name: getBuilderPreviewUserSourceCookieName(application.id),
+        path: getBuilderPreviewCookiePath(application.id),
+      }
+    : { name: userSourceCookieTokenName, path: '/' }
 
 export const state = () => ({
   // The currentApplication is used in the clientHandler because we have no way to know
@@ -145,6 +157,7 @@ export const actions = {
     commit('SET_AUTHENTICATED', { application, authenticated: true })
 
     if (setCookie) {
+      const userSourceCookie = getUserSourceCookie(getters, application)
       const cookieUrl =
         getters.getCurrentApplicationMode === 'preview'
           ? nuxtApp.$config.public.builderPreviewUrl
@@ -153,10 +166,11 @@ export const actions = {
       await setToken(
         nuxtApp,
         getters.refreshToken(application),
-        userSourceCookieTokenName,
+        userSourceCookie.name,
         {
           sameSite: 'Lax',
           cookieUrl,
+          path: userSourceCookie.path,
         }
       )
     }
@@ -167,7 +181,10 @@ export const actions = {
    * data.
    */
   async logoff({ commit, getters }, { application, invalidateToken = true }) {
-    await unsetToken(this.app, userSourceCookieTokenName)
+    const userSourceCookie = getUserSourceCookie(getters, application)
+    await unsetToken(this.app, userSourceCookie.name, {
+      path: userSourceCookie.path,
+    })
     if (!getters.isAuthenticated(application)) {
       return
     }

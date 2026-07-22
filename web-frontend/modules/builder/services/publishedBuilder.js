@@ -21,8 +21,11 @@ export default (client) => {
         previewAuthConfig
       )
     },
-    fetchPreview() {
-      return client.get('builder/preview/current/', previewAuthConfig)
+    fetchPreview(builderId) {
+      return client.get(`builder/preview/${builderId}/current/`, {
+        ...previewAuthConfig,
+        builderPreviewId: builderId,
+      })
     },
     createPreviewGrant(builderId, path) {
       return client.post(`builder/preview/${builderId}/grant/`, { path })

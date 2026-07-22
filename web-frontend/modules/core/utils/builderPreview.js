@@ -4,16 +4,14 @@ export const BUILDER_PREVIEW_COOKIE_BASE_NAME = 'baserow_builder_preview'
 export const BUILDER_PREVIEW_SSR_COOKIE_BASE_NAME =
   'baserow_builder_preview_ssr'
 
-export const getBuilderPreviewCookieName = (config) =>
-  getCookieName(config, BUILDER_PREVIEW_COOKIE_BASE_NAME)
+export const getBuilderPreviewCookieName = (config, builderId) =>
+  getCookieName(config, `${BUILDER_PREVIEW_COOKIE_BASE_NAME}_${builderId}`)
 
-export const getBuilderPreviewSsrCookieName = (config) =>
-  getCookieName(config, BUILDER_PREVIEW_SSR_COOKIE_BASE_NAME)
+export const getBuilderPreviewSsrCookieName = (config, builderId) =>
+  getCookieName(config, `${BUILDER_PREVIEW_SSR_COOKIE_BASE_NAME}_${builderId}`)
 
-export const getBuilderPreviewCookiePath = (config) => {
-  const path = (config.public.builderPreviewPathPrefix || '')
-    .split('/')
-    .filter(Boolean)
-    .join('/')
-  return path ? `/${path}` : '/'
-}
+export const getBuilderPreviewCookiePath = (builderId) =>
+  `/builder-preview/${builderId}`
+
+export const getBuilderPreviewUserSourceCookieName = (builderId) =>
+  `user_source_token_${builderId}`

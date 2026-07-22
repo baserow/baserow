@@ -2,7 +2,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import {
   resolveApplicationRoute,
-  stripBuilderPreviewPathPrefix,
+  resolveBuilderPagePath,
 } from '@baserow/modules/builder/utils/routing'
 
 const createBuilderRouter = () =>
@@ -16,7 +16,7 @@ const createBuilderRouter = () =>
       },
       {
         name: 'application-builder-preview',
-        path: '/builder/:builderId/preview/:pathMatch(.*)*',
+        path: '/builder-preview/:builderId/:pathMatch(.*)*',
         component: {},
       },
     ],
@@ -25,7 +25,7 @@ const createBuilderRouter = () =>
 describe('resolveApplicationRoute', () => {
   test.each([
     ['the published homepage', '/'],
-    ['the preview homepage', '/builder/263/preview/'],
+    ['the preview homepage', '/builder-preview/263/'],
   ])('resolves %s when Vue Router omits the catch-all parameter', (_, url) => {
     const homepage = { id: 439, path: '/' }
     const route = createBuilderRouter().resolve(url)
@@ -39,15 +39,14 @@ describe('resolveApplicationRoute', () => {
   })
 })
 
-describe('stripBuilderPreviewPathPrefix', () => {
+describe('resolveBuilderPagePath', () => {
   test.each([
-    ['builder-preview', '/builder-preview', ''],
-    ['builder-preview/', '/builder-preview', ''],
-    ['builder-preview/products/42', '/builder-preview', 'products/42'],
-    ['custom/preview/products/42', '//custom/preview//', 'products/42'],
-    ['products/42', '', 'products/42'],
-    ['products/42', '/builder-preview', 'products/42'],
-  ])('strips the configured prefix from %s', (path, prefix, expected) => {
-    expect(stripBuilderPreviewPathPrefix(path, prefix)).toBe(expected)
+    [undefined, ''],
+    [null, ''],
+    ['', ''],
+    ['products/42', 'products/42'],
+    [['products', '42'], 'products/42'],
+  ])('normalizes %s', (path, expected) => {
+    expect(resolveBuilderPagePath(path)).toBe(expected)
   })
 })

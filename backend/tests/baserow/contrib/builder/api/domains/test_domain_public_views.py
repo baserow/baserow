@@ -40,7 +40,8 @@ from baserow.core.user_sources.user_source_user import UserSourceUser
 def authenticate_builder_preview(api_client, builder, user):
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
     _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name()] = session_token
+    api_client.cookies[get_builder_preview_cookie_name(builder.id)] = session_token
+    api_client.credentials(HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id))
 
 
 @pytest.fixture

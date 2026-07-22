@@ -7,16 +7,14 @@ import {
   useRuntimeConfig,
 } from '#imports'
 
-import {
-  unsetToken,
-  userSourceCookieTokenName,
-} from '@baserow/modules/core/utils/auth'
+import { unsetToken } from '@baserow/modules/core/utils/auth'
 import {
   getBuilderPreviewCookiePath,
   getBuilderPreviewSsrCookieName,
+  getBuilderPreviewUserSourceCookieName,
 } from '@baserow/modules/core/utils/builderPreview'
 import { isSecureURL } from '@baserow/modules/core/utils/string'
-import { createBuilderPreviewSessionError } from '@baserow/modules/builder/plugins/clientHandler'
+import { createBuilderPreviewSessionError } from '@baserow/modules/builder/plugins/previewClientHandler'
 
 const PREVIEW_HANDOFF_QUERY_PARAM = 'preview_handoff'
 
@@ -48,6 +46,7 @@ export const getCleanPreviewUrl = (requestUrl, builderPreviewUrl) => {
 
 export const exchangePreviewHandoffInSsr = async (
   handoffCode,
+  builderId,
   config,
   fetch = globalThis.fetch,
   getCookie = useCookie
@@ -60,7 +59,10 @@ export const exchangePreviewHandoffInSsr = async (
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ preview_handoff: handoffCode }),
+      body: JSON.stringify({
+        preview_handoff: handoffCode,
+        builder_id: builderId,
+      }),
     }
   )
 
@@ -70,15 +72,24 @@ export const exchangePreviewHandoffInSsr = async (
     )
   }
 
-  const { preview_session: previewSession, expires_in: expiresIn } =
-    await response.json()
-  const previewCookie = getCookie(getBuilderPreviewSsrCookieName(config), {
-    httpOnly: true,
-    maxAge: expiresIn,
-    path: getBuilderPreviewCookiePath(config),
-    sameSite: 'lax',
-    secure: isSecureURL(config.public.builderPreviewUrl),
-  })
+  const {
+    preview_session: previewSession,
+    expires_in: expiresIn,
+    builder_id: receivedBuilderId,
+  } = await response.json()
+  if (receivedBuilderId !== builderId) {
+    throw new Error('The builder preview handoff belongs to another builder.')
+  }
+  const previewCookie = getCookie(
+    getBuilderPreviewSsrCookieName(config, builderId),
+    {
+      httpOnly: true,
+      maxAge: expiresIn,
+      path: getBuilderPreviewCookiePath(builderId),
+      sameSite: 'lax',
+      secure: isSecureURL(config.public.builderPreviewUrl),
+    }
+  )
   previewCookie.value = previewSession
 
   return { expiresIn, previewSession }
@@ -87,6 +98,7 @@ export const exchangePreviewHandoffInSsr = async (
 export const exchangePreviewHandoffOnce = (
   nuxtApp,
   handoffCode,
+  builderId,
   config,
   exchange = exchangePreviewHandoffInSsr
 ) => {
@@ -94,7 +106,7 @@ export const exchangePreviewHandoffOnce = (
   if (!nuxtApp._builderPreviewHandoffExchanges.has(handoffCode)) {
     nuxtApp._builderPreviewHandoffExchanges.set(
       handoffCode,
-      exchange(handoffCode, config)
+      exchange(handoffCode, builderId, config)
     )
   }
   return nuxtApp._builderPreviewHandoffExchanges.get(handoffCode)
@@ -106,15 +118,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const requestUrl = useRequestURL()
   const previewToken = getPreviewToken(to, requestUrl)
   const previewHandoff = getPreviewHandoff(to, requestUrl)
+  const builderId = Number(to.params.builderId)
 
   if (!previewToken && !previewHandoff) {
     return
   }
 
-  // A user-source session belongs to one builder application. Preview URLs all
-  // share the same origin, so keeping this cookie when exchanging another
-  // preview grant can send the previous builder's token to the new builder.
-  await unsetToken(nuxtApp, userSourceCookieTokenName)
+  // Opening a fresh preview grant resets the user-source session for this
+  // builder without affecting simultaneous previews of other builders.
+  await unsetToken(nuxtApp, getBuilderPreviewUserSourceCookieName(builderId), {
+    path: getBuilderPreviewCookiePath(builderId),
+  })
 
   const cleanUrl = getCleanPreviewUrl(
     requestUrl,
@@ -138,7 +152,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   try {
-    await exchangePreviewHandoffOnce(nuxtApp, previewHandoff, config)
+    await exchangePreviewHandoffOnce(nuxtApp, previewHandoff, builderId, config)
   } catch {
     throw createBuilderPreviewSessionError(nuxtApp.$i18n)
   }

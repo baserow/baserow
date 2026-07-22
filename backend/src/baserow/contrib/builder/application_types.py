@@ -502,55 +502,42 @@ class BuilderApplicationType(ApplicationType):
         from baserow.contrib.builder.domains.handler import DomainHandler
 
         domain = DomainHandler().get_domain_for_builder(application)
-
-        if domain is not None:
-            # Let's also return the preview url so that it's easier to test
-            preview_url = urljoin(
-                settings.BUILDER_PREVIEW_URL,
-                f"{settings.BUILDER_PREVIEW_PATH_PREFIX}/",
-            )
-            return [domain.get_public_url(), preview_url]
-
+        preview_builder_id = domain.builder_id if domain is not None else application.id
         preview_url = urljoin(
             settings.BUILDER_PREVIEW_URL,
-            f"{settings.BUILDER_PREVIEW_PATH_PREFIX}/",
+            f"/builder-preview/{preview_builder_id}/",
         )
+
+        if domain is not None:
+            return [domain.get_public_url(), preview_url]
+
         # It's an unpublished version let's return to the home preview page
         return [preview_url]
 
     @classmethod
-    def _extract_builder_id_from_legacy_preview_path(cls, url_path: str) -> int | None:
-        """Extracts the builder id from a preview URL used before the ID-less flow."""
+    def _extract_builder_id_from_preview_path(cls, url_path: str) -> int | None:
+        """Extract the draft builder ID from a fixed preview URL."""
 
-        match = re.match(r"^/builder/(\d+)/preview(?:/.*)?$", url_path)
+        match = re.match(r"^/builder-preview/(\d+)(?:/.*)?$", url_path)
         return int(match.group(1)) if match else None
 
     @classmethod
     def get_application_id_for_url(cls, url: str) -> int | None:
         """
-        Legacy preview URLs contained the builder id and must remain supported for
-        existing SAML RelayState configurations. New preview URLs cannot identify
-        the builder because their state lives in the preview-session cookie.
-
-        Otherwise, we try to match a published domain and return the related
-        application id.
+        Preview URLs identify their draft builder in the fixed path. Otherwise,
+        try to match a published domain and return the published application ID.
         """
 
         from baserow.contrib.builder.domains.models import Domain
 
         parsed_url = urlparse(url)
-        parsed_frontend_url = urlparse(settings.PUBLIC_WEB_FRONTEND_URL)
         parsed_preview_url = urlparse(settings.BUILDER_PREVIEW_URL)
 
-        parsed_origin = parsed_url.scheme, parsed_url.hostname
-        frontend_origin = parsed_frontend_url.scheme, parsed_frontend_url.hostname
-        preview_origin = parsed_preview_url.scheme, parsed_preview_url.hostname
-
-        if parsed_origin == frontend_origin:
-            return cls._extract_builder_id_from_legacy_preview_path(parsed_url.path)
+        parsed_origin = parsed_url.scheme, parsed_url.netloc
+        preview_origin = parsed_preview_url.scheme, parsed_preview_url.netloc
 
         if parsed_origin == preview_origin:
-            return None
+            return cls._extract_builder_id_from_preview_path(parsed_url.path)
 
         try:
             # Let's search for a published app

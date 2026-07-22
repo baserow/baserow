@@ -8,7 +8,7 @@ import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlRes
  */
 export const createApplicationBuilderMarkdownRules = ({
   mode,
-  previewPathPrefix,
+  builderId,
 }) => ({
   heading_open: (tokens, idx, options, env, renderer) => {
     const level = tokens[idx].markup.length
@@ -20,7 +20,7 @@ export const createApplicationBuilderMarkdownRules = ({
       tokens[idx].attrGet('href'),
       'custom',
       mode,
-      previewPathPrefix
+      builderId
     )
     tokens[idx].attrSet('href', url)
     tokens[idx].attrJoin('class', 'ab-link')

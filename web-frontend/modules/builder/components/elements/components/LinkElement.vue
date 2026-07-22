@@ -62,8 +62,7 @@ export default {
           this.builder,
           this.pages,
           this.resolveFormula,
-          this.mode,
-          this.$config.public.builderPreviewPathPrefix
+          this.mode
         )
       } catch (e) {
         return '#error'

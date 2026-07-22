@@ -33,7 +33,7 @@ export const makeBuilderPreviewSessionErrorInterceptor = (
 }
 
 export default defineNuxtPlugin({
-  name: 'builder-client-handler',
+  name: 'builder-preview-client-handler',
   dependsOn: ['client-handler'],
   setup(nuxtApp) {
     nuxtApp.$client.interceptors.response.use(

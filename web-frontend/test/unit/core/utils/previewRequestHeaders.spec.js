@@ -18,6 +18,7 @@ const prepareConfig = (mode, usePreviewAuth, previewSsrAuth = {}) => {
   return prepareHeaders({
     headers: {},
     usePreviewAuth,
+    builderPreviewId: 123,
     withCredentials: false,
   })
 }
@@ -27,7 +28,7 @@ describe('preview request headers', () => {
     const config = prepareConfig('preview', true)
 
     expect(config.withCredentials).toBe(true)
-    expect(config.headers['X-Baserow-Builder-Preview']).toBe('true')
+    expect(config.headers['X-Baserow-Builder-Preview']).toBe('123')
   })
 
   test('does not mark preview requests which do not use preview authentication', () => {
@@ -46,7 +47,7 @@ describe('preview request headers', () => {
 
   test('forwards only the companion credential for preview-auth SSR requests', () => {
     const previewSsrAuth = {
-      backendCookieName: 'test_baserow_builder_preview',
+      backendCookieName: 'test_baserow_builder_preview_123',
       session: 'signed-session',
     }
 
@@ -55,7 +56,7 @@ describe('preview request headers', () => {
     const publicConfig = prepareConfig('public', true, previewSsrAuth)
 
     expect(previewConfig.headers.Cookie).toBe(
-      'test_baserow_builder_preview=signed-session'
+      'test_baserow_builder_preview_123=signed-session'
     )
     expect(unmarkedConfig.headers).not.toHaveProperty('Cookie')
     expect(publicConfig.headers).not.toHaveProperty('Cookie')

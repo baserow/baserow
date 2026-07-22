@@ -23,7 +23,7 @@ export const setToken = (
       configuration.secure ??
       isSecureURL(configuration.cookieUrl || config.public.publicWebFrontendUrl)
     const cookie = useCookie(getCookieName(config, key), {
-      path: '/',
+      path: configuration.path || '/',
       maxAge: refreshTokenMaxAge,
       sameSite:
         configuration.sameSite || config.public.baserowFrontendSameSiteCookie,
@@ -78,11 +78,15 @@ export const setUserSessionCookie = (
   })
 }
 
-export const unsetToken = (appOrContext, key = cookieTokenName) => {
+export const unsetToken = (
+  appOrContext,
+  key = cookieTokenName,
+  configuration = {}
+) => {
   const { runWithContext } = appOrContext
   return runWithContext(() => {
     const config = useRuntimeConfig()
-    const cookie = useCookie(getCookieName(config, key))
+    const cookie = useCookie(getCookieName(config, key), configuration)
     cookie.value = null
   })
 }
@@ -99,20 +103,25 @@ export const unsetUserSessionCookie = (
   })
 }
 
-export const getToken = async (appOrContext, key = cookieTokenName) => {
+export const getToken = async (
+  appOrContext,
+  key = cookieTokenName,
+  configuration = {}
+) => {
   const { runWithContext } = appOrContext
   return await runWithContext(() => {
     const config = useRuntimeConfig()
-    const cookie = useCookie(getCookieName(config, key))
+    const cookie = useCookie(getCookieName(config, key), configuration)
     return cookie.value
   })
 }
 
 export const getTokenIfEnoughTimeLeft = async (
   appOrContext,
-  key = cookieTokenName
+  key = cookieTokenName,
+  configuration = {}
 ) => {
-  const token = await getToken(appOrContext, key)
+  const token = await getToken(appOrContext, key, configuration)
   const now = Math.ceil(new Date().getTime() / 1000)
 
   let data

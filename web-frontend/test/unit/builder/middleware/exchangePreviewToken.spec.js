@@ -90,7 +90,6 @@ describe('exchangePreviewToken middleware helpers', () => {
       privateBackendUrl: 'http://backend:8000/',
       public: {
         baserowFrontendCookiePrefix: 'test_',
-        builderPreviewPathPrefix: '/builder-preview',
         builderPreviewUrl: 'https://preview.example.com',
       },
     }
@@ -99,10 +98,17 @@ describe('exchangePreviewToken middleware helpers', () => {
       json: async () => ({
         preview_session: 'signed-session',
         expires_in: 1234,
+        builder_id: 42,
       }),
     })
 
-    await exchangePreviewHandoffInSsr('handoff-code', config, fetch, useCookie)
+    await exchangePreviewHandoffInSsr(
+      'handoff-code',
+      42,
+      config,
+      fetch,
+      useCookie
+    )
 
     expect(fetch).toHaveBeenCalledWith(
       'http://backend:8000/api/builder/preview/handoff/',
@@ -112,16 +118,22 @@ describe('exchangePreviewToken middleware helpers', () => {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ preview_handoff: 'handoff-code' }),
+        body: JSON.stringify({
+          preview_handoff: 'handoff-code',
+          builder_id: 42,
+        }),
       }
     )
-    expect(useCookie).toHaveBeenCalledWith('test_baserow_builder_preview_ssr', {
-      httpOnly: true,
-      maxAge: 1234,
-      path: '/builder-preview',
-      sameSite: 'lax',
-      secure: true,
-    })
+    expect(useCookie).toHaveBeenCalledWith(
+      'test_baserow_builder_preview_ssr_42',
+      {
+        httpOnly: true,
+        maxAge: 1234,
+        path: '/builder-preview/42',
+        sameSite: 'lax',
+        secure: true,
+      }
+    )
     expect(previewCookie.value).toBe('signed-session')
   })
 
@@ -133,9 +145,9 @@ describe('exchangePreviewToken middleware helpers', () => {
     })
 
     const results = await Promise.all([
-      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', {}, exchange),
-      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', {}, exchange),
-      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', {}, exchange),
+      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', 42, {}, exchange),
+      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', 42, {}, exchange),
+      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', 42, {}, exchange),
     ])
 
     expect(exchange).toHaveBeenCalledOnce()
@@ -158,9 +170,15 @@ describe('exchangePreviewToken middleware helpers', () => {
       privateBackendUrl: 'http://backend:8000',
     })
 
-    await exchangePreviewToken({ query: { preview_token: 'new-token' } })
+    await exchangePreviewToken({
+      query: { preview_token: 'new-token' },
+      params: { builderId: '42' },
+    })
 
     expect(unsetToken).toHaveBeenCalledOnce()
-    expect(unsetToken.mock.calls[0][1]).toBe('user_source_token')
+    expect(unsetToken.mock.calls[0][1]).toBe('user_source_token_42')
+    expect(unsetToken.mock.calls[0][2]).toEqual({
+      path: '/builder-preview/42',
+    })
   })
 })

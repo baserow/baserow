@@ -26,19 +26,18 @@ vi.mock('#app', async (importOriginal) => ({
   useNuxtApp: () => ({
     $i18n: { t: (key) => key },
     $registry: {},
-    $config: {
-      public: { builderPreviewPathPrefix: '/builder-preview' },
-    },
+    $config: { public: {} },
   }),
 }))
 
 vi.mock('#imports', () => ({
   useHead: vi.fn(),
-  useRequestURL: () => new URL('https://preview.example.com/builder-preview'),
+  useRequestURL: () =>
+    new URL('https://preview.example.com/builder-preview/42/missing'),
   useRoute: () => ({
     fullPath: '/builder-preview/missing',
     meta: { builderPageMode: 'preview' },
-    params: { pathMatch: 'missing' },
+    params: { builderId: '42', pathMatch: 'missing' },
     query: {},
   }),
 }))

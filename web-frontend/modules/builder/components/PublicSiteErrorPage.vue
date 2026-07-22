@@ -2,9 +2,7 @@
   <div v-if="!redirecting" class="placeholder">
     <div class="placeholder__logo">
       <a
-        :href="
-          $router.resolve(homeRoute).fullPath
-        "
+        :href="$router.resolve(homeRoute).fullPath"
         @click.prevent="clearAndNavigate(homeRoute)"
       >
         <Logo class="placeholder__logo-image" />
@@ -68,7 +66,10 @@ export default {
     homeRoute() {
       return {
         name: this.routeName,
-        params: { pathMatch: '' },
+        params: {
+          builderId: this.$route.params.builderId,
+          pathMatch: '',
+        },
         query: null,
       }
     },

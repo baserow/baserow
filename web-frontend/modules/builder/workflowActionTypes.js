@@ -136,8 +136,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       builder,
       this.app.$store.getters['page/getVisiblePages'](builder),
       resolveFormula,
-      mode,
-      this.app.$config.public.builderPreviewPathPrefix
+      mode
     )
 
     if (mode === 'editing' || !url) {

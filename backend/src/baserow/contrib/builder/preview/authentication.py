@@ -18,15 +18,25 @@ class BuilderPreviewAuthentication(BaseAuthentication):
         with map_exceptions(
             {BuilderPreviewSessionInvalid: ERROR_BUILDER_PREVIEW_SESSION_INVALID}
         ):
-            token = request.COOKIES.get(get_builder_preview_cookie_name())
-            if not token:
-                if request.headers.get(BUILDER_PREVIEW_HEADER, "").lower() == "true":
-                    raise BuilderPreviewSessionInvalid
+            header = request.headers.get(BUILDER_PREVIEW_HEADER)
+            if header is None:
                 return None
+
+            try:
+                builder_id = int(header)
+            except (TypeError, ValueError) as exc:
+                raise BuilderPreviewSessionInvalid from exc
+
+            token = request.COOKIES.get(get_builder_preview_cookie_name(builder_id))
+            if not token:
+                raise BuilderPreviewSessionInvalid
 
             try:
                 actor = BuilderPreviewGrantHandler().actor_from_token(token)
             except BuilderPreviewGrantInvalid as exc:
                 raise BuilderPreviewSessionInvalid from exc
+
+            if actor.builder_id != builder_id:
+                raise BuilderPreviewSessionInvalid
 
             return actor, None

@@ -47,7 +47,8 @@ from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormu
 def authenticate_builder_preview(api_client, builder, user):
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
     _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name()] = session_token
+    api_client.cookies[get_builder_preview_cookie_name(builder.id)] = session_token
+    api_client.credentials(HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id))
 
 
 @pytest.mark.django_db
@@ -311,7 +312,8 @@ def test_public_workflow_actions_view(api_client, data_fixture):
     response_json = response.json()
     assert len(response_json) == 1
     assert response_json[0]["type"] == NotificationWorkflowActionType.type
-    del api_client.cookies[get_builder_preview_cookie_name()]
+    del api_client.cookies[get_builder_preview_cookie_name(builder.id)]
+    api_client.credentials()
 
     url = reverse(
         "api:builder:domains:list_workflow_actions",

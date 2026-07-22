@@ -22,8 +22,11 @@ BUILDER_PREVIEW_HANDOFF_CACHE_KEY = "builder_preview_handoff_{handoff_code}"
 BUILDER_PREVIEW_HANDOFF_TTL_SECONDS = 60
 
 
-def get_builder_preview_cookie_name() -> str:
-    return f"{settings.FRONTEND_COOKIE_PREFIX}{BUILDER_PREVIEW_COOKIE_BASE_NAME}"
+def get_builder_preview_cookie_name(builder_id: int) -> str:
+    return (
+        f"{settings.FRONTEND_COOKIE_PREFIX}{BUILDER_PREVIEW_COOKIE_BASE_NAME}"
+        f"_{builder_id}"
+    )
 
 
 class BuilderPreviewGrantDoesNotExist(Exception):
@@ -67,7 +70,7 @@ class BuilderPreviewGrantHandler:
     def get_preview_url(self, builder_id: int, path: str, token: str) -> str:
         base_url = settings.BUILDER_PREVIEW_URL.rstrip("/")
         path = path if path.startswith("/") else f"/{path}"
-        preview_path = f"{settings.BUILDER_PREVIEW_PATH_PREFIX}{path}"
+        preview_path = f"/builder-preview/{builder_id}{path}"
         url = urljoin(base_url, preview_path)
         separator = "&" if "?" in url else "?"
         return (
@@ -80,11 +83,12 @@ class BuilderPreviewGrantHandler:
         session_token = self.get_session_signer().dumps(self._actor_to_payload(actor))
         return actor, session_token
 
-    def create_handoff(self, session_token: str) -> str:
+    def create_handoff(self, session_token: str, builder_id: int) -> str:
         """Store a short-lived code which Nuxt can exchange for the session."""
 
         payload = {
             "preview_session": session_token,
+            "builder_id": builder_id,
             "expires_at": time.time() + self.get_token_ttl_seconds(),
         }
         while True:
@@ -97,7 +101,7 @@ class BuilderPreviewGrantHandler:
             if cached_payload == payload:
                 return handoff_code
 
-    def exchange_handoff(self, handoff_code: str) -> tuple[str, int]:
+    def exchange_handoff(self, handoff_code: str) -> tuple[str, int, int]:
         """Atomically consume a handoff and return its session and lifetime."""
 
         if fullmatch(r"[A-Za-z0-9_-]{43}", handoff_code) is None:
@@ -121,13 +125,14 @@ class BuilderPreviewGrantHandler:
 
         try:
             session_token = payload["preview_session"]
+            builder_id = int(payload["builder_id"])
             expires_in = int(payload["expires_at"] - time.time())
         except (KeyError, TypeError, ValueError) as exc:
             raise BuilderPreviewGrantInvalid from exc
 
         if not isinstance(session_token, str) or expires_in <= 0:
             raise BuilderPreviewGrantInvalid
-        return session_token, expires_in
+        return session_token, expires_in, builder_id
 
     def actor_from_token(self, token: str) -> BuilderPreviewActor:
         return self._actor_from_token(token, self.get_session_signer())

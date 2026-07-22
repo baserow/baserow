@@ -19,25 +19,5 @@ export const resolveApplicationRoute = (pages, fullPath) => {
   return undefined
 }
 
-/**
- * Removes the runtime-configured preview prefix from a catch-all route path.
- * Nuxt routes are compiled while official images are built, so the preview
- * route itself cannot depend on configuration supplied when the image starts.
- */
-export const stripBuilderPreviewPathPrefix = (path, previewPathPrefix) => {
-  const normalizedPrefix = (previewPathPrefix || '')
-    .split('/')
-    .filter(Boolean)
-    .join('/')
-
-  if (!normalizedPrefix) {
-    return path
-  }
-  if (path === normalizedPrefix) {
-    return ''
-  }
-  if (path.startsWith(`${normalizedPrefix}/`)) {
-    return path.slice(normalizedPrefix.length + 1)
-  }
-  return path
-}
+export const resolveBuilderPagePath = (pathMatch) =>
+  Array.isArray(pathMatch) ? pathMatch.join('/') : pathMatch || ''

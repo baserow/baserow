@@ -16,7 +16,7 @@ import { useStore } from 'vuex'
 import { useAsyncData, useNuxtApp, navigateTo, createError } from '#app'
 import {
   resolveApplicationRoute,
-  stripBuilderPreviewPathPrefix,
+  resolveBuilderPagePath,
 } from '@baserow/modules/builder/utils/routing'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
@@ -28,16 +28,18 @@ import {
 } from '@baserow/modules/core/utils/auth'
 import { useHead, useRequestURL, useRoute } from '#imports'
 import PublicPageContent from '../components/PublicPageContent.vue'
+import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
+import {
+  getBuilderPreviewCookiePath,
+  getBuilderPreviewUserSourceCookieName,
+} from '@baserow/modules/core/utils/builderPreview'
 
-const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
+const logOffAndReturnToLogin = async ({ builder, mode, store, redirect }) => {
   await store.dispatch('userSourceUser/logoff', {
     application: builder,
   })
   // Redirect to home page after logout
-  return redirect({
-    name: 'application-builder-page',
-    params: { pathMatch: '' },
-  })
+  return redirect(prefixInternalResolvedUrl('/', 'page', mode, builder.id))
 }
 
 defineOptions({
@@ -70,25 +72,20 @@ const { $registry, $i18n } = nuxtApp
 
 const requestUrl = useRequestURL()
 const requestHostname = requestUrl.hostname
-const routeBuilderId = props.builderId
+const routeBuilderId =
+  props.builderId !== null
+    ? Number(props.builderId)
+    : route.params.builderId
+      ? Number(route.params.builderId)
+      : null
 const routeMode =
   typeof route.meta.builderPageMode === 'string'
     ? route.meta.builderPageMode
     : null
 const mode = routeMode || props.mode
-const rawRoutePathMatch =
-  props.pathMatch !== null
-    ? props.pathMatch
-    : Array.isArray(route.params.pathMatch)
-      ? route.params.pathMatch.join('/')
-      : route.params.pathMatch || ''
-const routePathMatch =
-  mode === 'preview'
-    ? stripBuilderPreviewPathPrefix(
-        rawRoutePathMatch,
-        nuxtApp.$config.public.builderPreviewPathPrefix
-      )
-    : rawRoutePathMatch
+const routePathMatch = resolveBuilderPagePath(
+  props.pathMatch !== null ? props.pathMatch : route.params.pathMatch
+)
 
 if (mode === 'preview') {
   useHead({
@@ -118,20 +115,18 @@ const {
 
     if (!builder || (builderId && builderId !== builder.id)) {
       try {
-        if (builderId) {
-          // Legacy preview URLs have the builderId in the path.
-          await store.dispatch('publicBuilder/fetchById', {
-            builderId,
-          })
-          builder = await store.dispatch('application/selectById', builderId)
-        } else if (mode === 'preview') {
+        if (mode === 'preview') {
           const { id: receivedBuilderId } = await store.dispatch(
-            'publicBuilder/fetchPreview'
+            'publicBuilder/fetchPreview',
+            { builderId }
           )
           builder = await store.dispatch(
             'application/selectById',
             receivedBuilderId
           )
+        } else if (builderId) {
+          await store.dispatch('publicBuilder/fetchById', { builderId })
+          builder = await store.dispatch('application/selectById', builderId)
         } else {
           // We don't have the builderId so it's a public page.
           // Must fetch the builder instance by domain name.
@@ -175,9 +170,15 @@ const {
       (!import.meta.server || import.meta.server) &&
       !store.getters['userSourceUser/isAuthenticated'](builder)
     ) {
+      const previewUserSourceCookie = mode === 'preview'
       const refreshToken = await getTokenIfEnoughTimeLeft(
         nuxtApp,
-        userSourceCookieTokenName
+        previewUserSourceCookie
+          ? getBuilderPreviewUserSourceCookieName(builder.id)
+          : userSourceCookieTokenName,
+        previewUserSourceCookie
+          ? { path: getBuilderPreviewCookiePath(builder.id) }
+          : {}
       )
 
       if (refreshToken) {
@@ -191,6 +192,7 @@ const {
             // We logoff as the token has probably expired or became invalid
             await logOffAndReturnToLogin({
               builder,
+              mode,
               store,
               redirect: navigateTo,
             })
@@ -302,7 +304,12 @@ const {
       if (error.response?.status === 401) {
         // this case can happen if the site has been published with changes in the
         // user source. In this case we want to unlog the user.
-        await logOffAndReturnToLogin({ builder, store, redirect: navigateTo })
+        await logOffAndReturnToLogin({
+          builder,
+          mode,
+          store,
+          redirect: navigateTo,
+        })
       } else if (
         error.response?.status === 404 &&
         error.response?.data?.error === 'ERROR_PAGE_DOES_NOT_EXIST'

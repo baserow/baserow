@@ -26,7 +26,7 @@ urlpatterns = [
         name="handoff",
     ),
     re_path(
-        r"current/$",
+        r"(?P<builder_id>[0-9]+)/current/$",
         BuilderPreviewCurrentView.as_view(),
         name="current",
     ),

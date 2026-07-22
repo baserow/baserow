@@ -149,7 +149,7 @@ class BuilderPreviewCurrentView(APIView):
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
         }
     )
-    def get(self, request):
+    def get(self, request, builder_id: int):
         """Return the public-shaped data for the permitted draft builder.
 
         The builder ID comes only from the authenticated preview actor, not
@@ -157,8 +157,8 @@ class BuilderPreviewCurrentView(APIView):
         being used to request a different draft builder.
         """
 
-        builder_id = getattr(request.user, "builder_id", None)
-        if builder_id is None:
+        builder_id = int(builder_id)
+        if getattr(request.user, "builder_id", None) != builder_id:
             raise BuilderDoesNotExist
 
         builder = BuilderService().get_builder(request.user, builder_id)
@@ -215,7 +215,7 @@ class BuilderPreviewExchangeView(APIView):
             return Response(status=404)
 
         redirect_to = request.GET.get("redirect")
-        if not self._is_allowed_redirect(redirect_to):
+        if not self._is_allowed_redirect(redirect_to, actor.builder_id):
             redirect_to = (
                 BuilderPreviewGrantHandler()
                 .get_preview_url(actor.builder_id, "/", "")
@@ -230,11 +230,13 @@ class BuilderPreviewExchangeView(APIView):
             else "None"
         )
         secure = backend_url.scheme == "https" or same_site == "None"
-        handoff_code = BuilderPreviewGrantHandler().create_handoff(session_token)
+        handoff_code = BuilderPreviewGrantHandler().create_handoff(
+            session_token, actor.builder_id
+        )
         redirect_to = self._add_handoff_to_redirect(redirect_to, handoff_code)
         response = HttpResponseRedirect(redirect_to)
         response.set_cookie(
-            get_builder_preview_cookie_name(),
+            get_builder_preview_cookie_name(actor.builder_id),
             session_token,
             max_age=int(settings.BUILDER_PREVIEW_GRANT_TTL.total_seconds()),
             httponly=True,
@@ -257,7 +259,7 @@ class BuilderPreviewExchangeView(APIView):
         query.append((BUILDER_PREVIEW_HANDOFF_QUERY_PARAM, handoff_code))
         return urlunparse(parsed._replace(query=urlencode(query)))
 
-    def _is_allowed_redirect(self, redirect_to):
+    def _is_allowed_redirect(self, redirect_to, builder_id: int):
         """Check that the post-exchange redirect stays on the preview website.
 
         Without this check, an attacker could build a Baserow exchange link that
@@ -274,7 +276,7 @@ class BuilderPreviewExchangeView(APIView):
             redirect_to,
             allowed_hosts={allowed_host},
             require_https=parsed.scheme == "https",
-        )
+        ) and urlparse(redirect_to).path.startswith(f"/builder-preview/{builder_id}/")
 
     def _is_same_site(self, preview_hostname, backend_hostname):
         """Decide whether browser cookie rules see both hosts as one site.
@@ -328,9 +330,13 @@ class BuilderPreviewHandoffView(APIView):
     @validate_body(BuilderPreviewHandoffRequestSerializer)
     def post(self, request, data):
         try:
-            preview_session, expires_in = BuilderPreviewGrantHandler().exchange_handoff(
-                data[BUILDER_PREVIEW_HANDOFF_QUERY_PARAM]
+            preview_session, expires_in, builder_id = (
+                BuilderPreviewGrantHandler().exchange_handoff(
+                    data[BUILDER_PREVIEW_HANDOFF_QUERY_PARAM]
+                )
             )
+            if builder_id != data["builder_id"]:
+                raise BuilderPreviewGrantInvalid
         except BuilderPreviewGrantInvalid:
             response = Response(status=404)
         else:
@@ -338,6 +344,7 @@ class BuilderPreviewHandoffView(APIView):
                 {
                     "preview_session": preview_session,
                     "expires_in": expires_in,
+                    "builder_id": builder_id,
                 }
             )
         return response

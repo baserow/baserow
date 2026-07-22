@@ -59,7 +59,6 @@ export default defineNuxtModule({
         publicBackendUrl: 'http://localhost:8000',
         publicWebFrontendUrl: 'http://localhost:3000',
         builderPreviewUrl: 'http://localhost:3000',
-        builderPreviewPathPrefix: '/builder-preview',
         initialTableDataLimit: null,
         hoursUntilTrashPermanentlyDeleted: 24 * 3,
         disableAnonymousPublicViewWsConnections: '',

@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import { makeBuilderPreviewSessionErrorInterceptor } from '@baserow/modules/builder/plugins/clientHandler'
+import { makeBuilderPreviewSessionErrorInterceptor } from '@baserow/modules/builder/plugins/previewClientHandler'
 
 const i18n = {
   t: (key) => key,

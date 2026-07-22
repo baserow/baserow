@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { showError, useCookie, useRuntimeConfig } from '#imports'
+import { showError, useCookie, useRoute, useRuntimeConfig } from '#imports'
 
 import { upperCaseFirst } from '@baserow/modules/core/utils/string'
 import { makeRefreshAuthInterceptor } from '@baserow/modules/core/plugins/clientAuthRefresh'
@@ -537,12 +537,14 @@ export const prepareRequestHeaders = (store, previewSsrAuth) => (config) => {
   const currentApplicationMode =
     store.getters['userSourceUser/getCurrentApplicationMode']
   const isPreviewContext = currentApplicationMode === 'preview'
-  const usePreviewCredentials = isPreviewContext && config.usePreviewAuth
+  const previewBuilderId = config.builderPreviewId || application?.id
+  const usePreviewCredentials =
+    isPreviewContext && config.usePreviewAuth && previewBuilderId
 
   if (usePreviewCredentials) {
     config.withCredentials = true
     config.headers ||= {}
-    config.headers['X-Baserow-Builder-Preview'] = 'true'
+    config.headers['X-Baserow-Builder-Preview'] = String(previewBuilderId)
     if (previewSsrAuth.session) {
       config.headers.Cookie = `${previewSsrAuth.backendCookieName}=${previewSsrAuth.session}`
     }
@@ -620,15 +622,21 @@ export default defineNuxtPlugin({
   dependsOn: ['i18n', 'create-store'],
   async setup(nuxtApp) {
     const runtimeConfig = useRuntimeConfig()
+    const route = useRoute()
     const store = nuxtApp.$store
 
     const previewSsrAuth = {}
     if (import.meta.server) {
-      previewSsrAuth.session = useCookie(
-        getBuilderPreviewSsrCookieName(runtimeConfig)
-      ).value
-      previewSsrAuth.backendCookieName =
-        getBuilderPreviewCookieName(runtimeConfig)
+      const builderId = Number(route.params.builderId)
+      if (Number.isInteger(builderId)) {
+        previewSsrAuth.session = useCookie(
+          getBuilderPreviewSsrCookieName(runtimeConfig, builderId)
+        ).value
+        previewSsrAuth.backendCookieName = getBuilderPreviewCookieName(
+          runtimeConfig,
+          builderId
+        )
+      }
     }
 
     const client = createAxiosInstance(runtimeConfig)

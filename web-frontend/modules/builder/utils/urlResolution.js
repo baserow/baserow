@@ -17,7 +17,6 @@ import { getUrlScheme } from '@baserow/modules/core/utils/url'
  * @param {Function} resolveFormula A resolveFormula function we'll use if the
  *  element has page parameters which need to be resolved.
  * @param {String} editorMode A builder application's editor mode.
- * @param {String} previewPathPrefix The configured preview path prefix.
  * @returns {String} A resolved URL.
  */
 export default function resolveElementUrl(
@@ -25,8 +24,7 @@ export default function resolveElementUrl(
   builder,
   pages,
   resolveFormula,
-  editorMode,
-  previewPathPrefix = ''
+  editorMode
 ) {
   let resolvedUrl = ''
   if (element.navigation_type === 'page') {
@@ -61,17 +59,13 @@ export default function resolveElementUrl(
   } else {
     resolvedUrl = ensureString(resolveFormula(element.navigate_to_url))
   }
+
   // Browsers strip leading C0 control characters and spaces before parsing
   // a URL, so ` javascript:` reads as relative here but still executes as
   // a script. Strip them before anything classifies this string.
   // eslint-disable-next-line no-control-regex
   resolvedUrl = resolvedUrl.replace(/^[\x00-\x20]+/, '')
-  resolvedUrl = prefixInternalResolvedUrl(
-    resolvedUrl,
-    element.navigation_type,
-    editorMode,
-    previewPathPrefix
-  )
+
   // Add query parameters if they exist
   if (element.query_parameters && element.query_parameters.length > 0) {
     const queryString = element.query_parameters
@@ -86,7 +80,13 @@ export default function resolveElementUrl(
       .filter((param) => param !== null)
       .join('&')
     if (queryString) {
-      resolvedUrl = `${resolvedUrl}?${queryString}`
+      const fragmentIndex = resolvedUrl.indexOf('#')
+      const baseUrl =
+        fragmentIndex === -1 ? resolvedUrl : resolvedUrl.slice(0, fragmentIndex)
+      const fragment =
+        fragmentIndex === -1 ? '' : resolvedUrl.slice(fragmentIndex)
+      const separator = baseUrl.includes('?') ? '&' : '?'
+      resolvedUrl = `${baseUrl}${separator}${queryString}${fragment}`
     }
   }
   // Browsers ignore tab / LF / CR anywhere in a URL,
@@ -96,34 +96,34 @@ export default function resolveElementUrl(
     // Disallow unsupported protocols, e.g. `javascript:`
     return ALLOWED_LINK_PROTOCOLS.includes(scheme) ? resolvedUrl : ''
   }
-  return resolvedUrl
+  return prefixInternalResolvedUrl(
+    resolvedUrl,
+    element.navigation_type,
+    editorMode,
+    builder.id
+  )
 }
 
 /**
- * Prefixes an internal preview URL with the configured fixed preview path
- * prefix, if any.
+ * Resolve a logical builder URL at the navigation boundary.
  *
  * @param {String} resolvedUrl A URL which `resolveElementUrl` has generated.
  * @param {String} navigationType An element's `navigation_type` (custom / page).
  * @param {String} editorMode A builder application's editor mode.
- * @param {String} previewPathPrefix The configured preview path prefix.
+ * @param {Number} builderId The draft builder ID.
  * @returns {String} The resolved URL.
  */
 export function prefixInternalResolvedUrl(
   resolvedUrl,
   navigationType,
   editorMode,
-  previewPathPrefix = ''
+  builderId
 ) {
-  const normalizedPrefix = normalizePreviewPathPrefix(previewPathPrefix)
-
-  // Only internal URLs rendered in preview mode need the preview path prefix.
+  // Only internal URLs rendered in preview mode need the preview route.
   // Page navigation is always internal, while custom navigation is internal only
   // when it uses a root-relative URL.
   if (
     !resolvedUrl ||
-    !normalizedPrefix ||
-    editorMode !== 'preview' ||
     !(
       navigationType === 'page' ||
       (navigationType === 'custom' && resolvedUrl.startsWith('/'))
@@ -132,29 +132,31 @@ export function prefixInternalResolvedUrl(
     return resolvedUrl
   }
 
-  // Avoid prefixing URLs which already point inside the configured preview path.
-  // The three forms cover the prefix itself, a nested path, and a query string
-  // attached directly to the prefix.
-  if (
-    resolvedUrl === normalizedPrefix ||
-    resolvedUrl.startsWith(`${normalizedPrefix}/`) ||
-    resolvedUrl.startsWith(`${normalizedPrefix}?`)
-  ) {
-    return resolvedUrl
-  }
-
-  // Preserve the slash between the preview prefix and a root-level query string.
-  if (resolvedUrl.startsWith('/?')) {
-    return `${normalizedPrefix}/${resolvedUrl.slice(1)}`
-  }
-
-  // All remaining internal URLs are root-relative paths, so prepend the prefix.
-  return `${normalizedPrefix}${resolvedUrl}`
+  return resolveBuilderUrl(resolvedUrl, editorMode, builderId)
 }
 
-export function normalizePreviewPathPrefix(previewPathPrefix) {
-  if (!previewPathPrefix) {
-    return ''
+/**
+ * Translate a logical builder page path into the URL for its rendering mode.
+ * Published URLs remain unchanged; preview URLs live below the builder-scoped
+ * fixed route.
+ */
+export function resolveBuilderUrl(logicalPagePath, mode, builderId) {
+  if (!logicalPagePath || mode !== 'preview') {
+    return logicalPagePath
   }
-  return `/${previewPathPrefix.split('/').filter(Boolean).join('/')}`
+
+  const previewPath = `/builder-preview/${builderId}`
+
+  if (/^\/builder-preview\/\d+(?:\/|\?|#|$)/.test(logicalPagePath)) {
+    return logicalPagePath
+  }
+
+  if (logicalPagePath.startsWith('/?') || logicalPagePath.startsWith('/#')) {
+    return `${previewPath}/${logicalPagePath.slice(1)}`
+  }
+
+  const path = logicalPagePath.startsWith('/')
+    ? logicalPagePath
+    : `/${logicalPagePath}`
+  return `${previewPath}${path}`
 }

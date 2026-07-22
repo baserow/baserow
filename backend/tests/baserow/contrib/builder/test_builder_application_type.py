@@ -2240,14 +2240,12 @@ def test_get_default_application_urls(data_fixture, settings):
     domain1 = data_fixture.create_builder_custom_domain(
         builder=builder, published_to=builder_to, domain_name="mytest.com"
     )
-    settings.BUILDER_PREVIEW_PATH_PREFIX = "/builder-preview"
-
     assert builder.get_type().get_application_urls(builder) == [
-        "http://localhost:3000/builder-preview/"
+        f"http://localhost:3000/builder-preview/{builder.id}/"
     ]
     assert builder_to.get_type().get_application_urls(builder_to) == [
         "http://mytest.com:3000",
-        "http://localhost:3000/builder-preview/",
+        f"http://localhost:3000/builder-preview/{builder.id}/",
     ]
 
 
@@ -2265,7 +2263,7 @@ def test_get_application_id_for_url(data_fixture, settings):
     )
     assert (
         builder.get_type().get_application_id_for_url(
-            f"{settings.PUBLIC_WEB_FRONTEND_URL}/builder/{builder.id}/preview/"
+            f"{settings.BUILDER_PREVIEW_URL}/builder-preview/{builder.id}/"
         )
         == builder.id
     )

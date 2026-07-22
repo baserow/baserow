@@ -11,8 +11,10 @@ class BuilderPreviewGrantResponseSerializer(serializers.Serializer):
 
 class BuilderPreviewHandoffRequestSerializer(serializers.Serializer):
     preview_handoff = serializers.CharField()
+    builder_id = serializers.IntegerField(min_value=1)
 
 
 class BuilderPreviewHandoffResponseSerializer(serializers.Serializer):
     preview_session = serializers.CharField()
     expires_in = serializers.IntegerField(min_value=1)
+    builder_id = serializers.IntegerField(min_value=1)
