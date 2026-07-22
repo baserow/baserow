@@ -4,7 +4,7 @@
             "licenses": "Gestionar licencias"
         },
         "viewType": {
-            "kanban": "tabla kanban",
+            "kanban": "Kanban",
             "calendar": "Calendario",
             "timeline": "Línea de tiempo"
         },
