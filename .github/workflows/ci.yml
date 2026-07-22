@@ -728,6 +728,7 @@ jobs:
         run: |
           cd e2e-tests
           yarn install
+          yarn playwright install ffmpeg
 
       # The browsers come from the runner's system Chrome
       # (PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1), but video recording on retry

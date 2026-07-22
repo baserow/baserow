@@ -1,5 +1,3 @@
-import type { Response } from "@playwright/test";
-
 import { getClient } from "../../client";
 import { createBuilderElement } from "../../fixtures/builder/builderElement";
 import { createBuilder } from "../../fixtures/builder/builder";
@@ -74,56 +72,38 @@ test.describe("Builder preview test suite", () => {
     });
     await builderPagePage.goto();
 
-    const documentResponses: Response[] = [];
-    const captureDocumentResponse = (response: Response) => {
-      if (response.request().resourceType() === "document") {
-        documentResponses.push(response);
-      }
-    };
-    context.on("response", captureDocumentResponse);
-
-    try {
-      const previewPagePromise = context.waitForEvent("page");
-      await page.getByRole("button", { name: "Preview" }).click();
-      const previewPage = await previewPagePromise;
-      await previewPage.waitForLoadState("domcontentloaded");
-
-      const previewOrigin = new URL(baserowConfig.BUILDER_PREVIEW_URL).origin;
-      const finalDocumentResponse = documentResponses.findLast((response) => {
+    const previewOrigin = new URL(baserowConfig.BUILDER_PREVIEW_URL).origin;
+    const finalDocumentResponsePromise = context.waitForEvent("response", {
+      predicate: (response) => {
         const url = new URL(response.url());
-        return url.origin === previewOrigin && url.search === "";
-      });
-      if (!finalDocumentResponse) {
-        const lastDocumentBody = await documentResponses.at(-1)?.text();
-        const errorTitle = lastDocumentBody?.match(
-          /<title>(.*?)<\/title>/
-        )?.[1];
-        throw new Error(
-          `The clean preview document response was not received. Documents: ${documentResponses
-            .map((response) => {
-              const url = new URL(response.url());
-              return `${response.status()} ${url.origin}${url.pathname}`;
-            })
-            .join(", ")}. Error title: ${errorTitle}`
+        return (
+          response.request().resourceType() === "document" &&
+          url.origin === previewOrigin &&
+          url.search === ""
         );
-      }
+      },
+    });
+    const previewPagePromise = context.waitForEvent("page");
 
-      expect(finalDocumentResponse.status()).toBe(200);
-      const initialHtml = await finalDocumentResponse.text();
-      expect(initialHtml).toContain("<title>Default page</title>");
-      expect(initialHtml).toContain(previewContent);
-      await expect(previewPage).toHaveTitle("Default page");
-      await expect(previewPage.getByText(previewContent)).toBeVisible();
+    await page.getByRole("button", { name: "Preview" }).click();
 
-      const missingPageResponse = await previewPage.goto(
-        `${previewOrigin}/builder-preview/${builderPagePage.builderPage.builder.id}/missing-page`
-      );
-      expect(missingPageResponse?.status()).toBe(404);
-      expect(await missingPageResponse?.text()).toContain("Page not found");
-      await expect(previewPage.getByText("Page not found")).toBeVisible();
-    } finally {
-      context.off("response", captureDocumentResponse);
-    }
+    const [previewPage, finalDocumentResponse] = await Promise.all([
+      previewPagePromise,
+      finalDocumentResponsePromise,
+    ]);
+    expect(finalDocumentResponse.status()).toBe(200);
+    const initialHtml = await finalDocumentResponse.text();
+    expect(initialHtml).toContain("<title>Default page</title>");
+    expect(initialHtml).toContain(previewContent);
+    await expect(previewPage).toHaveTitle("Default page");
+    await expect(previewPage.getByText(previewContent)).toBeVisible();
+
+    const missingPageResponse = await previewPage.goto(
+      `${previewOrigin}/builder-preview/${builderPagePage.builderPage.builder.id}/missing-page`
+    );
+    expect(missingPageResponse?.status()).toBe(404);
+    expect(await missingPageResponse?.text()).toContain("Page not found");
+    await expect(previewPage.getByText("Page not found")).toBeVisible();
   });
 
   test("dispatches an action without user source authentication", async ({
