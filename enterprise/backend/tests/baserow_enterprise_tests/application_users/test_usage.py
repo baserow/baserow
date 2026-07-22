@@ -1,6 +1,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.test.utils import override_settings
 from django.utils.timezone import now
 
@@ -11,12 +12,13 @@ from baserow.core.cache import local_cache
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import plugin_registry
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
-from baserow_enterprise.application_users.models import ApplicationUserOverLimit
 from baserow_enterprise.application_users.notification_types import (
     ApplicationUserLimitNotificationType,
 )
 from baserow_enterprise.application_users.tasks import check_application_user_limits
 from baserow_enterprise.application_users.usage import (
+    get_application_user_over_limit_since,
+    get_over_limit_cache_key,
     raise_if_over_application_user_login_limit,
     update_application_user_over_limit_state,
 )
@@ -49,9 +51,12 @@ def self_hosted_license_plugin():
 
 
 def mark_over_limit_since(user_source, since):
-    ApplicationUserOverLimit.objects.create(
-        workspace=user_source.application.workspace, since=since
-    )
+    workspace = user_source.application.workspace
+    cache.set(get_over_limit_cache_key(workspace.id), since.isoformat())
+
+
+def is_marked_over_limit(workspace):
+    return get_application_user_over_limit_since(workspace) is not None
 
 
 @pytest.fixture
@@ -255,28 +260,26 @@ def test_update_application_user_over_limit_state(data_fixture):
 
     # Within the limit: nothing is stamped.
     update_application_user_over_limit_state(workspace, usage=10, limit=10)
-    assert not ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
+    assert not is_marked_over_limit(workspace)
 
     # Over the limit: the moment is stamped.
     update_application_user_over_limit_state(workspace, usage=11, limit=10)
-    over_limit = ApplicationUserOverLimit.objects.get(workspace=workspace)
+    since = get_application_user_over_limit_since(workspace)
+    assert since is not None
 
     # Still over the limit: the original moment is kept so the grace period
     # isn't restarted.
     update_application_user_over_limit_state(workspace, usage=12, limit=10)
-    assert (
-        ApplicationUserOverLimit.objects.get(workspace=workspace).since
-        == over_limit.since
-    )
+    assert get_application_user_over_limit_since(workspace) == since
 
     # Back within the limit: the moment is cleared again.
     update_application_user_over_limit_state(workspace, usage=10, limit=10)
-    assert not ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
+    assert not is_marked_over_limit(workspace)
 
     # No limit resolves anymore (e.g. a license upgrade): also cleared.
     update_application_user_over_limit_state(workspace, usage=11, limit=10)
     update_application_user_over_limit_state(workspace, usage=11, limit=None)
-    assert not ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
+    assert not is_marked_over_limit(workspace)
 
 
 @pytest.mark.django_db
@@ -321,7 +324,7 @@ def test_the_periodic_check_notifies_workspace_admins_over_the_application_user_
         ).values_list("recipient_id", flat=True)
     )
     assert recipient_ids == {admin.id}
-    assert ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
+    assert is_marked_over_limit(workspace)
 
 
 @pytest.mark.django_db
@@ -351,7 +354,7 @@ def test_the_periodic_check_notifies_an_unlicensed_install_over_the_default_limi
     )
     assert sorted(n.data["threshold"] for n in notifications) == [80, 100]
     assert notifications[0].data["limit"] == DEFAULT_APPLICATION_USERS_LIMIT
-    assert ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
+    assert is_marked_over_limit(workspace)
 
 
 @pytest.mark.django_db
@@ -385,7 +388,7 @@ def test_the_periodic_check_clears_notifications_when_the_usage_drops_again(
         ).count()
         == 2
     )
-    assert ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
+    assert is_marked_over_limit(workspace)
 
     # The usage drops back under the limit, so the next check clears the
     # notifications and the over limit state again, and crossing the limit later
@@ -397,4 +400,4 @@ def test_the_periodic_check_clears_notifications_when_the_usage_drops_again(
     assert not Notification.objects.filter(
         type=ApplicationUserLimitNotificationType.type, workspace=workspace
     ).exists()
-    assert not ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
+    assert not is_marked_over_limit(workspace)

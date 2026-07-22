@@ -1,4 +1,3 @@
-from baserow_enterprise.application_users.models import ApplicationUserOverLimit
 from baserow_enterprise.automation.nodes.models import CoreCodeActionNode
 from baserow_enterprise.builder.custom_code.models import (
     BuilderCustomCode,
@@ -23,7 +22,6 @@ from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.teams.models import Team, TeamSubject
 
 __all__ = [
-    "ApplicationUserOverLimit",
     "Team",
     "TeamSubject",
     "Role",

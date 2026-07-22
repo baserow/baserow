@@ -1,19 +1,30 @@
-from datetime import timedelta
+import logging
+from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
 from django.conf import settings
+from django.core.cache import cache
+from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
 from baserow.core.models import Workspace
 from baserow.core.registries import plugin_registry
 from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
-from baserow_enterprise.application_users.models import ApplicationUserOverLimit
 from baserow_enterprise.application_users.notification_types import (
     clear_application_user_threshold,
     notify_application_user_threshold,
 )
 from baserow_premium.plugins import PremiumPlugin
+
+logger = logging.getLogger(__name__)
+
+OVER_LIMIT_CACHE_KEY_PREFIX = "application_user_over_limit"
+
+# The over limit moment is re-stamped by the hourly `check_application_user_limits`
+# task, so this only has to outlive a couple of missed runs. It also makes sure the
+# key of a workspace that no longer exists eventually disappears by itself.
+OVER_LIMIT_CACHE_TIMEOUT = 60 * 60 * 24  # 1 day
 
 
 def get_application_user_usage_and_limit(
@@ -63,6 +74,27 @@ def check_application_user_limit(workspace: Workspace) -> None:
             clear_application_user_threshold(workspace, threshold)
 
 
+def get_over_limit_cache_key(workspace_id: int) -> str:
+    return f"{OVER_LIMIT_CACHE_KEY_PREFIX}_{workspace_id}"
+
+
+def get_application_user_over_limit_since(
+    workspace: Workspace,
+) -> Optional[datetime]:
+    """
+    Returns the moment the workspace was first detected to be over its application
+    user limit, or `None` when it isn't over its limit as far as we know.
+
+    See `update_application_user_over_limit_state` for why this is best effort.
+
+    :param workspace: The workspace to get the over limit moment of.
+    :return: The over limit moment, or `None`.
+    """
+
+    since = cache.get(get_over_limit_cache_key(workspace.id))
+    return parse_datetime(since) if since else None
+
+
 def update_application_user_over_limit_state(
     workspace: Workspace, usage: int, limit: Optional[int]
 ) -> None:
@@ -73,17 +105,39 @@ def update_application_user_over_limit_state(
     keep the original timestamp, so the grace period isn't restarted. The timestamp
     drives the grace period before logins are refused when the limit is enforced.
 
+    This is deliberately kept in the cache rather than the database, so it is best
+    effort: losing it (a flush, an eviction, the version bump that comes with a new
+    release) restarts the grace period of a workspace that is still over its limit.
+    That only ever grants a workspace more time, never less, and the login check
+    re-resolves the real usage before refusing anything, so the stamp is a timer and
+    not the authority on whether the limit is exceeded.
+
     :param workspace: The workspace to update the over limit state for.
     :param usage: The current application user usage.
     :param limit: The current application user limit, or `None` when there is none.
     """
 
-    if limit is not None and usage > limit:
-        ApplicationUserOverLimit.objects.get_or_create(
-            workspace=workspace, defaults={"since": now()}
+    cache_key = get_over_limit_cache_key(workspace.id)
+
+    if limit is None or usage <= limit:
+        cache.delete(cache_key)
+        return
+
+    # Read and write instead of `cache.add`, because `add` leaves the timeout of an
+    # already existing key alone, which would expire the over limit moment of a
+    # workspace that never gets back within its limit.
+    since = cache.get(cache_key)
+    if since is None:
+        since = now().isoformat()
+        # Logged because the stamp is otherwise invisible, and it's what a support
+        # request about a refused login needs to be answered.
+        logger.info(
+            "Workspace %s went over its application user limit (%s/%s).",
+            workspace.id,
+            usage,
+            limit,
         )
-    else:
-        ApplicationUserOverLimit.objects.filter(workspace=workspace).delete()
+    cache.set(cache_key, since, timeout=OVER_LIMIT_CACHE_TIMEOUT)
 
 
 def notify_workspaces_approaching_application_user_limit() -> None:
@@ -131,14 +185,15 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     # The periodic application user limit check stamps the moment a workspace goes
     # over its limit. Only refuse logins when that happened longer than the grace period
     # ago, so the workspace has time to upgrade or reduce its usage first. This is
-    # a single cheap query on the login path.
+    # a single cheap cache read on the login path.
+    over_limit_since = get_application_user_over_limit_since(workspace)
+    if over_limit_since is None:
+        return
+
     grace_period_cutoff = now() - timedelta(
         hours=settings.BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS
     )
-    over_limit_past_grace_period = ApplicationUserOverLimit.objects.filter(
-        workspace=workspace, since__lt=grace_period_cutoff
-    ).exists()
-    if not over_limit_past_grace_period:
+    if over_limit_since >= grace_period_cutoff:
         return
 
     # The workspace might have upgraded or reduced its usage since the periodic
