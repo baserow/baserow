@@ -33,6 +33,7 @@ describe('builder preview session response interceptor', () => {
     expect(errorPage.data).toEqual({
       report: false,
       error: 'ERROR_BUILDER_PREVIEW_SESSION_INVALID',
+      closeTab: true,
     })
     expect(errorPage.fatal).toBe(true)
   })

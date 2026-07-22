@@ -10,6 +10,7 @@ export const createBuilderPreviewSessionError = (i18n) => {
     data: {
       report: false,
       error: BUILDER_PREVIEW_SESSION_INVALID,
+      closeTab: true,
     },
     fatal: true,
   })

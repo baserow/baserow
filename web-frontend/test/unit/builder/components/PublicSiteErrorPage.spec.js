@@ -53,4 +53,45 @@ describe('PublicSiteErrorPage', () => {
     expect(go).toHaveBeenCalledWith(0)
     wrapper.unmount()
   })
+
+  test('the close tab action replaces home navigation when requested', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        {
+          name: 'application-builder-preview',
+          path: '/builder-preview/:pathMatch(.*)*',
+          component: { template: '<div />' },
+        },
+      ],
+    })
+    await router.push({
+      name: 'application-builder-preview',
+      params: { pathMatch: '' },
+    })
+    await router.isReady()
+    const close = vi.spyOn(window, 'close').mockImplementation(() => {})
+    const wrapper = mount(PublicSiteErrorPage, {
+      props: {
+        error: {
+          statusCode: 401,
+          message: 'Preview session expired',
+          data: { closeTab: true },
+        },
+      },
+      global: {
+        plugins: [router],
+        components: { Button },
+        mocks: { $t: (key) => key },
+        stubs: { Logo: true },
+      },
+    })
+
+    expect(wrapper.find('.placeholder__action').text()).toBe('action.close')
+    expect(wrapper.find('.placeholder__action a').exists()).toBe(false)
+    await wrapper.find('.placeholder__action button').trigger('click')
+    expect(close).toHaveBeenCalledOnce()
+    wrapper.unmount()
+    close.mockRestore()
+  })
 })

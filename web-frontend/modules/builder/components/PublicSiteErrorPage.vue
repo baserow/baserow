@@ -2,11 +2,13 @@
   <div v-if="!redirecting" class="placeholder">
     <div class="placeholder__logo">
       <a
+        v-if="!shouldCloseTab"
         :href="$router.resolve(homeRoute).fullPath"
         @click.prevent="clearAndNavigate(homeRoute)"
       >
         <Logo class="placeholder__logo-image" />
       </a>
+      <Logo v-else class="placeholder__logo-image" />
     </div>
     <h1 class="placeholder__title">{{ message }}</h1>
     <p v-if="error.statusCode === 404" class="placeholder__content">
@@ -15,6 +17,16 @@
     <p v-else class="placeholder__content">{{ content }}</p>
     <div class="placeholder__action">
       <Button
+        v-if="shouldCloseTab"
+        type="primary"
+        icon="iconoir-cancel"
+        size="large"
+        @click="closeTab"
+      >
+        {{ $t('action.close') }}
+      </Button>
+      <Button
+        v-else
         tag="a"
         :href="$router.resolve(homeRoute).fullPath"
         type="primary"
@@ -60,6 +72,9 @@ export default {
     content() {
       return this.error.content || this.$t('errorLayout.error')
     },
+    shouldCloseTab() {
+      return this.error.data?.closeTab === true
+    },
     routeName() {
       return this.$route.name
     },
@@ -75,6 +90,9 @@ export default {
     },
   },
   methods: {
+    closeTab() {
+      window.close()
+    },
     clearAndNavigate(to) {
       window.location.replace(this.$router.resolve(to).fullPath)
     },
