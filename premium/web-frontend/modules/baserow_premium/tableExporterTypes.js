@@ -1,12 +1,29 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import { TableExporterType } from '@baserow/modules/database/exporterTypes'
 import { GridViewType } from '@baserow/modules/database/viewTypes'
-import TableJSONExporter from '@baserow_premium/components/exporter/TableJSONExporter'
-import TableXMLExporter from '@baserow_premium/components/exporter/TableXMLExporter'
 import PremiumFeatures from '@baserow_premium/features'
-import TableExcelExporter from '@baserow_premium/components/exporter/TableExcelExporter'
-import TableFileExporter from '@baserow_premium/components/exporter/TableFileExporter'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { ExportsPaidFeature } from '@baserow_premium/paidFeatures'
+
+const TableJSONExporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/exporter/TableJSONExporter'),
+  hydrate: hydrateOnIdle(),
+})
+const TableXMLExporter = defineAsyncComponent({
+  loader: () => import('@baserow_premium/components/exporter/TableXMLExporter'),
+  hydrate: hydrateOnIdle(),
+})
+const TableExcelExporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/exporter/TableExcelExporter'),
+  hydrate: hydrateOnIdle(),
+})
+const TableFileExporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/exporter/TableFileExporter'),
+  hydrate: hydrateOnIdle(),
+})
 
 class PremiumTableExporterType extends TableExporterType {
   getDeactivatedText() {

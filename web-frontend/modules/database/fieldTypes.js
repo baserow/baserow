@@ -1,3 +1,4 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import BigNumber from 'bignumber.js'
 import {
   DURATION_FORMATS,
@@ -31,20 +32,6 @@ import {
   plainTextToMarkdown,
   richMarkdownToPlainText,
 } from '@baserow/modules/core/editor/richTextClipboard'
-import FieldNumberSubForm from '@baserow/modules/database/components/field/FieldNumberSubForm'
-import FieldAutonumberSubForm from '@baserow/modules/database/components/field/FieldAutonumberSubForm'
-import FieldDurationSubForm from '@baserow/modules/database/components/field/FieldDurationSubForm'
-import FieldRatingSubForm from '@baserow/modules/database/components/field/FieldRatingSubForm'
-import FieldTextSubForm from '@baserow/modules/database/components/field/FieldTextSubForm'
-import FieldLongTextSubForm from '@baserow/modules/database/components/field/FieldLongTextSubForm'
-import FieldDateSubForm from '@baserow/modules/database/components/field/FieldDateSubForm'
-import FieldLinkRowSubForm from '@baserow/modules/database/components/field/FieldLinkRowSubForm'
-import FieldMultipleSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldMultipleSelectOptionsSubForm'
-import FieldSingleSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSingleSelectOptionsSubForm'
-import FieldCollaboratorSubForm from '@baserow/modules/database/components/field/FieldCollaboratorSubForm'
-import FieldPasswordSubForm from '@baserow/modules/database/components/field/FieldPasswordSubForm'
-import FieldBooleanSubForm from '@baserow/modules/database/components/field/FieldBooleanSubForm'
-
 import GridViewFieldText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldText'
 import GridViewFieldLongText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldLongText'
 import GridViewFieldRichText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldRichText'
@@ -89,29 +76,6 @@ import FunctionalGridViewFieldLastModifiedBy from '@baserow/modules/database/com
 import FunctionalGridVIewFieldPassword from '@baserow/modules/database/components/view/grid/fields/FunctionalGridVIewFieldPassword.vue'
 import FunctionalGridViewFieldFormViewEditRow from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldFormViewEditRow'
 
-import RowEditFieldText from '@baserow/modules/database/components/row/RowEditFieldText'
-import RowEditFieldLongText from '@baserow/modules/database/components/row/RowEditFieldLongText'
-import RowEditFieldRichText from '@baserow/modules/database/components/row/RowEditFieldRichText'
-import RowEditFieldURL from '@baserow/modules/database/components/row/RowEditFieldURL'
-import RowEditFieldEmail from '@baserow/modules/database/components/row/RowEditFieldEmail'
-import RowEditFieldLinkRow from '@baserow/modules/database/components/row/RowEditFieldLinkRow'
-import RowEditFieldNumber from '@baserow/modules/database/components/row/RowEditFieldNumber'
-import RowEditFieldDuration from '@baserow/modules/database/components/row/RowEditFieldDuration'
-import RowEditFieldRating from '@baserow/modules/database/components/row/RowEditFieldRating'
-import RowEditFieldBoolean from '@baserow/modules/database/components/row/RowEditFieldBoolean'
-import RowEditFieldDate from '@baserow/modules/database/components/row/RowEditFieldDate'
-import RowEditFieldDateReadOnly from '@baserow/modules/database/components/row/RowEditFieldDateReadOnly'
-import RowEditFieldFile from '@baserow/modules/database/components/row/RowEditFieldFile'
-import RowEditFieldSingleSelect from '@baserow/modules/database/components/row/RowEditFieldSingleSelect'
-import RowEditFieldMultipleSelect from '@baserow/modules/database/components/row/RowEditFieldMultipleSelect'
-import RowEditFieldPhoneNumber from '@baserow/modules/database/components/row/RowEditFieldPhoneNumber'
-import RowEditFieldMultipleCollaborators from '@baserow/modules/database/components/row/RowEditFieldMultipleCollaborators'
-import RowEditFieldUUID from '@baserow/modules/database/components/row/RowEditFieldUUID'
-import RowEditFieldAutonumber from '@baserow/modules/database/components/row/RowEditFieldAutonumber'
-import RowEditFieldLastModifiedBy from '@baserow/modules/database/components/row/RowEditFieldLastModifiedBy'
-import RowEditFieldPassword from '@baserow/modules/database/components/row/RowEditFieldPassword'
-import RowEditFieldFormViewEditRow from '@baserow/modules/database/components/row/RowEditFieldFormViewEditRow'
-
 import RowCardFieldBoolean from '@baserow/modules/database/components/card/RowCardFieldBoolean'
 import RowCardFieldDate from '@baserow/modules/database/components/card/RowCardFieldDate'
 import RowCardFieldDuration from '@baserow/modules/database/components/card/RowCardFieldDuration'
@@ -138,25 +102,6 @@ import RowCardFieldLastModifiedBy from '@baserow/modules/database/components/car
 import RowCardFieldPassword from '@baserow/modules/database/components/card/RowCardFieldPassword'
 import RowCardFieldFormViewEditRow from '@baserow/modules/database/components/card/RowCardFieldFormViewEditRow'
 
-import RowHistoryFieldText from '@baserow/modules/database/components/row/RowHistoryFieldText'
-import RowHistoryFieldRichText from '@baserow/modules/database/components/row/RowHistoryFieldRichText'
-import RowHistoryFieldDate from '@baserow/modules/database/components/row/RowHistoryFieldDate'
-import RowHistoryFieldNumber from '@baserow/modules/database/components/row/RowHistoryFieldNumber'
-import RowHistoryFieldDuration from '@baserow/modules/database/components/row/RowHistoryFieldDuration'
-import RowHistoryFieldMultipleCollaborators from '@baserow/modules/database/components/row/RowHistoryFieldMultipleCollaborators'
-import RowHistoryFieldFile from '@baserow/modules/database/components/row/RowHistoryFieldFile'
-import RowHistoryFieldMultipleSelect from '@baserow/modules/database/components/row/RowHistoryFieldMultipleSelect'
-import RowHistoryFieldSingleSelect from '@baserow/modules/database/components/row/RowHistoryFieldSingleSelect'
-import RowHistoryFieldBoolean from '@baserow/modules/database/components/row/RowHistoryFieldBoolean'
-import RowHistoryFieldLinkRow from '@baserow/modules/database/components/row/RowHistoryFieldLinkRow'
-import RowHistoryFieldPassword from '@baserow/modules/database/components/row/RowHistoryFieldPassword'
-
-import FormViewFieldLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldLinkRow'
-import FormViewFieldMultipleLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldMultipleLinkRow'
-import FormViewFieldMultipleSelectCheckboxes from '@baserow/modules/database/components/view/form/FormViewFieldMultipleSelectCheckboxes'
-import FormViewFieldMultipleCollaboratorsCheckboxes from '@baserow/modules/database/components/view/form/FormViewFieldMultipleCollaboratorsCheckboxes'
-import FormViewFieldSingleSelectRadios from '@baserow/modules/database/components/view/form/FormViewFieldSingleSelectRadios'
-
 import {
   getDateMomentFormat,
   getFieldTimezone,
@@ -170,11 +115,6 @@ import {
   genericStartsWithFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
 import GridViewFieldFormula from '@baserow/modules/database/components/view/grid/fields/GridViewFieldFormula'
-import FieldFormulaSubForm from '@baserow/modules/database/components/field/FieldFormulaSubForm'
-import FieldLookupSubForm from '@baserow/modules/database/components/field/FieldLookupSubForm'
-import FieldCountSubForm from '@baserow/modules/database/components/field/FieldCountSubForm'
-import FieldRollupSubForm from '@baserow/modules/database/components/field/FieldRollupSubForm'
-import RowEditFieldFormula from '@baserow/modules/database/components/row/RowEditFieldFormula'
 import {
   DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY,
   DEFAULT_SORT_TYPE_KEY,
@@ -187,8 +127,305 @@ import _ from 'lodash'
 import { trueValues } from '@baserow/modules/core/utils/constants'
 import ViewFilterTypeNumber from '@baserow/modules/database/components/view/ViewFilterTypeNumber.vue'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
-import FormViewFieldOptionsAllowedSelectOptions from '@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions'
-import FieldFormViewEditRowSubForm from '@baserow/modules/database/components/field/FieldFormViewEditRowSubForm'
+
+const FieldTextSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldTextSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldLongTextSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldLongTextSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldNumberSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldNumberSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldAutonumberSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldAutonumberSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldDurationSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldDurationSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldRatingSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldRatingSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldDateSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldDateSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldLinkRowSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldLinkRowSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldMultipleSelectOptionsSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldMultipleSelectOptionsSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldSingleSelectOptionsSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldSingleSelectOptionsSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldCollaboratorSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldCollaboratorSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldPasswordSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldPasswordSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldBooleanSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldBooleanSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldFormulaSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldFormulaSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldLookupSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldLookupSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldCountSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldCountSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldRollupSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldRollupSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldFormViewEditRowSubForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/field/FieldFormViewEditRowSubForm'),
+  hydrate: hydrateOnIdle(),
+})
+
+const RowEditFieldText = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldText'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldLongText = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldLongText'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldRichText = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldRichText'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldURL = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldURL'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldEmail = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldEmail'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldLinkRow = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldLinkRow'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldNumber = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldNumber'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldDuration = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldDuration'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldRating = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldRating'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldBoolean = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldBoolean'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldDate = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldDate'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldDateReadOnly = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldDateReadOnly'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldFile = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldFile'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldSingleSelect = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldSingleSelect'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldMultipleSelect = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldMultipleSelect'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldPhoneNumber = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldPhoneNumber'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldMultipleCollaborators = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldMultipleCollaborators'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldUUID = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldUUID'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldAutonumber = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldAutonumber'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldLastModifiedBy = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldLastModifiedBy'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldPassword = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldPassword'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldFormViewEditRow = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldFormViewEditRow'),
+  hydrate: hydrateOnIdle(),
+})
+const RowEditFieldFormula = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowEditFieldFormula'),
+  hydrate: hydrateOnIdle(),
+})
+
+const RowHistoryFieldText = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldText'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldRichText = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldRichText'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldDate = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldDate'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldNumber = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldNumber'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldDuration = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldDuration'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldMultipleCollaborators = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldMultipleCollaborators'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldFile = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldFile'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldMultipleSelect = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldMultipleSelect'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldSingleSelect = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldSingleSelect'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldBoolean = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldBoolean'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldLinkRow = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldLinkRow'),
+  hydrate: hydrateOnIdle(),
+})
+const RowHistoryFieldPassword = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/row/RowHistoryFieldPassword'),
+  hydrate: hydrateOnIdle(),
+})
+
+const FormViewFieldLinkRow = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/view/form/FormViewFieldLinkRow'),
+  hydrate: hydrateOnIdle(),
+})
+const FormViewFieldMultipleLinkRow = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/view/form/FormViewFieldMultipleLinkRow'),
+  hydrate: hydrateOnIdle(),
+})
+const FormViewFieldMultipleSelectCheckboxes = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/view/form/FormViewFieldMultipleSelectCheckboxes'),
+  hydrate: hydrateOnIdle(),
+})
+const FormViewFieldMultipleCollaboratorsCheckboxes = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/view/form/FormViewFieldMultipleCollaboratorsCheckboxes'),
+  hydrate: hydrateOnIdle(),
+})
+const FormViewFieldSingleSelectRadios = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/view/form/FormViewFieldSingleSelectRadios'),
+  hydrate: hydrateOnIdle(),
+})
+const FormViewFieldOptionsAllowedSelectOptions = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class FieldType extends Registerable {
   /**

@@ -1,3 +1,5 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+
 import {
   FieldType,
   FormulaFieldType,
@@ -5,15 +7,29 @@ import {
 
 import GridViewFieldAI from '@baserow_premium/components/views/grid/fields/GridViewFieldAI'
 import FunctionalGridViewFieldAI from '@baserow_premium/components/views/grid/fields/FunctionalGridViewFieldAI'
-import RowEditFieldAI from '@baserow_premium/components/row/RowEditFieldAI'
-import FieldAISubForm from '@baserow_premium/components/field/FieldAISubForm'
-import FormulaFieldAI from '@baserow_premium/components/field/FormulaFieldAI'
-import GridViewFieldAIGenerateValuesContextItem from '@baserow_premium/components/views/grid/fields/GridViewFieldAIGenerateValuesContextItem'
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { AIPaidFeature } from '@baserow_premium/paidFeatures'
 import _ from 'lodash'
 import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal.vue'
+
+const RowEditFieldAI = defineAsyncComponent({
+  loader: () => import('@baserow_premium/components/row/RowEditFieldAI'),
+  hydrate: hydrateOnIdle(),
+})
+const FieldAISubForm = defineAsyncComponent({
+  loader: () => import('@baserow_premium/components/field/FieldAISubForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FormulaFieldAI = defineAsyncComponent({
+  loader: () => import('@baserow_premium/components/field/FormulaFieldAI'),
+  hydrate: hydrateOnIdle(),
+})
+const GridViewFieldAIGenerateValuesContextItem = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/views/grid/fields/GridViewFieldAIGenerateValuesContextItem'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class AIFieldType extends FieldType {
   static getType() {

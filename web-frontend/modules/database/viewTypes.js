@@ -1,11 +1,8 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import ViewForm from '@baserow/modules/database/components/view/ViewForm'
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
-import GridViewHeader from '@baserow/modules/database/components/view/grid/GridViewHeader'
 import GalleryView from '@baserow/modules/database/components/view/gallery/GalleryView'
-import GalleryViewHeader from '@baserow/modules/database/components/view/gallery/GalleryViewHeader'
 import FormView from '@baserow/modules/database/components/view/form/FormView'
-import FormViewHeader from '@baserow/modules/database/components/view/form/FormViewHeader'
 import { FileFieldType } from '@baserow/modules/database/fieldTypes'
 import {
   filterVisibleFieldsFunction,
@@ -20,6 +17,15 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING } from '@baserow/modules/database/constants'
 import { waitFor } from '@baserow/modules/core/utils/queue'
+// Header components stay static: a late filter/sort toolbar is visible on every table load.
+import GridViewHeader from '@baserow/modules/database/components/view/grid/GridViewHeader'
+import GalleryViewHeader from '@baserow/modules/database/components/view/gallery/GalleryViewHeader'
+import FormViewHeader from '@baserow/modules/database/components/view/form/FormViewHeader'
+
+const ViewForm = defineAsyncComponent({
+  loader: () => import('@baserow/modules/database/components/view/ViewForm'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class ViewType extends Registerable {
   /**
