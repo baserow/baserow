@@ -45,6 +45,7 @@ export default (client) => {
         `builder/workflow_action/${workflowActionId}/dispatch/`,
         formData,
         {
+          usePreviewAuth: true,
           headers: {
             'Content-Type': 'multipart/form-data',
           },
