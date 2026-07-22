@@ -537,7 +537,8 @@ export const prepareRequestHeaders = (store, previewSsrAuth) => (config) => {
   const currentApplicationMode =
     store.getters['userSourceUser/getCurrentApplicationMode']
   const isPreviewContext = currentApplicationMode === 'preview'
-  const previewBuilderId = config.builderPreviewId || application?.id
+  const selectedApplication = store.getters['application/getSelected']
+  const previewBuilderId = config.builderPreviewId || selectedApplication?.id
   const usePreviewCredentials =
     isPreviewContext && config.usePreviewAuth && previewBuilderId
 

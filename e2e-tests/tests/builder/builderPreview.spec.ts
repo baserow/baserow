@@ -1,8 +1,14 @@
 import type { Response } from "@playwright/test";
 
+import { getClient } from "../../client";
 import { createBuilderElement } from "../../fixtures/builder/builderElement";
 import { createBuilder } from "../../fixtures/builder/builder";
 import { createBuilderPage } from "../../fixtures/builder/builderPage";
+import { createBuilderWorkflowAction } from "../../fixtures/builder/builderWorkflowAction";
+import { createDatabase } from "../../fixtures/database/database";
+import { getFieldsForTable } from "../../fixtures/database/field";
+import { listRows } from "../../fixtures/database/rows";
+import { createTable } from "../../fixtures/database/table";
 import { baserowConfig } from "../../playwright.config";
 import { expect, test } from "../baserowTest";
 
@@ -118,5 +124,74 @@ test.describe("Builder preview test suite", () => {
     } finally {
       context.off("response", captureDocumentResponse);
     }
+  });
+
+  test("dispatches an action without user source authentication", async ({
+    context,
+    builderPagePage,
+    workspacePage,
+  }) => {
+    const user = workspacePage.workspace.user;
+    const database = await createDatabase(
+      user,
+      "Preview action database",
+      workspacePage.workspace
+    );
+    const table = await createTable(user, "Preview action table", database, [
+      ["Name"],
+    ]);
+    const [nameField] = await getFieldsForTable(user, table);
+    const integrationResponse = await getClient(user).post(
+      `application/${builderPagePage.builder.id}/integrations/`,
+      { type: "local_baserow", name: "Preview action integration" }
+    );
+    const button = await createBuilderElement(
+      builderPagePage.builderPage,
+      "button",
+      { value: "'Create preview row'" }
+    );
+    const action = await createBuilderWorkflowAction(
+      builderPagePage.builderPage,
+      button,
+      "create_row",
+      "click"
+    );
+    await getClient(user).patch(`builder/workflow_action/${action.id}/`, {
+      service: {
+        type: action.properties.service.type,
+        integration_id: integrationResponse.data.id,
+        table_id: table.id,
+        field_mappings: [
+          {
+            field_id: nameField.id,
+            value: "'Created from preview'",
+            enabled: true,
+          },
+        ],
+      },
+    });
+    const grantResponse = await getClient(user).post(
+      `builder/preview/${builderPagePage.builder.id}/grant/`,
+      { path: builderPagePage.builderPage.path }
+    );
+    const previewPage = await context.newPage();
+    await previewPage.goto(grantResponse.data.url);
+    await expect(
+      previewPage.getByRole("button", { name: "Create preview row" })
+    ).toBeVisible();
+
+    const dispatchResponse = previewPage.waitForResponse(
+      (response) =>
+        response.url() ===
+          `${baserowConfig.PUBLIC_BACKEND_URL}/api/builder/workflow_action/${action.id}/dispatch/` &&
+        response.request().method() === "POST"
+    );
+    await previewPage
+      .getByRole("button", { name: "Create preview row" })
+      .click();
+    expect((await dispatchResponse).status()).toBe(200);
+    expect(await listRows(user, table)).toEqual([
+      expect.objectContaining({ Name: "Created from preview" }),
+    ]);
   });
 });

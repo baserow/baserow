@@ -2,23 +2,29 @@ import { describe, expect, test } from 'vitest'
 
 import { prepareRequestHeaders } from '@baserow/modules/core/plugins/clientHandler'
 
-const makeStore = (mode) => ({
+const makeStore = (mode, selectedApplication = { id: 123 }) => ({
   getters: {
     'userSourceUser/getCurrentApplication': null,
     'userSourceUser/getCurrentApplicationMode': mode,
     'userSourceUser/isAuthenticated': () => false,
     'userSourceUser/isRefreshing': () => false,
+    'application/getSelected': selectedApplication,
     'auth/isAuthenticated': false,
     'auth/webSocketId': null,
   },
 })
 
-const prepareConfig = (mode, usePreviewAuth, previewSsrAuth = {}) => {
+const prepareConfig = (
+  mode,
+  usePreviewAuth,
+  previewSsrAuth = {},
+  builderPreviewId = null
+) => {
   const prepareHeaders = prepareRequestHeaders(makeStore(mode), previewSsrAuth)
   return prepareHeaders({
     headers: {},
     usePreviewAuth,
-    builderPreviewId: 123,
+    builderPreviewId,
     withCredentials: false,
   })
 }
@@ -39,7 +45,7 @@ describe('preview request headers', () => {
   })
 
   test('does not mark public requests even when the service supports preview auth', () => {
-    const config = prepareConfig('public', true)
+    const config = prepareConfig('public', true, {}, null)
 
     expect(config.withCredentials).toBe(false)
     expect(config.headers).not.toHaveProperty('X-Baserow-Builder-Preview')
@@ -53,7 +59,7 @@ describe('preview request headers', () => {
 
     const previewConfig = prepareConfig('preview', true, previewSsrAuth)
     const unmarkedConfig = prepareConfig('preview', false, previewSsrAuth)
-    const publicConfig = prepareConfig('public', true, previewSsrAuth)
+    const publicConfig = prepareConfig('public', true, previewSsrAuth, null)
 
     expect(previewConfig.headers.Cookie).toBe(
       'test_baserow_builder_preview_123=signed-session'

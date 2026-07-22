@@ -719,26 +719,41 @@ def test_dispatch_workflow_action_in_preview_without_user_source_authentication(
     api_client, data_fixture
 ):
     user = data_fixture.create_user()
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(builder=builder)
     element = data_fixture.create_builder_button_element(page=page)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=fields[0], value="'Preview row'")
     workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
         page=page,
         element=element,
         event=EventTypes.CLICK,
-        user=user,
+        service=service,
     )
 
-    def dispatch_without_user_source(workflow_action, dispatch_context):
+    original_dispatch = BuilderWorkflowActionHandler.dispatch_workflow_action
+
+    def dispatch_without_user_source(handler, workflow_action, dispatch_context):
         assert dispatch_context.request.user.is_builder_preview_actor
         assert dispatch_context.request.user_source_user.is_anonymous
-        return DispatchResult()
+        return original_dispatch(handler, workflow_action, dispatch_context)
 
     authenticate_builder_preview(api_client, builder, user)
     with patch.object(
         BuilderWorkflowActionHandler,
         "dispatch_workflow_action",
         side_effect=dispatch_without_user_source,
+        autospec=True,
     ):
         response = api_client.post(
             reverse(
@@ -750,6 +765,9 @@ def test_dispatch_workflow_action_in_preview_without_user_source_authentication(
         )
 
     assert response.status_code == HTTP_200_OK
+    assert list(
+        table.get_model().objects.values_list(fields[0].db_column, flat=True)
+    ) == ["Preview row"]
 
 
 @pytest.mark.django_db
