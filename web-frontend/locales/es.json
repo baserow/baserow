@@ -189,7 +189,8 @@
         "overflowDuration": "El valor está fuera de los límites.",
         "maxChars": "Máximo {max} caracteres.",
         "minChars": "Mínimo {min} caracteres.",
-        "higherThan": "El valor es mayor que {max}."
+        "higherThan": "El valor es mayor que {max}.",
+        "maxCharsExceeded": "Máximo {max} caracteres (‑{over})."
     },
     "fieldDocs": {
         "readOnly": "Este es un campo de sólo lectura.",
@@ -325,10 +326,10 @@
     "viewType": {
         "grid": "Cuadrícula",
         "gallery": "Galería",
-        "form": "Forma",
+        "form": "Formulario",
         "sharing": {
             "linkName": "vista",
-            "formLinkName": "forma"
+            "formLinkName": "formulario"
         }
     },
     "premium": {
