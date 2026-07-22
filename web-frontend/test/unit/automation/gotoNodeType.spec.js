@@ -245,6 +245,55 @@ describe('CoreGotoNodeType', () => {
     })
   })
 
+  describe('getDestinations', () => {
+    const automation = { id: 1 }
+    const workflow = { id: 10 }
+    const goto = { id: 3, type: 'goto', service: { id: 30 } }
+
+    // A workflow whose graph order (trigger -> second -> first -> goto) differs
+    // from its creation order: `second` was inserted above `first`, so it has
+    // the higher id while sitting higher up in the editor. Both are valid
+    // backward jumps for the goto node.
+    const trigger = { id: 1, type: 'trigger', service: { id: 10 } }
+    const first = { id: 2, type: 'create_row', service: { id: 20 } }
+    const second = { id: 4, type: 'create_row', service: { id: 40 } }
+    const inCreationOrder = [trigger, first, goto, second]
+    const inGraphOrder = [trigger, second, first, goto]
+    const previousByNodeId = {
+      [trigger.id]: [],
+      [second.id]: [trigger],
+      [first.id]: [trigger, second],
+      [goto.id]: [trigger, second, first],
+    }
+    const makeApp = () => ({
+      $store: {
+        getters: {
+          'automationWorkflowNode/getNodes': () => inCreationOrder,
+          'automationWorkflowNode/getNodesInOrder': () => inGraphOrder,
+          'automationWorkflowNode/getAncestors': () => [],
+          'automationWorkflowNode/getPreviousNodes': (_workflow, node) =>
+            previousByNodeId[node.id] ?? [],
+        },
+      },
+      $registry: {
+        get: (registry, type) => ({
+          isTrigger: type === 'trigger',
+          getLabel: ({ node }) => `Node ${node.id}`,
+        }),
+      },
+    })
+
+    test('lists the destinations in the order they appear in the editor', () => {
+      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      expect(
+        nodeType.getDestinations({ workflow, node: goto, automation })
+      ).toEqual([
+        { value: 40, name: 'Node 4' },
+        { value: 20, name: 'Node 2' },
+      ])
+    })
+  })
+
   describe('afterMove', () => {
     const workflow = { id: 10 }
     const trigger = { id: 1, type: 'trigger' }

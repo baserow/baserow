@@ -177,4 +177,55 @@ describe('Automation workflow node store', () => {
     resolveRequest()
     await createPromise
   })
+
+  describe('getNodesInOrder', () => {
+    // A workflow whose graph order (1 -> 4 -> 2 -> 3) differs from its creation
+    // order, which is what `workflow.nodes` holds: node 4 was inserted between
+    // the trigger and node 2, so its id is the highest while it sits second.
+    const makeWorkflow = () => {
+      const nodes = [
+        { id: 1, type: 'manual' },
+        { id: 2, type: 'create_row' },
+        { id: 3, type: 'goto' },
+        { id: 4, type: 'create_row' },
+      ]
+      return {
+        id: 10,
+        nodes,
+        nodeMap: Object.fromEntries(nodes.map((node) => [`${node.id}`, node])),
+        graph: {
+          0: 1,
+          1: { next: { '': [4] } },
+          4: { next: { '': [2] } },
+          2: { next: { '': [3] } },
+          3: {},
+        },
+      }
+    }
+
+    const idsOf = (nodes) => nodes.map((node) => node.id)
+
+    test('returns the nodes in the order they appear in the editor', () => {
+      const workflow = makeWorkflow()
+      // `getNodes` returns creation order, which no longer matches the graph.
+      expect(
+        idsOf(
+          testApp.store.getters['automationWorkflowNode/getNodes'](workflow)
+        )
+      ).toEqual([1, 2, 3, 4])
+      expect(
+        idsOf(
+          testApp.store.getters['automationWorkflowNode/getNodesInOrder'](
+            workflow
+          )
+        )
+      ).toEqual([1, 4, 2, 3])
+    })
+
+    test('returns nothing without a workflow', () => {
+      expect(
+        testApp.store.getters['automationWorkflowNode/getNodesInOrder'](null)
+      ).toEqual([])
+    })
+  })
 })

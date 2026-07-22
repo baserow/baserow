@@ -1301,12 +1301,17 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
    * CoreGotoServiceForm's `destinations` prop. As the service form can't
    * refer to automation nodes, the node-graph lookups and label resolution
    * happen here and are passed into the form as data.
+   *
+   * The nodes are taken in graph order so the dropdown reads in the same order
+   * as the editor. `buildGotoDestinations` preserves the order it's given.
    */
   getDestinations({ workflow, node, automation }) {
     return buildGotoDestinations({
       gotoNode: node,
       nodes:
-        this.app.$store.getters['automationWorkflowNode/getNodes'](workflow),
+        this.app.$store.getters['automationWorkflowNode/getNodesInOrder'](
+          workflow
+        ),
       ancestorsOf: (n) =>
         this.app.$store.getters['automationWorkflowNode/getAncestors'](
           workflow,

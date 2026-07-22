@@ -702,6 +702,15 @@ const getters = {
     if (!workflow) return []
     return workflow.nodes
   },
+  /**
+   * The nodes in the order they appear in the editor, top to bottom. `getNodes`
+   * returns them in creation order (the backend orders by id), which diverges
+   * from the graph as soon as a node is inserted between two others or moved.
+   */
+  getNodesInOrder: (state) => (workflow) => {
+    if (!workflow) return []
+    return new NodeGraphHandler(workflow).getOrderedNodes()
+  },
   findById: (state) => (workflow, nodeId) => {
     if (!workflow || !workflow.nodes || !nodeId) return null
     const nodeIdStr = nodeId.toString()
