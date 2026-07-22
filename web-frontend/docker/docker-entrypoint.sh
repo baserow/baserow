@@ -12,6 +12,7 @@ The available Baserow web-frontend related commands and services are shown below
 COMMANDS:
 nuxt-prepare            : Prepare nuxt (generate .nuxt directory)
 nuxt-dev                : Start a normal nuxt development server
+nuxt-dev-no-attach      : Start nuxt as the foreground process for container supervision
 nuxt-dev-with-storybook : Start nuxt dev + storybook in parallel
 storybook-dev           : Start a storybook dev server
 nuxt-prod               : Start a production nuxt server

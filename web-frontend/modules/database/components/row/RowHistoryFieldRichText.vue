@@ -28,7 +28,7 @@
 </template>
 
 <script>
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import { RichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 import { replaceImagesWithPlaceholder } from '@baserow/modules/core/editor/richTextImageUtils'
 
 export default {

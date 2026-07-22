@@ -7,12 +7,6 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/pageEditor.vue'),
   },
   {
-    name: 'builder-health-check',
-    path: '/_health',
-    file: path.resolve(__dirname, '../core/pages/_health.vue'),
-    meta: { publishedBuilderRoute: true, previewBuilderRoute: true },
-  },
-  {
     name: 'application-builder-preview',
     path: '/builder/preview/:builderId/:pathMatch(.*)*',
     file: path.resolve(__dirname, 'pages/publicPage.vue'),

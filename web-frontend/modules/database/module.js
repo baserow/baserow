@@ -25,6 +25,7 @@ export default defineNuxtModule({
     })
     addPlugin({
       src: resolve('./plugin/realtime.js'),
+      mode: 'client',
     })
 
     addRouteMiddleware({

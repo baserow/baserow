@@ -1,10 +1,11 @@
-import moment from '@baserow/modules/core/moment'
+import moment, { loadMomentLocale } from '@baserow/modules/core/moment'
 
 export default defineNuxtPlugin({
   name: 'i18n',
   async setup(nuxtApp) {
     const { $i18n } = nuxtApp
 
+    await loadMomentLocale($i18n.locale.value)
     moment.locale($i18n.locale.value)
 
     const loadFallbackIfNeeded = async (locale) => {
@@ -20,6 +21,7 @@ export default defineNuxtPlugin({
 
     // Use watch to react to client side locale switch
     watch($i18n.locale, async (newLocale, oldLocale) => {
+      await loadMomentLocale(newLocale)
       moment.locale(newLocale)
       await loadFallbackIfNeeded(newLocale)
     })

@@ -40,7 +40,10 @@
 </template>
 
 <script>
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import {
+  loadRichTextEditor,
+  RichTextEditor,
+} from '@baserow/modules/core/components/editor/richTextEditorAsync'
 
 export default {
   name: 'FormViewDescription',
@@ -97,8 +100,10 @@ export default {
       this.buffer = this.value || ''
       this.dirty = false
       this.editing = true
-      this.$nextTick(() => {
-        this.$refs.editor.focus()
+      loadRichTextEditor().then(() => {
+        this.$nextTick(() => {
+          this.$refs.editor?.focus()
+        })
       })
     },
     stopEditing() {

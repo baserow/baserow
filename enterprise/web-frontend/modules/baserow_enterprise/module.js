@@ -67,14 +67,12 @@ export default defineNuxtModule({
 
     addPlugin({
       src: resolve('./plugins/realtime.js'),
-    })
-
-    addPlugin({
-      src: resolve('./plugin.js'),
+      mode: 'client',
     })
 
     addPlugin({
       src: resolve('./plugins/extraClientScriptUrls.js'),
+      mode: 'client',
     })
 
     addRouteMiddleware({
