@@ -1,5 +1,12 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+
 import { Registerable } from '@baserow/modules/core/registry'
-import FieldPermissionsContextItem from '@baserow_enterprise/components/fieldPermissions/FieldPermissionsContextItem'
+
+const FieldPermissionsContextItem = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_enterprise/components/fieldPermissions/FieldPermissionsContextItem'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class FieldPermissionsContextItemType extends Registerable {
   static getType() {

@@ -1,5 +1,11 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import { ConfigureDataSyncType } from '@baserow/modules/database/configureDataSyncTypes'
-import ConfigureDataSyncPeriodicInterval from '@baserow_enterprise/components/dataSync/ConfigureDataSyncPeriodicInterval'
+
+const ConfigureDataSyncPeriodicInterval = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_enterprise/components/dataSync/ConfigureDataSyncPeriodicInterval'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class PeriodicIntervalFieldsConfigureDataSyncType extends ConfigureDataSyncType {
   static getType() {

@@ -74,7 +74,8 @@ export default {
       this.$emit('focussed')
     },
     isValid() {
-      return this.$refs.field.isValid()
+      // The async field component may not be hydrated yet; let the backend validate then.
+      return this.$refs.field?.isValid() ?? true
     },
   },
 }
