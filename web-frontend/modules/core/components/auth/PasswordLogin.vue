@@ -2,7 +2,7 @@
   <div>
     <Alert v-if="invitation !== null" type="info-primary">
       <template #title>{{ $t('invitationTitle') }}</template>
-      <i18n-t keypath="invitationMessage" tag="span">
+      <i18n-t scope="global" keypath="invitationMessage" tag="span">
         <template #invitedBy>
           <strong>{{ invitation.invited_by }}</strong>
         </template>

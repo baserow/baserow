@@ -11,7 +11,11 @@
         :disabled="!modelAvailable || promptBroken"
         :icon="isDeactivatedFunctional ? 'iconoir-lock' : ''"
       >
-        <i18n-t keypath="functionalGridViewFieldAI.generate" tag="span" />
+        <i18n-t
+          scope="global"
+          keypath="functionalGridViewFieldAI.generate"
+          tag="span"
+        />
       </Button>
     </div>
   </div>

@@ -183,6 +183,11 @@ export default defineNuxtModule({
       path: resolve('./middleware/dashboardRedirect'),
     })
 
+    addRouteMiddleware({
+      name: 'redirectCompletedOnboarding',
+      path: resolve('./middleware/redirectCompletedOnboarding'),
+    })
+
     // Changes the stroke-width of the iconoir svg files because this way, we don't
     // have to fork the repository and change it there.
     const iconoirCssPath = require.resolve('iconoir/css/iconoir.css')

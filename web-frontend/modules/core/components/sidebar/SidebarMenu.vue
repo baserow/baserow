@@ -6,7 +6,7 @@
         @open-workspace-search="openWorkspaceSearch"
       />
       <nuxt-link
-        v-slot="{ href, navigate, isExactActive }"
+        v-slot="{ href, navigate, isExactActive, prefetch, shouldPrefetch }"
         custom
         :to="{
           name: 'workspace',
@@ -22,7 +22,13 @@
           }"
         >
           <div class="tree__action sidebar__action">
-            <a :href="href" class="tree__link" @click="navigate">
+            <a
+              :href="href"
+              class="tree__link"
+              @click="navigate"
+              @pointerenter="shouldPrefetch('interaction') && prefetch()"
+              @focus="shouldPrefetch('interaction') && prefetch()"
+            >
               <i class="tree__icon iconoir-home-simple"></i>
               <span class="tree__link-text">
                 <span class="sidebar__item-name">{{ $t('sidebar.home') }}</span>
@@ -62,7 +68,7 @@
             selectedWorkspace.id
           )
         "
-        v-slot="{ href, navigate, isExactActive }"
+        v-slot="{ href, navigate, isExactActive, prefetch, shouldPrefetch }"
         custom
         :to="{
           name: 'settings-members',
@@ -79,7 +85,13 @@
           data-highlight="members"
         >
           <div class="tree__action sidebar__action">
-            <a :href="href" class="tree__link" @click="navigate">
+            <a
+              :href="href"
+              class="tree__link"
+              @click="navigate"
+              @pointerenter="shouldPrefetch('interaction') && prefetch()"
+              @focus="shouldPrefetch('interaction') && prefetch()"
+            >
               <i class="tree__icon iconoir-group"></i>
               <span class="tree__link-text">
                 <span class="sidebar__item-name">{{

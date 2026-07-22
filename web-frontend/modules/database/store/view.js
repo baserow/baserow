@@ -403,7 +403,8 @@ export const actions = {
    * selects a different table.
    */
   async fetchAll({ commit, getters, dispatch, state }, table) {
-    const { $client, $registry } = this
+    const nuxtApp = this
+    const { $client, $registry } = nuxtApp
     commit('SET_LOADING', true)
     commit('UNSELECT', {})
     commit('SET_DEFAULT_VIEW_ID', null)
@@ -425,7 +426,9 @@ export const actions = {
       commit('SET_LOADING', false)
 
       // Get the default view for the table.
-      const defaultViewId = readDefaultViewIdFromCookie(table.id)
+      const defaultViewId = nuxtApp.runWithContext(() =>
+        readDefaultViewIdFromCookie(table.id)
+      )
       if (defaultViewId !== null) {
         commit('SET_DEFAULT_VIEW_ID', defaultViewId)
       }
@@ -686,12 +689,13 @@ export const actions = {
    * possible you need to select the table first.
    */
   select({ commit, dispatch }, view) {
-    const { $config } = this
+    const nuxtApp = this
+    const { $config } = nuxtApp
     commit('SET_SELECTED', view)
     commit('SET_DEFAULT_VIEW_ID', view.id)
 
     // Set the default view for the table.
-    saveDefaultViewIdInCookie(view, $config)
+    nuxtApp.runWithContext(() => saveDefaultViewIdInCookie(view, $config))
 
     dispatch(
       'undoRedo/updateCurrentScopeSet',
