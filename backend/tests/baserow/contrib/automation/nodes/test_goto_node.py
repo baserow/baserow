@@ -1,11 +1,20 @@
+import uuid
+
 import pytest
 
+from baserow.contrib.automation.action_scopes import WorkflowActionScopeType
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.models import AutomationNodeHistory
+from baserow.contrib.automation.nodes.actions import (
+    DeleteAutomationNodeActionType,
+    UpdateAutomationNodeActionType,
+)
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.core.action.handler import ActionHandler
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -91,6 +100,90 @@ def test_goto_node_prepare_values_rejects_cross_workflow_destination(data_fixtur
             data["user"],
             instance=goto_node,
         )
+
+
+@pytest.mark.django_db
+def test_goto_node_prepare_values_drops_deleted_destination(data_fixture):
+    # A destination is only nulled when it is permanently deleted, so an update
+    # can still carry the service of a trashed node (e.g. when undoing an update
+    # made before the deletion). The unresolvable link is dropped instead of
+    # failing the update.
+    data = _build_goto_workflow(data_fixture)
+    goto_node = data["goto_node"]
+    destination = data["destination"]
+
+    AutomationNodeService().delete_node(data["user"], destination.id)
+
+    values = goto_node.get_type().prepare_values(
+        {"service": {"destination_service_id": destination.service_id}},
+        data["user"],
+        instance=goto_node,
+    )
+    assert values["service"].destination_service_id is None
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_goto_node_update_after_destination_deleted(data_fixture):
+    # Deleting the destination, pointing the Go to node at another node, and then
+    # undoing that update must not fail: the undo restores a destination that no
+    # longer exists, so the link is cleared instead.
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+
+    destination = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, reference_node=trigger, label="destination"
+    )
+    other_destination = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, reference_node=destination, label="other destination"
+    )
+    goto_node = data_fixture.create_core_goto_node(
+        workflow=workflow, reference_node=other_destination
+    )
+    service = goto_node.service.specific
+    service.destination_service = destination.service
+    service.save()
+
+    DeleteAutomationNodeActionType.do(user, destination.id)
+    UpdateAutomationNodeActionType.do(
+        user,
+        goto_node.id,
+        {"service": {"destination_service_id": other_destination.service_id}},
+    )
+
+    [undone_action] = ActionHandler.undo(
+        user, [WorkflowActionScopeType.value(workflow.id)], session_id
+    )
+
+    assert undone_action.error is None
+    service.refresh_from_db()
+    assert service.destination_service_id is None
+
+
+@pytest.mark.django_db
+def test_dispatch_node_reports_deleted_destination_as_misconfigured(data_fixture):
+    # A jump to a node that was deleted after it was configured is reported as a
+    # workflow error rather than crashing the run with a lookup error.
+    data = _build_goto_workflow(data_fixture, condition="'true'")
+    workflow = data["workflow"]
+    goto_node = data["goto_node"]
+
+    AutomationNodeService().delete_node(data["user"], data["destination"].id)
+
+    history = data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        event_payload={"results": [], "has_next_page": False},
+    )
+
+    result = AutomationNodeHandler().dispatch_node(goto_node.id, history.id)
+
+    assert result is None
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.ERROR
+    assert "misconfigured" in history.message
 
 
 @pytest.mark.django_db

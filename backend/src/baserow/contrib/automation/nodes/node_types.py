@@ -474,9 +474,18 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-        destination_node = AutomationNodeHandler().get_node_by_service_id(
-            destination_service_id
-        )
+        try:
+            destination_node = AutomationNodeHandler().get_node_by_service_id(
+                destination_service_id
+            )
+        except AutomationNodeDoesNotExist:
+            # The destination was deleted after the jump was configured. The
+            # link is only nulled when the destination is permanently deleted,
+            # so a trashed destination still resolves to a service here.
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The destination node no longer exists."
+            )
+
         if error := self.validate_goto_destination(automation_node, destination_node):
             raise ServiceImproperlyConfiguredDispatchException(error)
 
@@ -493,17 +502,29 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
         workflow, and cannot be the Go to node itself. We can only check this
         when updating an existing node, as the source node must already exist
         in the graph to determine its level.
+
+        A destination that no longer exists is dropped instead of rejected: the
+        link is only nulled when the destination is permanently deleted, so an
+        update can carry a destination whose node has since been trashed (e.g.
+        when undoing an update that predates the deletion).
         """
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         service_values = values.get("service", {})
         if instance is not None and service_values.get("destination_service_id"):
-            destination_node = AutomationNodeHandler().get_node_by_service_id(
-                service_values["destination_service_id"]
-            )
-            if error := self.validate_goto_destination(instance, destination_node):
-                raise AutomationNodeMisconfiguredService(error)
+            try:
+                destination_node = AutomationNodeHandler().get_node_by_service_id(
+                    service_values["destination_service_id"]
+                )
+            except AutomationNodeDoesNotExist:
+                values = {
+                    **values,
+                    "service": {**service_values, "destination_service_id": None},
+                }
+            else:
+                if error := self.validate_goto_destination(instance, destination_node):
+                    raise AutomationNodeMisconfiguredService(error)
 
         return super().prepare_values(values, user, instance)
 
