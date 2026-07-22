@@ -47,8 +47,12 @@ class ApplicationUserLimitNotificationType(NotificationType):
     def get_notification_title(cls, notification):
         if notification.data["threshold"] >= 100:
             return _("Application user limit reached")
-        return _("You've used %(threshold)s%% of your application user limit") % {
-            "threshold": notification.data["threshold"]
+        # The limit is instance wide when it comes from a license and workspace wide
+        # when it comes from a subscription, so the wording stays neutral about who
+        # the limit belongs to and states the numbers instead.
+        return _("%(usage)s of %(limit)s application users used") % {
+            "usage": notification.data["usage"],
+            "limit": notification.data["limit"],
         }
 
 

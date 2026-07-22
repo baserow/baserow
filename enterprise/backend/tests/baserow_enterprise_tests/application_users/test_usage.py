@@ -15,18 +15,19 @@ from baserow_enterprise.application_users.models import ApplicationUserOverLimit
 from baserow_enterprise.application_users.notification_types import (
     ApplicationUserLimitNotificationType,
 )
+from baserow_enterprise.application_users.tasks import check_application_user_limits
 from baserow_enterprise.application_users.usage import (
     raise_if_over_application_user_login_limit,
     update_application_user_over_limit_state,
 )
-from baserow_enterprise_tests.enterprise_fixtures import (
-    VALID_ONE_SEAT_ENTERPRISE_LICENSE,
+from baserow_premium.application_user_usage.constants import (
+    DEFAULT_APPLICATION_USERS_LIMIT,
 )
-from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.license.plugin import LicensePlugin
 from baserow_premium.plugins import PremiumPlugin
 
 OVER_THE_LICENSE_LIMIT = 11
+OVER_THE_DEFAULT_LIMIT = DEFAULT_APPLICATION_USERS_LIMIT + 1
 
 
 @pytest.fixture(autouse=True)
@@ -78,34 +79,65 @@ def test_login_is_allowed_over_the_limit_when_the_limit_is_a_soft_one(
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True)
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
 @patch(
     "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
-def test_login_is_allowed_when_the_install_is_unlicensed(
+def test_login_is_allowed_when_unlicensed_within_the_default_limit(
     mock_aggregate_user_source_counts, user_source
 ):
-    mock_aggregate_user_source_counts.return_value = OVER_THE_LICENSE_LIMIT
+    mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
 
     raise_if_over_application_user_login_limit(user_source)
 
 
 @pytest.mark.django_db
-@override_settings(DEBUG=True, BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True)
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
 @patch(
     "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
-def test_login_is_allowed_when_no_license_carries_an_application_user_limit(
+def test_login_is_refused_when_unlicensed_over_the_default_limit(
+    mock_aggregate_user_source_counts, user_source
+):
+    # Being unlicensed is not a way around the limit: the default one applies.
+    mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
+
+    with pytest.raises(ApplicationUserLimitReached):
+        raise_if_over_application_user_login_limit(user_source)
+
+
+@pytest.mark.django_db
+@override_settings(
+    DEBUG=True,
+    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_login_is_refused_over_the_default_limit_when_no_license_carries_one(
     mock_aggregate_user_source_counts, user_source, premium_data_fixture
 ):
-    mock_aggregate_user_source_counts.return_value = OVER_THE_LICENSE_LIMIT
+    mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
     # The default fixture license predates v1.32, so it carries no
-    # `application_users` even though it is active.
+    # `application_users` even though it is active. That grants no application user
+    # capacity of its own, so the default limit applies.
     premium_data_fixture.create_premium_license()
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
 
-    raise_if_over_application_user_login_limit(user_source)
+    with pytest.raises(ApplicationUserLimitReached):
+        raise_if_over_application_user_login_limit(user_source)
 
 
 @pytest.mark.django_db
@@ -253,7 +285,7 @@ def test_update_application_user_over_limit_state(data_fixture):
     "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
-def test_license_check_notifies_workspace_admins_over_the_application_user_limit(
+def test_the_periodic_check_notifies_workspace_admins_over_the_application_user_limit(
     mock_aggregate_user_source_counts,
     data_fixture,
     premium_data_fixture,
@@ -269,17 +301,13 @@ def test_license_check_notifies_workspace_admins_over_the_application_user_limit
     builder = data_fixture.create_builder_application(workspace=workspace)
     data_fixture.create_local_baserow_table_user_source(application=builder)
 
-    # The enterprise license type implements the application user usage hook, the
-    # premium license carries the application user limit of 10.
-    enterprise_license = premium_data_fixture.create_premium_license(
-        license=VALID_ONE_SEAT_ENTERPRISE_LICENSE.decode()
-    )
-    premium_license = premium_data_fixture.create_premium_license(
+    # The premium license carries the application user limit of 10.
+    premium_data_fixture.create_premium_license(
         license=VALID_PREMIUM_5_SEAT_10_APP_USER_LICENSE.decode()
     )
 
     with django_capture_on_commit_callbacks(execute=True):
-        LicenseHandler.check_licenses([enterprise_license, premium_license])
+        check_application_user_limits()
 
     notifications = Notification.objects.filter(
         type=ApplicationUserLimitNotificationType.type, workspace=workspace
@@ -297,12 +325,42 @@ def test_license_check_notifies_workspace_admins_over_the_application_user_limit
 
 
 @pytest.mark.django_db
+@override_settings(BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS=[80])
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_the_periodic_check_notifies_an_unlicensed_install_over_the_default_limit(
+    mock_aggregate_user_source_counts,
+    data_fixture,
+    django_capture_on_commit_callbacks,
+):
+    # An unlicensed install runs no license check at all, so the notifications have
+    # to come from the periodic application user check instead.
+    mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    data_fixture.create_local_baserow_table_user_source(application=builder)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        check_application_user_limits()
+
+    notifications = Notification.objects.filter(
+        type=ApplicationUserLimitNotificationType.type, workspace=workspace
+    )
+    assert sorted(n.data["threshold"] for n in notifications) == [80, 100]
+    assert notifications[0].data["limit"] == DEFAULT_APPLICATION_USERS_LIMIT
+    assert ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
 @override_settings(DEBUG=True, BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS=[80])
 @patch(
     "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
-def test_license_check_clears_notifications_when_the_usage_drops_again(
+def test_the_periodic_check_clears_notifications_when_the_usage_drops_again(
     mock_aggregate_user_source_counts,
     data_fixture,
     premium_data_fixture,
@@ -313,17 +371,13 @@ def test_license_check_clears_notifications_when_the_usage_drops_again(
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(workspace=workspace)
     data_fixture.create_local_baserow_table_user_source(application=builder)
-    enterprise_license = premium_data_fixture.create_premium_license(
-        license=VALID_ONE_SEAT_ENTERPRISE_LICENSE.decode()
-    )
-    premium_license = premium_data_fixture.create_premium_license(
+    premium_data_fixture.create_premium_license(
         license=VALID_PREMIUM_5_SEAT_10_APP_USER_LICENSE.decode()
     )
 
-    # Every license check runs in its own local cache context, like the celery
-    # task does.
+    # Every task run gets its own local cache context, like celery gives it.
     with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
-        LicenseHandler.check_licenses([enterprise_license, premium_license])
+        check_application_user_limits()
 
     assert (
         Notification.objects.filter(
@@ -333,12 +387,12 @@ def test_license_check_clears_notifications_when_the_usage_drops_again(
     )
     assert ApplicationUserOverLimit.objects.filter(workspace=workspace).exists()
 
-    # The usage drops back under the limit, so the next license check clears the
+    # The usage drops back under the limit, so the next check clears the
     # notifications and the over limit state again, and crossing the limit later
     # notifies anew.
     mock_aggregate_user_source_counts.return_value = 5
     with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
-        LicenseHandler.check_licenses([enterprise_license, premium_license])
+        check_application_user_limits()
 
     assert not Notification.objects.filter(
         type=ApplicationUserLimitNotificationType.type, workspace=workspace

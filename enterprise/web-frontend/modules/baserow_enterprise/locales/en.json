@@ -188,9 +188,9 @@
     "description": "Review the results in the admin data scanner."
   },
   "applicationUserLimitNotification": {
-    "titleWarning": "{workspaceName} has used {threshold} of its application user limit.",
-    "titleReached": "{workspaceName} has reached its application user limit. Please upgrade.",
-    "titleReachedEnforced": "{workspaceName} has reached its application user limit. Once it goes over, no one can sign in to its published apps until you upgrade."
+    "titleWarning": "{workspaceName} has used {usage} of the {limit} available application users.",
+    "titleReached": "{workspaceName} has reached the application user limit of {limit}. Please upgrade.",
+    "titleReachedEnforced": "{workspaceName} has reached the application user limit of {limit}. Once it goes over, no one can sign in to its published apps until you upgrade."
   },
   "auditLog": {
     "adminTitle": "Audit log",

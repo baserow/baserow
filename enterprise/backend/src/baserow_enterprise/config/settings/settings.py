@@ -54,9 +54,10 @@ def setup(settings):
     # disabled (the default "soft" limit) the limit is only used to notify workspace
     # members; nobody is blocked from signing in.
     #
-    # Enabling it is necessary but not sufficient to block a login: an install whose
-    # licenses carry no `application_users` limit (unlicensed, or licensed before
-    # v1.32) resolves no limit at all and is never blocked either way.
+    # Every install has an application user limit, including unlicensed ones and
+    # those licensed before v1.32, which fall back to
+    # `DEFAULT_APPLICATION_USERS_LIMIT`. This setting only decides whether going over
+    # that limit has consequences beyond a notification.
     settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED = str_to_bool(
         os.getenv("BASEROW_APPLICATION_USER_LIMIT_ENFORCED", "")
     )

@@ -31,12 +31,7 @@ def get_application_user_usage_and_limit(
     """
 
     license_plugin = plugin_registry.get_by_type(PremiumPlugin).get_license_plugin()
-    result = license_plugin.get_application_user_usage_and_limit_for_workspace(
-        workspace
-    )
-    if result is None:
-        return 0, None
-    return result
+    return license_plugin.get_application_user_usage_and_limit_for_workspace(workspace)
 
 
 def check_application_user_limit(workspace: Workspace) -> None:
@@ -94,10 +89,10 @@ def update_application_user_over_limit_state(
 def notify_workspaces_approaching_application_user_limit() -> None:
     """
     Loops over every workspace that has at least one user source and notifies its
-    admins when it reaches a warning threshold or its application user limit. On
-    self-hosted this is driven by the periodic license check via
-    `LicenseType.handle_application_user_usage`, on SaaS by its own periodic task.
-    Both read the user source counts that are periodically refreshed by
+    admins when it reaches a warning threshold or its application user limit. This is
+    driven by the `check_application_user_limits` periodic task, which runs
+    independently of the licenses because unlicensed installs have a limit too. It
+    reads the user source counts that are periodically refreshed by
     `count_all_user_source_users`, so that application users added directly (e.g.
     as table rows) are also taken into account.
     """
@@ -118,9 +113,8 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     user limit for longer than the configured grace period.
 
     When a workspace is over its limit, all of its logins are refused (not just the
-    users past the limit). When no limit resolves for the workspace (e.g. an
-    unlicensed install, or a pre v1.32 license without an `application_users`
-    field), the login is allowed.
+    users past the limit). Every workspace resolves a limit, so being unlicensed is
+    not a way around this: it resolves the default application user limit instead.
 
     :param user_source: The user source the user is authenticating against.
     :raises ApplicationUserLimitReached: When the workspace has been over the limit

@@ -1,10 +1,6 @@
 from typing import List, Optional
 
-from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
-from baserow_enterprise.application_users.usage import (
-    notify_workspaces_approaching_application_user_limit,
-)
 from baserow_enterprise.features import (
     ADVANCED_WEBHOOKS,
     AUDIT_LOG,
@@ -95,25 +91,6 @@ class AdvancedLicenseType(LicenseType):
         # We don't have to do anything because the seat limit is a soft limit. This is
         # okay for now because we'll be monitoring the usage manually.
         pass
-
-    def handle_application_user_usage(
-        self, application_users_taken: int, license_object: License
-    ):
-        """
-        Notifies the admins of every workspace that approaches or exceeds the
-        application user limit, and keeps the over limit state that drives the
-        login enforcement grace period up to date.
-        """
-
-        def check_all_workspaces_once():
-            notify_workspaces_approaching_application_user_limit()
-            return True
-
-        # The workspace check resolves the instance wide usage and limit, so with
-        # multiple stacked licenses it only has to run once per license check pass.
-        local_cache.get(
-            "enterprise_application_user_limit_checked", check_all_workspaces_once
-        )
 
 
 class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):

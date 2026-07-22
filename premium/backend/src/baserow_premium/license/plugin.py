@@ -6,6 +6,12 @@ from django.db.models import Q, QuerySet
 
 from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
+from baserow_premium.application_user_usage.constants import (
+    DEFAULT_APPLICATION_USERS_LIMIT,
+)
+from baserow_premium.application_user_usage.utils import (
+    get_instance_wide_application_user_count,
+)
 from baserow_premium.license.cache import (
     get_cached_instance_wide_licenses,
     set_cached_instance_wide_licenses,
@@ -277,19 +283,17 @@ class LicensePlugin:
 
     def get_application_user_usage_and_limit_for_workspace(
         self, workspace: Workspace
-    ) -> Optional[Tuple[int, Optional[int]]]:
+    ) -> Tuple[int, Optional[int]]:
         """
         Returns the application user usage and limit for the given workspace as a
         `(usage, limit)` tuple by asking the most important (the license type with
-        the highest order) license type with an active license. A `limit` of `None`
-        means there is no enforced application user limit.
+        the highest order) license type with an active license.
 
-        Returns `None` when the install is unlicensed or when the license type
-        doesn't resolve an application user limit (e.g. a pre v1.32 license without
-        an `application_users` field).
+        This implementation always resolves a numeric limit: an unlicensed install
+        gets the default one.
 
         :param workspace: The workspace to resolve the usage and limit for.
-        :return: A `(usage, limit)` tuple or `None`.
+        :return: A `(usage, limit)` tuple.
         """
 
         # Unlike seats, application user capacity can be granted by licenses that
@@ -301,7 +305,12 @@ class LicensePlugin:
             if license_object.valid_payload and license_object.is_active
         ]
         if not active_license_types:
-            return None
+            # There is no license type to ask, so resolve the default here. Usage is
+            # the instance wide count, matching how the licensed path counts it.
+            return (
+                get_instance_wide_application_user_count(),
+                DEFAULT_APPLICATION_USERS_LIMIT,
+            )
 
         most_relevant_license_type = max(
             active_license_types, key=lambda license_type: license_type.order

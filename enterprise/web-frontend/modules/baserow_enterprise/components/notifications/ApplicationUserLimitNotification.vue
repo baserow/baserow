@@ -9,17 +9,23 @@
         <template #workspaceName>
           <strong>{{ notification.data.workspace_name }}</strong>
         </template>
+        <template #limit>
+          <strong>{{ notification.data.limit }}</strong>
+        </template>
       </i18n-t>
       <i18n-t
         v-else
         keypath="applicationUserLimitNotification.titleWarning"
         tag="span"
       >
-        <template #threshold>
-          <strong>{{ notification.data.threshold }}%</strong>
-        </template>
         <template #workspaceName>
           <strong>{{ notification.data.workspace_name }}</strong>
+        </template>
+        <template #usage>
+          <strong>{{ notification.data.usage }}</strong>
+        </template>
+        <template #limit>
+          <strong>{{ notification.data.limit }}</strong>
         </template>
       </i18n-t>
     </div>
