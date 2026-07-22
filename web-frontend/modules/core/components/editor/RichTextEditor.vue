@@ -41,90 +41,22 @@ import _ from 'lodash'
 import { mapGetters } from 'vuex'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Placeholder } from '@tiptap/extension-placeholder'
-import { Mention } from '@baserow/modules/core/editor/mention'
-import { Document } from '@tiptap/extension-document'
-import { Paragraph } from '@tiptap/extension-paragraph'
-import { HardBreak } from '@tiptap/extension-hard-break'
-import { Heading } from '@tiptap/extension-heading'
-import { ListItem } from '@tiptap/extension-list-item'
-import { BulletList } from '@tiptap/extension-bullet-list'
-import { OrderedList } from '@tiptap/extension-ordered-list'
-import { Bold } from '@tiptap/extension-bold'
-import { Italic } from '@tiptap/extension-italic'
-import { Strike } from '@tiptap/extension-strike'
-import { Link } from '@tiptap/extension-link'
-import { Underline } from '@tiptap/extension-underline'
-import { Subscript } from '@tiptap/extension-subscript'
-import { Superscript } from '@tiptap/extension-superscript'
-import { Blockquote } from '@tiptap/extension-blockquote'
-import { CodeBlock } from '@tiptap/extension-code-block'
-import { HorizontalRule } from '@tiptap/extension-horizontal-rule'
-import { TaskItem } from '@tiptap/extension-task-item'
-import { TaskList } from '@tiptap/extension-task-list'
-import { Text } from '@tiptap/extension-text'
-import { Dropcursor } from '@tiptap/extension-dropcursor'
-import { Gapcursor } from '@tiptap/extension-gapcursor'
-import { History } from '@tiptap/extension-history'
-import { mergeAttributes, isActive, posToDOMRect } from '@tiptap/core'
-
-import { Markdown } from 'tiptap-markdown'
+import { isActive, posToDOMRect } from '@tiptap/core'
 
 import RichTextEditorBubbleMenu from '@baserow/modules/core/components/editor/RichTextEditorBubbleMenu'
 import RichTextEditorFloatingMenu from '@baserow/modules/core/components/editor/RichTextEditorFloatingMenu'
 import { EnterStopEditExtension } from '@baserow/modules/core/editor/enterStopEditExtension'
-import { ScalableImage } from '@baserow/modules/core/editor/image'
+import {
+  createPlainTextEditorExtensions,
+  createRichTextEditorExtensions,
+} from '@baserow/modules/core/editor/richTextExtensions'
+import { createMention } from '@baserow/modules/core/editor/mention'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
 import suggestion from '@baserow/modules/core/editor/suggestion'
-
-const richTextEditorExtensions = ({
-  openLinksOnClick = false,
-  enableImages = false,
-}) => {
-  const extensions = [
-    // Nodes
-    Heading.configure({ levels: [1, 2, 3] }),
-    ListItem,
-    OrderedList,
-    BulletList,
-    CodeBlock,
-    Blockquote,
-    HorizontalRule,
-    TaskItem,
-    TaskList,
-    // Marks
-    Bold,
-    Italic,
-    Strike,
-    Underline,
-    Subscript,
-    Superscript,
-    Link.configure({
-      protocols: [
-        { scheme: 'ftp' },
-        { scheme: 'mailto', optionalSlashes: true },
-        { scheme: 'tel', optionalSlashes: true },
-      ],
-      autolink: false,
-      openOnClick: openLinksOnClick,
-    }),
-    // Extensions
-    Markdown.configure({
-      html: false,
-      breaks: true,
-      transformPastedText: true,
-      transformCopiedText: true,
-    }),
-    History,
-  ]
-  if (enableImages) {
-    extensions.push(...[ScalableImage, Dropcursor, Gapcursor])
-  }
-  return extensions
-}
 
 export default {
   components: {
@@ -134,7 +66,7 @@ export default {
   },
   props: {
     modelValue: {
-      type: [Object, String],
+      type: [Object, String, null],
       required: true,
     },
     placeholder: {
@@ -209,7 +141,10 @@ export default {
     },
     modelValue(value) {
       if (!_.isEqual(value, this.editor.getJSON())) {
-        this.editor.commands.setContent(value, false)
+        this.editor.commands.setContent(value, {
+          emitUpdate: false,
+          contentType: this.getContentType(value),
+        })
       }
     },
   },
@@ -275,17 +210,15 @@ export default {
         this.resizeObserver = null
       }
     },
+    getContentType(content) {
+      return typeof content === 'string' ? 'markdown' : 'json'
+    },
     getConfiguredExtensions() {
-      // Base extensions that are always enabled.
-      const extensions = [Document, Paragraph, Text, HardBreak]
-
-      if (this.enableRichTextFormatting) {
-        extensions.push(
-          ...richTextEditorExtensions({
+      const extensions = this.enableRichTextFormatting
+        ? createRichTextEditorExtensions({
             openLinksOnClick: !this.editable,
           })
-        )
-      }
+        : createPlainTextEditorExtensions()
 
       if (this.enterStopEdit || this.shiftEnterStopEdit) {
         const enterKeyExt = EnterStopEditExtension.configure({
@@ -298,10 +231,8 @@ export default {
       // If mentionable users are provided, add the mention extension.
       const users = this.mentionableUsers
       if (users !== null) {
-        const users = this.mentionableUsers
-        const renderHTML = this.renderHTMLMention()
-        const mentionsExt = Mention.configure({
-          renderHTML,
+        const mentionsExt = createMention({
+          loggedUserId: this.loggedUserId,
           suggestion: suggestion({ users }),
           users,
         })
@@ -321,6 +252,7 @@ export default {
       const extensions = this.getConfiguredExtensions()
       this.editor = new Editor({
         content: this.modelValue,
+        contentType: this.getContentType(this.modelValue),
         editable: this.editable,
         editorProps: {
           handleClickOn: (view, pos, node, nodePos, event, direct) => {
@@ -338,7 +270,12 @@ export default {
             const plainText = event.clipboardData.getData('text/plain')
             if (plainText.startsWith('"') && plainText.endsWith('"')) {
               const cleanText = plainText.slice(1, -1)
-              this.editor.commands.insertContent(cleanText)
+              this.editor.commands.insertContent(
+                cleanText,
+                this.enableRichTextFormatting
+                  ? { contentType: 'markdown' }
+                  : undefined
+              )
               return true
             }
             return false
@@ -416,31 +353,13 @@ export default {
       const elem = this.getScrollElement()
       elem.addEventListener('scroll', this.scrollEvent)
     },
-    renderHTMLMention() {
-      const loggedUserId = this.loggedUserId
-      const isUserInWorkspace = (userId) =>
-        this.mentionableUsers.some((user) => user.user_id === userId)
-
-      return ({ node, options }) => {
-        let className = 'rich-text-editor__mention'
-        const userId = parseInt(node.attrs.id)
-        if (userId === loggedUserId) {
-          className += ' rich-text-editor__mention--current-user'
-        } else if (!isUserInWorkspace(userId)) {
-          className += ' rich-text-editor__mention--user-gone'
-        }
-        return [
-          'span',
-          mergeAttributes({ class: className }, this.HTMLAttributes),
-          `@${node.attrs.label ?? node.attrs.id}`,
-        ]
-      }
-    },
     focus() {
       this.editor.commands.focus('end')
     },
     serializeToMarkdown() {
-      return this.editor.storage.markdown.getMarkdown()
+      return this.enableRichTextFormatting
+        ? this.editor.getMarkdown()
+        : this.editor.getText({ blockSeparator: '\n' })
     },
     isEventFromMenu(event) {
       return (

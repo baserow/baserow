@@ -129,6 +129,17 @@ describe('GridViewFieldRichText component', () => {
     expect(error.text()).toBe('fieldErrors.maxCharsExceeded')
   })
 
+  test('lets TipTap handle paste events while editing', async () => {
+    const wrapper = await mountComponent()
+
+    expect(wrapper.vm.onPaste()).toBe(false)
+
+    wrapper.vm.edit()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.onPaste()).toBe(true)
+  })
+
   test('shows the error and blocks closing while the modal value is over the limit', async () => {
     const wrapper = await mountComponent()
     await editAndExpand(wrapper)

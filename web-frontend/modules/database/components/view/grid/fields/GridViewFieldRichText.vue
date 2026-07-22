@@ -147,6 +147,10 @@ export default {
       }
       this.save()
     },
+    onPaste() {
+      // Prevent the grid paste handler from intercepting TipTap editor pastes.
+      return this.editing
+    },
     canSaveByPressingEnter() {
       return false
     },
