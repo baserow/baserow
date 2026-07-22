@@ -34,12 +34,8 @@
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
 
-import ConfigureDataSyncVisibleFields from '@baserow/modules/database/components/dataSync/ConfigureDataSyncVisibleFields'
-import ConfigureDataSyncSettings from '@baserow/modules/database/components/dataSync/ConfigureDataSyncSettings'
-
 export default {
   name: 'ConfigureDataSyncModal',
-  components: { ConfigureDataSyncVisibleFields, ConfigureDataSyncSettings },
   mixins: [modal],
   props: {
     database: {
