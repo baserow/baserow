@@ -133,10 +133,26 @@ export class PreviewPageActionType extends PageActionType {
   }
 
   async onClick({ builder, page }) {
-    const { data } = await PublishedBuilderService(
-      this.app.$client
-    ).createPreviewGrant(builder.id, this.generatePreviewPath(page))
-    window.open(data.url, '_blank')
+    // The tab must be opened synchronously while the click's transient user
+    // activation is still available, otherwise browsers can block it as a popup.
+    const previewWindow = window.open('', '_blank')
+    if (previewWindow !== null) {
+      previewWindow.opener = null
+    }
+
+    try {
+      const { data } = await PublishedBuilderService(
+        this.app.$client
+      ).createPreviewGrant(builder.id, this.generatePreviewPath(page))
+      if (previewWindow !== null && !previewWindow.closed) {
+        previewWindow.location.replace(data.url)
+      }
+    } catch (error) {
+      if (previewWindow !== null && !previewWindow.closed) {
+        previewWindow.close()
+      }
+      throw error
+    }
   }
 
   getOrder() {
