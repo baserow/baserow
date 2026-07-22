@@ -1,12 +1,5 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import ColorThemeConfigBlock from '@baserow/modules/builder/components/theme/ColorThemeConfigBlock'
-import TypographyThemeConfigBlock from '@baserow/modules/builder/components/theme/TypographyThemeConfigBlock'
-import ButtonThemeConfigBlock from '@baserow/modules/builder/components/theme/ButtonThemeConfigBlock'
-import LinkThemeConfigBlock from '@baserow/modules/builder/components/theme/LinkThemeConfigBlock'
-import ImageThemeConfigBlock from '@baserow/modules/builder/components/theme/ImageThemeConfigBlock'
-import PageThemeConfigBlock from '@baserow/modules/builder/components/theme/PageThemeConfigBlock'
-import InputThemeConfigBlock from '@baserow/modules/builder/components/theme/InputThemeConfigBlock'
-import TableThemeConfigBlock from '@baserow/modules/builder/components/theme/TableThemeConfigBlock'
 import { FONT_WEIGHTS } from '@baserow/modules/builder/fontWeights'
 import {
   resolveColor,
@@ -19,6 +12,47 @@ import {
   BACKGROUND_MODES,
 } from '@baserow/modules/builder/enums'
 import get from 'lodash/get'
+
+const ColorThemeConfigBlock = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/theme/ColorThemeConfigBlock'),
+  hydrate: hydrateOnIdle(),
+})
+const TypographyThemeConfigBlock = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/theme/TypographyThemeConfigBlock'),
+  hydrate: hydrateOnIdle(),
+})
+const ButtonThemeConfigBlock = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/theme/ButtonThemeConfigBlock'),
+  hydrate: hydrateOnIdle(),
+})
+const LinkThemeConfigBlock = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/theme/LinkThemeConfigBlock'),
+  hydrate: hydrateOnIdle(),
+})
+const ImageThemeConfigBlock = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/theme/ImageThemeConfigBlock'),
+  hydrate: hydrateOnIdle(),
+})
+const PageThemeConfigBlock = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/theme/PageThemeConfigBlock'),
+  hydrate: hydrateOnIdle(),
+})
+const InputThemeConfigBlock = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/theme/InputThemeConfigBlock'),
+  hydrate: hydrateOnIdle(),
+})
+const TableThemeConfigBlock = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/theme/TableThemeConfigBlock'),
+  hydrate: hydrateOnIdle(),
+})
 
 /**
  * Helper class to construct easily style objects.

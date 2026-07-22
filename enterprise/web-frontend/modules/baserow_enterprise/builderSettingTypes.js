@@ -1,12 +1,21 @@
-import { markRaw } from 'vue'
+import { defineAsyncComponent, hydrateOnIdle, markRaw } from 'vue'
 import { BuilderSettingType } from '@baserow/modules/builder/builderSettingTypes'
-import CustomCodeSettingComponent from '@baserow_enterprise/components/builder/CustomCodeSetting'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import { BuilderCustomCodePaidFeature } from '@baserow_enterprise/paidFeatures'
-import PaidFeaturesModalComponent from '@baserow_premium/components/PaidFeaturesModal'
 
-const CustomCodeSetting = markRaw(CustomCodeSettingComponent)
-const PaidFeaturesModal = markRaw(PaidFeaturesModalComponent)
+const CustomCodeSetting = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow_enterprise/components/builder/CustomCodeSetting'),
+    hydrate: hydrateOnIdle(),
+  })
+)
+const PaidFeaturesModal = markRaw(
+  defineAsyncComponent({
+    loader: () => import('@baserow_premium/components/PaidFeaturesModal'),
+    hydrate: hydrateOnIdle(),
+  })
+)
 
 export class CustomCodeBuilderSettingType extends BuilderSettingType {
   static getType() {

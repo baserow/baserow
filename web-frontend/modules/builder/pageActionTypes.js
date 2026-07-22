@@ -1,6 +1,7 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
 import { compile } from 'path-to-regexp'
+// Static import on purpose: PageActions.vue drives it via $refs on click.
 import PublishActionModal from '@baserow/modules/builder/components/page/header/PublishActionModal'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
