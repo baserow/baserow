@@ -23,6 +23,7 @@ definePageMeta({
   middleware: [
     'settings',
     'authenticated',
+    'builderDomain',
     'workspacesAndApplications',
     'selectWorkspaceBuilderPage',
     'pendingJobs',

@@ -53,6 +53,11 @@ export default defineNuxtModule({
     addPlugin({ src: resolve('./plugins/realtime.js'), mode: 'client' })
 
     addRouteMiddleware({
+      name: 'dashboardDomain',
+      path: resolve('./middleware/dashboardDomain.js'),
+    })
+
+    addRouteMiddleware({
       name: 'dashboardLoading',
       path: resolve('./middleware/dashboardLoading.js'),
       global: false,

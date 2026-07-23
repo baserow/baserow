@@ -21,6 +21,7 @@ definePageMeta({
   middleware: [
     'settings',
     'authenticated',
+    'dashboardDomain',
     'workspacesAndApplications',
     'dashboardLoading',
   ],
