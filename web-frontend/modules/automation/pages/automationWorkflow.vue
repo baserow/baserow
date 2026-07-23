@@ -23,6 +23,7 @@ definePageMeta({
   middleware: [
     'settings',
     'authenticated',
+    'automationDomain',
     'workspacesAndApplications',
     'selectWorkspaceAutomationWorkflow',
     'pendingJobs',

@@ -27,6 +27,11 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
+      name: 'automationDomain',
+      path: resolve('./middleware/automationDomain.js'),
+    })
+
+    addRouteMiddleware({
       name: 'selectWorkspaceAutomationWorkflow',
       path: resolve('./middleware/selectWorkspaceAutomationWorkflow.js'),
     })
