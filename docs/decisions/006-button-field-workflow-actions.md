@@ -56,8 +56,9 @@ Three constraints shape everything below:
 
 ### 1. Model layer: converge on the core base, mirror the builder
 
-1. A small preparatory PR, offered by the automation team, makes automation adopt the
-   core `workflow_actions` base classes, removing the one existing divergence.
+1. A small PR, offered by the automation team, makes automation adopt the core
+   `workflow_actions` base classes, removing the one existing divergence. It lands in
+   parallel; nothing in the database work waits on it.
 2. The database module mirrors `contrib/builder/workflow_actions` with database concepts
    substituted: `DatabaseWorkflowAction` (foreign key to the button field, `order`),
    abstract `DatabaseWorkflowServiceAction` holding the `service` foreign key, a type
@@ -94,16 +95,16 @@ classDiagram
 
     WorkflowAction <|-- BuilderWorkflowAction : exists today
     BuilderWorkflowAction <|-- BuilderWorkflowServiceAction
-    WorkflowAction <|-- AutomationNode : step 1, preparatory PR
-    WorkflowAction <|-- DatabaseWorkflowAction : step 2, this feature
+    WorkflowAction <|-- AutomationNode : automation PR, in parallel
+    WorkflowAction <|-- DatabaseWorkflowAction : this feature
     DatabaseWorkflowAction <|-- DatabaseWorkflowServiceAction
 ```
 
-The core base contains no behavior, so step 2 re-implements a thin layer rather than
-reusing code; the heavy machinery in `core/services` and `contrib/integrations` is used
-as is. Keeping all three modules the same shape is what makes merging them into one
-shared implementation cheap later. Generalizing the builder's dispatch process to serve
-both modules is a promising follow-up with the builder team, not a prerequisite.
+The core base contains no behavior, so the database module adds its own thin glue layer;
+the heavy machinery in `core/services` and `contrib/integrations` is used as is. Keeping
+all three modules the same shape is what makes merging them into one shared
+implementation cheap later. Generalizing the builder's dispatch process to serve both
+modules is a promising follow-up with the builder team, not a prerequisite.
 
 ### 2. Action types: service-backed first, frontend actions kept possible
 
@@ -177,7 +178,9 @@ The database module registers two data providers for button dispatch:
 
 The raw row provider is a snapshot taken at dispatch time: every action sees the row as
 it was when the user clicked, even after an earlier action changed or deleted it;
-fresher values come from the previous-action provider.
+fresher values come from the previous-action provider. Like the builder's, both
+providers are implemented on backend and frontend, so the action editor's data explorer
+and the dispatch path see the same shapes.
 
 ### 5. Integrations and ownership
 
@@ -254,8 +257,9 @@ flowchart TD
 Exports and templates strip sensitive integration fields, as today. This does not affect
 the internal Local Baserow integration, which carries no credentials and is simply
 recreated on import. External integrations cannot recover on their own; their buttons
-render disabled with an error indicator pointing at the integration to reconfigure. The
-builder needs the same reconfigure experience; both modules should share one solution.
+render disabled with an error indicator pointing at the integration to reconfigure,
+reusing the error state the builder already shows for misconfigured actions rather than
+inventing a database-specific one.
 
 ### 7. What kind of field is a button, and who may click it
 
@@ -306,9 +310,8 @@ preceded by the automation convergence PR.
 
 - Pro: a proven pattern that fits the button exactly; no cross-team refactor; database
   depends only on core.
-- Con: the thin module layer is re-implemented a third time (small: builder action types
-  are mostly empty shells around shared services); execution consolidation is deferred,
-  not solved.
+- Con: a third thin glue layer to maintain (registrations and empty shells around shared
+  services, no real logic duplicated); execution consolidation is deferred, not solved.
 
 ### Option 2: node/service model, following the automation pattern
 
@@ -335,9 +338,9 @@ defer unifying execution until a real need appears.
 
 ## Consequences
 
-- The button field ships without waiting on a cross-team refactor; the upstream
-  dependencies are the small automation inheritance change and the `actor` property on
-  the dispatch context (section 5).
+- The button field ships without waiting on a cross-team refactor; the only upstream
+  dependency is the `actor` property on the dispatch context (section 5). The automation
+  inheritance change lands in parallel and blocks nothing.
 - The database module gains integrations, but v1 keeps them internal: import/export
   handling remains the main schedule risk, while the settings UI and reconfigure states
   move to the version that adds external integrations.
