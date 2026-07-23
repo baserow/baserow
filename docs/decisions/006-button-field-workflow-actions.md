@@ -199,8 +199,10 @@ on-behalf-of model here would put the wrong name in row history and created-by f
 and would let anyone who can edit a field use the integration to reach every table its
 user can reach. Neither is acceptable in a database.
 
-Database buttons need no integration at all. The dispatch context carries the clicking
-user as the `actor`, and it flows down to the services:
+Database buttons need no Local Baserow integration. That integration exists only to
+carry a user for services that act inside Baserow, and for a button that user is the
+clicker. The dispatch context carries the clicking user as the `actor`, and it flows
+down to the services:
 
 - No integration attached, which is every database button in v1: the service authorizes
   and executes as the actor, and fails if there is none.
@@ -213,11 +215,16 @@ as a small purpose-built object with the same interface is an implementation cho
 made here. The architectural commitment is only that a database click never depends on
 an integration's user.
 
-In practice this means v1 has nothing to auto-create, copy, or manage, and no
-integrations settings UI. The builder keeps its behavior unchanged, since its services
-always have an integration. If the database ever exposes attaching an integration to a
-button action, that attachment is the explicit opt-in back into on-behalf-of execution
-(see the revisit triggers).
+This decision covers only Local Baserow services. External integrations (SMTP, Slack,
+and the rest) carry real configuration rather than a stand-in user, so their services
+keep requiring them: an email action will need an `SMTPIntegrationType` integration when
+external action types arrive (section 2), managed as in the builder.
+
+In practice v1 registers only local row actions, so it has nothing to auto-create, copy,
+or manage, and no integrations settings UI. The builder keeps its behavior unchanged,
+since its services always have an integration. If the database ever exposes attaching a
+Local Baserow integration to a button action, that attachment is the explicit opt-in
+back into on-behalf-of execution (see the revisit triggers).
 
 Clicks stay non-undoable (section 8), so click-triggered actions register outside any
 undo scope even though they run as the clicking user.
@@ -350,10 +357,10 @@ defer unifying execution until a real need appears.
   integration unnecessary for database services (section 5). Both are small, scoped
   `core/services` changes reviewed with the builder and automation teams, not a
   refactor. The automation inheritance change lands in parallel and blocks nothing.
-- v1 needs no integrations at all: services run as the actor. Import/export of
-  self-referencing services remains the main schedule risk; the settings UI, credential
-  handling, and reconfigure states move entirely to the version that adds external
-  action types.
+- v1 needs no integrations at all, since local row actions run as the actor; external
+  action types bring their own integrations later. Import/export of self-referencing
+  services remains the main schedule risk; the settings UI, credential handling, and
+  reconfigure states move entirely to the version that adds external action types.
 - Actions are authorized and attributed as the clicking user, so permissions, row
   history, and created-by fields are always right, with no on-behalf-of machinery.
 - Until a merge is justified, three similar thin layers exist side by side; the shared
@@ -364,7 +371,7 @@ defer unifying execution until a real need appears.
 - A fourth consumer appears, or buttons need branching/routers: extract the shared
   execution abstraction (Option 3) instead of copying a fourth time.
 - Buttons reach public views: anonymous clicks would need an explicit opt-in that
-  attaches an integration to the action, reopening on-behalf-of execution with the
-  integration's user.
+  attaches a Local Baserow integration to the action, reopening on-behalf-of execution
+  with the integration's user.
 - Frontend-only button actions are prioritized: design the shared dispatch mechanism
   with the builder team before building one alone.
