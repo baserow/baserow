@@ -103,10 +103,6 @@ import {
   CoreCodeWorkflowActionType,
   CoreXLSFileReaderWorkflowActionType,
 } from '@baserow_enterprise/builder/workflowActionTypes'
-import {
-  CoreCodeNodeType,
-  CoreXLSFileReaderNodeType,
-} from '@baserow_enterprise/automation/nodeTypes'
 
 export default defineNuxtPlugin({
   name: 'enterprise',
@@ -177,14 +173,18 @@ export default defineNuxtPlugin({
         'workflowAction',
         new CoreCodeWorkflowActionType(context)
       )
-      $registry.register('node', new CoreCodeNodeType(context))
     }
     $registry.register('service', new CoreXLSFileReaderServiceType(context))
     $registry.register(
       'workflowAction',
       new CoreXLSFileReaderWorkflowActionType(context)
     )
-    $registry.register('node', new CoreXLSFileReaderNodeType(context))
+
+    $registry.registerDomainLoader('automation', async () => {
+      const { default: register } =
+        await import('@baserow_enterprise/automationLazyRegistrations')
+      register(nuxtApp)
+    })
 
     $registry.register(
       'appAuthProvider',

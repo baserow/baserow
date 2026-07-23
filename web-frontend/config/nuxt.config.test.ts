@@ -20,6 +20,7 @@ export default defineNuxtConfig(
     {
       // Test-specific configuration
       modules: ['@nuxt/test-utils/module', '@nuxt/eslint'],
+      plugins: ['~/test/helpers/loadDomainsPlugin'],
     },
     baseConfig
   )
