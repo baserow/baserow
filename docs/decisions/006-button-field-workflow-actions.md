@@ -49,8 +49,8 @@ Three constraints shape everything below:
 - Local Baserow services run every permission check as the integration's
   `authorized_user`, by default its creator. Reused unchanged, a click would be
   attributed to whoever configured the field, not whoever clicked.
-- Cross-application import order (databases first) cannot help an integration that lives
-  in the database application and references its own tables.
+- Cross-application import order (databases first) cannot help services that live in the
+  database application and reference that same database's tables.
 
 ## Decision
 
@@ -198,29 +198,37 @@ on-behalf-of model here would put the wrong name in row history and created-by f
 and would let anyone who can edit a field use the integration to reach every table its
 user can reach. Neither is acceptable in a database.
 
-The mechanism is small and shared. The dispatch context carries the clicking user as the
-`actor`; it flows down to the services, and the Local Baserow services use the actor
-instead of `authorized_user` for permission checks and execution. Clicks stay
-non-undoable (section 8), so click-triggered actions register outside any undo scope
-even though they run as the clicking user.
+Database buttons need no integration at all. The dispatch context carries the clicking
+user as the `actor`, and it flows down to the services:
 
-The database application type still enables `supports_integrations`, but in the first
-version the integration is an implementation detail, not something users manage. One
-internal Local Baserow integration is created automatically per database the first time
-a button field needs it, the same way dashboard integrations are handled; it is never
-shown to users and is not bound to any person. Because of this, v1 needs no integrations
-settings UI: the builder-style settings modal arrives together with external integration
-types, whose credentials users do have to manage.
+- No integration attached, which is every database button in v1: the service authorizes
+  and executes as the actor, and fails if there is none.
+- Integration present, which is the builder, automation, and any future opt-in:
+  `authorized_user` authorizes, and the actor is still recorded for row history and
+  auditing when one exists.
+
+Whether "no integration attached" is modeled as a nullable foreign key on the service or
+as a small purpose-built object with the same interface is an implementation choice, not
+made here. The architectural commitment is only that a database click never depends on
+an integration's user.
+
+In practice this means v1 has nothing to auto-create, copy, or manage, and no
+integrations settings UI. The builder keeps its behavior unchanged, since its services
+always have an integration. If the database ever exposes attaching an integration to a
+button action, that attachment is the explicit opt-in back into on-behalf-of execution
+(see the revisit triggers).
+
+Clicks stay non-undoable (section 8), so click-triggered actions register outside any
+undo scope even though they run as the clicking user.
 
 ```mermaid
 flowchart LR
     subgraph app ["Database application"]
         BF["Button field"] -->|ordered 1..n| WA["Workflow actions"]
-        WA -->|each backs onto| S["Service"]
-        I["Internal Local Baserow integration<br/>(auto-created, hidden)"]
+        WA -->|each backs onto| S["Service<br/>(integration: none in v1)"]
     end
-    S -->|configured via| I
-    U["Clicking user"] -->|actor: permission checks,<br/>row history, created-by| T["Target tables and rows"]
+    U["Clicking user"] -->|actor on the<br/>dispatch context| S
+    S -->|permission checks, row history,<br/>created-by as the actor| T["Target tables and rows"]
 ```
 
 Configuration keeps the existing field boundary: creating a button field and editing its
@@ -233,12 +241,12 @@ access cannot give anyone extra access.
 
 Table and field ids inside service configurations and previous-action references remap
 through the standard `id_mapping` on import, as builder services already do. The hard
-case is ordering: an integration inside a database can point at tables of that same
-database, which do not exist yet mid-import. The builder has the same problem with
-formulas and solves it with a second pass, and we reuse that mechanism: import all
-objects first, defer every service and formula reference without checking whether it
-could already resolve (some references live inside formulas, so checking up front is
-unreliable anyway), then resolve them all once the import completes.
+case is ordering: a service inside a database can point at tables of that same database,
+which do not exist yet mid-import. The builder has the same problem with formulas and
+solves it with a second pass, and we reuse that mechanism: import all objects first,
+defer every service and formula reference without checking whether it could already
+resolve (some references live inside formulas, so checking up front is unreliable
+anyway), then resolve them all once the import completes.
 
 The second pass is flat and needs no dependency ordering. Everything a button's actions
 reference is a table, field, or view, and all of those exist after the first pass. No
@@ -254,12 +262,11 @@ flowchart TD
     D --> E["after_import hooks run;<br/>unconfigured external integrations<br/>surface as reconfigure states"]
 ```
 
-Exports and templates strip sensitive integration fields, as today. This does not affect
-the internal Local Baserow integration, which carries no credentials and is simply
-recreated on import. External integrations cannot recover on their own; their buttons
-render disabled with an error indicator pointing at the integration to reconfigure,
-reusing the error state the builder already shows for misconfigured actions rather than
-inventing a database-specific one.
+In v1 there is nothing to strip and nothing to reconfigure, because database services
+have no integration. When external integrations arrive, exports strip their credentials
+as today, and their buttons render disabled with an error indicator pointing at the
+integration to reconfigure, reusing the error state the builder already shows for
+misconfigured actions rather than inventing a database-specific one.
 
 ### 7. What kind of field is a button, and who may click it
 
@@ -280,11 +287,10 @@ it. Concretely:
 
 ### 8. Behavior under common operations
 
-- **Field duplication.** Actions and services are duplicated; both fields point at the
-  same internal integration.
-- **Application duplication, snapshot, export/import.** Integrations are copied with the
-  application; deferred resolution reconnects self-references; stripped credentials only
-  affect external integrations, which must be reconfigured.
+- **Field duplication.** Actions and services are duplicated with the field.
+- **Application duplication, snapshot, export/import.** Deferred resolution reconnects
+  self-references; stripped credentials only become a concern when external integrations
+  arrive.
 - **Trash and restore.** Actions and services follow the field, as builder actions
   follow their element.
 - **Deleting or trashing a target table or field.** Services keep the dangling reference
@@ -296,8 +302,8 @@ it. Concretely:
 - **Undo/redo.** Configuration changes are undoable like other field updates. Clicks are
   never undoable, even when a sequence only touches rows: a partially undoable button is
   more confusing than none.
-- **Deleting a user.** Nothing breaks: actions run as whoever clicks, and the internal
-  integration is not bound to a person, so no button depends on any particular account.
+- **Deleting a user.** Nothing breaks: actions run as whoever clicks, and v1 services
+  have no integration, so no button depends on any particular account.
 - **Failure mid-sequence.** Execution stops, later actions are skipped, completed
   actions stay, and the user sees an error toast (section 3).
 
@@ -339,11 +345,13 @@ defer unifying execution until a real need appears.
 ## Consequences
 
 - The button field ships without waiting on a cross-team refactor; the only upstream
-  dependency is the `actor` property on the dispatch context (section 5). The automation
-  inheritance change lands in parallel and blocks nothing.
-- The database module gains integrations, but v1 keeps them internal: import/export
-  handling remains the main schedule risk, while the settings UI and reconfigure states
-  move to the version that adds external integrations.
+  dependencies are the `actor` property on the dispatch context and making the
+  integration unnecessary for database services (section 5). The automation inheritance
+  change lands in parallel and blocks nothing.
+- v1 needs no integrations at all: services run as the actor. Import/export of
+  self-referencing services remains the main schedule risk; the settings UI, credential
+  handling, and reconfigure states move entirely to the version that adds external
+  action types.
 - Actions are authorized and attributed as the clicking user, so permissions, row
   history, and created-by fields are always right, with no on-behalf-of machinery.
 - Until a merge is justified, three similar thin layers exist side by side; the shared
@@ -353,7 +361,8 @@ defer unifying execution until a real need appears.
 
 - A fourth consumer appears, or buttons need branching/routers: extract the shared
   execution abstraction (Option 3) instead of copying a fourth time.
-- Buttons reach public views: anonymous clicks would need an explicit field-level "run
-  as the field owner" option, reopening the on-behalf-of execution rejected here.
+- Buttons reach public views: anonymous clicks would need an explicit opt-in that
+  attaches an integration to the action, reopening on-behalf-of execution with the
+  integration's user.
 - Frontend-only button actions are prioritized: design the shared dispatch mechanism
   with the builder team before building one alone.
