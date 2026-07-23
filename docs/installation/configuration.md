@@ -266,7 +266,7 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 | BASEROW\_AUTOMATION\_WORKFLOW\_TIMEOUT\_HOURS                               | The number of hours after which a running workflow is considered timed out.                                                                                                                                      | 24                     |
 | BASEROW\_AUTOMATION\_WORKFLOW\_HISTORY\_MAX\_DAYS                           | The number of days automation workflow history entries are retained.                                                                                                                                             | 30                     |
 | BASEROW\_AUTOMATION\_WORKFLOW\_HISTORY\_MAX\_ENTRIES                        | The maximum number of workflow history entries retained per workflow.                                                                                                                                            | 50                     |
-| BASEROW\_AUTOMATION\_MAX\_NODE\_DISPATCHES\_PER\_RUN                        | The maximum number of node dispatches allowed in a single workflow run. This protects against infinite dispatches caused by a misconfigured node.                                                                | 2000                   |
+| BASEROW\_AUTOMATION\_MAX\_NODE\_DISPATCHES\_PER\_RUN                        | The maximum number of node dispatches allowed in a single workflow run. This protects against infinite dispatches caused by a misconfigured node.                                                                | 1000                   |
 
 ### Code runner Configuration
 
