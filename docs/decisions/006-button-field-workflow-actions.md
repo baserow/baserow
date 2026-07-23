@@ -232,19 +232,23 @@ Table and field ids inside service configurations and previous-action references
 through the standard `id_mapping` on import, as builder services already do. The hard
 case is ordering: an integration inside a database can point at tables of that same
 database, which do not exist yet mid-import. The builder has the same problem with
-formulas and solves it in two passes: import everything, register the references that
-cannot be resolved yet, and resolve them once the import completes. We reuse that
-mechanism.
+formulas and solves it with a second pass, and we reuse that mechanism: import all
+objects first, defer every service and formula reference without checking whether it
+could already resolve (some references live inside formulas, so checking up front is
+unreliable anyway), then resolve them all once the import completes.
+
+The second pass is flat and needs no dependency ordering. Everything a button's actions
+reference is a table, field, or view, and all of those exist after the first pass. No
+button needs anything produced by another button: buttons store no cell value, actions
+cannot write to them, and previous-action references stay inside one field's own ordered
+list. An action type that breaks this rule must change this document first.
 
 ```mermaid
 flowchart TD
-    A["Import all application objects"] --> B{"Reference already<br/>resolvable via id_mapping?"}
-    B -->|yes| C["Link immediately"]
-    B -->|no| D["Register as deferred reference"]
-    C --> E["Import completes"]
-    D --> E
-    E --> F["Second pass resolves deferred references"]
-    F --> G["after_import hooks run;<br/>unconfigured integrations surface<br/>as reconfigure states on buttons"]
+    A["Import all application objects"] --> B["Defer every service and<br/>formula reference"]
+    B --> C["Import completes"]
+    C --> D["Second pass resolves all<br/>deferred references"]
+    D --> E["after_import hooks run;<br/>unconfigured external integrations<br/>surface as reconfigure states"]
 ```
 
 Exports and templates strip sensitive integration fields, as today. This does not affect
