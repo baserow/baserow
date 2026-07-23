@@ -730,7 +730,7 @@ class EasyImportExportMixin(Generic[T], ABC):
 
         return created_instance
 
-    def post_import(
+    def after_import(
         self,
         instance: T,
         id_mapping: Dict[str, Any],
