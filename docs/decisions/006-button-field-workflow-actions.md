@@ -187,9 +187,11 @@ and the dispatch path see the same shapes.
 
 **Actions run as the user who clicks.** Permission checks, row history, created-by
 fields, and the audit log all see the clicking user, and a click fails with the standard
-error toast if that user lacks permission on a target table. There is no way to run an
-action on someone else's behalf: a button is a shortcut for things the clicker could
-already do, not a way to do more.
+error toast if that user lacks permission on a target table. The same rule holds per
+field: an action that would write a field the clicker cannot write fails, rather than
+silently skipping that field the way the builder's upsert does today. There is no way to
+run an action on someone else's behalf: a button is a shortcut for things the clicker
+could already do, not a way to do more.
 
 This is a deliberate break from the builder and automation, where services run every
 check as the integration's `authorized_user`. That model exists because builder end
@@ -207,8 +209,9 @@ down to the services:
 - No integration attached, which is every database button in v1: the service authorizes
   and executes as the actor, and fails if there is none.
 - Integration present, which is the builder, automation, and any future opt-in:
-  `authorized_user` authorizes, and the actor is still recorded for row history and
-  auditing when one exists.
+  `authorized_user` authorizes, unchanged. Also recording the actor for auditing in this
+  branch is future work owned by the builder and automation teams, since today's
+  pipeline carries a single user; nothing in v1 depends on it.
 
 Whether "no integration attached" is modeled as a nullable foreign key on the service or
 as a small purpose-built object with the same interface is an implementation choice, not
@@ -218,16 +221,30 @@ an integration's user.
 This decision covers only Local Baserow services. External integrations (SMTP, Slack,
 and the rest) carry real configuration rather than a stand-in user, so their services
 keep requiring them: an email action will need an `SMTPIntegrationType` integration when
-external action types arrive (section 2), managed as in the builder.
+external action types arrive (section 2). How those integrations are shared is
+deliberately not settled here. Review flagged that application-level sharing, the
+current builder model, lets any builder attach someone else's credentials to their own
+button and act as them, for example sending email from the creator's account.
+Integrations today have no ownership at all, and review agreed on a sequence for fixing
+that. When external integrations arrive, every integration states explicitly who can
+reuse it, extending the warning the builder already shows at authorization time. A later
+iteration adds real ownership: a `created_by` user and an `is_shared` flag, private by
+default. Both steps are designed with the builder team, since they apply to its
+integrations as much as to buttons.
 
 In practice v1 registers only local row actions, so it has nothing to auto-create, copy,
-or manage, and no integrations settings UI. The builder keeps its behavior unchanged,
-since its services always have an integration. If the database ever exposes attaching a
-Local Baserow integration to a button action, that attachment is the explicit opt-in
-back into on-behalf-of execution (see the revisit triggers).
+or manage, and no integrations settings UI. The builder keeps its behavior: a builder
+service without an integration is a normal half-configured state that fails cleanly
+today, and it keeps failing that way, because only a dispatch context that supplies an
+actor takes the no-integration path. If the database ever exposes attaching a Local
+Baserow integration to a button action, that attachment is the explicit opt-in back into
+on-behalf-of execution (see the revisit triggers).
 
-Clicks stay non-undoable (section 8), so click-triggered actions register outside any
-undo scope even though they run as the clicking user.
+Clicks stay non-undoable (section 8), and that takes one deliberate step: dispatch
+performs the row actions without registering them in the clicker's undo session, while
+still firing the `action_done` signal that row history and the audit log listen to.
+Without that step the clicker's session id, which arrives on every authenticated
+request, would put every click in their undo stack.
 
 ```mermaid
 flowchart LR
@@ -251,10 +268,11 @@ Table and field ids inside service configurations and previous-action references
 through the standard `id_mapping` on import, as builder services already do. The hard
 case is ordering: a service inside a database can point at tables of that same database,
 which do not exist yet mid-import. The builder has the same problem with formulas and
-solves it with a second pass, and we reuse that mechanism: import all objects first,
-defer every service and formula reference without checking whether it could already
-resolve (some references live inside formulas, so checking up front is unreliable
-anyway), then resolve them all once the import completes.
+solves it with a second pass; that machinery is builder-internal, so the database
+follows the same pattern inside its own deferred import machinery: import all objects
+first, defer every service and formula reference without checking whether it could
+already resolve (some references live inside formulas, so checking up front is
+unreliable anyway), then resolve them all once the import completes.
 
 The second pass is flat and needs no dependency ordering. Everything a button's actions
 reference is a table, field, or view, and all of those exist after the first pass. No
@@ -354,9 +372,12 @@ defer unifying execution until a real need appears.
 
 - The button field ships without waiting on a cross-team refactor; the only upstream
   dependencies are the `actor` property on the dispatch context and making the
-  integration unnecessary for database services (section 5). Both are small, scoped
-  `core/services` changes reviewed with the builder and automation teams, not a
-  refactor. The automation inheritance change lands in parallel and blocks nothing.
+  integration unnecessary for database services (section 5). The core side is mostly in
+  place already (the service's integration foreign key is nullable and a
+  `requires_integration` hook exists); the real work is the actor fallback in the Local
+  Baserow service types, a handful of dispatch paths shared with the builder and
+  automation and reviewed with those teams. The automation inheritance change lands in
+  parallel and blocks nothing.
 - v1 needs no integrations at all, since local row actions run as the actor; external
   action types bring their own integrations later. Import/export of self-referencing
   services remains the main schedule risk; the settings UI, credential handling, and
@@ -373,5 +394,8 @@ defer unifying execution until a real need appears.
 - Buttons reach public views: anonymous clicks would need an explicit opt-in that
   attaches a Local Baserow integration to the action, reopening on-behalf-of execution
   with the integration's user.
+- External integration types are scheduled: ship them with explicit sharing warnings on
+  every integration, and plan the ownership iteration (`created_by` plus `is_shared`,
+  private by default) with the builder team (section 5).
 - Frontend-only button actions are prioritized: design the shared dispatch mechanism
   with the builder team before building one alone.
