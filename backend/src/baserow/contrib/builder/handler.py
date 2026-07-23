@@ -13,8 +13,6 @@ from baserow.core.cache import global_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.telemetry.utils import baserow_trace_handler
-from baserow.core.user_sources.handler import UserSourceHandler
-from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
