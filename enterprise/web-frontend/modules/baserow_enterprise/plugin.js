@@ -15,7 +15,6 @@ import {
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
-import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
   FacebookAuthProviderType,
   GitHubAuthProviderType,
@@ -42,11 +41,6 @@ import {
   OpenIdConnectAppAuthProviderType,
   SamlAppAuthProviderType,
 } from '@baserow_enterprise/integrations/appAuthProviderTypes'
-import {
-  AuthFormElementType,
-  FileInputElementType,
-  GraphElementType,
-} from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
   EnterpriseBuilderRoleType,
@@ -97,7 +91,6 @@ import {
   DateDependencyContextItemType,
   DateDependencyTimelineComponent,
 } from '@baserow_enterprise/dateDependencyTypes'
-import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
@@ -106,10 +99,6 @@ import {
   CoreCodeServiceType,
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
-import {
-  CoreCodeWorkflowActionType,
-  CoreXLSFileReaderWorkflowActionType,
-} from '@baserow_enterprise/builder/workflowActionTypes'
 import { KumaAIProviderModelFeatureType } from '@baserow_enterprise/aiProviderModelFeatureTypes'
 
 export default defineNuxtPlugin({
@@ -188,18 +177,17 @@ export default defineNuxtPlugin({
     $registry.register('license', new EnterpriseLicenseType(context))
 
     $registry.register('userSource', new LocalBaserowUserSourceType(context))
+
     if ($config.public.baserowEnterpriseCodeRunnerDefaultType) {
       $registry.register('service', new CoreCodeServiceType(context))
-      $registry.register(
-        'workflowAction',
-        new CoreCodeWorkflowActionType(context)
-      )
     }
     $registry.register('service', new CoreXLSFileReaderServiceType(context))
-    $registry.register(
-      'workflowAction',
-      new CoreXLSFileReaderWorkflowActionType(context)
-    )
+
+    $registry.registerDomainLoader('builder', async () => {
+      const { default: register } =
+        await import('@baserow_enterprise/builderLazyRegistrations')
+      register(nuxtApp)
+    })
 
     $registry.registerDomainLoader('automation', async () => {
       const { default: register } =
@@ -226,10 +214,6 @@ export default defineNuxtPlugin({
     $registry.register('roles', new EnterpriseViewerRoleType(context))
     $registry.register('roles', new NoAccessRoleType(context))
     $registry.register('roles', new NoRoleLowPriorityRoleType(context))
-
-    $registry.register('element', new AuthFormElementType(context))
-    $registry.register('element', new FileInputElementType(context))
-    $registry.register('element', new GraphElementType(context))
 
     $registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
     $registry.register('dataSync', new PostgreSQLDataSyncType(context))
@@ -305,12 +289,6 @@ export default defineNuxtPlugin({
       new DateDependencyContextItemType(context)
     )
 
-    // Register builder page decorator namespace and types
-    $registry.register(
-      'builderPageDecorator',
-      new MadeWithBaserowBuilderPageDecoratorType(context)
-    )
-
     $registry.register(
       'databaseOnboardingStep',
       new AIDatabaseOnboardingStepType(context)
@@ -320,11 +298,6 @@ export default defineNuxtPlugin({
     $registry.register(
       'fieldContextItem',
       new FieldPermissionsContextItemType(context)
-    )
-
-    $registry.register(
-      'builderSettings',
-      new CustomCodeBuilderSettingType(context)
     )
 
     $registry.register(

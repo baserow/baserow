@@ -60,11 +60,6 @@ import {
   VarianceViewAggregationType,
   MedianViewAggregationType,
 } from '@baserow/modules/database/viewAggregationTypes'
-import {
-  ChartWidgetType,
-  PieChartWidgetType,
-} from '@baserow_premium/dashboard/widgetTypes'
-import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
 import { LocalBaserowGroupedAggregateRowsServiceType } from '@baserow_premium/integrations/localBaserow/serviceTypes'
 import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
 import { GenerateAIValuesContextItemType } from '@baserow_premium/fieldContextItemTypes'
@@ -340,16 +335,16 @@ export default defineNuxtPlugin({
       new AutonumberFieldType(context)
     )
 
-    $registry.register('dashboardWidget', new ChartWidgetType(context))
-    $registry.register('dashboardWidget', new PieChartWidgetType(context))
-    $registry.register(
-      'chartFieldFormatting',
-      new SingleSelectFormattingType(context)
-    )
     $registry.register(
       'service',
       new LocalBaserowGroupedAggregateRowsServiceType(context)
     )
+
+    $registry.registerDomainLoader('dashboard', async () => {
+      const { default: register } =
+        await import('@baserow_premium/dashboardLazyRegistrations')
+      register(nuxtApp)
+    })
 
     $registry.register('paidFeature', new KanbanViewPaidFeature(context))
     $registry.register('paidFeature', new CalendarViewPaidFeature(context))
