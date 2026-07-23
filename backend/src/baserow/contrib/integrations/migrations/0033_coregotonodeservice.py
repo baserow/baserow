@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('automation', '0035_coregotoactionnode'),
         ('core', '0114_alter_workspaceinvitation_message'),
-        ('integrations', '0031_corestartworkflowservice'),
+        ('integrations', '0032_localbaserowtableservicefiltergroup_and_more'),
     ]
 
     operations = [
