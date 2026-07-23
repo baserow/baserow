@@ -2,7 +2,7 @@
 
 |              |                                                |
 | ------------ | ---------------------------------------------- |
-| Status       | Proposed                                       |
+| Status       | Accepted                                       |
 | Date         | 2026-07-22                                     |
 | Issue        | https://github.com/baserow/baserow/issues/1722 |
 | Author       | Al Amin (@alamin-br)                           |
@@ -142,7 +142,8 @@ sequenceDiagram
         Note over H: post_dispatch stores the result<br/>for later actions (previous_action)
     end
     alt an action fails
-        H-->>User: error toast naming the failed action
+        H-->>API: error for the failed action
+        API-->>User: error toast naming the failed action
         Note over H: remaining actions are skipped,<br/>completed actions stay
     end
     API->>WS: button back to idle, row updates broadcast
@@ -346,8 +347,9 @@ defer unifying execution until a real need appears.
 
 - The button field ships without waiting on a cross-team refactor; the only upstream
   dependencies are the `actor` property on the dispatch context and making the
-  integration unnecessary for database services (section 5). The automation inheritance
-  change lands in parallel and blocks nothing.
+  integration unnecessary for database services (section 5). Both are small, scoped
+  `core/services` changes reviewed with the builder and automation teams, not a
+  refactor. The automation inheritance change lands in parallel and blocks nothing.
 - v1 needs no integrations at all: services run as the actor. Import/export of
   self-referencing services remains the main schedule risk; the settings UI, credential
   handling, and reconfigure states move entirely to the version that adds external
