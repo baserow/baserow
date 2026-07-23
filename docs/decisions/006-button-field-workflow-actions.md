@@ -181,62 +181,50 @@ fresher values come from the previous-action provider.
 
 ### 5. Integrations and ownership
 
-The database application type enables `supports_integrations`. Integrations stay
-application-level objects managed in a settings modal patterned on the builder's, and
-behave the same under duplication, export/import, and snapshots. Per-field integration
-configuration was considered and rejected: it fragments credential management and
-diverges from every other module; a field-level shortcut can still open the same
-application-level objects.
+**Actions run as the user who clicks.** Permission checks, row history, created-by
+fields, and the audit log all see the clicking user, and a click fails with the standard
+error toast if that user lacks permission on a target table. There is no way to run an
+action on someone else's behalf: a button is a shortcut for things the clicker could
+already do, not a way to do more.
+
+This is a deliberate break from the builder and automation, where services run every
+check as the integration's `authorized_user`. That model exists because builder end
+users are usually not Baserow users at all. Database clickers are the opposite: always
+logged-in collaborators with at least the editor role (section 7). Reusing the
+on-behalf-of model here would put the wrong name in row history and created-by fields,
+and would let anyone who can edit a field use the integration to reach every table its
+user can reach. Neither is acceptable in a database.
+
+The mechanism is small and shared. The dispatch context carries the clicking user as the
+`actor`; it flows down to the services, and the Local Baserow services use the actor
+instead of `authorized_user` for permission checks and execution. Clicks stay
+non-undoable (section 8), so click-triggered actions register outside any undo scope
+even though they run as the clicking user.
+
+The database application type still enables `supports_integrations`, but in the first
+version the integration is an implementation detail, not something users manage. One
+internal Local Baserow integration is created automatically per database the first time
+a button field needs it, the same way dashboard integrations are handled; it is never
+shown to users and is not bound to any person. Because of this, v1 needs no integrations
+settings UI: the builder-style settings modal arrives together with external integration
+types, whose credentials users do have to manage.
 
 ```mermaid
 flowchart LR
     subgraph app ["Database application"]
         BF["Button field"] -->|ordered 1..n| WA["Workflow actions"]
         WA -->|each backs onto| S["Service"]
-        I["Integrations<br/>(application-level settings)"]
+        I["Internal Local Baserow integration<br/>(auto-created, hidden)"]
     end
     S -->|configured via| I
-    I -->|permission checks run as| AU["Integration's authorized_user"]
-    AU --> T["Target tables and rows"]
-    U["Clicking user"] -->|recorded as initiator<br/>in row history| T
+    U["Clicking user"] -->|actor: permission checks,<br/>row history, created-by| T["Target tables and rows"]
 ```
 
-**Which user do actions run as, and who is the change attributed to?** These are two
-separate questions, and the first version answers them separately.
-
-Permission checks keep the builder and automation behavior: services run as the
-integration's `authorized_user`. This is what lets a button run predefined actions the
-clicking user could not do directly, which is the point of the field, and it is guarded
-by who may configure it. The action editor offers the tables the integration's user can
-reach, and if that user loses access to a target table, clicks fail with the standard
-error toast rather than silently skipping.
-
-Who may configure is therefore the real permission boundary, and it is the existing
-field one: creating a button field, editing its actions, and binding an integration to a
-service follow field update permissions, so the builder role and above. Binding an
-existing integration is the elevation step: anyone who can edit fields can put another
-member's authority behind a button, exactly as any editor of a builder application can
-today, and the database accepts the same trade-off.
-
-Attribution does not follow that rule, because the database is stricter here than the
-builder. Row history is a feature every collaborator sees; if a click shows up as an
-edit by whoever configured the integration, the database shows wrong information in a
-core UI. The builder never surfaces this, since its end users see no row history. Row
-changes made by button actions therefore record the clicking user as the initiator in
-row history from the first version. This works in v1 because every click comes from an
-authenticated editor or above (section 7); anonymous initiators only become a question
-if buttons ever reach public views.
-
-Row history takes its user from the `action_done` signal, which reports whoever the
-action ran as, and a registered action lands in that user's undo stack. Recording the
-clicking user instead means the action pipeline carries an initiator distinct from the
-acting user, supplied by the dispatch context, with click-triggered actions registering
-outside any undo scope (clicks are never undoable, section 8). That is a small extension
-to shared core machinery, so its design lands with the builder and automation teams
-before implementation starts.
-
-The planned Agent feature (virtual users for integrations) changes who the authorized
-user is, not this attribution decision; how the audit log evolves is left to that work.
+Configuration keeps the existing field boundary: creating a button field and editing its
+actions follow field update permissions, so the builder role and above. The action
+editor offers the tables the configuring user can reach, and the same check happens
+again at click time as the clicker, so a configuration made by someone with broader
+access cannot give anyone extra access.
 
 ### 6. Import, export, duplication, and sharing
 
@@ -259,11 +247,11 @@ flowchart TD
     F --> G["after_import hooks run;<br/>unconfigured integrations surface<br/>as reconfigure states on buttons"]
 ```
 
-Exports and templates strip sensitive integration fields, as today. The Local Baserow
-integration self-heals: `after_import` rebinds `authorized_user` to the importing user.
-External integrations cannot; their buttons render disabled with an error indicator
-pointing at the integration to reconfigure. The builder needs the same reconfigure
-experience; both modules should share one solution.
+Exports and templates strip sensitive integration fields, as today. This does not affect
+the internal Local Baserow integration, which carries no credentials and is simply
+recreated on import. External integrations cannot recover on their own; their buttons
+render disabled with an error indicator pointing at the integration to reconfigure. The
+builder needs the same reconfigure experience; both modules should share one solution.
 
 ### 7. What kind of field is a button, and who may click it
 
@@ -285,10 +273,10 @@ it. Concretely:
 ### 8. Behavior under common operations
 
 - **Field duplication.** Actions and services are duplicated; both fields point at the
-  same application-level integrations.
+  same internal integration.
 - **Application duplication, snapshot, export/import.** Integrations are copied with the
-  application; deferred resolution reconnects self-references; stripped credentials must
-  be reconfigured (Local Baserow self-heals).
+  application; deferred resolution reconnects self-references; stripped credentials only
+  affect external integrations, which must be reconfigured.
 - **Trash and restore.** Actions and services follow the field, as builder actions
   follow their element.
 - **Deleting or trashing a target table or field.** Services keep the dangling reference
@@ -300,8 +288,8 @@ it. Concretely:
 - **Undo/redo.** Configuration changes are undoable like other field updates. Clicks are
   never undoable, even when a sequence only touches rows: a partially undoable button is
   more confusing than none.
-- **Deleting the integration's user.** The Local Baserow integration cascades away;
-  services survive with a null integration and the buttons enter the reconfigure state.
+- **Deleting a user.** Nothing breaks: actions run as whoever clicks, and the internal
+  integration is not bound to a person, so no button depends on any particular account.
 - **Failure mid-sequence.** Execution stops, later actions are skipped, completed
   actions stay, and the user sees an error toast (section 3).
 
@@ -344,12 +332,13 @@ defer unifying execution until a real need appears.
 ## Consequences
 
 - The button field ships without waiting on a cross-team refactor; the upstream
-  dependencies are the small automation inheritance change and the initiator extension
-  to the core action pipeline (section 5).
-- The database module gains integrations, the largest work item here (settings UI,
-  import/export handling, reconfigure states) and the main schedule risk.
-- Row history records the clicking user as the initiator from the first version, so the
-  database never shows wrong attribution.
+  dependencies are the small automation inheritance change and the `actor` property on
+  the dispatch context (section 5).
+- The database module gains integrations, but v1 keeps them internal: import/export
+  handling remains the main schedule risk, while the settings UI and reconfigure states
+  move to the version that adds external integrations.
+- Actions are authorized and attributed as the clicking user, so permissions, row
+  history, and created-by fields are always right, with no on-behalf-of machinery.
 - Until a merge is justified, three similar thin layers exist side by side; the shared
   base classes keep them cheap to unify.
 
@@ -357,7 +346,7 @@ defer unifying execution until a real need appears.
 
 - A fourth consumer appears, or buttons need branching/routers: extract the shared
   execution abstraction (Option 3) instead of copying a fourth time.
-- The Agent feature lands: revisit which user button integrations run as and how clicks
-  appear in the audit log.
+- Buttons reach public views: anonymous clicks would need an explicit field-level "run
+  as the field owner" option, reopening the on-behalf-of execution rejected here.
 - Frontend-only button actions are prioritized: design the shared dispatch mechanism
   with the builder team before building one alone.
