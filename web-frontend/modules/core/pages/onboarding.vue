@@ -147,7 +147,12 @@ export default {
     })
 
     definePageMeta({
-      middleware: ['settings', 'authenticated', 'redirectCompletedOnboarding'],
+      middleware: [
+        'settings',
+        'authenticated',
+        'databaseDomain',
+        'redirectCompletedOnboarding',
+      ],
     })
   },
   data() {

@@ -85,5 +85,6 @@ export const rootChildRoutes = [
     name: 'admin-database-views',
     path: '/admin/database-views',
     file: path.resolve(__dirname, 'pages/admin/views.vue'),
+    meta: { middleware: ['databaseDomain'] },
   },
 ]

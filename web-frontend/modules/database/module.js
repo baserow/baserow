@@ -29,6 +29,11 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
+      name: 'databaseDomain',
+      path: resolve('./middleware/databaseDomain.js'),
+    })
+
+    addRouteMiddleware({
       name: 'selectWorkspaceDatabaseTable',
       path: resolve('./middleware/selectWorkspaceDatabaseTable'),
     })

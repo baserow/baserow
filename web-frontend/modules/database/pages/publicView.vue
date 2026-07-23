@@ -30,7 +30,7 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 import { keyboardShortcutsToPriorityEventBus } from '@baserow/modules/core/utils/events'
 
 definePageMeta({
-  middleware: ['settings'],
+  middleware: ['settings', 'databaseDomain'],
 })
 
 const route = useRoute()

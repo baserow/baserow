@@ -21,7 +21,7 @@ import {
   InvalidFormulaArgument,
   InvalidFormulaArgumentType,
   InvalidNumberOfArguments,
-} from '@baserow/modules/core/formula/parser/errors'
+} from '@baserow/modules/core/formula/errors'
 import { reverseString, generateUUID } from '@baserow/modules/core/utils/string'
 import { avg, sum } from '@baserow/modules/core/utils/number'
 import {
@@ -35,9 +35,6 @@ import {
   formatValueWithDurationFormat,
   parseValueWithDurationFormat,
 } from '@baserow/modules/core/utils/duration'
-import { Node, VueNodeViewRenderer } from '@tiptap/vue-3'
-import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
-import { mergeAttributes } from '@tiptap/core'
 import { FORMULA_CATEGORY, FORMULA_TYPE } from '@baserow/modules/core/enums'
 import _ from 'lodash'
 import moment from '@baserow/modules/core/moment'
@@ -181,12 +178,12 @@ export class RuntimeFormulaFunction extends Registerable {
   }
 
   /**
-   * The component configuration that should be used to render the formula in the
-   * editor.
+   * A dynamic-import loader for the Vue component that renders this formula in
+   * the editor, or null when the formula has no visual node.
    *
-   * @returns {null}
+   * @returns {Function || null}
    */
-  get formulaComponent() {
+  get formulaComponentLoader() {
     return null
   }
 
@@ -322,38 +319,9 @@ export class RuntimeGet extends RuntimeFormulaFunction {
     return 'get-formula-component'
   }
 
-  get formulaComponent() {
-    const formulaComponentType = this.formulaComponentType
-    return Node.create({
-      name: formulaComponentType,
-      group: 'inline',
-      inline: true,
-      selectable: false,
-      atom: true,
-      addNodeView() {
-        return VueNodeViewRenderer(GetFormulaComponent)
-      },
-      addAttributes() {
-        return {
-          path: {
-            default: '',
-          },
-          isSelected: {
-            default: false,
-          },
-        }
-      },
-      parseHTML() {
-        return [
-          {
-            tag: formulaComponentType,
-          },
-        ]
-      },
-      renderHTML({ HTMLAttributes }) {
-        return [formulaComponentType, mergeAttributes(HTMLAttributes)]
-      },
-    })
+  get formulaComponentLoader() {
+    return () =>
+      import('@baserow/modules/core/components/formula/GetFormulaComponent')
   }
 
   execute(context, args) {

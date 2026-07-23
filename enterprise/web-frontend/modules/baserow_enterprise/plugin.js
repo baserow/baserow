@@ -52,22 +52,12 @@ import {
   NoRoleLowPriorityRoleType,
 } from '@baserow_enterprise/roleTypes'
 import {
-  GitHubIssuesDataSyncType,
-  GitLabIssuesDataSyncType,
-  HubspotContactsDataSyncType,
-  PostgreSQLDataSyncType,
-  JiraIssuesDataSyncType,
-  LocalBaserowTableDataSyncType,
-} from '@baserow_enterprise/dataSyncTypes'
-import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
-import {
   ApplicationUserLimitNotificationType,
   DataScanNewResultsNotificationType,
   PeriodicDataSyncDeactivatedNotificationType,
   TwoWayDataSyncUpdateFiledNotificationType,
   TwoWaySyncDeactivatedNotificationType,
 } from '@baserow_enterprise/notificationTypes'
-import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventTypes'
 import {
   AdvancedWebhooksPaidFeature,
   AuditLogPaidFeature,
@@ -86,13 +76,6 @@ import {
   SupportPaidFeature,
   XLSFileReaderPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
-import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
-import {
-  DateDependencyContextItemType,
-  DateDependencyTimelineComponent,
-} from '@baserow_enterprise/dateDependencyTypes'
-import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
-import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
 import { AIPromptOnboardingType } from '@baserow_enterprise/onboardingTypes'
 import {
@@ -195,6 +178,12 @@ export default defineNuxtPlugin({
       register(nuxtApp)
     })
 
+    $registry.registerDomainLoader('database', async () => {
+      const { default: register } =
+        await import('@baserow_enterprise/databaseLazyRegistrations')
+      register(nuxtApp)
+    })
+
     $registry.register(
       'appAuthProvider',
       new LocalBaserowPasswordAppAuthProviderType(context)
@@ -215,14 +204,6 @@ export default defineNuxtPlugin({
     $registry.register('roles', new NoAccessRoleType(context))
     $registry.register('roles', new NoRoleLowPriorityRoleType(context))
 
-    $registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
-    $registry.register('dataSync', new PostgreSQLDataSyncType(context))
-    $registry.register('dataSync', new LocalBaserowTableDataSyncType(context))
-    $registry.register('dataSync', new JiraIssuesDataSyncType(context))
-    $registry.register('dataSync', new GitHubIssuesDataSyncType(context))
-    $registry.register('dataSync', new GitLabIssuesDataSyncType(context))
-    $registry.register('dataSync', new HubspotContactsDataSyncType(context))
-
     $registry.register(
       'notification',
       new PeriodicDataSyncDeactivatedNotificationType(context)
@@ -242,16 +223,6 @@ export default defineNuxtPlugin({
     $registry.register(
       'notification',
       new ApplicationUserLimitNotificationType(context)
-    )
-
-    $registry.register(
-      'configureDataSync',
-      new PeriodicIntervalFieldsConfigureDataSyncType(context)
-    )
-
-    $registry.register(
-      'webhookEvent',
-      new RowsEnterViewWebhookEventType(context)
     )
 
     $registry.register('paidFeature', new SSOPaidFeature(context))
@@ -280,34 +251,12 @@ export default defineNuxtPlugin({
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))
     $registry.register('paidFeature', new DateDependencyPaidFeature(context))
-    $registry.register(
-      'timelineFieldRules',
-      new DateDependencyTimelineComponent(context)
-    )
-    $registry.register(
-      'fieldContextItem',
-      new DateDependencyContextItemType(context)
-    )
 
+    // Eager: kept alongside core's databaseOnboardingStep types for the onboarding flow.
     $registry.register(
       'databaseOnboardingStep',
       new AIDatabaseOnboardingStepType(context)
     )
     $registry.register('onboarding', new AIPromptOnboardingType(context))
-
-    $registry.register(
-      'fieldContextItem',
-      new FieldPermissionsContextItemType(context)
-    )
-
-    $registry.register(
-      'twoWaySyncStrategy',
-      new RealtimePushTwoWaySyncStrategyType(context)
-    )
-
-    $registry.register(
-      'viewOwnershipType',
-      new RestrictedViewOwnershipType(context)
-    )
   },
 })

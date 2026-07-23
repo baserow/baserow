@@ -71,15 +71,21 @@ export class Registry {
     this.domainLoaders[domain].push(loader)
   }
 
-  /** Runs every queued loader for the domain exactly once; concurrent calls share the promise. */
+  /**
+   * Runs every queued loader for the domain exactly once; concurrent callers share
+   * the promise. Loaders run sequentially in registration order (core, then premium,
+   * then enterprise) so type overrides land in the same order as the eager plugins.
+   */
   loadDomain(domain) {
     if (
       !Object.prototype.hasOwnProperty.call(this.domainLoadPromises, domain)
     ) {
       const loaders = this.domainLoaders[domain] || []
-      this.domainLoadPromises[domain] = Promise.all(
-        loaders.map((loader) => loader())
-      )
+      this.domainLoadPromises[domain] = (async () => {
+        for (const loader of loaders) {
+          await loader()
+        }
+      })()
     }
     return this.domainLoadPromises[domain]
   }

@@ -147,10 +147,12 @@ export default {
       }
     },
     uiLocation: {
-      handler(newLocation) {
+      async handler(newLocation) {
         if (!newLocation) return
 
         if (newLocation.type === 'database-view') {
+          // View types register with the database domain, not eagerly.
+          await this.$registry.loadDomain('database')
           // Don't navigate to deactivated views
           const viewType = this.$registry.get('view', newLocation.view_type)
           if (!viewType || viewType.isDeactivated(this.workspace.id)) {

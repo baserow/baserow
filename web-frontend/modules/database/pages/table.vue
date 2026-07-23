@@ -48,6 +48,7 @@ definePageMeta({
   middleware: [
     'settings',
     'authenticated',
+    'databaseDomain',
     'workspacesAndApplications',
     // Selects the workspace, database and table of the route params. It only does
     // what must be done before the page can render, everything else is fetched by

@@ -289,7 +289,7 @@ useHead({
 })
 
 definePageMeta({
-  middleware: ['workspacesAndApplications'],
+  middleware: ['databaseDomain', 'workspacesAndApplications'],
 })
 
 const exampleData = ref({

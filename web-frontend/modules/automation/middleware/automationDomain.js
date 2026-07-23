@@ -1,4 +1,7 @@
 export default defineNuxtRouteMiddleware(async () => {
   const { $registry } = useNuxtApp()
-  await $registry.loadDomain('automation')
+  await Promise.all([
+    $registry.loadDomain('database'),
+    $registry.loadDomain('automation'),
+  ])
 })
