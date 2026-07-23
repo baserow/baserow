@@ -222,6 +222,42 @@ describe('Automation workflow node store', () => {
       ).toEqual([1, 4, 2, 3])
     })
 
+    test('includes nodes on non-default router branches', () => {
+      // Router node 2 has a named branch (create_row 3 -> goto 4) and a
+      // default branch (create_row 5 -> goto 6). The named branch's nodes were
+      // previously missing from the order, which hid them from the "Go to
+      // node" destination dropdown.
+      const nodes = [
+        { id: 1, type: 'manual' },
+        { id: 2, type: 'router' },
+        { id: 3, type: 'create_row' },
+        { id: 4, type: 'goto' },
+        { id: 5, type: 'create_row' },
+        { id: 6, type: 'goto' },
+      ]
+      const workflow = {
+        id: 10,
+        nodes,
+        nodeMap: Object.fromEntries(nodes.map((node) => [`${node.id}`, node])),
+        graph: {
+          0: 1,
+          1: { next: { '': [2] } },
+          2: { next: { 'branch-uuid': [3], '': [5] } },
+          3: { next: { '': [4] } },
+          4: {},
+          5: { next: { '': [6] } },
+          6: {},
+        },
+      }
+      expect(
+        idsOf(
+          testApp.store.getters['automationWorkflowNode/getNodesInOrder'](
+            workflow
+          )
+        )
+      ).toEqual([1, 2, 3, 4, 5, 6])
+    })
+
     test('returns nothing without a workflow', () => {
       expect(
         testApp.store.getters['automationWorkflowNode/getNodesInOrder'](null)
