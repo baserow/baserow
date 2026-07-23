@@ -180,7 +180,10 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     if not settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED:
         return
 
-    workspace = user_source.application.workspace
+    # A published app's application has no workspace of its own, so resolve the
+    # workspace it was published from. That's where the limit is enforced and where
+    # the periodic check stamps the over limit moment.
+    workspace = user_source.application.specific.get_workspace()
 
     # The periodic application user limit check stamps the moment a workspace goes
     # over its limit. Only refuse logins when that happened longer than the grace period

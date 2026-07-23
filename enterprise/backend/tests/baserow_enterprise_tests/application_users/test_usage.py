@@ -51,7 +51,7 @@ def self_hosted_license_plugin():
 
 
 def mark_over_limit_since(user_source, since):
-    workspace = user_source.application.workspace
+    workspace = user_source.application.specific.get_workspace()
     cache.set(get_over_limit_cache_key(workspace.id), since.isoformat())
 
 
@@ -252,6 +252,41 @@ def test_login_is_allowed_past_the_grace_period_when_the_usage_dropped_meanwhile
     mark_over_limit_since(user_source, now() - timedelta(hours=2))
 
     raise_if_over_application_user_login_limit(user_source)
+
+
+@pytest.mark.django_db
+@override_settings(
+    DEBUG=True,
+    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_login_is_refused_over_the_limit_when_logging_into_a_published_app(
+    mock_aggregate_user_source_counts, data_fixture, premium_data_fixture
+):
+    # A published app's application has no workspace of its own, so the login limit
+    # check has to resolve the workspace it was published from instead of reading a
+    # `None` workspace off the published application.
+    mock_aggregate_user_source_counts.return_value = OVER_THE_LICENSE_LIMIT
+    workspace = data_fixture.create_workspace()
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+    published_user_source = data_fixture.create_local_baserow_table_user_source(
+        application=published_builder
+    )
+    premium_data_fixture.create_premium_license(
+        license=VALID_PREMIUM_5_SEAT_10_APP_USER_LICENSE.decode()
+    )
+    mark_over_limit_since(published_user_source, now() - timedelta(hours=2))
+
+    with pytest.raises(ApplicationUserLimitReached):
+        raise_if_over_application_user_login_limit(published_user_source)
 
 
 @pytest.mark.django_db
