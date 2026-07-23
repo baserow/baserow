@@ -1,8 +1,11 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, Mock, patch
 
+from django.core.cache import cache
+from django.test.utils import override_settings
 from django.urls import reverse
+from django.utils.timezone import now
 
 import pytest
 from freezegun import freeze_time
@@ -34,6 +37,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.app_auth_providers.models import AppAuthProvider
+from baserow.core.registries import plugin_registry
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
 from baserow.core.user_sources.handler import UserSourceHandler
@@ -43,10 +47,18 @@ from baserow.core.user_sources.registries import (
 )
 from baserow.core.user_sources.service import UserSourceService
 from baserow.core.utils import MirrorDict, Progress
+from baserow.test_utils.helpers import AnyStr
+from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
+from baserow_enterprise.application_users.usage import get_over_limit_cache_key
 from baserow_enterprise.integrations.local_baserow.models import LocalBaserowUserSource
 from baserow_enterprise.integrations.local_baserow.user_source_types import (
     LocalBaserowUserSourceType,
 )
+from baserow_premium.application_user_usage.constants import (
+    DEFAULT_APPLICATION_USERS_LIMIT,
+)
+from baserow_premium.license.plugin import LicensePlugin
+from baserow_premium.plugins import PremiumPlugin
 
 from .helpers import populate_local_baserow_test_data
 
@@ -2569,3 +2581,131 @@ def test_local_baserow_after_user_source_update_requires_user_recount():
         )
         is True
     )
+
+
+@pytest.fixture
+def self_hosted_license_plugin():
+    """
+    The application user limit tests below cover the self-hosted resolution where
+    the limit comes from the registered licenses. Under the SaaS settings the
+    premium plugin resolves a per-workspace subscription quota instead, so force
+    the self-hosted license plugin to keep the tests deterministic in both
+    environments.
+    """
+
+    premium_plugin = plugin_registry.get_by_type(PremiumPlugin)
+    with patch.object(
+        premium_plugin,
+        "get_license_plugin",
+        lambda cache_queries=False: LicensePlugin(cache_queries),
+    ):
+        yield
+
+
+def mark_over_limit_since(user_source, since):
+    workspace = user_source.application.specific.get_workspace()
+    cache.set(get_over_limit_cache_key(workspace.id), since.isoformat())
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_local_baserow_user_source_authentication_refused_over_application_user_limit(
+    mock_aggregate_user_source_counts, data_fixture, self_hosted_license_plugin
+):
+    mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT + 1
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
+
+    with pytest.raises(ApplicationUserLimitReached):
+        user_source.get_type().authenticate(
+            user_source, email="test@baserow.io", password="super not secret"
+        )
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_local_baserow_user_source_authentication_allowed_within_application_user_limit(
+    mock_aggregate_user_source_counts, data_fixture, self_hosted_license_plugin
+):
+    # The limit check runs on the authentication path (with a stale over limit
+    # stamp that forces the live usage re-check), but the usage is within the
+    # limit so the normal authentication flow must not be affected.
+    mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
+
+    user = user_source.get_type().authenticate(
+        user_source, email="test@baserow.io", password="super not secret"
+    )
+    assert user.email == "test@baserow.io"
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_local_baserow_user_source_get_or_create_user_refused_over_application_user_limit(
+    mock_aggregate_user_source_counts, data_fixture, self_hosted_license_plugin
+):
+    mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT + 1
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
+
+    UserModel = data["user_table"].get_model()
+    count_before = UserModel.objects.count()
+
+    with pytest.raises(ApplicationUserLimitReached):
+        user_source.get_type().get_or_create_user(
+            user_source, email="new@baserow.io", name="New user"
+        )
+
+    # The limit is deliberately checked after the user row is created (the SSO
+    # auto-provisioning path may create it before the limit is known), so the row
+    # exists even though the sign in was refused.
+    assert UserModel.objects.count() == count_before + 1
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
+    BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
+)
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_local_baserow_user_source_get_or_create_user_allowed_within_application_user_limit(
+    mock_aggregate_user_source_counts, data_fixture, self_hosted_license_plugin
+):
+    mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT
+    data = populate_local_baserow_test_data(data_fixture)
+    user_source = data["user_source"]
+    mark_over_limit_since(user_source, now() - timedelta(hours=2))
+
+    user, created = user_source.get_type().get_or_create_user(
+        user_source, email="new@baserow.io", name="New user"
+    )
+    assert created is True
+    assert user.email == "new@baserow.io"

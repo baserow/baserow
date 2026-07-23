@@ -436,3 +436,183 @@ def test_the_periodic_check_clears_notifications_when_the_usage_drops_again(
         type=ApplicationUserLimitNotificationType.type, workspace=workspace
     ).exists()
     assert not is_marked_over_limit(workspace)
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS=[80])
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_the_periodic_check_does_not_duplicate_notifications_while_still_over_limit(
+    mock_aggregate_user_source_counts,
+    data_fixture,
+    django_capture_on_commit_callbacks,
+):
+    mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    data_fixture.create_local_baserow_table_user_source(application=builder)
+
+    with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
+        check_application_user_limits()
+
+    since_after_first_run = get_application_user_over_limit_since(workspace)
+    assert since_after_first_run is not None
+
+    # A second run while the workspace is still over its limit must not create
+    # duplicate notifications (they are deduped per workspace and threshold), nor
+    # restart the grace period.
+    with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
+        check_application_user_limits()
+
+    notifications = Notification.objects.filter(
+        type=ApplicationUserLimitNotificationType.type, workspace=workspace
+    )
+    assert sorted(n.data["threshold"] for n in notifications) == [80, 100]
+    assert get_application_user_over_limit_since(workspace) == since_after_first_run
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS=[80])
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_the_periodic_check_only_clears_the_thresholds_the_usage_dropped_below(
+    mock_aggregate_user_source_counts,
+    data_fixture,
+    django_capture_on_commit_callbacks,
+):
+    mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    data_fixture.create_local_baserow_table_user_source(application=builder)
+
+    with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
+        check_application_user_limits()
+
+    notifications = Notification.objects.filter(
+        type=ApplicationUserLimitNotificationType.type, workspace=workspace
+    )
+    assert sorted(n.data["threshold"] for n in notifications) == [80, 100]
+    first_100_notification_id = notifications.get(data__contains={"threshold": 100}).id
+
+    # The usage drops below the limit but stays above the 80% warning threshold:
+    # only the 100% notification is cleared, and the workspace is no longer marked
+    # over its limit.
+    mock_aggregate_user_source_counts.return_value = int(
+        DEFAULT_APPLICATION_USERS_LIMIT * 0.9
+    )
+    with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
+        check_application_user_limits()
+
+    notifications = Notification.objects.filter(
+        type=ApplicationUserLimitNotificationType.type, workspace=workspace
+    )
+    assert [n.data["threshold"] for n in notifications] == [80]
+    assert not is_marked_over_limit(workspace)
+
+    # Crossing the limit again notifies anew for the cleared threshold, because
+    # clearing it re-armed the dedup.
+    mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
+    with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
+        check_application_user_limits()
+
+    notifications = Notification.objects.filter(
+        type=ApplicationUserLimitNotificationType.type, workspace=workspace
+    )
+    assert sorted(n.data["threshold"] for n in notifications) == [80, 100]
+    new_100_notification_id = notifications.get(data__contains={"threshold": 100}).id
+    assert new_100_notification_id != first_100_notification_id
+
+
+@pytest.mark.parametrize(
+    "threshold,expected_title",
+    [
+        (100, "Application user limit reached"),
+        (80, "8 of 10 application users used"),
+    ],
+)
+def test_application_user_limit_notification_title(threshold, expected_title):
+    notification = Notification(data={"threshold": threshold, "usage": 8, "limit": 10})
+    assert (
+        ApplicationUserLimitNotificationType.get_notification_title(notification)
+        == expected_title
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("enforced", [True, False])
+@override_settings(BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS=[])
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_the_notification_data_carries_the_enforced_flag(
+    mock_aggregate_user_source_counts,
+    data_fixture,
+    django_capture_on_commit_callbacks,
+    settings,
+    enforced,
+):
+    # The frontend picks the wording of the 100% notification based on whether the
+    # limit is enforced, so the flag is part of the notification data contract.
+    settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED = enforced
+    mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    data_fixture.create_local_baserow_table_user_source(application=builder)
+
+    with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
+        check_application_user_limits()
+
+    notification = Notification.objects.get(
+        type=ApplicationUserLimitNotificationType.type, workspace=workspace
+    )
+    assert notification.data["enforced"] is enforced
+    assert notification.data["workspace_id"] == workspace.id
+    assert notification.data["workspace_name"] == workspace.name
+    assert notification.data["usage"] == OVER_THE_DEFAULT_LIMIT
+    assert notification.data["limit"] == DEFAULT_APPLICATION_USERS_LIMIT
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS=[])
+@patch(
+    "baserow_premium.application_user_usage.handler."
+    "ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
+def test_the_periodic_check_skips_workspaces_without_user_sources(
+    mock_aggregate_user_source_counts,
+    data_fixture,
+    django_capture_on_commit_callbacks,
+):
+    mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
+    admin_a = data_fixture.create_user()
+    workspace_with_user_source = data_fixture.create_workspace(user=admin_a)
+    builder = data_fixture.create_builder_application(
+        workspace=workspace_with_user_source
+    )
+    data_fixture.create_local_baserow_table_user_source(application=builder)
+
+    # This workspace has no user source at all, so it has no application users and
+    # is never checked, even though the instance wide usage is over the limit.
+    admin_b = data_fixture.create_user()
+    workspace_without_user_source = data_fixture.create_workspace(user=admin_b)
+
+    with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
+        check_application_user_limits()
+
+    assert Notification.objects.filter(
+        type=ApplicationUserLimitNotificationType.type,
+        workspace=workspace_with_user_source,
+    ).exists()
+    assert not Notification.objects.filter(
+        type=ApplicationUserLimitNotificationType.type,
+        workspace=workspace_without_user_source,
+    ).exists()
+    assert not is_marked_over_limit(workspace_without_user_source)
