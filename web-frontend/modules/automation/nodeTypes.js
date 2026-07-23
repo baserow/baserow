@@ -1263,7 +1263,7 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
   /**
    * The node this "Go to node" jumps to, as long as the jump is still valid.
    * Validity mirrors the backend `validate_goto_destination` (same level,
-   * backward or forward jump, non-trigger).
+   * backward jump only, non-trigger).
    *
    * @param {Object} workflow The workflow the node belongs to.
    * @param {Object} node The Go to node to resolve the destination for.

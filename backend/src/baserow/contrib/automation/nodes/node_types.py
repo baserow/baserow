@@ -409,9 +409,11 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
 
         A destination is eligible when it belongs to the same workflow, is at
         the same level (i.e. has the same parent/container nodes), is not a
-        trigger node and lies on the Go to node's own path - either before it (a
-        backward jump) or after it (a forward jump that skips the nodes in
-        between). A node may not target itself.
+        trigger node and runs before the Go to node on its own path (a backward
+        jump). Forward jumps are not allowed for now: they would leave the
+        skipped nodes unexecuted, so a later node that reads a skipped node's
+        output via the previous-node data provider would fail at dispatch time.
+        A node may not target itself.
         """
 
         if destination_node is None:
@@ -433,26 +435,14 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
         if source_level != destination_level:
             return "The destination node must be at the same level as the Go to node."
 
-        # The destination must lie on the Go to node's own path: either a node
-        # that runs before it (a backward jump) or one that runs after it (a
-        # forward jump that skips the nodes in between). `get_previous_points`
-        # returns the whole root-to-node path, so "on the same path" holds when
-        # one node is in the other's previous points. This rejects a same-level
-        # node on a different branch, whose own predecessors would not have run
-        # when the jump lands on it.
-        #
-        # A forward jump leaves the skipped nodes unexecuted, so a later node
-        # that reads a skipped node's output via the previous-node data provider
-        # fails at dispatch time.
+        # The destination must run before the Go to node on its own path (a
+        # backward jump). `get_previous_points` returns the whole root-to-node
+        # path, so this both rejects forward jumps and a same-level node on a
+        # different branch, whose own predecessors would not have run when the
+        # jump lands on it.
         source_previous_ids = {node.id for node in source_node.get_previous_points()}
-        destination_previous_ids = {
-            node.id for node in destination_node.get_previous_points()
-        }
-        if (
-            destination_node.id not in source_previous_ids
-            and source_node.id not in destination_previous_ids
-        ):
-            return "The destination node must be on the same branch as the Go to node."
+        if destination_node.id not in source_previous_ids:
+            return "The destination node must run before the Go to node."
 
         return None
 
@@ -555,8 +545,8 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
         simply re-validate every goto link in the workflow: there are few of
         them, and this avoids depending on the exact descendant semantics of the
         graph to work out which links the move could have touched. A link
-        survives when it is still a valid backward or forward jump (e.g. source
-        and destination moved together inside a container).
+        survives when it is still a valid backward jump (e.g. source and
+        destination moved together inside a container).
 
         An `automation_node_updated` signal is sent for each cleared Go to node
         so connected clients drop the stale link.

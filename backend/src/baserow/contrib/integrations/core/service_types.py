@@ -1305,9 +1305,10 @@ class CoreGotoServiceType(CoreServiceType):
     ):
         """
         The destination is a reference to another service which may not have
-        been imported yet (e.g. a forward jump). We therefore null it on this
-        first pass and remap it during the second pass in post_import(),
-        once all the workflow's services have been imported.
+        been imported yet, as the import order is not guaranteed to follow the
+        graph order. We therefore null it on this first pass and remap it
+        during the second pass in post_import(), once all the workflow's
+        services have been imported.
         """
 
         original_destination_id = serialized_values.pop("destination_service_id", None)
@@ -1333,7 +1334,7 @@ class CoreGotoServiceType(CoreServiceType):
         Performs the second-pass remap of the destination service reference.
 
         By this point every service of the workflow has been imported, so
-        id_mapping["services"] can resolve both backward and forward jumps.
+        id_mapping["services"] can resolve every jump destination.
 
         When the destination service was part of this import - e.g. a full
         workflow duplicate - it is remapped to the newly imported service. For a

@@ -36,8 +36,8 @@ describe('isValidGotoDestination', () => {
     expect(validate(before)).toBe(true)
   })
 
-  test('accepts a same-level node that runs after (forward jump)', () => {
-    expect(validate(after)).toBe(true)
+  test('rejects a same-level node that runs after (forward jump)', () => {
+    expect(validate(after)).toBe(false)
   })
 
   test('rejects the Go to node itself', () => {
@@ -59,8 +59,8 @@ describe('isValidGotoDestination', () => {
   })
 
   test('rejects a same-level node on a different branch (off-path)', () => {
-    // `sibling` shares the goto's level but is on neither its backward nor its
-    // forward path: it is in nobody's previous nodes along the goto's chain.
+    // `sibling` shares the goto's level but does not run before it: it is not
+    // in the goto's previous nodes.
     const sibling = { id: 5, type: 'create_row' }
     expect(validate(sibling)).toBe(false)
   })
@@ -139,8 +139,8 @@ describe('buildGotoDestinations', () => {
     )
   })
 
-  test('includes nodes that run after the Go to node (forward jump)', () => {
-    expect(build().map((destination) => destination.value)).toContain(
+  test('excludes nodes that run after the Go to node (forward jump)', () => {
+    expect(build().map((destination) => destination.value)).not.toContain(
       after.service.id
     )
   })
@@ -158,18 +158,27 @@ describe('buildGotoDestinations', () => {
   })
 
   test('excludes nodes without a service yet', () => {
-    // `pending` is on the goto's path but has no service, so it is not yet a
-    // selectable destination.
-    expect(build().map((destination) => destination.value)).not.toContain(
+    // `pendingBefore` runs before the goto but has no service, so it is not
+    // yet a selectable destination.
+    const pendingBefore = { id: 6, type: 'create_row', service: null }
+    const previousWithPending = {
+      ...previousByNodeId,
+      [pendingBefore.id]: [trigger],
+      [goto.id]: [trigger, before, pendingBefore],
+    }
+    const results = build({
+      nodes: [...nodes, pendingBefore],
+      previousNodesOf: (node) => previousWithPending[node.id] ?? [],
+    })
+    expect(results.map((destination) => destination.value)).not.toContain(
       undefined
     )
-    expect(build()).toHaveLength(2)
+    expect(results).toHaveLength(1)
   })
 
   test('maps each destination to its service id and resolved name', () => {
     expect(build()).toEqual([
       { value: before.service.id, name: `name:${before.id}` },
-      { value: after.service.id, name: `name:${after.id}` },
     ])
   })
 })

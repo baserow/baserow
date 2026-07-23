@@ -429,10 +429,11 @@ class AutomationNodeType(
         (by returning a destination_service_id on the DispatchResult).
 
         The runner calls this only when the jump is about to be followed, i.e.
-        never while simulating because we don't want to jump over the node that
-        we want to simulate. The node type can then re-validate the destination
-        against the live graph and raise ServiceImproperlyConfiguredDispatchException
-        if the link is no longer a valid jump.
+        never while simulating, where jumps are suppressed so a backward jump
+        doesn't loop the path leading to the simulated node. The node type can
+        then re-validate the destination against the live graph and raise
+        ServiceImproperlyConfiguredDispatchException if the link is no longer a
+        valid jump.
 
         The default is a no-op, as most node types never request a jump.
 

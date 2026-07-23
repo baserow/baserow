@@ -13,10 +13,8 @@ const sameLevel = (a, b) =>
 /**
  * Whether jumping from `gotoNode` to `destinationNode` is a backward jump: the
  * destination runs before the Go to node, so it is one of its previous nodes.
- * A valid jump (see `isValidGotoDestination`) that is not backward is a forward
- * jump, which skips the nodes in between. The editor uses this to point a jump's
- * marker arrows the right way, and it is the primitive the same-path check below
- * is built from.
+ * Only backward jumps are valid for now (see `isValidGotoDestination`), and
+ * this is the primitive that path check is built from.
  *
  * @param {Object} gotoNode The source Go to node.
  * @param {Object} destinationNode The destination node.
@@ -37,10 +35,11 @@ export function isBackwardGotoJump({
  * Whether `destinationNode` is a valid "Go to node" destination for `gotoNode`.
  *
  * This mirrors the backend `validate_goto_destination`: the destination must be
- * a non-trigger node, at the same level as the Go to node, and lie on the Go to
- * node's own path - either before it (a backward jump) or after it (a forward
- * jump that skips the nodes in between) - and it cannot be the Go to node
- * itself. Keeping the rule in a single helper means the connector overlay, the
+ * a non-trigger node, at the same level as the Go to node, and run before it on
+ * its own path (a backward jump) - and it cannot be the Go to node itself.
+ * Forward jumps are not allowed for now: they would leave the skipped nodes
+ * unexecuted, so a later node reading a skipped node's output would fail.
+ * Keeping the rule in a single helper means the connector overlay, the
  * destination dropdown and the post-move store cleanup all agree on what a valid
  * jump is.
  *
@@ -75,22 +74,14 @@ export function isValidGotoDestination({
   ) {
     return false
   }
-  // On the same path when one node is in the other's previous nodes: the
-  // destination runs before the Go to (a backward jump) or the Go to runs before
-  // the destination (a forward jump, i.e. a backward jump seen from the
-  // destination). A same-level node on a different branch is in neither and is
-  // rejected.
-  const isBackwardJump = isBackwardGotoJump({
+  // The destination must run before the Go to node on its own path (a backward
+  // jump). This both rejects forward jumps and a same-level node on a different
+  // branch, whose own predecessors would not have run when the jump lands on it.
+  return isBackwardGotoJump({
     gotoNode,
     destinationNode,
     previousNodesOf,
   })
-  const isForwardJump = isBackwardGotoJump({
-    gotoNode: destinationNode,
-    destinationNode: gotoNode,
-    previousNodesOf,
-  })
-  return isBackwardJump || isForwardJump
 }
 
 /**
