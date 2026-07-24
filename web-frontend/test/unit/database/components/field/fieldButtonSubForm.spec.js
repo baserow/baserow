@@ -45,4 +45,16 @@ describe('FieldButtonSubForm', () => {
     wrapper.vm.v$.$touch()
     expect(wrapper.vm.isFormValid()).toBe(false)
   })
+
+  test('an invalid formula blocks submission', async () => {
+    const wrapper = await mountForm({
+      type: 'button',
+      label: 'Open',
+      url_formula: { formula: "get('fields.field_1')", mode: 'advanced' },
+    })
+    expect(wrapper.vm.isFormValid()).toBe(true)
+    // The formula input only reports parse errors through update:invalid.
+    wrapper.vm.urlInvalid = true
+    expect(wrapper.vm.isFormValid()).toBe(false)
+  })
 })

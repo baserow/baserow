@@ -3,6 +3,23 @@ import BaserowFormulaExecutionVisitor from '@baserow/modules/core/formula/parser
 import BaserowFormulaValidationVisitor from '@baserow/modules/core/formula/parser/formulaValidationVisitor.js'
 import { FORMULA_TYPE } from '@baserow/modules/core/enums'
 
+// Parse trees are immutable, so identical formulas can share one tree. This
+// avoids re-lexing/re-parsing the same formula for every cell in large grids.
+const PARSE_TREE_CACHE_MAX_SIZE = 512
+const parseTreeCache = new Map()
+
+const getCachedParseTree = (formula) => {
+  let tree = parseTreeCache.get(formula)
+  if (tree === undefined) {
+    tree = parseBaserowFormula(formula)
+    if (parseTreeCache.size >= PARSE_TREE_CACHE_MAX_SIZE) {
+      parseTreeCache.delete(parseTreeCache.keys().next().value)
+    }
+    parseTreeCache.set(formula, tree)
+  }
+  return tree
+}
+
 /**
  * Resolves a formula in the context of the given context.
  *
@@ -27,7 +44,7 @@ export const resolveFormula = (
   }
 
   try {
-    const tree = parseBaserowFormula(formulaCtx.formula)
+    const tree = getCachedParseTree(formulaCtx.formula)
     return new BaserowFormulaExecutionVisitor(
       functions,
       RuntimeFormulaContext

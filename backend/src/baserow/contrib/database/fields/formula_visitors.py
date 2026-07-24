@@ -68,7 +68,10 @@ class BaserowFormulaReplaceFieldReferences(BaserowFormulaVisitor):
         return f"{function_name}({','.join(args)})"
 
     def visitBinaryOp(self, ctx: BaserowFormula.BinaryOpContext):
-        return ctx.getText()
+        # Visit both operands so nested get() references are also remapped.
+        left = ctx.expr(0).accept(self)
+        right = ctx.expr(1).accept(self)
+        return f"{left}{ctx.op.text}{right}"
 
     def visitFunc_name(self, ctx: BaserowFormula.Func_nameContext):
         return ctx.getText()

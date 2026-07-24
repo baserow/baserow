@@ -146,3 +146,28 @@ def test_duplicate_table_remaps_button_url_formula_references(data_fixture):
         f"get('fields.field_{new_text_field_id}')"
     )
     assert new_button.error is None
+
+
+@pytest.mark.django_db
+def test_duplicate_table_with_button_field_broken_references(data_fixture):
+    from baserow.contrib.database.table.handler import TableHandler
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_button_field(
+        table=table,
+        name="btn",
+        url_formula={
+            "formula": "concat('test:',get('fields.field_0'))",
+            "mode": "simple",
+        },
+    )
+
+    # A reference to a field missing from the id mapping must not fail the
+    # duplication; the formula is kept as-is.
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    new_button = ButtonField.objects.get(table=duplicated_table)
+
+    assert new_button.url_formula["formula"] == (
+        "concat('test:',get('fields.field_0'))"
+    )

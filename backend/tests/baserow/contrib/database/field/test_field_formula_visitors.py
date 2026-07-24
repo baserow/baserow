@@ -23,6 +23,19 @@ def test_replace_field_id_references_accepts_formula_object():
     )
 
 
+def test_replace_field_id_references_inside_binary_ops():
+    assert (
+        replace_field_id_references("get('fields.field_1')+'suffix'", {1: 2})
+        == "get('fields.field_2')+'suffix'"
+    )
+    assert (
+        replace_field_id_references(
+            "concat('a',get('fields.field_1')>get('fields.field_3'))", {1: 2, 3: 4}
+        )
+        == "concat('a',get('fields.field_2')>get('fields.field_4'))"
+    )
+
+
 def test_replace_field_id_references_skips_raw_formulas():
     assert (
         replace_field_id_references(
