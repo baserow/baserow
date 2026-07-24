@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0114_alter_workspaceinvitation_message'),
-        ('integrations', '0031_corestartworkflowservice'),
+        ('integrations', '0033_coregotonodeservice'),
     ]
 
     operations = [
