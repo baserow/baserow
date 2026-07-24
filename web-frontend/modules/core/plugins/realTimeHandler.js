@@ -19,9 +19,7 @@ const MAX_TOKEN_REFRESH_RETRIES = 1
 export class RealTimeHandler {
   constructor(context) {
     this.context = context
-    // Capture the config while the Nuxt plugin context is active. Reconnects
-    // can later run from timers, browser events, and WebSocket callbacks where
-    // calling a Nuxt composable would raise NUXT_E1001.
+    // Reconnect callbacks can run without an active Nuxt context.
     this.config = useRuntimeConfig()
     this.socket = null
     this.connected = false

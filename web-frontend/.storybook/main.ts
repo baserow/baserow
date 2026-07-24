@@ -14,9 +14,7 @@ const config: StorybookConfig = {
   framework: {
     name: '@storybook-vue/nuxt',
     options: {
-      // Nuxt layouts are exposed to Storybook as virtual Vue files. The
-      // Storybook 9 docgen plugin used by the current Nuxt bridge tries to read
-      // those virtual IDs from disk and makes Storybook 10 builds fail.
+      // The Nuxt bridge exposes virtual Vue modules that docgen cannot read.
       docgen: false,
     },
   },
