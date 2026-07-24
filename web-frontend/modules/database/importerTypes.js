@@ -1,10 +1,32 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
+
 import { Registerable } from '@baserow/modules/core/registry'
 
-import TableCSVImporter from '@baserow/modules/database/components/table/TableCSVImporter'
-import TablePasteImporter from '@baserow/modules/database/components/table/TablePasteImporter'
-import TableXMLImporter from '@baserow/modules/database/components/table/TableXMLImporter'
-import TableJSONImporter from '@baserow/modules/database/components/table/TableJSONImporter'
-import TableExcelImporter from '@baserow/modules/database/components/table/TableExcelImporter'
+const TableCSVImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TableCSVImporter'),
+  hydrate: hydrateOnIdle(),
+})
+const TablePasteImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TablePasteImporter'),
+  hydrate: hydrateOnIdle(),
+})
+const TableXMLImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TableXMLImporter'),
+  hydrate: hydrateOnIdle(),
+})
+const TableJSONImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TableJSONImporter'),
+  hydrate: hydrateOnIdle(),
+})
+const TableExcelImporter = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/database/components/table/TableExcelImporter'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class ImporterType extends Registerable {
   /**

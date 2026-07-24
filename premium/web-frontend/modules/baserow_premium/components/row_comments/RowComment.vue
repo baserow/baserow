@@ -82,7 +82,7 @@ import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
 import RowCommentContext from '@baserow_premium/components/row_comments/RowCommentContext'
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import { RichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 
 import moment from '@baserow/modules/core/moment'
 

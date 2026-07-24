@@ -1,16 +1,5 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import TextElement from '@baserow/modules/builder/components/elements/components/TextElement'
-import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement'
-import LinkElement from '@baserow/modules/builder/components/elements/components/LinkElement'
-import TextElementForm from '@baserow/modules/builder/components/elements/components/forms/general/TextElementForm'
-import HeadingElementForm from '@baserow/modules/builder/components/elements/components/forms/general/HeadingElementForm'
-import LinkElementForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkElementForm'
-import ImageElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ImageElementForm'
-import ImageElement from '@baserow/modules/builder/components/elements/components/ImageElement'
-import InputTextElement from '@baserow/modules/builder/components/elements/components/InputTextElement'
-import InputTextElementForm from '@baserow/modules/builder/components/elements/components/forms/general/InputTextElementForm'
-import TableElement from '@baserow/modules/builder/components/elements/components/TableElement'
-import TableElementForm from '@baserow/modules/builder/components/elements/components/forms/general/TableElementForm'
 import {
   ensureArray,
   ensureBoolean,
@@ -30,34 +19,9 @@ import {
   PAGE_PLACES,
   PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
-import ColumnElement from '@baserow/modules/builder/components/elements/components/ColumnElement'
-import ColumnElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ColumnElementForm'
-import DefaultStyleForm from '@baserow/modules/builder/components/elements/components/forms/style/DefaultStyleForm'
-import ButtonElement from '@baserow/modules/builder/components/elements/components/ButtonElement'
-import ButtonElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ButtonElementForm'
 import { ClickEvent, SubmitEvent } from '@baserow/modules/builder/eventTypes'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { resolveFormula } from '@baserow/modules/core/formula'
-import FormContainerElement from '@baserow/modules/builder/components/elements/components/FormContainerElement.vue'
-import FormContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/FormContainerElementForm.vue'
-import SimpleContainerElement from '@baserow/modules/builder/components/elements/components/SimpleContainerElement.vue'
-import SimpleContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/SimpleContainerElementForm.vue'
-import ChoiceElement from '@baserow/modules/builder/components/elements/components/ChoiceElement.vue'
-import ChoiceElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ChoiceElementForm.vue'
-import CheckboxElement from '@baserow/modules/builder/components/elements/components/CheckboxElement.vue'
-import CheckboxElementForm from '@baserow/modules/builder/components/elements/components/forms/general/CheckboxElementForm.vue'
-import IFrameElement from '@baserow/modules/builder/components/elements/components/IFrameElement.vue'
-import IFrameElementForm from '@baserow/modules/builder/components/elements/components/forms/general/IFrameElementForm.vue'
-import RepeatElement from '@baserow/modules/builder/components/elements/components/RepeatElement'
-import RepeatElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RepeatElementForm'
-import RecordSelectorElement from '@baserow/modules/builder/components/elements/components/RecordSelectorElement.vue'
-import RecordSelectorElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RecordSelectorElementForm'
-import MultiPageContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MultiPageContainerElementForm'
-import MultiPageContainerElement from '@baserow/modules/builder/components/elements/components/MultiPageContainerElement'
-import DateTimePickerElement from '@baserow/modules/builder/components/elements/components/DateTimePickerElement'
-import DateTimePickerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'
-import MenuElement from '@baserow/modules/builder/components/elements/components/MenuElement'
-import MenuElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import {
   ContainerElementTypeMixin,
@@ -72,11 +36,6 @@ import {
   ROLE_TYPE_ALLOW_EXCEPT,
   ROLE_TYPE_DISALLOW_EXCEPT,
 } from '@baserow/modules/builder/constants'
-
-import RatingElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm'
-import RatingElement from '@baserow/modules/builder/components/elements/components/RatingElement.vue'
-import RatingInputElement from '@baserow/modules/builder/components/elements/components/RatingInputElement.vue'
-import RatingInputElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue'
 
 // Images for element modal
 import elementImageButton from '@baserow/modules/builder/assets/icons/element-button.svg?url'
@@ -104,6 +63,212 @@ import moment from '@baserow/modules/core/moment'
 
 import _ from 'lodash'
 import { getValueAtPath } from '../core/utils/object'
+
+const TextElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/TextElement'),
+  hydrate: hydrateOnIdle(),
+})
+const HeadingElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/HeadingElement'),
+  hydrate: hydrateOnIdle(),
+})
+const LinkElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/LinkElement'),
+  hydrate: hydrateOnIdle(),
+})
+const TextElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/TextElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const HeadingElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/HeadingElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const LinkElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/LinkElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const ImageElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/ImageElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const ImageElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/ImageElement'),
+  hydrate: hydrateOnIdle(),
+})
+const InputTextElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/InputTextElement'),
+  hydrate: hydrateOnIdle(),
+})
+const InputTextElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/InputTextElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const TableElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/TableElement'),
+  hydrate: hydrateOnIdle(),
+})
+const TableElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/TableElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const ColumnElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/ColumnElement'),
+  hydrate: hydrateOnIdle(),
+})
+const ColumnElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/ColumnElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const DefaultStyleForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/style/DefaultStyleForm'),
+  hydrate: hydrateOnIdle(),
+})
+const ButtonElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/ButtonElement'),
+  hydrate: hydrateOnIdle(),
+})
+const ButtonElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/ButtonElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const FormContainerElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/FormContainerElement.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const FormContainerElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/FormContainerElementForm.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const SimpleContainerElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/SimpleContainerElement.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const SimpleContainerElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/SimpleContainerElementForm.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const ChoiceElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/ChoiceElement.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const ChoiceElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/ChoiceElementForm.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const CheckboxElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/CheckboxElement.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const CheckboxElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/CheckboxElementForm.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const IFrameElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/IFrameElement.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const IFrameElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/IFrameElementForm.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const RepeatElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/RepeatElement'),
+  hydrate: hydrateOnIdle(),
+})
+const RepeatElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/RepeatElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const RecordSelectorElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/RecordSelectorElement.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const RecordSelectorElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/RecordSelectorElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const MultiPageContainerElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/MultiPageContainerElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const MultiPageContainerElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/MultiPageContainerElement'),
+  hydrate: hydrateOnIdle(),
+})
+const DateTimePickerElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/DateTimePickerElement'),
+  hydrate: hydrateOnIdle(),
+})
+const DateTimePickerElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/DateTimePickerElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const MenuElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/MenuElement'),
+  hydrate: hydrateOnIdle(),
+})
+const MenuElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/MenuElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const RatingElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm'),
+  hydrate: hydrateOnIdle(),
+})
+const RatingElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/RatingElement.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const RatingInputElement = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/RatingInputElement.vue'),
+  hydrate: hydrateOnIdle(),
+})
+const RatingInputElementForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/elements/components/forms/general/RatingInputElementForm.vue'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class ElementType extends Registerable {
   get name() {

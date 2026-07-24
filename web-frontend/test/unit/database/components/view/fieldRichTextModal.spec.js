@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
+import { loadRichTextEditor } from '@baserow/modules/core/components/editor/richTextEditorAsync'
 
 describe('FieldRichTextModal', () => {
   let testApp
@@ -23,6 +24,9 @@ describe('FieldRichTextModal', () => {
     })
 
     wrapper.vm.toggle()
+    await loadRichTextEditor()
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve))
     await flushPromises()
     await new Promise((resolve) => setTimeout(resolve))
 

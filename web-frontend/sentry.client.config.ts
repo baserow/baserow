@@ -12,27 +12,36 @@ const dsn =
 const isDev = import.meta.dev && config.public.sentryDsn === 'fake'
 
 if (dsn && dsn !== '') {
+  const tracesSampleRate = parseFloat(config.public.sentryTracesSampleRate) || 0
+  const replaysOnErrorSampleRate =
+    parseFloat(config.public.sentryReplaysOnErrorSampleRate) || 0
+
+  // Replay records every session (rrweb) even at sample rate 0; skip integrations that can never sample.
+  const integrations = []
+  if (tracesSampleRate > 0) {
+    integrations.push(
+      Sentry.browserTracingIntegration({
+        router: useRouter(),
+      })
+    )
+  }
+  if (replaysOnErrorSampleRate > 0) {
+    integrations.push(
+      Sentry.replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+      })
+    )
+  }
+
   const defaultConfig = {
     dsn,
     release: `baserow-web-frontend@${config.public.version}`,
     environment: config.public.sentryEnvironment || 'production',
-    integrations: [
-      Sentry.browserTracingIntegration({
-        router: useRouter(),
-      }),
-      Sentry.replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      }),
-    ],
-    // Sample rate for performance tracing, configurable via the
-    // SENTRY_TRACES_SAMPLE_RATE env var (shared with the backend).
-    tracesSampleRate: parseFloat(config.public.sentryTracesSampleRate) || 0,
+    integrations,
+    tracesSampleRate,
     replaysSessionSampleRate: 0,
-    // Sample rate for saving a session replay on error, configurable via the
-    // SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE env var to cap replay volume.
-    replaysOnErrorSampleRate:
-      parseFloat(config.public.sentryReplaysOnErrorSampleRate) || 0,
+    replaysOnErrorSampleRate,
     ...(isDev ? { transport: makeFakeTransport } : {}),
     beforeSend(event, hint) {
       const err = hint?.originalException

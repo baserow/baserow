@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "postinstall": "APP_ENV=dev nuxt prepare",
-    "dev": "APP_ENV=dev node --import ./env-remap.mjs ./node_modules/.bin/nuxt dev",
+    "dev": "APP_ENV=dev NODE_OPTIONS=\"--max-old-space-size=8192\" node --import ./env-remap.mjs ./node_modules/.bin/nuxt dev",
     "build": "APP_ENV=production NODE_OPTIONS=--max-old-space-size=8192 nuxt build",
     "preview": "node --import ./env-remap.mjs ./node_modules/.bin/nuxt preview",
     "prod": "node --import ./env-remap.mjs .output/server/index.mjs",
@@ -114,6 +114,7 @@
     "path-to-regexp": "8.4.0",
     "posthog-js": "^1.232.4",
     "sass": "1.98.0",
+    "sass-embedded": "1.98.0",
     "thenby": "^1.3.4",
     "tippy.js": "^6.3.7",
     "tldjs": "^2.3.2",

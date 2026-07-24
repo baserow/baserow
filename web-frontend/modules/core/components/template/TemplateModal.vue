@@ -64,6 +64,13 @@ export default {
     async show(templateId = null, ...args) {
       modal.methods.show.call(this, ...args)
 
+      // Template previews render any application type, so every lazy domain must be loaded.
+      await Promise.all(
+        Object.keys(this.$registry.domainLoaders).map((domain) =>
+          this.$registry.loadDomain(domain)
+        )
+      )
+
       this.loading = true
       this.categories = []
       this.selectedTemplate = null

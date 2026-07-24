@@ -41,6 +41,7 @@ export default defineNuxtModule({
 
     addPlugin({
       src: resolve('./plugins/realtime.js'),
+      mode: 'client',
     })
 
     // Override Baserow's existing default.scss in favor of our own because that one

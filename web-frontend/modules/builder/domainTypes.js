@@ -1,8 +1,26 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import CustomDomainDetails from '@baserow/modules/builder/components/domain/CustomDomainDetails'
-import CustomDomainForm from '@baserow/modules/builder/components/domain/CustomDomainForm'
-import SubDomainForm from '@baserow/modules/builder/components/domain/SubDomainForm'
-import SubDomainDetails from '@baserow/modules/builder/components/domain/SubDomainDetails'
+
+const CustomDomainDetails = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/domain/CustomDomainDetails'),
+  hydrate: hydrateOnIdle(),
+})
+const CustomDomainForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/domain/CustomDomainForm'),
+  hydrate: hydrateOnIdle(),
+})
+const SubDomainForm = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/domain/SubDomainForm'),
+  hydrate: hydrateOnIdle(),
+})
+const SubDomainDetails = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/builder/components/domain/SubDomainDetails'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class DomainType extends Registerable {
   get name() {

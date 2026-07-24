@@ -1,3 +1,4 @@
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import {
   BaseBufferedRowViewTypeMixin,
   ViewType,
@@ -6,9 +7,6 @@ import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
 import KanbanView from '@baserow_premium/components/views/kanban/KanbanView'
 import CalendarView from '@baserow_premium/components/views/calendar/CalendarView'
 import TimelineView from '@baserow_premium/components/views/timeline/TimelineView'
-import KanbanViewHeader from '@baserow_premium/components/views/kanban/KanbanViewHeader'
-import CalendarViewHeader from '@baserow_premium/components/views/calendar/CalendarViewHeader'
-import TimelineViewHeader from '@baserow_premium/components/views/timeline/TimelineViewHeader'
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import {
@@ -16,8 +14,6 @@ import {
   isAdhocSorting,
   maxPossibleOrderValue,
 } from '@baserow/modules/database/utils/view'
-import CalendarCreateIcalSharedViewLink from '@baserow_premium/components/views/calendar/CalendarCreateIcalSharedViewLink'
-import CalendarSharingIcalSlugSection from '@baserow_premium/components/views/calendar/CalendarSharingIcalSlugSection'
 import {
   getDateField,
   dateSettinsAreValid,
@@ -28,6 +24,32 @@ import {
   TimelineViewPaidFeature,
 } from '@baserow_premium/paidFeatures'
 import { waitFor } from '@baserow/modules/core/utils/queue'
+
+const KanbanViewHeader = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/views/kanban/KanbanViewHeader'),
+  hydrate: hydrateOnIdle(),
+})
+const CalendarViewHeader = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/views/calendar/CalendarViewHeader'),
+  hydrate: hydrateOnIdle(),
+})
+const TimelineViewHeader = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/views/timeline/TimelineViewHeader'),
+  hydrate: hydrateOnIdle(),
+})
+const CalendarCreateIcalSharedViewLink = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/views/calendar/CalendarCreateIcalSharedViewLink'),
+  hydrate: hydrateOnIdle(),
+})
+const CalendarSharingIcalSlugSection = defineAsyncComponent({
+  loader: () =>
+    import('@baserow_premium/components/views/calendar/CalendarSharingIcalSlugSection'),
+  hydrate: hydrateOnIdle(),
+})
 
 class PremiumViewType extends ViewType {
   getDeactivatedText() {

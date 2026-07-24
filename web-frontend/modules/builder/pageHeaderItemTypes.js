@@ -1,5 +1,6 @@
 import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
+// Static imports on purpose: PageHeaderMenuItems.vue drives these via $refs on click.
 import ElementsContextComponent from '@baserow/modules/builder/components/page/header/ElementsContext'
 import DataSourceContextComponent from '@baserow/modules/builder/components/page/header/DataSourceContext'
 import VariablesContextComponent from '@baserow/modules/builder/components/page/header/VariablesContext'

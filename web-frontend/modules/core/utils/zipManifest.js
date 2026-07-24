@@ -2,7 +2,6 @@ import {
   WORKSPACE_EXPORT_MANIFEST_CANDIDATES,
   WORKSPACE_EXPORT_MANIFEST_FILENAME,
 } from '@baserow/modules/core/constants'
-import { ZipReader, BlobReader, TextWriter, configure } from '@zip.js/zip.js'
 
 /**
  * Extracts the manifest from a ZIP using zip.js that does not load whole ZIP into memory.
@@ -14,6 +13,8 @@ import { ZipReader, BlobReader, TextWriter, configure } from '@zip.js/zip.js'
  * @throws {Error} If the archive is empty or the manifest is missing/invalid.
  */
 export async function extractManifestFromZip(zipFile) {
+  const { ZipReader, BlobReader, TextWriter, configure } =
+    await import('@zip.js/zip.js')
   if (import.meta.server)
     throw new Error('zip.js library not available on client')
   configure({ useWebWorkers: false })

@@ -1,5 +1,11 @@
-import SidebarItemPendingJob from '@baserow/modules/core/components/sidebar/SidebarItemPendingJob'
+import { defineAsyncComponent, hydrateOnIdle } from 'vue'
 import { JobType } from '@baserow/modules/core/jobTypes'
+
+const SidebarItemPendingJob = defineAsyncComponent({
+  loader: () =>
+    import('@baserow/modules/core/components/sidebar/SidebarItemPendingJob.vue'),
+  hydrate: hydrateOnIdle(),
+})
 
 export class DuplicateAutomationWorkflowJobType extends JobType {
   static getType() {

@@ -24,38 +24,43 @@ describe('LongTextFieldType rich text switching', () => {
   const richField = { type: 'long_text', long_text_enable_rich_text: true }
   const plainField = { type: 'long_text', long_text_enable_rich_text: false }
 
-  test('resolves the rich text components when the flag is enabled', () => {
+  const resolveComponent = async (component) =>
+    component.__asyncLoader ? await component.__asyncLoader() : component
+
+  test('resolves the rich text components when the flag is enabled', async () => {
     expect(fieldType.getGridViewFieldComponent(richField)).toBe(
       GridViewFieldRichText
     )
     expect(fieldType.getFunctionalGridViewFieldComponent(richField)).toBe(
       FunctionalGridViewFieldRichText
     )
-    expect(fieldType.getRowEditFieldComponent(richField)).toBe(
-      RowEditFieldRichText
-    )
+    expect(
+      await resolveComponent(fieldType.getRowEditFieldComponent(richField))
+    ).toBe(RowEditFieldRichText)
     expect(fieldType.getCardComponent(richField)).toBe(RowCardFieldRichText)
-    expect(fieldType.getRowHistoryEntryComponent(richField)).toBe(
-      RowHistoryFieldRichText
-    )
+    expect(
+      await resolveComponent(fieldType.getRowHistoryEntryComponent(richField))
+    ).toBe(RowHistoryFieldRichText)
   })
 
-  test('resolves the plain components when the flag is disabled', () => {
+  test('resolves the plain components when the flag is disabled', async () => {
     expect(fieldType.getGridViewFieldComponent(plainField)).toBe(
       GridViewFieldLongText
     )
     expect(fieldType.getFunctionalGridViewFieldComponent(plainField)).toBe(
       FunctionalGridViewFieldLongText
     )
-    expect(fieldType.getRowEditFieldComponent(plainField)).toBe(
-      RowEditFieldLongText
-    )
+    expect(
+      await resolveComponent(fieldType.getRowEditFieldComponent(plainField))
+    ).toBe(RowEditFieldLongText)
   })
 
-  test('forms reuse the rich row edit component', () => {
+  test('forms reuse the rich row edit component', async () => {
     const components = fieldType.getFormViewFieldComponents(richField)
     const defaultComponent = Object.values(components)[0]
-    expect(defaultComponent.component).toBe(RowEditFieldRichText)
+    expect(await resolveComponent(defaultComponent.component)).toBe(
+      RowEditFieldRichText
+    )
   })
 
   test('rich text fields cannot be grouped by', () => {

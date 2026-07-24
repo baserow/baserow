@@ -24,7 +24,12 @@ export default defineNuxtModule({
     // Add global plugin
     addPlugin(resolve('./plugins/global.js'))
     addPlugin(resolve('./plugins/router.js'))
-    addPlugin(resolve('./plugins/realtime.js'))
+    addPlugin({ src: resolve('./plugins/realtime.js'), mode: 'client' })
+
+    addRouteMiddleware({
+      name: 'builderDomain',
+      path: resolve('./middleware/builderDomain.js'),
+    })
 
     addRouteMiddleware({
       name: 'selectWorkspaceBuilderPage',

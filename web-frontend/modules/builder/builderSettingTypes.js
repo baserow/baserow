@@ -1,16 +1,41 @@
-import { markRaw } from 'vue'
+import { defineAsyncComponent, hydrateOnIdle, markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
-import GeneralSettingsComponent from '@baserow/modules/builder/components/settings/GeneralSettings'
-import IntegrationSettingsComponent from '@baserow/modules/builder/components/settings/IntegrationSettings'
-import ThemeSettingsComponent from '@baserow/modules/builder/components/settings/ThemeSettings'
-import DomainsSettingsComponent from '@baserow/modules/builder/components/settings/DomainsSettings'
-import UserSourcesSettingsComponent from '@baserow/modules/builder/components/settings/UserSourcesSettings'
 
-const GeneralSettings = markRaw(GeneralSettingsComponent)
-const IntegrationSettings = markRaw(IntegrationSettingsComponent)
-const ThemeSettings = markRaw(ThemeSettingsComponent)
-const DomainsSettings = markRaw(DomainsSettingsComponent)
-const UserSourcesSettings = markRaw(UserSourcesSettingsComponent)
+const GeneralSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/GeneralSettings.vue'),
+    hydrate: hydrateOnIdle(),
+  })
+)
+const IntegrationSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/IntegrationSettings.vue'),
+    hydrate: hydrateOnIdle(),
+  })
+)
+const ThemeSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/ThemeSettings.vue'),
+    hydrate: hydrateOnIdle(),
+  })
+)
+const DomainsSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/DomainsSettings.vue'),
+    hydrate: hydrateOnIdle(),
+  })
+)
+const UserSourcesSettings = markRaw(
+  defineAsyncComponent({
+    loader: () =>
+      import('@baserow/modules/builder/components/settings/UserSourcesSettings.vue'),
+    hydrate: hydrateOnIdle(),
+  })
+)
 
 export class BuilderSettingType extends Registerable {
   static getType() {

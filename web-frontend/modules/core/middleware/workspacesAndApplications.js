@@ -27,6 +27,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // If the workspaces haven't already been selected we will
   if (store.getters['auth/isAuthenticated']) {
+    // Selecting a workspace and loading applications hit independent endpoints.
+    const pending = []
+
     // If the workspaces haven't been loaded we will load them all.
     if (!store.getters['workspace/isLoaded']) {
       await store.dispatch('workspace/fetchAll')
@@ -47,15 +50,16 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
       // If there is a workspaceId cookie we will select that workspace.
       if (workspaceId) {
-        try {
-          await store.dispatch('workspace/selectById', workspaceId)
-        } catch {}
+        pending.push(
+          store.dispatch('workspace/selectById', workspaceId).catch(() => {})
+        )
       }
     }
     // If the applications haven't been loaded we will also load them all.
     if (!store.getters['application/isLoaded']) {
-      await store.dispatch('application/fetchAll')
+      pending.push(store.dispatch('application/fetchAll'))
     }
+    await Promise.all(pending)
 
     // If the user hasn't completed the onboarding, and the doesn't have any workspaces,
     // then redirect to the on-boarding page so that the user can create their first

@@ -59,6 +59,29 @@ export class Registerable {
 export class Registry {
   constructor() {
     this.registry = {}
+    this.domainLoaders = {}
+    this.domainLoadPromises = {}
+  }
+
+  /** Queues a loader that registers a domain's types when loadDomain first runs. */
+  registerDomainLoader(domain, loader) {
+    if (!Object.prototype.hasOwnProperty.call(this.domainLoaders, domain)) {
+      this.domainLoaders[domain] = []
+    }
+    this.domainLoaders[domain].push(loader)
+  }
+
+  /** Runs every queued loader for the domain exactly once; concurrent calls share the promise. */
+  loadDomain(domain) {
+    if (
+      !Object.prototype.hasOwnProperty.call(this.domainLoadPromises, domain)
+    ) {
+      const loaders = this.domainLoaders[domain] || []
+      this.domainLoadPromises[domain] = Promise.all(
+        loaders.map((loader) => loader())
+      )
+    }
+    return this.domainLoadPromises[domain]
   }
 
   /**

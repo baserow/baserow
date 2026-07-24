@@ -389,8 +389,10 @@ export const actions = {
   async select({ commit, dispatch }, workspace) {
     const nuxtApp = this
 
-    await dispatch('fetchPermissions', workspace)
-    await dispatch('fetchRoles', workspace)
+    await Promise.all([
+      dispatch('fetchPermissions', workspace),
+      dispatch('fetchRoles', workspace),
+    ])
     commit('SET_SELECTED', workspace)
     setWorkspaceCookie(workspace.id, nuxtApp)
     dispatch(

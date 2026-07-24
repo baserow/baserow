@@ -33,7 +33,10 @@
 </template>
 
 <script>
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import {
+  loadRichTextEditor,
+  RichTextEditor,
+} from '@baserow/modules/core/components/editor/richTextEditorAsync'
 import Alert from '@baserow/modules/core/components/Alert'
 import modal from '@baserow/modules/core/mixins/modal'
 import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
@@ -72,8 +75,10 @@ export default {
   methods: {
     resolveClipboardMarkdown: getRichTextClipboardContent,
     show() {
-      this.$nextTick(() => {
-        this.$refs.editor.focus()
+      loadRichTextEditor().then(() => {
+        this.$nextTick(() => {
+          this.$refs.editor?.focus()
+        })
       })
     },
     isOpen() {

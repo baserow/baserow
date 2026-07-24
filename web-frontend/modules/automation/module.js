@@ -23,6 +23,12 @@ export default defineNuxtModule({
 
     addPlugin({
       src: resolve('./plugins/realtime.js'),
+      mode: 'client',
+    })
+
+    addRouteMiddleware({
+      name: 'automationDomain',
+      path: resolve('./middleware/automationDomain.js'),
     })
 
     addRouteMiddleware({
