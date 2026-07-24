@@ -1,5 +1,6 @@
 <template>
   <div v-if="hasAtLeastOneLoginOption" :style="fullStyle">
+    <Error :error="error"></Error>
     <template v-for="appAuthType in appAuthProviderTypes">
       <div
         v-if="hasAtLeastOneProvider(appAuthType)"
@@ -110,6 +111,9 @@ export default {
       )
     },
   },
+  mounted() {
+    this.showLoginErrorFromQueryParams()
+  },
   watch: {
     userSource: {
       handler(newValue) {
@@ -140,6 +144,36 @@ export default {
       return (
         this.appAuthProviderPerTypes[authProviderType.getType()]?.length > 0
       )
+    },
+    /**
+     * When an SSO login fails, the provider redirects back here with an error code
+     * in a query parameter. Surface it inline near the auth form (like the
+     * email/password flow) instead of letting it become a full page error.
+     *
+     * The query string is read from `window.location` rather than `this.$route`
+     * because, like the other builder auth components (e.g. `SamlAuthLink`),
+     * elements don't reliably have the router route in their render context.
+     */
+    showLoginErrorFromQueryParams() {
+      if (
+        this.isEditMode ||
+        !this.selectedUserSource ||
+        typeof window === 'undefined'
+      ) {
+        return
+      }
+      const query = Object.fromEntries(
+        new URLSearchParams(window.location.search)
+      )
+      for (const authProvider of this.authProviders) {
+        const message = this.$registry
+          .get('appAuthProvider', authProvider.type)
+          .getLoginError(this.selectedUserSource, { query })
+        if (message) {
+          this.showError(this.$t('loginError.title'), message)
+          break
+        }
+      }
     },
     async beforeLogin() {
       if (this.isAuthenticated) {

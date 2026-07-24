@@ -32,13 +32,15 @@ export class AppAuthProviderType extends BaseAuthProviderType {
   }
 
   /**
-   * Return an error message potentially extracted from query params.
-   * @param {*} userSource
-   * @param {*} authProvider
-   * @param {*} route
-   * @returns
+   * After an SSO login fails, the provider redirects back to the app with an error
+   * code in a query parameter. This returns a translated, user-facing message for
+   * that error (to be shown near the auth form) and clears the parameter from the
+   * URL, or `null` when there is no error for the given user source.
+   * @param {Object} userSource The user source the auth form is bound to.
+   * @param {Object} route The current route, whose query is inspected.
+   * @returns {string|null}
    */
-  handleError(userSource, authProvider, route) {
+  getLoginError(userSource, route) {
     return null
   }
 

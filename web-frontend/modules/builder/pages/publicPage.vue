@@ -168,24 +168,10 @@ const {
       )
     }
 
-    // Auth providers can get error code from the URL parameters
-    for (const userSource of builder.user_sources) {
-      for (const authProvider of userSource.auth_providers) {
-        const authError = $registry
-          .get('appAuthProvider', authProvider.type)
-          .handleError(userSource, authProvider, route)
-        if (authError) {
-          throw createError({
-            statusCode: authError.code,
-            message: authError.message,
-            data: {
-              report: false,
-            },
-            fatal: true,
-          })
-        }
-      }
-    }
+    // An SSO login error (e.g. the application user limit being reached) is reported
+    // back through a query parameter and rendered inline by the auth form element,
+    // mirroring the email/password login flow. It is intentionally not handled here
+    // so it doesn't take over the whole page with a fatal error.
 
     const found = resolveApplicationRoute(
       store.getters['page/getVisiblePages'](builder),

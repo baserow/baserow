@@ -29,7 +29,6 @@ from baserow_enterprise.api.sso.utils import (
     SsoErrorCode,
     get_valid_frontend_url,
     map_sso_exceptions,
-    urlencode_query_params,
 )
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
 from baserow_enterprise.integrations.common.sso.oauth2.app_auth_provider_types import (
@@ -134,11 +133,13 @@ class OAuth2LoginView(APIView):
 
             return redirect(redirect_url)
 
-        # We redirect to the default frontend url with an error code as an error
-        # happened
-        error_url = urlencode_query_params(
-            application_urls[0],
+        # Redirect back to the page the login was initiated from with an error code,
+        # so the auth form can render the error inline instead of a full page error.
+        error_url = get_valid_frontend_url(
+            request.GET.get("original"),
             {f"oidc_error__{user_source.id}": error_raised["code"].value},
+            default_frontend_urls=application_urls,
+            allow_any_path=False,
         )
         return redirect(error_url)
 
@@ -217,6 +218,7 @@ class OAuth2CallbackView(APIView):
         application_urls = application.get_type().get_application_urls(application)
 
         user = None
+        original_url = None
         error_raised = {"code": None}
 
         def on_error(error_code):
@@ -261,9 +263,13 @@ class OAuth2CallbackView(APIView):
 
             return redirect(redirect_url)
 
-        # We redirect to the default frontend url with an error code
-        error_url = urlencode_query_params(
-            application_urls[0],
+        # Redirect back to the page the login was initiated from with an error code,
+        # so the auth form can render the error inline (mirroring the success redirect
+        # and the plain email/password login flow) instead of a full page error.
+        error_url = get_valid_frontend_url(
+            original_url,
             {f"oidc_error__{provider.user_source.id}": error_raised["code"].value},
+            default_frontend_urls=application_urls,
+            allow_any_path=False,
         )
         return redirect(error_url)

@@ -71,13 +71,17 @@ def test_oauth2_callback_redirects_with_error_over_application_user_limit(
     """
     A login through the OIDC app auth provider of a workspace that has been over
     its application user limit for longer than the grace period must redirect
-    back to the application with the `errorApplicationUserLimitReached` error
-    code instead of signing the user in.
+    back to the page the login was initiated from with the
+    `errorApplicationUserLimitReached` error code, so the auth form can render it
+    inline, instead of signing the user in.
     """
 
     mock_aggregate_user_source_counts.return_value = DEFAULT_APPLICATION_USERS_LIMIT + 1
     data = populate_local_baserow_test_data(data_fixture)
     user_source = data["user_source"]
+    application_url = user_source.application.get_type().get_application_urls(
+        user_source.application.specific
+    )[0]
     provider = OpenIdConnectAppAuthProviderModel.objects.create(
         user_source=user_source,
         name="oidc",
@@ -87,7 +91,7 @@ def test_oauth2_callback_redirects_with_error_over_application_user_limit(
     )
     mock_get_user_info.return_value = (
         UserInfo(email="new@baserow.io", name="New user"),
-        "http://test.com/app",
+        application_url,
     )
 
     workspace = user_source.application.specific.get_workspace()
@@ -110,8 +114,11 @@ def test_oauth2_callback_redirects_with_error_over_application_user_limit(
     )
 
     assert response.status_code == HTTP_302_FOUND
+    # Redirected back to the originating page (under the application), not signed in.
+    assert response["Location"].startswith(application_url)
     query_params = dict(parse_qsl(urlparse(response["Location"]).query))
     assert (
         query_params[f"oidc_error__{user_source.id}"]
         == "errorApplicationUserLimitReached"
     )
+    assert f"user_source_oidc_token__{user_source.id}" not in query_params
