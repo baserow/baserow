@@ -42,6 +42,7 @@ import {
   FormViewEditRowFieldType,
   ButtonFieldType,
 } from '@baserow/modules/database/fieldTypes'
+import { FF_BUTTON_FIELD } from '@baserow/modules/core/plugins/featureFlags'
 import {
   EqualViewFilterType,
   NotEqualViewFilterType,
@@ -701,7 +702,9 @@ export default defineNuxtPlugin({
     $registry.register('field', new AutonumberFieldType(context))
     $registry.register('field', new PasswordFieldType(context))
     $registry.register('field', new FormViewEditRowFieldType(context))
-    $registry.register('field', new ButtonFieldType(context))
+    if (nuxtApp.$featureFlagIsEnabled(FF_BUTTON_FIELD)) {
+      $registry.register('field', new ButtonFieldType(context))
+    }
 
     $registry.register(
       'fieldConstraint',
