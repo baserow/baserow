@@ -488,6 +488,12 @@ frontend *args:
 # Shortcut alias for frontend
 alias f := frontend
 
+# Run any mox recipe for local "Start workflow by email" testing
+[group('1 - local-dev')]
+[doc("Run mox command: just mox <cmd> (e.g., mox init, mox up, mox send)")]
+mox *args:
+    @just --justfile mox.just {{ args }}
+
 # Run all linters (backend + frontend)
 [group('1 - local-dev')]
 [doc("Lint all code (backend + frontend)")]
