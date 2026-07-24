@@ -62,4 +62,34 @@ describe('buttonField utils', () => {
       resolveButtonUrl(testApp._app.$registry, missingRef, row, fields)
     ).toBe('')
   })
+
+  test('fails resolution when a referenced field is missing from the context', () => {
+    // A missing field (hidden in a public view, or another table in the
+    // link-row picker) must not resolve to a partial but valid URL.
+    const field = {
+      url_formula: {
+        formula: "concat('https://example.com/', get('fields.field_99'))",
+        mode: 'simple',
+      },
+    }
+    expect(resolveButtonUrl(testApp._app.$registry, field, row, fields)).toBe(
+      ''
+    )
+    expect(resolveButtonUrl(testApp._app.$registry, field, null, fields)).toBe(
+      ''
+    )
+  })
+
+  test('resolves an empty cell to an empty string', () => {
+    const field = {
+      url_formula: {
+        formula: "concat('https://example.com/', get('fields.field_1'))",
+        mode: 'simple',
+      },
+    }
+    const emptyRow = { id: 12, field_1: null }
+    expect(
+      resolveButtonUrl(testApp._app.$registry, field, emptyRow, fields)
+    ).toBe('https://example.com/')
+  })
 })

@@ -3,6 +3,7 @@ from typing import Dict, Optional, Union
 
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.core.formula import (
+    BASEROW_FORMULA_MODE_RAW,
     BaserowFormula,
     BaserowFormulaObject,
     BaserowFormulaVisitor,
@@ -116,6 +117,10 @@ def replace_field_id_references(
     if not formula_str:
         return formula_str
 
+    # Raw formulas are literal text, so there are no references to replace.
+    if not isinstance(formula, str) and formula["mode"] == BASEROW_FORMULA_MODE_RAW:
+        return formula_str
+
     tree = get_parse_tree_for_formula(formula_str)
     return BaserowFormulaReplaceFieldReferences(id_mapping).visit(tree)
 
@@ -216,6 +221,10 @@ def get_formula_field_error(
 
     formula_str = formula if isinstance(formula, str) else formula["formula"]
     if not formula_str:
+        return None
+
+    # Raw formulas are literal text and are never parsed, so they can't error.
+    if not isinstance(formula, str) and formula["mode"] == BASEROW_FORMULA_MODE_RAW:
         return None
 
     try:

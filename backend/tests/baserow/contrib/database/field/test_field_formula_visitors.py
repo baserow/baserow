@@ -23,6 +23,15 @@ def test_replace_field_id_references_accepts_formula_object():
     )
 
 
+def test_replace_field_id_references_skips_raw_formulas():
+    assert (
+        replace_field_id_references(
+            {"formula": "https://example.com?x=(1", "mode": "raw"}, {1: 2}
+        )
+        == "https://example.com?x=(1"
+    )
+
+
 def test_extract_field_id_dependencies():
     assert extract_field_id_dependencies(
         "concat(get('fields.field_1'), get('fields.field_3'))"
@@ -44,4 +53,11 @@ def test_get_formula_field_error(data_fixture):
     assert (
         get_formula_field_error("concat(broken", table.id)
         == "The formula could not be parsed."
+    )
+    # Raw formulas are literal text, so they are never parsed or validated.
+    assert (
+        get_formula_field_error(
+            {"formula": "https://example.com", "mode": "raw"}, table.id
+        )
+        is None
     )

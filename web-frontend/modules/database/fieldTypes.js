@@ -5479,7 +5479,7 @@ export class ButtonFieldType extends FieldType {
   }
 
   getDocsDataType() {
-    return null
+    return 'boolean'
   }
 
   getDocsDescription(field) {
