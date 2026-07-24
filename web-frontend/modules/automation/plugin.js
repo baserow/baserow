@@ -28,6 +28,7 @@ import {
   CoreIteratorNodeType,
   CoreSMTPEmailNodeType,
   CoreRouterNodeType,
+  CoreGotoNodeType,
   CorePeriodicTriggerNodeType,
   CoreStartWorkflowNodeType,
   CoreManualTriggerNodeType,
@@ -121,6 +122,7 @@ export default defineNuxtPlugin({
     $registry.register('node', new CoreHttpRequestNodeType(context))
     $registry.register('node', new CoreSMTPEmailNodeType(context))
     $registry.register('node', new CoreRouterNodeType(context))
+    $registry.register('node', new CoreGotoNodeType(context))
     $registry.register('node', new CoreIteratorNodeType(context))
     $registry.register('node', new CoreCSVFileReaderNodeType(context))
     $registry.register('node', new CoreStartWorkflowNodeType(context))

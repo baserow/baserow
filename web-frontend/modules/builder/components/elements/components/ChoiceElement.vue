@@ -74,8 +74,8 @@ export default {
      * @property {boolean} show_as_dropdown - If the choice element should be displayed as a dropdown
      * @property {Array} options - The options of the choice element
      * @property {string} option_type - The type of the options
-     * @property {string} formula_name - The formula for the name of the option
-     * @property {string} formula_value - The formula for the value of the option
+     * @property {string} formula_name - The expression for the name of the option
+     * @property {string} formula_value - The expression for the value of the option
      */
     element: {
       type: Object,

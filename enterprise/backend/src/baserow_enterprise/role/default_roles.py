@@ -95,6 +95,7 @@ from baserow.contrib.database.airtable.operations import (
 )
 from baserow.contrib.database.data_sync.operations import (
     GetIncludingPublicValuesOperationType,
+    ListDataSyncJobsOperationType,
     ListPropertiesOperationType,
     SyncTableOperationType,
 )
@@ -568,6 +569,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         UpdateBuilderWorkflowActionOperationType,
         OrderBuilderWorkflowActionOperationType,
         SyncTableOperationType,
+        ListDataSyncJobsOperationType,
         ListPropertiesOperationType,
         GetIncludingPublicValuesOperationType,
         CreateWidgetOperationType,

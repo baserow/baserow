@@ -22,7 +22,11 @@ from baserow.core.auth_provider.types import UserInfo
 from baserow.core.cache import global_cache
 from baserow_enterprise.api.sso.oauth2.errors import ERROR_INVALID_PROVIDER_URL
 from baserow_enterprise.sso.exceptions import AuthFlowError, InvalidProviderUrl
-from baserow_enterprise.sso.utils import is_sso_feature_active
+from baserow_enterprise.sso.utils import (
+    enforce_sso_ssrf_protection,
+    get_sso_request_function,
+    is_sso_feature_active,
+)
 
 from .models import (
     FacebookAuthProviderModel,
@@ -57,6 +61,12 @@ class BaseOAuth2AuthProviderMixin:
     - self.AUTHORIZATION_URL
     - self.SCOPE
     """
+
+    # True when the provider's endpoint URLs can be configured by an admin/builder
+    # (e.g. GitLab, OpenID Connect). Only those providers need SSRF protection on
+    # their OAuth2 session; providers with hardcoded URLs (Google, GitHub,
+    # Facebook) are left untouched so proxies keep working for them.
+    has_admin_configurable_urls = False
 
     def get_base_url(self, instance: AuthProviderModel) -> str:
         """
@@ -125,15 +135,22 @@ class BaseOAuth2AuthProviderMixin:
 
         redirect_uri = self.get_callback_url(instance)
         if "oauth_state" in session:
-            return OAuth2Session(
+            oauth = OAuth2Session(
                 instance.client_id,
                 redirect_uri=redirect_uri,
                 scope=self.SCOPE,
                 state=session.pop("oauth_state"),
             )
-        return OAuth2Session(
-            instance.client_id, redirect_uri=redirect_uri, scope=self.SCOPE
-        )
+        else:
+            oauth = OAuth2Session(
+                instance.client_id, redirect_uri=redirect_uri, scope=self.SCOPE
+            )
+        # The token and user info URLs can come from an admin/builder configured
+        # provider or its well-known document, so the session itself must also
+        # block private addresses. Providers with hardcoded URLs are skipped.
+        if self.has_admin_configurable_urls:
+            return enforce_sso_ssrf_protection(oauth)
+        return oauth
 
     def get_user_info_url(self, instance: AuthProviderModel) -> str:
         return self.USER_INFO_URL
@@ -384,6 +401,7 @@ class GitLabAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
     model_class = GitLabAuthProviderModel
     allowed_fields = ["name", "base_url", "client_id", "secret"]
     serializer_field_names = ["name", "base_url", "client_id", "secret"]
+    has_admin_configurable_urls = True
 
     AUTHORIZATION_PATH = "/oauth/authorize"
     SCOPE = ["read_user"]
@@ -442,6 +460,7 @@ class OpenIdConnectAuthProviderTypeMixin:
     """
 
     type = "openid_connect"
+    has_admin_configurable_urls = True
     allowed_fields = [
         "name",
         "base_url",
@@ -526,7 +545,9 @@ class OpenIdConnectAuthProviderTypeMixin:
 
         try:
             wellknown_url = f"{base_url}/.well-known/openid-configuration"
-            json_response = requests.get(wellknown_url, timeout=120).json()  # nosec B113
+            json_response = get_sso_request_function()(
+                "GET", wellknown_url, timeout=120
+            ).json()
 
             return WellKnownUrls(
                 authorization_url=json_response["authorization_endpoint"],
@@ -662,7 +683,9 @@ class OpenIdConnectAuthProviderTypeMixin:
         try:
             jwks = global_cache.get(
                 cache_key,
-                default=lambda: requests.get(jwks_url, timeout=60).json(),
+                default=lambda: get_sso_request_function()(
+                    "GET", jwks_url, timeout=60
+                ).json(),
                 timeout=3600,
             )
         except Exception as exc:

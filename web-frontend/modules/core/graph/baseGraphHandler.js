@@ -136,7 +136,18 @@ export default class BaseGraphHandler {
           }
         }
 
-        currentId = info.next?.['']?.[0] ?? null
+        // Non-default next outputs hold their own chains (e.g. automation
+        // router branches keyed by edge uid). Visit them before continuing
+        // along the default '' chain: the default edge is the fallback branch
+        // and renders last in the editor.
+        const next = info.next || {}
+        for (const output of Object.keys(next)) {
+          if (output === '') continue
+          const branchHeadId = next[output]?.[0]
+          if (branchHeadId) visitChain(branchHeadId)
+        }
+
+        currentId = next['']?.[0] ?? null
       }
     }
 

@@ -87,10 +87,10 @@ export default {
      * @property {string} data_source_id - The data source for the record selector element
      * @property {number} items_per_page - Number of items to show per page
      * @property {string} label - The label displayed above the record selector element
-     * @property {string} default_value - The formula to generate the displayed name
+     * @property {string} default_value - The expression to generate the displayed name
      * @property {string} placeholder - The placeholder text which should be applied to the element
      * @property {boolean} multiple - Whether this element can hold multiple values
-     * @property {string} option_name_suffix - The formula to generate the displayed suffix name
+     * @property {string} option_name_suffix - The expression to generate the displayed suffix name
      */
     element: {
       type: Object,
@@ -145,7 +145,7 @@ export default {
     },
     resolvedOptions() {
       // Fill the dropdown options with an array containing
-      // the record id and name from the resolved formula
+      // the record id and name from the resolved expression
       const options = this.elementContent.map((record, recordIndex) => ({
         value: record?.id,
         nameSuffix: ensureString(

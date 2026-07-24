@@ -1,4 +1,4 @@
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -509,6 +509,19 @@ class AutomationNodeService:
 
         workflow.get_graph().move(node_to_move, reference_node, position, output)
 
+        # A move can change a node's level, which may invalidate cross-node
+        # references (e.g. a "Go to node" link that now points across levels).
+        # Let each node type reconcile the workflow and record any reversible
+        # changes it made, keyed by node type, so the move can be undone.
+        move_extra_data: dict[str, Any] = {}
+        for node_type in automation_node_type_registry.get_all():
+            modifications = node_type.after_move(user, workflow)
+            if modifications is not None:
+                move_extra_data[node_type.type] = modifications
+
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        global_cache.update(cache_key, lambda _: True)
+
         automation_workflow_updated.send(self, workflow=workflow, user=user)
 
         return AutomationNodeMove(
@@ -516,4 +529,5 @@ class AutomationNodeService:
             previous_reference_node=previous_reference_node,
             previous_position=previous_position,
             previous_output=previous_output,
+            move_extra_data=move_extra_data,
         )

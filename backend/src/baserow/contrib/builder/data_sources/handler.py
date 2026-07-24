@@ -26,6 +26,7 @@ from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
 from baserow.core.storage import ExportZipFile
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import find_unused_name
 
 from .types import DataSourceForUpdate
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
 
 
+@baserow_trace_handler
 class DataSourceHandler:
     def __init__(self):
         self.service_handler = ServiceHandler()

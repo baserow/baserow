@@ -530,6 +530,11 @@ const actions = {
         position,
         output,
       })
+
+      // A move can change a node's level or path, which may invalidate
+      // cross-node references. Let each node type reconcile the workflow, as
+      // the backend does after its own move.
+      dispatch('afterMove', { workflow })
     } catch (error) {
       // We revert the operation
       dispatch('graphMove', {
@@ -541,6 +546,21 @@ const actions = {
       })
 
       throw error
+    }
+  },
+  /**
+   * Mirrors the backend, which calls `after_move` on every node type after a
+   * move: lets each node reconcile state the move may have invalidated (e.g. a
+   * "Go to node" whose destination now sits on a different branch or level).
+   */
+  afterMove({ dispatch, getters }, { workflow }) {
+    for (const node of getters.getNodes(workflow)) {
+      const values = this.$registry
+        .get('node', node.type)
+        .afterMove({ workflow, node })
+      if (values) {
+        dispatch('forceUpdate', { workflow, node, values })
+      }
     }
   },
   async duplicate({ commit, dispatch, getters }, { workflow, nodeId }) {
@@ -682,6 +702,15 @@ const getters = {
     if (!workflow) return []
     return workflow.nodes
   },
+  /**
+   * The nodes in the order they appear in the editor, top to bottom. `getNodes`
+   * returns them in creation order (the backend orders by id), which diverges
+   * from the graph as soon as a node is inserted between two others or moved.
+   */
+  getNodesInOrder: (state) => (workflow) => {
+    if (!workflow) return []
+    return new NodeGraphHandler(workflow).getOrderedNodes()
+  },
   findById: (state) => (workflow, nodeId) => {
     if (!workflow || !workflow.nodes || !nodeId) return null
     const nodeIdStr = nodeId.toString()
@@ -689,6 +718,14 @@ const getters = {
       return workflow.nodeMap[nodeIdStr]
     }
     return null
+  },
+  findByServiceId: (state, getters) => (workflow, serviceId) => {
+    if (!workflow || !serviceId) return null
+    return (
+      getters
+        .getNodes(workflow)
+        .find((node) => node.service?.id === serviceId) || null
+    )
   },
   getSelected: (state) => (workflow) => {
     if (!workflow) return null

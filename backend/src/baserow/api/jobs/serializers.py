@@ -3,7 +3,7 @@ from django.utils.functional import lazy
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_field
 from rest_framework import serializers
 
 from baserow.core.jobs.constants import (
@@ -54,6 +54,33 @@ class JobSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
         return job_type_registry.get_by_model(instance.specific_class).type
+
+
+def get_job_response_serializer_mapping():
+    """
+    Builds the response serializer mapping lazily because job types are registered
+    while Django applications are being initialized.
+    """
+
+    return {
+        job_type.type: job_type.response_serializer_class
+        for job_type in job_type_registry.registry.values()
+    }
+
+
+class ListJobsResponseSerializer(serializers.Serializer):
+    jobs = PolymorphicProxySerializer(
+        component_name="PolymorphicJobResponse",
+        serializers=get_job_response_serializer_mapping,
+        resource_type_field_name="type",
+        many=True,
+    )
+    count = serializers.IntegerField(
+        allow_null=True,
+        help_text=(
+            "The number of matching jobs, or null when polling explicit job IDs."
+        ),
+    )
 
 
 class CreateJobSerializer(serializers.Serializer):

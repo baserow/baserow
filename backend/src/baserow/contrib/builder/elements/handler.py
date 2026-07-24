@@ -47,6 +47,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.storage import ExportZipFile
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import MirrorDict, extract_allowed
 
 old_element_type_map = {"dropdown": "choice"}
@@ -54,6 +55,7 @@ old_element_type_map = {"dropdown": "choice"}
 DeferredImportCallback = Callable[[Element, Dict[str, Any], Dict[str, Any]], None]
 
 
+@baserow_trace_handler
 class ElementHandler:
     allowed_fields_create = [
         "visibility",
@@ -186,11 +188,11 @@ class ElementHandler:
 
         elements = self.get_elements(page, use_cache=use_element_cache)
         grouped_elements = {}
-        for element in elements:
+        for el in elements:
             # Pre-populate the page relation so that parent_element_id lookups
             # (which call _get_graph() → self.page) don't trigger extra queries.
-            element.page = page
-            grouped_elements[element.id] = element
+            el.page = page
+            grouped_elements[el.id] = el
         element = grouped_elements[element.id]
 
         ancestry = []

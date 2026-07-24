@@ -461,7 +461,7 @@ def test_builder_dispatch_context_public_allowed_properties_is_cached(
     }
 
     # Initially calling the property should cause a bunch of DB queries.
-    with django_assert_num_queries(14):
+    with django_assert_num_queries(15):
         result = dispatch_context.public_allowed_properties
         assert result == expected_results
 

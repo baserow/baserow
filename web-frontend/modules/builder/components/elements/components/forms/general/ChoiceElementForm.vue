@@ -251,7 +251,7 @@ export default {
           icon: 'iconoir-open-select-hand-gesture',
         },
         {
-          label: this.$t('choiceOptionSelector.formulas'),
+          label: this.$t('choiceOptionSelector.expressions'),
           value: CHOICE_OPTION_TYPES.FORMULAS,
           icon: 'iconoir-sigma-function',
         },

@@ -1,12 +1,15 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import requests
 from requests.exceptions import JSONDecodeError, RequestException
 
+from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
-from baserow.contrib.database.data_sync.utils import compare_date
+from baserow.contrib.database.data_sync.utils import (
+    compare_date,
+    get_data_sync_request_function,
+)
 from baserow.contrib.database.fields.models import (
     DateField,
     LongTextField,
@@ -279,7 +282,8 @@ class GitLabIssuesDataSyncType(DataSyncType):
         progress = None
         try:
             while True:
-                response = requests.get(
+                response = get_data_sync_request_function()(
+                    "GET",
                     url,
                     headers=headers,
                     params={"page": page, "per_page": per_page, "state": "all"},
@@ -313,6 +317,11 @@ class GitLabIssuesDataSyncType(DataSyncType):
 
                 issues.extend(data)
                 page += 1
+        except UnacceptableAddressException:
+            raise SyncError(
+                "The provided GitLab URL is not allowed because it points to a "
+                "private address or non-standard port."
+            )
         except RequestException as e:
             raise SyncError(f"Error fetching GitLab Issues: {str(e)}")
 

@@ -2,7 +2,6 @@ from datetime import datetime, time, timezone
 from unittest.mock import patch
 
 from django.conf import settings
-from django.core.cache import cache
 from django.db import transaction
 from django.test.utils import override_settings
 from django.utils import timezone as django_timezone
@@ -12,9 +11,14 @@ import responses
 from freezegun.api import freeze_time
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
-from baserow.contrib.database.data_sync.models import DataSync
+from baserow.contrib.database.data_sync.models import (
+    DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC,
+    DataSync,
+    SyncDataSyncTableJob,
+)
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
 from baserow.core.notifications.models import Notification
 from baserow_enterprise.data_sync.handler import EnterpriseDataSyncHandler
 from baserow_enterprise.data_sync.models import (
@@ -527,34 +531,39 @@ def test_skip_locked_data_syncs(enterprise_data_fixture, synced_roles):
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @patch("baserow_enterprise.data_sync.handler.sync_periodic_data_sync")
-def test_skip_syncing_data_syncs(
+def test_call_periodic_data_sync_enqueues_each_due_sync(
     mock_sync_periodic_data_sync, enterprise_data_fixture, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 
-    not_yet_executed_1 = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+    due_1 = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+    due_2 = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
         user=user,
         data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
         interval="DAILY",
         when=time(hour=12, minute=10, second=1, microsecond=1),
     )
 
-    lock_key = DataSyncHandler().get_table_sync_lock_key(
-        not_yet_executed_1.data_sync_id
-    )
-    cache.add(lock_key, "locked", timeout=2)
-
     with freeze_time("2024-10-10T12:15:00.00Z"):
         with transaction.atomic():
             EnterpriseDataSyncHandler.call_periodic_data_sync_syncs_that_are_due()
 
-    not_yet_executed_1.refresh_from_db()
-    # Should be updated if the data sync is already running.
-    assert not_yet_executed_1.last_periodic_sync is not None
+    due_1.refresh_from_db()
+    due_2.refresh_from_db()
+    assert due_1.last_periodic_sync is not None
+    assert due_2.last_periodic_sync is not None
 
-    # Should not be called if the data sync is already running.
-    mock_sync_periodic_data_sync.delay.assert_not_called()
+    # Every due sync must be enqueued with its own id, not the last iterated one.
+    called_ids = {
+        call.args[0] for call in mock_sync_periodic_data_sync.delay.call_args_list
+    }
+    assert called_ids == {due_1.id, due_2.id}
 
 
 @pytest.mark.django_db
@@ -596,26 +605,27 @@ def test_sync_periodic_data_sync_already_syncing(enterprise_data_fixture):
         when=time(hour=12, minute=10, second=1, microsecond=1),
     )
 
-    lock_key = DataSyncHandler().get_table_sync_lock_key(
-        periodic_data_sync.data_sync_id
+    SyncDataSyncTableJob.objects.create(
+        user=user, data_sync=periodic_data_sync.data_sync
     )
-    cache.add(lock_key, "locked", timeout=2)
 
     assert (
         EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id)
         is False
     )
 
+    periodic_data_sync.refresh_from_db()
+    assert periodic_data_sync.consecutive_failed_count == 0
     periodic_data_sync.data_sync.refresh_from_db()
     assert periodic_data_sync.data_sync.last_sync is None
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync_consecutive_failed_count_increases(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     responses.add(
         responses.GET,
@@ -642,14 +652,14 @@ def test_sync_periodic_data_sync_consecutive_failed_count_increases(
     assert periodic_data_sync.consecutive_failed_count == 1
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.data_sync
 @override_settings(
     DEBUG=True, BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS=2
 )
 @responses.activate
 def test_sync_periodic_data_sync_consecutive_failed_count_reset(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     responses.add(
         responses.GET,
@@ -682,11 +692,13 @@ END:VCALENDAR""",
     assert periodic_data_sync.consecutive_failed_count == 0
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
-def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture):
+def test_sync_periodic_data_sync_deactivated_max_failure(
+    enterprise_data_fixture, synced_roles
+):
     responses.add(
         responses.GET,
         "https://baserow.io/ical.ics",
@@ -742,8 +754,7 @@ def test_sync_periodic_data_sync_deactivated_max_failure_notification_send(
     periodic_data_sync.consecutive_failed_count = 3
     periodic_data_sync.save()
 
-    with transaction.atomic():
-        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id)
+    EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id)
 
     all_notifications = list(Notification.objects.all())
     assert len(all_notifications) == 1
@@ -765,10 +776,12 @@ def test_sync_periodic_data_sync_deactivated_max_failure_notification_send(
     }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture):
+def test_sync_periodic_data_sync_authorized_user_is_none(
+    enterprise_data_fixture, synced_roles
+):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 
@@ -778,7 +791,7 @@ def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture
         interval="DAILY",
         when=time(hour=12, minute=10, second=1, microsecond=1),
     )
-    periodic_data_sync.authorized_user is None
+    periodic_data_sync.authorized_user = None
     periodic_data_sync.save()
 
     assert (
@@ -789,11 +802,11 @@ def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture
     assert periodic_data_sync.consecutive_failed_count == 1
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
-def test_sync_periodic_data_sync(enterprise_data_fixture):
+def test_sync_periodic_data_sync(enterprise_data_fixture, synced_roles):
     responses.add(
         responses.GET,
         "https://baserow.io/ical.ics",
@@ -822,6 +835,12 @@ END:VCALENDAR""",
     periodic_data_sync.data_sync.refresh_from_db()
     assert periodic_data_sync.data_sync.last_sync is not None
     assert periodic_data_sync.data_sync.last_error is None
+
+    job = SyncDataSyncTableJob.objects.get()
+    assert job.user_id == user.id
+    assert job.data_sync_id == periodic_data_sync.data_sync_id
+    assert job.triggered_by == DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC
+    assert job.state == JOB_FINISHED
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1104,3 +1123,35 @@ def test_create_and_set_two_way_data_sync_table(
     assert fields[0].read_only is True
     assert fields[1].primary is False
     assert fields[1].read_only is False
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+@patch(
+    "baserow.contrib.database.data_sync.handler.DataSyncHandler.sync_data_sync_table",
+    side_effect=RuntimeError("unexpected"),
+)
+def test_sync_periodic_data_sync_unexpected_error_counts_as_failed_run(
+    mock_sync_data_sync_table, enterprise_data_fixture, synced_roles
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+
+    assert (
+        EnterpriseDataSyncHandler.sync_periodic_data_sync(periodic_data_sync.id) is True
+    )
+
+    periodic_data_sync.refresh_from_db()
+    assert periodic_data_sync.consecutive_failed_count == 1
+
+    job = SyncDataSyncTableJob.objects.get()
+    assert job.state == JOB_FAILED
+    assert job.triggered_by == DATA_SYNC_JOB_TRIGGERED_BY_PERIODIC

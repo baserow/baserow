@@ -21,6 +21,7 @@ from baserow.core.jobs.handler import JobHandler
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow_premium.fields.ai_field_output_types import ChoiceAIFieldOutputType
+from baserow_premium.fields.exceptions import AIFieldPromptInvalidError
 from baserow_premium.fields.models import GenerateAIValuesJob
 
 
@@ -50,6 +51,29 @@ def test_create_job_rows_mode(premium_data_fixture):
     assert job.view_id is None
     assert job.only_empty is False
     assert job.mode == GenerateAIValuesJob.MODES.ROWS
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_create_job_rejected_when_prompt_broken(premium_data_fixture):
+    """A broken prompt must block job creation for every mode/entry point."""
+
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    field = premium_data_fixture.create_ai_field(
+        table=table, ai_prompt="get('fields.field_999999')"
+    )
+
+    with pytest.raises(AIFieldPromptInvalidError):
+        JobHandler().create_and_start_job(
+            user,
+            "generate_ai_values",
+            field_id=field.id,
+        )
+
+    assert GenerateAIValuesJob.objects.count() == 0
 
 
 @pytest.mark.django_db
@@ -638,15 +662,17 @@ def test_generate_ai_field_value_view_generative_ai_invalid_field(
         .created_rows
     )
     assert patched_rows_updated.call_count == 0
-    JobHandler().create_and_start_job(
-        user, "generate_ai_values", sync=True, field_id=field.id, row_ids=[rows[0].id]
-    )
-    assert patched_rows_updated.call_count == 1
-    updated_row = patched_rows_updated.call_args[1]["rows"][0]
-    assert (
-        getattr(updated_row, field.db_column)
-        == "Generated with temperature None: Hello "
-    )
+    # A prompt referencing a missing field is rejected at job creation instead of
+    # silently generating with an empty reference value.
+    with pytest.raises(AIFieldPromptInvalidError):
+        JobHandler().create_and_start_job(
+            user,
+            "generate_ai_values",
+            sync=True,
+            field_id=field.id,
+            row_ids=[rows[0].id],
+        )
+    assert patched_rows_updated.call_count == 0
 
 
 @pytest.mark.django_db
@@ -666,7 +692,8 @@ def test_generate_ai_field_value_view_generative_ai_invalid_prompt(
     )
     table = premium_data_fixture.create_database_table(name="table", database=database)
     firstname = premium_data_fixture.create_text_field(table=table, name="firstname")
-    formula = "concat('Hello ', get('fields.field_0'))"
+    # The prompt must be valid; a broken one is rejected at job creation now.
+    formula = f"concat('Hello ', get('fields.field_{firstname.id}'))"
     field = premium_data_fixture.create_ai_field(
         table=table,
         name="ai",

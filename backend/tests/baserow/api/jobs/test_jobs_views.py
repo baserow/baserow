@@ -157,7 +157,7 @@ def test_list_jobs(data_fixture, api_client):
     }
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {"jobs": [job_2_json, job_1_json]}
+    assert response.json() == {"jobs": [job_2_json, job_1_json], "count": 2}
 
     valid_job_states = ",".join(["pending", "finished"])
     response = api_client.get(
@@ -166,7 +166,7 @@ def test_list_jobs(data_fixture, api_client):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {"jobs": [job_1_json]}
+    assert response.json() == {"jobs": [job_1_json], "count": 1}
 
     response = api_client.get(
         f"{url}?states=!finished",
@@ -174,7 +174,7 @@ def test_list_jobs(data_fixture, api_client):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {"jobs": [job_2_json, job_1_json]}
+    assert response.json() == {"jobs": [job_2_json, job_1_json], "count": 2}
 
     response = api_client.get(
         f"{url}?states=importing",
@@ -203,7 +203,8 @@ def test_list_jobs(data_fixture, api_client):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {"jobs": [job_2_json]}
+    # No count on the job_ids polling path to keep it cheap.
+    assert response.json() == {"jobs": [job_2_json], "count": None}
 
     response = api_client.get(
         f"{url}?job_ids=invalid_job_id",

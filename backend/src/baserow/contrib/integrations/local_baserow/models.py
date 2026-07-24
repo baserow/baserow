@@ -17,6 +17,7 @@ from baserow.core.services.models import (
     SearchableServiceMixin,
     Service,
     ServiceFilter,
+    ServiceFilterGroup,
     ServiceSort,
 )
 
@@ -214,6 +215,23 @@ class LocalBaserowTableServiceRefinementManager(models.Manager):
     use_in_migrations = True
 
 
+class LocalBaserowTableServiceFilterGroup(ServiceFilterGroup):
+    """
+    A service filter group applicable to a `LocalBaserowTableService` integration
+    service. Mirrors `baserow.contrib.database.views.models.ViewFilterGroup`.
+    """
+
+    objects = LocalBaserowTableServiceRefinementManager()
+
+    class Meta:
+        # Ordering by `id` guarantees parent groups are returned before their
+        # children, which the `AdvancedFilterBuilder` tree construction relies on.
+        ordering = ("id",)
+
+    def __repr__(self):
+        return f"<LocalBaserowTableServiceFilterGroup {self.id} {self.filter_type}>"
+
+
 class LocalBaserowTableServiceFilter(ServiceFilter):
     """
     A service filter applicable to a `LocalBaserowTableService` integration service.
@@ -221,6 +239,16 @@ class LocalBaserowTableServiceFilter(ServiceFilter):
 
     objects = LocalBaserowTableServiceRefinementManager()
 
+    group = models.ForeignKey(
+        LocalBaserowTableServiceFilterGroup,
+        related_name="filters",
+        help_text="The filter group to which the filter applies. If null, the filter "
+        "applies directly to the service.",
+        null=True,
+        default=None,
+        db_default=None,
+        on_delete=models.CASCADE,
+    )
     field = models.ForeignKey(
         "database.Field",
         help_text="The database Field, in the LocalBaserowTableService, "

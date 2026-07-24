@@ -60,7 +60,42 @@
   },
   "sidebar": {
     "viewAPI": "View API Docs",
-    "createTable": "New table"
+    "createTable": "New table",
+    "adminContentCategory": "Content"
+  },
+  "adminType": {
+    "databaseViews": "Views"
+  },
+  "viewsAdmin": {
+    "title": "Views"
+  },
+  "viewsAdminTable": {
+    "allViews": "All views",
+    "onlyPublic": "Only publicly shared views",
+    "name": "View",
+    "type": "Type",
+    "table": "Table",
+    "database": "Database",
+    "workspace": "Workspace",
+    "public": "Publicly shared",
+    "passwordProtected": "Password",
+    "ownedBy": "Owner",
+    "createdOn": "Created on"
+  },
+  "viewsAdminRotateSlugModal": {
+    "title": "Refresh URL",
+    "refreshWarning": "Are you sure that you want to refresh the URL of {viewName}? After refreshing, a new URL will be generated and it will not be possible to access the view via the old URL. Everyone that has the old URL, won't be able to access the view anymore.",
+    "generateNewURL": "Generate new URL"
+  },
+  "viewsAdminContext": {
+    "copyPublicUrl": "Copy public URL",
+    "openPublicView": "Open public view in new tab",
+    "searchWorkspaceId": "Search this workspace ID",
+    "rotateSlug": "Rotate slug",
+    "makePrivate": "Make private",
+    "makePublic": "Make public",
+    "publicUrlCopiedTitle": "Public URL copied",
+    "publicUrlCopiedMessage": "The public URL of the view has been copied to your clipboard."
   },
   "sidebarItem": {
     "exportTable": "Export table",
@@ -728,6 +763,7 @@
     "copyCellsWithHeader": "Copy cells with header",
     "generateCellsValues": "Generate values with AI",
     "generateAllAiValues": "Generate all AI values",
+    "promptBroken": "The prompt is broken and must be fixed before values can be generated.",
     "rowCount": "No rows | 1 row | {count} rows",
     "hiddenRowsInsertedTitle": "Rows added",
     "hiddenRowsInsertedMessage": "{number} newly added rows have been added, but are not visible because of the active filters.",
@@ -1156,7 +1192,18 @@
   "configureDataSyncModal": {
     "title": "Data sync",
     "syncedFields": "Synced fields",
-    "syncSettings": "Sync settings"
+    "syncSettings": "Sync settings",
+    "syncHistory": "Sync history"
+  },
+  "dataSyncRuns": {
+    "title": "Sync history",
+    "description": "The most recent sync runs of this table, no matter who or what started them.",
+    "previousRuns": "Previous runs",
+    "noRuns": "This table hasn't been synced yet.",
+    "triggerManual": "Manual",
+    "triggerPeriodic": "Periodic",
+    "byUser": "by {name}",
+    "duration": "{seconds}s"
   },
   "configureDataSyncVisibleFields": {
     "title": "Change synced fields",

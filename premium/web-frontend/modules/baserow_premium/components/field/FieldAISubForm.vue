@@ -80,7 +80,7 @@
     <FormGroup
       small-label
       :label="$t('fieldAISubForm.prompt')"
-      :error="v$.values.ai_prompt?.formula.$error"
+      :error="v$.values.ai_prompt?.formula.$error || promptInvalid"
       required
     >
       <div style="max-width: 366px">
@@ -92,9 +92,16 @@
           :validation-context="{ dataProviderRegistry: dataProviders }"
           @input="updatedFormulaStr"
           @update:mode="updateMode"
+          @update:invalid="promptInvalid = $event"
         />
       </div>
-      <template #error> {{ $t('error.requiredField') }}</template>
+      <template #error>
+        {{
+          promptInvalid
+            ? $t('fieldAISubForm.invalidPrompt')
+            : $t('error.requiredField')
+        }}
+      </template>
     </FormGroup>
 
     <component
@@ -147,6 +154,7 @@ export default {
       },
       fileFieldSupported: false,
       localMode: 'simple',
+      promptInvalid: false,
     }
   },
   computed: {
@@ -239,6 +247,14 @@ export default {
     },
   },
   methods: {
+    /**
+     * The prompt input only emits parseable formulas, so `values.ai_prompt`
+     * would silently keep the last valid one. Block submission while the
+     * editor content is invalid instead of saving a stale prompt.
+     */
+    isFormValid(deep = false) {
+      return !this.promptInvalid && form.methods.isFormValid.call(this, deep)
+    },
     /**
      * When `FormulaInputField` emits a new formula string, we need to emit the
      * entire value object with the updated formula string.

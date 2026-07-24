@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 19:38+0000\n"
+"POT-Creation-Date: 2026-07-21 18:19+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -256,7 +256,7 @@ msgstr ""
 msgid "Unlabeled"
 msgstr ""
 
-#: src/baserow/core/handler.py:2176 src/baserow/core/user/handler.py:275
+#: src/baserow/core/handler.py:2201 src/baserow/core/user/handler.py:275
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""

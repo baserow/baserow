@@ -352,6 +352,68 @@ describe('presence store', () => {
     expect(entries.map((e) => e.presence_id)).toEqual(['pid-a', 'pid-z'])
   })
 
+  test('SET_EDITORS_ACTIVE tracks active editors per space', () => {
+    const s = makeState()
+    mutations.SET_EDITORS_ACTIVE(s, { space: 'table-1', active: true })
+
+    expect(s.editorsActive['table-1']).toBe(true)
+
+    mutations.SET_EDITORS_ACTIVE(s, { space: 'table-1', active: false })
+    expect(s.editorsActive['table-1']).toBe(false)
+  })
+
+  test('CLEAR_SPACE also clears editorsActive for that space', () => {
+    const s = makeState()
+    mutations.SET_MEMBERS(s, {
+      space: 'table-1',
+      entries: [{ presence_id: 'pid-1', user_id: 10 }],
+    })
+    mutations.SET_EDITORS_ACTIVE(s, { space: 'table-1', active: true })
+    mutations.SET_EDITORS_ACTIVE(s, { space: 'table-2', active: true })
+    mutations.CLEAR_SPACE(s, { space: 'table-1' })
+
+    expect(s.editorsActive['table-1']).toBeUndefined()
+    expect(s.editorsActive['table-2']).toBe(true)
+  })
+
+  test('CLEAR_ALL_SPACES clears editorsActive', () => {
+    const s = makeState()
+    mutations.SET_EDITORS_ACTIVE(s, { space: 'table-1', active: true })
+    mutations.CLEAR_ALL_SPACES(s)
+
+    expect(Object.keys(s.editorsActive)).toHaveLength(0)
+  })
+
+  test('hasAnyActiveEditors returns true when any space has active editors', () => {
+    const s = makeState()
+    expect(applyGetter('hasAnyActiveEditors', s)).toBe(false)
+
+    mutations.SET_EDITORS_ACTIVE(s, { space: 'table-1', active: false })
+    expect(applyGetter('hasAnyActiveEditors', s)).toBe(false)
+
+    mutations.SET_EDITORS_ACTIVE(s, { space: 'table-2', active: true })
+    expect(applyGetter('hasAnyActiveEditors', s)).toBe(true)
+  })
+
+  test('getUniqueUsersBySpace lists anonymous entries individually', () => {
+    const s = makeState()
+    mutations.SET_MEMBERS(s, {
+      space: 'table-1',
+      entries: [
+        { presence_id: 'pid-1', user_id: 10 },
+        { presence_id: 'anon-1', user_id: -1 },
+        { presence_id: 'anon-2', user_id: -1 },
+      ],
+    })
+
+    const users = applyGetter('getUniqueUsersBySpace', s)('table-1')
+    expect(users).toHaveLength(3)
+    expect(users[0].user_id).toBe(10)
+    expect(users[1].user_id).toBe(-1)
+    expect(users[2].user_id).toBe(-1)
+    expect(users[1].presence_id).not.toBe(users[2].presence_id)
+  })
+
   test('ordering stays deterministic when members join, leave and join again', () => {
     const s = makeState()
     mutations.SET_MEMBERS(s, {

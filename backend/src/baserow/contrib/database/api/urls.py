@@ -1,5 +1,6 @@
 from django.urls import include, path
 
+from .admin import urls as admin_urls
 from .data_sync import urls as data_sync_urls
 from .export import urls as export_urls
 from .field_rules import urls as field_rules_urls
@@ -24,4 +25,5 @@ urlpatterns = [
     path("formula/", include(formula_urls, namespace="formula")),
     path("data-sync/", include(data_sync_urls, namespace="data_sync")),
     path("field-rules/", include(field_rules_urls, namespace="field_rules")),
+    path("admin/", include(admin_urls, namespace="admin")),
 ]

@@ -29,6 +29,7 @@
       enable-integration-picker
       :default-values="node.service"
       :edge-in-use-fn="nodeEdgeInUseFn"
+      :destinations="gotoDestinations"
       class="margin-top-2"
       @values-changed="handleNodeChange({ service: $event })"
     />
@@ -193,4 +194,18 @@ const nodeEdgeInUseFn = (edge) => {
     edge.uid
   ).length
 }
+
+/**
+ * The selectable destinations for the selected node's form, resolved through
+ * the node type's `getDestinations` hook. Node types whose form doesn't pick
+ * a destination return undefined, so the prop isn't bound as a stray
+ * fallthrough attribute on their forms.
+ */
+const gotoDestinations = computed(() =>
+  nodeType.value.getDestinations({
+    workflow: workflow.value,
+    node: node.value,
+    automation: automation.value,
+  })
+)
 </script>

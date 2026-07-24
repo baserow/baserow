@@ -11,6 +11,9 @@ from opentelemetry import metrics
 
 from baserow.config.settings.utils import try_int
 from baserow.ws.presence import (
+    ANONYMOUS_ALLOWED_PRESENCE_EVENTS,
+    ANONYMOUS_USER_ID,
+    PRESENCE_EVENT_PREFIX,
     NullPresenceHandler,
     PresenceHandler,
     PresenceHandlerProtocol,
@@ -212,10 +215,15 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         self.scope["pages"] = SubscribedPages()
         web_socket_id = self.scope["web_socket_id"]
         if settings.PRESENCE_VISIBLE_USERS > 0:
+            user_id = (
+                user.id
+                if getattr(user, "is_authenticated", False)
+                else ANONYMOUS_USER_ID
+            )
             self.presence = PresenceHandler(
                 consumer=self,
                 web_socket_id=web_socket_id,
-                user_id=user.id,
+                user_id=user_id,
             )
         else:
             self.presence = NullPresenceHandler()
@@ -671,9 +679,17 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         payload = event["payload"]
         ignore_web_socket_id = event["ignore_web_socket_id"]
         exclude_user_ids = set(event.get("exclude_user_ids", None) or [])
-        user_id = self.scope["user"].id
+        user = self.scope["user"]
 
-        if user_id in exclude_user_ids:
+        if not getattr(user, "is_authenticated", False):
+            payload_type = payload.get("type", "")
+            if (
+                payload_type.startswith(PRESENCE_EVENT_PREFIX)
+                and payload_type not in ANONYMOUS_ALLOWED_PRESENCE_EVENTS
+            ):
+                return
+
+        if getattr(user, "id", None) in exclude_user_ids:
             return
 
         if not ignore_web_socket_id or ignore_web_socket_id != web_socket_id:

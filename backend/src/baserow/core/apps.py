@@ -6,7 +6,6 @@ from django.db.models.signals import post_migrate, pre_migrate
 from health_check.storage.backends import DefaultFileStorageHealthCheck
 
 from baserow.cachalot_patch import clear_cachalot_cache
-from baserow.core.sentry import patch_user_model_str
 
 
 class CoreConfig(AppConfig):
@@ -519,6 +518,8 @@ class CoreConfig(AppConfig):
             pre_migrate.connect(lambda *a, **kw: clear_cachalot_cache(), sender=self)
 
         if settings.SENTRY_DSN:
+            from baserow.core.sentry import patch_user_model_str
+
             patch_user_model_str()
 
         import baserow.core.receivers  # noqa: F401

@@ -628,6 +628,35 @@ def test_create_data_sync_table_invalid_auth(enterprise_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_sync_data_sync_table_private_address_blocked(enterprise_data_fixture):
+    # By default the sync request goes through advocate, so a GitLab URL pointing to
+    # a private address must fail with a clear sync error instead of reaching
+    # Baserow's internal network.
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="gitlab_issues",
+        synced_properties=["id"],
+        gitlab_url="http://127.0.0.1:9",
+        gitlab_project_id="1",
+        gitlab_access_token="test",
+    )
+    data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert data_sync.last_error == (
+        "The provided GitLab URL is not allowed because it points to a private "
+        "address or non-standard port."
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_get_data_sync_properties(enterprise_data_fixture, api_client):
     enterprise_data_fixture.enable_enterprise()
     user, token = enterprise_data_fixture.create_user_and_token()

@@ -4,8 +4,10 @@ from django.db.models import QuerySet
 
 from baserow.contrib.database.models import Database
 from baserow.core.handler import CoreHandler
+from baserow.core.telemetry.utils import baserow_trace_handler
 
 
+@baserow_trace_handler
 class DatabaseHandler:
     def get_database(
         self, database_id: int, base_queryset: Optional[QuerySet] = None

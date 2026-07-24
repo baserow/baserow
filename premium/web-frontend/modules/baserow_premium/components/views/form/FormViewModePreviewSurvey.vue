@@ -41,6 +41,7 @@
                 :field-options="fieldOptions[field.id]"
                 :fields="fields"
                 :read-only="readOnly"
+                :get-scroll-area-element="getScrollAreaElement"
                 :add-order-buttons="true"
                 :add-handle="false"
                 @hide="hideField(view, field)"
@@ -202,6 +203,12 @@ export default {
     readOnly: {
       type: Boolean,
       required: true,
+    },
+    // Resolves the scrollable preview container owned by FormViewPreview.
+    getScrollAreaElement: {
+      type: Function,
+      required: false,
+      default: null,
     },
   },
   data() {

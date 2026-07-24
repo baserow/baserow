@@ -6,7 +6,9 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeDoesNotExist,
     AutomationNodeFirstNodeMustBeTrigger,
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
@@ -20,6 +22,7 @@ from baserow.contrib.automation.nodes.models import (
     AutomationNode,
     AutomationTriggerNode,
     CoreCSVFileReaderActionNode,
+    CoreGotoActionNode,
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
     CoreIteratorActionNode,
@@ -43,11 +46,14 @@ from baserow.contrib.automation.nodes.models import (
     SlackWriteMessageActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
+from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
+from baserow.contrib.integrations.core.models import CoreGotoService
 from baserow.contrib.integrations.core.service_types import (
     CoreCSVFileReaderServiceType,
+    CoreGotoServiceType,
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
     CoreIteratorServiceType,
@@ -75,8 +81,12 @@ from baserow.contrib.integrations.slack.service_types import (
 )
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.registry import Instance
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
 
 
 class AutomationNodeActionNodeType(AutomationNodeType):
@@ -352,6 +362,264 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
                     )
 
         return super().prepare_values(values, user, instance)
+
+
+class CoreGotoActionNodeType(AutomationNodeActionNodeType):
+    type = "goto"
+    model_class = CoreGotoActionNode
+    service_type = CoreGotoServiceType.type
+
+    def get_history_status(self, dispatch_result: DispatchResult) -> str:
+        """
+        A "Go to" node only jumps when its condition resolves to true, so a
+        dispatch without a destination means the jump was not followed. The
+        history is marked as skipped in that case, so it isn't presented as
+        if execution had been redirected.
+        """
+
+        if dispatch_result.destination_service_id is None:
+            return HistoryStatusChoices.SKIPPED
+        return HistoryStatusChoices.SUCCESS
+
+    def get_history_destination_node(
+        self, node: AutomationNode
+    ) -> Optional[AutomationNode]:
+        """
+        Resolves the node this "Go to" node jumps to via its service's
+        configured destination. Returns None when no destination has been
+        configured (or the destination service is not backed by a node).
+        """
+
+        service = node.service.specific
+        destination_service = service.destination_service
+
+        if destination_service is None:
+            return None
+
+        return getattr(destination_service, "automation_workflow_node", None)
+
+    @staticmethod
+    def validate_goto_destination(
+        source_node: AutomationNode,
+        destination_node: Optional[AutomationNode],
+    ) -> Optional[str]:
+        """
+        Validates that destination_node is an eligible "Go to node" destination
+        for source_node.
+
+        A destination is eligible when it belongs to the same workflow, is at
+        the same level (i.e. has the same parent/container nodes), is not a
+        trigger node and runs before the Go to node on its own path (a backward
+        jump). Forward jumps are not allowed for now: they would leave the
+        skipped nodes unexecuted, so a later node that reads a skipped node's
+        output via the previous-node data provider would fail at dispatch time.
+        A node may not target itself.
+        """
+
+        if destination_node is None:
+            return None
+
+        if destination_node.id == source_node.id:
+            return "The destination node cannot be the Go to node itself."
+
+        if destination_node.workflow_id != source_node.workflow_id:
+            return "The destination node must belong to the same workflow."
+
+        if destination_node.get_type().is_workflow_trigger:
+            return "The destination node cannot be a trigger node."
+
+        source_level = sorted(node.id for node in source_node.get_parent_points())
+        destination_level = sorted(
+            node.id for node in destination_node.get_parent_points()
+        )
+        if source_level != destination_level:
+            return "The destination node must be at the same level as the Go to node."
+
+        # The destination must run before the Go to node on its own path (a
+        # backward jump). `get_previous_points` returns the whole root-to-node
+        # path, so this both rejects forward jumps and a same-level node on a
+        # different branch, whose own predecessors would not have run when the
+        # jump lands on it.
+        source_previous_ids = {node.id for node in source_node.get_previous_points()}
+        if destination_node.id not in source_previous_ids:
+            return "The destination node must run before the Go to node."
+
+        return None
+
+    def validate_jump_destination(
+        self,
+        automation_node: AutomationNode,
+        destination_service_id: int,
+    ) -> None:
+        """
+        Re-validates the configured jump against the live graph before the
+        runner follows it. The service only resolves the intent to jump (and to
+        which destination); a link that became invalid after the service was
+        configured (e.g. the destination was moved to another level) raises a
+        clean misconfigured error instead of jumping.
+
+        The runner calls this only when the jump is about to be followed, so a
+        jump that is never followed (e.g. while simulating) is never validated.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        try:
+            destination_node = AutomationNodeHandler().get_node_by_service_id(
+                destination_service_id
+            )
+        except AutomationNodeDoesNotExist:
+            # The destination was deleted after the jump was configured. The
+            # link is only nulled when the destination is permanently deleted,
+            # so a trashed destination still resolves to a service here.
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The destination node no longer exists."
+            )
+
+        if error := self.validate_goto_destination(automation_node, destination_node):
+            raise ServiceImproperlyConfiguredDispatchException(error)
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """
+        Validates the configured destination node before the service is updated.
+
+        The destination must be a same-level, non-trigger node of the same
+        workflow, and cannot be the Go to node itself. We can only check this
+        when updating an existing node, as the source node must already exist
+        in the graph to determine its level.
+
+        A destination that no longer exists is dropped instead of rejected: the
+        link is only nulled when the destination is permanently deleted, so an
+        update can carry a destination whose node has since been trashed (e.g.
+        when undoing an update that predates the deletion).
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        service_values = values.get("service", {})
+        if instance is not None and service_values.get("destination_service_id"):
+            try:
+                destination_node = AutomationNodeHandler().get_node_by_service_id(
+                    service_values["destination_service_id"]
+                )
+            except AutomationNodeDoesNotExist:
+                values = {
+                    **values,
+                    "service": {**service_values, "destination_service_id": None},
+                }
+            else:
+                if error := self.validate_goto_destination(instance, destination_node):
+                    raise AutomationNodeMisconfiguredService(error)
+
+        return super().prepare_values(values, user, instance)
+
+    def after_move(
+        self, user: AbstractUser, workflow: AutomationWorkflow
+    ) -> list[tuple[int, int]] | None:
+        # A move can change a node's level or take it off the source node's
+        # path, either of which may invalidate a "Go to node" link that targets
+        # - or originates from - the moved node. Clear any now-invalid links and
+        # report them so the move can be undone.
+        return self.clear_invalidated_links(user, workflow) or None
+
+    def revert_move(
+        self, user: AbstractUser, modifications: list[tuple[int, int]]
+    ) -> None:
+        self.restore_links(user, modifications)
+
+    @classmethod
+    def clear_invalidated_links(
+        cls,
+        user: AbstractUser,
+        workflow: AutomationWorkflow,
+    ) -> list[tuple[int, int]]:
+        """
+        Nulls every "Go to node" destination in the workflow that is no longer a
+        valid jump from its source node - i.e. it left the source's level or its
+        path. Intended to be called after a move, which can change either. We
+        simply re-validate every goto link in the workflow: there are few of
+        them, and this avoids depending on the exact descendant semantics of the
+        graph to work out which links the move could have touched. A link
+        survives when it is still a valid backward jump (e.g. source and
+        destination moved together inside a container).
+
+        An `automation_node_updated` signal is sent for each cleared Go to node
+        so connected clients drop the stale link.
+
+        :return: A list of (goto_node_id, previous_destination_node_id) tuples
+            describing the links that were cleared, so the caller can restore
+            them when a move is undone.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        handler = AutomationNodeHandler()
+        goto_services = CoreGotoService.objects.filter(
+            automation_workflow_node__workflow=workflow,
+            destination_service__isnull=False,
+        ).select_related(
+            "automation_workflow_node",
+            "destination_service__automation_workflow_node",
+        )
+
+        cleared_goto_links: list[tuple[int, int]] = []
+        for service in goto_services:
+            source_node = service.automation_workflow_node
+            destination_node = service.destination_service.automation_workflow_node
+            if cls.validate_goto_destination(source_node, destination_node) is None:
+                continue
+
+            service.destination_service = None
+            service.save(update_fields=["destination_service"])
+            cleared_goto_links.append((source_node.id, destination_node.id))
+
+            automation_node_updated.send(
+                cls, user=user, node=handler.get_node(source_node.id)
+            )
+
+        return cleared_goto_links
+
+    @classmethod
+    def restore_links(
+        cls,
+        user: AbstractUser,
+        links: list[tuple[int, int]],
+    ) -> None:
+        """
+        Re-applies "Go to node" destinations that a move cleared, used when that
+        move is undone. Each link is re-validated against the (restored) graph
+        and skipped if it would still be invalid, so we never persist a
+        cross-level link.
+
+        :param links: (goto_node_id, destination_node_id) tuples to restore.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        handler = AutomationNodeHandler()
+        for goto_node_id, destination_node_id in links:
+            try:
+                goto_node = handler.get_node(goto_node_id)
+                destination_node = handler.get_node(destination_node_id)
+            except AutomationNodeDoesNotExist:
+                # An endpoint was deleted after the move was made; nothing to
+                # restore. (The link stays cleared, which is correct.)
+                continue
+            if cls.validate_goto_destination(goto_node, destination_node) is not None:
+                continue
+
+            service = goto_node.service.specific
+            service.destination_service_id = destination_node.service_id
+            service.save(update_fields=["destination_service"])
+
+            automation_node_updated.send(
+                cls, user=user, node=handler.get_node(goto_node_id)
+            )
 
 
 class AutomationNodeTriggerType(AutomationNodeType):

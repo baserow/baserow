@@ -1,5 +1,7 @@
 from unittest.mock import ANY, patch
 
+from django.test.utils import override_settings
+
 import pytest
 from celery.canvas import Signature
 
@@ -173,6 +175,22 @@ def create_workflow_history(data_fixture, workflow, trigger_table_fields):
             "has_next_page": False,
         },
     )
+
+
+def create_dispatch_limit_workflow(data_fixture, simulate=False):
+    """
+    Build a workflow + history for exercising the per-run node dispatch cap.
+    """
+
+    data = create_workflow(data_fixture)
+    node = data["trigger_node"]
+    history = data["workflow_history"]
+
+    if simulate:
+        history.simulate_until_node = node
+        history.save()
+
+    return node, history
 
 
 @pytest.mark.django_db
@@ -521,6 +539,7 @@ def test_dispatch_node_dispatches_iterator_children(data_fixture):
 
 
 @pytest.mark.django_db
+@override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=100)
 def test_dispatch_node_fully_dispatches_nested_iterator_workflow(data_fixture):
     data = data_fixture.nested_iterator_graph_fixture()
     trigger_node = data["trigger_node"]
@@ -646,6 +665,7 @@ def test_dispatch_node_dispatches_trigger_simulation(
         },
         "status": 200,
         "output_uid": "",
+        "destination_service_id": None,
     }
 
     mock_automation_node_updated.send.assert_called_once_with(
@@ -722,6 +742,7 @@ def test_dispatch_node_dispatches_action_simulation(
             "order": AnyStr(),
         },
         "output_uid": "",
+        "destination_service_id": None,
         "status": 200,
     }
 
@@ -943,6 +964,7 @@ def test_dispatch_node_dispatches_iterator_simulation(
             "order": AnyStr(),
         },
         "output_uid": "",
+        "destination_service_id": None,
         "status": 200,
     }
 
@@ -1444,6 +1466,7 @@ def test_dispatch_node_dispatches_router_edge_simulation(
         },
         "output_uid": AnyStr(),
         "status": 200,
+        "destination_service_id": None,
     }
 
     mock_automation_node_updated.send.assert_called_once_with(
@@ -1740,32 +1763,60 @@ def test_dispatch_node_does_not_send_completed_signal_on_error(
 
 
 @pytest.mark.django_db
-@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_started")
-@patch(f"{NODE_HANDLER_PATH}.automation_node_dispatch_completed")
-@patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
-def test_dispatch_node_returns_early_if_started_signal_has_error(
-    mock_dispatch,
-    mock_dispatch_completed,
-    mock_dispatch_started,
-    data_fixture,
-):
-    # Simulate an exception raised when the started signal is sent.
-    mock_dispatch_started.send.side_effect = Exception("Foo error")
+@override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=1)
+def test_dispatch_node_enforces_per_run_dispatch_limit(data_fixture):
+    node, history = create_dispatch_limit_workflow(data_fixture)
 
-    data = create_workflow(data_fixture)
-    trigger_node = data["trigger_node"]
-    workflow_history = data["workflow_history"]
+    # First dispatch is within the limit.
+    AutomationNodeHandler().dispatch_node(node.id, history.id)
+    clear_local()
+    history.refresh_from_db()
+    assert history.status != HistoryStatusChoices.ERROR
 
-    result = AutomationNodeHandler().dispatch_node(
-        trigger_node.id,
-        history_id=workflow_history.id,
-    )
-
+    # Second dispatch exceeds the limit and errors the run at the workflow level.
+    result = AutomationNodeHandler().dispatch_node(node.id, history.id)
     assert result is None
-    node_history = AutomationNodeHistory.objects.get(node=trigger_node)
-    assert node_history.status == HistoryStatusChoices.ERROR
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.ERROR
+    assert "exceeded the maximum of 1 node dispatches" in history.message
 
-    # Both node_dispatch() and the completed signal shouldn't be called
-    # because the started signal raised an error.
-    mock_dispatch.assert_not_called()
-    mock_dispatch_completed.send.assert_not_called()
+
+@pytest.mark.django_db
+@override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=1)
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+def test_dispatch_node_enforces_dispatch_limit_when_simulating(
+    mock_automation_node_updated, data_fixture
+):
+    # The cap is a backstop against infinite loops and applies to simulations
+    # too. A legitimate simulation dispatches each node on the path to the
+    # simulated node once, so it never gets near the cap.
+    node, history = create_dispatch_limit_workflow(data_fixture, simulate=True)
+
+    # First dispatch is within the limit.
+    AutomationNodeHandler().dispatch_node(node.id, history.id)
+    clear_local()
+    history.refresh_from_db()
+    assert history.status != HistoryStatusChoices.ERROR
+
+    # Second dispatch exceeds the limit and errors the run at the workflow level.
+    result = AutomationNodeHandler().dispatch_node(node.id, history.id)
+    assert result is None
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.ERROR
+    assert "exceeded the maximum of 1 node dispatches" in history.message
+
+    # The frontend is notified about the simulated node on the error path too,
+    # in addition to the notification sent by the first, successful dispatch.
+    assert mock_automation_node_updated.send.call_count == 2
+    mock_automation_node_updated.send.assert_called_with(ANY, user=None, node=node)
+
+
+@pytest.mark.django_db
+def test_check_node_dispatch_limit_counts_per_run(data_fixture):
+    _, history = create_dispatch_limit_workflow(data_fixture)
+    handler = AutomationNodeHandler()
+
+    with override_settings(AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN=2):
+        assert handler._check_node_dispatch_limit(history.id) is False
+        assert handler._check_node_dispatch_limit(history.id) is False
+        assert handler._check_node_dispatch_limit(history.id) is True

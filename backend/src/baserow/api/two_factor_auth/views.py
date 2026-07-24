@@ -27,11 +27,10 @@ from baserow.api.two_factor_auth.serializers import (
     TwoFactorAuthSerializer,
     VerifyTOTPSerializer,
 )
-from baserow.api.two_factor_auth.tokens import Require2faToken
+from baserow.api.two_factor_auth.tokens import TwoFactorTokenAuthentication
 from baserow.api.user.schemas import authenticated_user_response_schema
 from baserow.api.user.serializers import log_in_user
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
-from baserow.core.models import User
 from baserow.core.two_factor_auth.actions import (
     ConfigureTwoFactorAuthActionType,
     DisableTwoFactorAuthActionType,
@@ -177,7 +176,8 @@ class DisableTwoFactorAuthView(APIView):
 
 
 class VerifyTOTPAuthView(APIView):
-    permission_classes = (Require2faToken,)
+    authentication_classes = (TwoFactorTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         tags=["Auth"],
@@ -210,16 +210,22 @@ class VerifyTOTPAuthView(APIView):
         Verifies TOTP two-factor authentication.
         """
 
+        user = request.user
+
         def verify():
-            TwoFactorAuthHandler().verify(TOTPAuthProviderType.type, **data)
+            TwoFactorAuthHandler().verify(
+                TOTPAuthProviderType.type,
+                email=user.email,
+                code=data.get("code"),
+                backup_code=data.get("backup_code"),
+            )
 
         rate_limit(
             rate=RateLimit.from_string("10/m"),
-            key=f"two_fa_verify:totp:{data.get('email', '')}",
+            key=f"two_fa_verify:totp:{user.id}",
             raise_exception=True,
         )(verify)()
 
-        user = User.objects.filter(email=data["email"]).first()
         return_data = log_in_user(request, user)
 
         return Response(

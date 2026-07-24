@@ -43,6 +43,7 @@ from baserow.contrib.integrations.core.exceptions import (
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
     CoreCSVFileReaderService,
+    CoreGotoService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
@@ -1262,6 +1263,197 @@ class CoreRouterServiceType(CoreServiceType):
         }
 
 
+class CoreGotoServiceType(CoreServiceType):
+    type = "goto"
+    model_class = CoreGotoService
+    allowed_fields = ["condition", "destination_service_id"]
+    dispatch_types = [DispatchTypes.ACTION]
+    serializer_field_names = ["condition", "destination_service_id"]
+    simple_formula_fields = ["condition"]
+
+    class SerializedDict(ServiceDict):
+        condition: str
+        destination_service_id: int
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "condition": FormulaSerializerField(
+                help_text=CoreGotoService._meta.get_field("condition").help_text,
+                required=False,
+                default="",
+            ),
+            "destination_service_id": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                help_text=CoreGotoService._meta.get_field(
+                    "destination_service"
+                ).help_text,
+            ),
+        }
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        The destination is a reference to another service which may not have
+        been imported yet, as the import order is not guaranteed to follow the
+        graph order. We therefore null it on this first pass and remap it
+        during the second pass in after_import(), once all the workflow's
+        services have been imported.
+        """
+
+        original_destination_id = serialized_values.pop("destination_service_id", None)
+
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        if original_destination_id is not None:
+            id_mapping.setdefault("goto_destination_services", {})[service.id] = (
+                original_destination_id
+            )
+
+        return service
+
+    def after_import(self, instance, id_mapping, **kwargs):
+        """
+        Performs the second-pass remap of the destination service reference.
+
+        By this point every service of the workflow has been imported, so
+        id_mapping["services"] can resolve every jump destination.
+
+        When the destination service was part of this import - e.g. a full
+        workflow duplicate - it is remapped to the newly imported service. For a
+        partial duplicate, which copies just this Go to service and leaves the
+        destination service in place, the destination is carried over unchanged
+        so the duplicate jumps to the same place as the original. The link is
+        only reset when the destination service is genuinely absent from this
+        import.
+        """
+
+        updated_models = super().after_import(instance, id_mapping, **kwargs)
+
+        pending_destinations = id_mapping.get("goto_destination_services", {})
+        if instance.id in pending_destinations:
+            original_destination_id = pending_destinations[instance.id]
+            service_mapping = id_mapping.get("services", {})
+            # A partial duplicate seeds the service mapping with a MirrorDict,
+            # whose `get` echoes back any unmapped id, so the destination is
+            # carried over unchanged. A regular dict returns None instead.
+            instance.destination_service_id = service_mapping.get(
+                original_destination_id
+            )
+            updated_models.add(instance)
+
+        return updated_models
+
+    def get_schema_name(self, service: CoreGotoService) -> str:
+        return f"CoreGoto{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreGotoService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        properties = {}
+        if allowed_fields is None or "condition" in allowed_fields:
+            properties["condition"] = {
+                "type": "boolean",
+                "title": _("Condition"),
+                "description": _(
+                    "Whether the condition evaluated to true and the jump was followed."
+                ),
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def formulas_to_resolve(self, service: CoreGotoService) -> list[FormulaToResolve]:
+        return [
+            FormulaToResolve(
+                "condition",
+                service.condition,
+                lambda x: ensure_boolean(x, False),
+                'property "condition"',
+            )
+        ]
+
+    def _condition_is_set(self, service: CoreGotoService) -> bool:
+        """
+        Whether a condition formula has actually been configured. An unset
+        condition means the jump is unconditional, so it must be distinguished
+        from a configured condition that resolves to false (which suppresses
+        the jump). The resolved boolean alone can't tell these two apart, as
+        both arrive as `False`.
+        """
+
+        formula = (service.condition or {}).get("formula") or ""
+        # a formula of just white spaces should be considered unset
+        return bool(formula.strip())
+
+    def dispatch_data(
+        self,
+        service: CoreGotoService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        """
+        Decides whether to follow the jump to the configured destination. The
+        jump is followed when no condition has been configured (an unconditional
+        jump) or when the condition resolves to true. It is only skipped when a
+        condition is set and explicitly resolves to false.
+
+        This only resolves the intent to jump; how the jump is validated against
+        the graph, and whether it should be suppressed (e.g. while simulating),
+        is decided by the consumer that owns the graph. The returned
+        destination_service_id is a plain reference to the configured destination
+        service, which the consumer resolves within its own graph.
+        """
+
+        # An empty condition means "always jump"; only a configured condition
+        # that resolves to false can prevent it.
+        should_jump = resolved_values["condition"] or not self._condition_is_set(
+            service
+        )
+        destination_service_id = None
+        if should_jump:
+            if service.destination_service_id is None:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "No destination has been configured for this service."
+                )
+            destination_service_id = service.destination_service_id
+
+        return {
+            "destination_service_id": destination_service_id,
+            "data": {"condition": bool(should_jump)},
+        }
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(
+            destination_service_id=data["destination_service_id"], data=data["data"]
+        )
+
+
 class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "periodic"
     model_class = CorePeriodicService
@@ -1604,9 +1796,9 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerService
 
-    allowed_fields = ["uid", "exclude_get", "is_public"]
+    allowed_fields = ["exclude_get", "is_public"]
     serializer_field_names = ["uid", "exclude_get", "is_public"]
-    request_serializer_field_names = ["uid", "exclude_get"]
+    request_serializer_field_names = ["exclude_get"]
 
     class SerializedDict(ServiceDict):
         uid: str
@@ -1796,15 +1988,6 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             import_export_config=import_export_config,
             **kwargs,
         )
-
-    def export_prepared_values(
-        self, instance: CoreHTTPTriggerService
-    ) -> dict[str, Any]:
-        values = super().export_prepared_values(instance)
-
-        values["uid"] = str(values["uid"])
-
-        return values
 
 
 class CoreManualTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):

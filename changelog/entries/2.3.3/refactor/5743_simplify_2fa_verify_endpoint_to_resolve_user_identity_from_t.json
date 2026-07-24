@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Simplify 2FA verify endpoint to resolve user identity from the authentication token instead of the request body.",
+    "issue_origin": "github",
+    "issue_number": 5743,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-20"
+}

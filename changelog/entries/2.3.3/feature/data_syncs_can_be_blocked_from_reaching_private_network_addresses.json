@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Data syncs that fetch from a user configured URL (such as a self-hosted GitLab or Jira instance, or an iCal feed) can now be blocked from reaching private network addresses by setting the `BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS` env var to `false`.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-16"
+}

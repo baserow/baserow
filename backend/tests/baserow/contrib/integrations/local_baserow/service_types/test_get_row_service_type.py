@@ -107,8 +107,10 @@ def test_export_import_local_baserow_get_row_service(data_fixture):
                 "type": service_filter.type,
                 "value": service_filter.value,
                 "value_is_formula": service_filter.value_is_formula,
+                "group": service_filter.group_id,
             }
         ],
+        "filter_groups": [],
     }
 
     id_mapping = {}

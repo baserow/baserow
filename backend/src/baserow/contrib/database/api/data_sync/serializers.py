@@ -100,3 +100,15 @@ class ListDataSyncPropertySerializer(serializers.Serializer):
     def get_field_type(self, instance):
         field_type = field_type_registry.get_by_model(instance.to_baserow_field())
         return field_type.type
+
+
+class SyncDataSyncTableJobFiltersSerializer(serializers.Serializer):
+    """
+    Adds the ability to filter SyncDataSyncTableJob by data sync ID.
+    """
+
+    sync_data_sync_table_data_sync_id = serializers.IntegerField(
+        min_value=1,
+        required=False,
+        help_text="Filter by the data sync ID.",
+    )

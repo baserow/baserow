@@ -11,6 +11,7 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowUpdateRowsActionNode,
 )
 from baserow.contrib.automation.nodes.node_types import (
+    CoreGotoActionNodeType,
     CoreHTTPTriggerNodeType,
     CoreIteratorNodeType,
     CoreManualTriggerNodeType,
@@ -198,6 +199,13 @@ class AutomationNodeFixtures:
             edge2=edge2,
             edge2_output=edge2_output,
             fallback_output_node=fallback_output_node,
+        )
+
+    def create_core_goto_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=CoreGotoActionNodeType.type,
+            **kwargs,
         )
 
     def create_periodic_trigger_node(self, user=None, **kwargs):

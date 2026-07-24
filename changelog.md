@@ -1,5 +1,28 @@
 # Changelog
 
+## Released 2.3.3
+
+### New features
+* [Database] Show anonymous public view visitors in editor's presence bar [#5702](https://github.com/baserow/baserow/issues/5702)
+* [Database] Add links and rich formatting to form and field descriptions [#1851](https://github.com/baserow/baserow/issues/1851)
+* [Database] Data syncs that fetch from a user configured URL (such as a self-hosted GitLab or Jira instance, or an iCal feed) can now be blocked from reaching private network addresses by setting the `BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS` env var to `false`.
+* [Core] Monitor celery beat periodic tasks with Sentry cron monitors when Sentry is enabled
+* [Core] OAuth2 and OpenID Connect SSO providers with admin configurable URLs can now be blocked from reaching private network addresses by setting the `BASEROW_SSO_ALLOW_PRIVATE_ADDRESS` env var to `false`.
+
+### Bug fixes
+* [Database] Fix link row field modal unselecting newly created rows due to a race condition with real-time updates [#5735](https://github.com/baserow/baserow/issues/5735)
+* [Builder] Fixed workflow actions inside collection elements failing to resolve the current_record.
+* [Core] Prevent impersonating deactivated users via the admin impersonate endpoint
+* [Automation] Prevents the webhook address of an HTTP trigger from being changed after it is created
+* [Core] Reduce backend memory usage by releasing each API response's memory right after it is sent
+* [Database] Show an error on AI fields with a broken prompt and block generating until fixed [#3088](https://github.com/baserow/baserow/issues/3088)
+* [Core] Workspace import now strictly validates the manifest schema version, and an unsupported version returns a clear invalid file error.
+
+### Refactors
+* [Core] Simplify 2FA verify endpoint to resolve user identity from the authentication token instead of the request body. [#5743](https://github.com/baserow/baserow/issues/5743)
+* [Builder] Updated 'formula' references in builder, automation & integrations module so that they now refer to 'expressions'.
+
+
 ## Released 2.3.2
 
 ### New features

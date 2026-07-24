@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.urls import reverse
 
@@ -423,6 +424,34 @@ def test_updating_node_with_invalid_formula_arguments_throws_error(
             }
         },
     }
+
+
+@pytest.mark.django_db
+def test_update_http_trigger_node_ignores_uid(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, create_trigger=False)
+    node = data_fixture.create_http_trigger_node(user=user, workflow=workflow)
+    service = node.service
+    original_uid = service.uid
+
+    api_kwargs = get_api_kwargs(token)
+    update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
+    payload = {
+        "service": {
+            "type": service.get_type().type,
+            "uid": str(uuid4()),
+            "exclude_get": True,
+        }
+    }
+    response = api_client.patch(update_url, payload, **api_kwargs)
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["service"]["uid"] == str(original_uid)
+
+    service.refresh_from_db()
+    assert service.uid == original_uid
+    # A field which is allowed to be updated is still applied.
+    assert service.exclude_get is True
 
 
 @pytest.mark.django_db

@@ -1,6 +1,8 @@
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
+from django.conf import settings
+from django.core.cache import cache
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 from django.utils import timezone
@@ -26,6 +28,7 @@ from baserow.contrib.automation.history.models import (
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
+    AutomationNodeMaxDispatchesExceeded,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
@@ -52,13 +55,14 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
 
 tracer = trace.get_tracer(__name__)
 
 
-class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
+@baserow_trace_handler
+class AutomationNodeHandler:
     allowed_fields = [
         "label",
         "service",
@@ -172,6 +176,25 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
+    def get_node_by_service_id(self, service_id: int) -> AutomationNode:
+        """
+        Return the AutomationNode that owns the given service. The node<->service
+        relation is one-to-one, so a service maps to exactly one node.
+
+        :param service_id: The ID of the node's service.
+        :raises AutomationNodeDoesNotExist: If no node owns the service.
+        :return: The specific model instance of the AutomationNode.
+        """
+
+        try:
+            return (
+                AutomationNode.objects.select_related("workflow__automation__workspace")
+                .get(service_id=service_id)
+                .specific
+            )
+        except AutomationNode.DoesNotExist:
+            raise AutomationNodeDoesNotExist(service_id)
+
     def create_node(
         self,
         node_type: AutomationNodeType,
@@ -231,6 +254,10 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflow_nodes"] = MirrorDict()
+        # A single-node duplicate leaves referenced nodes (and thus their
+        # services) in place, so mirror service ids too. This lets a self
+        # reference like a "Go to node" destination carry over unchanged.
+        id_mapping["services"] = MirrorDict()
 
         import_export_config = ImportExportConfig(
             include_permission_data=True,
@@ -300,6 +327,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             **kwargs,
         )[0]
 
+    @baserow_trace(tracer)
     def import_nodes(
         self,
         workflow: AutomationWorkflow,
@@ -340,13 +368,15 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             if progress:
                 progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
-        # We migrate service formulas here to make sure all nodes are imported before
-        # we migrate them
+        # We migrate service formulas and remap cross-service references here to
+        # make sure all nodes are imported before we migrate them
         for imported_node in imported_nodes:
             service = imported_node.service.specific
-            updated_models = service.get_type().import_formulas(
+            service_type = service.get_type()
+            updated_models = service_type.import_formulas(
                 service, id_mapping, import_formula, **kwargs
             )
+            updated_models |= service_type.after_import(service, id_mapping, **kwargs)
 
             [u.save() for u in updated_models]
 
@@ -396,6 +426,23 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             iteration_path=iteration_path,
         )
 
+    def _node_dispatch_count_cache_key(self, history_id: int) -> str:
+        return f"automation_node_dispatch_count_{history_id}"
+
+    def _check_node_dispatch_limit(self, history_id: int) -> bool:
+        """
+        Increments and checks the per-run node dispatch counter. The counter
+        is keyed per workflow run and self-expires after the workflow timeout.
+
+        This is a safety backstop against infinite loops, e.g. a misconfigured
+        "Go to node".
+        """
+
+        key = self._node_dispatch_count_cache_key(history_id)
+        cache.add(key, 0, settings.AUTOMATION_WORKFLOW_TIMEOUT_HOURS * 60 * 60)
+        dispatch_count = cache.incr(key)
+        return dispatch_count > settings.AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN
+
     def _handle_simulation_notify(
         self, simulate_until_node: AutomationNode | None, node: AutomationNode
     ) -> bool:
@@ -416,11 +463,25 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         return False
 
     def _before_node_dispatch(
-        self, node: AutomationNode, workflow_history: AutomationWorkflowHistory
+        self,
+        node: AutomationNode,
+        workflow_history: AutomationWorkflowHistory,
     ) -> None:
         """
-        Sends a signal before a node is dispatched.
+        Runs pre-dispatch checks and emits the started signal.
+
+        :raises AutomationNodeMaxDispatchesExceeded: If the workflow run has
+            exceeded the maximum number of node dispatches allowed.
         """
+
+        # Stop the workflow run if it exceeds the max dispatches allowed.
+        # Safety backstop against infinite loops, e.g. a misconfigured
+        # "Go to node".
+        if self._check_node_dispatch_limit(workflow_history.id):
+            limit = settings.AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN
+            raise AutomationNodeMaxDispatchesExceeded(
+                f"Workflow exceeded the maximum of {limit} node dispatches."
+            )
 
         automation_node_dispatch_started.send(
             sender=self,
@@ -441,6 +502,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             node_history=node_history,
         )
 
+    @baserow_trace(tracer)
     def dispatch_node(
         self,
         node_id: int,
@@ -519,6 +581,22 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         try:
             self._before_node_dispatch(node, workflow_history)
             dispatch_result = node_type.dispatch(node, dispatch_context)
+            if (
+                dispatch_result.destination_service_id is not None
+                and not simulate_until_node
+            ):
+                # The dispatch requested a jump the runner is about to follow
+                # (jumps are never followed while simulating). Let the node type
+                # re-validate the destination against the live graph first.
+                node_type.validate_jump_destination(
+                    node, dispatch_result.destination_service_id
+                )
+        except AutomationNodeMaxDispatchesExceeded as e:
+            error = str(e)
+            logger.warning(error)
+            self._handle_workflow_error(node_history, iteration_path, error)
+            self._handle_simulation_notify(simulate_until_node, node)
+            return None
         except ServiceImproperlyConfiguredDispatchException as e:
             error = f"The node is misconfigured and cannot be dispatched. {str(e)}"
             self._handle_workflow_error(node_history, iteration_path, error)
@@ -554,7 +632,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         # can accurately rely on the completed_on field.
         now = timezone.now()
         node_history.completed_on = now
-        node_history.status = HistoryStatusChoices.SUCCESS
+        node_history.status = node_type.get_history_status(dispatch_result)
         node_history.save()
 
         # The post-dispatch hook should also be able to safely access the
@@ -599,16 +677,31 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 canvas = chain(*groups_to_chain)
                 to_chain.append(canvas)
 
-        # Handle non-iterator nodes, including iterator children.
-        next_nodes = node.get_next_points(dispatch_result.output_uid)
-        if next_nodes:
+        if (
+            dispatch_result.destination_service_id is not None
+            and not simulate_until_node
+        ):
+            # A node (e.g. "Go to node") requested a jump to a specific node,
+            # identified by its service, rather than the natural next node.
+            # While simulating, the jump is never followed: execution walks the
+            # natural path towards the simulated node instead of looping on it.
+            next_node_ids = [
+                self.get_node_by_service_id(dispatch_result.destination_service_id).id
+            ]
+        else:
+            # Handle non-iterator nodes, including iterator children.
+            next_node_ids = [
+                n.id for n in node.get_next_points(dispatch_result.output_uid)
+            ]
+
+        if next_node_ids:
             to_chain.append(
                 group(
                     [
                         dispatch_node_celery_task.si(
-                            n.id, history_id, current_iterations
+                            next_id, history_id, current_iterations
                         )
-                        for n in next_nodes
+                        for next_id in next_node_ids
                     ]
                 ),
             )
