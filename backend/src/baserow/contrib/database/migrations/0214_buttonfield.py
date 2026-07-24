@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('database', '0212_data_sync_delete_unmatched_rows'),
+        ('database', '0213_syncdatasynctablejob_triggered_by'),
     ]
 
     operations = [
