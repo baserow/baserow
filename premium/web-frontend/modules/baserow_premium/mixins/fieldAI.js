@@ -1,6 +1,7 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 import FieldService from '@baserow_premium/services/field'
+import { setAIFieldErrorFromGenerationError } from '@baserow_premium/utils/aiField'
 
 export default {
   data() {
@@ -29,9 +30,11 @@ export default {
         .get('field', this.field.type)
         .isDeactivated(this.workspaceId)
     },
-    // Indicates if the field's prompt is broken and can't be used to generate values.
-    promptBroken() {
-      return !!this.field.error
+    fieldError() {
+      return this.field.error || null
+    },
+    fieldHasError() {
+      return !!this.fieldError
     },
     deactivatedClickComponent() {
       return this.$registry
@@ -47,7 +50,7 @@ export default {
   methods: {
     async generate() {
       // Guard every caller and not just the disabled button.
-      if (!this.modelAvailable || this.generating || this.promptBroken) {
+      if (!this.modelAvailable || this.generating || this.fieldHasError) {
         return
       }
 
@@ -57,6 +60,7 @@ export default {
           this.$parent.row.id,
         ])
       } catch (error) {
+        setAIFieldErrorFromGenerationError(this.$store, this.field, error)
         notifyIf(error, 'field')
         this.generating = false
       }

@@ -81,6 +81,11 @@ export const actions = {
       commit('SET_LOADING', false)
     }
   },
+  async refresh({ commit }) {
+    const { data } = await aiProviderService(this.$client).fetchAll()
+    commit('SET_PROVIDERS', data)
+    return data
+  },
   async create({ commit }, values) {
     const { data } = await aiProviderService(this.$client).create(values)
     commit('ADD_PROVIDER', data)

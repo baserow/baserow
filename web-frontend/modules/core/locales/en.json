@@ -924,6 +924,7 @@
   "selectAIModelForm": {
     "AIType": "AI Type",
     "AIModel": "AI Model",
+    "modelUnavailable": "This model is disabled or no longer available.",
     "fileField": "File field",
     "temperatureLabel": "Temperature",
     "temperatureDescription": "The temperature of an LLM, a parameter set between 0 and {max}, adjusts response randomness—lower values yield focused answers, while higher values increase creativity."
@@ -994,7 +995,7 @@
   },
   "aiProviderAdmin": {
     "title": "AI providers",
-    "description": "Manage the instance-level providers and models used when a workspace or automation has no override.",
+    "description": "Manage the instance-level providers and models available to workspaces and automations.",
     "addProvider": "Add provider",
     "editProvider": "Edit provider",
     "providerType": "Provider type",

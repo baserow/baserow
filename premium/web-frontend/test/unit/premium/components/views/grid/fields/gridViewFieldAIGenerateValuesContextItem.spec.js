@@ -1,5 +1,6 @@
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import GridViewFieldAIGenerateValuesContextItem from '@baserow_premium/components/views/grid/fields/GridViewFieldAIGenerateValuesContextItem'
+import flushPromises from 'flush-promises'
 
 describe('GridViewFieldAIGenerateValuesContextItem component', () => {
   let testApp = null
@@ -36,7 +37,7 @@ describe('GridViewFieldAIGenerateValuesContextItem component', () => {
       props: {
         field,
         getRows,
-        storePrefix: '',
+        storePrefix: 'page/',
         database: { workspace },
       },
     })
@@ -60,5 +61,29 @@ describe('GridViewFieldAIGenerateValuesContextItem component', () => {
     const wrapper = await mountComponent(aiField, vi.fn())
 
     expect(wrapper.find('a').classes()).not.toContain('disabled')
+  })
+
+  test('model-unavailable response marks the field as errored and disables the item', async () => {
+    const store = testApp.getStore()
+    await store.dispatch('workspace/forceCreate', workspace)
+    await store.dispatch('field/forceSetFields', {
+      fields: [{ ...aiField }],
+    })
+    testApp.mock
+      .onPost('/database/fields/1/generate-ai-field-values/')
+      .reply(400, {
+        error: 'ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE',
+        detail: 'The selected AI model is disabled or no longer available.',
+      })
+    const field = store.getters['field/get'](aiField.id)
+    const wrapper = await mountComponent(field, async () => [{ id: 10 }])
+
+    await wrapper.find('a').trigger('click')
+    await flushPromises()
+
+    expect(field.error).toBe(
+      'The selected AI model is disabled or no longer available.'
+    )
+    expect(wrapper.find('a').classes()).toContain('disabled')
   })
 })

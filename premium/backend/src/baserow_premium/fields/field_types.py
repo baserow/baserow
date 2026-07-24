@@ -122,7 +122,10 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             required=False,
             read_only=True,
             allow_null=True,
-            help_text="The error message if the field's prompt is broken, else null.",
+            help_text=(
+                "The error message if the field's prompt or model configuration "
+                "is invalid, else null."
+            ),
         ),
         **SelectOptionBaseFieldType.serializer_field_overrides,
     }

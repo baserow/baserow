@@ -8,7 +8,7 @@ ERROR_GENERATIVE_AI_DOES_NOT_EXIST = (
 ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE = (
     "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE",
     HTTP_400_BAD_REQUEST,
-    "The requested model does not belong to the provided type.",
+    "The selected AI model is disabled or no longer available.",
 )
 ERROR_GENERATIVE_AI_PROMPT = (
     "ERROR_GENERATIVE_AI_PROMPT",

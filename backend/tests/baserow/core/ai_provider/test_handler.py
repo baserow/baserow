@@ -46,3 +46,36 @@ def test_update_model_does_not_misreport_unexpected_integrity_error():
     with patch.object(model, "save", side_effect=unexpected_error):
         with pytest.raises(IntegrityError, match="unexpected integrity error"):
             AIProviderHandler.update_model(model, model_identifier="gpt-5.4-mini")
+
+
+def test_test_error_sanitization_redacts_overlapping_secrets_longest_first():
+    message = AIProviderHandler._sanitize_test_error(
+        Exception("failed with secret-token and secret"),
+        ["secret", "secret-token", "", "secret-token"],
+    )
+
+    assert message == "failed with [redacted] and [redacted]"
+    assert "token" not in message
+
+
+def test_test_error_sanitization_ignores_empty_secrets_and_truncates():
+    message = AIProviderHandler._sanitize_test_error(
+        Exception("x" * 1001),
+        [""],
+    )
+
+    assert message == "x" * 1000
+
+
+def test_secret_values_ignores_non_string_extra_settings():
+    values = AIProviderHandler._secret_values(
+        "api-key",
+        {
+            "host": "secret-host",
+            "timeout": 30,
+            "enabled": True,
+            "options": {"secret": "nested-secret"},
+        },
+    )
+
+    assert values == ["api-key", "secret-host"]

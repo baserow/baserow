@@ -14,7 +14,7 @@ from baserow.core.mixins import BigAutoFieldMixin
 
 from .ai_field_output_types import TextAIFieldOutputType
 from .registries import ai_field_output_registry
-from .visitors import get_ai_prompt_error
+from .validation import get_ai_field_error
 
 User = get_user_model()
 
@@ -68,11 +68,9 @@ class AIField(Field):
 
     @property
     def error(self):
-        # Computed (not stored) prompt error so the field header can show it and
-        # generation can be blocked. Recomputed whenever the field is serialized.
-        if not self.table_id:
-            return None
-        return get_ai_prompt_error(self.ai_prompt, self.table_id)
+        # Computed (not stored) configuration error so the field header can show
+        # it and generation can be blocked. Recomputed whenever serialized.
+        return get_ai_field_error(self)
 
 
 class GenerateAIValuesJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):

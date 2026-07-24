@@ -31,6 +31,11 @@ export const mutations = {
     }
     field._.loading = value
   },
+  SET_ITEM_ERROR(state, { field, value }) {
+    const storedField = state.items.find((item) => item.id === field.id)
+    const fieldToUpdate = storedField || field
+    fieldToUpdate.error = value
+  },
   SET_LOADED(state, value) {
     state.loaded = value
       ? { tableId: value.tableId, viewId: value.viewId }
@@ -68,6 +73,50 @@ export const actions = {
    */
   setItemLoading({ commit }, { field, value }) {
     commit('SET_ITEM_LOADING', { field, value })
+  },
+  /**
+   * Updates a field's computed error locally without making an API request.
+   */
+  setItemError({ commit }, { field, value }) {
+    commit('SET_ITEM_ERROR', { field, value })
+  },
+  /**
+   * Refreshes computed field errors for the table cached in the field store.
+   * This preserves the existing field objects and view state.
+   */
+  async refreshLoadedFieldErrors({ state, commit }) {
+    if (!state.loaded) {
+      return
+    }
+
+    const loaded = { ...state.loaded }
+    const { $client } = this
+    const { data } = await FieldService($client).fetchAll(
+      loaded.tableId,
+      loaded.viewId
+    )
+
+    if (
+      !state.loaded ||
+      state.loaded.tableId !== loaded.tableId ||
+      state.loaded.viewId !== loaded.viewId
+    ) {
+      return
+    }
+
+    const fieldsById = new Map(data.map((field) => [field.id, field]))
+    for (const field of state.items) {
+      const refreshedField = fieldsById.get(field.id)
+      if (
+        refreshedField &&
+        Object.prototype.hasOwnProperty.call(refreshedField, 'error')
+      ) {
+        commit('SET_ITEM_ERROR', {
+          field,
+          value: refreshedField.error || null,
+        })
+      }
+    }
   },
   /**
    * Fetches all the fields of a given table. The is mostly called when the user

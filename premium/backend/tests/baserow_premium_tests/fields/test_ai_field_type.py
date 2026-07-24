@@ -20,6 +20,7 @@ from baserow.contrib.database.fields.utils.deferred_foreign_key_updater import (
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
+from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
@@ -1791,6 +1792,24 @@ def test_ai_field_error_property_detects_broken_prompt(premium_data_fixture):
 
 @pytest.mark.field_ai
 @pytest.mark.django_db
+def test_ai_field_error_property_detects_unavailable_model(premium_data_fixture):
+    table = premium_data_fixture.create_database_table()
+    table.database.workspace.generative_ai_models_settings = {
+        "test_generative_ai": {"models": ["another-model"]}
+    }
+    table.database.workspace.save(update_fields=["generative_ai_models_settings"])
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt="'Valid prompt'",
+    )
+
+    assert field.error == ("The selected AI model is disabled or no longer available.")
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
 def test_ai_field_api_serializes_error(api_client, premium_data_fixture):
     premium_data_fixture.register_fake_generate_ai_type()
     user, token = premium_data_fixture.create_user_and_token(
@@ -1808,6 +1827,91 @@ def test_ai_field_api_serializes_error(api_client, premium_data_fixture):
     )
     assert response.status_code == HTTP_200_OK
     assert response.json()["error"] is not None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_list_api_serializes_disabled_instance_model_error(
+    settings, api_client, premium_data_fixture
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    workspace = table.database.workspace
+    workspace.generative_ai_models_settings = {
+        "openai": {
+            "api_key": "workspace-secret",
+            "models": ["gpt-5"],
+        }
+    }
+    workspace.save(update_fields=("generative_ai_models_settings",))
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5", "is_enabled": False}],
+    )
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="gpt-5",
+        ai_prompt="'Valid prompt'",
+    )
+
+    response = api_client.get(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    serialized_field = next(
+        serialized for serialized in response.json() if serialized["id"] == field.id
+    )
+    assert serialized_field["error"] == (
+        "The selected AI model is disabled or no longer available."
+    )
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_create_ai_field_rejects_disabled_instance_model(
+    settings, api_client, premium_data_fixture
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    workspace = table.database.workspace
+    workspace.generative_ai_models_settings = {
+        "openai": {
+            "api_key": "workspace-secret",
+            "models": ["gpt-5"],
+        }
+    }
+    workspace.save(update_fields=("generative_ai_models_settings",))
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5", "is_enabled": False}],
+    )
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "AI",
+            "type": "ai",
+            "ai_generative_ai_type": "openai",
+            "ai_generative_ai_model": "gpt-5",
+            "ai_prompt": "'Valid prompt'",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE"
 
 
 @pytest.mark.field_ai

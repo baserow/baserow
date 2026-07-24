@@ -32,6 +32,8 @@ function makeStore() {
     getters: {
       'auth/token': 'token',
       'auth/webSocketId': webSocketId,
+      'workspace/isLoaded': true,
+      'aiProvider/isLoaded': true,
     },
     dispatch(name, value) {
       dispatched.push([name, value])
@@ -190,6 +192,38 @@ describe('RealTimeHandler high-water mark', () => {
     expect(handler.lastSeenEventId).toBe(7)
     handler.updateLastSeenId({ type: 'no_id' })
     expect(handler.lastSeenEventId).toBe(7)
+  })
+})
+
+describe('RealTimeHandler AI provider updates', () => {
+  test('refreshes workspace models and loaded provider administration state', () => {
+    const { handler, store } = makeHandler()
+
+    fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      workspace_models_changed: true,
+    })
+
+    expect(store._dispatched).toContainEqual([
+      'workspace/refreshAllGenerativeAIModels',
+      undefined,
+    ])
+    expect(store._dispatched).toContainEqual(['aiProvider/refresh', undefined])
+  })
+
+  test('provider metadata changes refresh only loaded administration state', () => {
+    const { handler, store } = makeHandler()
+
+    fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      workspace_models_changed: false,
+    })
+
+    expect(store._dispatched).not.toContainEqual([
+      'workspace/refreshAllGenerativeAIModels',
+      undefined,
+    ])
+    expect(store._dispatched).toContainEqual(['aiProvider/refresh', undefined])
   })
 })
 

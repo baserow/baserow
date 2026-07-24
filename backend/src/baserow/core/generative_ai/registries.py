@@ -391,19 +391,22 @@ class GenerativeAIModelType(Instance):
         Resolve a non-environment setting and report whether it is authoritative.
 
         Legacy override and workspace values retain their current truthy fallback
-        semantics. Once an instance database provider exists, its value is
-        authoritative even when empty, preventing disabled or cleared configuration
-        from silently falling through to environment variables.
+        semantics, except that model lists are always limited to models enabled by
+        the instance provider while the feature is enabled. Once an instance database
+        provider exists, its value is authoritative even when empty, preventing
+        disabled or cleared configuration from silently falling through to
+        environment variables.
         """
 
         legacy_value = self.get_workspace_setting(workspace, key, settings_override)
-        if legacy_value:
-            return True, legacy_value
 
         from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 
         if not feature_flag_is_enabled(FF_AI_PROVIDERS):
-            return False, None
+            return (True, legacy_value) if legacy_value else (False, None)
+
+        if key != "models" and legacy_value:
+            return True, legacy_value
 
         from baserow.core.ai_provider.models import AIProviderConfig
 
@@ -416,17 +419,23 @@ class GenerativeAIModelType(Instance):
         )
         provider = providers_by_type.get(self.type)
         if provider is None:
-            return False, None
+            return (True, legacy_value) if legacy_value else (False, None)
 
         if not provider.is_active:
             return True, [] if key == "models" else None
 
         if key == "models":
-            return True, [
+            enabled_models = [
                 model.model_identifier
                 for model in provider.models.all()
                 if model.is_enabled
             ]
+            if legacy_value:
+                enabled_model_set = set(enabled_models)
+                enabled_models = [
+                    model for model in legacy_value if model in enabled_model_set
+                ]
+            return True, enabled_models
         if key == "api_key":
             return True, provider.api_key
         return True, provider.extra_settings.get(key)

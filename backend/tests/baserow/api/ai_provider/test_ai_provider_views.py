@@ -15,6 +15,19 @@ from rest_framework.status import (
 
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 
+AI_PROVIDER_API_CASES = (
+    ("get", "list"),
+    ("post", "list"),
+    ("get", "types"),
+    ("patch", "item"),
+    ("delete", "item"),
+    ("post", "create_model"),
+    ("get", "discover_models"),
+    ("post", "test_models"),
+    ("patch", "model_item"),
+    ("delete", "model_item"),
+)
+
 
 @pytest.fixture
 def enabled_ai_providers(settings):
@@ -27,23 +40,71 @@ def staff_headers(data_fixture):
     return {"HTTP_AUTHORIZATION": f"JWT {token}"}
 
 
+def _request_ai_provider_api(api_client, case, headers):
+    method, url_name = case
+    provider = AIProviderConfig.objects.create(
+        provider_type="mistral", api_key="secret"
+    )
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="mistral-large"
+    )
+    kwargs = {}
+    data = None
+    if url_name == "list" and method == "post":
+        data = {
+            "provider_type": "openai",
+            "api_key": "secret",
+            "models": [{"model_identifier": "gpt-5"}],
+        }
+    elif url_name == "item":
+        kwargs = {"provider_id": provider.id}
+        if method == "patch":
+            data = {"is_active": False}
+    elif url_name == "create_model":
+        kwargs = {"provider_id": provider.id}
+        data = {"model_identifier": "mistral-small"}
+    elif url_name == "discover_models":
+        data = {"provider_type": "openai"}
+    elif url_name == "test_models":
+        data = {"model_ids": [model.id]}
+    elif url_name == "model_item":
+        kwargs = {"model_id": model.id}
+        if method == "patch":
+            data = {"is_enabled": False}
+
+    url = reverse(f"api:ai_provider:{url_name}", kwargs=kwargs)
+    request = getattr(api_client, method)
+    if data is None:
+        return request(url, **headers)
+    return request(url, data, format="json", **headers)
+
+
 @pytest.mark.django_db
-def test_ai_provider_api_is_feature_gated_and_staff_only(
-    api_client, data_fixture, settings, enabled_ai_providers
+@pytest.mark.parametrize("case", AI_PROVIDER_API_CASES)
+def test_every_ai_provider_api_method_is_staff_only(
+    api_client, data_fixture, enabled_ai_providers, case
 ):
     _, token = data_fixture.create_user_and_token()
 
-    response = api_client.get(
-        reverse("api:ai_provider:list"), HTTP_AUTHORIZATION=f"JWT {token}"
+    response = _request_ai_provider_api(
+        api_client, case, {"HTTP_AUTHORIZATION": f"JWT {token}"}
     )
+
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
-    _, staff_token = data_fixture.create_user_and_token(is_staff=True)
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("case", AI_PROVIDER_API_CASES)
+def test_every_ai_provider_api_method_is_feature_gated(
+    api_client, data_fixture, settings, case
+):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
     settings.FEATURE_FLAGS = []
-    response = api_client.get(
-        reverse("api:ai_provider:list"),
-        HTTP_AUTHORIZATION=f"JWT {staff_token}",
+
+    response = _request_ai_provider_api(
+        api_client, case, {"HTTP_AUTHORIZATION": f"JWT {token}"}
     )
+
     assert response.status_code == HTTP_403_FORBIDDEN
     assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
@@ -135,16 +196,30 @@ def test_provider_connection_settings_are_required(
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert "host" in response.json()["detail"]
 
+    for invalid_host in ("127.0.0.1:11434", "ftp://ollama:11434"):
+        response = api_client.post(
+            url,
+            {
+                "provider_type": "ollama",
+                "extra_settings": {"host": invalid_host},
+            },
+            format="json",
+            **staff_headers,
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert "http:// or https://" in response.json()["detail"]
+
     response = api_client.post(
         url,
         {
             "provider_type": "ollama",
-            "extra_settings": {"host": "http://ollama:11434"},
+            "extra_settings": {"host": "http://ollama:11434/"},
         },
         format="json",
         **staff_headers,
     )
     assert response.status_code == HTTP_201_CREATED
+    assert response.json()["extra_settings"]["host"] == "http://ollama:11434"
 
 
 @pytest.mark.django_db

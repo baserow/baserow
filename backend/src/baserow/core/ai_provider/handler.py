@@ -291,7 +291,10 @@ class AIProviderHandler:
     @staticmethod
     def _sanitize_test_error(exc: Exception, secret_values: list[str]) -> str:
         message = get_user_friendly_error_message(exc)
-        for value in secret_values:
-            if value:
-                message = message.replace(value, "[redacted]")
+        # Replace longer overlapping secrets first. Otherwise replacing a short
+        # secret can leave the remainder of a longer secret visible.
+        for value in sorted(
+            {value for value in secret_values if value}, key=len, reverse=True
+        ):
+            message = message.replace(value, "[redacted]")
         return message[:1000]

@@ -56,6 +56,17 @@ describe('AI provider store', () => {
     expect(committed.at(-1)).toEqual(['SET_LOADING', false])
   })
 
+  test('refresh replaces provider state without reloading provider types', async () => {
+    const commit = vi.fn()
+
+    const providers = await actions.refresh.call({ $client: {} }, { commit })
+
+    expect(service.fetchAll).toHaveBeenCalledOnce()
+    expect(service.fetchTypes).not.toHaveBeenCalled()
+    expect(commit).toHaveBeenCalledWith('SET_PROVIDERS', [{ id: 1 }])
+    expect(providers).toEqual([{ id: 1 }])
+  })
+
   test('update sends exactly the fields supplied by the form', async () => {
     const values = { is_active: false }
     await actions.update.call(

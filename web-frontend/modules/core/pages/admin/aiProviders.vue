@@ -95,6 +95,9 @@
 </template>
 
 <script>
+import { useHead } from '#imports'
+import { useNuxtApp } from '#app'
+
 import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
@@ -110,6 +113,10 @@ export default {
   },
   layout: 'app',
   middleware: ['staff', 'aiProvidersFeatureFlag'],
+  setup() {
+    const { $i18n } = useNuxtApp()
+    useHead({ title: $i18n.t('aiProviderAdmin.title') })
+  },
   data() {
     return {
       providerFormOpen: false,

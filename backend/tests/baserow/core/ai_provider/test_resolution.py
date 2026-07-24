@@ -76,7 +76,7 @@ def test_database_provider_resolution_is_cached_per_request(settings):
 
 
 @pytest.mark.django_db
-def test_existing_workspace_and_automation_settings_keep_precedence(
+def test_instance_models_limit_workspace_and_automation_model_settings(
     data_fixture, settings
 ):
     settings.FEATURE_FLAGS = ["ai-providers"]
@@ -86,11 +86,19 @@ def test_existing_workspace_and_automation_settings_keep_precedence(
     AIProviderModel.objects.create(
         provider_config=provider, model_identifier="database-model"
     )
+    AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="workspace-model"
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="disabled-model",
+        is_enabled=False,
+    )
     workspace = data_fixture.create_workspace()
     workspace.generative_ai_models_settings = {
         "openai": {
             "api_key": "workspace-key",
-            "models": ["workspace-model"],
+            "models": ["workspace-model", "disabled-model", "workspace-only-model"],
         }
     }
     workspace.save(update_fields=("generative_ai_models_settings",))
@@ -104,6 +112,12 @@ def test_existing_workspace_and_automation_settings_keep_precedence(
         )
         == "automation-key"
     )
+    assert model_type.get_enabled_models(
+        workspace,
+        settings_override={
+            "models": ["database-model", "disabled-model", "automation-only-model"]
+        },
+    ) == ["database-model"]
 
 
 @pytest.mark.django_db

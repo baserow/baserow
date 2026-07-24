@@ -1,16 +1,20 @@
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 
+MODEL_NOT_AVAILABLE_MESSAGE = (
+    "The selected AI model is disabled or no longer available."
+)
+
 
 class GenerativeAITypeDoesNotExist(InstanceTypeDoesNotExist):
     """Raised when trying to get a generative AI type that does not exist."""
 
 
 class ModelDoesNotBelongToType(Exception):
-    """Raised when trying to get a model that does not belong to the type."""
+    """Raised when the selected model is not currently available for use."""
 
     def __init__(self, model_name, *args, **kwargs):
         self.model_name = model_name
-        super().__init__(*args, **kwargs)
+        super().__init__(MODEL_NOT_AVAILABLE_MESSAGE, *args, **kwargs)
 
 
 class GenerativeAIPromptError(Exception):

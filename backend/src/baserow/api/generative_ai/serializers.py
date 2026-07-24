@@ -1,3 +1,5 @@
+from urllib.parse import urlsplit
+
 from rest_framework import serializers
 
 
@@ -56,6 +58,18 @@ class OllamaSettingsSerializer(GenerativeAIModelsSerializer):
         required=False,
         help_text="The host that is used to authenticate with the Ollama API.",
     )
+
+    def validate_host(self, value: str) -> str:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme.lower() not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.hostname is None
+        ):
+            raise serializers.ValidationError(
+                "Enter a valid URL starting with http:// or https://."
+            )
+        return value.rstrip("/")
 
 
 class OpenRouterSettingsSerializer(BaseOpenAISettingsSerializer):
