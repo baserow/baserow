@@ -14,8 +14,12 @@ export default {
       return this.$store.getters['workspace/get'](this.workspaceId)
     },
     modelAvailable() {
+      if (!this.workspace) {
+        return false
+      }
+
       const aIModels =
-        this.$store.getters['settings/get'].generative_ai[
+        this.workspace.generative_ai_models_enabled?.[
           this.field.ai_generative_ai_type
         ] || []
       return (
