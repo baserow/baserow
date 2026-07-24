@@ -8,6 +8,7 @@
       <nuxt-link
         v-slot="{ href, navigate, isExactActive, prefetch, shouldPrefetch }"
         custom
+        prefetch-on="interaction"
         :to="{
           name: 'workspace',
           params: {
@@ -70,6 +71,7 @@
         "
         v-slot="{ href, navigate, isExactActive, prefetch, shouldPrefetch }"
         custom
+        prefetch-on="interaction"
         :to="{
           name: 'settings-members',
           params: {

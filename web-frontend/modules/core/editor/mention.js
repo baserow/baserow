@@ -28,6 +28,10 @@ export const parseMention =
     const ruleName = 'baserow-mention'
 
     markdownIt.inline.ruler.push(ruleName, (state, silent) => {
+      if (state.src.charCodeAt(state.pos) !== 0x40) {
+        return false
+      }
+
       const match = state.src.slice(state.pos).match(/^@(\d+)/)
       if (!match) {
         return false

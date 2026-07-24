@@ -70,8 +70,6 @@ export default defineNuxtConfig({
   modules: [...baserow.modules, '@nuxtjs/i18n', '@sentry/nuxt/module'],
   i18n: {
     strategy: 'no_prefix',
-    // Route-specific i18n configuration belongs in definePageMeta. The legacy
-    // `page` mode reads page.file directly and cannot resolve Nuxt aliases.
     customRoutes: 'meta',
     defaultLocale: 'en',
     langDir: 'locales',

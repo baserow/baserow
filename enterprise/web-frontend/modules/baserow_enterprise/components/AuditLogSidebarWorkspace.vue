@@ -3,6 +3,7 @@
     v-if="hasPermission"
     v-slot="{ href, navigate, isExactActive, prefetch, shouldPrefetch }"
     custom
+    prefetch-on="interaction"
     :to="{
       name: 'workspace-audit-log',
       params: {
