@@ -8,7 +8,6 @@ from django.db.models.signals import post_migrate, pre_migrate
 from baserow.contrib.database.fields.utils.pg_datetime import pg_init
 from baserow.contrib.database.table.cache import clear_generated_model_cache
 from baserow.contrib.database.table.operations import RestoreDatabaseTableOperationType
-from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.registries import (
     application_type_registry,
     object_scope_type_registry,
@@ -260,8 +259,9 @@ class DatabaseConfig(AppConfig):
         field_type_registry.register(AutonumberFieldType())
         field_type_registry.register(PasswordFieldType())
         field_type_registry.register(FormViewEditRowFieldType())
-        if feature_flag_is_enabled(FF_BUTTON_FIELD):
-            field_type_registry.register(ButtonFieldType())
+        # Always registered so tables with existing button fields keep working
+        # when the flag is off; creation is gated in ButtonFieldType.
+        field_type_registry.register(ButtonFieldType())
 
         from .fields.field_aggregations import (
             AverageFieldAggregationType,

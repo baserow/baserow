@@ -279,7 +279,12 @@ export default {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
     },
     fieldTypes() {
-      return this.$registry.getAll('field')
+      const allFieldTypes = this.$registry.getAll('field')
+      return Object.fromEntries(
+        Object.entries(allFieldTypes).filter(([, fieldType]) =>
+          fieldType.isVisibleInDropdown(this.workspace)
+        )
+      )
     },
     hasFormComponent() {
       return !!this.values.type && this.getFormComponent(this.values.type)

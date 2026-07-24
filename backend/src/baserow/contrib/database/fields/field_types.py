@@ -153,6 +153,7 @@ from baserow.core.db import (
     specific_queryset,
 )
 from baserow.core.expressions import DateTrunc
+from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
@@ -7929,6 +7930,17 @@ class ButtonFieldType(ReadOnlyFieldType):
     _can_be_primary_field = False
     can_get_unique_values = False
     keep_data_on_duplication = False
+
+    def before_create(
+        self, table, primary, allowed_field_values, order, user, field_kwargs
+    ):
+        # The type is always registered so existing fields keep working, but
+        # new button fields can only be created while the flag is on.
+        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
+
+    def before_update(self, from_field, to_field_values, user, field_kwargs):
+        # Also covers converting an existing field to the button type.
+        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
 
     def get_serializer_field(self, instance, **kwargs):
         return serializers.BooleanField(required=False, allow_null=True, **kwargs)

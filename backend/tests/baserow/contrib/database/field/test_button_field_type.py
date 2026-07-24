@@ -1,7 +1,12 @@
+from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_403_FORBIDDEN,
+)
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import ButtonField
@@ -37,6 +42,52 @@ def test_create_button_field_via_api(api_client, data_fixture):
     assert data["read_only"] is True
     assert data["error"] is None
     assert f"field_{text_field.id}" in data["url_formula"]["formula"]
+
+
+@pytest.mark.django_db
+def test_create_button_field_with_flag_disabled(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    with override_settings(FEATURE_FLAGS=[]):
+        response = api_client.post(
+            reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+            {"name": "Open profile", "type": "button", "label": "Open"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+
+
+@pytest.mark.django_db
+def test_existing_button_field_keeps_working_with_flag_disabled(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+
+    # The type stays registered when the flag is off, so tables containing an
+    # existing button field must keep listing fields and rows normally.
+    with override_settings(FEATURE_FLAGS=[]):
+        response = api_client.get(
+            reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        assert any(
+            field["id"] == button_field.id and field["type"] == "button"
+            for field in response.json()
+        )
+
+        response = api_client.get(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
 
 
 @pytest.mark.django_db

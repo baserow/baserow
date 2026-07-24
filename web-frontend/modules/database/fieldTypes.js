@@ -1,4 +1,5 @@
 import BigNumber from 'bignumber.js'
+import { FF_BUTTON_FIELD } from '@baserow/modules/core/plugins/featureFlags'
 import {
   DURATION_FORMATS,
   formatDurationValue,
@@ -1060,6 +1061,15 @@ export class FieldType extends Registerable {
    * Indicates whether it's possible to select the field type when creating or updating the field.
    */
   isEnabled(workspace) {
+    return true
+  }
+
+  /**
+   * Indicates whether the field type is listed at all in the field type
+   * dropdown. Unlike `isEnabled`, a hidden type is not rendered, not even in
+   * a disabled state. Existing fields of a hidden type keep working.
+   */
+  isVisibleInDropdown(workspace) {
     return true
   }
 
@@ -5452,6 +5462,12 @@ export class ButtonFieldType extends FieldType {
 
   getFormViewFieldComponents() {
     return {}
+  }
+
+  isVisibleInDropdown(workspace) {
+    // Hidden (not just disabled) while the feature flag is off. Existing
+    // button fields keep rendering because the type stays registered.
+    return this.app.$featureFlagIsEnabled(FF_BUTTON_FIELD)
   }
 
   isReadOnlyField() {
