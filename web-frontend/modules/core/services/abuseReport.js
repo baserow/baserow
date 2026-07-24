@@ -1,7 +1,7 @@
 export default (client) => {
   return {
     report(
-      { resourceType, identifier, name, email, description },
+      { resourceType, identifier, name, email, description, captchaToken },
       config = {}
     ) {
       return client.post(
@@ -12,6 +12,7 @@ export default (client) => {
           name,
           email,
           description,
+          captcha_token: captchaToken || '',
         },
         config
       )

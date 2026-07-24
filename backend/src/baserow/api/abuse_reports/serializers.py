@@ -24,3 +24,9 @@ class AbuseReportSerializer(serializers.Serializer):
         max_length=1000,
         help_text="A detailed description of why the resource is abusive.",
     )
+    captcha_token = serializers.CharField(
+        required=False,
+        default="",
+        allow_blank=True,
+        help_text="The captcha response token, required when captcha is enabled.",
+    )

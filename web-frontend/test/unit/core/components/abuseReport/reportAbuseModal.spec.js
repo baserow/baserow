@@ -63,6 +63,7 @@ describe('ReportAbuseModal', () => {
       name: 'John Doe',
       email: 'john@example.com',
       description: VALID_DESCRIPTION,
+      captcha_token: '',
     })
     expect(requests[0].headers['Baserow-View-Authorization']).toBe(
       'JWT public-token'

@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
+from baserow.api.captcha.errors import ERROR_CAPTCHA_VERIFICATION_FAILED
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.schemas import get_error_schema
 from baserow.core.abuse_reports.actions import SubmitAbuseReportActionType
@@ -17,6 +18,8 @@ from baserow.core.abuse_reports.exceptions import (
 from baserow.core.abuse_reports.registries import abuse_report_resource_type_registry
 from baserow.core.abuse_reports.throttling import AbuseReportRateThrottle
 from baserow.core.action.registries import action_type_registry
+from baserow.core.captcha.exceptions import CaptchaVerificationFailed
+from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.utils import get_user_remote_ip_address_from_request
 
 from .errors import (
@@ -47,6 +50,7 @@ class AbuseReportsView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_ABUSE_REPORTING_DISABLED",
                     "ERROR_ABUSE_REPORT_RESOURCE_TYPE_DOES_NOT_EXIST",
+                    "ERROR_CAPTCHA_VERIFICATION_FAILED",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW"]),
@@ -59,11 +63,18 @@ class AbuseReportsView(APIView):
             AbuseReportResourceTypeDoesNotExist: (
                 ERROR_ABUSE_REPORT_RESOURCE_TYPE_DOES_NOT_EXIST
             ),
+            CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
         }
     )
     @validate_body(AbuseReportSerializer)
     @transaction.atomic
     def post(self, request: Request, data) -> Response:
+        CaptchaHandler.validate_if_required(
+            "abuse_report",
+            data.get("captcha_token"),
+            get_user_remote_ip_address_from_request(request),
+        )
+
         resource_type = abuse_report_resource_type_registry.get(data["resource_type"])
 
         with resource_type.map_api_exceptions():

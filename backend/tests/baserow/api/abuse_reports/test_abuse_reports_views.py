@@ -6,6 +6,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 
 import pytest
+import responses
 from rest_framework.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
@@ -225,6 +226,68 @@ def test_report_when_reporting_disabled(api_client, data_fixture):
     assert not NotificationRecipient.objects.filter(
         notification__type="abuse_report_created"
     ).exists()
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_ENABLE_CAPTCHA="abuse_report",
+    BASEROW_CAPTCHA_PROVIDER="cloudflare_turnstile",
+    BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY="test-site-key",
+    BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY="test-secret-key",
+)
+def test_report_captcha_required_when_enabled(api_client, data_fixture):
+    user = data_fixture.create_user()
+    view = data_fixture.create_grid_view(user=user, public=True)
+
+    response = submit_report(api_client, view)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CAPTCHA_VERIFICATION_FAILED"
+    assert AbuseReport.objects.count() == 0
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(
+    BASEROW_ENABLE_CAPTCHA="abuse_report",
+    BASEROW_CAPTCHA_PROVIDER="cloudflare_turnstile",
+    BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY="test-site-key",
+    BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY="test-secret-key",
+)
+def test_report_captcha_valid_token(api_client, data_fixture):
+    from baserow.core.captcha.provider_types import TURNSTILE_VERIFY_URL
+
+    responses.add(
+        responses.POST,
+        TURNSTILE_VERIFY_URL,
+        json={"success": True},
+        status=200,
+    )
+
+    user = data_fixture.create_user()
+    view = data_fixture.create_grid_view(user=user, public=True)
+
+    response = submit_report(api_client, view, captcha_token="valid-token")
+
+    assert response.status_code == HTTP_204_NO_CONTENT
+    assert AbuseReport.objects.count() == 1
+    assert len(responses.calls) == 1
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_ENABLE_CAPTCHA="signup",
+    BASEROW_CAPTCHA_PROVIDER="cloudflare_turnstile",
+    BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY="test-site-key",
+    BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY="test-secret-key",
+)
+def test_report_captcha_not_required_for_other_context(api_client, data_fixture):
+    user = data_fixture.create_user()
+    view = data_fixture.create_grid_view(user=user, public=True)
+
+    response = submit_report(api_client, view)
+
+    assert response.status_code == HTTP_204_NO_CONTENT
 
 
 @pytest.mark.django_db

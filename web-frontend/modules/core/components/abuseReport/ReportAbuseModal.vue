@@ -16,6 +16,11 @@
       <p>{{ $t('reportAbuseModal.description') }}</p>
       <Error :error="error"></Error>
       <ReportAbuseForm @submitted="submitted">
+        <CaptchaWidget
+          ref="captchaWidget"
+          context="abuse_report"
+          @token="onCaptchaToken"
+        ></CaptchaWidget>
         <div class="actions">
           <div class="align-right">
             <Button
@@ -38,12 +43,13 @@ import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import AbuseReportService from '@baserow/modules/core/services/abuseReport'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
 
 import ReportAbuseForm from './ReportAbuseForm'
 
 export default {
   name: 'ReportAbuseModal',
-  components: { ReportAbuseForm },
+  components: { ReportAbuseForm, CaptchaWidget },
   mixins: [modal, error],
   props: {
     resourceType: {
@@ -64,6 +70,7 @@ export default {
     return {
       loading: false,
       success: false,
+      captchaToken: '',
     }
   },
   methods: {
@@ -81,21 +88,32 @@ export default {
           {
             resourceType: this.resourceType,
             identifier: this.identifier,
+            captchaToken: this.captchaToken,
             ...values,
           },
           this.requestConfig
         )
         this.success = true
       } catch (error) {
+        if (this.$refs.captchaWidget) {
+          this.$refs.captchaWidget.reset()
+        }
         this.handleError(error, 'abuseReport', {
           ERROR_ABUSE_REPORTING_DISABLED: new ResponseErrorMessage(
             this.$t('reportAbuseModal.reportingDisabledTitle'),
             this.$t('reportAbuseModal.reportingDisabledDescription')
           ),
+          ERROR_CAPTCHA_VERIFICATION_FAILED: new ResponseErrorMessage(
+            this.$t('error.captchaVerificationFailedTitle'),
+            this.$t('error.captchaVerificationFailedMessage')
+          ),
         })
       } finally {
         this.loading = false
       }
+    },
+    onCaptchaToken(token) {
+      this.captchaToken = token
     },
   },
 }
