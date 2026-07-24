@@ -36,6 +36,13 @@ def test_replace_field_id_references_inside_binary_ops():
     )
 
 
+def test_replace_field_id_references_keeps_brackets():
+    assert (
+        replace_field_id_references("concat('x',(get('fields.field_1')+1)*2)", {1: 9})
+        == "concat('x',(get('fields.field_9')+1)*2)"
+    )
+
+
 def test_replace_field_id_references_skips_raw_formulas():
     assert (
         replace_field_id_references(

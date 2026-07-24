@@ -39,7 +39,9 @@ class BaserowFormulaReplaceFieldReferences(BaserowFormulaVisitor):
         return ctx.getText()
 
     def visitBrackets(self, ctx: BaserowFormula.BracketsContext):
-        return ctx.expr().accept(self)
+        # Keep the parentheses, dropping them would change the evaluation
+        # order of the surrounding expression.
+        return f"({ctx.expr().accept(self)})"
 
     def process_string(self, ctx):
         ctx.getText()
