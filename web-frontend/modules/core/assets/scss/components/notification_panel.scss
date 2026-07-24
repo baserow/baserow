@@ -114,8 +114,6 @@
 }
 
 .abuse-report-notification__description {
-  // The notification panel sets `nowrap` at the root for other notification
-  // types, but the description preview must wrap normally.
   white-space: normal;
   overflow-wrap: anywhere;
   margin-top: 4px;

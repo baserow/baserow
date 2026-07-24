@@ -13,7 +13,6 @@ from baserow.core.action.scopes import RootActionScopeType, WorkspaceActionScope
 
 from .handler import AbuseReportHandler
 from .models import AbuseReport
-from .notification_types import AbuseReportCreatedNotificationType
 from .registries import AbuseReportResourceType, ReportedResource
 
 
@@ -76,7 +75,7 @@ class SubmitAbuseReportActionType(ActionType):
         :return: The created abuse report.
         """
 
-        report, should_notify = AbuseReportHandler.create_abuse_report(
+        report = AbuseReportHandler.create_abuse_report(
             resource_type,
             resource,
             reporter_name,
@@ -103,9 +102,6 @@ class SubmitAbuseReportActionType(ActionType):
             scope=cls.scope(report.workspace_id),
             workspace=resource.workspace,
         )
-
-        if should_notify:
-            AbuseReportCreatedNotificationType.notify_instance_admins(report)
 
         return report
 

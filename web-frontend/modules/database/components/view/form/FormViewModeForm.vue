@@ -33,7 +33,10 @@
         @input="updateValue('field_' + field.field.id, $event)"
       ></FormPageField>
       <div class="form-view__actions">
-        <FormViewPoweredBy :show-logo="showLogo"></FormViewPoweredBy>
+        <FormViewFooterLinks
+          :show-logo="showLogo"
+          show-report-abuse
+        ></FormViewFooterLinks>
         <div class="form-view__submit">
           <Button
             type="primary"
@@ -59,7 +62,7 @@
 <script>
 import baseFormViewMode from '@baserow/modules/database/mixins/baseFormViewMode'
 import FormPageField from '@baserow/modules/database/components/view/form/FormPageField'
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 import FormViewSubmitted from '@baserow/modules/database/components/view/form/FormViewSubmitted'
 import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 
@@ -68,7 +71,7 @@ export default {
   components: {
     FormViewSubmitted,
     FormPageField,
-    FormViewPoweredBy,
+    FormViewFooterLinks,
     FormViewDescription,
   },
   mixins: [baseFormViewMode],

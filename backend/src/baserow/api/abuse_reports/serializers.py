@@ -1,11 +1,14 @@
+from django.utils.functional import lazy
+
 from rest_framework import serializers
+
+from baserow.core.abuse_reports.registries import abuse_report_resource_type_registry
 
 
 class AbuseReportSerializer(serializers.Serializer):
-    resource_type = serializers.CharField(
-        max_length=255,
-        help_text="The type of publicly shared resource that is being reported, "
-        "for example `database_view`.",
+    resource_type = serializers.ChoiceField(
+        choices=lazy(abuse_report_resource_type_registry.get_types, list)(),
+        help_text="The type of publicly shared resource that is being reported.",
     )
     identifier = serializers.CharField(
         max_length=255,

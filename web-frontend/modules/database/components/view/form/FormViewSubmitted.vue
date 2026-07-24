@@ -11,17 +11,20 @@
     </template>
     <!-- prettier-ignore -->
     <div v-else class="form-view__submitted-message whitespace-pre-wrap">{{ submitActionMessageOrDefault }}</div>
-    <FormViewPoweredBy :show-logo="showLogo"></FormViewPoweredBy>
+    <FormViewFooterLinks
+      :show-logo="showLogo"
+      show-report-abuse
+    ></FormViewFooterLinks>
   </div>
 </template>
 
 <script>
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 
 export default {
   name: 'FormViewSubmitted',
   components: {
-    FormViewPoweredBy,
+    FormViewFooterLinks,
   },
   props: {
     isRedirect: {

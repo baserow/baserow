@@ -982,7 +982,7 @@
     "noFieldsTitle": "This form doesn't have any fields",
     "noFieldsContent": "Click on a field in the left sidebar to add one."
   },
-  "formViewPoweredBy": {
+  "formViewFooterLinks": {
     "reportAbuse": "Report abuse"
   },
   "publicViewMenu": {

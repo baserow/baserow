@@ -77,6 +77,10 @@ export default {
     show(...args) {
       this.success = false
       this.hideError()
+      // Captcha tokens are single use, so a token from a previous open could
+      // already be consumed or expired.
+      this.captchaToken = ''
+      this.$refs.captchaWidget?.reset()
       return modal.methods.show.call(this, ...args)
     },
     async submitted(values) {

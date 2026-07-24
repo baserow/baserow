@@ -127,7 +127,7 @@ def test_report_with_unknown_resource_type(api_client, data_fixture):
     response = submit_report(api_client, view, resource_type="unknown")
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_ABUSE_REPORT_RESOURCE_TYPE_DOES_NOT_EXIST"
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
 
 @pytest.mark.django_db
@@ -227,6 +227,12 @@ def test_report_when_reporting_disabled(api_client, data_fixture):
         notification__type="abuse_report_created"
     ).exists()
 
+    # The disabled error must win from resource resolution, otherwise the
+    # existence of a resource would leak while reporting is disabled.
+    response = submit_report(api_client, view, identifier="unknown-slug")
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_ABUSE_REPORTING_DISABLED"
+
 
 @pytest.mark.django_db
 @override_settings(
@@ -304,6 +310,17 @@ def test_report_is_rate_limited_per_ip(api_client, data_fixture):
 
     response = submit_report(api_client, view, HTTP_X_FORWARDED_FOR="10.0.0.2")
     assert response.status_code == HTTP_204_NO_CONTENT
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_ABUSE_REPORT_THROTTLE_RATE="")
+def test_report_throttle_can_be_disabled(api_client, data_fixture):
+    user = data_fixture.create_user()
+    view = data_fixture.create_grid_view(user=user, public=True)
+
+    for _ in range(3):
+        response = submit_report(api_client, view)
+        assert response.status_code == HTTP_204_NO_CONTENT
 
 
 @pytest.mark.django_db

@@ -35,9 +35,6 @@ class DatabaseViewAbuseReportResourceType(AbuseReportResourceType):
             identifier,
             authorization_token=get_public_view_authorization_token(request),
         )
-        # `get_public_view_by_slug` also returns non public views when the
-        # authenticated user has access to the workspace, but only publicly shared
-        # views can be reported.
         if not view.public:
             raise ViewDoesNotExist("The view is not publicly shared.")
         return ReportedResource(

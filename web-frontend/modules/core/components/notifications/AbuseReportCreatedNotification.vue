@@ -1,8 +1,4 @@
 <template>
-  <!--
-    Not an anchor like other notifications, because it contains the reported page
-    link below, and anchors can't be nested.
-  -->
   <div
     class="notification-panel__notification-link"
     @click="markAsReadAndHandleClick"

@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Optional, Tuple
+from typing import Optional
 
 from django.conf import settings
 from django.utils import timezone
@@ -8,6 +8,7 @@ from baserow.core.handler import CoreHandler
 
 from .exceptions import AbuseReportingDisabledException
 from .models import AbuseReport
+from .notification_types import AbuseReportCreatedNotificationType
 from .registries import AbuseReportResourceType, ReportedResource
 
 
@@ -21,9 +22,10 @@ class AbuseReportHandler:
         reporter_email: str,
         description: str,
         ip_address: Optional[str] = None,
-    ) -> Tuple[AbuseReport, bool]:
+    ) -> AbuseReport:
         """
-        Persists an abuse report for the provided resource.
+        Persists an abuse report for the provided resource, and notifies the
+        instance admins unless they were recently notified about the same resource.
 
         :param resource_type: The registered resource type that resolved the resource.
         :param resource: The resolved publicly shared resource.
@@ -33,7 +35,7 @@ class AbuseReportHandler:
         :param ip_address: The IP address the report was submitted from.
         :raises AbuseReportingDisabledException: When the instance admin has disabled
             abuse reporting.
-        :return: The created report and whether the admins should be notified.
+        :return: The created report.
         """
 
         if not CoreHandler().get_settings().allow_reporting_abuse:
@@ -64,4 +66,7 @@ class AbuseReportHandler:
             ip_address=ip_address,
         )
 
-        return report, not already_notified
+        if not already_notified:
+            AbuseReportCreatedNotificationType.notify_instance_admins(report)
+
+        return report

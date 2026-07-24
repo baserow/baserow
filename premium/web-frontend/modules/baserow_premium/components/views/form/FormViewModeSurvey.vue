@@ -58,7 +58,10 @@
         </div>
       </form>
       <div class="form-view-survey__footer">
-        <FormViewPoweredBy :show-logo="showLogo"></FormViewPoweredBy>
+        <FormViewFooterLinks
+          :show-logo="showLogo"
+          show-report-abuse
+        ></FormViewFooterLinks>
         <div class="form-view-survey__pagination">
           <div class="form-view-survey__pagination-buttons">
             <a
@@ -99,7 +102,7 @@
 <script>
 import baseFormViewMode from '@baserow/modules/database/mixins/baseFormViewMode'
 import FormPageField from '@baserow/modules/database/components/view/form/FormPageField'
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 import FormViewSubmitted from '@baserow/modules/database/components/view/form/FormViewSubmitted'
 
 export default {
@@ -107,7 +110,7 @@ export default {
   emits: ['submit'],
   components: {
     FormPageField,
-    FormViewPoweredBy,
+    FormViewFooterLinks,
     FormViewSubmitted,
   },
   mixins: [baseFormViewMode],

@@ -11,7 +11,10 @@
             Use Baserow to add at least one field.
           </div>
         </div>
-        <FormViewPoweredBy :show-logo="showLogo"></FormViewPoweredBy>
+        <FormViewFooterLinks
+          :show-logo="showLogo"
+          show-report-abuse
+        ></FormViewFooterLinks>
       </div>
       <component
         :is="component"
@@ -53,7 +56,7 @@ import {
   prefillField,
 } from '@baserow/modules/database/utils/form'
 import { matchSearchFilters } from '@baserow/modules/database/utils/view'
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 
 definePageMeta({
   middleware: ['settings'],

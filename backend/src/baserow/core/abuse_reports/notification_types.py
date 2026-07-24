@@ -47,10 +47,6 @@ class AbuseReportCreatedNotificationData:
 
 class AbuseReportCreatedNotificationType(EmailNotificationTypeMixin, NotificationType):
     type = "abuse_report_created"
-    # The summary email would turn the notification title into a link to this URL.
-    # Because the reported page is specifically suspected of phishing, the email must
-    # not link to it; the in-app notification renders it as an explicitly labeled
-    # link instead.
     has_web_frontend_route = False
 
     @classmethod
@@ -63,7 +59,7 @@ class AbuseReportCreatedNotificationType(EmailNotificationTypeMixin, Notificatio
 
         recipients = NotificationHandler.create_direct_notification_for_users(
             notification_type=cls.type,
-            recipients=list(admins),
+            recipients=admins,
             data=asdict(AbuseReportCreatedNotificationData.from_report(report)),
             sender=None,
             workspace=None,
@@ -86,11 +82,6 @@ class AbuseReportCreatedNotificationType(EmailNotificationTypeMixin, Notificatio
     def get_notification_description_for_email(
         cls, notification, context
     ) -> Optional[str]:
-        # The reported URL comes first so that it's always visible regardless of how
-        # long the rest of the text is. The reporter values are untrusted user
-        # input, so they're truncated, and everything is de-linkified so that the
-        # suspected phishing page can't be opened with a single click from the
-        # email.
         return _(
             "%(public_url)s — %(reporter_name)s (%(reporter_email)s) wrote: "
             "%(description)s"

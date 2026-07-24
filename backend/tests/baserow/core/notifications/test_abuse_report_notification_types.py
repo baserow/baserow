@@ -93,9 +93,7 @@ def test_email_title_and_description_neutralize_untrusted_text(data_fixture):
     # Long descriptions are truncated so a report can't flood the email.
     assert len(description) < 500
 
-    # The reported URL comes first so that the truncated description can't push it
-    # out of sight, and is de-linkified so that it can't be opened with a single
-    # click.
+    # First so that the truncated description can't push it out of sight.
     reported_url = prevent_autolink("http://baserow.example.com/public/grid/some-slug")
     assert description.startswith(reported_url)
     assert "http://baserow.example.com/public/grid/some-slug" not in description
@@ -108,8 +106,7 @@ def test_email_does_not_link_to_the_reported_page(data_fixture):
     recipients = AbuseReportCreatedNotificationType.notify_instance_admins(report)
     notification = recipients[0].notification
 
-    # The summary email turns the notification title into a link to this URL, and
-    # it must never point to the reported page because it's suspected of phishing.
+    # The summary email turns the notification title into a link to this URL.
     notification_type = AbuseReportCreatedNotificationType()
     assert notification_type.get_web_frontend_url(notification) is None
 

@@ -2,13 +2,6 @@ from django.db import models
 
 
 class AbuseReport(models.Model):
-    """
-    An abuse report submitted by an anonymous visitor of a publicly shared resource.
-    There is deliberately no foreign key to the reported resource because any
-    registered abuse report resource type can be reported, and the report must remain
-    available even if the resource is deleted.
-    """
-
     resource_type = models.CharField(max_length=255)
     resource_id = models.PositiveIntegerField()
     resource_name = models.CharField(max_length=255)
@@ -25,10 +18,6 @@ class AbuseReport(models.Model):
     reporter_email = models.EmailField()
     description = models.TextField()
     ip_address = models.GenericIPAddressField(null=True, blank=True)
-    # Whether the instance admins were actually notified about this report. Only
-    # these reports count towards the notification cooldown window, because a report
-    # that didn't notify anyone, for example when there were no active admins yet,
-    # must not suppress future notifications.
     admins_notified = models.BooleanField(default=False, db_default=False)
     created_on = models.DateTimeField(auto_now_add=True)
 

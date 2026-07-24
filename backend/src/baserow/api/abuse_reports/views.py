@@ -11,22 +11,17 @@ from baserow.api.captcha.errors import ERROR_CAPTCHA_VERIFICATION_FAILED
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.schemas import get_error_schema
 from baserow.core.abuse_reports.actions import SubmitAbuseReportActionType
-from baserow.core.abuse_reports.exceptions import (
-    AbuseReportingDisabledException,
-    AbuseReportResourceTypeDoesNotExist,
-)
+from baserow.core.abuse_reports.exceptions import AbuseReportingDisabledException
 from baserow.core.abuse_reports.registries import abuse_report_resource_type_registry
-from baserow.core.abuse_reports.throttling import AbuseReportRateThrottle
 from baserow.core.action.registries import action_type_registry
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
 from baserow.core.captcha.handler import CaptchaHandler
+from baserow.core.handler import CoreHandler
 from baserow.core.utils import get_user_remote_ip_address_from_request
 
-from .errors import (
-    ERROR_ABUSE_REPORT_RESOURCE_TYPE_DOES_NOT_EXIST,
-    ERROR_ABUSE_REPORTING_DISABLED,
-)
+from .errors import ERROR_ABUSE_REPORTING_DISABLED
 from .serializers import AbuseReportSerializer
+from .throttling import AbuseReportRateThrottle
 
 
 class AbuseReportsView(APIView):
@@ -38,9 +33,7 @@ class AbuseReportsView(APIView):
         operation_id="create_abuse_report",
         description=(
             "Reports a publicly shared resource, like a shared view or form, for "
-            "abuse. All instance admins are notified about the report so that they "
-            "can take action. This endpoint can be called by anonymous visitors, "
-            "and is rate limited per IP address."
+            "abuse. This endpoint can be called by anonymous visitors."
         ),
         request=AbuseReportSerializer,
         responses={
@@ -49,7 +42,6 @@ class AbuseReportsView(APIView):
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_ABUSE_REPORTING_DISABLED",
-                    "ERROR_ABUSE_REPORT_RESOURCE_TYPE_DOES_NOT_EXIST",
                     "ERROR_CAPTCHA_VERIFICATION_FAILED",
                 ]
             ),
@@ -60,15 +52,17 @@ class AbuseReportsView(APIView):
     @map_exceptions(
         {
             AbuseReportingDisabledException: ERROR_ABUSE_REPORTING_DISABLED,
-            AbuseReportResourceTypeDoesNotExist: (
-                ERROR_ABUSE_REPORT_RESOURCE_TYPE_DOES_NOT_EXIST
-            ),
             CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
         }
     )
     @validate_body(AbuseReportSerializer)
     @transaction.atomic
     def post(self, request: Request, data) -> Response:
+        if not CoreHandler().get_settings().allow_reporting_abuse:
+            raise AbuseReportingDisabledException(
+                "Reporting abuse has been disabled by the instance administrator."
+            )
+
         CaptchaHandler.validate_if_required(
             "abuse_report",
             data.get("captcha_token"),

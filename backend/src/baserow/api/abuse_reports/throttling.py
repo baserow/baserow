@@ -9,11 +9,7 @@ class AbuseReportRateThrottle(SimpleRateThrottle):
     scope = "abuse_report"
 
     def get_rate(self):
-        # Read the rate from a plain Django setting instead of
-        # `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]` because that dict is
-        # conditionally reassigned in the settings module, and a plain setting can
-        # easily be changed with `override_settings` in tests.
-        return settings.BASEROW_ABUSE_REPORT_THROTTLE_RATE
+        return settings.BASEROW_ABUSE_REPORT_THROTTLE_RATE or None
 
     def get_cache_key(self, request, view):
         return self.cache_format % {

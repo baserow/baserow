@@ -87,6 +87,20 @@ describe('ReportAbuseModal', () => {
     expect(wrapper.vm.loading).toBe(false)
   })
 
+  test('clears the captcha token when shown again', async () => {
+    const wrapper = await testApp.mount(ReportAbuseModal, {
+      propsData: {
+        resourceType: 'database_view',
+        identifier: 'test-slug',
+      },
+    })
+    wrapper.vm.captchaToken = 'consumed-token'
+
+    await wrapper.vm.show()
+
+    expect(wrapper.vm.captchaToken).toBe('')
+  })
+
   test('does not submit when the form is invalid', async () => {
     mockServer.mock.onPost('/abuse-reports/').reply(204)
 

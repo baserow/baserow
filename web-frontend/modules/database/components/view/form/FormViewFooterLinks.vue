@@ -1,12 +1,12 @@
 <template>
-  <div v-if="showLogo || showReportLink" class="form-view__powered-by">
+  <div v-if="showLogo || showReportLink" class="form-view__footer-links">
     <template v-if="showReportLink">
       <a
         class="form-view__report-abuse"
         href="#"
         @click.prevent="$refs.reportAbuseModal.show()"
       >
-        {{ $t('formViewPoweredBy.reportAbuse') }}
+        {{ $t('formViewFooterLinks.reportAbuse') }}
       </a>
       <ReportAbuseModal
         ref="reportAbuseModal"
@@ -20,11 +20,11 @@
       <a
         href="https://baserow.io"
         target="_blank"
-        title="Baserow - open source no-code database tool and Airtable alternative"
+        title="Baserow - open source no-code platform and Airtable alternative"
       >
         <Logo
           class="form-view__powered-by-logo"
-          alt="Baserow - open source no-code database tool and Airtable alternative"
+          alt="Baserow - open source no-code platform and Airtable alternative"
         />
       </a>
     </div>
@@ -36,7 +36,7 @@ import ReportAbuseModal from '@baserow/modules/core/components/abuseReport/Repor
 import addPublicAuthTokenHeader from '@baserow/modules/database/utils/publicView'
 
 export default {
-  name: 'FormViewPoweredBy',
+  name: 'FormViewFooterLinks',
   components: { ReportAbuseModal },
   props: {
     showLogo: {
@@ -44,14 +44,16 @@ export default {
       required: false,
       default: true,
     },
+    showReportAbuse: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   computed: {
     showReportLink() {
-      // Only on the publicly shared form page, so that the link isn't shown in
-      // the form editor preview, and even when the logo is hidden because
-      // reporting must always be possible.
       return (
-        this.$route.name === 'database-table-form' &&
+        this.showReportAbuse &&
         this.$store.getters['settings/get'].allow_reporting_abuse !== false
       )
     },
