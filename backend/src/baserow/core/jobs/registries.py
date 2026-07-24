@@ -15,7 +15,7 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import BaserowTraceMeta, baserow_trace
 from baserow.core.utils import Progress
 
 from .exceptions import (
@@ -34,7 +34,7 @@ class JobType(
     ModelInstanceMixin,
     MapAPIExceptionsInstanceMixin,
     Instance,
-    metaclass=baserow_trace_methods(tracer, only="do"),
+    metaclass=BaserowTraceMeta,
 ):
     """
     This abstract class represents a custom job type that can be added to the
@@ -100,6 +100,33 @@ class JobType(
                 "the same time."
             )
 
+    def scope_queryset_to_user(
+        self, user: AbstractUser, queryset: JobQuerySet
+    ) -> JobQuerySet:
+        """
+        Restricts a jobs listing queryset to the jobs that ``user`` may see. By
+        default jobs are only visible to the user that created them. A job type
+        can widen this, after an explicit object-level permission check, to also
+        expose jobs created by other users (e.g. runs of a shared resource).
+
+        :param user: The user requesting the jobs listing.
+        :param queryset: The already filtered queryset of jobs of this type.
+        :return: The queryset restricted to what the user may see.
+        """
+
+        return queryset.filter(user=user)
+
+    def enhance_queryset(self, queryset: JobQuerySet) -> JobQuerySet:
+        """
+        Adds the relations needed to serialize this job type efficiently. The jobs
+        listing calls this hook on each concrete job queryset before serialization.
+
+        :param queryset: A queryset for this job type's concrete model.
+        :return: The queryset with any required relations selected or prefetched.
+        """
+
+        return queryset
+
     def transaction_atomic_context(self, job: Job):
         """
         This method gives the possibility to change the transaction context per request.
@@ -134,6 +161,7 @@ class JobType(
         :param values: The provided values.
         """
 
+    @baserow_trace(tracer)
     def run(self, job: AnyJob, progress: Progress) -> Any:
         """
         This method is the task of this job type that will be executed asynchronously.

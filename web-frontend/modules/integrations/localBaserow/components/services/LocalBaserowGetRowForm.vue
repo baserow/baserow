@@ -65,6 +65,7 @@ export default {
         'row_id',
         'search_query',
         'filters',
+        'filter_groups',
         'filter_type',
       ],
       values: {
@@ -73,6 +74,7 @@ export default {
         row_id: {},
         search_query: {},
         filters: [],
+        filter_groups: [],
         filter_type: 'AND',
       },
     }

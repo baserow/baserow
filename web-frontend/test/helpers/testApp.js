@@ -287,8 +287,8 @@ export const UIHelpers = {
     const searchBox = body.get(
       'input[placeholder*="viewSearchContext.searchInRows"]'
     )
-    await searchBox.setValue(searchTerm)
     vi.useFakeTimers()
+    await searchBox.setValue(searchTerm)
     await searchBox.trigger('submit')
     vi.runAllTimers() // Consume the debounce
     await flushPromises()

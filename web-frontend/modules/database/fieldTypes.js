@@ -27,6 +27,10 @@ import moment from '@baserow/modules/core/moment'
 import guessFormat from 'moment-guess'
 import { Registerable } from '@baserow/modules/core/registry'
 import { mix } from '@baserow/modules/core/mixins'
+import {
+  plainTextToMarkdown,
+  richMarkdownToPlainText,
+} from '@baserow/modules/core/editor/richTextClipboard'
 import FieldNumberSubForm from '@baserow/modules/database/components/field/FieldNumberSubForm'
 import FieldAutonumberSubForm from '@baserow/modules/database/components/field/FieldAutonumberSubForm'
 import FieldDurationSubForm from '@baserow/modules/database/components/field/FieldDurationSubForm'
@@ -1348,6 +1352,26 @@ export class LongTextFieldType extends FieldType {
 
   getDefaultValue(field, flat) {
     return ''
+  }
+
+  prepareRichValueForCopy(field, value) {
+    return {
+      value: this.prepareValueForCopy(field, value),
+      richText: field.long_text_enable_rich_text,
+    }
+  }
+
+  prepareValueForPaste(field, clipboardData, richClipboardData) {
+    if (!field.long_text_enable_rich_text) {
+      // A rich source pasted into a plain field would otherwise carry markdown sentinels.
+      return richClipboardData?.richText
+        ? richMarkdownToPlainText(richClipboardData.value)
+        : clipboardData
+    }
+    if (richClipboardData?.richText) {
+      return richClipboardData.value
+    }
+    return plainTextToMarkdown(clipboardData)
   }
 
   canUpsert() {

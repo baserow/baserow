@@ -1,59 +1,349 @@
 receivers:
-  otlp:
-    protocols:
-      grpc: # port 4317
-      http:
-        endpoint: "0.0.0.0:4318"
+    otlp:
+        protocols:
+            grpc: # port 4317
+            http:
+                endpoint: "0.0.0.0:4318"
 
 processors:
-  # Disable sending spans for the sync templates task as it contains a huge number
-  # which pointlessly uses up resource limits. Also disable silk spam.
-  filter:
-    spans:
-      exclude:
-        match_type: regexp
-        attributes:
-          - key: db.statement
-            value: .*silk.*
-  filter/2:
-    spans:
-      exclude:
-        match_type: regexp
-        attributes:
-          - key: celery.task_name
-            value: .*sync_templates_task.*
-  batch:
-    send_batch_size: 1000
+    # Tail sampling buffers traces in memory until it can decide whether to retain the
+    # complete trace, so reject work before the collector is at risk of being killed.
+    memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+    # Disable sending spans for the sync templates task as it contains a huge number
+    # which pointlessly uses up resource limits. Also disable silk spam. The explicit
+    # force-full-trace escape hatch takes precedence over both filters.
+    filter:
+        error_mode: ignore
+        traces:
+            span:
+                - >-
+                    span.attributes["db.statement"] != nil
+                    and IsMatch(span.attributes["db.statement"], ".*silk.*")
+                    and span.attributes["baserow.force_full_otel_trace"] != true
+    filter/2:
+        error_mode: ignore
+        traces:
+            span:
+                - >-
+                    span.attributes["celery.task_name"] != nil
+                    and IsMatch(span.attributes["celery.task_name"], ".*sync_templates_task.*")
+                    and span.attributes["baserow.force_full_otel_trace"] != true
+    # Django Channels waits for WebSocket messages with a successful BZPOPMIN that
+    # blocks for up to five seconds. Redis auto-instrumentation otherwise turns each
+    # idle wait into a parentless one-span trace. Drop those routine polls before tail
+    # sampling and dependency metrics, but retain failures and explicitly forced traces.
+    filter/redis_idle_polling:
+        error_mode: ignore
+        traces:
+            span:
+                - >-
+                    (span.attributes["db.system"] == "redis"
+                    or span.attributes["db.system.name"] == "redis")
+                    and span.name == "BZPOPMIN"
+                    and span.status.code != STATUS_CODE_ERROR
+                    and span.attributes["baserow.force_full_otel_trace"] != true
+    # Some application operations use short-lived spans only as
+    # sampling-independent metric observations. Remove them from retained traces so
+    # they do not add noise or consume the tail-sampling span budget.
+    filter/metric_observations:
+        error_mode: ignore
+        traces:
+            span:
+                - 'span.attributes["baserow.metric.observation"] != nil'
+    # Drop sub-2ms successful db/redis leaf chatter from retained baseline traces after
+    # the trace-wide sampling decision. Error, slow, and forced traces keep dependency
+    # detail. If the tail sampler policy annotation is unavailable, this fails safe and
+    # retains the spans.
+    filter/fast_db_spans:
+        error_mode: ignore
+        traces:
+            span:
+                - >-
+                    (span.attributes["db.system"] != nil
+                    or span.attributes["db.system.name"] != nil)
+                    and (span.end_time_unix_nano - span.start_time_unix_nano) < 2000000
+                    and span.status.code != STATUS_CODE_ERROR
+                    and scope.attributes["tailsampling.composite_policy"] == "baseline"
+                    and span.attributes["baserow.force_full_otel_trace"] == nil
+    # This branch feeds sampling-independent request observations into a dedicated
+    # per-user metric family before trace tail sampling. Conditions are ORed, so only
+    # authenticated HTTP server spans with a stable route reach the connector.
+    filter/user_request_metrics:
+        error_mode: ignore
+        traces:
+            span:
+                - "span.kind != SPAN_KIND_SERVER"
+                - 'span.attributes["user.id"] == nil'
+                - 'span.attributes["http.route"] == nil'
+    # Count successful invitation create/resend operations per actor without coupling
+    # the metric to the HTTP route or retaining its observation span.
+    filter/workspace_invitation_metrics:
+        error_mode: ignore
+        traces:
+            span:
+                - >-
+                    span.attributes["baserow.metric.observation"]
+                    != "workspace_invitation_created"
+                - 'span.attributes["user.id"] == nil'
+    # Feed meaningful database and Redis observations into low-cardinality dependency
+    # metrics before trace sampling and baseline compaction.
+    filter/dependency_metrics:
+        error_mode: ignore
+        traces:
+            span:
+                - >-
+                    span.attributes["db.system"] == nil
+                    and span.attributes["db.system.name"] == nil
+    # Each duration histogram already contains an observation count. Do not also
+    # export the connectors' duplicate calls counters.
+    filter/redundant_span_metric_calls:
+        error_mode: ignore
+        metric_conditions:
+            - 'metric.name == "baserow.http.server.user.request.calls"'
+            - 'metric.name == "baserow.dependency.calls"'
+    # Keep complete traces explicitly requested with force_full_otel_trace=true. These
+    # requests intentionally bypass the bounded sampling budget below.
+    #
+    # All other traces prioritize errors and explicitly marked slow HTTP/Celery traces
+    # while bounding the total number of spans exported per second. All Celery queues
+    # use the configured duration threshold. Policy order also prevents a slow error
+    # trace from consuming both budgets. The final always-sample policy uses the
+    # remaining capacity for a representative baseline of normal traffic.
+    tail_sampling:
+        # Keep long-running task traces eligible until their root arrives, but decide
+        # shortly after a completed HTTP or Celery root is received. This avoids holding
+        # ordinary request traces for the complete maximum wait.
+        decision_wait: ${env:BASEROW_OTEL_TAIL_SAMPLING_DECISION_WAIT:-5m}
+        decision_wait_after_root_received: ${env:BASEROW_OTEL_TAIL_SAMPLING_DECISION_WAIT_AFTER_ROOT_RECEIVED:-5s}
+        num_traces: 100000
+        expected_new_traces_per_sec: 1000
+        # Drop policies are evaluated first by the processor. After they do not match,
+        # stop on the force policy so explicitly forced traces do not consume the
+        # bounded composite policy's capacity.
+        sample_on_first_match: true
+        decision_cache:
+            sampled_cache_size: 500000
+            non_sampled_cache_size: 500000
+        policies:
+            # A drop decision overrides sampling decisions from the policies below. Match
+            # only non-forced preflight/HEAD traces so the explicit force escape hatch wins.
+            - name: drop-no-value-requests
+              type: drop
+              drop:
+                  drop_sub_policy:
+                      - name: non-forced-options-or-head
+                        type: ottl_condition
+                        ottl_condition:
+                            error_mode: ignore
+                            span:
+                                - >-
+                                    (span.attributes["http.request.method"] == "OPTIONS"
+                                    or span.attributes["http.request.method"] == "HEAD")
+                                    and span.attributes["baserow.force_full_otel_trace"] != true
+            - name: force-full-trace
+              type: boolean_attribute
+              boolean_attribute:
+                  key: baserow.force_full_otel_trace
+                  value: true
+            # A -1 budget is the explicit low-traffic opt-out from bounded sampling.
+            # The drop policies above still remove deliberately suppressed telemetry.
+            - name: retain-all-eligible-traces
+              type: ottl_condition
+              ottl_condition:
+                  error_mode: ignore
+                  span:
+                      - "${env:BASEROW_OTEL_TAIL_SAMPLING_MAX_SPANS_PER_SECOND:-250} == -1"
+            - name: bounded-priority-sampling
+              type: composite
+              composite:
+                  max_total_spans_per_second: ${env:BASEROW_OTEL_TAIL_SAMPLING_MAX_SPANS_PER_SECOND:-250}
+                  policy_order: [errors, slow-traces, baseline]
+                  composite_sub_policy:
+                      - name: errors
+                        type: status_code
+                        status_code:
+                            status_codes: [ERROR]
+                      - name: slow-traces
+                        type: ottl_condition
+                        ottl_condition:
+                            error_mode: ignore
+                            span:
+                                - >-
+                                    span.attributes["baserow.http.request.slow"] == true
+                                    or span.attributes["baserow.celery.task.slow"] == true
+                      - name: baseline
+                        type: always_sample
+                  rate_allocation:
+                      - policy: errors
+                        percent: 40
+                      - policy: slow-traces
+                        percent: 30
+                      - policy: baseline
+                        percent: 30
+    batch:
+        send_batch_size: 1000
+
+connectors:
+    # Keep the high-cardinality user dimension separate from route, method, status,
+    # and span name. This provides request counts and duration distributions per user
+    # without creating a user x endpoint x status Cartesian product.
+    span_metrics/user_requests:
+        namespace: baserow.http.server.user.request
+        histogram:
+            unit: ms
+            explicit:
+                buckets:
+                    [
+                        5ms,
+                        10ms,
+                        25ms,
+                        50ms,
+                        100ms,
+                        250ms,
+                        500ms,
+                        1s,
+                        2s,
+                        5s,
+                        10s,
+                        15s,
+                        30s,
+                        60s,
+                    ]
+        dimensions:
+            - name: user.id
+        exclude_dimensions:
+            [span.name, span.kind, status.code, otel.status_code]
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+        aggregation_cardinality_limit: ${env:BASEROW_OTEL_USER_METRICS_CARDINALITY_LIMIT:-50000}
+        metric_timestamp_cache_size: ${env:BASEROW_OTEL_USER_METRICS_CARDINALITY_LIMIT:-50000}
+        metrics_flush_interval: ${env:BASEROW_OTEL_USER_METRICS_FLUSH_INTERVAL:-60s}
+        series_expiration: ${env:BASEROW_OTEL_USER_METRICS_SERIES_EXPIRATION:-5m}
+        resource_metrics_key_attributes:
+            - service.name
+            - deployment.environment.name
+            - k8s.namespace.name
+    # Purpose-built per-user action counter. The observation span is discarded from
+    # traces and the histogram is disabled, so this connector emits only the bounded
+    # `baserow.workspace.invitation.created.calls` counter.
+    span_metrics/workspace_invitations:
+        namespace: baserow.workspace.invitation.created
+        histogram:
+            disable: true
+        dimensions:
+            - name: user.id
+        exclude_dimensions:
+            [span.name, span.kind, status.code, otel.status_code]
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+        aggregation_cardinality_limit: ${env:BASEROW_OTEL_USER_METRICS_CARDINALITY_LIMIT:-50000}
+        metric_timestamp_cache_size: ${env:BASEROW_OTEL_USER_METRICS_CARDINALITY_LIMIT:-50000}
+        metrics_flush_interval: ${env:BASEROW_OTEL_USER_METRICS_FLUSH_INTERVAL:-60s}
+        series_expiration: ${env:BASEROW_OTEL_USER_METRICS_SERIES_EXPIRATION:-5m}
+        resource_metrics_key_attributes:
+            - service.name
+            - deployment.environment.name
+            - k8s.namespace.name
+    # Exact, low-cardinality database/Redis call counts and duration distributions. The
+    # histogram is generated before sampling after idle-poll filtering; raw statements,
+    # table IDs, users, and span names are intentionally excluded.
+    span_metrics/dependencies:
+        namespace: baserow.dependency
+        histogram:
+            unit: ms
+            explicit:
+                buckets:
+                    [
+                        1ms,
+                        2ms,
+                        5ms,
+                        10ms,
+                        25ms,
+                        50ms,
+                        100ms,
+                        250ms,
+                        500ms,
+                        1s,
+                        2s,
+                        5s,
+                        10s,
+                    ]
+        dimensions:
+            - name: db.system.name
+            - name: db.system
+            - name: db.operation.name
+            - name: db.operation
+        exclude_dimensions: [span.name, span.kind]
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+        aggregation_cardinality_limit: 1000
+        metrics_flush_interval: 60s
+        series_expiration: 5m
+        resource_metrics_key_attributes:
+            - service.name
+            - deployment.environment.name
+            - k8s.namespace.name
 
 exporters:
-  otlp:
-    endpoint: "api.honeycomb.io:443"
-    headers:
-      "x-honeycomb-team": "${env:HONEYCOMB_API_KEY}"
-  otlp/metrics:
-    endpoint: "api.honeycomb.io:443"
-    headers:
-      "x-honeycomb-team": "${env:HONEYCOMB_API_KEY}"
-      "x-honeycomb-dataset": "${env:HONEYCOMB_METRICS_DATASET}"
-  logging:
-
+    # Use OTLP/HTTP for Honeycomb because it works reliably through networks that
+    # interfere with gRPC's long-lived connections.
+    otlp_http:
+        endpoint: "https://api.honeycomb.io:443"
+        headers:
+            "x-honeycomb-team": "${env:HONEYCOMB_API_KEY}"
+    otlp_http/metrics:
+        endpoint: "https://api.honeycomb.io:443"
+        headers:
+            "x-honeycomb-team": "${env:HONEYCOMB_API_KEY}"
+            "x-honeycomb-dataset": "${env:HONEYCOMB_METRICS_DATASET}"
 service:
-#  telemetry:
-#    logs:
-#      level: "debug"
-  pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [filter,filter/2,batch]
-      exporters: [otlp,logging]
-    metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp/metrics,logging]
-    logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp,logging]
+    pipelines:
+        traces:
+            receivers: [otlp]
+            processors:
+                [
+                    memory_limiter,
+                    filter,
+                    filter/2,
+                    filter/redis_idle_polling,
+                    filter/metric_observations,
+                    tail_sampling,
+                    filter/fast_db_spans,
+                    batch,
+                ]
+            exporters: [otlp_http]
+        traces/user_request_metrics:
+            receivers: [otlp]
+            processors: [memory_limiter, filter/user_request_metrics]
+            exporters: [span_metrics/user_requests]
+        traces/workspace_invitation_metrics:
+            receivers: [otlp]
+            processors: [memory_limiter, filter/workspace_invitation_metrics]
+            exporters: [span_metrics/workspace_invitations]
+        traces/dependency_metrics:
+            receivers: [otlp]
+            processors:
+                [
+                    memory_limiter,
+                    filter/dependency_metrics,
+                    filter/redis_idle_polling,
+                ]
+            exporters: [span_metrics/dependencies]
+        metrics:
+            receivers:
+                [
+                    otlp,
+                    span_metrics/user_requests,
+                    span_metrics/workspace_invitations,
+                    span_metrics/dependencies,
+                ]
+            processors:
+                [memory_limiter, filter/redundant_span_metric_calls, batch]
+            exporters: [otlp_http/metrics]
+        logs:
+            receivers: [otlp]
+            processors: [memory_limiter, batch]
+            exporters: [otlp_http]
 
 extensions:
-  health_check:
+    health_check:

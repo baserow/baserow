@@ -3,6 +3,7 @@
     :columns="columns"
     :service="service"
     row-id-key="id"
+    :default-search="defaultSearch"
     @row-context="onRowContext"
   >
     <template #title>
@@ -46,6 +47,10 @@ export default {
     }
   },
   computed: {
+    defaultSearch() {
+      const { search } = this.$route.query
+      return search ? String(search) : null
+    },
     membersPagePlugins() {
       return Object.values(this.$registry.getAll('membersPagePlugins'))
     },

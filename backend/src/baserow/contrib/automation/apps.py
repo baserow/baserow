@@ -20,6 +20,7 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.nodes.node_types import (
             AIAgentActionNodeType,
             CoreCSVFileReaderNodeType,
+            CoreGotoActionNodeType,
             CoreHttpRequestNodeType,
             CoreHTTPTriggerNodeType,
             CoreIteratorNodeType,
@@ -186,6 +187,7 @@ class AutomationConfig(AppConfig):
         automation_node_type_registry.register(CoreSMTPEmailNodeType())
         automation_node_type_registry.register(CoreRouterActionNodeType())
         automation_node_type_registry.register(CoreStartWorkflowNodeType())
+        automation_node_type_registry.register(CoreGotoActionNodeType())
         automation_node_type_registry.register(LocalBaserowRowsCreatedNodeTriggerType())
         automation_node_type_registry.register(LocalBaserowRowsUpdatedNodeTriggerType())
         automation_node_type_registry.register(LocalBaserowRowsDeletedNodeTriggerType())

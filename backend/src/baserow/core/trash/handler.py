@@ -8,7 +8,6 @@ from django.db import IntegrityError, OperationalError, transaction
 from django.db.models import Q, QuerySet
 
 from loguru import logger
-from opentelemetry import trace
 
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
@@ -18,7 +17,6 @@ from baserow.core.exceptions import (
     is_max_lock_exceeded_exception,
 )
 from baserow.core.models import Application, TrashEntry, Workspace
-from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.exceptions import (
     CannotDeleteAlreadyDeletedItem,
     CannotRestoreChildBeforeParent,
@@ -42,10 +40,8 @@ from baserow.core.trash.signals import before_permanently_deleted, permanently_d
 
 User = get_user_model()
 
-tracer = trace.get_tracer(__name__)
 
-
-class TrashHandler(metaclass=baserow_trace_methods(tracer)):
+class TrashHandler:
     @staticmethod
     def trash(
         requesting_user: User,

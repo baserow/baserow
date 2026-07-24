@@ -494,7 +494,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.3.2",
+    "VERSION": "2.3.3",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -975,6 +975,11 @@ AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS = int(
 AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES", 60)
 )
+# The maximum number of node dispatches allowed in a single workflow run.
+# This protects against infinite dispatches due to a misconfigured node.
+AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN = int(
+    os.getenv("BASEROW_AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN", 1000)
+)
 
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
 
@@ -1253,6 +1258,13 @@ BASEROW_BACKEND_LOG_LEVEL = os.getenv("BASEROW_BACKEND_LOG_LEVEL", "INFO")
 BASEROW_BACKEND_DATABASE_LOG_LEVEL = os.getenv(
     "BASEROW_BACKEND_DATABASE_LOG_LEVEL", "ERROR"
 )
+BASEROW_OTEL_LOG_LEVEL = os.getenv("BASEROW_OTEL_LOG_LEVEL") or "WARNING"
+BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS = float(
+    os.getenv("BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS") or 10
+)
+BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS = float(
+    os.getenv("BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS") or 60
+)
 
 BASEROW_JOB_EXPIRATION_TIME_LIMIT = int(
     os.getenv("BASEROW_JOB_EXPIRATION_TIME_LIMIT", 30 * 24 * 60)  # 30 days
@@ -1473,10 +1485,8 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-    from baserow.core.sentry import (
-        ConsoleSentryTransport,
-        drop_expected_asyncio_websocket_disconnect_events,
-    )
+    from baserow.core.sentry import drop_expected_asyncio_websocket_disconnect_events
+    from baserow.core.sentry_transport import ConsoleSentryTransport
 
     # Exclude integrations whose module-level imports are incompatible:
     # - pydantic_ai: sentry-sdk patches ToolManager._call_tool which was

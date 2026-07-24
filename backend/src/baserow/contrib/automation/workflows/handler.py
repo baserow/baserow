@@ -60,7 +60,7 @@ from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
-from baserow.core.telemetry.utils import baserow_trace
+from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     ChildProgressBuilder,
@@ -78,6 +78,7 @@ AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 tracer = trace.get_tracer(__name__)
 
 
+@baserow_trace_handler
 class AutomationWorkflowHandler:
     allowed_fields = [
         "name",
@@ -612,6 +613,7 @@ class AutomationWorkflowHandler:
 
         return workflow_instance
 
+    @baserow_trace(tracer)
     def clean_up_previously_published_automations(
         self, workflow: AutomationWorkflow
     ) -> None:
@@ -803,6 +805,7 @@ class AutomationWorkflowHandler:
             workflow.save(update_fields=fields_to_save)
             automation_workflow_updated.send(self, user=None, workflow=workflow)
 
+    @baserow_trace(tracer)
     def toggle_test_run(
         self,
         workflow: AutomationWorkflow,
@@ -856,6 +859,7 @@ class AutomationWorkflowHandler:
                 # except if we are updating the trigger sample data by itself
                 self.async_start_workflow(workflow)
 
+    @baserow_trace(tracer)
     def clear_old_history(self) -> None:
         """
         Clears any old history entries across all workflows.
@@ -925,6 +929,7 @@ class AutomationWorkflowHandler:
 
         empty_published.delete()
 
+    @baserow_trace(tracer)
     def mark_failure_for_timed_out_history(self) -> None:
         """
         If an history entry is still not finished after a certain duration, this execution
@@ -1133,6 +1138,7 @@ class AutomationWorkflowHandler:
 
         automation_workflow_before_run.send(sender=self, workflow=workflow)
 
+    @baserow_trace(tracer)
     def async_start_workflow(
         self,
         workflow: AutomationWorkflow,

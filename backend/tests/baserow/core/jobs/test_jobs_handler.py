@@ -396,3 +396,20 @@ def test_job_cancel_cancelled(data_fixture, test_thread, mutable_job_type_regist
     out = JobHandler.cancel_job(job)
     # won't cancel already cancelled
     assert out is None
+
+
+@pytest.mark.django_db
+def test_get_jobs_for_user_remains_scoped_to_owner(data_fixture):
+    user_1 = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    job_1 = data_fixture.create_fake_job(user=user_1)
+    job_2 = data_fixture.create_fake_job(user=user_2)
+
+    jobs = JobHandler.get_jobs_for_user(user_1, filter_states=None, filter_ids=None)
+    assert [job.id for job in jobs] == [job_1.id]
+
+    # Requesting another user's job by id must not expose it (owner-only default).
+    jobs = JobHandler.get_jobs_for_user(
+        user_1, filter_states=None, filter_ids=[job_1.id, job_2.id]
+    )
+    assert [job.id for job in jobs] == [job_1.id]

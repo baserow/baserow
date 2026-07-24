@@ -5,14 +5,16 @@ import os
 import typing
 from abc import ABCMeta
 from contextlib import contextmanager
+from contextvars import ContextVar
 from operator import attrgetter
-from typing import List, Optional, Union
 
 from opentelemetry import baggage, context
 from opentelemetry.context import Context, attach, detach, set_value
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace import Status, StatusCode, Tracer, get_current_span
+from opentelemetry.trace import Status, StatusCode, Tracer, get_current_span, get_tracer
+
+from baserow.core.telemetry.sampling import OTEL_FORCE_FULL_TRACE_ATTRIBUTE
 
 
 def disable_instrumentation(wrapped_function):
@@ -44,6 +46,23 @@ def disable_instrumentation(wrapped_function):
 # baserow manually.
 BASEROW_OTEL_TRACE_ATTR_PREFIX = "baserow."
 
+# A Baserow handler often calls other decorated handlers. One domain-level operation
+# span around the outer call is useful; spans for every nested Python call are not.
+# API entry points sit above that operation, while selected phases (for example
+# permission checks and model generation) can opt into one level below it. ContextVar
+# keeps this async- and thread-safe while automatic dependency spans remain attached to
+# the nearest semantic span.
+_baserow_span_scope = ContextVar("baserow_span_scope", default=None)
+_BASEROW_TRACE_CONFIG_ATTR = "__baserow_trace_config__"
+_BASEROW_SPAN_LEVEL_ENTRYPOINT = "entrypoint"
+_BASEROW_SPAN_LEVEL_OPERATION = "operation"
+_BASEROW_SPAN_LEVEL_PHASE = "phase"
+_BASEROW_SPAN_LEVEL_RANK = {
+    _BASEROW_SPAN_LEVEL_ENTRYPOINT: 0,
+    _BASEROW_SPAN_LEVEL_OPERATION: 1,
+    _BASEROW_SPAN_LEVEL_PHASE: 2,
+}
+
 
 class BatchBaggageSpanProcessor(BatchSpanProcessor):
     def on_start(
@@ -52,6 +71,8 @@ class BatchBaggageSpanProcessor(BatchSpanProcessor):
         super().on_start(span, parent_context)
         get_all = baggage.get_all(context=parent_context)
         for name, value in get_all.items():
+            if name == OTEL_FORCE_FULL_TRACE_ATTRIBUTE:
+                value = value is True or value == "true"
             span.set_attribute(name, value)
 
 
@@ -93,102 +114,171 @@ def setup_user_in_baggage_and_spans(user, request=None):
         context.detach(token)
 
 
-def _baserow_trace_func(wrapped_func, tracer: Tracer):
+def _should_skip_baserow_span(span_level: str) -> bool:
+    current_level = _baserow_span_scope.get()
+    return current_level is not None and (
+        _BASEROW_SPAN_LEVEL_RANK[span_level] <= _BASEROW_SPAN_LEVEL_RANK[current_level]
+    )
+
+
+@contextmanager
+def _baserow_trace_span(tracer: Tracer, span_name: str, span_level: str):
+    if _should_skip_baserow_span(span_level):
+        yield None
+        return
+
+    token = _baserow_span_scope.set(span_level)
+    try:
+        with tracer.start_as_current_span(span_name) as span:
+            try:
+                yield span
+            except Exception as ex:
+                span.set_status(Status(StatusCode.ERROR))
+                span.record_exception(ex)
+                raise
+    finally:
+        _baserow_span_scope.reset(token)
+
+
+@contextmanager
+def baserow_trace_entrypoint(tracer: Tracer, span_name: str):
+    """
+    Create the first Baserow-owned span below an automatically instrumented root.
+
+    A domain operation and one important phase may be retained below this span. This
+    is intended for framework-level entry points such as concrete DRF view methods,
+    not for ordinary application functions.
+    """
+
+    with _baserow_trace_span(tracer, span_name, _BASEROW_SPAN_LEVEL_ENTRYPOINT) as span:
+        yield span
+
+
+@contextmanager
+def baserow_trace_phase(tracer: Tracer, span_name: str):
+    """Create one important phase below an entry point or domain operation."""
+
+    with _baserow_trace_span(tracer, span_name, _BASEROW_SPAN_LEVEL_PHASE) as span:
+        yield span
+
+
+def _baserow_trace_func(wrapped_func, tracer: Tracer, allow_nested: bool = False):
+    span_level = (
+        _BASEROW_SPAN_LEVEL_PHASE if allow_nested else _BASEROW_SPAN_LEVEL_OPERATION
+    )
+
     if asyncio.iscoroutinefunction(wrapped_func):
 
         @functools.wraps(wrapped_func)
         async def _async_wrapper(*args, **kwargs):
-            with tracer.start_as_current_span(
-                f"{wrapped_func.__module__}.{wrapped_func.__qualname__}"
-            ) as span:
-                try:
-                    return await wrapped_func(*args, **kwargs)
-                except Exception as ex:
-                    span.set_status(Status(StatusCode.ERROR))
-                    span.record_exception(ex)
-                    raise
+            with _baserow_trace_span(tracer, wrapped_func.__qualname__, span_level):
+                return await wrapped_func(*args, **kwargs)
 
-        return _async_wrapper
+        wrapper = _async_wrapper
     else:
 
         @functools.wraps(wrapped_func)
         def _sync_wrapper(*args, **kwargs):
-            with tracer.start_as_current_span(
-                f"{wrapped_func.__module__}.{wrapped_func.__qualname__}"
-            ) as span:
-                try:
-                    return wrapped_func(*args, **kwargs)
-                except Exception as ex:
-                    span.set_status(Status(StatusCode.ERROR))
-                    span.record_exception(ex)
-                    raise
+            with _baserow_trace_span(tracer, wrapped_func.__qualname__, span_level):
+                return wrapped_func(*args, **kwargs)
 
-        return _sync_wrapper
+        wrapper = _sync_wrapper
+
+    setattr(wrapper, _BASEROW_TRACE_CONFIG_ATTR, (tracer, allow_nested))
+    return wrapper
 
 
-def baserow_trace_methods(
-    tracer: Tracer,
-    only: Optional[Union[str, List[str]]] = None,
-    exclude: Optional[Union[str, List[str]]] = None,
-    abc: bool = False,
-):
+def _get_baserow_trace_config(value):
+    if isinstance(value, (classmethod, staticmethod)):
+        value = value.__func__
+    return getattr(value, _BASEROW_TRACE_CONFIG_ATTR, None)
+
+
+def _trace_method_descriptor(value, tracer: Tracer, allow_nested: bool):
+    if isinstance(value, classmethod):
+        return classmethod(
+            _baserow_trace_func(value.__func__, tracer, allow_nested=allow_nested)
+        )
+    if isinstance(value, staticmethod):
+        return staticmethod(
+            _baserow_trace_func(value.__func__, tracer, allow_nested=allow_nested)
+        )
+    if inspect.isfunction(value):
+        return _baserow_trace_func(value, tracer, allow_nested=allow_nested)
+    raise TypeError(
+        "baserow_trace can only decorate functions, classmethods, or staticmethods"
+    )
+
+
+def baserow_trace_handler(handler_class):
     """
-    Automatically traces all public methods, or specific methods of a class depending
-    on the arguments.
+    Trace public methods declared by an explicitly selected main handler class.
 
-    You need to use this if you want to say, trace every implementation of an abstract
-    method as decorating the method itself will get overriden by the subclasses where-as
-    this metaclass will wrap the method when the subclass itself is created (the class
-    not the instances!)
-
-    If you want to use this metaclass and abc.ABC, use this and set abc=True.
-
-    Using a metaclass is the python recommended way of automatically decorating
-    all/some functions in a class.
-
-    :param tracer: An otel Tracer, add `tracer = trace.get_tracer(__name__)` to the top
-        of your file to get one.
-    :param only: The name of the only function you want to trace or a list of names.
-    :param exclude: The name of the function you do not want to trace or a list of
-    names.
-    :param abc: Whether this class should also be an abstract base class.
+    Handler methods use the domain-operation span level. Consequently, a handler
+    called by a DRF view is visible, handler-to-handler calls collapse below their
+    outer handler, and handlers called from an action don't duplicate the action span.
+    Private helpers and methods already configured with ``@baserow_trace`` are left
+    untouched.
     """
 
-    if only and not isinstance(only, list):
-        only = [only]
-    if exclude and not isinstance(exclude, list):
-        exclude = [exclude]
+    tracer = get_tracer(handler_class.__module__)
+    for attr, value in list(vars(handler_class).items()):
+        if attr.startswith("_") or _get_baserow_trace_config(value) is not None:
+            continue
+        if not (
+            inspect.isfunction(value) or isinstance(value, (classmethod, staticmethod))
+        ):
+            continue
+        setattr(handler_class, attr, _trace_method_descriptor(value, tracer, False))
+    return handler_class
 
-    super_class = ABCMeta if abc else type
 
-    class TraceMethodsMetaClass(super_class):
-        def __new__(cls, name, bases, local):
-            for attr in local:
-                if cls._should_trace_attr(attr):
-                    continue
-                value = local[attr]
-                if inspect.isfunction(value):
-                    local[attr] = _baserow_trace_func(value, tracer)
-            return super().__new__(cls, name, bases, local)
+class BaserowTraceMeta(ABCMeta):
+    """
+    Propagates ``@baserow_trace`` from base methods to subclass overrides.
 
-        @staticmethod
-        def _should_trace_attr(attr):
-            return (
-                attr.startswith("_")
-                or (only and attr not in only)
-                or (exclude and attr in exclude)
+    Use this metaclass only for base classes whose traced methods are implemented or
+    overridden by subclasses. Concrete classes should decorate selected methods
+    directly.
+    """
+
+    def __new__(cls, name, bases, local):
+        created_class = super().__new__(cls, name, bases, local)
+        for attr, value in local.items():
+            if _get_baserow_trace_config(value) is not None:
+                continue
+
+            trace_config = cls._get_inherited_trace_config(
+                attr, created_class.__mro__[1:]
             )
+            if trace_config is None:
+                continue
 
-    return TraceMethodsMetaClass
+            tracer, allow_nested = trace_config
+            setattr(
+                created_class,
+                attr,
+                _trace_method_descriptor(value, tracer, allow_nested=allow_nested),
+            )
+        return created_class
+
+    @staticmethod
+    def _get_inherited_trace_config(attr, inherited_mro):
+        for base in inherited_mro:
+            if attr in base.__dict__:
+                return _get_baserow_trace_config(base.__dict__[attr])
+        return None
 
 
-def baserow_trace(tracer):
+def baserow_trace(tracer, *, allow_nested: bool = False):
     """
     Decorates a function to send a span of its execution. This will let you see how
     long the function took in your telemetry platform.
 
     :param tracer: An otel Tracer, add `tracer = trace.get_tracer(__name__)` to the top
         of your file to get one.
+    :param allow_nested: Whether this is an important phase which may create one span
+        below a domain operation.
     """
 
     if not isinstance(tracer, Tracer):
@@ -200,7 +290,9 @@ def baserow_trace(tracer):
         )
 
     def inner(wrapped_function_or_cls):
-        return _baserow_trace_func(wrapped_function_or_cls, tracer)
+        return _trace_method_descriptor(
+            wrapped_function_or_cls, tracer, allow_nested=allow_nested
+        )
 
     return inner
 

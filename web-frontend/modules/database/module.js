@@ -5,7 +5,7 @@ import {
   addRouteMiddleware,
   extendPages,
 } from 'nuxt/kit'
-import { routes } from './routes'
+import { rootChildRoutes, routes } from './routes'
 import { locales } from '../../config/locales.js'
 
 export default defineNuxtModule({
@@ -39,6 +39,13 @@ export default defineNuxtModule({
 
     extendPages((pages) => {
       pages.push(...routes)
+
+      const rootRoute = pages.find((route) => route.name === 'root')
+      rootChildRoutes.forEach((route) => {
+        if (!rootRoute.children.find(({ name }) => name === route.name)) {
+          rootRoute.children.push(route)
+        }
+      })
     })
 
     nuxt.hook('i18n:registerModule', (register) => {

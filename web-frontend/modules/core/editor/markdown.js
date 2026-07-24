@@ -1,6 +1,54 @@
 import Markdown from 'markdown-it'
 import taskLists from 'markdown-it-task-lists'
+import { MarkdownManager } from '@tiptap/markdown'
+
 import { parseMention } from '@baserow/modules/core/editor/mention'
+import {
+  configureMarkdownSerializerCompatibility,
+  prepareMarkdownDocumentForSerialization,
+} from '@baserow/modules/core/editor/markdownCompatibility'
+import {
+  createMarkedInstance,
+  createRichTextContentExtensions,
+  MARKDOWN_OPTIONS,
+} from '@baserow/modules/core/editor/richTextExtensions'
+
+const previewMarkdownManager = new MarkdownManager({
+  extensions: createRichTextContentExtensions({ enableImages: true }),
+  marked: createMarkedInstance(),
+  markedOptions: MARKDOWN_OPTIONS,
+})
+configureMarkdownSerializerCompatibility(previewMarkdownManager)
+
+const makeEmptyParagraphsVisible = (node) => {
+  if (node.type === 'paragraph' && !node.content?.length) {
+    node.content = [{ type: 'text', text: '\u00a0' }]
+    return true
+  }
+
+  return (
+    node.content?.reduce(
+      (found, child) => makeEmptyParagraphsVisible(child) || found,
+      false
+    ) ?? false
+  )
+}
+
+// Only sentinels and blank-line runs can produce empty paragraphs on parse.
+const EMPTY_PARAGRAPH_HINT_REGEXP = /&nbsp;|\u00a0|\n[ \t\r]*\n[ \t\r]*\n/
+
+const prepareMarkdownForPreview = (value) => {
+  // Parsing every value is too costly for grid cell previews, so gate it.
+  if (!EMPTY_PARAGRAPH_HINT_REGEXP.test(value)) {
+    return value
+  }
+  const document = previewMarkdownManager.parse(value)
+  return makeEmptyParagraphsVisible(document)
+    ? previewMarkdownManager.serialize(
+        prepareMarkdownDocumentForSerialization(document)
+      )
+    : value
+}
 
 export const parseMarkdown = (
   value,
@@ -66,5 +114,5 @@ export const parseMarkdown = (
   // mentions
   md.use(parseMention(workspaceUsers || [], loggedUserId))
 
-  return md.render(value || '')
+  return md.render(prepareMarkdownForPreview(value || ''))
 }

@@ -3,6 +3,7 @@
     :columns="columns"
     :service="service"
     row-id-key="id"
+    :default-search="defaultSearch"
     @row-context="onRowContext"
   >
     <template #title>
@@ -107,6 +108,12 @@ export default {
       editWorkspace: {},
       hiddenUsers: [],
     }
+  },
+  computed: {
+    defaultSearch() {
+      const { search } = this.$route.query
+      return search ? String(search) : null
+    },
   },
   methods: {
     onRowContext({ row, event, target }) {

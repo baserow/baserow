@@ -75,3 +75,10 @@ class AutomationNodeMissingOutput(AutomationNodeError):
     """
     Raised when the target output is missing in the reference node.
     """
+
+
+class AutomationNodeMaxDispatchesExceeded(AutomationNodeError):
+    """
+    Raised when a workflow run exceeds the maximum number of node dispatches,
+    a safety backstop against infinite loops.
+    """

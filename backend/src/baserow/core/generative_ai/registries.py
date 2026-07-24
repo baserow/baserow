@@ -5,7 +5,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
 from loguru import logger
-from pydantic_ai.messages import UserContent
 
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
@@ -14,6 +13,7 @@ from .exceptions import GenerativeAITypeDoesNotExist, get_user_friendly_error_me
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
+    from pydantic_ai.messages import UserContent
 
     from baserow_premium.fields.ai_file import AIFile
 

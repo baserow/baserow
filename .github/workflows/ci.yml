@@ -211,6 +211,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       dockerfiles: ${{ steps.filter.outputs.dockerfiles }}
+      e2e: ${{ steps.filter.outputs.e2e }}
       mjml: ${{ steps.filter.outputs.mjml }}
       zapier: ${{ steps.filter.outputs.zapier }}
       helm: ${{ steps.filter.outputs.helm }}
@@ -235,6 +236,9 @@ jobs:
               - '.github/workflows/ci.yml'
             dockerfiles:
               - '**/Dockerfile'
+              - '.github/workflows/ci.yml'
+            e2e:
+              - 'e2e-tests/**'
               - '.github/workflows/ci.yml'
             mjml:
               - '**/*.eta'
@@ -673,7 +677,7 @@ jobs:
       - detect-changes
       - build-backend
       - build-frontend
-    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || needs.detect-changes.outputs.e2e == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -866,6 +870,10 @@ jobs:
           PUBLIC_BACKEND_URL: http://localhost:8000
           PUBLIC_WEB_FRONTEND_URL: http://localhost:3000
           PRIVATE_BACKEND_URL: http://backend:8000
+          # The CI web-frontend runs with the default (empty) cookie prefix, so
+          # tests that read/set cookies (e.g. the user_source_token) must use the
+          # same empty prefix rather than playwright.config's baserow_e2e_ default.
+          BASEROW_FRONTEND_COOKIE_PREFIX: ""
           CI: 1
         run: |
           cd e2e-tests

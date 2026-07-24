@@ -158,6 +158,14 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(UpdateViewFilterGroupActionType())
         action_type_registry.register(DeleteViewFilterGroupActionType())
 
+        from baserow.contrib.database.admin.views.actions import (
+            RotateViewSlugAdminActionType,
+            UpdateViewPublicAdminActionType,
+        )
+
+        action_type_registry.register(UpdateViewPublicAdminActionType())
+        action_type_registry.register(RotateViewSlugAdminActionType())
+
         from baserow.contrib.database.data_sync.actions import (
             CreateDataSyncTableActionType,
             SyncDataSyncTableActionType,
@@ -808,6 +816,7 @@ class DatabaseConfig(AppConfig):
         from .airtable.operations import RunAirtableImportJobOperationType
         from .data_sync.operations import (
             GetIncludingPublicValuesOperationType,
+            ListDataSyncJobsOperationType,
             ListPropertiesOperationType,
             SyncTableOperationType,
         )
@@ -1029,6 +1038,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(DeleteViewFilterGroupOperationType())
         operation_type_registry.register(ReadViewFilterGroupOperationType())
         operation_type_registry.register(SyncTableOperationType())
+        operation_type_registry.register(ListDataSyncJobsOperationType())
         operation_type_registry.register(ListPropertiesOperationType())
         operation_type_registry.register(GetIncludingPublicValuesOperationType())
 

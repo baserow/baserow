@@ -507,6 +507,31 @@ describe('Grid view store', () => {
     expect(flatStore.getters['grid/getAllRows'][0].field_1).toBe('99')
   })
 
+  test('updateRowValue discards a save for a row without an id (row modal closed mid-edit)', async () => {
+    const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
+    const view = { id: 1, filters: [], sortings: [], group_bys: [] }
+
+    let patched = false
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(() => {
+      patched = true
+      return [200, { items: [], metadata: {} }]
+    })
+
+    await expect(
+      store.dispatch('grid/updateRowValue', {
+        table: { id: 1 },
+        view,
+        fields,
+        row: {},
+        field: fields[0],
+        value: 'x',
+        oldValue: '',
+      })
+    ).resolves.toBeUndefined()
+
+    expect(patched).toBe(false)
+  })
+
   test('createNewRows keeps a sorted-mismatched row appended below the buffer in place with a move warning', async () => {
     const fields = [
       {
@@ -9094,5 +9119,452 @@ describe('Grid view store', () => {
       (node) => pathKey(node.path, [fields[1]]) === aKey
     )
     expect(sourceNode.row_count).toBe(0)
+  })
+
+  test('refresh fetchRows uses same search term as fetchCount even when state mutates mid-flight', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeSearchTerm: 'test',
+      hideRowsNotMatchingSearch: true,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    let resolveCountRequest
+    let rowsSearchParam = null
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            resolveCountRequest = () => resolve([200, { count: 1 }])
+          })
+      )
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply((config) => {
+        rowsSearchParam = config.params.get('search')
+        return [
+          200,
+          {
+            count: 1,
+            results: [{ id: 1, order: '1.00', field_1: 'row_data' }],
+          },
+        ]
+      })
+
+    const refreshPromise = testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    // Let fetchCount fire
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Mutate search state mid-flight (simulates debounced second search)
+    testStore.commit('grid/SET_SEARCH', {
+      activeSearchTerm: 'lotus',
+      hideRowsNotMatchingSearch: true,
+    })
+
+    // Resolve fetchCount — the .then() chain now calls fetchRows
+    resolveCountRequest()
+    await refreshPromise
+
+    // fetchRows should use the ORIGINAL "test", not the mutated "lotus"
+    expect(rowsSearchParam).toBe('test')
+  })
+
+  test('refresh skips updateSearch when search state changed mid-flight', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const updateSearch = vi.fn()
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+            updateSearch,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeSearchTerm: 'test',
+      hideRowsNotMatchingSearch: true,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    let resolveCountRequest
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            resolveCountRequest = () => resolve([200, { count: 1 }])
+          })
+      )
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply(200, {
+        count: 1,
+        results: [{ id: 1, order: '1.00', field_1: 'row_data' }],
+      })
+
+    const refreshPromise = testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Mutate search mid-flight — simulates next debounce arriving
+    testStore.commit('grid/SET_SEARCH', {
+      activeSearchTerm: 'lotus',
+      hideRowsNotMatchingSearch: true,
+    })
+
+    resolveCountRequest()
+    await refreshPromise
+
+    // updateSearch should NOT run — search changed, rows are stale
+    expect(updateSearch).not.toHaveBeenCalled()
+  })
+
+  test('refresh runs updateSearch when search state is stable', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const updateSearch = vi.fn()
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+            updateSearch,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeSearchTerm: 'test',
+      hideRowsNotMatchingSearch: true,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(200, { count: 1 })
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply(200, {
+        count: 1,
+        results: [{ id: 1, order: '1.00', field_1: 'row_data' }],
+      })
+
+    await testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    // Search unchanged → updateSearch SHOULD run
+    expect(updateSearch).toHaveBeenCalledOnce()
+  })
+
+  test('refresh fetchRows uses same filters as fetchCount even when view filters mutate mid-flight', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const view = {
+      id: 1,
+      filters: [{ id: 1, field: 1, type: 'contains', value: 'gray' }],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    let resolveCountRequest
+    let rowsFilterParam = null
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            resolveCountRequest = () => resolve([200, { count: 5 }])
+          })
+      )
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply((config) => {
+        rowsFilterParam = config.params.get('filters')
+        return [
+          200,
+          {
+            count: 5,
+            results: [{ id: 1, order: '1.00', field_1: 'data' }],
+          },
+        ]
+      })
+
+    const refreshPromise = testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: true,
+      adhocSorting: false,
+    })
+
+    // Let fetchCount fire
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Mutate filter mid-flight (simulates user changing filter value)
+    view.filters[0].value = 'es'
+
+    // Resolve fetchCount — the .then() chain now calls fetchRows
+    resolveCountRequest()
+    await refreshPromise
+
+    // fetchRows should use the ORIGINAL filter "gray", not the mutated "es"
+    const parsedFilter = JSON.parse(rowsFilterParam)
+    expect(parsedFilter.filters[0].value).toBe('gray')
+  })
+
+  test('refresh fetchRows uses same sort order as fetchCount even when sortings mutate mid-flight', async () => {
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+      group_bys: [],
+    }
+
+    const testStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            correctMultiSelect,
+            fetchAllFieldAggregationData,
+          },
+        },
+      },
+    })
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      bufferRequestSize: 40,
+      rows: [],
+      count: 0,
+    })
+    testStore.replaceState({ ...testStore.state, grid: state })
+
+    let resolveCountRequest
+    let rowsOrderByParam = null
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('count') === 'true'
+          },
+        },
+      })
+      .reply(
+        () =>
+          new Promise((resolve) => {
+            resolveCountRequest = () => resolve([200, { count: 1 }])
+          })
+      )
+
+    mockServer.mock
+      .onGet('/database/views/grid/1/', {
+        params: {
+          asymmetricMatch(actual) {
+            return actual.get('limit') != null
+          },
+        },
+      })
+      .reply((config) => {
+        rowsOrderByParam = config.params.get('order_by')
+        return [
+          200,
+          {
+            count: 1,
+            results: [{ id: 1, order: '1.00', field_1: 'data' }],
+          },
+        ]
+      })
+
+    const refreshPromise = testStore.dispatch('grid/refresh', {
+      view,
+      fields: [{ id: 1, name: 'Name', type: 'text', primary: true }],
+      adhocFiltering: false,
+      adhocSorting: true,
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // Mutate sort direction mid-flight
+    view.sortings[0].order = 'DESC'
+
+    resolveCountRequest()
+    await refreshPromise
+
+    // fetchRows should use the ORIGINAL sort "field_1" (ASC), not "-field_1" (DESC)
+    expect(rowsOrderByParam).toBe('field_1')
   })
 })

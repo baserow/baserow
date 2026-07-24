@@ -19,6 +19,7 @@ from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
 from baserow.core.storage import ExportZipFile
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import find_unused_name
 
 from .types import (
@@ -28,6 +29,7 @@ from .types import (
 )
 
 
+@baserow_trace_handler
 class DashboardDataSourceHandler:
     def __init__(self):
         self.service_handler = ServiceHandler()

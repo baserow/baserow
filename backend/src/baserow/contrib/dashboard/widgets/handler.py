@@ -11,6 +11,7 @@ from baserow.contrib.dashboard.widgets.registries import (
 )
 from baserow.core.db import specific_iterator
 from baserow.core.storage import ExportZipFile
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import extract_allowed
 
 from .exceptions import WidgetDoesNotExist
@@ -18,6 +19,7 @@ from .models import Widget
 from .types import UpdatedWidget, WidgetForUpdate
 
 
+@baserow_trace_handler
 class WidgetHandler:
     def get_widget(
         self, widget_id: int, base_queryset: QuerySet | None = None

@@ -24,14 +24,18 @@ export class Task {
   }
 }
 export class TaskQueue {
-  constructor({ doneCallback = null }) {
+  constructor({ doneCallback = null, onSuperseded = null }) {
     this.queue = []
     this.running = false
     this.locked = false
     this.doneCallback = doneCallback
+    this.onSuperseded = onSuperseded
   }
 
   add(func) {
+    if (this.running && this.onSuperseded) {
+      this.onSuperseded()
+    }
     const task = new Task(uuid(), func)
     this.queue.push(task)
     return task.uid
