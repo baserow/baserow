@@ -104,5 +104,5 @@ jobs:
         if: always()
         with:
           files: reports/report.xml
-          check_name: Backend Tests (Group ${{ matrix.group }})
+          check_name: ${{ github.workflow }} - Backend Tests (Group ${{ matrix.group }})
           comment_mode: off
