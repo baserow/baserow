@@ -50,7 +50,6 @@ export default {
   name: 'FieldButtonSubForm',
   components: { FormulaInputField },
   mixins: [form, fieldSubForm],
-  emits: ['input'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -119,7 +118,6 @@ export default {
     },
     updatedFormulaStr(newFormulaStr) {
       this.v$.values.url_formula.formula.$model = newFormulaStr
-      this.$emit('input', { formula: newFormulaStr })
     },
     updateMode(newMode) {
       this.localMode = newMode

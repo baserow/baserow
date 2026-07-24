@@ -12,7 +12,7 @@
       >
         {{ getLabelOrURL(resolvedButtonValue) }}
       </Button>
-      <Button v-else type="secondary" tag="a" disabled>
+      <Button v-else type="secondary" tag="a" size="tiny" disabled>
         {{ getLabelOrURL(resolvedButtonValue) }}
       </Button>
     </div>
