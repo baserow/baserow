@@ -7961,7 +7961,7 @@ class ButtonFieldType(ReadOnlyFieldType):
 
     def get_export_value(self, value, field_object, rich_value=False):
         # The URL only exists client-side; exports stay empty.
-        return "" if not rich_value else None
+        return None if rich_value else ""
 
     def get_field_dependencies(self, field_instance, field_cache):
         try:

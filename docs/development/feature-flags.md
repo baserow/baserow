@@ -10,8 +10,6 @@ Add/remove features flags to the list below:
 - `button-field`: enables the button field type
   ([#1722](https://github.com/baserow/baserow/issues/1722)).
 
-
-
 ## Enabling feature flags
 
 To enable specific feature flags set the environment variable
