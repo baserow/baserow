@@ -196,6 +196,57 @@ def test_duplicate_table_remaps_button_url_formula_references(data_fixture):
     assert new_button.url_formula["formula"] == (
         f"get('fields.field_{new_text_field_id}')"
     )
+    assert new_button.url_formula["mode"] == "simple"
+    assert new_button.error is None
+
+
+@pytest.mark.django_db
+def test_duplicate_table_keeps_button_url_formula_mode(data_fixture):
+    from baserow.contrib.database.table.handler import TableHandler
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    data_fixture.create_button_field(
+        table=table,
+        name="btn",
+        url_formula={
+            "formula": f"get('fields.field_{text_field.id}')",
+            "mode": "advanced",
+        },
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    new_button = ButtonField.objects.get(table=duplicated_table)
+    new_text_field_id = duplicated_table.field_set.exclude(id=new_button.id).get().id
+
+    # Remapping must not reset the mode, otherwise the copy opens in the wrong
+    # editor and, for raw formulas, stops resolving entirely.
+    assert new_button.url_formula["mode"] == "advanced"
+    assert new_button.url_formula["formula"] == (
+        f"get('fields.field_{new_text_field_id}')"
+    )
+
+
+@pytest.mark.django_db
+def test_duplicate_table_keeps_raw_button_url_formula_working(data_fixture):
+    from baserow.contrib.database.table.handler import TableHandler
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_button_field(
+        table=table,
+        name="btn",
+        url_formula={"formula": "https://example.com?x=(1", "mode": "raw"},
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    new_button = ButtonField.objects.get(table=duplicated_table)
+
+    # A raw formula is literal text that is never parsed. Downgrading it to
+    # `simple` would make this unparseable and break the duplicated button.
+    assert new_button.url_formula["mode"] == "raw"
+    assert new_button.url_formula["formula"] == "https://example.com?x=(1"
     assert new_button.error is None
 
 

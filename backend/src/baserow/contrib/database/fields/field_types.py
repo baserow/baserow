@@ -8015,9 +8015,15 @@ class ButtonFieldType(ReadOnlyFieldType):
     def after_import_serialized(self, field, field_cache, id_mapping):
         if field.url_formula:
             try:
-                field.url_formula = replace_field_id_references(
-                    field.url_formula, id_mapping["database_fields"]
-                )
+                # Assign the whole object, not just the formula string: saving a
+                # bare string makes `to_python` re-wrap it as `simple` mode,
+                # which turns a raw literal URL into an unparseable formula.
+                field.url_formula = {
+                    **field.url_formula,
+                    "formula": replace_field_id_references(
+                        field.url_formula, id_mapping["database_fields"]
+                    ),
+                }
                 field.save()
             except (KeyError, BaserowFormulaException):
                 # Missing mapping / unparseable formula: keep as-is so the
