@@ -3,9 +3,13 @@ import BaserowFormulaExecutionVisitor from '@baserow/modules/core/formula/parser
 import BaserowFormulaValidationVisitor from '@baserow/modules/core/formula/parser/formulaValidationVisitor.js'
 import { FORMULA_TYPE } from '@baserow/modules/core/enums'
 
-// Parse trees are immutable, so identical formulas can share one tree. This
-// avoids re-lexing/re-parsing the same formula for every cell in large grids.
-const PARSE_TREE_CACHE_MAX_SIZE = 512
+// Identical formulas share one parse tree, which avoids re-lexing and
+// re-parsing the same formula for every cell in large grids. This is only safe
+// while the visitors below treat the tree as read-only: they must never store
+// state on the context nodes, or one caller would see another's leftovers. The
+// cache is keyed purely on the formula text, so a tree can also be reused
+// across requests on the server.
+export const PARSE_TREE_CACHE_MAX_SIZE = 512
 const parseTreeCache = new Map()
 
 const getCachedParseTree = (formula) => {
