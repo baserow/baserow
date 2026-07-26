@@ -2,6 +2,7 @@ import re
 from typing import Dict, Optional, Union
 
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
+from baserow.core.cache import local_cache
 from baserow.core.formula import (
     BASEROW_FORMULA_MODE_RAW,
     BaserowFormula,
@@ -42,9 +43,6 @@ class BaserowFormulaReplaceFieldReferences(BaserowFormulaVisitor):
         # Keep the parentheses, dropping them would change the evaluation
         # order of the surrounding expression.
         return f"({ctx.expr().accept(self)})"
-
-    def process_string(self, ctx):
-        ctx.getText()
 
     def visitFunctionCall(self, ctx: BaserowFormula.FunctionCallContext):
         function_name = ctx.func_name().accept(self).lower()
@@ -214,6 +212,28 @@ def extract_field_id_dependencies(
     return visitor.field_ids
 
 
+TABLE_FIELD_IDS_CACHE_KEY = "formula_field_table_field_ids"
+
+
+def get_table_field_ids(table_id: int) -> set[int]:
+    """
+    Returns the ids of the non-trashed fields in the given table, cached per
+    request/task so validating many formulas doesn't repeat the query. The cache
+    is invalidated by `table_schema_changed` (see fields/receivers.py).
+    """
+
+    from baserow.contrib.database.fields.models import Field
+
+    return local_cache.get(
+        f"{TABLE_FIELD_IDS_CACHE_KEY}_{table_id}",
+        lambda: set(
+            Field.objects.filter(table_id=table_id, trashed=False).values_list(
+                "id", flat=True
+            )
+        ),
+    )
+
+
 def get_formula_field_error(
     formula: Union[str, BaserowFormulaObject], table_id: int
 ) -> Optional[str]:
@@ -221,8 +241,6 @@ def get_formula_field_error(
     Returns an error message when the formula cannot be parsed or references a
     field that does not exist (non-trashed) in the given table, else None.
     """
-
-    from baserow.contrib.database.fields.models import Field
 
     formula_str = formula if isinstance(formula, str) else formula["formula"]
     if not formula_str:
@@ -237,13 +255,7 @@ def get_formula_field_error(
     except BaserowFormulaException:
         return "The formula could not be parsed."
 
-    if referenced_ids:
-        existing = set(
-            Field.objects.filter(table_id=table_id, trashed=False).values_list(
-                "id", flat=True
-            )
-        )
-        if referenced_ids - existing:
-            return "The formula references a field that no longer exists."
+    if referenced_ids and referenced_ids - get_table_field_ids(table_id):
+        return "The formula references a field that no longer exists."
 
     return None

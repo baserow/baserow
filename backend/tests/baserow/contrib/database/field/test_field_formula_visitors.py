@@ -5,6 +5,8 @@ from baserow.contrib.database.fields.formula_visitors import (
     get_formula_field_error,
     replace_field_id_references,
 )
+from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.cache import local_cache
 
 
 def test_replace_field_id_references():
@@ -81,3 +83,36 @@ def test_get_formula_field_error(data_fixture):
         )
         is None
     )
+
+
+@pytest.mark.django_db
+def test_get_formula_field_error_caches_field_ids_per_table(
+    data_fixture, django_assert_num_queries
+):
+    table = data_fixture.create_database_table()
+    field = data_fixture.create_text_field(table=table)
+    formula = f"get('fields.field_{field.id}')"
+
+    with local_cache.context():
+        # The second validation reuses the cached field ids.
+        with django_assert_num_queries(1):
+            assert get_formula_field_error(formula, table.id) is None
+            assert get_formula_field_error(formula, table.id) is None
+
+
+@pytest.mark.django_db
+def test_get_formula_field_error_cache_is_invalidated_on_schema_change(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    formula = f"get('fields.field_{field.id}')"
+
+    with local_cache.context():
+        assert get_formula_field_error(formula, table.id) is None
+
+        # Trashing the field sends `table_schema_changed`, so the cached ids must
+        # not keep reporting the reference as valid.
+        FieldHandler().delete_field(user, field)
+        assert get_formula_field_error(formula, table.id) == (
+            "The formula references a field that no longer exists."
+        )

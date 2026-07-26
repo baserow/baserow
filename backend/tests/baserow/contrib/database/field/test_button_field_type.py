@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -10,6 +12,7 @@ from rest_framework.status import (
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import ButtonField
+from baserow.core.trash.handler import TrashHandler
 
 
 @pytest.mark.django_db
@@ -171,6 +174,41 @@ def test_button_field_error_when_referenced_field_trashed(data_fixture):
     assert button_field.error == (
         "The formula references a field that no longer exists."
     )
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.fields.signals.field_restored.send")
+def test_restoring_referenced_field_clears_button_field_error(
+    field_restored_mock, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    button_field = FieldHandler().create_field(
+        user,
+        table,
+        "button",
+        name="btn",
+        label="Open",
+        url_formula={
+            "formula": f"get('fields.field_{text_field.id}')",
+            "mode": "simple",
+        },
+    )
+
+    FieldHandler().delete_field(user, text_field)
+    button_field.refresh_from_db()
+    assert button_field.error is not None
+
+    # Restoring the referenced field must report the button field as updated so
+    # the client re-fetches it and sees the error is gone. This is what
+    # `field_dependency_updated` is for.
+    TrashHandler.restore_item(user, "field", text_field.id)
+    related = field_restored_mock.call_args[1]["related_fields"]
+    assert button_field.id in [f.id for f in related]
+
+    button_field.refresh_from_db()
+    assert button_field.error is None
 
 
 @pytest.mark.django_db

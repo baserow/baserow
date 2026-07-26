@@ -7930,6 +7930,9 @@ class ButtonFieldType(ReadOnlyFieldType):
     _can_be_primary_field = False
     can_get_unique_values = False
     keep_data_on_duplication = False
+    # The cell column is always null, so there is nothing worth backing up when
+    # converting to another type; the label and formula are enough to restore.
+    field_data_is_derived_from_attrs = True
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs

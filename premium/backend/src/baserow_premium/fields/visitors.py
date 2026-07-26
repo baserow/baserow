@@ -1,37 +1,19 @@
 from typing import Optional, Union
 
-from baserow.contrib.database.fields.formula_visitors import (  # noqa: F401
-    FIELD_ID_RE,
-    BaserowFormulaReplaceFieldReferences,
-    FieldIDExtractingVisitor,
+from baserow.contrib.database.fields.formula_visitors import (
     extract_field_id_dependencies,
+    get_table_field_ids,
     replace_field_id_references,
 )
-from baserow.core.cache import local_cache
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 
-# Backwards-compat alias for existing premium imports/tests.
-AIFieldIDExtractingVisitor = FieldIDExtractingVisitor
-
-
-def get_table_field_ids(table_id: int) -> set[int]:
-    """
-    Returns the ids of the non-trashed fields in the given table, cached per
-    request/task so validating many AI fields doesn't repeat the query. The cache
-    is invalidated by `table_schema_changed` (see receivers.py).
-    """
-
-    from baserow.contrib.database.fields.models import Field
-
-    return local_cache.get(
-        f"ai_prompt_table_field_ids_{table_id}",
-        lambda: set(
-            Field.objects.filter(table_id=table_id, trashed=False).values_list(
-                "id", flat=True
-            )
-        ),
-    )
+__all__ = [
+    "extract_field_id_dependencies",
+    "get_ai_prompt_error",
+    "get_table_field_ids",
+    "replace_field_id_references",
+]
 
 
 def get_ai_prompt_error(
