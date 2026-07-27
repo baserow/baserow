@@ -9,6 +9,7 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
 @pytest.mark.django_db
@@ -240,7 +241,7 @@ def test_dispatch_local_baserow_get_row_service_missing_integration(data_fixture
     service = data_fixture.create_local_baserow_get_row_service(integration=None)
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
-        ServiceHandler().dispatch_service(service, {})
+        ServiceHandler().dispatch_service(service, FakeDispatchContext())
 
 
 @pytest.mark.django_db
@@ -248,7 +249,6 @@ def test_requires_integration_is_relaxed_when_the_context_has_an_actor(data_fixt
     from baserow.contrib.integrations.local_baserow.service_types import (
         LocalBaserowUpsertRowServiceType,
     )
-    from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
     actor = data_fixture.create_user()
     service = data_fixture.create_local_baserow_upsert_row_service(integration=None)

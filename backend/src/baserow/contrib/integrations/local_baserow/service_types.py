@@ -197,7 +197,7 @@ class LocalBaserowServiceType(ServiceType):
         :return: Whether an integration is required.
         """
 
-        if getattr(dispatch_context, "actor", None) is not None:
+        if dispatch_context is not None and dispatch_context.actor is not None:
             return False
 
         return super().requires_integration(service, dispatch_context)

@@ -184,6 +184,28 @@ def test_delete_row_dispatches_as_the_actor(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_row_dispatches_as_the_actor(data_fixture):
+    # Reads go through `build_queryset`, which checks list permissions for the
+    # acting user rather than for an integration's authorized user.
+    actor = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=actor,
+        columns=[("Name", "text")],
+        rows=[["Ada"], ["Grace"]],
+    )
+    service = data_fixture.create_local_baserow_get_row_service(
+        integration=None, table=table, row_id=f"{rows[1].id}"
+    )
+
+    result = ServiceHandler().dispatch_service(
+        service, FakeDispatchContext(actor=actor)
+    )
+
+    assert result.data["id"] == rows[1].id
+    assert result.data[fields[0].name] == "Grace"
+
+
+@pytest.mark.django_db
 def test_dispatching_without_an_integration_or_an_actor_is_rejected(data_fixture):
     user = data_fixture.create_user()
     table, name_field = _table_with_name_field(data_fixture, user)
