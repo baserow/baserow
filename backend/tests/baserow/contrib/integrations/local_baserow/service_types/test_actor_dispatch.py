@@ -206,6 +206,25 @@ def test_get_row_dispatches_as_the_actor(data_fixture):
 
 
 @pytest.mark.django_db
+def test_an_actor_without_table_permission_cannot_read(data_fixture):
+    # The read path is rejected by the `build_queryset` permission check, which is
+    # the only place a resolved actor reaches `check_permissions` directly.
+    owner = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=owner,
+        columns=[("Name", "text")],
+        rows=[["Ada"], ["Grace"]],
+    )
+    service = data_fixture.create_local_baserow_get_row_service(
+        integration=None, table=table, row_id=f"{rows[1].id}"
+    )
+
+    with pytest.raises(UserNotInWorkspace):
+        ServiceHandler().dispatch_service(service, FakeDispatchContext(actor=outsider))
+
+
+@pytest.mark.django_db
 def test_dispatching_without_an_integration_or_an_actor_is_rejected(data_fixture):
     user = data_fixture.create_user()
     table, name_field = _table_with_name_field(data_fixture, user)
