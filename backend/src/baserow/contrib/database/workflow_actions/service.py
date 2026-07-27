@@ -13,6 +13,7 @@ from baserow.contrib.database.workflow_actions.handler import (
 from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
 from baserow.contrib.database.workflow_actions.registries import (
     DatabaseWorkflowActionType,
+    database_workflow_action_type_registry,
 )
 from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_created,
@@ -81,13 +82,35 @@ class DatabaseWorkflowActionService:
             context=field,
         )
 
-        workflow_action_type = workflow_action.get_type()
-        prepared_values = workflow_action_type.prepare_values(
-            kwargs, user, workflow_action
+        has_type_changed = (
+            "type" in kwargs and kwargs["type"] != workflow_action.get_type().type
         )
-        workflow_action = self.handler.update_workflow_action(
-            workflow_action, **prepared_values
-        )
+
+        if has_type_changed:
+            # Polymorphism makes a type change a delete plus a create. The old
+            # action is removed first so its `pre_delete` receiver disposes of
+            # the old service, and `prepare_values` runs without an instance so
+            # a fresh service of the new type is built. `field` and `order` are
+            # not in the payload, so they are carried over from the old action.
+            workflow_action_type = database_workflow_action_type_registry.get(
+                kwargs["type"]
+            )
+            order = workflow_action.order
+            self.handler.delete_workflow_action(workflow_action)
+            prepared_values = workflow_action_type.prepare_values(kwargs, user)
+            prepared_values["field"] = field
+            prepared_values["order"] = order
+            workflow_action = self.handler.create_workflow_action(
+                workflow_action_type, **prepared_values
+            )
+        else:
+            workflow_action_type = workflow_action.get_type()
+            prepared_values = workflow_action_type.prepare_values(
+                kwargs, user, workflow_action
+            )
+            workflow_action = self.handler.update_workflow_action(
+                workflow_action, **prepared_values
+            )
 
         workflow_action_updated.send(self, workflow_action=workflow_action, user=user)
 
