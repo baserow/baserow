@@ -302,3 +302,20 @@ def test_dispatch_even_if_simulated_without_sample_data():
     service_type.get_sample_data.assert_called_once()
 
     assert result.data == {"someother": "data"}
+
+
+def test_dispatch_context_actor_defaults_to_none():
+    from baserow.test_utils.pytest_conftest import FakeDispatchContext
+
+    assert FakeDispatchContext().actor is None
+
+
+@pytest.mark.django_db
+def test_dispatch_context_actor_survives_clone(data_fixture):
+    from baserow.test_utils.pytest_conftest import FakeDispatchContext
+
+    user = data_fixture.create_user()
+    dispatch_context = FakeDispatchContext(actor=user)
+
+    assert dispatch_context.actor == user
+    assert dispatch_context.clone().actor == user
