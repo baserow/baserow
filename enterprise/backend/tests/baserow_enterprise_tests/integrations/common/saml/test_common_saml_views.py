@@ -94,7 +94,7 @@ def test_builder_saml_baserow_initiated_login_view(
     assert validate_saml_xml(saml_request) is None
     response_query_params = dict(parse_qsl(urlparse(idp_sign_in_url).query))
     assert response_query_params["RelayState"] == (
-        f"{settings.BUILDER_PREVIEW_URL}/builder-preview/{user_source.application_id}/"
+        f"{settings.BUILDER_PREVIEW_URL}/builder/preview/{user_source.application_id}/"
     )
 
     # Second time, should redirect to the same URL
@@ -157,7 +157,7 @@ def test_builder_saml_assertion_consumer_service(
 
     with freeze_time("2024-12-17T15:53:00.00Z"):
         preview_relay_state = (
-            f"{settings.BUILDER_PREVIEW_URL}/builder-preview/"
+            f"{settings.BUILDER_PREVIEW_URL}/builder/preview/"
             f"{user_source.application_id}/login?next=%2Ftoto"
         )
         response = api_client.post(
@@ -171,7 +171,7 @@ def test_builder_saml_assertion_consumer_service(
 
         parsed_redirect = urlparse(response.headers["Location"])
         assert parsed_redirect.path == (
-            f"/builder-preview/{user_source.application_id}/login"
+            f"/builder/preview/{user_source.application_id}/login"
         )
         query_param = dict(parse_qsl(parsed_redirect.query))
         assert query_param["next"] == "/toto"

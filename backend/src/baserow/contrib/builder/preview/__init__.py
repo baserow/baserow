@@ -12,7 +12,8 @@ from baserow.contrib.builder.models import Builder
 from baserow.core.cache import global_cache
 
 BUILDER_PREVIEW_COOKIE_BASE_NAME = "baserow_builder_preview"
-BUILDER_PREVIEW_HEADER = "X-Baserow-Builder-Preview"
+BUILDER_PREVIEW_API_PATH_PREFIX = "/api/builder/preview"
+BUILDER_PREVIEW_PATH_PREFIX = "/builder/preview"
 BUILDER_PREVIEW_TOKEN_QUERY_PARAM = "preview_token"
 BUILDER_PREVIEW_HANDOFF_QUERY_PARAM = "preview_handoff"
 BUILDER_PREVIEW_GRANT_TOKEN_SALT = "builder-preview-grant"
@@ -21,15 +22,12 @@ BUILDER_PREVIEW_GRANT_CACHE_KEY = "builder_preview_grant_{grant_id}"
 BUILDER_PREVIEW_HANDOFF_CACHE_KEY = "builder_preview_handoff_{handoff_code}"
 
 
-def get_builder_preview_cookie_name(builder_id: int) -> str:
-    return (
-        f"{settings.FRONTEND_COOKIE_PREFIX}{BUILDER_PREVIEW_COOKIE_BASE_NAME}"
-        f"_{builder_id}"
-    )
+def get_builder_preview_cookie_name() -> str:
+    return f"{settings.FRONTEND_COOKIE_PREFIX}{BUILDER_PREVIEW_COOKIE_BASE_NAME}"
 
 
-class BuilderPreviewGrantDoesNotExist(Exception):
-    pass
+def get_builder_preview_cookie_path(builder_id: int) -> str:
+    return f"{BUILDER_PREVIEW_API_PATH_PREFIX}/{builder_id}/"
 
 
 class BuilderPreviewGrantInvalid(Exception):
@@ -45,7 +43,7 @@ class BuilderPreviewActor:
 
     is_authenticated = True
     is_anonymous = False
-    is_builder_preview_actor = True
+    user_source_authentication_header = "Authorization"
 
     @property
     def id(self):
@@ -69,7 +67,7 @@ class BuilderPreviewGrantHandler:
     def get_preview_url(self, builder_id: int, path: str, token: str) -> str:
         base_url = settings.BUILDER_PREVIEW_URL.rstrip("/")
         path = path if path.startswith("/") else f"/{path}"
-        preview_path = f"/builder-preview/{builder_id}{path}"
+        preview_path = f"{BUILDER_PREVIEW_PATH_PREFIX}/{builder_id}{path}"
         url = urljoin(base_url, preview_path)
         separator = "&" if "?" in url else "?"
         return (
@@ -85,10 +83,12 @@ class BuilderPreviewGrantHandler:
     def create_handoff(self, session_token: str, builder_id: int) -> str:
         """Store a short-lived code which Nuxt can exchange for the session."""
 
+        now = time.time()
         payload = {
             "preview_session": session_token,
             "builder_id": builder_id,
-            "expires_at": time.time() + self.get_token_ttl_seconds(),
+            "expires_at": now + self.get_token_ttl_seconds(),
+            "handoff_expires_at": (now + settings.BUILDER_PREVIEW_HANDOFF_TTL_SECONDS),
         }
         while True:
             handoff_code = secrets.token_urlsafe(32)
@@ -101,16 +101,42 @@ class BuilderPreviewGrantHandler:
                 return handoff_code
 
     def exchange_handoff(self, handoff_code: str) -> tuple[str, int, int]:
-        """Atomically consume a handoff and return its session and lifetime."""
+        """Atomically consume a handoff and return its session and lifetime.
+
+        Duplicate exchanges return the same session during a short, fixed replay
+        window. Browsers can issue duplicate document requests during redirects, and
+        those requests can reach different frontend workers.
+        """
 
         if fullmatch(r"[A-Za-z0-9_-]{43}", handoff_code) is None:
             raise BuilderPreviewGrantInvalid
 
         consumed_payload = []
+        now = time.time()
 
         def consume(payload):
+            """Consume a fresh handoff or replay a recently consumed one."""
+
+            if not isinstance(payload, dict):
+                consumed_payload.append(None)
+                return None
+
+            handoff_expires_at = payload.get("handoff_expires_at")
+            if handoff_expires_at is None:
+                # Keep handoffs created by an older application process usable
+                # during a rolling deployment.
+                payload = {
+                    **payload,
+                    "handoff_expires_at": (
+                        now + settings.BUILDER_PREVIEW_HANDOFF_TTL_SECONDS
+                    ),
+                }
+            elif now > handoff_expires_at:
+                consumed_payload.append(None)
+                return None
+
             consumed_payload.append(payload)
-            return None
+            return payload
 
         global_cache.update(
             self.get_handoff_cache_key(handoff_code),

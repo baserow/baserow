@@ -4,7 +4,6 @@ import { compile } from 'path-to-regexp'
 import PublishActionModal from '@baserow/modules/builder/components/page/header/PublishActionModal'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
-import { resolveBuilderUrl } from '@baserow/modules/builder/utils/urlResolution'
 
 export class PageActionType extends Registerable {
   get label() {
@@ -118,14 +117,6 @@ export class PreviewPageActionType extends PageActionType {
       })
     }
     return `${url.pathname}${url.search}`
-  }
-
-  generatePreviewUrl(builder, page) {
-    const url = new URL(
-      resolveBuilderUrl(this.generatePreviewPath(page), 'preview', builder.id),
-      this.app.$config.public.builderPreviewUrl
-    )
-    return url.toString()
   }
 
   isActive({ workspace, page }) {

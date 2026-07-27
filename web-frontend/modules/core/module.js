@@ -58,7 +58,6 @@ export default defineNuxtModule({
         baserowDisablePublicUrlCheck: false,
         publicBackendUrl: 'http://localhost:8000',
         publicWebFrontendUrl: 'http://localhost:3000',
-        builderPreviewUrl: 'http://localhost:3000',
         initialTableDataLimit: null,
         hoursUntilTrashPermanentlyDeleted: 24 * 3,
         disableAnonymousPublicViewWsConnections: '',
@@ -121,6 +120,7 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/global.js'))
     addPlugin(resolve('plugins/i18n.js'))
     addPlugin(resolve('plugins/clientHandler.js'))
+    addPlugin(resolve('plugins/userSourceClientHandler.js'))
     addPlugin(resolve('plugins/priorityBus.js'))
     addPlugin(resolve('plugins/registry.js'))
     addPlugin(resolve('plugins/permissions.js'))

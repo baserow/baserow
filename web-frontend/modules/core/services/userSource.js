@@ -45,22 +45,20 @@ export default (client) => {
         user_id: userId,
       })
     },
-    authenticate(userSourceId, credentials) {
+    authenticate(userSourceId, credentials, authenticationUrl = null) {
       return client.post(
-        `/user-source/${userSourceId}/token-auth`,
-        credentials,
-        { usePreviewAuth: true }
+        authenticationUrl || `/user-source/${userSourceId}/token-auth`,
+        credentials
       )
     },
-    refreshAuth(refreshToken) {
+    refreshAuth(refreshToken, refreshUrl = null) {
       return client.post(
-        `/user-source-auth-refresh/`,
+        refreshUrl || `/user-source-auth-refresh/`,
         {
           refresh_token: refreshToken,
         },
         {
           skipAuthRefresh: true,
-          usePreviewAuth: true,
           isUserSourceAuth: true,
         }
       )

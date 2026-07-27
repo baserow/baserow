@@ -505,7 +505,7 @@ class BuilderApplicationType(ApplicationType):
         preview_builder_id = domain.builder_id if domain is not None else application.id
         preview_url = urljoin(
             settings.BUILDER_PREVIEW_URL,
-            f"/builder-preview/{preview_builder_id}/",
+            f"/builder/preview/{preview_builder_id}/",
         )
 
         if domain is not None:
@@ -518,7 +518,7 @@ class BuilderApplicationType(ApplicationType):
     def _extract_builder_id_from_preview_path(cls, url_path: str) -> int | None:
         """Extract the draft builder ID from a fixed preview URL."""
 
-        match = re.match(r"^/builder-preview/(\d+)(?:/.*)?$", url_path)
+        match = re.match(r"^/builder/preview/(\d+)(?:/.*)?$", url_path)
         return int(match.group(1)) if match else None
 
     @classmethod

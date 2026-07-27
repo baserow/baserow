@@ -3,6 +3,7 @@ import {
   ALLOWED_LINK_PROTOCOLS,
   PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS,
 } from '@baserow/modules/builder/enums'
+import { BUILDER_PREVIEW_PATH_PREFIX } from '@baserow/modules/builder/utils/preview'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { getUrlScheme } from '@baserow/modules/core/utils/url'
 
@@ -145,9 +146,9 @@ export function resolveBuilderUrl(logicalPagePath, mode, builderId) {
     return logicalPagePath
   }
 
-  const previewPath = `/builder-preview/${builderId}`
+  const previewPath = `${BUILDER_PREVIEW_PATH_PREFIX}/${builderId}`
 
-  if (/^\/builder-preview\/\d+(?:\/|\?|#|$)/.test(logicalPagePath)) {
+  if (/^\/builder\/preview\/\d+(?:\/|\?|#|$)/.test(logicalPagePath)) {
     return logicalPagePath
   }
 

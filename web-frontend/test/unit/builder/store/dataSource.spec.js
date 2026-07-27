@@ -61,4 +61,18 @@ describe('dataSource store', () => {
 
     expect(collectionDataSources.length).toBe(3)
   })
+
+  test('fetchPublished uses the selected builder in preview mode', async () => {
+    const builder = { id: 123, _: { selected: false } }
+    const page = { id: 42, dataSources: [], _: {} }
+    store.commit('application/SET_ITEMS', [builder])
+    store.commit('application/SET_SELECTED', builder)
+    await store.dispatch('publicBuilder/setPageMode', 'preview')
+    expect(store.getters['publicBuilder/getPreviewBuilderId']).toBe(123)
+    mock.onGet('builder/preview/123/pages/42/data-sources/').replyOnce(200, [])
+
+    await store.dispatch('dataSource/fetchPublished', { page })
+
+    expect(mock.history.get).toHaveLength(1)
+  })
 })

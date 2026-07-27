@@ -337,7 +337,7 @@ const actions = {
 
     return dataSources
   },
-  async fetchPublished({ dispatch, commit }, { page }) {
+  async fetchPublished({ dispatch, commit, rootGetters }, { page }) {
     const { $registry, $i18n, $client, $config } = this
     commit('SET_LOADING', { page, value: true })
     dispatch(
@@ -346,9 +346,10 @@ const actions = {
       { root: true }
     )
 
+    const previewBuilderId = rootGetters['publicBuilder/getPreviewBuilderId']
     const { data: dataSources } = await PublishedBuilderService(
       $client
-    ).fetchDataSources(page.id)
+    ).fetchDataSources(page.id, previewBuilderId)
 
     commit('CLEAR_ITEMS', { page })
     await Promise.all(

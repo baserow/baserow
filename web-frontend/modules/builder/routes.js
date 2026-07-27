@@ -14,13 +14,18 @@ export const routes = [
   },
   {
     name: 'application-builder-preview',
-    path: '/builder-preview/:builderId/:pathMatch(.*)*',
+    path: '/builder/preview/:builderId/:pathMatch(.*)*',
     file: path.resolve(__dirname, 'pages/publicPage.vue'),
     meta: {
       previewBuilderRoute: true,
       middleware: ['exchangePreviewToken'],
       builderPageMode: 'preview',
     },
+  },
+  {
+    name: 'application-builder-published',
+    path: '/builder/published/:builderId/:pathMatch(.*)*',
+    file: path.resolve(__dirname, 'pages/publicPage.vue'),
   },
   {
     name: 'application-builder-page',

@@ -60,7 +60,7 @@ describe('PublicSiteErrorPage', () => {
       routes: [
         {
           name: 'application-builder-preview',
-          path: '/builder-preview/:pathMatch(.*)*',
+          path: '/builder/preview/:pathMatch(.*)*',
           component: { template: '<div />' },
         },
       ],

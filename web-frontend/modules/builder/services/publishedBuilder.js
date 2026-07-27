@@ -1,6 +1,10 @@
 import { prepareDispatchParams } from '@baserow/modules/builder/utils/params'
+import { getBuilderPreviewApiPath } from '@baserow/modules/builder/utils/preview'
 
-const previewAuthConfig = { usePreviewAuth: true }
+const getRenderPath = (builderId, previewPath, publicPath) =>
+  builderId
+    ? getBuilderPreviewApiPath(builderId, previewPath)
+    : `builder/domains/published/${publicPath}`
 
 export default (client) => {
   return {
@@ -10,68 +14,76 @@ export default (client) => {
       })
     },
     fetchByDomain(domain) {
-      return client.get(
-        `builder/domains/published/by_name/${domain}/`,
-        previewAuthConfig
-      )
+      return client.get(`builder/domains/published/by_name/${domain}/`)
     },
     fetchById(builderId) {
-      return client.get(
-        `builder/domains/published/by_id/${builderId}/`,
-        previewAuthConfig
-      )
+      return client.get(`builder/domains/published/by_id/${builderId}/`)
     },
     fetchPreview(builderId) {
-      return client.get(`builder/preview/${builderId}/current/`, {
-        ...previewAuthConfig,
-        builderPreviewId: builderId,
-      })
+      return client.get(getBuilderPreviewApiPath(builderId, 'current/'))
     },
     createPreviewGrant(builderId, path) {
       return client.post(`builder/preview/${builderId}/grant/`, { path })
     },
-    fetchElements(page) {
+    fetchElements(page, builderId = null) {
       return client.get(
-        `builder/domains/published/page/${page.id}/elements/`,
-        previewAuthConfig
+        getRenderPath(
+          builderId,
+          `pages/${page.id}/elements/`,
+          `page/${page.id}/elements/`
+        )
       )
     },
-    fetchDataSources(pageId) {
+    fetchDataSources(pageId, builderId = null) {
       return client.get(
-        `builder/domains/published/page/${pageId}/data_sources/`,
-        previewAuthConfig
+        getRenderPath(
+          builderId,
+          `pages/${pageId}/data-sources/`,
+          `page/${pageId}/data_sources/`
+        )
       )
     },
-    fetchWorkflowActions(pageId) {
+    fetchWorkflowActions(pageId, builderId = null) {
       return client.get(
-        `builder/domains/published/page/${pageId}/workflow_actions/`,
-        previewAuthConfig
+        getRenderPath(
+          builderId,
+          `pages/${pageId}/workflow-actions/`,
+          `page/${pageId}/workflow_actions/`
+        )
       )
     },
     dispatch(
       dataSourceId,
       dispatchContext,
       dispatchRefinements,
-      signal = null
+      signal = null,
+      builderId = null
     ) {
       const params = prepareDispatchParams(dispatchRefinements)
-      const config = { params, ...previewAuthConfig }
+      const config = { params }
 
       if (signal !== null) {
         config.signal = signal
       }
 
       return client.post(
-        `builder/domains/published/data-source/${dataSourceId}/dispatch/`,
+        getRenderPath(
+          builderId,
+          `data-sources/${dataSourceId}/dispatch/`,
+          `data-source/${dataSourceId}/dispatch/`
+        ),
         { metadata: dispatchContext },
         config
       )
     },
-    dispatchAll(pageId, params) {
+    dispatchAll(pageId, params, builderId = null) {
       return client.post(
-        `builder/domains/published/page/${pageId}/dispatch-data-sources/`,
-        { metadata: params },
-        previewAuthConfig
+        getRenderPath(
+          builderId,
+          `pages/${pageId}/dispatch-data-sources/`,
+          `page/${pageId}/dispatch-data-sources/`
+        ),
+        { metadata: params }
       )
     },
   }

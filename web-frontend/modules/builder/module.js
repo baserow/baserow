@@ -18,6 +18,10 @@ export default defineNuxtModule({
   async setup(options, nuxt) {
     const { resolve } = createResolver(import.meta.url)
 
+    nuxt.options.runtimeConfig.public ||= {}
+    nuxt.options.runtimeConfig.public.builderPreviewUrl ??=
+      'http://localhost:3000'
+
     // Add main plugin
     addPlugin(resolve('./plugin.js'))
 

@@ -37,10 +37,8 @@ vi.mock('@baserow/modules/core/utils/auth', async (importOriginal) => ({
 
 const {
   default: exchangePreviewToken,
-  exchangePreviewHandoffInSsr,
-  exchangePreviewHandoffOnce,
+  exchangePreviewHandoff,
   getCleanPreviewUrl,
-  getPreviewHandoffExchangeScope,
   getPreviewHandoff,
   getPreviewToken,
   setPreviewHandoffCookie,
@@ -104,13 +102,13 @@ describe('exchangePreviewToken middleware helpers', () => {
       }),
     })
 
-    await exchangePreviewHandoffInSsr(
+    const previewSession = await exchangePreviewHandoff(
       'handoff-code',
       42,
       config,
-      fetch,
-      useCookie
+      fetch
     )
+    setPreviewHandoffCookie(42, config, previewSession, useCookie)
 
     expect(fetch).toHaveBeenCalledWith(
       'http://backend:8000/api/builder/preview/handoff/',
@@ -126,38 +124,14 @@ describe('exchangePreviewToken middleware helpers', () => {
         }),
       }
     )
-    expect(useCookie).toHaveBeenCalledWith(
-      'test_baserow_builder_preview_ssr_42',
-      {
-        httpOnly: true,
-        maxAge: 1234,
-        path: '/builder-preview/42',
-        sameSite: 'lax',
-        secure: true,
-      }
-    )
-    expect(previewCookie.value).toBe('signed-session')
-  })
-
-  test('only exchanges a handoff once per Nuxt request', async () => {
-    const nuxtApp = {}
-    const exchange = vi.fn().mockResolvedValue({
-      expiresIn: 1234,
-      previewSession: 'signed-session',
+    expect(useCookie).toHaveBeenCalledWith('test_baserow_builder_preview_ssr', {
+      httpOnly: true,
+      maxAge: 1234,
+      path: '/builder/preview/42',
+      sameSite: 'lax',
+      secure: true,
     })
-
-    const results = await Promise.all([
-      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', 42, {}, exchange),
-      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', 42, {}, exchange),
-      exchangePreviewHandoffOnce(nuxtApp, 'handoff-code', 42, {}, exchange),
-    ])
-
-    expect(exchange).toHaveBeenCalledOnce()
-    expect(results).toEqual([
-      { expiresIn: 1234, previewSession: 'signed-session' },
-      { expiresIn: 1234, previewSession: 'signed-session' },
-      { expiresIn: 1234, previewSession: 'signed-session' },
-    ])
+    expect(previewCookie.value).toBe('signed-session')
   })
 
   test('clears the previous user-source session before exchanging a token', async () => {
@@ -178,81 +152,11 @@ describe('exchangePreviewToken middleware helpers', () => {
     })
 
     expect(unsetToken).toHaveBeenCalledOnce()
-    expect(unsetToken.mock.calls[0][1]).toBe('user_source_token_42')
+    expect(unsetToken.mock.calls[0][1]).toBe(
+      'baserow_builder_preview_user_source'
+    )
     expect(unsetToken.mock.calls[0][2]).toEqual({
-      path: '/builder-preview/42',
+      path: '/builder/preview/42',
     })
-  })
-
-  test('deduplicates handoff exchanges across SSR requests', async () => {
-    const config = {
-      public: {
-        baserowFrontendCookiePrefix: 'test_',
-        builderPreviewUrl: 'https://preview.example.com',
-      },
-    }
-    const exchange = vi.fn().mockResolvedValue({
-      previewSession: 'signed-session',
-      expiresIn: 1234,
-    })
-    const firstScope = getPreviewHandoffExchangeScope()
-    const secondScope = getPreviewHandoffExchangeScope()
-
-    const sessions = await Promise.all([
-      exchangePreviewHandoffOnce(
-        firstScope,
-        'handoff-code',
-        42,
-        config,
-        exchange
-      ),
-      exchangePreviewHandoffOnce(
-        secondScope,
-        'handoff-code',
-        42,
-        config,
-        exchange
-      ),
-    ])
-    const firstCookie = { value: null }
-    const secondCookie = { value: null }
-    setPreviewHandoffCookie(42, config, sessions[0], () => firstCookie)
-    setPreviewHandoffCookie(42, config, sessions[1], () => secondCookie)
-
-    expect(firstScope).toBe(secondScope)
-    expect(exchange).toHaveBeenCalledOnce()
-    expect(firstCookie.value).toBe('signed-session')
-    expect(secondCookie.value).toBe('signed-session')
-  })
-
-  test('removes completed handoff exchanges from the process cache', async () => {
-    vi.useFakeTimers()
-    try {
-      const exchange = vi.fn().mockResolvedValue({
-        previewSession: 'signed-session',
-        expiresIn: 1234,
-      })
-      const exchangeScope = getPreviewHandoffExchangeScope()
-
-      await exchangePreviewHandoffOnce(
-        exchangeScope,
-        'expiring-handoff-code',
-        42,
-        {},
-        exchange
-      )
-      await vi.advanceTimersByTimeAsync(10_000)
-      await exchangePreviewHandoffOnce(
-        exchangeScope,
-        'expiring-handoff-code',
-        42,
-        {},
-        exchange
-      )
-
-      expect(exchange).toHaveBeenCalledTimes(2)
-    } finally {
-      vi.useRealTimers()
-    }
   })
 })

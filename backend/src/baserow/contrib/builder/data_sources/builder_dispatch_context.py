@@ -106,11 +106,7 @@ class BuilderDispatchContext(DispatchContext):
             data=getattr(self.request, "data", {}).get("metadata", {}),
             context={
                 "page": self.page,
-                "user": getattr(
-                    self.request,
-                    "user_source_user",
-                    getattr(self.request, "user", None),
-                ),
+                "user": getattr(self.request, "user", None),
             },
         )
         serializer.is_valid(raise_exception=True)

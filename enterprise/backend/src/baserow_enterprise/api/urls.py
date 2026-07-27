@@ -26,4 +26,14 @@ urlpatterns = [
         "custom_code/",
         include(custom_code_urls, namespace="custom_code"),
     ),
+    path(
+        "builder/preview/",
+        include(
+            (
+                custom_code_urls.preview_urlpatterns,
+                custom_code_urls.app_name,
+            ),
+            namespace="builder_preview_custom_code",
+        ),
+    ),
 ]

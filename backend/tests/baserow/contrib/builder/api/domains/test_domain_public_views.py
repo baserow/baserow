@@ -40,8 +40,7 @@ from baserow.core.user_sources.user_source_user import UserSourceUser
 def authenticate_builder_preview(api_client, builder, user):
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
     _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name(builder.id)] = session_token
-    api_client.credentials(HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id))
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
 
 @pytest.fixture
@@ -258,7 +257,7 @@ def test_get_non_public_builder(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_public_builder_by_id(api_client, data_fixture):
+def test_get_builder_preview_by_id(api_client, data_fixture):
     user, _token = data_fixture.create_user_and_token()
     favicon_file = data_fixture.create_user_file(original_extension=".png")
     page = data_fixture.create_builder_page(user=user)
@@ -267,7 +266,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
     page2 = data_fixture.create_builder_page(builder=page.builder, user=user)
 
     url = reverse(
-        "api:builder:domains:get_builder_by_id",
+        "api:builder:preview:current",
         kwargs={"builder_id": page.builder.id},
     )
     authenticate_builder_preview(api_client, page.builder, user)
@@ -770,6 +769,69 @@ def test_public_dispatch_data_source_view(
     mock_dispatch_data_source.assert_called_once_with(
         ANY, mock_data_source, mock_dispatch_context
     )
+
+
+@pytest.mark.django_db
+def test_preview_dispatch_data_source_keeps_user_source_as_secondary_actor(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Ada"]],
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page,
+        integration=integration,
+        table=table,
+        user=user,
+    )
+    element = data_fixture.create_builder_table_element(
+        page=page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "Name",
+                "type": "text",
+                "config": {"value": f"get('current_record.{fields[0].db_column}')"},
+            }
+        ],
+    )
+    user_source = data_fixture.create_local_baserow_table_user_source(
+        application=builder,
+        integration=integration,
+        user=user,
+    )
+    user_source_row = user_source.table.get_model().objects.first()
+    user_source_user = data_fixture.create_user_source_user(
+        user_source=user_source, user_id=user_source_row.id
+    )
+
+    authenticate_builder_preview(api_client, builder, user)
+    response = api_client.post(
+        reverse(
+            "api:builder:preview:dispatch_data_source",
+            kwargs={
+                "builder_id": builder.id,
+                "data_source_id": data_source.id,
+            },
+        ),
+        {"metadata": {"data_source": {"element": element.id}}},
+        format="json",
+        HTTP_AUTHORIZATION=(f"JWT {user_source_user.get_refresh_token().access_token}"),
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json() == {
+        "has_next_page": False,
+        "results": [{"id": rows[0].id, "Name": "Ada"}],
+    }
 
 
 @pytest.mark.django_db

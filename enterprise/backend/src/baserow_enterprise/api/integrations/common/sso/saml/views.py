@@ -107,7 +107,6 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
             )
 
             origin = data["RelayState"]
-            query_params = data.get("saml_request_data", {})
 
             application = CoreHandler().get_application_for_url(origin)
             if application is None:
@@ -124,6 +123,7 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
                 ),
             )
 
+            query_params = data.get("saml_request_data", {})
             # Add the refresh token as query parameter
             query_params[f"user_source_saml_token__{user.user_source.id}"] = (
                 user.get_refresh_token()
@@ -231,6 +231,7 @@ class SamlAppAuthProviderBaserowInitiatedSingleSignOn(APIView):
                 default_frontend_urls=application_urls,
                 allow_any_path=False,
             )
+
             idp_sign_in_url = SamlAppAuthProviderHandler.get_sign_in_url(
                 query_params,
                 SamlAppAuthProviderHandler.model_class.objects.filter(

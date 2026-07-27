@@ -1,6 +1,6 @@
 <template>
   <PublicPageContent
-    v-if="!pending && !error && asyncDataResult"
+    v-if="!pending && !error"
     :workspace="workspace"
     :builder="builder"
     :page="currentPage"
@@ -26,13 +26,14 @@ import {
   getTokenIfEnoughTimeLeft,
   userSourceCookieTokenName,
 } from '@baserow/modules/core/utils/auth'
-import { useHead, useRequestURL, useRoute } from '#imports'
+import { useHead, useRequestURL, useRoute, useRuntimeConfig } from '#imports'
 import PublicPageContent from '../components/PublicPageContent.vue'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
 import {
   getBuilderPreviewCookiePath,
+  getBuilderPreviewUserSourceAuthConfig,
   getBuilderPreviewUserSourceCookieName,
-} from '@baserow/modules/core/utils/builderPreview'
+} from '@baserow/modules/builder/utils/preview'
 
 const logOffAndReturnToLogin = async ({ builder, mode, store, redirect }) => {
   await store.dispatch('userSourceUser/logoff', {
@@ -67,6 +68,7 @@ const props = defineProps({
 const store = useStore()
 const route = useRoute()
 const nuxtApp = useNuxtApp()
+const config = useRuntimeConfig()
 
 const { $registry, $i18n } = nuxtApp
 
@@ -92,11 +94,6 @@ if (mode === 'preview') {
     titleTemplate: '',
     title: '',
   })
-
-  store.dispatch('userSourceUser/setCurrentApplication', {
-    application: null,
-    mode,
-  })
 }
 
 const {
@@ -106,6 +103,11 @@ const {
 } = await useAsyncData(
   `publicPage_${requestHostname}_${route.fullPath}`,
   async () => {
+    store.dispatch('publicBuilder/setPageMode', mode)
+    store.dispatch('userSourceUser/setCurrentApplication', {
+      application: null,
+    })
+
     const query = route.query
 
     const builderId = routeBuilderId
@@ -163,7 +165,13 @@ const {
 
     store.dispatch('userSourceUser/setCurrentApplication', {
       application: builder,
-      mode,
+      userSourceAuthConfig:
+        mode === 'preview'
+          ? getBuilderPreviewUserSourceAuthConfig(
+              builder,
+              config.public.builderPreviewUrl
+            )
+          : null,
     })
 
     if (
@@ -174,7 +182,7 @@ const {
       const refreshToken = await getTokenIfEnoughTimeLeft(
         nuxtApp,
         previewUserSourceCookie
-          ? getBuilderPreviewUserSourceCookieName(builder.id)
+          ? getBuilderPreviewUserSourceCookieName()
           : userSourceCookieTokenName,
         previewUserSourceCookie
           ? { path: getBuilderPreviewCookiePath(builder.id) }
@@ -297,8 +305,13 @@ const {
         store.dispatch('dataSource/fetchPublished', {
           page,
         }),
-        store.dispatch('element/fetchPublished', { builder, page }),
-        store.dispatch('builderWorkflowAction/fetchPublished', { page }),
+        store.dispatch('element/fetchPublished', {
+          builder,
+          page,
+        }),
+        store.dispatch('builderWorkflowAction/fetchPublished', {
+          page,
+        }),
       ])
     } catch (error) {
       if (error.response?.status === 401) {

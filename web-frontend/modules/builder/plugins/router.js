@@ -1,3 +1,5 @@
+import { BUILDER_PREVIEW_PATH_PREFIX } from '@baserow/modules/builder/utils/preview'
+
 /**
  * Make sure only baserow routes are available for instance public hostname.
  */
@@ -42,8 +44,8 @@ export default defineNuxtPlugin({
     ).hostname
     const isBuilderPreviewHostname = builderPreviewHostname === requestHostname
     const isBuilderPreviewPath =
-      requestUrl.pathname === '/builder-preview' ||
-      requestUrl.pathname.startsWith('/builder-preview/')
+      requestUrl.pathname === BUILDER_PREVIEW_PATH_PREFIX ||
+      requestUrl.pathname.startsWith(`${BUILDER_PREVIEW_PATH_PREFIX}/`)
     const isBuilderPreviewRequest =
       isBuilderPreviewHostname || isBuilderPreviewPath
 

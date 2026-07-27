@@ -16,7 +16,7 @@ const createBuilderRouter = () =>
       },
       {
         name: 'application-builder-preview',
-        path: '/builder-preview/:builderId/:pathMatch(.*)*',
+        path: '/builder/preview/:builderId/:pathMatch(.*)*',
         component: {},
       },
     ],
@@ -25,12 +25,12 @@ const createBuilderRouter = () =>
 describe('resolveApplicationRoute', () => {
   test.each([
     ['the published homepage', '/'],
-    ['the preview homepage', '/builder-preview/263/'],
-  ])('resolves %s when Vue Router omits the catch-all parameter', (_, url) => {
+    ['the preview homepage', '/builder/preview/263/'],
+  ])('resolves %s with an empty catch-all parameter', (_, url) => {
     const homepage = { id: 439, path: '/' }
     const route = createBuilderRouter().resolve(url)
 
-    expect(route.params.pathMatch).toBeUndefined()
+    expect(route.params.pathMatch).toBeFalsy()
 
     const found = resolveApplicationRoute([homepage], route.params.pathMatch)
 

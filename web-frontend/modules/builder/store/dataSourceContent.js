@@ -42,7 +42,7 @@ const actions = {
    * Fetch the content for every data sources of the given page.
    */
   async fetchPageDataSourceContent(
-    { commit },
+    { commit, rootGetters },
     { page, data: queryData, mode }
   ) {
     const { $registry, $i18n, $client, $config } = this
@@ -55,7 +55,11 @@ const actions = {
 
     const failedDataSources = []
     try {
-      const { data } = await service($client).dispatchAll(page.id, queryData)
+      const { data } = await service($client).dispatchAll(
+        page.id,
+        queryData,
+        rootGetters['publicBuilder/getPreviewBuilderId']
+      )
 
       Object.entries(data).forEach(([dataSourceIdStr, dataContent]) => {
         const dataSourceId = parseInt(dataSourceIdStr, 10)
@@ -78,7 +82,7 @@ const actions = {
   },
 
   async fetchPageDataSourceContentById(
-    { commit },
+    { commit, rootGetters },
     { page, dataSourceId, dispatchContext, mode, replace = false }
   ) {
     const { $registry, $i18n, $client, $config } = this
@@ -93,7 +97,9 @@ const actions = {
       const { data } = await service($client).dispatch(
         dataSourceId,
         dispatchContext,
-        { range: null }
+        { range: null },
+        null,
+        rootGetters['publicBuilder/getPreviewBuilderId']
       )
 
       if (replace) {

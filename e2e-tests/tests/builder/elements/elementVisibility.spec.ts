@@ -158,7 +158,7 @@ test.describe("Builder element visibility on published pages", () => {
       PASSWORD
     );
 
-    const previewUrl = `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}${published.previewPath()}`;
+    const publishedUrl = `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}${published.renderPath()}`;
     const frontendHost = new URL(baserowConfig.PUBLIC_WEB_FRONTEND_URL)
       .hostname;
     const cookieName = `${baserowConfig.BASEROW_FRONTEND_COOKIE_PREFIX}user_source_token`;
@@ -182,7 +182,7 @@ test.describe("Builder element visibility on published pages", () => {
         ]);
       }
 
-      await page.goto(previewUrl, { waitUntil: "networkidle" });
+      await page.goto(publishedUrl, { waitUntil: "networkidle" });
 
       // E1_ALL is visible to everyone, so wait for it to confirm the page rendered.
       await expect(

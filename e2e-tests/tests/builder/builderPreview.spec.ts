@@ -5,8 +5,9 @@ import { createBuilderPage } from "../../fixtures/builder/builderPage";
 import { createBuilderWorkflowAction } from "../../fixtures/builder/builderWorkflowAction";
 import { createDatabase } from "../../fixtures/database/database";
 import { getFieldsForTable } from "../../fixtures/database/field";
-import { listRows } from "../../fixtures/database/rows";
+import { createRows, listRows } from "../../fixtures/database/rows";
 import { createTable } from "../../fixtures/database/table";
+import { createLocalBaserowIntegration } from "../../fixtures/builder/integration";
 import { baserowConfig } from "../../playwright.config";
 import { expect, test } from "../baserowTest";
 
@@ -42,7 +43,8 @@ test.describe("Builder preview test suite", () => {
       value: `'${secondContent}'`,
     });
     await page.goto(
-      `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/builder/${secondBuilder.id}/page/${secondBuilderPage.id}`
+      `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/builder/${secondBuilder.id}/page/${secondBuilderPage.id}`,
+      { waitUntil: "networkidle" }
     );
 
     const secondPreviewPromise = context.waitForEvent("page");
@@ -54,10 +56,10 @@ test.describe("Builder preview test suite", () => {
     await expect(firstPreview.getByText(firstContent)).toBeVisible();
     await expect(secondPreview.getByText(secondContent)).toBeVisible();
     await expect(firstPreview).toHaveURL(
-      new RegExp(`/builder-preview/${builderPagePage.builder.id}/`)
+      new RegExp(`/builder/preview/${builderPagePage.builder.id}/`)
     );
     await expect(secondPreview).toHaveURL(
-      new RegExp(`/builder-preview/${secondBuilder.id}/`)
+      new RegExp(`/builder/preview/${secondBuilder.id}/`)
     );
   });
 
@@ -99,7 +101,7 @@ test.describe("Builder preview test suite", () => {
     await expect(previewPage.getByText(previewContent)).toBeVisible();
 
     const missingPageResponse = await previewPage.goto(
-      `${previewOrigin}/builder-preview/${builderPagePage.builderPage.builder.id}/missing-page`
+      `${previewOrigin}/builder/preview/${builderPagePage.builderPage.builder.id}/missing-page`
     );
     expect(missingPageResponse?.status()).toBe(404);
     expect(await missingPageResponse?.text()).toContain("Page not found");
@@ -155,23 +157,88 @@ test.describe("Builder preview test suite", () => {
       { path: builderPagePage.builderPage.path }
     );
     const previewPage = await context.newPage();
-    await previewPage.goto(grantResponse.data.url);
+    await previewPage.goto(grantResponse.data.url, {
+      waitUntil: "networkidle",
+    });
     await expect(
       previewPage.getByRole("button", { name: "Create preview row" })
     ).toBeVisible();
 
-    const dispatchResponse = previewPage.waitForResponse(
-      (response) =>
-        response.url() ===
-          `${baserowConfig.PUBLIC_BACKEND_URL}/api/builder/workflow_action/${action.id}/dispatch/` &&
-        response.request().method() === "POST"
-    );
+    const dispatchResponse = previewPage.waitForResponse((response) => {
+      const path = new URL(response.url()).pathname;
+      return (
+        response.request().method() === "POST" &&
+        path.includes("workflow") &&
+        path.endsWith(`/${action.id}/dispatch/`)
+      );
+    });
     await previewPage
       .getByRole("button", { name: "Create preview row" })
       .click();
-    expect((await dispatchResponse).status()).toBe(200);
+    const response = await dispatchResponse;
+    expect(new URL(response.url()).pathname).toBe(
+      `/api/builder/preview/${builderPagePage.builder.id}/workflow-actions/${action.id}/dispatch/`
+    );
+    expect(response.status()).toBe(200);
     expect(await listRows(user, table)).toEqual([
       expect.objectContaining({ Name: "Created from preview" }),
     ]);
+  });
+
+  test("loads more table rows after SSR hydration", async ({
+    context,
+    builderPagePage,
+    workspacePage,
+  }) => {
+    const user = workspacePage.workspace.user;
+    const database = await createDatabase(
+      user,
+      "Preview pagination database",
+      workspacePage.workspace
+    );
+    const table = await createTable(
+      user,
+      "Preview pagination table",
+      database,
+      [["Name"]]
+    );
+    await createRows(
+      user,
+      table,
+      Array.from({ length: 10 }, (_, index) => ({
+        Name: `Preview row ${index + 1}`,
+      }))
+    );
+    const integration = await createLocalBaserowIntegration(
+      builderPagePage.builder,
+      "Preview pagination integration"
+    );
+    const { data: dataSource } = await getClient(user).post(
+      `builder/page/${builderPagePage.builderPage.id}/data-sources/`,
+      {
+        type: "local_baserow_list_rows",
+        name: "Preview rows",
+        integration_id: integration.id,
+        table_id: table.id,
+      }
+    );
+    await createBuilderElement(builderPagePage.builderPage, "table", {
+      data_source_id: dataSource.id,
+      items_per_page: 5,
+    });
+    const grantResponse = await getClient(user).post(
+      `builder/preview/${builderPagePage.builder.id}/grant/`,
+      { path: builderPagePage.builderPage.path }
+    );
+    const previewPage = await context.newPage();
+
+    await previewPage.goto(grantResponse.data.url, {
+      waitUntil: "networkidle",
+    });
+    await previewPage.reload({ waitUntil: "networkidle" });
+
+    await expect(previewPage.locator(".ab-table tbody tr")).toHaveCount(5);
+    await previewPage.getByRole("button", { name: "Show more" }).click();
+    await expect(previewPage.locator(".ab-table tbody tr")).toHaveCount(10);
   });
 });

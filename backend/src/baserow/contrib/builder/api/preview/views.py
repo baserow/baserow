@@ -38,9 +38,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
-from baserow.api.applications.serializers import (
-    PublicPolymorphicApplicationResponseSerializer,
-)
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.schemas import get_error_schema
 from baserow.contrib.builder.api.preview.serializers import (
@@ -53,23 +50,14 @@ from baserow.contrib.builder.errors import ERROR_BUILDER_DOES_NOT_EXIST
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.preview import (
     BUILDER_PREVIEW_HANDOFF_QUERY_PARAM,
+    BUILDER_PREVIEW_PATH_PREFIX,
     BuilderPreviewGrantHandler,
     BuilderPreviewGrantInvalid,
     get_builder_preview_cookie_name,
-)
-from baserow.contrib.builder.preview.authentication import (
-    BuilderPreviewAuthentication,
+    get_builder_preview_cookie_path,
 )
 from baserow.contrib.builder.service import BuilderService
 from baserow.core.exceptions import ApplicationDoesNotExist
-
-
-class ForcedPublicPolymorphicApplicationResponseSerializer(
-    PublicPolymorphicApplicationResponseSerializer
-):
-    """Serialize the draft as the public-facing ``builder`` application type."""
-
-    forced_type = "builder"
 
 
 class BuilderPreviewGrantView(APIView):
@@ -114,57 +102,6 @@ class BuilderPreviewGrantView(APIView):
             builder.id, data["path"], token
         )
         return Response({"url": url})
-
-
-class BuilderPreviewCurrentView(APIView):
-    """Tell the preview frontend which draft builder its cookie allows.
-
-    This endpoint is called after the token exchange. Although it allows an
-    unauthenticated HTTP request to reach the view, ``BuilderPreviewAuthentication``
-    reads the protected preview cookie first. A valid cookie becomes a
-    restricted preview actor containing the permitted builder's ID.
-    """
-
-    permission_classes = (AllowAny,)
-    authentication_classes = (BuilderPreviewAuthentication,)
-
-    @extend_schema(
-        tags=["Builder preview"],
-        operation_id="get_current_builder_preview",
-        description=(
-            "Returns the public serialized draft builder related to the current "
-            "preview session cookie."
-        ),
-        responses={
-            200: ForcedPublicPolymorphicApplicationResponseSerializer,
-            401: get_error_schema(["ERROR_BUILDER_PREVIEW_SESSION_INVALID"]),
-            404: get_error_schema(
-                ["ERROR_BUILDER_DOES_NOT_EXIST", "ERROR_APPLICATION_DOES_NOT_EXIST"]
-            ),
-        },
-    )
-    @map_exceptions(
-        {
-            BuilderDoesNotExist: ERROR_BUILDER_DOES_NOT_EXIST,
-            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
-        }
-    )
-    def get(self, request, builder_id: int):
-        """Return the public-shaped data for the permitted draft builder.
-
-        The builder ID comes only from the authenticated preview actor, not
-        from the URL or other browser input. This prevents one preview pass from
-        being used to request a different draft builder.
-        """
-
-        builder_id = int(builder_id)
-        if getattr(request.user, "builder_id", None) != builder_id:
-            raise BuilderDoesNotExist
-
-        builder = BuilderService().get_builder(request.user, builder_id)
-        return Response(
-            ForcedPublicPolymorphicApplicationResponseSerializer(builder).data
-        )
 
 
 class BuilderPreviewExchangeView(APIView):
@@ -236,13 +173,13 @@ class BuilderPreviewExchangeView(APIView):
         redirect_to = self._add_handoff_to_redirect(redirect_to, handoff_code)
         response = HttpResponseRedirect(redirect_to)
         response.set_cookie(
-            get_builder_preview_cookie_name(actor.builder_id),
+            get_builder_preview_cookie_name(),
             session_token,
             max_age=int(settings.BUILDER_PREVIEW_GRANT_TTL.total_seconds()),
             httponly=True,
             secure=secure,
             samesite=same_site,
-            path="/api/",
+            path=get_builder_preview_cookie_path(actor.builder_id),
         )
         return response
 
@@ -276,7 +213,9 @@ class BuilderPreviewExchangeView(APIView):
             redirect_to,
             allowed_hosts={allowed_host},
             require_https=parsed.scheme == "https",
-        ) and urlparse(redirect_to).path.startswith(f"/builder-preview/{builder_id}/")
+        ) and urlparse(redirect_to).path.startswith(
+            f"{BUILDER_PREVIEW_PATH_PREFIX}/{builder_id}/"
+        )
 
     def _is_same_site(self, preview_hostname, backend_hostname):
         """Decide whether browser cookie rules see both hosts as one site.

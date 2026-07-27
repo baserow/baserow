@@ -62,7 +62,7 @@ describe('resolveElementUrl tests', () => {
       resolveFormula,
       'preview'
     )
-    expect(result).toEqual('/builder-preview/123/contact-us/')
+    expect(result).toEqual('/builder/preview/123/contact-us/')
   })
   test('Should not prefix published page navigation.', () => {
     const element = {
@@ -108,7 +108,7 @@ describe('resolveElementUrl tests', () => {
       resolveFormula,
       'preview'
     )
-    expect(result).toEqual('/builder-preview/123/product/10/')
+    expect(result).toEqual('/builder/preview/123/product/10/')
   })
   test('Should return resolvedContext for external custom navigation type.', () => {
     const element = {
@@ -140,7 +140,7 @@ describe('resolveElementUrl tests', () => {
       resolveFormula,
       'preview'
     )
-    expect(result).toEqual('/builder-preview/123/contact/')
+    expect(result).toEqual('/builder/preview/123/contact/')
   })
   test('Should return resolvedContext and ignore element page params when destination page params are removed', () => {
     const element = {
@@ -159,12 +159,12 @@ describe('resolveElementUrl tests', () => {
       resolveFormula,
       'preview'
     )
-    expect(result).toEqual('/builder-preview/123/products/')
+    expect(result).toEqual('/builder/preview/123/products/')
   })
 
   test.each([
-    ['/?tab=one#details', '/builder-preview/123/?tab=one#details'],
-    ['/builder-preview/123/page?tab=one', '/builder-preview/123/page?tab=one'],
+    ['/?tab=one#details', '/builder/preview/123/?tab=one#details'],
+    ['/builder/preview/123/page?tab=one', '/builder/preview/123/page?tab=one'],
   ])(
     'resolves preview queries, fragments, and existing URLs',
     (url, expected) => {
@@ -179,16 +179,16 @@ describe('resolveElementUrl tests', () => {
       '/products?sort=name#list',
       'preview',
       123,
-      '/builder-preview/123/products?sort=name#list',
+      '/builder/preview/123/products?sort=name#list',
     ],
     ['/products?sort=name#list', 'public', 123, '/products?sort=name#list'],
     [
-      '/builder-preview/456/products',
+      '/builder/preview/456/products',
       'preview',
       123,
-      '/builder-preview/456/products',
+      '/builder/preview/456/products',
     ],
-    ['/', 'preview', 123, '/builder-preview/123/'],
+    ['/', 'preview', 123, '/builder/preview/123/'],
   ])(
     'resolves logical builder URLs at the routing boundary',
     (path, mode, builderId, expected) => {

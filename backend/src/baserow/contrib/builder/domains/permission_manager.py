@@ -7,7 +7,10 @@ from baserow.contrib.builder.data_sources.operations import (
     ListDataSourcesPageOperationType,
 )
 from baserow.contrib.builder.domains.handler import DomainHandler
-from baserow.contrib.builder.elements.operations import ListElementsPageOperationType
+from baserow.contrib.builder.elements.operations import (
+    ListElementsPageOperationType,
+    ReadElementOperationType,
+)
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.preview import BuilderPreviewActor
 from baserow.contrib.builder.preview.subjects import BuilderPreviewActorSubjectType
@@ -46,6 +49,7 @@ class AllowBuilderPreviewPermissionManagerType(PermissionManagerType):
     sub_page_level_operations = [
         DispatchDataSourceOperationType.type,
         DispatchBuilderWorkflowActionOperationType.type,
+        ReadElementOperationType.type,
     ]
     sub_application_level_operations = [
         LoginUserSourceOperationType.type,

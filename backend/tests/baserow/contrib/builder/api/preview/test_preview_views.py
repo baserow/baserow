@@ -21,6 +21,7 @@ from baserow.contrib.builder.preview import (
     BuilderPreviewGrantHandler,
     BuilderPreviewGrantInvalid,
     get_builder_preview_cookie_name,
+    get_builder_preview_cookie_path,
 )
 from baserow.core.cache import global_cache
 
@@ -63,11 +64,11 @@ def test_editor_with_read_access_can_create_and_exchange_preview_token(
     preview_token = preview_query[BUILDER_PREVIEW_TOKEN_QUERY_PARAM][0]
 
     assert preview_url.startswith(
-        f"https://preview.example.com/builder-preview/{builder.id}/dashboard"
+        f"https://preview.example.com/builder/preview/{builder.id}/dashboard"
     )
 
     clean_url = (
-        f"https://preview.example.com/builder-preview/{builder.id}/dashboard?foo=bar"
+        f"https://preview.example.com/builder/preview/{builder.id}/dashboard?foo=bar"
     )
     response = api_client.get(
         preview_exchange_url(preview_token),
@@ -79,13 +80,14 @@ def test_editor_with_read_access_can_create_and_exchange_preview_token(
     redirect_query = parse_qs(parsed_redirect.query)
     handoff_code = redirect_query.pop(BUILDER_PREVIEW_HANDOFF_QUERY_PARAM)[0]
     assert parsed_redirect._replace(query="").geturl() == (
-        f"https://preview.example.com/builder-preview/{builder.id}/dashboard"
+        f"https://preview.example.com/builder/preview/{builder.id}/dashboard"
     )
     assert redirect_query == {"foo": ["bar"]}
     assert preview_token not in response["Location"]
-    preview_cookie = response.cookies[get_builder_preview_cookie_name(builder.id)]
+    preview_cookie = response.cookies[get_builder_preview_cookie_name()]
     assert preview_cookie["httponly"]
     assert preview_cookie["secure"]
+    assert preview_cookie["path"] == get_builder_preview_cookie_path(builder.id)
     assert preview_cookie.value != preview_token
     assert preview_cookie.value not in response["Location"]
 
@@ -118,7 +120,8 @@ def test_editor_with_read_access_can_create_and_exchange_preview_token(
         },
         format="json",
     )
-    assert reused_handoff_response.status_code == HTTP_404_NOT_FOUND
+    assert reused_handoff_response.status_code == HTTP_200_OK
+    assert reused_handoff_response.json() == handoff_response.json()
     assert reused_handoff_response["Cache-Control"] == "no-store"
 
 
@@ -135,14 +138,14 @@ def test_exchange_redirect_preserves_query_and_fragment(
         preview_exchange_url(token),
         {
             "redirect": (
-                f"https://preview.example.com/builder-preview/{builder.id}/page"
+                f"https://preview.example.com/builder/preview/{builder.id}/page"
                 "?foo=one&foo=two&blank=#section"
             )
         },
     )
 
     redirect = urlparse(response["Location"])
-    assert redirect.path == f"/builder-preview/{builder.id}/page"
+    assert redirect.path == f"/builder/preview/{builder.id}/page"
     assert parse_qs(redirect.query, keep_blank_values=True) == {
         "foo": ["one", "two"],
         "blank": [""],
@@ -167,12 +170,12 @@ def test_exchange_rejects_redirect_for_another_builder(
         preview_exchange_url(token),
         {
             "redirect": (
-                f"https://preview.example.com/builder-preview/{other_builder.id}/page"
+                f"https://preview.example.com/builder/preview/{other_builder.id}/page"
             )
         },
     )
 
-    assert urlparse(response["Location"]).path == (f"/builder-preview/{builder.id}/")
+    assert urlparse(response["Location"]).path == (f"/builder/preview/{builder.id}/")
 
 
 @pytest.mark.django_db
@@ -258,7 +261,7 @@ def test_preview_handoff_rejects_route_builder_mismatch(api_client, data_fixture
 
 
 @pytest.mark.django_db
-def test_concurrent_preview_handoff_exchanges_only_succeed_once(data_fixture):
+def test_concurrent_preview_handoff_exchanges_are_idempotent(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     handler = BuilderPreviewGrantHandler()
@@ -270,15 +273,38 @@ def test_concurrent_preview_handoff_exchanges_only_succeed_once(data_fixture):
     def exchange():
         barrier.wait()
         try:
-            handler.exchange_handoff(handoff_code)
+            return handler.exchange_handoff(handoff_code)
         except BuilderPreviewGrantInvalid:
-            return False
-        return True
+            return None
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         results = list(executor.map(lambda _: exchange(), range(2)))
 
-    assert sorted(results) == [False, True]
+    assert results == [
+        (session_token, pytest.approx(30 * 60, abs=1), builder.id),
+        (session_token, pytest.approx(30 * 60, abs=1), builder.id),
+    ]
+
+
+@pytest.mark.django_db
+def test_preview_handoff_replay_uses_fixed_handoff_lifetime(data_fixture, settings):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    settings.BUILDER_PREVIEW_HANDOFF_TTL_SECONDS = 60
+
+    with freeze_time("2024-01-01 12:00:00"):
+        handler = BuilderPreviewGrantHandler()
+        token = handler.create_grant(builder, user)
+        _, session_token = handler.exchange_token(token)
+        handoff_code = handler.create_handoff(session_token, builder.id)
+        assert handler.exchange_handoff(handoff_code)[0] == session_token
+
+    with freeze_time("2024-01-01 12:00:59"):
+        assert handler.exchange_handoff(handoff_code)[0] == session_token
+
+    with freeze_time("2024-01-01 12:01:01"):
+        with pytest.raises(BuilderPreviewGrantInvalid):
+            handler.exchange_handoff(handoff_code)
 
 
 @pytest.mark.django_db
@@ -304,12 +330,12 @@ def test_exchange_uses_lax_insecure_cookie_for_same_site_http_preview(
         preview_exchange_url(preview_token),
         {
             "redirect": (
-                f"http://preview.getbaserow.io:3000/builder-preview/{builder.id}/"
+                f"http://preview.getbaserow.io:3000/builder/preview/{builder.id}/"
             )
         },
     )
 
-    cookie = response.cookies[get_builder_preview_cookie_name(builder.id)]
+    cookie = response.cookies[get_builder_preview_cookie_name()]
     assert response.status_code == HTTP_302_FOUND
     assert cookie["samesite"] == "Lax"
     assert not cookie["secure"]
@@ -338,12 +364,12 @@ def test_exchange_uses_none_secure_cookie_for_cross_site_preview(
         preview_exchange_url(preview_token),
         {
             "redirect": (
-                f"http://preview.getbaserow.io:3000/builder-preview/{builder.id}/"
+                f"http://preview.getbaserow.io:3000/builder/preview/{builder.id}/"
             )
         },
     )
 
-    cookie = response.cookies[get_builder_preview_cookie_name(builder.id)]
+    cookie = response.cookies[get_builder_preview_cookie_name()]
     assert response.status_code == HTTP_302_FOUND
     assert cookie["samesite"] == "None"
     assert cookie["secure"]
@@ -368,11 +394,11 @@ def test_exchange_uses_frontend_cookie_prefix(api_client, data_fixture, settings
 
     response = api_client.get(
         preview_exchange_url(preview_token),
-        {"redirect": f"https://preview.example.com/builder-preview/{builder.id}/"},
+        {"redirect": f"https://preview.example.com/builder/preview/{builder.id}/"},
     )
 
     assert response.status_code == HTTP_302_FOUND
-    assert f"test_baserow_builder_preview_{builder.id}" in response.cookies
+    assert "test_baserow_builder_preview" in response.cookies
 
 
 @pytest.mark.django_db
@@ -445,12 +471,11 @@ def test_unexchanged_grant_token_does_not_authenticate_preview(
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
-    api_client.cookies[get_builder_preview_cookie_name(builder.id)] = token
+    api_client.cookies[get_builder_preview_cookie_name()] = token
 
     response = api_client.get(
         current_preview_url(builder.id),
         format="json",
-        HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id),
     )
 
     assert response.status_code != HTTP_200_OK
@@ -466,7 +491,7 @@ def test_preview_grant_url_uses_fixed_builder_path(data_fixture, settings):
         builder.id, "/dashboard?foo=bar", "token"
     )
     expected_url = (
-        f"https://example.com/builder-preview/{builder.id}/dashboard"
+        f"https://example.com/builder/preview/{builder.id}/dashboard"
         "?foo=bar&preview_token=token"
     )
 
@@ -509,26 +534,19 @@ def test_exchanged_preview_cookie_authenticates_draft_preview_as_preview_actor(
     ][0]
     api_client.get(
         preview_exchange_url(preview_token),
-        {"redirect": f"https://preview.example.com/builder-preview/{builder.id}/"},
+        {"redirect": f"https://preview.example.com/builder/preview/{builder.id}/"},
     )
 
     response = api_client.get(
-        reverse(
-            "api:builder:domains:get_builder_by_id", kwargs={"builder_id": builder.id}
-        ),
+        current_preview_url(builder.id),
         format="json",
-        HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id),
     )
     assert response.status_code == HTTP_200_OK
     assert response.json()["id"] == builder.id
 
     other_response = api_client.get(
-        reverse(
-            "api:builder:domains:get_builder_by_id",
-            kwargs={"builder_id": other_builder.id},
-        ),
+        current_preview_url(other_builder.id),
         format="json",
-        HTTP_X_BASEROW_BUILDER_PREVIEW=str(other_builder.id),
     )
     assert other_response.status_code != HTTP_200_OK
 
@@ -552,13 +570,12 @@ def test_exchanged_preview_cookie_returns_current_preview_builder(
     ][0]
     api_client.get(
         preview_exchange_url(preview_token),
-        {"redirect": f"https://preview.example.com/builder-preview/{builder.id}/"},
+        {"redirect": f"https://preview.example.com/builder/preview/{builder.id}/"},
     )
 
     response = api_client.get(
         current_preview_url(builder.id),
         format="json",
-        HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id),
     )
 
     assert response.status_code == HTTP_200_OK
@@ -571,9 +588,7 @@ def test_editor_jwt_is_not_accepted_by_draft_preview_endpoint(api_client, data_f
     builder = data_fixture.create_builder_application(user=user)
 
     response = api_client.get(
-        reverse(
-            "api:builder:domains:get_builder_by_id", kwargs={"builder_id": builder.id}
-        ),
+        current_preview_url(builder.id),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -591,16 +606,12 @@ def test_expired_preview_cookie_is_rejected(api_client, data_fixture, settings):
         token = BuilderPreviewGrantHandler().create_grant(builder, user)
         _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
 
-    api_client.cookies[get_builder_preview_cookie_name(builder.id)] = session_token
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
     with freeze_time("2024-01-01 12:30:01"):
         response = api_client.get(
-            reverse(
-                "api:builder:domains:get_builder_by_id",
-                kwargs={"builder_id": builder.id},
-            ),
+            current_preview_url(builder.id),
             format="json",
-            HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id),
         )
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
@@ -618,14 +629,11 @@ def test_tampered_preview_cookie_returns_preview_session_invalid(
     builder = data_fixture.create_builder_application(user=user)
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
     _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name(builder.id)] = (
-        f"{session_token}tampered"
-    )
+    api_client.cookies[get_builder_preview_cookie_name()] = f"{session_token}tampered"
 
     response = api_client.get(
         current_preview_url(builder.id),
         format="json",
-        HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id),
     )
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
@@ -636,14 +644,13 @@ def test_tampered_preview_cookie_returns_preview_session_invalid(
 
 
 @pytest.mark.django_db
-def test_marked_preview_request_without_cookie_returns_preview_session_invalid(
+def test_preview_route_without_cookie_returns_preview_session_invalid(
     api_client, data_fixture
 ):
     builder = data_fixture.create_builder_application()
     response = api_client.get(
         current_preview_url(builder.id),
         format="json",
-        HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id),
     )
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
@@ -654,7 +661,7 @@ def test_marked_preview_request_without_cookie_returns_preview_session_invalid(
 
 
 @pytest.mark.django_db
-def test_preview_cookie_and_header_cannot_be_swapped_between_builders(
+def test_preview_cookie_and_url_cannot_be_swapped_between_builders(
     api_client, data_fixture
 ):
     user = data_fixture.create_user()
@@ -662,14 +669,11 @@ def test_preview_cookie_and_header_cannot_be_swapped_between_builders(
     other_builder = data_fixture.create_builder_application(user=user)
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
     _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name(other_builder.id)] = (
-        session_token
-    )
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
     response = api_client.get(
         current_preview_url(other_builder.id),
         format="json",
-        HTTP_X_BASEROW_BUILDER_PREVIEW=str(other_builder.id),
     )
 
     assert response.status_code == HTTP_401_UNAUTHORIZED

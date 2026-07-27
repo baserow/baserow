@@ -33,9 +33,9 @@ vi.mock('#app', async (importOriginal) => ({
 vi.mock('#imports', () => ({
   useHead: vi.fn(),
   useRequestURL: () =>
-    new URL('https://preview.example.com/builder-preview/42/missing'),
+    new URL('https://preview.example.com/builder/preview/42/missing'),
   useRoute: () => ({
-    fullPath: '/builder-preview/missing',
+    fullPath: '/builder/preview/missing',
     meta: { builderPageMode: 'preview' },
     params: { builderId: '42', pathMatch: 'missing' },
     query: {},

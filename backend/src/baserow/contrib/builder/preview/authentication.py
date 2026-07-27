@@ -5,7 +5,6 @@ from baserow.contrib.builder.api.preview.errors import (
     ERROR_BUILDER_PREVIEW_SESSION_INVALID,
 )
 from baserow.contrib.builder.preview import (
-    BUILDER_PREVIEW_HEADER,
     BuilderPreviewGrantHandler,
     BuilderPreviewGrantInvalid,
     get_builder_preview_cookie_name,
@@ -14,20 +13,26 @@ from baserow.contrib.builder.preview.exceptions import BuilderPreviewSessionInva
 
 
 class BuilderPreviewAuthentication(BaseAuthentication):
+    """
+    Authenticate a builder-scoped preview API request.
+
+    Every protected preview route contains ``builder_id``. The browser uses it
+    to select the path-scoped cookie, and the signed actor must identify the
+    same builder.
+    """
+
+    def get_builder_id(self, request):
+        try:
+            return int(request.parser_context["kwargs"]["builder_id"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise BuilderPreviewSessionInvalid from exc
+
     def authenticate(self, request):
         with map_exceptions(
             {BuilderPreviewSessionInvalid: ERROR_BUILDER_PREVIEW_SESSION_INVALID}
         ):
-            header = request.headers.get(BUILDER_PREVIEW_HEADER)
-            if header is None:
-                return None
-
-            try:
-                builder_id = int(header)
-            except (TypeError, ValueError) as exc:
-                raise BuilderPreviewSessionInvalid from exc
-
-            token = request.COOKIES.get(get_builder_preview_cookie_name(builder_id))
+            builder_id = self.get_builder_id(request)
+            token = request.COOKIES.get(get_builder_preview_cookie_name())
             if not token:
                 raise BuilderPreviewSessionInvalid
 

@@ -62,14 +62,14 @@ def test_arbitrary_origin_keeps_non_credentialed_cors_headers():
     CORS_ALLOW_CREDENTIALS=False,
     BASEROW_CORS_ALLOWED_CREDENTIAL_ORIGINS=["https://preview.example.com"],
 )
-def test_trusted_origin_preflight_accepts_builder_preview_header():
+def test_trusted_origin_gets_credentialed_cors_preflight_headers():
     response = get_cors_preflight_response(
-        "https://preview.example.com", "x-baserow-builder-preview"
+        "https://preview.example.com", "content-type"
     )
 
     allowed_headers = {
         header.strip().lower()
         for header in response["Access-Control-Allow-Headers"].split(",")
     }
-    assert "x-baserow-builder-preview" in allowed_headers
+    assert "content-type" in allowed_headers
     assert response["Access-Control-Allow-Credentials"] == "true"

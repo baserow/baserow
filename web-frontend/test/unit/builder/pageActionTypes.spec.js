@@ -11,12 +11,10 @@ const page = {
 
 const makeDeferred = () => {
   let resolve
-  let reject
-  const promise = new Promise((resolvePromise, rejectPromise) => {
+  const promise = new Promise((resolvePromise) => {
     resolve = resolvePromise
-    reject = rejectPromise
   })
-  return { promise, reject, resolve }
+  return { promise, resolve }
 }
 
 describe('PreviewPageActionType', () => {

@@ -14,6 +14,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.builder.preview import (
+    BuilderPreviewActor,
     BuilderPreviewGrantHandler,
     get_builder_preview_cookie_name,
 )
@@ -48,8 +49,7 @@ from baserow.core.services.types import DispatchResult
 def authenticate_builder_preview(api_client, builder, user):
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
     _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name(builder.id)] = session_token
-    api_client.credentials(HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id))
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
 
 @pytest.mark.django_db
@@ -301,8 +301,8 @@ def test_public_workflow_actions_view(api_client, data_fixture):
     )
 
     url = reverse(
-        "api:builder:domains:list_workflow_actions",
-        kwargs={"page_id": page.id},
+        "api:builder:preview:list_workflow_actions",
+        kwargs={"builder_id": builder.id, "page_id": page.id},
     )
     authenticate_builder_preview(api_client, builder, user)
     response = api_client.get(
@@ -313,8 +313,7 @@ def test_public_workflow_actions_view(api_client, data_fixture):
     response_json = response.json()
     assert len(response_json) == 1
     assert response_json[0]["type"] == NotificationWorkflowActionType.type
-    del api_client.cookies[get_builder_preview_cookie_name(builder.id)]
-    api_client.credentials()
+    del api_client.cookies[get_builder_preview_cookie_name()]
 
     url = reverse(
         "api:builder:domains:list_workflow_actions",
@@ -744,21 +743,33 @@ def test_dispatch_workflow_action_in_preview_without_user_source_authentication(
     original_dispatch = BuilderWorkflowActionHandler.dispatch_workflow_action
 
     def dispatch_without_user_source(handler, workflow_action, dispatch_context):
-        assert dispatch_context.request.user.is_builder_preview_actor
+        assert isinstance(dispatch_context.request.user, BuilderPreviewActor)
         assert dispatch_context.request.user_source_user.is_anonymous
         return original_dispatch(handler, workflow_action, dispatch_context)
 
     authenticate_builder_preview(api_client, builder, user)
-    with patch.object(
-        BuilderWorkflowActionHandler,
-        "dispatch_workflow_action",
-        side_effect=dispatch_without_user_source,
-        autospec=True,
+    with (
+        patch(
+            "baserow.contrib.builder.handler.get_builder_used_property_names",
+            return_value={
+                "all": {service.id: ["id", fields[0].db_column]},
+                "external": {service.id: ["id", fields[0].db_column]},
+            },
+        ),
+        patch.object(
+            BuilderWorkflowActionHandler,
+            "dispatch_workflow_action",
+            side_effect=dispatch_without_user_source,
+            autospec=True,
+        ),
     ):
         response = api_client.post(
             reverse(
-                "api:builder:workflow_action:dispatch",
-                kwargs={"workflow_action_id": workflow_action.id},
+                "api:builder:preview:dispatch_workflow_action",
+                kwargs={
+                    "builder_id": builder.id,
+                    "workflow_action_id": workflow_action.id,
+                },
             ),
             {},
             format="json",
@@ -768,6 +779,9 @@ def test_dispatch_workflow_action_in_preview_without_user_source_authentication(
     assert list(
         table.get_model().objects.values_list(fields[0].db_column, flat=True)
     ) == ["Preview row"]
+    service.refresh_from_db()
+    assert service.sample_data["data"][fields[0].name] == "Preview row"
+    assert service.sample_data["status"] == HTTP_200_OK
 
 
 @pytest.mark.django_db
@@ -818,8 +832,11 @@ def test_dispatch_workflow_action_in_preview_with_user_source_authentication(
     ):
         response = api_client.post(
             reverse(
-                "api:builder:workflow_action:dispatch",
-                kwargs={"workflow_action_id": workflow_action.id},
+                "api:builder:preview:dispatch_workflow_action",
+                kwargs={
+                    "builder_id": builder.id,
+                    "workflow_action_id": workflow_action.id,
+                },
             ),
             {},
             format="json",

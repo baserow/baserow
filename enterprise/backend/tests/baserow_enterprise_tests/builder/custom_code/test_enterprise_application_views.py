@@ -16,8 +16,7 @@ from baserow_enterprise.builder.custom_code.models import BuilderCustomScript
 def authenticate_builder_preview(api_client, builder, user):
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
     _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
-    api_client.cookies[get_builder_preview_cookie_name(builder.id)] = session_token
-    api_client.credentials(HTTP_X_BASEROW_BUILDER_PREVIEW=str(builder.id))
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
 
 @pytest.mark.django_db
@@ -148,7 +147,10 @@ def test_get_enterprise_builder_custom_code_preview(
     builder.custom_code.js = "testJs"
     builder.custom_code.save()
 
-    url = reverse("api:enterprise:custom_code:js", kwargs={"builder_id": builder.id})
+    url = reverse(
+        "api:enterprise:builder_preview_custom_code:js",
+        kwargs={"builder_id": builder.id},
+    )
     authenticate_builder_preview(api_client, builder, user)
 
     response = api_client.get(
@@ -157,7 +159,10 @@ def test_get_enterprise_builder_custom_code_preview(
     assert response.status_code == HTTP_200_OK
     assert response.content == b"testJs"
 
-    url = reverse("api:enterprise:custom_code:css", kwargs={"builder_id": builder.id})
+    url = reverse(
+        "api:enterprise:builder_preview_custom_code:css",
+        kwargs={"builder_id": builder.id},
+    )
 
     response = api_client.get(
         url,
@@ -207,7 +212,10 @@ def test_get_enterprise_builder_custom_code_preview_no_user(
     builder.custom_code.js = "testJs"
     builder.custom_code.save()
 
-    url = reverse("api:enterprise:custom_code:js", kwargs={"builder_id": builder.id})
+    url = reverse(
+        "api:enterprise:builder_preview_custom_code:js",
+        kwargs={"builder_id": builder.id},
+    )
 
     response = api_client.get(
         url,

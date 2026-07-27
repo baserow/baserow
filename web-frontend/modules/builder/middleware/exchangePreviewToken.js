@@ -12,16 +12,11 @@ import {
   getBuilderPreviewCookiePath,
   getBuilderPreviewSsrCookieName,
   getBuilderPreviewUserSourceCookieName,
-} from '@baserow/modules/core/utils/builderPreview'
+} from '@baserow/modules/builder/utils/preview'
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { createBuilderPreviewSessionError } from '@baserow/modules/builder/plugins/previewClientHandler'
 
 const PREVIEW_HANDOFF_QUERY_PARAM = 'preview_handoff'
-const PREVIEW_HANDOFF_EXCHANGE_CACHE_TTL_MS = 10_000
-// A browser can issue duplicate document requests for the handoff URL. Keep the
-// backend exchange promise at module scope so every request handled by this Nitro
-// process shares the one-time result.
-const previewHandoffExchangeScope = {}
 
 export const getPreviewToken = (to, requestUrl) => {
   const rawPreviewToken = requestUrl.searchParams.get('preview_token')
@@ -94,66 +89,15 @@ export const setPreviewHandoffCookie = (
   { expiresIn, previewSession },
   getCookie = useCookie
 ) => {
-  // Each duplicate SSR response must set its own cookie even though they share the
-  // same backend exchange promise.
-  const previewCookie = getCookie(
-    getBuilderPreviewSsrCookieName(config, builderId),
-    {
-      httpOnly: true,
-      maxAge: expiresIn,
-      path: getBuilderPreviewCookiePath(builderId),
-      sameSite: 'lax',
-      secure: isSecureURL(config.public.builderPreviewUrl),
-    }
-  )
+  const previewCookie = getCookie(getBuilderPreviewSsrCookieName(config), {
+    httpOnly: true,
+    maxAge: expiresIn,
+    path: getBuilderPreviewCookiePath(builderId),
+    sameSite: 'lax',
+    secure: isSecureURL(config.public.builderPreviewUrl),
+  })
   previewCookie.value = previewSession
 }
-
-export const exchangePreviewHandoffInSsr = async (
-  handoffCode,
-  builderId,
-  config,
-  fetch = globalThis.fetch,
-  getCookie = useCookie
-) => {
-  const previewSession = await exchangePreviewHandoff(
-    handoffCode,
-    builderId,
-    config,
-    fetch
-  )
-  setPreviewHandoffCookie(builderId, config, previewSession, getCookie)
-
-  return previewSession
-}
-
-export const exchangePreviewHandoffOnce = (
-  exchangeScope,
-  handoffCode,
-  builderId,
-  config,
-  exchange = exchangePreviewHandoff
-) => {
-  exchangeScope._builderPreviewHandoffExchanges ||= new Map()
-  if (!exchangeScope._builderPreviewHandoffExchanges.has(handoffCode)) {
-    const exchangePromise = exchange(handoffCode, builderId, config)
-    exchangeScope._builderPreviewHandoffExchanges.set(
-      handoffCode,
-      exchangePromise
-    )
-    const scheduleCleanup = () => {
-      const cleanupTimer = setTimeout(
-        () => exchangeScope._builderPreviewHandoffExchanges.delete(handoffCode),
-        PREVIEW_HANDOFF_EXCHANGE_CACHE_TTL_MS
-      )
-      cleanupTimer.unref?.()
-    }
-    exchangePromise.then(scheduleCleanup, scheduleCleanup)
-  }
-  return exchangeScope._builderPreviewHandoffExchanges.get(handoffCode)
-}
-
-export const getPreviewHandoffExchangeScope = () => previewHandoffExchangeScope
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig()
@@ -169,7 +113,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Opening a fresh preview grant resets the user-source session for this
   // builder without affecting simultaneous previews of other builders.
-  await unsetToken(nuxtApp, getBuilderPreviewUserSourceCookieName(builderId), {
+  await unsetToken(nuxtApp, getBuilderPreviewUserSourceCookieName(), {
     path: getBuilderPreviewCookiePath(builderId),
   })
 
@@ -192,8 +136,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   try {
-    const previewSession = await exchangePreviewHandoffOnce(
-      getPreviewHandoffExchangeScope(),
+    const previewSession = await exchangePreviewHandoff(
       previewHandoff,
       builderId,
       config

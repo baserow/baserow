@@ -1,12 +1,8 @@
 import axios from 'axios'
-import { showError, useCookie, useRoute, useRuntimeConfig } from '#imports'
+import { showError, useRuntimeConfig } from '#imports'
 
 import { upperCaseFirst } from '@baserow/modules/core/utils/string'
 import { makeRefreshAuthInterceptor } from '@baserow/modules/core/plugins/clientAuthRefresh'
-import {
-  getBuilderPreviewCookieName,
-  getBuilderPreviewSsrCookieName,
-} from '@baserow/modules/core/utils/builderPreview'
 
 export class ResponseErrorMessage {
   constructor(title, message) {
@@ -502,7 +498,7 @@ export function makeErrorResponseInterceptor(
     const rspData = error.response?.data
 
     // A regular Baserow user session expired. User source sessions use the same
-    // error code, but their callers must clear the published-site session instead.
+    // error code, but their callers must clear the user source session instead.
     if (
       rspData?.error === 'ERROR_INVALID_REFRESH_TOKEN' &&
       !error.config?.isUserSourceAuth
@@ -530,66 +526,24 @@ export function makeErrorResponseInterceptor(
 }
 
 /**
- * Add the user related headers according to the current authentication status.
+ * Adds headers associated with the current Baserow user.
+ *
+ * Authentication-specific plugins run before this interceptor. The user source
+ * handler marks requests where its Authorization header must be preserved.
  */
-export const prepareRequestHeaders = (store, previewSsrAuth) => (config) => {
-  const application = store.getters['userSourceUser/getCurrentApplication']
-  const currentApplicationMode =
-    store.getters['userSourceUser/getCurrentApplicationMode']
-  const isPreviewContext = currentApplicationMode === 'preview'
-  const selectedApplication = store.getters['application/getSelected']
-  const previewBuilderId = config.builderPreviewId || selectedApplication?.id
-  const usePreviewCredentials =
-    isPreviewContext && config.usePreviewAuth && previewBuilderId
+export const prepareRequestHeaders = (store) => (config) => {
+  config.headers ||= {}
 
-  if (usePreviewCredentials) {
-    config.withCredentials = true
-    config.headers ||= {}
-    config.headers['X-Baserow-Builder-Preview'] = String(previewBuilderId)
-    if (previewSsrAuth.session) {
-      config.headers.Cookie = `${previewSsrAuth.backendCookieName}=${previewSsrAuth.session}`
-    }
+  if (
+    store.getters['auth/isAuthenticated'] &&
+    !config.usesUserSourceAuthorization
+  ) {
+    const token = store.getters['auth/token']
+    config.headers.Authorization = `JWT ${token}`
+    config.headers.ClientSessionId =
+      store.getters['auth/getUntrustedClientSessionId']
   }
 
-  const isUserSourceAuthenticated =
-    store.getters['userSourceUser/isAuthenticated'](application)
-  const canSendUserSourceToken =
-    isUserSourceAuthenticated &&
-    !store.getters['userSourceUser/isRefreshing'](application)
-
-  if (store.getters['auth/isAuthenticated']) {
-    // If we are logged with Baserow user and with a user source user
-    // so we also want to send this user token
-    // to the backend.
-    // This enables the "double" authentication.
-    // We access the data with the permission of the currently logged Baserow user
-    // but we can see the data of the user source user.
-    if (canSendUserSourceToken) {
-      const userSourceToken =
-        store.getters['userSourceUser/accessToken'](application)
-      if (usePreviewCredentials) {
-        config.headers.Authorization = `JWT ${userSourceToken}`
-      } else {
-        config.headers.UserSourceAuthorization = `JWT ${userSourceToken}`
-      }
-    }
-
-    if (!(usePreviewCredentials && canSendUserSourceToken)) {
-      const token = store.getters['auth/token']
-      config.headers.Authorization = `JWT ${token}`
-      config.headers.ClientSessionId =
-        store.getters['auth/getUntrustedClientSessionId']
-    }
-  } else if (isUserSourceAuthenticated) {
-    // Here we are logged as a user source user
-    const userSourceToken =
-      store.getters['userSourceUser/accessToken'](application)
-    // We don't want to add the user source token if we are refreshing as the token
-    // won't be accepted.
-    if (!store.getters['userSourceUser/isRefreshing'](application)) {
-      config.headers.Authorization = `JWT ${userSourceToken}`
-    }
-  }
   // This header keeps the sender out of the realtime broadcast its own request
   // triggers, so a request that applies nothing locally opts out to receive it.
   if (store.getters['auth/webSocketId'] !== null && !config.omitWebSocketId) {
@@ -623,30 +577,13 @@ export default defineNuxtPlugin({
   dependsOn: ['i18n', 'create-store'],
   async setup(nuxtApp) {
     const runtimeConfig = useRuntimeConfig()
-    const route = useRoute()
     const store = nuxtApp.$store
-
-    const previewSsrAuth = {}
-    if (import.meta.server) {
-      const builderId = Number(route.params.builderId)
-      if (Number.isInteger(builderId)) {
-        previewSsrAuth.session = useCookie(
-          getBuilderPreviewSsrCookieName(runtimeConfig, builderId)
-        ).value
-        previewSsrAuth.backendCookieName = getBuilderPreviewCookieName(
-          runtimeConfig,
-          builderId
-        )
-      }
-    }
 
     const client = createAxiosInstance(runtimeConfig)
 
     const clientErrorMap = new ClientErrorMap(nuxtApp)
 
-    client.interceptors.request.use(
-      prepareRequestHeaders(store, previewSsrAuth)
-    )
+    client.interceptors.request.use(prepareRequestHeaders(store))
 
     client.interceptors.response.use(
       null,
@@ -669,35 +606,6 @@ export default defineNuxtPlugin({
       shouldInterceptResponse
     )
     client.interceptors.response.use(null, refreshAuthInterceptor)
-
-    const shouldInterceptUserSourceRequest = (req) => {
-      const application = store.getters['userSourceUser/getCurrentApplication']
-      return (
-        !store.getters['auth/isAuthenticated'] &&
-        store.getters['userSourceUser/shouldRefreshToken'](application)
-      )
-    }
-
-    const shouldInterceptUserSourceResponse = (error) => {
-      const application = store.getters['userSourceUser/getCurrentApplication']
-      return (
-        !store.getters['auth/isAuthenticated'] &&
-        store.getters['userSourceUser/isAuthenticated'](application) &&
-        error.response?.data?.error === 'ERROR_INVALID_ACCESS_TOKEN'
-      )
-    }
-    const refreshUserSourceToken = async () =>
-      await store.dispatch('userSourceUser/refreshAuth', {
-        application: store.getters['userSourceUser/getCurrentApplication'],
-      })
-
-    const refreshUserSourceUserInterceptor = makeRefreshAuthInterceptor(
-      client,
-      refreshUserSourceToken,
-      shouldInterceptUserSourceRequest,
-      shouldInterceptUserSourceResponse
-    )
-    client.interceptors.response.use(null, refreshUserSourceUserInterceptor)
 
     return {
       provide: {

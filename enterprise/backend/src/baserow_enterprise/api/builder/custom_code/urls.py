@@ -4,19 +4,22 @@ from .views import CustomCodeView, PublicCustomCodeView
 
 app_name = "baserow_enterprise.api.custom_code"
 
-urlpatterns = [
+preview_urlpatterns = [
     re_path(
-        r"^(?P<builder_id>[0-9]+)/css/$",
+        r"^(?P<builder_id>[0-9]+)/custom-code/css/$",
         CustomCodeView.as_view(),
         {"code_type": "css"},
         name="css",
     ),
     re_path(
-        r"^(?P<builder_id>[0-9]+)/js/$",
+        r"^(?P<builder_id>[0-9]+)/custom-code/js/$",
         CustomCodeView.as_view(),
         {"code_type": "js"},
         name="js",
     ),
+]
+
+urlpatterns = [
     re_path(
         r"^(?P<builder_id>[0-9]+)/css/public/$",
         PublicCustomCodeView.as_view(),

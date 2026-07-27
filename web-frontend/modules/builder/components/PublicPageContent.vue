@@ -38,7 +38,7 @@ import { useRoute, useRouter, useRuntimeConfig } from '#imports'
 import {
   getBuilderPreviewCookiePath,
   getBuilderPreviewUserSourceCookieName,
-} from '@baserow/modules/core/utils/builderPreview'
+} from '@baserow/modules/builder/utils/preview'
 
 defineOptions({
   name: 'PublicPageContent',
@@ -400,7 +400,7 @@ const checkProviderAuthentication = async () => {
       nuxtApp,
       refreshTokenFromProvider,
       previewUserSourceCookie
-        ? getBuilderPreviewUserSourceCookieName(props.builder.id)
+        ? getBuilderPreviewUserSourceCookieName()
         : userSourceCookieTokenName,
       {
         sameSite: 'Lax',
