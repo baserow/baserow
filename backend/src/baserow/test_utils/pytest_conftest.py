@@ -991,7 +991,6 @@ class FakeDispatchContext(DispatchContext):
         "_is_publicly_sortable",
         "_filters",
         "_sortings",
-        "actor",
     ]
 
     def __init__(self, **kwargs):

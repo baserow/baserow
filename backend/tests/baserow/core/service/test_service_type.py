@@ -319,3 +319,24 @@ def test_dispatch_context_actor_survives_clone(data_fixture):
 
     assert dispatch_context.actor == user
     assert dispatch_context.clone().actor == user
+
+
+@pytest.mark.django_db
+def test_dispatch_context_actor_survives_clone_without_own_properties(data_fixture):
+    from baserow.test_utils.pytest_conftest import FakeDispatchContext
+
+    class StrictDispatchContext(FakeDispatchContext):
+        """A context that neither lists `actor` nor accepts it as a kwarg."""
+
+        own_properties = ["context"]
+
+        def __init__(self, context=None):
+            super().__init__(context=context or {})
+
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    dispatch_context = StrictDispatchContext()
+    dispatch_context.actor = user
+
+    assert dispatch_context.clone().actor == user
+    assert dispatch_context.clone(actor=other_user).actor == other_user

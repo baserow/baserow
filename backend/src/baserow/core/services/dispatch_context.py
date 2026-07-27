@@ -16,7 +16,6 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         "use_sample_data",
         "force_outputs",
         "event_payload",
-        "actor",
     ]
 
     """
@@ -75,6 +74,10 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         """
         Return a new DispatchContext instance cloned from the current context, without
         losing the original cached data and call stack but updating some properties.
+
+        The actor is carried over explicitly instead of via `own_properties` so that
+        it survives for subclasses which replace that list, and so that subclass
+        constructors never receive an unexpected `actor` keyword argument.
         """
 
         new_values = {}
@@ -82,7 +85,9 @@ class DispatchContext(RuntimeFormulaContext, ABC):
             new_values[prop] = getattr(self, prop)
         new_values.update(kwargs)
 
+        actor = new_values.pop("actor", self.actor)
         new_context = self.__class__(**new_values)
+        new_context.actor = actor
         new_context.cache = {**self.cache}
         new_context.call_stack = set(self.call_stack)
 
