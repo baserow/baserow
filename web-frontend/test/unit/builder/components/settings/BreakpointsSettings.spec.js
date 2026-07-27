@@ -27,8 +27,7 @@ describe('BreakpointsSettings', () => {
             template: '<button :disabled="disabled"><slot /></button>',
           },
           Alert: {
-            template:
-              '<div class="alert"><slot name="title" /><slot /></div>',
+            template: '<div class="alert"><slot name="title" /><slot /></div>',
           },
           Error: true,
           FormGroup: { template: '<div><slot /></div>' },
