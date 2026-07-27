@@ -22,7 +22,7 @@
       v-else
       ref="input"
       v-model="richCopy"
-      v-prevent-parent-scroll="editing"
+      v-prevent-parent-scroll="editing ? WHEN_SCROLLABLE : false"
       class="grid-field-rich-text__textarea"
       :class="{ 'grid-field-rich-text__textarea--resizable': editing }"
       :editable="editing && !isModalOpen()"
@@ -62,6 +62,7 @@ import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
 import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
 import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
+import { WHEN_SCROLLABLE } from '@baserow/modules/core/directives/preventParentScroll'
 
 export default {
   components: { RichTextEditor, FieldRichTextModal },
@@ -74,6 +75,9 @@ export default {
     }
   },
   computed: {
+    WHEN_SCROLLABLE() {
+      return WHEN_SCROLLABLE
+    },
     formattedValue() {
       return parseMarkdown(this.value, {
         openLinkOnClick: true,

@@ -3,10 +3,28 @@
  * being able to scroll. This directive can be used on a child element that supports
  * scrolling, it makes sure that scrolling works and so that it doesn't scroll the
  * parent.
+ *
+ * The binding value controls the behavior:
+ * - `true` or no value: always stop propagation.
+ * - `false`: directive is disabled.
+ * - `WHEN_SCROLLABLE`: only stop propagation if the element actually overflows.
+ *   This must be checked at event time because the overflow state changes with the
+ *   content. Use this when the parent should still scroll while the element has
+ *   nothing to scroll itself, for example the selected link row cell in the grid
+ *   view.
  */
 
-const addEventListeners = (el) => {
+export const WHEN_SCROLLABLE = 'when-scrollable'
+
+const addEventListeners = (el, mode) => {
   el.preventParentScrollDirectiveEvent = (event) => {
+    if (
+      mode === WHEN_SCROLLABLE &&
+      el.scrollHeight <= el.clientHeight &&
+      el.scrollWidth <= el.clientWidth
+    ) {
+      return
+    }
     event.stopPropagation()
   }
   el.addEventListener('wheel', el.preventParentScrollDirectiveEvent)
@@ -24,17 +42,17 @@ const removeEventListeners = (el) => {
 
 export default {
   beforeMount(el, binding) {
-    const active = binding.value !== undefined ? binding.value : true
-    if (active) {
-      addEventListeners(el)
+    const value = binding.value !== undefined ? binding.value : true
+    if (value !== false) {
+      addEventListeners(el, value)
     }
   },
   updated(el, binding) {
     if (binding.value !== binding.oldValue) {
-      if (binding.value) {
-        addEventListeners(el)
-      } else {
-        removeEventListeners(el)
+      removeEventListeners(el)
+      const value = binding.value !== undefined ? binding.value : true
+      if (value !== false) {
+        addEventListeners(el, value)
       }
     }
   },

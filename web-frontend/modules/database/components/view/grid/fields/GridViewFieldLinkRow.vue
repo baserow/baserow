@@ -1,11 +1,13 @@
 <template>
   <div
     ref="cell"
-    v-prevent-parent-scroll
     class="grid-view__cell grid-field-many-to-many__cell active"
     :class="{ invalid: removingRelationships }"
   >
-    <div class="grid-field-many-to-many__list">
+    <div
+      v-prevent-parent-scroll="WHEN_SCROLLABLE"
+      class="grid-field-many-to-many__list"
+    >
       <component
         :is="publicGrid || !canAccessLinkedTable ? 'span' : 'a'"
         v-for="item in visibleValues"
@@ -98,6 +100,7 @@ import ForeignRowEditModal from '@baserow/modules/database/components/row/Foreig
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import { isPrintableUnicodeCharacterKeyPress } from '@baserow/modules/core/utils/events'
+import { WHEN_SCROLLABLE } from '@baserow/modules/core/directives/preventParentScroll'
 
 export default {
   name: 'GridViewFieldLinkRow',
@@ -113,6 +116,9 @@ export default {
     }
   },
   computed: {
+    WHEN_SCROLLABLE() {
+      return WHEN_SCROLLABLE
+    },
     publicGrid() {
       return this.$store.getters['page/view/public/getIsPublic']
     },
