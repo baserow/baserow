@@ -74,6 +74,24 @@ def test_login_page_is_saved(api_client, builder_fixture):
 
 
 @pytest.mark.django_db
+def test_builder_application_can_be_created_without_breakpoints(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+
+    response = api_client.post(
+        reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+        {"name": "Test builder", "type": "builder"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["breakpoints"] == {"mobile": 640, "tablet": 1024}
+
+
+@pytest.mark.django_db
 def test_breakpoints_are_saved(api_client, builder_fixture):
     builder = builder_fixture["builder"]
 

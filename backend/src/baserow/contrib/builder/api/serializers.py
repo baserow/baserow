@@ -8,7 +8,7 @@ from baserow.contrib.builder.api.theme.serializers import (
     CombinedThemeConfigBlocksSerializer,
     serialize_builder_theme,
 )
-from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.models import Builder, default_builder_breakpoints
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.application_types import BuilderApplicationType
@@ -18,9 +18,13 @@ class BuilderBreakpointsSerializerMixin:
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        breakpoints = attrs.get(
-            "breakpoints", getattr(self.instance, "breakpoints", {})
-        )
+        breakpoints = attrs.get("breakpoints")
+        if not isinstance(self.instance, Builder) and not breakpoints:
+            attrs["breakpoints"] = default_builder_breakpoints()
+            return attrs
+
+        if breakpoints is None:
+            breakpoints = getattr(self.instance, "breakpoints", {})
         mobile_breakpoint = breakpoints.get("mobile")
         tablet_breakpoint = breakpoints.get("tablet")
 
