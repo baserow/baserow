@@ -104,10 +104,11 @@ class DatabaseWorkflowActionService:
             context=field,
         )
 
+        workflow_action_id = workflow_action.id
         self.handler.delete_workflow_action(workflow_action)
 
         workflow_action_deleted.send(
-            self, workflow_action_id=workflow_action.id, field=field, user=user
+            self, workflow_action_id=workflow_action_id, field=field, user=user
         )
 
     def order_workflow_actions(

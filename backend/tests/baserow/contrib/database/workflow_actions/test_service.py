@@ -7,6 +7,9 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
+from baserow.contrib.database.workflow_actions.signals import (
+    workflow_action_deleted,
+)
 from baserow.core.exceptions import PermissionException
 
 
@@ -51,6 +54,30 @@ def test_delete_is_refused_without_field_permission(data_fixture):
 
     with pytest.raises(PermissionException):
         DatabaseWorkflowActionService().delete_workflow_action(outsider, action)
+
+
+@pytest.mark.django_db
+def test_delete_sends_the_deleted_action_id(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action = data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field
+    )
+    action_id = action.id
+    received = []
+
+    def receiver(sender, **kwargs):
+        received.append(kwargs)
+
+    workflow_action_deleted.connect(receiver)
+    try:
+        DatabaseWorkflowActionService().delete_workflow_action(user, action)
+    finally:
+        workflow_action_deleted.disconnect(receiver)
+
+    assert len(received) == 1
+    assert received[0]["workflow_action_id"] == action_id
 
 
 @pytest.mark.skip(reason="service deletion receiver lands in the import/export task")
