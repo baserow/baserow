@@ -263,6 +263,17 @@ class DatabaseConfig(AppConfig):
         # when the flag is off; creation is gated in ButtonFieldType.
         field_type_registry.register(ButtonFieldType())
 
+        from .workflow_actions.registries import database_workflow_action_type_registry
+        from .workflow_actions.workflow_action_types import (
+            CreateRowWorkflowActionType,
+            DeleteRowWorkflowActionType,
+            UpdateRowWorkflowActionType,
+        )
+
+        database_workflow_action_type_registry.register(CreateRowWorkflowActionType())
+        database_workflow_action_type_registry.register(UpdateRowWorkflowActionType())
+        database_workflow_action_type_registry.register(DeleteRowWorkflowActionType())
+
         from .fields.field_aggregations import (
             AverageFieldAggregationType,
             CheckedFieldAggregationType,
