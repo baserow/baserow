@@ -79,65 +79,62 @@ def test_breakpoints_are_saved(api_client, builder_fixture):
 
     response = api_client.patch(
         reverse("api:applications:item", kwargs={"application_id": builder.id}),
-        {"mobile_breakpoint": 700, "tablet_breakpoint": 1100},
+        {"breakpoints": {"mobile": 700, "tablet": 1100, "laptop": 1280}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {builder_fixture['token']}",
     )
 
     assert response.status_code == 200
-    assert response.json()["mobile_breakpoint"] == 700
-    assert response.json()["tablet_breakpoint"] == 1100
+    assert response.json()["breakpoints"] == {
+        "mobile": 700,
+        "tablet": 1100,
+        "laptop": 1280,
+    }
 
     builder.refresh_from_db()
-    assert builder.mobile_breakpoint == 700
-    assert builder.tablet_breakpoint == 1100
+    assert builder.breakpoints == {"mobile": 700, "tablet": 1100, "laptop": 1280}
 
 
 @pytest.mark.django_db
-def test_legacy_breakpoints_can_be_configured(api_client, builder_fixture):
+def test_legacy_breakpoints_can_be_updated(api_client, builder_fixture):
     builder = builder_fixture["builder"]
-    builder.mobile_breakpoint = None
-    builder.tablet_breakpoint = None
+    builder.breakpoints = {"mobile": 500, "tablet": 768}
     builder.save()
 
     response = api_client.patch(
         reverse("api:applications:item", kwargs={"application_id": builder.id}),
-        {"mobile_breakpoint": 700, "tablet_breakpoint": 1100},
+        {"breakpoints": {"mobile": 700, "tablet": 1100}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {builder_fixture['token']}",
     )
 
     assert response.status_code == 200
-    assert response.json()["mobile_breakpoint"] == 700
-    assert response.json()["tablet_breakpoint"] == 1100
+    assert response.json()["breakpoints"] == {"mobile": 700, "tablet": 1100}
 
 
 @pytest.mark.django_db
-def test_breakpoints_must_be_configured_together_and_in_order(
+def test_breakpoints_must_include_mobile_and_tablet_in_order(
     api_client, builder_fixture
 ):
     builder = builder_fixture["builder"]
-    builder.mobile_breakpoint = None
-    builder.tablet_breakpoint = None
-    builder.save()
 
     response = api_client.patch(
         reverse("api:applications:item", kwargs={"application_id": builder.id}),
-        {"mobile_breakpoint": 640},
+        {"breakpoints": {"mobile": 640}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {builder_fixture['token']}",
     )
 
     assert response.status_code == 400
-    assert "mobile_breakpoint" in response.json()["detail"]
-    assert "tablet_breakpoint" in response.json()["detail"]
+    assert "mobile" in response.json()["detail"]["breakpoints"]
+    assert "tablet" in response.json()["detail"]["breakpoints"]
 
     response = api_client.patch(
         reverse("api:applications:item", kwargs={"application_id": builder.id}),
-        {"mobile_breakpoint": 1024, "tablet_breakpoint": 1024},
+        {"breakpoints": {"mobile": 1024, "tablet": 1024}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {builder_fixture['token']}",
     )
 
     assert response.status_code == 400
-    assert "tablet_breakpoint" in response.json()["detail"]
+    assert "tablet" in response.json()["detail"]["breakpoints"]

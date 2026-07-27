@@ -2,6 +2,8 @@
 
 from django.db import migrations, models
 
+from baserow.contrib.builder.models import default_builder_breakpoints
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -11,12 +13,10 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="builder",
-            name="mobile_breakpoint",
-            field=models.IntegerField(db_default=None, default=640, null=True),
-        ),
-        migrations.AddField(
-            model_name="builder",
-            name="tablet_breakpoint",
-            field=models.IntegerField(db_default=None, default=1024, null=True),
+            name="breakpoints",
+            field=models.JSONField(
+                db_default={"mobile": 500, "tablet": 768},
+                default=default_builder_breakpoints,
+            ),
         ),
     ]

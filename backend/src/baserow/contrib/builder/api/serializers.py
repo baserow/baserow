@@ -18,34 +18,34 @@ class BuilderBreakpointsSerializerMixin:
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        mobile_breakpoint = attrs.get(
-            "mobile_breakpoint", getattr(self.instance, "mobile_breakpoint", None)
+        breakpoints = attrs.get(
+            "breakpoints", getattr(self.instance, "breakpoints", {})
         )
-        tablet_breakpoint = attrs.get(
-            "tablet_breakpoint", getattr(self.instance, "tablet_breakpoint", None)
-        )
-
-        if mobile_breakpoint is None and tablet_breakpoint is None:
-            return attrs
+        mobile_breakpoint = breakpoints.get("mobile")
+        tablet_breakpoint = breakpoints.get("tablet")
 
         if mobile_breakpoint is None or tablet_breakpoint is None:
             raise serializers.ValidationError(
                 {
-                    "mobile_breakpoint": [
-                        "The mobile and tablet breakpoints must be configured together."
-                    ],
-                    "tablet_breakpoint": [
-                        "The mobile and tablet breakpoints must be configured together."
-                    ],
+                    "breakpoints": {
+                        "mobile": [
+                            "The mobile and tablet breakpoints must be configured together."
+                        ],
+                        "tablet": [
+                            "The mobile and tablet breakpoints must be configured together."
+                        ],
+                    }
                 }
             )
 
         if mobile_breakpoint >= tablet_breakpoint:
             raise serializers.ValidationError(
                 {
-                    "tablet_breakpoint": [
-                        "The tablet breakpoint must be greater than the mobile breakpoint."
-                    ]
+                    "breakpoints": {
+                        "tablet": [
+                            "The tablet breakpoint must be greater than the mobile breakpoint."
+                        ]
+                    }
                 }
             )
 

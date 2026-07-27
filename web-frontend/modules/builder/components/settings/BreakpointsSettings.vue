@@ -46,8 +46,11 @@ export default {
     breakpoints() {
       const { mobile, tablet } = getBuilderBreakpoints(this.builder)
       return {
-        mobile_breakpoint: mobile,
-        tablet_breakpoint: tablet,
+        breakpoints: {
+          ...this.builder.breakpoints,
+          mobile,
+          tablet,
+        },
       }
     },
   },

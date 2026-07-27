@@ -4,7 +4,7 @@
       {{ $t('breakpointSettings.description') }}
     </p>
     <FormGroup
-      :error-message="getFirstErrorMessage('mobile_breakpoint')"
+      :error-message="getBreakpointErrorMessage('mobile')"
       required
       small-label
       class="margin-bottom-2"
@@ -17,7 +17,7 @@
         {{ $t('breakpointSettings.mobileLabel') }}
       </template>
       <FormInput
-        v-model="v$.values.mobile_breakpoint.$model"
+        v-model="v$.values.breakpoints.mobile.$model"
         class="builder-breakpoints-settings-form__input"
         type="number"
         :to-value="toBreakpointValue"
@@ -26,7 +26,7 @@
       </FormInput>
     </FormGroup>
     <FormGroup
-      :error-message="getFirstErrorMessage('tablet_breakpoint')"
+      :error-message="getBreakpointErrorMessage('tablet')"
       required
       small-label
       class="margin-bottom-2"
@@ -39,7 +39,7 @@
         {{ $t('breakpointSettings.tabletLabel') }}
       </template>
       <FormInput
-        v-model="v$.values.tablet_breakpoint.$model"
+        v-model="v$.values.breakpoints.tablet.$model"
         class="builder-breakpoints-settings-form__input"
         type="number"
         :to-value="toBreakpointValue"
@@ -58,7 +58,7 @@
       <p class="builder-breakpoints-settings-form__desktop-value">
         {{
           $t('breakpointSettings.desktopDescription', {
-            breakpoint: values.tablet_breakpoint,
+            breakpoint: values.breakpoints.tablet,
           })
         }}
       </p>
@@ -80,41 +80,54 @@ export default {
   data() {
     return {
       values: {
-        mobile_breakpoint: null,
-        tablet_breakpoint: null,
+        breakpoints: {
+          mobile: null,
+          tablet: null,
+        },
       },
-      allowedValues: ['mobile_breakpoint', 'tablet_breakpoint'],
+      allowedValues: ['breakpoints'],
     }
   },
   methods: {
     toBreakpointValue(value) {
       return value === '' ? null : Number(value)
     },
+    getBreakpointErrorMessage(breakpoint) {
+      return this.v$.values.breakpoints[breakpoint].$errors[0]?.$message
+    },
   },
   validations() {
     return {
       values: {
-        mobile_breakpoint: {
-          required: helpers.withMessage(
-            this.$t('error.requiredField'),
-            required
-          ),
-          integer: helpers.withMessage(this.$t('error.integerField'), integer),
-          lessThanTablet: helpers.withMessage(
-            this.$t('breakpointSettings.mobileMustBeLessThanTablet'),
-            (value) => value < this.values.tablet_breakpoint
-          ),
-        },
-        tablet_breakpoint: {
-          required: helpers.withMessage(
-            this.$t('error.requiredField'),
-            required
-          ),
-          integer: helpers.withMessage(this.$t('error.integerField'), integer),
-          greaterThanMobile: helpers.withMessage(
-            this.$t('breakpointSettings.tabletMustBeGreaterThanMobile'),
-            (value) => value > this.values.mobile_breakpoint
-          ),
+        breakpoints: {
+          mobile: {
+            required: helpers.withMessage(
+              this.$t('error.requiredField'),
+              required
+            ),
+            integer: helpers.withMessage(
+              this.$t('error.integerField'),
+              integer
+            ),
+            lessThanTablet: helpers.withMessage(
+              this.$t('breakpointSettings.mobileMustBeLessThanTablet'),
+              (value) => value < this.values.breakpoints.tablet
+            ),
+          },
+          tablet: {
+            required: helpers.withMessage(
+              this.$t('error.requiredField'),
+              required
+            ),
+            integer: helpers.withMessage(
+              this.$t('error.integerField'),
+              integer
+            ),
+            greaterThanMobile: helpers.withMessage(
+              this.$t('breakpointSettings.tabletMustBeGreaterThanMobile'),
+              (value) => value > this.values.breakpoints.mobile
+            ),
+          },
         },
       },
     }

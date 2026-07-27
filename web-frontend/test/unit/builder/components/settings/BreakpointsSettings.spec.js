@@ -9,8 +9,7 @@ describe('BreakpointsSettings', () => {
 
   const builder = {
     id: 1,
-    mobile_breakpoint: 640,
-    tablet_breakpoint: 1024,
+    breakpoints: { mobile: 640, tablet: 1024, laptop: 1280 },
   }
 
   const mountComponent = async () => {
@@ -46,7 +45,7 @@ describe('BreakpointsSettings', () => {
       name: 'BuilderBreakpointsSettingsForm',
     })
 
-    form.vm.v$.values.tablet_breakpoint.$model = 640
+    form.vm.v$.values.breakpoints.tablet.$model = 640
     await wrapper.vm.$nextTick()
 
     expect(wrapper.vm.invalidForm).toBe(true)
@@ -61,7 +60,9 @@ describe('BreakpointsSettings', () => {
       () => new Promise((resolve) => (resolveUpdate = resolve))
     )
 
-    const values = { mobile_breakpoint: 700, tablet_breakpoint: 1100 }
+    const values = {
+      breakpoints: { mobile: 700, tablet: 1100, laptop: 1280 },
+    }
     const firstUpdate = wrapper.vm.updateBreakpoints(values)
     await wrapper.vm.updateBreakpoints(values)
 
@@ -82,7 +83,7 @@ describe('BreakpointsSettings', () => {
 
     expect(dispatch).toHaveBeenCalledWith('application/update', {
       application: builder,
-      values: { mobile_breakpoint: 700, tablet_breakpoint: 1100 },
+      values: { breakpoints: { mobile: 700, tablet: 1100, laptop: 1280 } },
     })
   })
 
@@ -90,8 +91,8 @@ describe('BreakpointsSettings', () => {
     const form = wrapper.findComponent({
       name: 'BuilderBreakpointsSettingsForm',
     })
-    form.vm.v$.values.mobile_breakpoint.$model = 700
-    form.vm.v$.values.tablet_breakpoint.$model = 1100
+    form.vm.v$.values.breakpoints.mobile.$model = 700
+    form.vm.v$.values.breakpoints.tablet.$model = 1100
     await wrapper.vm.$nextTick()
 
     dispatch.mockRejectedValue({
@@ -102,13 +103,11 @@ describe('BreakpointsSettings', () => {
     })
 
     await wrapper.vm.updateBreakpoints({
-      mobile_breakpoint: 700,
-      tablet_breakpoint: 1100,
+      breakpoints: { mobile: 700, tablet: 1100, laptop: 1280 },
     })
 
     expect(form.vm.values).toEqual({
-      mobile_breakpoint: 700,
-      tablet_breakpoint: 1100,
+      breakpoints: { mobile: 700, tablet: 1100, laptop: 1280 },
     })
     expect(wrapper.vm.error.visible).toBe(true)
     expect(wrapper.vm.actionInProgress).toBe(false)

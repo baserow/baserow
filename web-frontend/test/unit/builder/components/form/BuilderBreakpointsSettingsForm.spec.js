@@ -10,8 +10,7 @@ describe('BuilderBreakpointsSettingsForm', () => {
     wrapper = await mountSuspended(BuilderBreakpointsSettingsForm, {
       props: {
         defaultValues: {
-          mobile_breakpoint: 640,
-          tablet_breakpoint: 1024,
+          breakpoints: { mobile: 640, tablet: 1024, laptop: 1280 },
         },
       },
       global: {
@@ -31,7 +30,7 @@ describe('BuilderBreakpointsSettingsForm', () => {
     wrapper.vm.submit()
 
     expect(wrapper.emitted('submitted')).toEqual([
-      [{ mobile_breakpoint: 640, tablet_breakpoint: 1024 }],
+      [{ breakpoints: { mobile: 640, tablet: 1024, laptop: 1280 } }],
     ])
   })
 
@@ -46,7 +45,7 @@ describe('BuilderBreakpointsSettingsForm', () => {
     wrapper.vm.submit()
 
     expect(wrapper.emitted('submitted')).toEqual([
-      [{ mobile_breakpoint: 700, tablet_breakpoint: 1100 }],
+      [{ breakpoints: { mobile: 700, tablet: 1100, laptop: 1280 } }],
     ])
   })
 
@@ -78,12 +77,12 @@ describe('BuilderBreakpointsSettingsForm', () => {
   })
 
   test('rejects a tablet breakpoint that is not greater than mobile', async () => {
-    wrapper.vm.v$.values.tablet_breakpoint.$model = 640
+    wrapper.vm.v$.values.breakpoints.tablet.$model = 640
     await wrapper.vm.$nextTick()
 
     wrapper.vm.submit()
 
-    expect(wrapper.vm.v$.values.tablet_breakpoint.$invalid).toBe(true)
+    expect(wrapper.vm.v$.values.breakpoints.tablet.$invalid).toBe(true)
     expect(wrapper.emitted('submitted')).toBeUndefined()
   })
 })

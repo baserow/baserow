@@ -23,18 +23,18 @@ __all__ = [
     "ButtonThemeConfigBlock",
 ]
 
+DEFAULT_BUILDER_BREAKPOINTS = {"mobile": 640, "tablet": 1024}
+LEGACY_BUILDER_BREAKPOINTS = {"mobile": 500, "tablet": 768}
+
+
+def default_builder_breakpoints():
+    return DEFAULT_BUILDER_BREAKPOINTS.copy()
+
 
 class Builder(Application):
-    mobile_breakpoint = models.IntegerField(
-        default=640,
-        db_default=None,
-        null=True,
-    )
-
-    tablet_breakpoint = models.IntegerField(
-        default=1024,
-        db_default=None,
-        null=True,
+    breakpoints = models.JSONField(
+        default=default_builder_breakpoints,
+        db_default=LEGACY_BUILDER_BREAKPOINTS,
     )
 
     favicon_file = models.ForeignKey(

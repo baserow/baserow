@@ -112,8 +112,7 @@ describe('elementTypes tests', () => {
     test('ColumnElementType provides its public responsive styles', () => {
       const elementType = testApp.$registry.get('element', 'column')
       const styles = elementType.getPublicResponsiveStyles({
-        mobile_breakpoint: 640,
-        tablet_breakpoint: 1024,
+        breakpoints: { mobile: 640, tablet: 1024 },
       })
 
       expect(styles).toContain('@media (min-width: 1025px)')

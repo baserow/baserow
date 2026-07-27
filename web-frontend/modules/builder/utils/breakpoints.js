@@ -4,7 +4,7 @@ export const LEGACY_BUILDER_BREAKPOINTS = Object.freeze({
 })
 
 export function getBuilderBreakpoints(builder) {
-  const { mobile_breakpoint: mobile, tablet_breakpoint: tablet } = builder
+  const { mobile, tablet } = builder.breakpoints || {}
 
   if (
     mobile === null ||

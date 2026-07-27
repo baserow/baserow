@@ -20,7 +20,7 @@ from baserow.contrib.builder.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
-from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.models import LEGACY_BUILDER_BREAKPOINTS, Builder
 from baserow.contrib.builder.operations import ListPagesBuilderOperationType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
@@ -70,22 +70,19 @@ class BuilderApplicationType(ApplicationType):
     allowed_fields = [
         "favicon_file",
         "login_page_id",
-        "mobile_breakpoint",
-        "tablet_breakpoint",
+        "breakpoints",
     ]
     serializer_field_names = [
         "favicon_file",
         "login_page_id",
-        "mobile_breakpoint",
-        "tablet_breakpoint",
+        "breakpoints",
         "pages",
         "theme",
     ]
     public_serializer_field_names = [
         "favicon_file",
         "login_page_id",
-        "mobile_breakpoint",
-        "tablet_breakpoint",
+        "breakpoints",
         "pages",
         "theme",
         "user_sources",
@@ -93,8 +90,7 @@ class BuilderApplicationType(ApplicationType):
     request_serializer_field_names = [
         "favicon_file",
         "login_page_id",
-        "mobile_breakpoint",
-        "tablet_breakpoint",
+        "breakpoints",
     ]
 
     serializer_mixins = [lazy_get_instance_serializer_class]
@@ -128,13 +124,13 @@ class BuilderApplicationType(ApplicationType):
                 help_text=Builder._meta.get_field("login_page").help_text,
                 validators=[login_page_id_validator],
             ),
-            "mobile_breakpoint": serializers.IntegerField(
+            "breakpoints": serializers.DictField(
+                child=serializers.IntegerField(),
                 required=False,
-                help_text="The maximum width in pixels for the mobile layout.",
-            ),
-            "tablet_breakpoint": serializers.IntegerField(
-                required=False,
-                help_text="The maximum width in pixels for the tablet layout.",
+                help_text=(
+                    "The maximum widths in pixels for the responsive layouts. "
+                    "Mobile and tablet breakpoints are required."
+                ),
             ),
         }
 
@@ -285,8 +281,7 @@ class BuilderApplicationType(ApplicationType):
             user_sources=serialized_user_sources,
             favicon_file=serialized_favicon_file,
             login_page=serialized_login_page,
-            mobile_breakpoint=builder.mobile_breakpoint,
-            tablet_breakpoint=builder.tablet_breakpoint,
+            breakpoints=builder.breakpoints,
             **serialized_builder,
         )
 
@@ -395,8 +390,9 @@ class BuilderApplicationType(ApplicationType):
         serialized_integrations = serialized_values.pop("integrations")
         serialized_user_sources = serialized_values.pop("user_sources")
         serialized_theme = serialized_values.pop("theme")
-        mobile_breakpoint = serialized_values.pop("mobile_breakpoint", None)
-        tablet_breakpoint = serialized_values.pop("tablet_breakpoint", None)
+        breakpoints = serialized_values.pop(
+            "breakpoints", LEGACY_BUILDER_BREAKPOINTS.copy()
+        )
 
         (
             builder_progress,
@@ -426,11 +422,10 @@ class BuilderApplicationType(ApplicationType):
 
         builder = application.specific
         # Breakpoints were added after builder applications already existed. An
-        # export without them is therefore an implicit legacy configuration, not a
-        # newly-created builder application that should receive the new defaults.
-        builder.mobile_breakpoint = mobile_breakpoint
-        builder.tablet_breakpoint = tablet_breakpoint
-        builder.save(update_fields=["mobile_breakpoint", "tablet_breakpoint"])
+        # export without them is therefore a legacy configuration, not a newly
+        # created builder application that should receive the new defaults.
+        builder.breakpoints = breakpoints
+        builder.save(update_fields=["breakpoints"])
 
         if not serialized_integrations:
             progress.increment(

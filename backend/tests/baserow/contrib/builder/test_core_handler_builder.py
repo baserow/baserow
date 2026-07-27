@@ -9,15 +9,13 @@ def test_can_duplicate_builder_application(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
 
-    assert builder.mobile_breakpoint == 640
-    assert builder.tablet_breakpoint == 1024
+    assert builder.breakpoints == {"mobile": 640, "tablet": 1024}
 
     builder_clone = CoreHandler().duplicate_application(user, builder)
 
     assert builder.id != builder_clone.id
     assert builder.name in builder_clone.name
-    assert builder_clone.mobile_breakpoint == 640
-    assert builder_clone.tablet_breakpoint == 1024
+    assert builder_clone.breakpoints == {"mobile": 640, "tablet": 1024}
 
     assert Builder.objects.count() == 2
 
@@ -26,14 +24,12 @@ def test_can_duplicate_builder_application(data_fixture):
 def test_can_duplicate_legacy_builder_application(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
-    builder.mobile_breakpoint = None
-    builder.tablet_breakpoint = None
+    builder.breakpoints = {"mobile": 500, "tablet": 768}
     builder.save()
 
     builder_clone = CoreHandler().duplicate_application(user, builder)
 
-    assert builder_clone.mobile_breakpoint is None
-    assert builder_clone.tablet_breakpoint is None
+    assert builder_clone.breakpoints == {"mobile": 500, "tablet": 768}
 
 
 @pytest.mark.django_db

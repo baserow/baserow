@@ -1,4 +1,4 @@
-from typing import List, Optional, TypedDict
+from typing import Dict, List, Optional, TypedDict
 
 from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParams
 from baserow.core.formula import BaserowFormulaObject
@@ -79,3 +79,4 @@ class BuilderDict(TypedDict):
     theme: object
     favicon_file: Optional[dict]
     login_page: Optional[PageDict]
+    breakpoints: Dict[str, int]

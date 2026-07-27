@@ -8,7 +8,7 @@ import {
 
 describe('builder device types', () => {
   test('uses the builder breakpoints for editor preview widths', () => {
-    const builder = { mobile_breakpoint: 640, tablet_breakpoint: 1024 }
+    const builder = { breakpoints: { mobile: 640, tablet: 1024 } }
 
     expect(new SmartphoneDeviceType().getMinWidth(builder)).toBe(640)
     expect(new SmartphoneDeviceType().getMaxWidth(builder)).toBe(640)

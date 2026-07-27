@@ -31,8 +31,7 @@ def test_0076_builder_breakpoints_preserves_existing_applications(
     Builder = new_state.apps.get_model("builder", "Builder")
     builder = Builder.objects.get(id=builder.id)
 
-    assert builder.mobile_breakpoint is None
-    assert builder.tablet_breakpoint is None
+    assert builder.breakpoints == {"mobile": 500, "tablet": 768}
 
 
 @pytest.mark.once_per_day_in_ci
