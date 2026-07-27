@@ -11,6 +11,7 @@ from .tables import urls as table_urls
 from .tokens import urls as token_urls
 from .views import urls as view_urls
 from .webhooks import urls as webhook_urls
+from .workflow_actions import urls as workflow_action_urls
 
 app_name = "baserow.contrib.database.api"
 
@@ -26,4 +27,5 @@ urlpatterns = [
     path("data-sync/", include(data_sync_urls, namespace="data_sync")),
     path("field-rules/", include(field_rules_urls, namespace="field_rules")),
     path("admin/", include(admin_urls, namespace="admin")),
+    path("", include(workflow_action_urls, namespace="workflow_actions")),
 ]
