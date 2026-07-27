@@ -221,7 +221,7 @@ class ServiceHandler:
         """
 
         if service.integration_id is None and service.get_type().requires_integration(
-            service
+            service, dispatch_context
         ):
             raise ServiceImproperlyConfiguredDispatchException(
                 "No integration selected"

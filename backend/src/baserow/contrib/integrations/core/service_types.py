@@ -771,7 +771,11 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             service.use_instance_smtp_settings and self._instance_smtp_is_available()
         )
 
-    def requires_integration(self, service: CoreSMTPEmailService) -> bool:
+    def requires_integration(
+        self,
+        service: CoreSMTPEmailService,
+        dispatch_context: Optional[DispatchContext] = None,
+    ) -> bool:
         return not self._should_use_instance_smtp(service)
 
     def prepare_values(self, values, user: AbstractUser, instance=None):

@@ -183,6 +183,25 @@ class LocalBaserowServiceType(ServiceType):
 
         return dispatch_context.actor
 
+    def requires_integration(
+        self,
+        service: ServiceSubClass,
+        dispatch_context: Optional[DispatchContext] = None,
+    ) -> bool:
+        """
+        A Local Baserow service needs an integration only to supply a user. When the
+        dispatch context already carries an actor, no integration is needed.
+
+        :param service: The service in question.
+        :param dispatch_context: The context the dispatch will run in, if any.
+        :return: Whether an integration is required.
+        """
+
+        if getattr(dispatch_context, "actor", None) is not None:
+            return False
+
+        return super().requires_integration(service, dispatch_context)
+
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -339,10 +358,8 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         Build the queryset for this table, checking for the appropriate permissions.
         """
 
-        integration = service.integration.specific
-
         CoreHandler().check_permissions(
-            integration.authorized_user,
+            self.get_acting_user(service, dispatch_context),
             ListRowsDatabaseTableOperationType.type,
             workspace=table.database.workspace,
             context=table,
@@ -2105,7 +2122,10 @@ class LocalBaserowUpsertRowServiceType(
         table = service.table
         used_field_names = self.get_used_field_names(service, dispatch_context)
 
-        service.integration = service.integration.specific
+        acting_user = self.get_acting_user(service, dispatch_context)
+        if service.integration_id:
+            service.integration = service.integration.specific
+
         row_id: Optional[int] = resolved_values.get("row_id", None)
 
         row_values = {}
@@ -2122,13 +2142,13 @@ class LocalBaserowUpsertRowServiceType(
         permission_check_results = CoreHandler().check_multiple_permissions(
             [
                 PermissionCheck(
-                    service.integration.authorized_user,
+                    acting_user,
                     WriteFieldValuesOperationType.type,
                     fm.field,
                 )
                 for fm in field_mappings
             ],
-            workspace=service.integration.application.workspace,
+            workspace=self.get_permission_workspace(service),
         )
 
         # Only iterate over field mappings which we know our authorized user is
@@ -2161,7 +2181,7 @@ class LocalBaserowUpsertRowServiceType(
             try:
                 # Automatically cast the resolved value to the serializer field type
                 cast_function = guess_cast_function_from_response_serializer_field(
-                    serializer_field, service
+                    serializer_field, acting_user
                 )
 
                 if cast_function:
@@ -2191,7 +2211,7 @@ class LocalBaserowUpsertRowServiceType(
         if row_id:
             try:
                 (row,) = UpdateRowsActionType.do(
-                    service.integration.authorized_user,
+                    acting_user,
                     table,
                     rows_values=[{**row_values, "id": row_id}],
                     model=model,
@@ -2207,7 +2227,7 @@ class LocalBaserowUpsertRowServiceType(
         else:
             try:
                 (row,) = CreateRowsActionType.do(
-                    user=service.integration.authorized_user,
+                    user=acting_user,
                     table=table,
                     rows_values=[row_values],
                     model=model,
@@ -2412,7 +2432,9 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
     ) -> Dict[str, Any]:
         table = service.table
         used_field_names = self.get_used_field_names(service, dispatch_context)
-        service.integration = service.integration.specific
+        acting_user = self.get_acting_user(service, dispatch_context)
+        if service.integration_id:
+            service.integration = service.integration.specific
 
         rows = resolved_values.get("rows", [])
         if not rows:
@@ -2429,7 +2451,7 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
             model, rows, include_id=self.include_id
         )
         self._raise_if_rows_values_are_invalid(model, rows_values)
-        rows = self.dispatch_rows(service, rows_values, model)
+        rows = self.dispatch_rows(service, rows_values, model, acting_user)
 
         return {
             "data": rows,
@@ -2442,6 +2464,7 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
         service: Union[LocalBaserowCreateRows, LocalBaserowUpdateRows],
         rows_values: List[Dict[str, Any]],
         model: Type["GeneratedTableModel"],
+        user: AbstractUser,
     ) -> List[Any]:
         raise NotImplementedError("Subclasses must implement dispatch_rows.")
 
@@ -2532,11 +2555,12 @@ class LocalBaserowCreateRowsServiceType(LocalBaserowUpsertRowsServiceType):
         service: LocalBaserowCreateRows,
         rows_values: List[Dict[str, Any]],
         model: Type["GeneratedTableModel"],
+        user: AbstractUser,
     ) -> List[Any]:
         table = service.table
         try:
             return CreateRowsActionType.do(
-                user=service.integration.authorized_user,
+                user=user,
                 table=table,
                 rows_values=rows_values,
                 model=model,
@@ -2569,11 +2593,12 @@ class LocalBaserowUpdateRowsServiceType(LocalBaserowUpsertRowsServiceType):
         service: LocalBaserowUpdateRows,
         rows_values: List[Dict[str, Any]],
         model: Type["GeneratedTableModel"],
+        user: AbstractUser,
     ) -> List[Any]:
         table = service.table
         try:
             return UpdateRowsActionType.do(
-                user=service.integration.authorized_user,
+                user=user,
                 table=table,
                 rows_values=rows_values,
                 model=model,
@@ -2687,7 +2712,6 @@ class LocalBaserowDeleteRowServiceType(
         """
 
         table = service.table
-        integration = service.integration.specific
         row_ids: List[int] = resolved_values.get("row_id", [])
         model = table.get_model()
 
@@ -2704,7 +2728,10 @@ class LocalBaserowDeleteRowServiceType(
 
             try:
                 DeleteRowsActionType.do(
-                    integration.authorized_user, table, row_ids, model=model
+                    self.get_acting_user(service, dispatch_context),
+                    table,
+                    row_ids,
+                    model=model,
                 )
             except RowDoesNotExist as exc:
                 raise DoesNotExist(f"Rows with ids {exc.ids} do not exist.") from exc

@@ -249,7 +249,20 @@ class ServiceType(
 
         return None
 
-    def requires_integration(self, service: ServiceSubClass) -> bool:
+    def requires_integration(
+        self,
+        service: ServiceSubClass,
+        dispatch_context: Optional[DispatchContext] = None,
+    ) -> bool:
+        """
+        Whether this service needs an integration to be dispatched.
+
+        :param service: The service in question.
+        :param dispatch_context: The context the dispatch will run in, when called
+            from a dispatch. Subclasses may use it to decide the integration is not
+            needed, for example because the context supplies an acting user.
+        """
+
         return self.integration_type is not None
 
     def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
