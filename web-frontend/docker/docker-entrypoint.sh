@@ -73,17 +73,30 @@ setup_additional_modules(){
   export ADDITIONAL_MODULES
 }
 
+sync_node_modules(){
+  # The node_modules volume outlives lockfile changes; reinstall when yarn.lock changed.
+  marker=/baserow/web-frontend/node_modules/.yarn-lock-hash
+  lock_hash=$(md5sum /baserow/web-frontend/yarn.lock | cut -d' ' -f1)
+  if [[ ! -f "$marker" || "$(cat "$marker")" != "$lock_hash" ]]; then
+    echo "yarn.lock changed since node_modules were installed, running yarn install..."
+    yarn --cwd /baserow/web-frontend install
+    echo "$lock_hash" > "$marker"
+  fi
+}
+
 
 case "$1" in
     nuxt-dev)
       startup_plugin_setup
       setup_additional_modules
+      sync_node_modules
       # Retry the command over and over to work around heap crash.
       attachable_exec_retry yarn dev
     ;;
     nuxt-dev-no-attach)
       startup_plugin_setup
       setup_additional_modules
+      sync_node_modules
       exec yarn dev
     ;;
     nuxt-prod)
@@ -100,6 +113,7 @@ case "$1" in
     nuxt-dev-with-storybook)
       startup_plugin_setup
       setup_additional_modules
+      sync_node_modules
       # Start Storybook in background and Nuxt in foreground
       yarn storybook &
       attachable_exec_retry yarn dev
@@ -107,6 +121,7 @@ case "$1" in
     storybook-dev)
       startup_plugin_setup
       setup_additional_modules
+      sync_node_modules
       # Retry the command over and over to work around heap crash.
       attachable_exec_retry yarn storybook
     ;;
