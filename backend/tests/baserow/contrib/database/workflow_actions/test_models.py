@@ -6,6 +6,7 @@ from baserow.contrib.database.workflow_actions.models import (
     DeleteRowWorkflowAction,
     UpdateRowWorkflowAction,
 )
+from baserow.core.services.models import Service
 
 
 @pytest.mark.django_db
@@ -50,7 +51,9 @@ def test_get_last_order(data_fixture):
     assert DatabaseWorkflowAction.get_last_order(button_field) == 2
 
 
-@pytest.mark.django_db
+# `transaction=True`: the service is deleted from an `on_commit` receiver,
+# which never runs inside the wrapping transaction of a plain `django_db` test.
+@pytest.mark.django_db(transaction=True)
 def test_actions_are_deleted_when_the_field_stops_being_a_button(data_fixture):
     """ADR 006 section 8: converting away destroys actions and their services."""
 
@@ -65,6 +68,7 @@ def test_actions_are_deleted_when_the_field_stops_being_a_button(data_fixture):
     FieldHandler().update_field(user, button_field, new_type_name="text")
 
     assert DatabaseWorkflowAction.objects.count() == 0
+    assert not Service.objects.filter(id=service.id).exists()
 
 
 @pytest.mark.django_db
