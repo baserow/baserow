@@ -75,13 +75,25 @@ setup_additional_modules(){
 
 sync_node_modules(){
   # The node_modules volume outlives lockfile changes; reinstall when yarn.lock changed.
-  marker=/baserow/web-frontend/node_modules/.yarn-lock-hash
-  lock_hash=$(md5sum /baserow/web-frontend/yarn.lock | cut -d' ' -f1)
-  if [[ ! -f "$marker" || "$(cat "$marker")" != "$lock_hash" ]]; then
-    echo "yarn.lock changed since node_modules were installed, running yarn install..."
-    yarn --cwd /baserow/web-frontend install
-    echo "$lock_hash" > "$marker"
-  fi
+  local node_modules_dir=/baserow/web-frontend/node_modules
+  local marker="$node_modules_dir/.yarn-lock-hash"
+  local yarn_lock=/baserow/web-frontend/yarn.lock
+  local lock_hash
+
+  lock_hash=$(md5sum "$yarn_lock" | cut -d' ' -f1)
+  mkdir -p "$node_modules_dir"
+
+  # The frontend and Storybook containers can start together. Lock yarn.lock itself
+  # because Yarn can prune unknown files from node_modules during installation.
+  # Recheck the marker after taking the lock so only one container runs yarn install.
+  (
+    flock 9
+    if [[ ! -f "$marker" || "$(cat "$marker")" != "$lock_hash" ]]; then
+      echo "yarn.lock changed since node_modules were installed, running yarn install..."
+      yarn --cwd /baserow/web-frontend install
+      echo "$lock_hash" > "$marker"
+    fi
+  ) 9< "$yarn_lock"
 }
 
 
