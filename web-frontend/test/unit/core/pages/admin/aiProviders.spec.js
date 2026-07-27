@@ -45,6 +45,43 @@ describe('AdminAIProviders', () => {
     expect(wrapper.text()).not.toContain('aiProviderAdmin.loadErrorDescription')
   })
 
+  test('renders the instance scope it loaded, not another scope', async () => {
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', null)
+    testApp.store.commit('aiProvider/SET_LOADED', true)
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [
+      {
+        id: 1,
+        provider_type: 'openai',
+        is_active: true,
+        extra_settings: {},
+        models: [
+          {
+            id: 2,
+            model_identifier: 'gpt-5.6',
+            is_enabled: true,
+            last_test_status: null,
+          },
+        ],
+      },
+    ])
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
+    ])
+    vi.spyOn(testApp.store, 'dispatch').mockResolvedValue(undefined)
+
+    const wrapper = await testApp.mount(AdminAIProviders)
+    await flushPromises()
+
+    expect(wrapper.find('.ai-provider-model__name').text()).toBe('gpt-5.6')
+
+    // A workspace-scoped store must not paint the instance admin page.
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.ai-provider-model__name').exists()).toBe(false)
+    expect(wrapper.find('.ai-provider-admin__loading').exists()).toBe(true)
+  })
+
   test('tests every provider model in one request', async () => {
     let finishRequest
     const dispatch = vi.fn(

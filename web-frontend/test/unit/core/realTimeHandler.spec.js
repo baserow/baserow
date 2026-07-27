@@ -201,7 +201,7 @@ describe('RealTimeHandler AI provider updates', () => {
 
     fire(handler, 'ai_provider_updated', {
       type: 'ai_provider_updated',
-      workspace_models_changed: true,
+      model_availability_updated: true,
     })
 
     expect(store._dispatched).toContainEqual([
@@ -211,12 +211,32 @@ describe('RealTimeHandler AI provider updates', () => {
     expect(store._dispatched).toContainEqual(['aiProvider/refresh', undefined])
   })
 
+  test('a workspace scoped change applies its payload without fetching', () => {
+    const { handler, store } = makeHandler()
+
+    fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      workspace_id: 42,
+      model_availability_updated: true,
+      generative_ai_models_enabled: { openai: ['gpt-5'] },
+    })
+
+    expect(store._dispatched).toContainEqual([
+      'workspace/forceUpdateGenerativeAIModels',
+      { workspaceId: 42, generativeAIModelsEnabled: { openai: ['gpt-5'] } },
+    ])
+    expect(store._dispatched).not.toContainEqual([
+      'workspace/refreshAllGenerativeAIModels',
+      undefined,
+    ])
+  })
+
   test('provider metadata changes refresh only loaded administration state', () => {
     const { handler, store } = makeHandler()
 
     fire(handler, 'ai_provider_updated', {
       type: 'ai_provider_updated',
-      workspace_models_changed: false,
+      model_availability_updated: false,
     })
 
     expect(store._dispatched).not.toContainEqual([

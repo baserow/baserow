@@ -128,6 +128,39 @@ def get_environment_provider_values(provider_type: str) -> dict[str, Any]:
     }
 
 
+def get_legacy_workspace_provider_values(
+    provider_type: str, values: Any
+) -> dict[str, Any]:
+    """Validate and normalize one legacy workspace provider configuration."""
+
+    if not isinstance(values, dict):
+        raise InvalidAIProviderSettings(
+            {"settings": ["The provider settings must be an object."]}
+        )
+
+    config = PROVIDER_ENVIRONMENT_SETTINGS[provider_type]
+    api_key = str(values.get("api_key") or "")
+    models = normalize_model_identifiers(values.get("models"))
+    extra_settings = {
+        name: values[name]
+        for name in config["extra_settings"]
+        if values.get(name) not in (None, "")
+    }
+    validated_extra_settings = validate_provider_settings(
+        provider_type,
+        api_key,
+        extra_settings,
+        models,
+        require_credentials=True,
+    )
+    return {
+        "provider_type": provider_type,
+        "api_key": api_key,
+        "extra_settings": validated_extra_settings,
+        "models": models,
+    }
+
+
 def normalize_model_identifiers(values: str | list[str] | None) -> list[str]:
     if isinstance(values, str):
         values = values.split(",")

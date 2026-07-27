@@ -39,20 +39,25 @@ class AIProviderConfigSerializer(serializers.ModelSerializer):
 
 class WorkspaceAIProviderConfigSerializer(AIProviderConfigSerializer):
     is_active = serializers.SerializerMethodField()
+    extra_settings = serializers.SerializerMethodField()
     workspace_enabled = serializers.BooleanField(read_only=True)
-    source_is_active = serializers.BooleanField(read_only=True)
     read_only = serializers.BooleanField(read_only=True)
 
     class Meta(AIProviderConfigSerializer.Meta):
         fields = AIProviderConfigSerializer.Meta.fields + (
             "workspace_enabled",
-            "source_is_active",
             "read_only",
         )
         read_only_fields = fields
 
-    def get_is_active(self, instance):
+    def get_is_active(self, instance) -> bool:
         return getattr(instance, "effective_is_active", instance.is_active)
+
+    def get_extra_settings(self, instance) -> dict:
+        # Instance connection details stay with the instance admin.
+        if getattr(instance, "read_only", False):
+            return {}
+        return instance.extra_settings
 
 
 class AIProviderScopeRequestSerializer(serializers.Serializer):

@@ -527,15 +527,19 @@ export class RealTimeHandler {
 
     this.registerEvent('ai_provider_updated', async ({ store }, data) => {
       const refreshes = []
-      if (
+      if (data.generative_ai_models_enabled !== undefined) {
+        // A workspace scoped change ships its own result; nothing to fetch.
+        store.dispatch('workspace/forceUpdateGenerativeAIModels', {
+          workspaceId: data.workspace_id,
+          generativeAIModelsEnabled: data.generative_ai_models_enabled,
+        })
+      } else if (
         store.getters['workspace/isLoaded'] &&
-        data.workspace_models_changed
+        data.model_availability_updated
       ) {
         refreshes.push(store.dispatch('workspace/refreshAllGenerativeAIModels'))
       }
-      if (store.getters['aiProvider/isLoaded']) {
-        refreshes.push(store.dispatch('aiProvider/refresh'))
-      }
+      refreshes.push(store.dispatch('aiProvider/refresh'))
       await Promise.allSettled(refreshes)
     })
 

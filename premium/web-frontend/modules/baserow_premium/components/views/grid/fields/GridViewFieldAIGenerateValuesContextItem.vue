@@ -101,7 +101,12 @@ export default {
       try {
         await FieldService(this.$client).generateAIFieldValues(fieldId, rowIds)
       } catch (error) {
-        setAIFieldErrorFromGenerationError(this.$store, this.field, error)
+        setAIFieldErrorFromGenerationError(
+          this.$store,
+          this.field,
+          error,
+          this.$t('clientHandler.modelDoesNotBelongToTypeDescription')
+        )
         this.$store.dispatch(
           this.storePrefix + 'view/grid/setPendingFieldOperations',
           { fieldId, rowIds, value: false }

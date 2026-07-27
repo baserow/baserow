@@ -1,6 +1,6 @@
 from django.db import transaction
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_204_NO_CONTENT
@@ -90,6 +90,21 @@ EXCEPTION_MAP = {
 }
 
 
+def _provider_response(many: bool = False) -> PolymorphicProxySerializer:
+    """
+    The response shape depends on the ``workspace_id`` query parameter: a
+    workspace scope additionally reports ``read_only`` and ``workspace_enabled``,
+    and its ``is_active`` is the effective value for that workspace.
+    """
+
+    return PolymorphicProxySerializer(
+        component_name="AIProviderConfigResponse",
+        serializers=[AIProviderConfigSerializer, WorkspaceAIProviderConfigSerializer],
+        resource_type_field_name=None,
+        many=many,
+    )
+
+
 def _ensure_feature_enabled():
     feature_flag_is_enabled(FF_AI_PROVIDERS, raise_if_disabled=True)
 
@@ -116,7 +131,7 @@ class AIProvidersView(APIView):
         tags=["AI providers"],
         operation_id="list_ai_providers",
         parameters=[AIProviderScopeRequestSerializer],
-        responses={200: AIProviderConfigSerializer(many=True)},
+        responses={200: _provider_response(many=True)},
     )
     @map_exceptions(EXCEPTION_MAP)
     def get(self, request):
@@ -132,7 +147,7 @@ class AIProvidersView(APIView):
         operation_id="create_ai_provider",
         parameters=[AIProviderScopeRequestSerializer],
         request=AIProviderCreateSerializer,
-        responses={201: AIProviderConfigSerializer},
+        responses={201: _provider_response()},
     )
     @map_exceptions(EXCEPTION_MAP)
     @validate_body(AIProviderCreateSerializer, return_validated=True)
@@ -160,7 +175,7 @@ class AIProviderView(APIView):
         operation_id="update_ai_provider",
         parameters=[AIProviderScopeRequestSerializer],
         request=AIProviderUpdateSerializer,
-        responses={200: AIProviderConfigSerializer},
+        responses={200: _provider_response()},
     )
     @map_exceptions(EXCEPTION_MAP)
     @validate_body(AIProviderUpdateSerializer, partial=True, return_validated=True)

@@ -6,7 +6,7 @@ export default defineNuxtRouteMiddleware(() => {
     return abortNavigation(
       createError({
         statusCode: 404,
-        message: 'Not found.',
+        message: nuxtApp.$i18n.t('errorLayout.pageNotFoundTitle'),
         data: { report: false },
         fatal: true,
       })

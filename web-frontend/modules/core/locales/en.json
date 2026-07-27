@@ -374,8 +374,7 @@
     "description": "These settings can be used to optionally set generative AI configuration on workspace level. Features like the AI field can be disabled because they lack an API key for one of the supported models. By providing the settings here, you can enable those features. Leaving a value blank defaults back to the global instance settings. Note that everyone in the workspace will share these settings.",
     "providerTitle": "AI providers",
     "providerDescription": "Manage providers owned by this workspace or enable and disable providers inherited from the instance.",
-    "instanceConfiguration": "Instance",
-    "workspaceConfiguration": "Workspace",
+    "sharedModelsTitle": "Shared across workspaces",
     "addWorkspaceConfiguration": "Add workspace configuration",
     "overridden": "Overridden",
     "overriddenByWorkspace": "Overridden by workspace",
@@ -532,6 +531,7 @@
     "action": "Reload"
   },
   "errorLayout": {
+    "pageNotFoundTitle": "Page not found",
     "notFound": "The page you are looking for has not been found. This might be because URL is incorrect or that you don’t have permission to view this page.",
     "error": "Something went wrong while loading the page. Our developers have been notified of the issue. Please try to refresh or return to the dashboard.",
     "backDashboard": "Back to dashboard",
@@ -1069,7 +1069,6 @@
     "noModels": "No models are configured for this provider.",
     "active": "Active",
     "inactive": "Inactive",
-    "inactiveAtInstance": "Inactive at instance level",
     "inherited": "Inherited",
     "enable": "Enable",
     "disable": "Disable",

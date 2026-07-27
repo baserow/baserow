@@ -567,39 +567,20 @@ class GenerativeAIModelType(Instance):
     def _get_complete_provider_settings(self, values: Any) -> Optional[dict[str, Any]]:
         """Validate and normalize one complete provider settings dictionary."""
 
-        from baserow.core.ai_provider.constants import PROVIDER_ENVIRONMENT_SETTINGS
         from baserow.core.ai_provider.exceptions import InvalidAIProviderSettings
         from baserow.core.ai_provider.provider_types import (
-            normalize_model_identifiers,
-            validate_provider_settings,
+            get_legacy_workspace_provider_values,
         )
 
-        if not isinstance(values, dict):
-            return None
-
-        provider_config = PROVIDER_ENVIRONMENT_SETTINGS[self.type]
-        api_key = str(values.get("api_key") or "")
-        models = normalize_model_identifiers(values.get("models"))
-        extra_settings = {
-            name: values[name]
-            for name in provider_config["extra_settings"]
-            if values.get(name) not in (None, "")
-        }
         try:
-            validated_extra_settings = validate_provider_settings(
-                self.type,
-                api_key,
-                extra_settings,
-                models,
-                require_credentials=True,
-            )
+            provider_values = get_legacy_workspace_provider_values(self.type, values)
         except InvalidAIProviderSettings:
             return None
 
         return {
-            "api_key": api_key,
-            "models": models,
-            **validated_extra_settings,
+            "api_key": provider_values["api_key"],
+            "models": provider_values["models"],
+            **provider_values["extra_settings"],
         }
 
     def get_model_settings_override(
@@ -952,6 +933,65 @@ class GenerativeAIModelTypeRegistry(Registry):
             for key, model_type in self.registry.items()
             if model_type.is_enabled(workspace)
         }
+
+    def prefetch_workspace_configuration(self, workspace_ids: list[int]) -> None:
+        """
+        Load the provider configuration of many workspaces in one go.
+
+        Resolving enabled models per workspace is otherwise a query per
+        workspace, which is paid on every workspace list serialization.
+        """
+
+        from django.db.models import Q
+
+        from baserow.core.ai_provider.models import (
+            AIProviderConfig,
+            AIProviderWorkspaceOverride,
+        )
+        from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
+
+        if not feature_flag_is_enabled(FF_AI_PROVIDERS):
+            return
+
+        workspace_ids = {
+            workspace_id for workspace_id in workspace_ids if workspace_id is not None
+        }
+        if not workspace_ids:
+            return
+
+        providers = list(
+            AIProviderConfig.objects.filter(
+                Q(workspace_id__in=workspace_ids) | Q(workspace__isnull=True)
+            ).prefetch_related("models")
+        )
+        instance_providers = {
+            provider.provider_type: provider
+            for provider in providers
+            if provider.workspace_id is None
+        }
+        owned: dict[int, dict[str, Any]] = {
+            workspace_id: {} for workspace_id in workspace_ids
+        }
+        for provider in providers:
+            if provider.workspace_id is not None:
+                owned[provider.workspace_id][provider.provider_type] = provider
+
+        disabled: dict[int, set[int]] = {
+            workspace_id: set() for workspace_id in workspace_ids
+        }
+        for (
+            workspace_id,
+            provider_config_id,
+        ) in AIProviderWorkspaceOverride.objects.filter(
+            workspace_id__in=workspace_ids
+        ).values_list("workspace_id", "provider_config_id"):
+            disabled[workspace_id].add(provider_config_id)
+
+        for workspace_id in workspace_ids:
+            local_cache.get(
+                f"{AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY}:{workspace_id}",
+                (owned[workspace_id], instance_providers, disabled[workspace_id]),
+            )
 
 
 generative_ai_model_type_registry: GenerativeAIModelTypeRegistry = (

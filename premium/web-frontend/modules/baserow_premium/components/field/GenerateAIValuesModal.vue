@@ -204,7 +204,12 @@ export default {
         )
         await this.createAndMonitorJob(job)
       } catch (error) {
-        setAIFieldErrorFromGenerationError(this.$store, this.field, error)
+        setAIFieldErrorFromGenerationError(
+          this.$store,
+          this.field,
+          error,
+          this.$t('clientHandler.modelDoesNotBelongToTypeDescription')
+        )
         this.loading = false
         this.handleError(error)
       }

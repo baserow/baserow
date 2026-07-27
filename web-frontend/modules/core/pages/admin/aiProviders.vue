@@ -132,16 +132,16 @@ export default {
   },
   computed: {
     providers() {
-      return this.$store.getters['aiProvider/getAll']
+      return this.$store.getters['aiProvider/getAll'](null)
     },
     providerTypes() {
-      return this.$store.getters['aiProvider/getTypes']
+      return this.$store.getters['aiProvider/getTypes'](null)
     },
     loading() {
       return this.$store.getters['aiProvider/isLoading']
     },
     loaded() {
-      return this.$store.getters['aiProvider/isLoaded']
+      return this.$store.getters['aiProvider/isLoaded'](null)
     },
     availableProviderTypes() {
       const configuredTypes = new Set(

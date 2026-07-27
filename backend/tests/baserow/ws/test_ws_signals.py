@@ -271,7 +271,7 @@ def test_instance_ai_provider_change_is_broadcast_to_all_users(
         [],
         {
             "type": "ai_provider_updated",
-            "workspace_models_changed": False,
+            "model_availability_updated": False,
         },
         send_to_all_users=True,
     )
@@ -301,10 +301,115 @@ def test_instance_ai_model_availability_change_refreshes_workspace_models(
         [],
         {
             "type": "ai_provider_updated",
-            "workspace_models_changed": True,
+            "model_availability_updated": True,
         },
         send_to_all_users=True,
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.signals.broadcast_to_users")
+@patch("baserow.ws.signals.broadcast_to_group")
+@pytest.mark.websockets
+def test_workspace_ai_provider_change_stays_inside_the_workspace(
+    mock_broadcast_to_group, mock_broadcast_to_users, data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    with transaction.atomic():
+        AIProviderService.create_provider(
+            user,
+            workspace_id=workspace.id,
+            provider_type="openai",
+            api_key="workspace-secret",
+            models_data=[{"model_identifier": "gpt-5"}],
+        )
+
+    mock_broadcast_to_users.delay.assert_not_called()
+    mock_broadcast_to_group.delay.assert_called_once()
+    broadcast_workspace_id, payload = mock_broadcast_to_group.delay.call_args[0]
+    assert broadcast_workspace_id == workspace.id
+    assert payload["type"] == "ai_provider_updated"
+    assert payload["workspace_id"] == workspace.id
+    # The event carries the result, so no client has to fetch it back.
+    assert payload["generative_ai_models_enabled"]["openai"] == ["gpt-5"]
+
+
+@pytest.mark.django_db(transaction=True)
+@patch(
+    "baserow.ws.signals.generative_ai_model_type_registry.get_enabled_models_per_type"
+)
+@patch("baserow.ws.signals.broadcast_to_users")
+@patch("baserow.ws.signals.broadcast_to_group")
+@pytest.mark.websockets
+def test_workspace_provider_metadata_update_skips_model_availability(
+    mock_broadcast_to_group,
+    mock_broadcast_to_users,
+    mock_get_enabled_models,
+    data_fixture,
+    settings,
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        workspace=workspace,
+        api_key="old-secret",
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+
+    with transaction.atomic():
+        AIProviderService.update_provider(
+            user,
+            provider.id,
+            workspace_id=workspace.id,
+            api_key="new-secret",
+        )
+
+    mock_broadcast_to_users.delay.assert_not_called()
+    mock_get_enabled_models.assert_not_called()
+    payload = mock_broadcast_to_group.delay.call_args.args[1]
+    assert payload["model_availability_updated"] is False
+    assert "generative_ai_models_enabled" not in payload
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.signals.broadcast_to_users")
+@patch("baserow.ws.signals.broadcast_to_group")
+@pytest.mark.websockets
+def test_deleting_imported_workspace_provider_broadcasts_fresh_model_availability(
+    mock_broadcast_to_group, mock_broadcast_to_users, data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=user,
+        generative_ai_models_settings={
+            "openai": {
+                "api_key": "workspace-secret",
+                "models": ["gpt-5"],
+            }
+        },
+    )
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        workspace=workspace,
+        api_key="workspace-secret",
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+
+    with transaction.atomic():
+        AIProviderService.delete_provider(user, provider.id, workspace_id=workspace.id)
+
+    mock_broadcast_to_users.delay.assert_not_called()
+    mock_broadcast_to_group.delay.assert_called_once()
+    payload = mock_broadcast_to_group.delay.call_args.args[1]
+    assert "openai" not in payload["generative_ai_models_enabled"]
+    workspace.refresh_from_db()
+    assert "openai" not in workspace.generative_ai_models_settings
 
 
 @pytest.mark.django_db(transaction=True)

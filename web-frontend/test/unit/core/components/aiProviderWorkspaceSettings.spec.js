@@ -23,10 +23,11 @@ describe('AIProviderWorkspaceSettings', () => {
       provider_type: 'openai',
       is_active: true,
       workspace_enabled: true,
-      source_is_active: true,
       read_only: true,
       models: [],
     }
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    testApp.store.commit('aiProvider/SET_LOADED', true)
     testApp.store.commit('aiProvider/SET_PROVIDERS', [inherited])
     testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
       { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
@@ -59,7 +60,7 @@ describe('AIProviderWorkspaceSettings', () => {
     expect(wrapper.text()).toContain('aiProviderAdmin.inherited')
     expect(
       wrapper
-        .find('.ai-provider-admin__header')
+        .find('.ai-provider-workspace-settings__toolbar')
         .find('button')
         .attributes('disabled')
     ).toBeUndefined()
@@ -101,7 +102,6 @@ describe('AIProviderWorkspaceSettings', () => {
       provider_type: 'openai',
       is_active: true,
       workspace_enabled: true,
-      source_is_active: true,
       read_only: true,
       models: [
         {
@@ -123,7 +123,6 @@ describe('AIProviderWorkspaceSettings', () => {
       provider_type: 'openai',
       is_active: true,
       workspace_enabled: true,
-      source_is_active: true,
       read_only: false,
       models: [
         {
@@ -140,6 +139,8 @@ describe('AIProviderWorkspaceSettings', () => {
         },
       ],
     }
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    testApp.store.commit('aiProvider/SET_LOADED', true)
     testApp.store.commit('aiProvider/SET_PROVIDERS', [
       inherited,
       workspaceProvider,
@@ -155,12 +156,25 @@ describe('AIProviderWorkspaceSettings', () => {
     await flushPromises()
 
     expect(wrapper.findAll('.ai-provider-hierarchy')).toHaveLength(1)
-    expect(wrapper.findAll('.ai-provider-card--embedded')).toHaveLength(2)
+    const providerLayers = wrapper.findAll('.ai-provider-card--embedded')
+    expect(providerLayers).toHaveLength(2)
+    expect(
+      providerLayers.map((layer) =>
+        layer.find('.ai-provider-card__title').text()
+      )
+    ).toEqual(['OpenAI', 'generativeAIWorkspaceSettings.sharedModelsTitle'])
+    expect(
+      providerLayers[0]
+        .findAll('.ai-provider-model__name')
+        .map((model) => model.text())
+    ).toEqual(['shared-model', 'workspace-model'])
+    expect(
+      providerLayers[1]
+        .findAll('.ai-provider-model__name')
+        .map((model) => model.text())
+    ).toEqual(['shared-model', 'instance-model'])
     expect(wrapper.text()).toContain(
-      'generativeAIWorkspaceSettings.instanceConfiguration'
-    )
-    expect(wrapper.text()).toContain(
-      'generativeAIWorkspaceSettings.workspaceConfiguration'
+      'generativeAIWorkspaceSettings.sharedModelsTitle'
     )
     expect(wrapper.findAll('.ai-provider-model--overridden')).toHaveLength(1)
     expect(wrapper.find('.ai-provider-hierarchy__description').exists()).toBe(
@@ -179,14 +193,61 @@ describe('AIProviderWorkspaceSettings', () => {
     expect(overrideBadge.attributes('aria-label')).toBe(
       'generativeAIWorkspaceSettings.overriddenByWorkspace'
     )
+    const overriddenMenu = wrapper
+      .find('.ai-provider-model--overridden')
+      .find('.ai-provider-actions-menu')
+    expect(overriddenMenu.exists()).toBe(true)
+    expect(overriddenMenu.find('button').attributes('disabled')).toBeDefined()
+    expect(overriddenMenu.find('button').attributes('title')).toBe(
+      'generativeAIWorkspaceSettings.overriddenByWorkspace'
+    )
     expect(
       wrapper.findAll('.ai-provider-model__annotation-badge')
     ).toHaveLength(1)
     expect(
       wrapper
-        .find('.ai-provider-admin__header')
+        .find('.ai-provider-workspace-settings__toolbar')
         .find('button')
         .attributes('disabled')
     ).toBeDefined()
+  })
+
+  test('uses the provider header directly for workspace-only configurations', async () => {
+    const workspaceProvider = {
+      id: 2,
+      provider_type: 'openai',
+      is_active: true,
+      workspace_enabled: true,
+      read_only: false,
+      models: [
+        {
+          id: 21,
+          model_identifier: 'workspace-model',
+          is_enabled: true,
+          last_test_status: null,
+        },
+      ],
+    }
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    testApp.store.commit('aiProvider/SET_LOADED', true)
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [workspaceProvider])
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
+    ])
+    vi.spyOn(testApp.store, 'dispatch').mockResolvedValue(undefined)
+
+    const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
+      props: { workspace: { id: 42 } },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.ai-provider-hierarchy__header').exists()).toBe(false)
+    expect(wrapper.findAll('.ai-provider-card--embedded')).toHaveLength(1)
+    expect(wrapper.find('.ai-provider-card--primary').exists()).toBe(true)
+    expect(wrapper.find('.ai-provider-card__title').text()).toBe('OpenAI')
+    expect(wrapper.find('.ai-provider-card__title').element.tagName).toBe('H2')
+    expect(wrapper.text()).not.toContain(
+      'generativeAIWorkspaceSettings.sharedModelsTitle'
+    )
   })
 })

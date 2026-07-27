@@ -204,6 +204,27 @@ describe('AIProviderItem', () => {
     expect(providerMenu.find('[data-action="add-model"]').exists()).toBe(true)
   })
 
+  test('offers no menu on an inherited provider left without models', async () => {
+    const wrapper = await testApp.mount(AIProviderItem, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'mistral',
+          is_active: true,
+          read_only: true,
+          workspace_enabled: true,
+          models: [],
+        },
+      },
+    })
+
+    expect(wrapper.find('.ai-provider-card__empty').exists()).toBe(true)
+    expect(
+      wrapper.find('.ai-provider-card__actions').findAll('button')
+    ).toHaveLength(0)
+    expect(wrapper.findAll('[data-action]')).toHaveLength(0)
+  })
+
   test('shows loading feedback on a model while it is being tested', async () => {
     const wrapper = await testApp.mount(AIProviderItem, {
       props: {
@@ -293,13 +314,12 @@ describe('AIProviderItem', () => {
     expect(document.querySelector('.tooltip__content').textContent).toBe(error)
   })
 
-  test('shows inherited providers as read-only except for tests and workspace toggle', async () => {
+  test('offers only the workspace toggle on an inherited provider', async () => {
     const provider = {
       id: 1,
       provider_type: 'openai',
       is_active: true,
       workspace_enabled: true,
-      source_is_active: true,
       read_only: true,
       models: [
         {
@@ -324,40 +344,21 @@ describe('AIProviderItem', () => {
         .findAll('button')
         .map((button) => button.text())
     ).toEqual([''])
+    // A test would spend the instance's credentials, so the row offers nothing.
     expect(
-      wrapper
-        .find('.ai-provider-model__actions')
-        .findAll('button')
-        .map((button) => button.text())
-    ).toEqual([''])
+      wrapper.find('.ai-provider-model__actions').findAll('button')
+    ).toHaveLength(0)
 
     const providerMenu = wrapper
       .find('.ai-provider-card__actions')
       .findComponent(AIProviderActionsMenu)
     await openMenu(providerMenu)
-    expect(providerMenu.findAll('[data-action]')).toHaveLength(2)
-    expectMenuAction(
-      providerMenu,
-      'test',
-      'iconoir-play',
-      'aiProviderAdmin.testAllModels'
-    )
+    expect(providerMenu.findAll('[data-action]')).toHaveLength(1)
     expectMenuAction(
       providerMenu,
       'toggle',
       'iconoir-eye-off',
       'aiProviderAdmin.disable'
-    )
-    const modelMenu = wrapper
-      .find('.ai-provider-model__actions')
-      .findComponent(AIProviderActionsMenu)
-    await openMenu(modelMenu)
-    expect(modelMenu.findAll('[data-action]')).toHaveLength(1)
-    expectMenuAction(
-      modelMenu,
-      'test',
-      'iconoir-play',
-      'aiProviderAdmin.testModel'
     )
 
     await providerMenu.find('[data-action="toggle"]').trigger('click')
@@ -371,6 +372,8 @@ describe('AIProviderItem', () => {
           id: 1,
           provider_type: 'openai',
           is_active: true,
+          workspace_enabled: true,
+          read_only: true,
           models: [
             {
               id: 2,
@@ -403,6 +406,12 @@ describe('AIProviderItem', () => {
     expect(annotation.classes()).toContain('badge--yellow')
     expect(annotation.text()).toBe('Overridden')
     expect(annotation.attributes('aria-label')).toBe('Overridden by workspace')
+    const modelMenuButton = wrapper
+      .find('.ai-provider-model__actions')
+      .find('button')
+    expect(modelMenuButton.exists()).toBe(true)
+    expect(modelMenuButton.attributes('disabled')).toBeDefined()
+    expect(modelMenuButton.attributes('title')).toBe('Overridden by workspace')
 
     await annotation.trigger('mouseenter')
     expect(document.querySelector('.tooltip__content').textContent).toBe(

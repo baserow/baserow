@@ -73,7 +73,7 @@ describe('GridViewFieldAIGenerateValuesContextItem component', () => {
       .onPost('/database/fields/1/generate-ai-field-values/')
       .reply(400, {
         error: 'ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE',
-        detail: 'The selected AI model is disabled or no longer available.',
+        detail: 'Untranslated backend detail',
       })
     const field = store.getters['field/get'](aiField.id)
     const wrapper = await mountComponent(field, async () => [{ id: 10 }])
@@ -82,7 +82,7 @@ describe('GridViewFieldAIGenerateValuesContextItem component', () => {
     await flushPromises()
 
     expect(field.error).toBe(
-      'The selected AI model is disabled or no longer available.'
+      'clientHandler.modelDoesNotBelongToTypeDescription'
     )
     expect(wrapper.find('a').classes()).toContain('disabled')
   })

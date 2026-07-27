@@ -54,6 +54,41 @@ def test_disabling_model_broadcasts_updated_ai_field_error(
 
 
 @pytest.mark.django_db
+def test_provider_metadata_update_does_not_broadcast_ai_field_error(
+    settings, premium_data_fixture, django_capture_on_commit_callbacks
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = premium_data_fixture.create_user(is_staff=True)
+    table = premium_data_fixture.create_database_table(user=user)
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="old-secret",
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+    premium_data_fixture.create_ai_field(
+        table=table,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="gpt-5",
+        ai_prompt="'Valid prompt'",
+    )
+
+    with (
+        patch(
+            "baserow_premium.fields.receivers.page_registry.get"
+        ) as page_registry_get,
+        patch("baserow.ws.signals.broadcast_to_users"),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        AIProviderService.update_provider(
+            user,
+            provider.id,
+            api_key="new-secret",
+        )
+
+    page_registry_get.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_workspace_ai_settings_change_broadcasts_updated_ai_field_error(
     settings, premium_data_fixture, django_capture_on_commit_callbacks
 ):

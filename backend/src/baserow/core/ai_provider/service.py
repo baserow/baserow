@@ -11,7 +11,7 @@ from .handler import AIProviderHandler
 from .models import AIProviderConfig, AIProviderModel
 from .operations import ManageAIProvidersOperationType
 from .provider_types import get_provider_type_metadata
-from .signals import ai_provider_availability_changed, ai_provider_changed
+from .signals import ai_provider_updated
 
 
 class AIProviderService:
@@ -35,24 +35,20 @@ class AIProviderService:
         return workspace
 
     @staticmethod
-    def _send_availability_changed(
+    def _send_updated(
         user: AbstractUser,
-        provider_type: str,
+        workspace: Workspace | None,
+        model_availability_updated: bool,
+        provider_type: str | None = None,
         model_identifiers: set[str] | None = None,
     ) -> None:
-        ai_provider_availability_changed.send(
+        ai_provider_updated.send(
             AIProviderService,
             user=user,
+            workspace=workspace,
+            model_availability_updated=model_availability_updated,
             provider_type=provider_type,
             model_identifiers=model_identifiers,
-        )
-
-    @staticmethod
-    def _send_changed(user: AbstractUser, workspace_models_changed: bool) -> None:
-        ai_provider_changed.send(
-            AIProviderService,
-            user=user,
-            workspace_models_changed=workspace_models_changed,
         )
 
     @classmethod
@@ -75,8 +71,7 @@ class AIProviderService:
     ) -> AIProviderConfig:
         workspace = cls._check_permissions(user, workspace_id)
         provider = AIProviderHandler.create_provider(workspace=workspace, **values)
-        cls._send_changed(user, workspace_models_changed=True)
-        cls._send_availability_changed(user, provider.provider_type)
+        cls._send_updated(user, workspace, True, provider.provider_type)
         return provider
 
     @classmethod
@@ -99,16 +94,18 @@ class AIProviderService:
             provider = AIProviderHandler.set_workspace_provider_enabled(
                 workspace, provider, values["is_active"]
             )
-            cls._send_changed(user, workspace_models_changed=True)
-            cls._send_availability_changed(user, provider.provider_type)
+            cls._send_updated(user, workspace, True, provider.provider_type)
             return provider
 
         was_active = provider.is_active
         provider = AIProviderHandler.update_provider(provider, **values)
-        workspace_models_changed = provider.is_active != was_active
-        cls._send_changed(user, workspace_models_changed)
-        if workspace_models_changed:
-            cls._send_availability_changed(user, provider.provider_type)
+        model_availability_updated = provider.is_active != was_active
+        cls._send_updated(
+            user,
+            workspace,
+            model_availability_updated,
+            provider.provider_type,
+        )
         return provider
 
     @classmethod
@@ -127,9 +124,8 @@ class AIProviderService:
         if workspace is not None and provider.workspace_id is None:
             raise AIProviderIsReadOnly(provider_id)
         provider_type = provider.provider_type
-        AIProviderHandler.delete_provider(provider)
-        cls._send_changed(user, workspace_models_changed=True)
-        cls._send_availability_changed(user, provider_type)
+        workspace = AIProviderHandler.delete_provider(provider)
+        cls._send_updated(user, workspace, True, provider_type)
 
     @classmethod
     def create_model(
@@ -142,9 +138,12 @@ class AIProviderService:
         workspace = cls._check_permissions(user, workspace_id)
         provider = AIProviderHandler.get_provider(provider_id, workspace=workspace)
         model = AIProviderHandler.create_model(provider, **values)
-        cls._send_changed(user, workspace_models_changed=True)
-        cls._send_availability_changed(
-            user, provider.provider_type, {model.model_identifier}
+        cls._send_updated(
+            user,
+            workspace,
+            True,
+            provider.provider_type,
+            {model.model_identifier},
         )
         return model
 
@@ -172,16 +171,16 @@ class AIProviderService:
         old_identifier = model.model_identifier
         was_enabled = model.is_enabled
         model = AIProviderHandler.update_model(model, **values)
-        workspace_models_changed = (
+        model_availability_updated = (
             model.model_identifier != old_identifier or model.is_enabled != was_enabled
         )
-        cls._send_changed(user, workspace_models_changed)
-        if workspace_models_changed:
-            cls._send_availability_changed(
-                user,
-                provider_type,
-                {old_identifier, model.model_identifier},
-            )
+        cls._send_updated(
+            user,
+            workspace,
+            model_availability_updated,
+            provider_type,
+            {old_identifier, model.model_identifier},
+        )
         return model
 
     @classmethod
@@ -196,8 +195,7 @@ class AIProviderService:
         provider_type = model.provider_config.provider_type
         model_identifier = model.model_identifier
         AIProviderHandler.delete_model(model)
-        cls._send_changed(user, workspace_models_changed=True)
-        cls._send_availability_changed(user, provider_type, {model_identifier})
+        cls._send_updated(user, workspace, True, provider_type, {model_identifier})
 
     @classmethod
     def test_models(
@@ -207,11 +205,9 @@ class AIProviderService:
         workspace_id: int | None = None,
     ) -> list[dict[str, Any]]:
         workspace = cls._check_permissions(user, workspace_id)
-        models = AIProviderHandler.get_models(
-            model_ids,
-            workspace=workspace,
-            include_inherited=workspace is not None,
-        )
+        # A test prompt uses the selected provider's credentials and overwrites
+        # that model's own result.
+        models = AIProviderHandler.get_models(model_ids, workspace=workspace)
         results = AIProviderHandler.test_models(models)
-        cls._send_changed(user, workspace_models_changed=False)
+        cls._send_updated(user, workspace, False)
         return results

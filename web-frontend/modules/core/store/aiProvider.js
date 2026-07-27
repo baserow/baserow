@@ -69,8 +69,27 @@ export const mutations = {
   },
 }
 
+const commitIfScopeIsCurrent = (
+  state,
+  workspaceId,
+  commit,
+  mutation,
+  payload
+) => {
+  if (state.workspaceId === workspaceId) {
+    commit(mutation, payload)
+  }
+}
+
 export const actions = {
-  async fetchInitial({ commit }, { workspaceId = null } = {}) {
+  async fetchInitial({ commit, state }, { workspaceId = null } = {}) {
+    // Claim the scope before awaiting; a refresh must not reload the old one.
+    if (state.workspaceId !== workspaceId) {
+      commit('SET_WORKSPACE_ID', workspaceId)
+      commit('SET_PROVIDERS', [])
+      commit('SET_PROVIDER_TYPES', [])
+      commit('SET_LOADED', false)
+    }
     commit('SET_LOADING', true)
     try {
       const service = aiProviderService(this.$client, workspaceId)
@@ -78,53 +97,77 @@ export const actions = {
         service.fetchAll(),
         service.fetchTypes(),
       ])
+      // A newer scope may have been claimed while this request was in flight.
+      if (state.workspaceId !== workspaceId) {
+        return
+      }
       commit('SET_PROVIDERS', providers.data)
       commit('SET_PROVIDER_TYPES', providerTypes.data)
-      commit('SET_WORKSPACE_ID', workspaceId)
       commit('SET_LOADED', true)
     } finally {
-      commit('SET_LOADING', false)
+      if (state.workspaceId === workspaceId) {
+        commit('SET_LOADING', false)
+      }
     }
   },
   async refresh({ commit, state }) {
+    if (!state.loaded) {
+      return []
+    }
+    const workspaceId = state.workspaceId
     const { data } = await aiProviderService(
       this.$client,
-      state.workspaceId
+      workspaceId
     ).fetchAll()
+    if (state.workspaceId !== workspaceId) {
+      return []
+    }
     commit('SET_PROVIDERS', data)
     return data
   },
-  async create({ commit }, payload) {
+  async create({ commit, state }, payload) {
     const workspaceId = payload.workspaceId ?? null
     const values = workspaceId === null ? payload : payload.values
     const { data } = await aiProviderService(this.$client, workspaceId).create(
       values
     )
-    commit('ADD_PROVIDER', data)
+    commitIfScopeIsCurrent(state, workspaceId, commit, 'ADD_PROVIDER', data)
     return data
   },
-  async update({ commit }, { providerId, values, workspaceId = null }) {
+  async update({ commit, state }, { providerId, values, workspaceId = null }) {
     const { data } = await aiProviderService(this.$client, workspaceId).update(
       providerId,
       values
     )
-    commit('UPDATE_PROVIDER', data)
+    commitIfScopeIsCurrent(state, workspaceId, commit, 'UPDATE_PROVIDER', data)
     return data
   },
-  async delete({ commit }, payload) {
+  async delete({ commit, state }, payload) {
     const providerId =
       typeof payload === 'object' ? payload.providerId : payload
     const workspaceId =
       typeof payload === 'object' ? (payload.workspaceId ?? null) : null
     await aiProviderService(this.$client, workspaceId).delete(providerId)
-    commit('DELETE_PROVIDER', providerId)
+    commitIfScopeIsCurrent(
+      state,
+      workspaceId,
+      commit,
+      'DELETE_PROVIDER',
+      providerId
+    )
   },
-  async createModel({ commit }, { providerId, values, workspaceId = null }) {
+  async createModel(
+    { commit, state },
+    { providerId, values, workspaceId = null }
+  ) {
     const { data } = await aiProviderService(
       this.$client,
       workspaceId
     ).createModel(providerId, values)
-    commit('ADD_MODEL', { providerId, model: data })
+    commitIfScopeIsCurrent(state, workspaceId, commit, 'ADD_MODEL', {
+      providerId,
+      model: data,
+    })
     return data
   },
   async discoverModels(_context, payload) {
@@ -138,38 +181,51 @@ export const actions = {
     ).discoverModels(providerType)
     return data
   },
-  async updateModel({ commit }, { modelId, values, workspaceId = null }) {
+  async updateModel(
+    { commit, state },
+    { modelId, values, workspaceId = null }
+  ) {
     const { data } = await aiProviderService(
       this.$client,
       workspaceId
     ).updateModel(modelId, values)
-    commit('UPDATE_MODEL', data)
+    commitIfScopeIsCurrent(state, workspaceId, commit, 'UPDATE_MODEL', data)
     return data
   },
-  async deleteModel({ commit }, payload) {
+  async deleteModel({ commit, state }, payload) {
     const modelId = typeof payload === 'object' ? payload.modelId : payload
     const workspaceId =
       typeof payload === 'object' ? (payload.workspaceId ?? null) : null
     await aiProviderService(this.$client, workspaceId).deleteModel(modelId)
-    commit('DELETE_MODEL', modelId)
+    commitIfScopeIsCurrent(state, workspaceId, commit, 'DELETE_MODEL', modelId)
   },
-  async testModels({ commit }, payload) {
+  async testModels({ commit, state }, payload) {
     const workspaceId = payload.workspaceId ?? null
     const values = workspaceId === null ? payload : payload.values
     const { data } = await aiProviderService(
       this.$client,
       workspaceId
     ).testModels(values)
-    commit('UPDATE_MODEL_TEST_RESULTS', data.results)
+    commitIfScopeIsCurrent(
+      state,
+      workspaceId,
+      commit,
+      'UPDATE_MODEL_TEST_RESULTS',
+      data.results
+    )
     return data.results
   },
 }
 
 export const getters = {
-  getAll: (state) => state.providers,
-  getTypes: (state) => state.providerTypes,
+  // One scope at a time: reads name the scope they expect.
+  getAll: (state) => (workspaceId) =>
+    state.workspaceId === workspaceId ? state.providers : [],
+  getTypes: (state) => (workspaceId) =>
+    state.workspaceId === workspaceId ? state.providerTypes : [],
   isLoading: (state) => state.loading,
-  isLoaded: (state) => state.loaded,
+  isLoaded: (state) => (workspaceId) =>
+    state.loaded && state.workspaceId === workspaceId,
 }
 
 export default { namespaced: true, state, mutations, actions, getters }

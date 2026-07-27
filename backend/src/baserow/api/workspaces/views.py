@@ -53,6 +53,7 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceUserIsLastAdmin,
 )
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
     ImportExportApplicationIdsNotFound,
@@ -118,6 +119,11 @@ class WorkspacesView(APIView):
             NotificationHandler.annotate_workspaces_with_unread_notifications_count(
                 request.user, workspaceuser_workspaces, outer_ref_key="workspace_id"
             )
+        )
+
+        workspaceuser_workspaces = list(workspaceuser_workspaces)
+        generative_ai_model_type_registry.prefetch_workspace_configuration(
+            [workspaceuser.workspace_id for workspaceuser in workspaceuser_workspaces]
         )
 
         serializer = WorkspaceUserWorkspaceSerializer(

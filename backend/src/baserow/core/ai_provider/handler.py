@@ -1,7 +1,7 @@
 from typing import Any
 
 from django.db import IntegrityError
-from django.db.models import Q
+from django.db.models import Prefetch, Q, prefetch_related_objects
 from django.utils import timezone
 
 from baserow.core.cache import local_cache
@@ -46,10 +46,43 @@ class AIProviderHandler:
     ) -> AIProviderConfig:
         inherited = workspace is not None and provider.workspace_id is None
         provider.workspace_enabled = workspace_enabled
-        provider.source_is_active = provider.is_active
         provider.effective_is_active = provider.is_active and workspace_enabled
         provider.read_only = inherited
         return provider
+
+    @staticmethod
+    def _inherited_scope() -> Q:
+        """
+        Instance providers a workspace is allowed to see. What the instance
+        disabled stays private to the instance admin, so a workspace never
+        learns it exists.
+        """
+
+        return Q(workspace__isnull=True, is_active=True)
+
+    @staticmethod
+    def _inherited_model_scope() -> Q:
+        return Q(
+            provider_config__workspace__isnull=True,
+            provider_config__is_active=True,
+            is_enabled=True,
+        )
+
+    @staticmethod
+    def _models_prefetch(inherited: bool) -> Prefetch | str:
+        if not inherited:
+            return "models"
+        return Prefetch(
+            "models", queryset=AIProviderModel.objects.filter(is_enabled=True)
+        )
+
+    @classmethod
+    def _inherited_providers(cls) -> list[AIProviderConfig]:
+        return list(
+            AIProviderConfig.objects.filter(cls._inherited_scope())
+            .prefetch_related(cls._models_prefetch(True))
+            .order_by("id")
+        )
 
     @classmethod
     def list_providers(
@@ -62,17 +95,8 @@ class AIProviderHandler:
                 for provider in queryset.filter(workspace__isnull=True)
             ]
 
-        scoped_providers = list(
-            queryset.filter(Q(workspace=workspace) | Q(workspace__isnull=True))
-        )
-        owned = [
-            provider
-            for provider in scoped_providers
-            if provider.workspace_id == workspace.id
-        ]
-        inherited = [
-            provider for provider in scoped_providers if provider.workspace_id is None
-        ]
+        owned = list(queryset.filter(workspace=workspace))
+        inherited = cls._inherited_providers()
         disabled_provider_ids = set(
             AIProviderWorkspaceOverride.objects.filter(
                 workspace=workspace,
@@ -100,22 +124,23 @@ class AIProviderHandler:
         if workspace is not None:
             scope = Q(workspace=workspace)
             if include_inherited:
-                scope |= Q(workspace__isnull=True)
+                scope |= cls._inherited_scope()
         try:
-            provider = AIProviderConfig.objects.prefetch_related("models").get(
-                scope, id=provider_id
-            )
+            provider = AIProviderConfig.objects.get(scope, id=provider_id)
         except AIProviderConfig.DoesNotExist as exc:
             raise AIProviderDoesNotExist(provider_id) from exc
+        inherited = workspace is not None and provider.workspace_id is None
+        prefetch_related_objects([provider], cls._models_prefetch(inherited))
         workspace_enabled = True
-        if workspace is not None and provider.workspace_id is None:
+        if inherited:
             workspace_enabled = not AIProviderWorkspaceOverride.objects.filter(
                 workspace=workspace, provider_config=provider
             ).exists()
         return cls._decorate_provider(provider, workspace, workspace_enabled)
 
-    @staticmethod
+    @classmethod
     def get_model(
+        cls,
         model_id: int,
         workspace: Workspace | None = None,
         include_inherited: bool = False,
@@ -124,7 +149,7 @@ class AIProviderHandler:
         if workspace is not None:
             scope = Q(provider_config__workspace=workspace)
             if include_inherited:
-                scope |= Q(provider_config__workspace__isnull=True)
+                scope |= cls._inherited_model_scope()
         try:
             return AIProviderModel.objects.select_related("provider_config").get(
                 scope, id=model_id
@@ -132,8 +157,9 @@ class AIProviderHandler:
         except AIProviderModel.DoesNotExist as exc:
             raise AIProviderModelDoesNotExist(model_id) from exc
 
-    @staticmethod
+    @classmethod
     def get_models(
+        cls,
         model_ids: list[int],
         workspace: Workspace | None = None,
         include_inherited: bool = False,
@@ -142,7 +168,7 @@ class AIProviderHandler:
         if workspace is not None:
             scope = Q(provider_config__workspace=workspace)
             if include_inherited:
-                scope |= Q(provider_config__workspace__isnull=True)
+                scope |= cls._inherited_model_scope()
         models_by_id = {
             model.id: model
             for model in AIProviderModel.objects.filter(scope, id__in=model_ids)
@@ -245,7 +271,7 @@ class AIProviderHandler:
         return cls.get_provider(provider.id, workspace=provider.workspace)
 
     @staticmethod
-    def delete_provider(provider: AIProviderConfig) -> None:
+    def delete_provider(provider: AIProviderConfig) -> Workspace | None:
         workspace = provider.workspace
         provider_type = provider.provider_type
         provider.delete()
@@ -255,6 +281,7 @@ class AIProviderHandler:
                 workspace.generative_ai_models_settings = legacy_settings
                 workspace.save(update_fields=("generative_ai_models_settings",))
         AIProviderHandler._invalidate_resolution_cache()
+        return workspace
 
     @classmethod
     def set_workspace_provider_enabled(

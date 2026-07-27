@@ -23,7 +23,7 @@ describe('database realtime AI provider updates', () => {
     await handlers.ai_provider_updated(
       { store },
       {
-        workspace_models_changed: true,
+        model_availability_updated: true,
       }
     )
 
@@ -44,7 +44,7 @@ describe('database realtime AI provider updates', () => {
     await handlers.ai_provider_updated(
       { store },
       {
-        workspace_models_changed: false,
+        model_availability_updated: false,
       }
     )
 

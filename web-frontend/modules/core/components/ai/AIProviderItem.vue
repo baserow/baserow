@@ -4,13 +4,14 @@
     :class="{
       'ai-provider-card--inactive': !provider.is_active,
       'ai-provider-card--embedded': embedded,
+      'ai-provider-card--primary': primary,
     }"
   >
     <header class="ai-provider-card__header">
       <div class="ai-provider-card__heading">
         <div class="ai-provider-card__title-row">
           <component
-            :is="embedded ? 'h3' : 'h2'"
+            :is="primary || !embedded ? 'h2' : 'h3'"
             class="ai-provider-card__title"
           >
             {{ title || providerType?.name || provider.provider_type }}
@@ -49,30 +50,31 @@
           'ai-provider-model--overridden': modelAnnotation(model)?.muted,
         }"
       >
-        <div
-          class="ai-provider-model__identity"
-          :class="{
-            'ai-provider-model__identity--inactive': !model.is_enabled,
-          }"
+        <span
+          class="ai-provider-model__name"
+          :class="{ 'ai-provider-model__name--inactive': !model.is_enabled }"
         >
-          <div class="ai-provider-model__name-row">
-            <span class="ai-provider-model__name">
-              {{ model.model_identifier }}
-            </span>
-            <Badge v-if="!model.is_enabled" color="neutral">
-              {{ $t('aiProviderAdmin.modelDisabled') }}
-            </Badge>
-            <Badge
-              v-if="modelAnnotation(model)"
-              v-tooltip="modelAnnotation(model).tooltip"
-              class="ai-provider-model__annotation-badge"
-              color="yellow"
-              bold
-              :aria-label="modelAnnotation(model).tooltip"
-            >
-              {{ modelAnnotation(model).label }}
-            </Badge>
-          </div>
+          {{ model.model_identifier }}
+        </span>
+        <div class="ai-provider-model__badges">
+          <Badge
+            v-if="!model.is_enabled"
+            class="ai-provider-model__disabled-badge"
+            color="neutral"
+            bold
+          >
+            {{ $t('aiProviderAdmin.modelDisabled') }}
+          </Badge>
+          <Badge
+            v-if="modelAnnotation(model)"
+            v-tooltip="modelAnnotation(model).tooltip"
+            class="ai-provider-model__annotation-badge"
+            color="yellow"
+            bold
+            :aria-label="modelAnnotation(model).tooltip"
+          >
+            {{ modelAnnotation(model).label }}
+          </Badge>
         </div>
         <div class="ai-provider-model__status" role="status" aria-live="polite">
           <span v-if="isModelTesting(model)" class="ai-provider-model__testing">
@@ -99,8 +101,9 @@
         <div class="ai-provider-model__actions">
           <AIProviderActionsMenu
             :actions="modelMenuActions(model)"
-            :disabled="isModelTesting(model)"
-            :title="$t('aiProviderAdmin.moreActions')"
+            :disabled="isModelTesting(model) || isModelOverridden(model)"
+            :show-disabled-trigger="isModelOverridden(model)"
+            :title="modelActionsTitle(model)"
             @select="onModelAction($event, model)"
           />
         </div>
@@ -123,6 +126,7 @@ export default {
     providerType: { type: Object, default: null },
     testingModelIds: { type: Array, default: () => [] },
     embedded: { type: Boolean, default: false },
+    primary: { type: Boolean, default: false },
     title: { type: String, default: '' },
     sourceLabel: { type: String, default: '' },
     sourceColor: { type: String, default: 'neutral' },
@@ -166,22 +170,29 @@ export default {
     },
     providerStatusLabel() {
       if (this.statusLabel) return this.statusLabel
-      if (this.provider.read_only && !this.provider.source_is_active) {
-        return this.$t('aiProviderAdmin.inactiveAtInstance')
-      }
       return this.provider.is_active
         ? this.$t('aiProviderAdmin.active')
         : this.$t('aiProviderAdmin.inactive')
     },
+    toggleAction() {
+      return {
+        key: 'toggle',
+        label: this.toggleActionTitle(this.providerToggleState),
+        icon: this.toggleActionIcon(this.providerToggleState),
+      }
+    },
     providerMenuActions() {
-      const actions = []
-      if (!this.provider.read_only) {
-        actions.push({
+      // The instance owns it; a workspace can only toggle its own use of it.
+      if (this.provider.read_only) {
+        return this.provider.models.length ? [this.toggleAction] : []
+      }
+      const actions = [
+        {
           key: 'add-model',
           label: this.$t('aiProviderAdmin.addModel'),
           icon: 'iconoir-plus',
-        })
-      }
+        },
+      ]
       if (this.provider.models.length > 0) {
         actions.push({
           key: 'test',
@@ -189,26 +200,20 @@ export default {
           icon: 'iconoir-play',
         })
       }
-      if (!this.provider.read_only) {
-        actions.push({
+      actions.push(
+        {
           key: 'edit',
           label: this.$t('action.edit'),
           icon: 'iconoir-edit',
-        })
-      }
-      actions.push({
-        key: 'toggle',
-        label: this.toggleActionTitle(this.providerToggleState),
-        icon: this.toggleActionIcon(this.providerToggleState),
-      })
-      if (!this.provider.read_only) {
-        actions.push({
+        },
+        this.toggleAction,
+        {
           key: 'delete',
           label: this.$t('action.delete'),
           icon: 'iconoir-bin',
           danger: true,
-        })
-      }
+        }
+      )
       return actions
     },
   },
@@ -219,16 +224,27 @@ export default {
     modelAnnotation(model) {
       return this.modelAnnotations[model.id] || null
     },
+    isModelOverridden(model) {
+      return this.modelAnnotation(model)?.muted === true
+    },
+    modelActionsTitle(model) {
+      return (
+        (this.isModelOverridden(model) &&
+          this.modelAnnotation(model).tooltip) ||
+        this.$t('aiProviderAdmin.moreActions')
+      )
+    },
     modelMenuActions(model) {
-      const actions = [
+      // Testing an inherited model would spend the instance's credentials.
+      if (this.provider.read_only) {
+        return []
+      }
+      return [
         {
           key: 'test',
           label: this.$t('aiProviderAdmin.testModel'),
           icon: 'iconoir-play',
         },
-      ]
-      if (this.provider.read_only) return actions
-      actions.push(
         {
           key: 'edit',
           label: this.$t('action.edit'),
@@ -244,9 +260,8 @@ export default {
           label: this.$t('action.delete'),
           icon: 'iconoir-bin',
           danger: true,
-        }
-      )
-      return actions
+        },
+      ]
     },
     onProviderAction(action) {
       const event = {

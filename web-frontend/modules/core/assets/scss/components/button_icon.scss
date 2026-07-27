@@ -58,8 +58,8 @@
 
 .button-icon--secondary {
   &.active,
-  &:active,
-  &:hover {
+  &:active:not([disabled]),
+  &:hover:not([disabled]) {
     .button-icon__icon {
       color: $palette-neutral-1200;
     }

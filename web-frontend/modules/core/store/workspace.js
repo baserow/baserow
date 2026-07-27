@@ -232,6 +232,24 @@ export const actions = {
     }
   },
   /**
+   * Applies enabled AI models delivered by a realtime event, so a workspace
+   * scoped provider change costs no request.
+   */
+  forceUpdateGenerativeAIModels(
+    { commit, getters },
+    { workspaceId, generativeAIModelsEnabled }
+  ) {
+    if (getters.get(workspaceId) === undefined) {
+      return
+    }
+    commit('UPDATE_ITEM', {
+      id: workspaceId,
+      values: {
+        generative_ai_models_enabled: generativeAIModelsEnabled || {},
+      },
+    })
+  },
+  /**
    * Refreshes enabled AI models for every locally loaded workspace without
    * replacing local UI and permission state.
    */

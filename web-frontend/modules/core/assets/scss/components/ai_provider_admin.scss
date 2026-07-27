@@ -85,28 +85,33 @@
 }
 
 .ai-provider-card__models {
+  display: grid;
   padding: 0;
+  column-gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
 }
 
 .ai-provider-model {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 4px 16px;
   min-height: 60px;
   padding: 10px 20px;
   border-top: 1px solid $palette-neutral-200;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: subgrid;
 }
 
 .ai-provider-model--inactive {
   background: $palette-neutral-100;
 }
 
-.ai-provider-model__name-row {
+.ai-provider-model__badges {
   display: flex;
-  min-width: 0;
   align-items: center;
   gap: 8px;
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .ai-provider-model__name {
@@ -117,6 +122,19 @@
   line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.ai-provider-model__name--inactive {
+  color: $palette-neutral-700;
+  cursor: not-allowed;
+}
+
+.badge.ai-provider-model__disabled-badge {
+  flex: 0 0 auto;
+  background: $palette-neutral-1000;
+  color: $palette-neutral-0;
 }
 
 .ai-provider-model__annotation-badge {
@@ -124,26 +142,12 @@
   cursor: help;
 }
 
-.ai-provider-model__identity {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 4px;
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.ai-provider-model__identity--inactive {
-  color: $palette-neutral-700;
-  cursor: not-allowed;
-}
-
 .ai-provider-model__status {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 6px;
-  grid-column: 2;
+  grid-column: 3;
   grid-row: 1;
   justify-self: end;
   color: $palette-neutral-900;
@@ -169,17 +173,18 @@
 }
 
 .ai-provider-model__actions {
-  align-self: center;
+  min-width: 24px;
   flex-shrink: 0;
   flex-wrap: nowrap;
-  grid-column: 3;
+  grid-column: 4;
   grid-row: 1;
+  place-self: center end;
 }
 
 .ai-provider-model--overridden {
   background: $palette-neutral-50;
 
-  .ai-provider-model__identity,
+  .ai-provider-model__name,
   .ai-provider-model__status {
     color: $palette-neutral-700;
   }
@@ -230,6 +235,13 @@
 
 .ai-provider-workspace-settings .ai-provider-admin__header {
   padding-right: 64px;
+  margin-bottom: 16px;
+}
+
+.ai-provider-workspace-settings__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
 }
 
 .ai-provider-hierarchy {
@@ -254,7 +266,7 @@
   font-size: 20px;
 }
 
-.ai-provider-hierarchy__layers {
+.ai-provider-hierarchy__layers--with-header {
   border-top: 1px solid $palette-neutral-200;
 }
 
@@ -271,8 +283,17 @@
   font-size: 16px;
 }
 
+.ai-provider-card--embedded.ai-provider-card--primary .ai-provider-card__title {
+  font-size: 20px;
+}
+
 .ai-provider-card--embedded .ai-provider-card__header {
   padding: 16px 20px;
+}
+
+.ai-provider-card--embedded.ai-provider-card--primary
+  .ai-provider-card__header {
+  background: $palette-neutral-25;
 }
 
 @media (max-width: 900px) {

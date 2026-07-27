@@ -7,6 +7,12 @@
         </h2>
         <p>{{ $t('generativeAIWorkspaceSettings.providerDescription') }}</p>
       </div>
+    </header>
+
+    <div
+      v-if="loaded && !loading && !initialLoadFailed"
+      class="ai-provider-workspace-settings__toolbar"
+    >
       <Button
         icon="iconoir-plus"
         :disabled="availableProviderTypes.length === 0"
@@ -14,9 +20,12 @@
       >
         {{ $t('aiProviderAdmin.addProvider') }}
       </Button>
-    </header>
+    </div>
 
-    <div v-if="loading" class="ai-provider-admin__loading">
+    <div
+      v-if="loading || (!loaded && !initialLoadFailed)"
+      class="ai-provider-admin__loading"
+    >
       <div class="loading" />
     </div>
     <div v-else-if="initialLoadFailed" class="placeholder">
@@ -44,12 +53,14 @@
         :key="group.providerType"
         class="ai-provider-hierarchy"
       >
-        <header class="ai-provider-hierarchy__header">
+        <header
+          v-if="!group.workspaceProvider"
+          class="ai-provider-hierarchy__header"
+        >
           <h2 class="ai-provider-hierarchy__title">
             {{ providerDisplayName(group.primaryProvider) }}
           </h2>
           <Button
-            v-if="!group.workspaceProvider"
             type="secondary"
             size="small"
             icon="iconoir-plus"
@@ -59,30 +70,21 @@
           </Button>
         </header>
 
-        <div class="ai-provider-hierarchy__layers">
-          <AIProviderItem
-            v-if="group.inheritedProvider"
-            :provider="group.inheritedProvider"
-            :provider-type="providerType(group.providerType)"
-            :testing-model-ids="testingModelIds"
-            :embedded="true"
-            :title="$t('generativeAIWorkspaceSettings.instanceConfiguration')"
-            :source-label="$t('aiProviderAdmin.inherited')"
-            source-color="cyan"
-            :hide-active-status="true"
-            :model-annotations="inheritedModelAnnotations(group)"
-            :status-label="inheritedStatusLabel(group.inheritedProvider)"
-            @toggle-provider="toggleProvider"
-            @test-all-models="testAllModels"
-            @test-model="testModel"
-          />
+        <div
+          class="ai-provider-hierarchy__layers"
+          :class="{
+            'ai-provider-hierarchy__layers--with-header':
+              !group.workspaceProvider,
+          }"
+        >
           <AIProviderItem
             v-if="group.workspaceProvider"
             :provider="group.workspaceProvider"
             :provider-type="providerType(group.providerType)"
             :testing-model-ids="testingModelIds"
             :embedded="true"
-            :title="$t('generativeAIWorkspaceSettings.workspaceConfiguration')"
+            :primary="true"
+            :title="providerDisplayName(group.workspaceProvider)"
             :hide-active-status="true"
             @edit-provider="openProviderForm"
             @toggle-provider="toggleProvider"
@@ -93,6 +95,20 @@
             @toggle-model="toggleModel"
             @delete-model="deleteModel"
             @test-model="testModel"
+          />
+          <AIProviderItem
+            v-if="group.inheritedProvider"
+            :provider="group.inheritedProvider"
+            :provider-type="providerType(group.providerType)"
+            :testing-model-ids="testingModelIds"
+            :embedded="true"
+            :title="$t('generativeAIWorkspaceSettings.sharedModelsTitle')"
+            :source-label="$t('aiProviderAdmin.inherited')"
+            source-color="cyan"
+            :hide-active-status="true"
+            :model-annotations="inheritedModelAnnotations(group)"
+            :status-label="inheritedStatusLabel(group.inheritedProvider)"
+            @toggle-provider="toggleProvider"
           />
         </div>
       </section>
@@ -164,7 +180,7 @@ export default {
   },
   computed: {
     providers() {
-      return this.$store.getters['aiProvider/getAll']
+      return this.$store.getters['aiProvider/getAll'](this.workspace.id)
     },
     providerGroups() {
       const groups = new Map()
@@ -182,10 +198,13 @@ export default {
       return [...groups.values()]
     },
     providerTypes() {
-      return this.$store.getters['aiProvider/getTypes']
+      return this.$store.getters['aiProvider/getTypes'](this.workspace.id)
     },
     loading() {
       return this.$store.getters['aiProvider/isLoading']
+    },
+    loaded() {
+      return this.$store.getters['aiProvider/isLoaded'](this.workspace.id)
     },
     availableProviderTypes() {
       const ownedTypes = new Set(
@@ -282,9 +301,6 @@ export default {
       )
     },
     inheritedStatusLabel(provider) {
-      if (!provider.source_is_active) {
-        return this.$t('aiProviderAdmin.inactiveAtInstance')
-      }
       return provider.workspace_enabled
         ? ''
         : this.$t('generativeAIWorkspaceSettings.disabledInWorkspace')

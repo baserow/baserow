@@ -9,7 +9,7 @@ import { generateHash } from '@baserow/modules/core/utils/hashing'
  */
 export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('ai_provider_updated', async ({ store }, data) => {
-    if (data.workspace_models_changed && store.getters['field/isLoaded']) {
+    if (data.model_availability_updated && store.getters['field/isLoaded']) {
       await Promise.allSettled([
         store.dispatch('field/refreshLoadedFieldErrors'),
       ])

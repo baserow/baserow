@@ -64,7 +64,12 @@ export default {
           this.$parent.row.id,
         ])
       } catch (error) {
-        setAIFieldErrorFromGenerationError(this.$store, this.field, error)
+        setAIFieldErrorFromGenerationError(
+          this.$store,
+          this.field,
+          error,
+          this.$t('clientHandler.modelDoesNotBelongToTypeDescription')
+        )
         notifyIf(error, 'field')
         this.generating = false
       }

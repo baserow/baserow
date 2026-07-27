@@ -1,5 +1,8 @@
 <template>
-  <div v-if="actions.length" class="ai-provider-actions-menu">
+  <div
+    v-if="actions.length || (showDisabledTrigger && disabled)"
+    class="ai-provider-actions-menu"
+  >
     <ButtonIcon
       ref="trigger"
       type="secondary"
@@ -10,7 +13,12 @@
       :aria-label="title"
       @click="open"
     />
-    <Context ref="context" overflow-scroll max-height-if-outside-viewport>
+    <Context
+      v-if="actions.length"
+      ref="context"
+      overflow-scroll
+      max-height-if-outside-viewport
+    >
       <ul class="context__menu">
         <li
           v-for="action in actions"
@@ -41,6 +49,7 @@ export default {
   props: {
     actions: { type: Array, required: true },
     disabled: { type: Boolean, default: false },
+    showDisabledTrigger: { type: Boolean, default: false },
     title: { type: String, required: true },
   },
   emits: ['select'],
@@ -51,6 +60,7 @@ export default {
   },
   methods: {
     open() {
+      if (this.disabled || !this.$refs.context) return
       return this.$refs.context.toggle(
         this.$refs.trigger.$el,
         'bottom',
