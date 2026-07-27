@@ -621,6 +621,16 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Returns the sort function used when ordering group-by nodes. By default
+   * this delegates to `getSort`, so groups sort the same way rows do. Field
+   * types that need set-based ordering for group-by (e.g. multi-select,
+   * multiple collaborators) override this independently.
+   */
+  getGroupBySort(name, order) {
+    return this.getSort(name, order)
+  }
+
+  /**
    * Should return a visualisation of how the sort function is going to work. For
    * example ['text', 'A', 'Z'] will result in 'A -> Z' as ascending and 'Z -> A'
    * descending visualisation for the user. It is also possible to use a icon class name
@@ -4106,6 +4116,25 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     }
   }
 
+  getGroupBySort(name, order) {
+    const sortKey = (values) => {
+      if (!values || values.length === 0) {
+        return ''
+      }
+      return [...values]
+        .sort(
+          (left, right) =>
+            collatedStringCompare(left.value, right.value, 'ASC') ||
+            left.id - right.id
+        )
+        .map((option) => option.value)
+        .join(',')
+    }
+
+    return (a, b) =>
+      collatedStringCompare(sortKey(a[name]), sortKey(b[name]), order)
+  }
+
   parseDefaultRowValue(field, value) {
     if (!Array.isArray(value)) {
       return []
@@ -4902,6 +4931,26 @@ export class MultipleCollaboratorsFieldType extends FieldType {
 
       return collatedStringCompare(stringA, stringB, order)
     }
+  }
+
+  getGroupBySort(name, order) {
+    const sortKey = (values) => {
+      if (values.length === 0) {
+        return ''
+      }
+      const workspaces = this.app.$store.getters['workspace/getAll']
+      const names = values.map((obj) =>
+        workspaces.length > 0
+          ? this.app.$store.getters['workspace/getUserById'](obj.id).name
+          : obj.name
+      )
+      return names
+        .sort((left, right) => collatedStringCompare(left, right, 'ASC'))
+        .join('')
+    }
+
+    return (a, b) =>
+      collatedStringCompare(sortKey(a[name]), sortKey(b[name]), order)
   }
 
   prepareValueForCopy(field, value) {

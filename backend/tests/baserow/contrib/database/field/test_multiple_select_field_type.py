@@ -3229,3 +3229,61 @@ def test_multiple_select_doest_contains_word_filter_type(field_name, data_fixtur
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     assert len(ids) == 3
     assert ids == unordered([row_1.id, row_2.id, row_4.id])
+
+
+@pytest.mark.django_db
+def test_multiple_select_field_type_group_by_sort_order_ignores_selection_order(
+    data_fixture,
+):
+    """
+    Group-by treats a multiple select cell as a set: ``{A, C}`` and ``{C, A}`` are
+    the same group. ``get_group_by_sort_order`` must produce the same sort key for
+    both so that rows of one group sort contiguously.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    table = data_fixture.create_database_table(name="Example", database=database)
+
+    field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Multiple Select",
+        type_name="multiple_select",
+    )
+    option_a = data_fixture.create_select_option(field=field, value="A", color="red")
+    option_b = data_fixture.create_select_option(field=field, value="B", color="blue")
+    option_c = data_fixture.create_select_option(field=field, value="C", color="green")
+
+    data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[option_a.id, option_c.id], user=user
+    )
+    data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[option_b.id], user=user
+    )
+    data_fixture.create_row_for_many_to_many_field(
+        table=table, field=field, values=[option_c.id, option_a.id], user=user
+    )
+
+    model = table.get_model()
+    field_type = field_type_registry.get_by_model(field)
+    field_name = field.db_column
+    order = field_type.get_group_by_sort_order(
+        field, field_name, "ASC", "default", table_model=model
+    )
+
+    qs = model.objects.all()
+    if order.annotation:
+        qs = qs.annotate(**order.annotation)
+    rows = list(qs.order_by(order.order))
+
+    row_ids = [row.id for row in rows]
+    # Rows 1 and 3 share the same set {A, C} so they must be adjacent.
+    assert row_ids[0] != rows[1].id or row_ids[1] != rows[2].id  # not all same
+    ac_indices = [
+        i
+        for i, r in enumerate(rows)
+        if {option_a.id, option_c.id} == {o.id for o in getattr(r, field_name).all()}
+    ]
+    assert len(ac_indices) == 2
+    assert ac_indices[1] - ac_indices[0] == 1

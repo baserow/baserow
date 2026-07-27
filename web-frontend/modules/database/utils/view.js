@@ -41,6 +41,36 @@ export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
 }
 
 /**
+ * Like getRowSortFunction but uses getGroupBySort instead of getSort, so
+ * group-by node ordering can differ from row ordering (e.g. set-based
+ * ordering for multi-select fields).
+ */
+export function getGroupByRowSortFunction($registry, fields, groupBys) {
+  const { firstBy } = thenBy
+  let sortFunction = firstBy()
+  groupBys.forEach((sort) => {
+    const field = fields.find((f) => f.id === sort.field)
+
+    if (field !== undefined) {
+      const fieldName = `field_${field.id}`
+      const fieldType = $registry.get('field', field.type)
+      const fieldSortFunction = fieldType.getGroupBySort(
+        fieldName,
+        sort.order,
+        field
+      )
+      sortFunction = sortFunction.thenBy(fieldSortFunction)
+    }
+  })
+
+  sortFunction = sortFunction.thenBy((a, b) =>
+    new BigNumber(a.order).minus(new BigNumber(b.order)).toNumber()
+  )
+  sortFunction = sortFunction.thenBy((a, b) => a.id - b.id)
+  return sortFunction
+}
+
+/**
  * Generates a sort function for fields based on order and id.
  */
 export function sortFieldsByOrderAndIdFunction(

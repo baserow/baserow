@@ -1005,6 +1005,36 @@ class FieldType(
         :return: The ordering applied to the group-by data groups.
         """
 
+        return self.get_group_by_sort_order(
+            field, field_name, order_direction, sort_type, table_model=table_model
+        )
+
+    def get_group_by_sort_order(
+        self,
+        field: Type[Field],
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Returns the raw ordering expression used to sort groups in a group-by
+        query, before any subquery wrapping that ``get_group_by_order`` may
+        apply. By default this delegates to ``get_order`` so groups sort the
+        same way rows do. Field types that need a different ordering for
+        group-by (e.g. set-based ordering for many-to-many fields) can override
+        this without duplicating the subquery logic in
+        ``ManyToManyGroupByMixin.get_group_by_order``.
+
+        :param field: The related field object instance.
+        :param field_name: The name of the field.
+        :param order_direction: The sort order direction (either "ASC" or "DESC").
+        :param sort_type: The sort type that must be used.
+        :param table_model: The table model instance that the field is part of,
+            if available.
+        :return: The ordering applied to the group-by data groups.
+        """
+
         return self.get_order(
             field, field_name, order_direction, sort_type, table_model=table_model
         )
@@ -2291,7 +2321,7 @@ class ManyToManyGroupByMixin:
     def get_group_by_order(
         self, field, field_name, order_direction, sort_type, table_model=None
     ):
-        order = self.get_order(
+        order = self.get_group_by_sort_order(
             field, field_name, order_direction, sort_type, table_model=table_model
         )
         if order.annotation is None or table_model is None:
@@ -2299,9 +2329,9 @@ class ManyToManyGroupByMixin:
 
         # In a group-by data query an aggregated ArrayField annotation shadows the
         # relation column (see `get_group_by_field_filters_and_annotations`), so joins
-        # `get_order` relies on aren't reachable. Recompute the same ordering as per-row
-        # correlated subqueries against the table model, where the relation exists, so
-        # groups and rows order identically.
+        # `get_group_by_sort_order` relies on aren't reachable. Recompute the same
+        # ordering as per-row correlated subqueries against the table model, where the
+        # relation exists, so groups and rows order identically.
         wrapped_annotation = {
             alias: Subquery(
                 table_model.objects.filter(id=OuterRef("id"))

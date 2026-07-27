@@ -5405,6 +5405,41 @@ class MultipleSelectFieldType(
 
         return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
 
+    def get_group_by_sort_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
+        """
+        Group-by treats a cell as a set of options: ``{A, B}`` and ``{B, A}``
+        are the same group. The aggregated sort key must therefore be
+        deterministic regardless of insertion order, so we order the
+        ``StringAgg`` by the option value (and break ties with the through-table
+        id).
+        """
+
+        sort_column_name = f"{field_name}_group_by_agg_sort"
+        sortable_column_expression = self.get_sortable_column_expression(
+            field, field_name, sort_type
+        )
+        query = Coalesce(
+            StringAgg(
+                sortable_column_expression,
+                ",",
+                order_by=(sortable_column_expression, f"{field_name}__id"),
+                output_field=models.TextField(),
+            ),
+            Value(""),
+            output_field=models.TextField(),
+        )
+        annotation = {sort_column_name: query}
+        order = collate_expression(F(sort_column_name))
+
+        if order_direction == "DESC":
+            order = order.desc(nulls_first=True)
+        else:
+            order = order.asc(nulls_first=True)
+
+        return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
+
     def before_field_options_update(
         self, field, to_create=None, to_update=None, to_delete=None
     ):
@@ -7298,6 +7333,41 @@ class MultipleCollaboratorsFieldType(
             StringAgg(
                 self.get_sortable_column_expression(field, field_name, sort_type),
                 "",
+                output_field=models.TextField(),
+            ),
+            Value(""),
+            output_field=models.TextField(),
+        )
+        annotation = {sort_column_name: query}
+
+        order = collate_expression(F(sort_column_name))
+
+        if order_direction == "DESC":
+            order = order.desc(nulls_first=True)
+        else:
+            order = order.asc(nulls_first=True)
+
+        return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
+
+    def get_group_by_sort_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
+        """
+        Group-by treats a cell as a set of collaborators: ``{A, B}`` and
+        ``{B, A}`` are the same group. The aggregated sort key must therefore
+        be deterministic regardless of insertion order, so we order the
+        ``StringAgg`` by name (and break ties with the through-table id).
+        """
+
+        sort_column_name = f"{field_name}_group_by_agg_sort"
+        sortable_column_expression = self.get_sortable_column_expression(
+            field, field_name, sort_type
+        )
+        query = Coalesce(
+            StringAgg(
+                sortable_column_expression,
+                "",
+                order_by=(sortable_column_expression, f"{field_name}__id"),
                 output_field=models.TextField(),
             ),
             Value(""),

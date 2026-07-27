@@ -2108,13 +2108,22 @@ class ViewHandler:
             field_name = model._field_objects[view_sort_or_group_by.field_id]["name"]
             field_type = model._field_objects[view_sort_or_group_by.field_id]["type"]
 
-            field_annotated_order_by = field_type.get_order(
-                field,
-                field_name,
-                view_sort_or_group_by.order,
-                view_sort_or_group_by.type,
-                table_model=queryset.model,
-            )
+            if isinstance(view_sort_or_group_by, ViewGroupBy):
+                field_annotated_order_by = field_type.get_group_by_sort_order(
+                    field,
+                    field_name,
+                    view_sort_or_group_by.order,
+                    view_sort_or_group_by.type,
+                    table_model=queryset.model,
+                )
+            else:
+                field_annotated_order_by = field_type.get_order(
+                    field,
+                    field_name,
+                    view_sort_or_group_by.order,
+                    view_sort_or_group_by.type,
+                    table_model=queryset.model,
+                )
             field_annotation = field_annotated_order_by.annotation
             field_order_bys = field_annotated_order_by.order_bys
 

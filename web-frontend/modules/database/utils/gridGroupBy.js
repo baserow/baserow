@@ -3,7 +3,7 @@ import {
   visibleGroupDepthPageInViewport,
 } from '@baserow/modules/database/utils/gridGroupByRender'
 import { computeRowInsertPosition } from '@baserow/modules/database/utils/row'
-import { getRowSortFunction } from '@baserow/modules/database/utils/view'
+import { getGroupByRowSortFunction } from '@baserow/modules/database/utils/view'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 /**
@@ -389,7 +389,11 @@ function makeGroupByNodeSiblingComparator(fields, groupBys, registry, depth) {
     return null
   }
 
-  const sortFunction = getRowSortFunction(registry, [], fields, depthGroupBys)
+  const sortFunction = getGroupByRowSortFunction(
+    registry,
+    fields,
+    depthGroupBys
+  )
   return (leftNode, rightNode) =>
     sortFunction(
       groupByNodeToSortRow(leftNode, fields, registry),
