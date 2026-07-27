@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Button fields can now be configured with an ordered list of row actions.",
+    "issue_origin": "github",
+    "issue_number": 1722,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-27"
+}
