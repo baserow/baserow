@@ -8112,8 +8112,6 @@ class ButtonFieldType(ReadOnlyFieldType):
     def export_serialized(
         self, field: ButtonField, include_allowed_fields: bool = True
     ) -> Dict[str, Any]:
-        # Imported locally: the workflow actions package imports `ButtonField`
-        # from `fields/models.py`, so a module level import would be circular.
         from baserow.contrib.database.workflow_actions.handler import (
             DatabaseWorkflowActionHandler,
         )
@@ -8137,6 +8135,9 @@ class ButtonFieldType(ReadOnlyFieldType):
         # on the instance here and imported in `after_import_serialized`, which
         # runs once every table and field of the database exists. The copy keeps
         # the caller's dict intact so it stays reusable for another import.
+        # This relies on the invariant that the `after_import_serialized` loop
+        # iterates over the very field instances `import_serialized` returned,
+        # since the stash lives only on those in-memory objects.
         serialized_values = {**serialized_values}
         serialized_actions = serialized_values.pop("workflow_actions", [])
         field = super().import_serialized(

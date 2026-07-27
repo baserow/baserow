@@ -158,6 +158,16 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         values["service"] = service
         return super().prepare_values(values, user, instance)
 
+    # TODO: nothing consumes this generator yet, so service formulas are not
+    # remapped on import. Wiring it needs an `import_serialized` override on
+    # this class that calls `self.import_formulas(created_instance, id_mapping,
+    # import_formula)` with a database-side `import_formula`, the way
+    # `BuilderWorkflowActionType.import_serialized` does. That `import_formula`
+    # does not exist yet: the database module registers no data providers, so a
+    # stored formula cannot reference anything importable and there is nothing
+    # to remap against. Wire both together when dispatch data providers land.
+    # FK-shaped references are unaffected; `LocalBaserowUpsertRowServiceType`
+    # already remaps `field_mappings[].field_id` in `deserialize_property`.
     def formula_generator(
         self, workflow_action: WorkflowAction
     ) -> Generator[str | Instance, str, None]:
