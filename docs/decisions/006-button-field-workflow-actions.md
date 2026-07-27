@@ -294,6 +294,16 @@ as today, and their buttons render disabled with an error indicator pointing at 
 integration to reconfigure, reusing the error state the builder already shows for
 misconfigured actions rather than inventing a database-specific one.
 
+**Constraint discovered in implementation.** Actions are serialized from
+`FieldType.export_serialized`, which receives only the field: no `files_zip`, no
+`storage`, and no `import_export_config`. The action export path therefore cannot carry
+files, and cannot apply `exclude_sensitive_data`. This is harmless in v1, since Local
+Baserow services have neither files nor credentials. It does mean the commitment above
+that "exports strip their credentials as today" cannot be honoured through this path
+once external integrations arrive; widening `FieldType.export_serialized` to take the
+same arguments the builder's export path already receives is a prerequisite for that
+work.
+
 ### 7. What kind of field is a button, and who may click it
 
 A button is not a read-only field in the current sense (a server-computed column). It

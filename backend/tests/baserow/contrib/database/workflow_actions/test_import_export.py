@@ -2,6 +2,7 @@ from io import BytesIO
 
 import pytest
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
@@ -55,6 +56,33 @@ def test_duplicating_the_table_remaps_the_action_target(data_fixture):
 
     assert action.specific.service.specific.table_id == duplicated_table.id
     assert action.specific.service.specific.table_id != table.id
+
+
+@pytest.mark.django_db
+@pytest.mark.xfail(
+    reason="ADR 006 section 8 promises actions and services are duplicated with the "
+    "field, but `FieldHandler.duplicate_field` passes the exported values through "
+    "`create_field`, where `extract_allowed` drops `workflow_actions`. Fixing it "
+    "needs a per-type duplication hook on `FieldType`, which is a separate design "
+    "decision. Delete this marker once that hook exists.",
+    strict=True,
+)
+def test_duplicating_a_single_field_copies_its_actions(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table
+    )
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field, service=service
+    )
+
+    duplicated_field, _ = FieldHandler().duplicate_field(user, button_field)
+
+    actions = list(DatabaseWorkflowAction.objects.filter(field=duplicated_field))
+    assert [a.specific.get_type().type for a in actions] == ["create_row"]
+    assert actions[0].specific.service.specific.table_id == table.id
 
 
 @pytest.mark.django_db(transaction=True)
