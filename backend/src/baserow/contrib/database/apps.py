@@ -807,6 +807,9 @@ class DatabaseConfig(AppConfig):
             DatabaseViewObjectScopeType,
             DatabaseViewSortObjectScopeType,
         )
+        from .workflow_actions.object_scopes import (
+            DatabaseWorkflowActionObjectScopeType,
+        )
 
         object_scope_type_registry.register(DatabaseObjectScopeType())
         object_scope_type_registry.register(DatabaseTableObjectScopeType())
@@ -818,6 +821,7 @@ class DatabaseConfig(AppConfig):
         object_scope_type_registry.register(DatabaseViewFilterObjectScopeType())
         object_scope_type_registry.register(DatabaseViewFilterGroupObjectScopeType())
         object_scope_type_registry.register(TokenObjectScopeType())
+        object_scope_type_registry.register(DatabaseWorkflowActionObjectScopeType())
 
         from baserow.contrib.database.views.operations import (
             CanReceiveNotificationOnSubmitFormViewOperationType,
