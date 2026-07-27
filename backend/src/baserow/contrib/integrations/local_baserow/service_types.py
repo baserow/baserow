@@ -118,6 +118,7 @@ from baserow.core.formula.validator import (
     ensure_object,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Workspace
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -153,6 +154,34 @@ class LocalBaserowServiceType(ServiceType):
     """
 
     integration_type = LocalBaserowIntegrationType.type
+
+    def get_acting_user(
+        self, service: ServiceSubClass, dispatch_context: DispatchContext
+    ) -> AbstractUser:
+        """
+        Returns the user whose permissions and identity this dispatch runs under.
+
+        When the service has an integration, that integration's `authorized_user`
+        acts, which is how the builder, automation and dashboard have always
+        behaved. When it has none, the dispatch context's actor acts instead. This
+        is the only place a Local Baserow service type may resolve its user.
+
+        :param service: The service being dispatched.
+        :param dispatch_context: The context this dispatch runs in.
+        :raises ServiceImproperlyConfiguredDispatchException: When neither an
+            integration nor an actor is available.
+        :return: The acting user.
+        """
+
+        if service.integration_id:
+            return service.integration.specific.authorized_user
+
+        if dispatch_context.actor is None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "No integration selected"
+            )
+
+        return dispatch_context.actor
 
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]
@@ -216,6 +245,23 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
     class SerializedDict(ServiceDict):
         table_id: int
+
+    def get_permission_workspace(self, service: ServiceSubClass) -> Workspace:
+        """
+        Returns the workspace that permission checks for this service run against.
+
+        With an integration this is the integration's application workspace, which
+        is what every existing consumer uses. Without one there is no application,
+        so the target table's workspace is used instead.
+
+        :param service: The service being dispatched.
+        :return: The workspace to check permissions in.
+        """
+
+        if service.integration_id:
+            return service.integration.specific.application.workspace
+
+        return service.table.database.workspace
 
     def _convert_allowed_field_names(self, service, allowed_fields):
         """
