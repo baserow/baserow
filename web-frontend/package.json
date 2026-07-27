@@ -129,7 +129,7 @@
   "devDependencies": {
     "@nuxt/eslint": "^1.15.2",
     "@nuxt/test-utils": "^4.0.2",
-    "@nuxtjs/storybook": "9.0.1",
+    "@nuxtjs/storybook": "9.1.0-29411911.f34c865",
     "@storybook/addon-designs": "^11.1.0",
     "@storybook/addon-docs": "10.0.2",
     "@storybook/addon-links": "10.0.2",

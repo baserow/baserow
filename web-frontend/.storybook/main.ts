@@ -14,8 +14,9 @@ const config: StorybookConfig = {
   framework: {
     name: '@storybook-vue/nuxt',
     options: {
-      // The Nuxt bridge exposes virtual Vue modules that docgen cannot read.
-      docgen: false,
+      // vue-docgen-api tries to read Nuxt's virtual page modules from disk.
+      // vue-component-meta skips those virtual modules and still documents real components.
+      docgen: 'vue-component-meta',
     },
   },
   docs: {
