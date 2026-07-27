@@ -148,6 +148,12 @@ from baserow.contrib.database.views.models import (
     FormView,
     View,
 )
+from baserow.contrib.database.workflow_actions.handler import (
+    DatabaseWorkflowActionHandler,
+)
+from baserow.contrib.database.workflow_actions.registries import (
+    database_workflow_action_type_registry,
+)
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
     collate_expression,
@@ -8112,10 +8118,6 @@ class ButtonFieldType(ReadOnlyFieldType):
     def export_serialized(
         self, field: ButtonField, include_allowed_fields: bool = True
     ) -> Dict[str, Any]:
-        from baserow.contrib.database.workflow_actions.handler import (
-            DatabaseWorkflowActionHandler,
-        )
-
         serialized = super().export_serialized(field, include_allowed_fields)
         serialized["workflow_actions"] = [
             action.get_type().export_serialized(action)
@@ -8153,10 +8155,6 @@ class ButtonFieldType(ReadOnlyFieldType):
     def after_import_serialized(
         self, field: ButtonField, field_cache: "FieldCache", id_mapping: Dict[str, Any]
     ):
-        from baserow.contrib.database.workflow_actions.registries import (
-            database_workflow_action_type_registry,
-        )
-
         if field.url_formula:
             try:
                 # Assign the whole object, not just the formula string: saving a
