@@ -19,7 +19,7 @@
       <GenerateAIValuesFormFooter
         :job="job"
         :loading="loading"
-        :disabled="!isValid"
+        :disabled="!isValid || !!field.error"
         :cancel-loading="cancelLoading"
         :field="field"
         @cancel-job="cancelJob(job.id)"
@@ -62,6 +62,7 @@ import GenerateAIValuesFormFooter from '@baserow_premium/components/field/Genera
 import GenerateAIValuesJobListItem from '@baserow_premium/components/field/GenerateAIValuesJobListItem'
 import job from '@baserow/modules/core/mixins/job'
 import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
+import { setAIFieldErrorFromGenerationError } from '@baserow_premium/utils/aiField'
 
 export default {
   name: 'GenerateAIValuesModal',
@@ -186,7 +187,7 @@ export default {
       }
     },
     async submitted(values) {
-      if (!this.$refs.form.isFormValid()) {
+      if (!this.$refs.form.isFormValid() || this.field.error) {
         return
       }
 
@@ -203,6 +204,7 @@ export default {
         )
         await this.createAndMonitorJob(job)
       } catch (error) {
+        setAIFieldErrorFromGenerationError(this.$store, this.field, error)
         this.loading = false
         this.handleError(error)
       }

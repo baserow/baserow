@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import os
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
 
 from loguru import logger
 
+from baserow.core.ai_provider.constants import AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY
+from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
@@ -16,6 +18,25 @@ if TYPE_CHECKING:
     from pydantic_ai.messages import UserContent
 
     from baserow_premium.fields.ai_file import AIFile
+
+
+def get_known_model_names(model_name_type: Any) -> list[str]:
+    """Extract the known string literals from a Pydantic AI model-name type."""
+
+    names: list[str] = []
+
+    def collect(type_value: Any) -> None:
+        type_value = getattr(type_value, "__value__", type_value)
+        if get_origin(type_value) is Literal:
+            names.extend(
+                value for value in get_args(type_value) if isinstance(value, str)
+            )
+            return
+        for type_arg in get_args(type_value):
+            collect(type_arg)
+
+    collect(model_name_type)
+    return list(dict.fromkeys(names))
 
 
 class FileHandler:
@@ -275,6 +296,17 @@ class GenerativeAIModelType(Instance):
 
         return self.file_handler is not None
 
+    def get_known_models(self) -> list[str] | None:
+        """
+        Return model identifiers known by the installed Pydantic AI client.
+
+        ``None`` means that Pydantic AI has no static catalog for this provider.
+        Known identifiers are suggestions only and can still be unavailable to the
+        configured provider account.
+        """
+
+        return None
+
     def prepare_files(
         self,
         files: list["AIFile"],
@@ -348,6 +380,65 @@ class GenerativeAIModelType(Instance):
         settings = workspace.generative_ai_models_settings or {}
         type_settings = settings.get(self.type, {})
         return type_settings.get(key, None)
+
+    def get_configured_setting(
+        self,
+        workspace: Optional[Workspace],
+        key: str,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> tuple[bool, Any]:
+        """
+        Resolve a non-environment setting and report whether it is authoritative.
+
+        Legacy override and workspace values retain their current truthy fallback
+        semantics, except that model lists are always limited to models enabled by
+        the instance provider while the feature is enabled. Once an instance database
+        provider exists, its value is authoritative even when empty, preventing
+        disabled or cleared configuration from silently falling through to
+        environment variables.
+        """
+
+        legacy_value = self.get_workspace_setting(workspace, key, settings_override)
+
+        from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
+
+        if not feature_flag_is_enabled(FF_AI_PROVIDERS):
+            return (True, legacy_value) if legacy_value else (False, None)
+
+        if key != "models" and legacy_value:
+            return True, legacy_value
+
+        from baserow.core.ai_provider.models import AIProviderConfig
+
+        providers_by_type = local_cache.get(
+            AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY,
+            lambda: {
+                provider.provider_type: provider
+                for provider in AIProviderConfig.objects.prefetch_related("models")
+            },
+        )
+        provider = providers_by_type.get(self.type)
+        if provider is None:
+            return (True, legacy_value) if legacy_value else (False, None)
+
+        if not provider.is_active:
+            return True, [] if key == "models" else None
+
+        if key == "models":
+            enabled_models = [
+                model.model_identifier
+                for model in provider.models.all()
+                if model.is_enabled
+            ]
+            if legacy_value:
+                enabled_model_set = set(enabled_models)
+                enabled_models = [
+                    model for model in legacy_value if model in enabled_model_set
+                ]
+            return True, enabled_models
+        if key == "api_key":
+            return True, provider.api_key
+        return True, provider.extra_settings.get(key)
 
     def get_api_key(
         self,
@@ -533,6 +624,7 @@ class GenerativeAIModelType(Instance):
         settings_override: Optional[dict[str, Any]] = None,
         output_type: Any = None,
         content: Optional[list[UserContent]] = None,
+        model_settings_override: Optional[dict[str, Any]] = None,
     ) -> Any:
         """
         Prompt the AI model and return the result. Handles model retrieval,
@@ -559,6 +651,8 @@ class GenerativeAIModelType(Instance):
               PromptedOutput. Returns a validated instance.
         :param content: A list of pydantic-ai content objects (BinaryContent, etc.)
             to include as multi-modal input alongside the text prompt.
+        :param model_settings_override: Optional request settings merged over the
+            provider defaults.
         :return: The model's response — a string, a matched choice, or a
             validated output_type instance.
         """
@@ -567,7 +661,10 @@ class GenerativeAIModelType(Instance):
 
         try:
             ai_model = self.get_ai_model(model, workspace, settings_override)
-            model_settings = self._prepare_model_settings(temperature)
+            model_settings = {
+                **self._prepare_model_settings(temperature),
+                **(model_settings_override or {}),
+            }
             user_prompt = self._build_user_prompt(prompt, output_type, content)
             agent = self._build_agent(output_type)
 

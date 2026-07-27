@@ -207,6 +207,7 @@ class CoreConfig(AppConfig):
         subject_type_registry.register(AnonymousUserSubjectType())
         subject_type_registry.register(UserSourceUserSubjectType())
 
+        from .ai_provider.operations import ManageAIProvidersOperationType
         from .notifications.operations import (
             ClearNotificationsOperationType,
             ListNotificationsOperationType,
@@ -275,6 +276,7 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(DuplicateApplicationOperationType())
         operation_type_registry.register(DeleteApplicationOperationType())
         operation_type_registry.register(UpdateSettingsOperationType())
+        operation_type_registry.register(ManageAIProvidersOperationType())
         operation_type_registry.register(CreateSnapshotApplicationOperationType())
         operation_type_registry.register(DeleteApplicationSnapshotOperationType())
         operation_type_registry.register(ListSnapshotsApplicationOperationType())

@@ -8,6 +8,25 @@ import { generateHash } from '@baserow/modules/core/utils/hashing'
  * cases some other events like refreshing all the data needs to be triggered.
  */
 export const registerRealtimeEvents = (realtime) => {
+  realtime.registerEvent('ai_provider_updated', async ({ store }, data) => {
+    if (data.workspace_models_changed && store.getters['field/isLoaded']) {
+      await Promise.allSettled([
+        store.dispatch('field/refreshLoadedFieldErrors'),
+      ])
+    }
+  })
+
+  realtime.registerEvent('group_updated', async ({ store }, data) => {
+    if (
+      data.updated_fields?.includes('generative_ai_models_settings') &&
+      store.getters['field/isLoaded']
+    ) {
+      await Promise.allSettled([
+        store.dispatch('field/refreshLoadedFieldErrors'),
+      ])
+    }
+  })
+
   realtime.registerEvent('table_created', ({ store }, data) => {
     const database = store.getters['application/get'](data.table.database_id)
     if (database !== undefined) {

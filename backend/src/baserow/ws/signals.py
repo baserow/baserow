@@ -15,6 +15,7 @@ from baserow.api.workspaces.serializers import (
     WorkspaceUserWorkspaceSerializer,
 )
 from baserow.core import signals
+from baserow.core.ai_provider.signals import ai_provider_changed
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs import signals as jobs_signals
@@ -35,6 +36,20 @@ from .tasks import (
     broadcast_to_users,
     force_disconnect_users,
 )
+
+
+@receiver(ai_provider_changed)
+def ai_provider_updated(sender, workspace_models_changed, **kwargs):
+    transaction.on_commit(
+        lambda: broadcast_to_users.delay(
+            [],
+            {
+                "type": "ai_provider_updated",
+                "workspace_models_changed": workspace_models_changed,
+            },
+            send_to_all_users=True,
+        )
+    )
 
 
 @receiver(signals.user_updated)
@@ -104,7 +119,13 @@ def workspace_created(sender, workspace, user, **kwargs):
 
 
 @receiver(signals.workspace_updated)
-def workspace_updated(sender, workspace, user, **kwargs):
+def workspace_updated(sender, workspace, user, updated_fields=None, **kwargs):
+    updated_fields = updated_fields or []
+    excluded_web_socket_id = (
+        None
+        if "generative_ai_models_settings" in updated_fields
+        else getattr(user, "web_socket_id", None)
+    )
     transaction.on_commit(
         lambda: broadcast_to_group.delay(
             workspace.id,
@@ -112,8 +133,9 @@ def workspace_updated(sender, workspace, user, **kwargs):
                 "type": "group_updated",
                 "workspace_id": workspace.id,
                 "workspace": WorkspaceSerializer(workspace).data,
+                "updated_fields": updated_fields,
             },
-            getattr(user, "web_socket_id", None),
+            excluded_web_socket_id,
         )
     )
 

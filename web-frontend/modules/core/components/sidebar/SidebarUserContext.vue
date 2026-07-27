@@ -172,6 +172,7 @@ export default {
     },
     sortedAdminTypes() {
       return Object.values(this.adminTypes)
+        .filter((adminType) => adminType.isVisible())
         .slice()
         .sort((a, b) => a.getOrder() - b.getOrder())
     },

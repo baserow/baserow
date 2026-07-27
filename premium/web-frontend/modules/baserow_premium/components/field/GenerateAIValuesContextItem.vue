@@ -1,10 +1,10 @@
 <template>
   <li v-if="isAIField" class="context__menu-item">
     <a
-      v-tooltip="promptBroken ? $t('gridView.promptBroken') : null"
+      v-tooltip="fieldError"
       class="context__menu-item-link"
       :class="{
-        disabled: !modelAvailable || promptBroken,
+        disabled: !modelAvailable || fieldHasError,
       }"
       @click.prevent.stop="openModal()"
     >
@@ -89,16 +89,18 @@ export default {
     hasPremium() {
       return this.$hasFeature(PremiumFeatures.PREMIUM, this.workspace.id)
     },
-    // Indicates if the field's prompt is broken and can't be used to generate values.
-    promptBroken() {
-      return !!this.field.error
+    fieldError() {
+      return this.field.error || null
+    },
+    fieldHasError() {
+      return !!this.fieldError
     },
   },
   methods: {
     openModal() {
       if (!this.hasPremium) {
         this.$refs.paidFeaturesModal.show()
-      } else if (this.modelAvailable && !this.promptBroken) {
+      } else if (this.modelAvailable && !this.fieldHasError) {
         this.$emit('hide-context')
         this.$refs.generateAIValuesModal.show()
       }

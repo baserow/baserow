@@ -11,6 +11,7 @@ from loguru import logger
 from rest_framework import serializers
 
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
+from baserow.api.generative_ai.errors import ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
 from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
@@ -60,6 +61,7 @@ class GenerateAIValuesJobType(JobType):
         ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
         FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
         AIFieldPromptInvalidError: ERROR_AI_FIELD_PROMPT_INVALID,
+        ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
     }
     serializer_field_names = [
         "field_id",

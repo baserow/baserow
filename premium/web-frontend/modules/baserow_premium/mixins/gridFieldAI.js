@@ -1,6 +1,7 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 import FieldService from '@baserow_premium/services/field'
+import { setAIFieldErrorFromGenerationError } from '@baserow_premium/utils/aiField'
 
 export default {
   computed: {
@@ -12,9 +13,11 @@ export default {
     modelAvailable() {
       return this.isModelAvailable(this.$parent, this.$props)
     },
-    // Indicates if the field's prompt is broken and can't be used to generate values.
-    promptBroken() {
-      return !!this.field.error
+    fieldError() {
+      return this.field.error || null
+    },
+    fieldHasError() {
+      return !!this.fieldError
     },
     isDeactivated() {
       return this.$registry
@@ -64,7 +67,7 @@ export default {
       }
 
       // Guard every caller (button, Enter key) and not just the disabled button.
-      if (!this.modelAvailable || this.generating || this.promptBroken) {
+      if (!this.modelAvailable || this.generating || this.fieldHasError) {
         return
       }
 
@@ -78,6 +81,7 @@ export default {
           rowId,
         ])
       } catch (error) {
+        setAIFieldErrorFromGenerationError(this.$store, this.field, error)
         notifyIf(error, 'field')
         this.$store.dispatch(
           this.storePrefix + 'view/grid/setPendingFieldOperations',

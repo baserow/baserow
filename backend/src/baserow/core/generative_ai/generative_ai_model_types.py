@@ -7,7 +7,7 @@ from django.conf import settings
 
 from baserow.core.models import Workspace
 
-from .registries import FileHandler, GenerativeAIModelType
+from .registries import FileHandler, GenerativeAIModelType, get_known_model_names
 
 if TYPE_CHECKING:
     from baserow_premium.fields.ai_file import AIFile
@@ -191,30 +191,30 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Optional[str]:
-        return (
-            self.get_workspace_setting(workspace, "api_key", settings_override)
-            or settings.BASEROW_OPENAI_API_KEY
+        configured, value = self.get_configured_setting(
+            workspace, "api_key", settings_override
         )
+        return value if configured else settings.BASEROW_OPENAI_API_KEY
 
     def get_enabled_models(
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> list[str]:
-        workspace_models = self.get_workspace_setting(
+        configured, value = self.get_configured_setting(
             workspace, "models", settings_override
         )
-        return workspace_models or settings.BASEROW_OPENAI_MODELS
+        return value if configured else settings.BASEROW_OPENAI_MODELS
 
     def get_organization(
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Optional[str]:
-        return (
-            self.get_workspace_setting(workspace, "organization", settings_override)
-            or settings.BASEROW_OPENAI_ORGANIZATION
+        configured, value = self.get_configured_setting(
+            workspace, "organization", settings_override
         )
+        return value if configured else settings.BASEROW_OPENAI_ORGANIZATION
 
     def get_base_url(
         self,
@@ -252,6 +252,11 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
 class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
     type = "openai"
 
+    def get_known_models(self) -> list[str]:
+        from pydantic_ai.models.openai import OpenAIModelName
+
+        return get_known_model_names(OpenAIModelName)
+
     @cached_property
     def file_handler(self) -> OpenAIFileHandler:
         return OpenAIFileHandler(self)
@@ -266,10 +271,10 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Optional[str]:
-        return (
-            self.get_workspace_setting(workspace, "base_url", settings_override)
-            or settings.BASEROW_OPENAI_BASE_URL
+        configured, value = self.get_configured_setting(
+            workspace, "base_url", settings_override
         )
+        return value if configured else settings.BASEROW_OPENAI_BASE_URL
 
 
 class AnthropicGenerativeAIModelType(GenerativeAIModelType):
@@ -286,20 +291,20 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Optional[str]:
-        return (
-            self.get_workspace_setting(workspace, "api_key", settings_override)
-            or settings.BASEROW_ANTHROPIC_API_KEY
+        configured, value = self.get_configured_setting(
+            workspace, "api_key", settings_override
         )
+        return value if configured else settings.BASEROW_ANTHROPIC_API_KEY
 
     def get_enabled_models(
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> list[str]:
-        workspace_models = self.get_workspace_setting(
+        configured, value = self.get_configured_setting(
             workspace, "models", settings_override
         )
-        return workspace_models or settings.BASEROW_ANTHROPIC_MODELS
+        return value if configured else settings.BASEROW_ANTHROPIC_MODELS
 
     def get_ai_model(
         self,
@@ -312,6 +317,11 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
 
         api_key = self.get_api_key(workspace, settings_override)
         return AnthropicModel(model_name, provider=AnthropicProvider(api_key=api_key))
+
+    def get_known_models(self) -> list[str]:
+        from pydantic_ai.models.anthropic import AnthropicModelName
+
+        return get_known_model_names(AnthropicModelName)
 
     def _prepare_model_settings(
         self, temperature: Optional[float] = None
@@ -342,20 +352,20 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Optional[str]:
-        return (
-            self.get_workspace_setting(workspace, "api_key", settings_override)
-            or settings.BASEROW_MISTRAL_API_KEY
+        configured, value = self.get_configured_setting(
+            workspace, "api_key", settings_override
         )
+        return value if configured else settings.BASEROW_MISTRAL_API_KEY
 
     def get_enabled_models(
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> list[str]:
-        workspace_models = self.get_workspace_setting(
+        configured, value = self.get_configured_setting(
             workspace, "models", settings_override
         )
-        return workspace_models or settings.BASEROW_MISTRAL_MODELS
+        return value if configured else settings.BASEROW_MISTRAL_MODELS
 
     def get_ai_model(
         self,
@@ -368,6 +378,11 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
 
         api_key = self.get_api_key(workspace, settings_override)
         return MistralModel(model_name, provider=MistralProvider(api_key=api_key))
+
+    def get_known_models(self) -> list[str]:
+        from pydantic_ai.models.mistral import MistralModelName
+
+        return get_known_model_names(MistralModelName)
 
     def _prepare_model_settings(
         self, temperature: Optional[float] = None
@@ -395,10 +410,10 @@ class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Optional[str]:
-        return (
-            self.get_workspace_setting(workspace, "host", settings_override)
-            or settings.BASEROW_OLLAMA_HOST
+        configured, value = self.get_configured_setting(
+            workspace, "host", settings_override
         )
+        return value if configured else settings.BASEROW_OLLAMA_HOST
 
     def get_api_key(
         self,
@@ -427,10 +442,10 @@ class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> list[str]:
-        workspace_models = self.get_workspace_setting(
+        configured, value = self.get_configured_setting(
             workspace, "models", settings_override
         )
-        return workspace_models or settings.BASEROW_OLLAMA_MODELS
+        return value if configured else settings.BASEROW_OLLAMA_MODELS
 
     def is_enabled(
         self,
@@ -478,30 +493,30 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Optional[str]:
-        return (
-            self.get_workspace_setting(workspace, "api_key", settings_override)
-            or settings.BASEROW_OPENROUTER_API_KEY
+        configured, value = self.get_configured_setting(
+            workspace, "api_key", settings_override
         )
+        return value if configured else settings.BASEROW_OPENROUTER_API_KEY
 
     def get_enabled_models(
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> list[str]:
-        workspace_models = self.get_workspace_setting(
+        configured, value = self.get_configured_setting(
             workspace, "models", settings_override
         )
-        return workspace_models or settings.BASEROW_OPENROUTER_MODELS
+        return value if configured else settings.BASEROW_OPENROUTER_MODELS
 
     def get_organization(
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Optional[str]:
-        return (
-            self.get_workspace_setting(workspace, "organization", settings_override)
-            or settings.BASEROW_OPENROUTER_ORGANIZATION
+        configured, value = self.get_configured_setting(
+            workspace, "organization", settings_override
         )
+        return value if configured else settings.BASEROW_OPENROUTER_ORGANIZATION
 
     def get_base_url(
         self,

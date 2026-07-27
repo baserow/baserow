@@ -3,6 +3,8 @@ import { useRuntimeConfig } from '#imports'
 const FF_ENABLE_ALL = '*'
 export const FF_BUTTON_FIELD = 'button-field'
 
+export const FF_AI_PROVIDERS = 'ai-providers'
+
 function getFeatureFlags(env) {
   return (env.FEATURE_FLAGS || '')
     .split(',')
