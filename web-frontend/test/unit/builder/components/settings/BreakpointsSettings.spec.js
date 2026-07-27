@@ -26,6 +26,10 @@ describe('BreakpointsSettings', () => {
             props: ['disabled'],
             template: '<button :disabled="disabled"><slot /></button>',
           },
+          Alert: {
+            template:
+              '<div class="alert"><slot name="title" /><slot /></div>',
+          },
           Error: true,
           FormGroup: { template: '<div><slot /></div>' },
         },
@@ -85,6 +89,20 @@ describe('BreakpointsSettings', () => {
       application: builder,
       values: { breakpoints: { mobile: 700, tablet: 1100, laptop: 1280 } },
     })
+  })
+
+  test('confirms when the breakpoint values have been saved', async () => {
+    await wrapper.vm.updateBreakpoints({
+      breakpoints: { mobile: 700, tablet: 1100, laptop: 1280 },
+    })
+
+    expect(wrapper.vm.success).toBe(true)
+    expect(wrapper.find('.alert').text()).toContain(
+      'breakpointSettings.updatedTitle'
+    )
+    expect(wrapper.find('.alert').text()).toContain(
+      'breakpointSettings.updatedDescription'
+    )
   })
 
   test('keeps the entered values after a server error', async () => {

@@ -58,6 +58,8 @@
     "tabletLabel": "Tablet breakpoint",
     "desktopLabel": "Desktop breakpoint",
     "desktopDescription": "Above {breakpoint}px",
+    "updatedTitle": "Breakpoints saved",
+    "updatedDescription": "Your new breakpoints are active in the editor. Publish your app to apply them to visitors.",
     "mobileMustBeLessThanTablet": "The mobile breakpoint must be less than the tablet breakpoint.",
     "tabletMustBeGreaterThanMobile": "The tablet breakpoint must be greater than the mobile breakpoint."
   },

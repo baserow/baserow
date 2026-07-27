@@ -2,6 +2,10 @@
   <div>
     <h2 class="box__title">{{ $t('breakpointSettings.titleOverview') }}</h2>
     <Error :error="error" />
+    <Alert v-if="success" type="success">
+      <template #title>{{ $t('breakpointSettings.updatedTitle') }}</template>
+      <p>{{ $t('breakpointSettings.updatedDescription') }}</p>
+    </Alert>
     <BuilderBreakpointsSettingsForm
       ref="breakpointsForm"
       :default-values="breakpoints"
@@ -40,6 +44,7 @@ export default {
     return {
       actionInProgress: false,
       invalidForm: true,
+      success: false,
     }
   },
   computed: {
@@ -60,6 +65,7 @@ export default {
   },
   methods: {
     onValuesChanged() {
+      this.success = false
       this.invalidForm = !this.$refs.breakpointsForm?.isFormValid()
     },
     submit() {
@@ -75,12 +81,14 @@ export default {
       }
 
       this.hideError()
+      this.success = false
       this.actionInProgress = true
       try {
         await this.$store.dispatch('application/update', {
           application: this.builder,
           values,
         })
+        this.success = true
       } catch (error) {
         this.handleError(error)
       } finally {
