@@ -33,6 +33,12 @@ from .webhooks.models import (
     TableWebhookEvent,
     TableWebhookHeader,
 )
+from .workflow_actions.models import (
+    CreateRowWorkflowAction,
+    DatabaseWorkflowAction,
+    DeleteRowWorkflowAction,
+    UpdateRowWorkflowAction,
+)
 
 __all__ = [
     "Database",
@@ -64,6 +70,10 @@ __all__ = [
     "TableWebhookCall",
     "FieldDependency",
     "FieldRule",
+    "DatabaseWorkflowAction",
+    "CreateRowWorkflowAction",
+    "UpdateRowWorkflowAction",
+    "DeleteRowWorkflowAction",
 ]
 
 
