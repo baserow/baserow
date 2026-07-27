@@ -168,3 +168,58 @@ def test_delete_a_missing_workflow_action(api_client, data_fixture):
 
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_order_workflow_actions(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    first = data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field
+    )
+    second = data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:order",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"workflow_action_ids": [second.id, first.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_204_NO_CONTENT
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert second.order < first.order
+
+
+@pytest.mark.django_db
+def test_order_with_an_action_from_another_field(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    other_field = data_fixture.create_button_field(table=table)
+    action = data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field
+    )
+    foreign = data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=other_field
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:order",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"workflow_action_ids": [foreign.id, action.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_NOT_IN_FIELD"

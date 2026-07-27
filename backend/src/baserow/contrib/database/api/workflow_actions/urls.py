@@ -3,6 +3,7 @@ from django.urls import re_path
 from baserow.contrib.database.api.workflow_actions.views import (
     DatabaseWorkflowActionsView,
     DatabaseWorkflowActionView,
+    OrderDatabaseWorkflowActionsView,
 )
 
 app_name = "baserow.contrib.database.api.workflow_actions"
@@ -12,6 +13,11 @@ urlpatterns = [
         r"field/(?P<field_id>[0-9]+)/workflow_actions/$",
         DatabaseWorkflowActionsView.as_view(),
         name="list",
+    ),
+    re_path(
+        r"field/(?P<field_id>[0-9]+)/workflow_actions/order/$",
+        OrderDatabaseWorkflowActionsView.as_view(),
+        name="order",
     ),
     re_path(
         r"workflow_action/(?P<workflow_action_id>[0-9]+)/$",

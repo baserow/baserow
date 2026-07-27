@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from baserow.api.decorators import (
     map_exceptions,
     require_request_data_type,
+    validate_body,
     validate_body_custom_fields,
 )
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
@@ -24,15 +25,20 @@ from baserow.api.utils import (
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
 from baserow.contrib.database.api.workflow_actions.errors import (
     ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
+    ERROR_WORKFLOW_ACTION_NOT_IN_FIELD,
 )
 from baserow.contrib.database.api.workflow_actions.serializers import (
     CreateDatabaseWorkflowActionSerializer,
     DatabaseWorkflowActionSerializer,
+    OrderWorkflowActionsSerializer,
     UpdateDatabaseWorkflowActionSerializer,
 )
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import ButtonField
+from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionNotInField,
+)
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
@@ -272,3 +278,51 @@ class DatabaseWorkflowActionView(APIView):
             workflow_action_updated, DatabaseWorkflowActionSerializer
         )
         return Response(serializer.data)
+
+
+class OrderDatabaseWorkflowActionsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="field_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The button field the workflow actions belong to.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Database table fields"],
+        operation_id="order_database_field_workflow_actions",
+        description="Apply a new order to the workflow actions of a button field.",
+        request=OrderWorkflowActionsSerializer,
+        responses={
+            204: None,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_WORKFLOW_ACTION_NOT_IN_FIELD",
+                ]
+            ),
+            404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkflowActionNotInField: ERROR_WORKFLOW_ACTION_NOT_IN_FIELD,
+        }
+    )
+    @validate_body(OrderWorkflowActionsSerializer)
+    def post(self, request, data: Dict, field_id: int):
+        field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
+
+        DatabaseWorkflowActionService().order_workflow_actions(
+            request.user, field, data["workflow_action_ids"]
+        )
+
+        return Response(status=204)

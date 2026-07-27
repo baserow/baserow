@@ -54,3 +54,10 @@ class UpdateDatabaseWorkflowActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = DatabaseWorkflowAction
         fields = ("type",)
+
+
+class OrderWorkflowActionsSerializer(serializers.Serializer):
+    workflow_action_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text="The ids of the workflow actions in the order they should be set.",
+    )
