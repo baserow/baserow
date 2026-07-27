@@ -8109,9 +8109,53 @@ class ButtonFieldType(ReadOnlyFieldType):
             via_path_to_starting_table,
         )
 
+    def export_serialized(
+        self, field: ButtonField, include_allowed_fields: bool = True
+    ) -> Dict[str, Any]:
+        # Imported locally: the workflow actions package imports `ButtonField`
+        # from `fields/models.py`, so a module level import would be circular.
+        from baserow.contrib.database.workflow_actions.handler import (
+            DatabaseWorkflowActionHandler,
+        )
+
+        serialized = super().export_serialized(field, include_allowed_fields)
+        serialized["workflow_actions"] = [
+            action.get_type().export_serialized(action)
+            for action in DatabaseWorkflowActionHandler().get_workflow_actions(field)
+        ]
+        return serialized
+
+    def import_serialized(
+        self,
+        table: "Table",
+        serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
+        id_mapping: Dict[str, Any],
+        deferred_fk_update_collector: DeferredForeignKeyUpdater,
+    ) -> ButtonField:
+        # The actions target tables that may not exist yet, so they are stashed
+        # on the instance here and imported in `after_import_serialized`, which
+        # runs once every table and field of the database exists. The copy keeps
+        # the caller's dict intact so it stays reusable for another import.
+        serialized_values = {**serialized_values}
+        serialized_actions = serialized_values.pop("workflow_actions", [])
+        field = super().import_serialized(
+            table,
+            serialized_values,
+            import_export_config,
+            id_mapping,
+            deferred_fk_update_collector,
+        )
+        field._serialized_workflow_actions = serialized_actions
+        return field
+
     def after_import_serialized(
         self, field: ButtonField, field_cache: "FieldCache", id_mapping: Dict[str, Any]
     ):
+        from baserow.contrib.database.workflow_actions.registries import (
+            database_workflow_action_type_registry,
+        )
+
         if field.url_formula:
             try:
                 # Assign the whole object, not just the formula string: saving a
@@ -8129,4 +8173,12 @@ class ButtonFieldType(ReadOnlyFieldType):
                 # Missing mapping / unparseable formula: keep as-is so the
                 # import succeeds; broken state surfaces via `error`.
                 pass
+
+        serialized_actions = getattr(field, "_serialized_workflow_actions", None) or []
+        for serialized_action in serialized_actions:
+            action_type = database_workflow_action_type_registry.get(
+                serialized_action["type"]
+            )
+            action_type.import_serialized(field, serialized_action, id_mapping)
+
         FieldDependencyHandler.rebuild_dependencies([field], field_cache)

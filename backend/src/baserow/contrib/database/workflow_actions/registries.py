@@ -91,6 +91,44 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             cache=cache,
         )
 
+    def deserialize_property(
+        self,
+        prop_name,
+        value,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        Recreates the backing service from its serialized values. The service
+        type remaps its own references, such as the target table id.
+        """
+
+        if prop_name == "service" and value:
+            return ServiceHandler().import_service(
+                # Database services are never tied to an integration, see the
+                # integration-less dispatch path added in phase 2a.
+                None,
+                value,
+                id_mapping,
+                storage=storage,
+                cache=cache,
+                files_zip=files_zip,
+                import_export_config=kwargs.get("import_export_config"),
+            )
+
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
     def prepare_values(
         self,
         values: Dict[str, Any],

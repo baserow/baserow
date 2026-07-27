@@ -80,8 +80,7 @@ def test_delete_sends_the_deleted_action_id(data_fixture):
     assert received[0]["workflow_action_id"] == action_id
 
 
-@pytest.mark.skip(reason="service deletion receiver lands in the import/export task")
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_deleting_an_action_deletes_its_service(data_fixture):
     from baserow.core.services.models import Service
 
