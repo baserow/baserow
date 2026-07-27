@@ -76,11 +76,10 @@ class DatabaseWorkflowActionsView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_USER_NOT_IN_GROUP",
                 ]
             ),
-            404: get_error_schema(
-                ["ERROR_FIELD_DOES_NOT_EXIST", "ERROR_USER_NOT_IN_GROUP"]
-            ),
+            404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
     @transaction.atomic
@@ -132,9 +131,8 @@ class DatabaseWorkflowActionsView(APIView):
                 DatabaseWorkflowActionSerializer,
                 many=True,
             ),
-            404: get_error_schema(
-                ["ERROR_FIELD_DOES_NOT_EXIST", "ERROR_USER_NOT_IN_GROUP"]
-            ),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
     @map_exceptions(
@@ -181,6 +179,7 @@ class DatabaseWorkflowActionView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_USER_NOT_IN_GROUP",
                 ]
             ),
             404: get_error_schema(["ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST"]),
@@ -230,6 +229,7 @@ class DatabaseWorkflowActionView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_USER_NOT_IN_GROUP",
                 ]
             ),
             404: get_error_schema(
