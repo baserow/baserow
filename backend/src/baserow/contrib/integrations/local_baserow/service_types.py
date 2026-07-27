@@ -2714,6 +2714,7 @@ class LocalBaserowDeleteRowServiceType(
         table = service.table
         row_ids: List[int] = resolved_values.get("row_id", [])
         model = table.get_model()
+        acting_user = self.get_acting_user(service, dispatch_context)
 
         if row_ids:
             limit = settings.INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT
@@ -2728,7 +2729,7 @@ class LocalBaserowDeleteRowServiceType(
 
             try:
                 DeleteRowsActionType.do(
-                    self.get_acting_user(service, dispatch_context),
+                    acting_user,
                     table,
                     row_ids,
                     model=model,
