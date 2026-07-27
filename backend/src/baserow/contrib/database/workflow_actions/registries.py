@@ -10,6 +10,7 @@ from baserow.api.services.serializers import (
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
 from baserow.core.db import specific_queryset
 from baserow.core.registry import (
+    CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     Instance,
     ModelRegistryMixin,
@@ -22,7 +23,7 @@ from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.workflow_actions.registries import WorkflowActionType
 
 
-class DatabaseWorkflowActionType(WorkflowActionType):
+class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     allowed_fields = ["order", "field", "field_id"]
     parent_property_name = "field"
     id_mapping_name = "database_workflow_actions"
