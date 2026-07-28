@@ -118,6 +118,22 @@ filter) will likely be wanted later. The `service` foreign key therefore goes on
 abstract `DatabaseWorkflowServiceAction`, exactly as in the builder, so frontend-only
 types can be added later without a schema migration.
 
+Phase 1's `url_formula` field attribute is scaffolding, not part of the end state. It
+exists because the button shipped before the action layer. When that layer arrives,
+opening a URL becomes a frontend-only `open_url` action like any other and the attribute
+is retired under the zero-downtime rules: no longer read in one release, dropped in the
+next. A button never carries both a `url_formula` and an action list, and nothing is
+designed around them coexisting.
+
+The builder's `open_page` is the working precedent, not just an analogy. Its `custom`
+navigation branch already stores its target as a formula object, the same shape as
+`url_formula`, so the action type has an implementation to mirror rather than invent.
+
+Because the type is frontend-only, the client executes it without calling the dispatch
+endpoint. A URL-only button therefore keeps working in public views exactly as it does
+today, while any button carrying a dispatch-backed action stays unavailable to anonymous
+users under section 7.
+
 ### 3. Execution flow and failure behavior
 
 A dispatch endpoint receives the click, builds a `DatabaseDispatchContext`, and
@@ -408,4 +424,5 @@ defer unifying execution until a real need appears.
   every integration, and plan the ownership iteration (`created_by` plus `is_shared`,
   private by default) with the builder team (section 5).
 - Frontend-only button actions are prioritized: design the shared dispatch mechanism
-  with the builder team before building one alone.
+  with the builder team before building one alone. Retiring `url_formula` per section 2
+  rides along with that work, so the two do not drift apart.
