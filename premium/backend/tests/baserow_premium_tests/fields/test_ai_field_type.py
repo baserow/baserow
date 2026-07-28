@@ -1498,6 +1498,46 @@ def test_import_serialized_ai_field_file_field_mapped_correctly(
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
+def test_import_serialized_ai_field_keeps_the_prompt_mode(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(
+        table=table, order=0, name="text", primary=True
+    )
+    # A raw prompt is natural language, so it doesn't parse as a formula. The
+    # import must keep it raw: re-saving it as `simple` would make every row's
+    # generation fail on parsing the prose.
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt={"formula": "Write a concise summary", "mode": "raw"},
+    )
+    assert ai_field.ai_prompt["mode"] == "raw"
+
+    serialized = DatabaseApplicationType().export_serialized(
+        database, ImportExportConfig(include_permission_data=False)
+    )
+    serialized = json.loads(json.dumps(serialized))
+    imported_database = DatabaseApplicationType().import_serialized(
+        premium_data_fixture.create_workspace(user=user),
+        serialized,
+        ImportExportConfig(include_permission_data=True),
+        id_mapping={},
+    )
+
+    imported_table = Table.objects.get(database=imported_database)
+    new_ai_field = AIField.objects.get(table=imported_table)
+    assert new_ai_field.ai_prompt["mode"] == "raw"
+    assert new_ai_field.ai_prompt["formula"] == "Write a concise summary"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
 def test_import_serialized_ai_field_file_field_not_correct_field_type(
     premium_data_fixture,
 ):
