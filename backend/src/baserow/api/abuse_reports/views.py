@@ -56,13 +56,14 @@ class AbuseReportsView(APIView):
         }
     )
     @validate_body(AbuseReportSerializer)
-    @transaction.atomic
     def post(self, request: Request, data) -> Response:
         if not CoreHandler().get_settings().allow_reporting_abuse:
             raise AbuseReportingDisabledException(
                 "Reporting abuse has been disabled by the instance administrator."
             )
 
+        # Deliberately not in the transaction below because it makes an external
+        # request to the captcha provider, and this endpoint is publicly reachable.
         CaptchaHandler.validate_if_required(
             "abuse_report",
             data.get("captcha_token"),
@@ -71,17 +72,18 @@ class AbuseReportsView(APIView):
 
         resource_type = abuse_report_resource_type_registry.get(data["resource_type"])
 
-        with resource_type.map_api_exceptions():
-            resource = resource_type.resolve(request, data["identifier"])
+        with transaction.atomic():
+            with resource_type.map_api_exceptions():
+                resource = resource_type.resolve(request, data["identifier"])
 
-        action_type_registry.get_by_type(SubmitAbuseReportActionType).do(
-            request.user,
-            resource_type,
-            resource,
-            data["name"],
-            data["email"],
-            data["description"],
-            ip_address=get_user_remote_ip_address_from_request(request),
-        )
+            action_type_registry.get_by_type(SubmitAbuseReportActionType).do(
+                request.user,
+                resource_type,
+                resource,
+                data["name"],
+                data["email"],
+                data["description"],
+                ip_address=get_user_remote_ip_address_from_request(request),
+            )
 
         return Response(status=HTTP_204_NO_CONTENT)
