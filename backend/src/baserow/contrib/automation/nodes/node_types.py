@@ -81,6 +81,10 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
 )
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BaserowFormulaObject,
+)
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.registry import Instance
 from baserow.core.services.exceptions import (
@@ -255,6 +259,27 @@ class CoreResponseNodeType(AutomationNodeActionNodeType):
     type = "response"
     model_class = CoreResponseActionNode
     service_type = CoreResponseServiceType.type
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """Default new response nodes to a raw 204 status-code formula."""
+
+        if instance is None:
+            service_values = values.get("service") or {}
+            values = {
+                **values,
+                "service": {
+                    "status_code": BaserowFormulaObject.create(
+                        "204", mode=BASEROW_FORMULA_MODE_RAW
+                    ),
+                    **service_values,
+                },
+            }
+        return super().prepare_values(values, user, instance)
 
 
 class AIAgentActionNodeType(AutomationNodeActionNodeType):

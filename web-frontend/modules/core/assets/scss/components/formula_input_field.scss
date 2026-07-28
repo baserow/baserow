@@ -10,6 +10,15 @@
   min-width: 0;
 }
 
+.formula-input-field__raw-input {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  > * {
+    width: 100%;
+  }
+}
+
 .formula-input-field {
   height: auto;
   font-size: 13px;

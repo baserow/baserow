@@ -17,24 +17,25 @@
           :style="{ '--formula-placeholder': `'${placeholder}'` }"
         />
       </div>
-      <slot
-        v-else
-        name="raw-input"
-        :value="value"
-        :disabled="disabled"
-        :read-only="readOnly"
-        :placeholder="placeholder"
-        :small="small"
-        :input="emitRawValue"
-      >
-        <FormInput
+      <div v-else class="formula-input-field__raw-input">
+        <slot
+          name="raw-input"
           :value="value"
-          :disabled="disabled || readOnly"
+          :disabled="disabled"
+          :read-only="readOnly"
           :placeholder="placeholder"
-          :size="small ? 'small' : 'regular'"
-          @input="emitRawValue"
-        />
-      </slot>
+          :small="small"
+          :input="emitRawValue"
+        >
+          <FormInput
+            :value="value"
+            :disabled="disabled || readOnly"
+            :placeholder="placeholder"
+            :size="small ? 'small' : 'regular'"
+            @input="emitRawValue"
+          />
+        </slot>
+      </div>
       <ButtonIcon
         v-if="allowRawValues && !readOnly"
         class="formula-input-field__raw-mode-toggle"

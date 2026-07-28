@@ -5,13 +5,23 @@
       small-label
       required
       :label="$t('coreResponseServiceForm.statusCode')"
-      :error-message="getFirstErrorMessage('status_code')"
     >
-      <FormInput
-        v-model="v$.values.status_code.$model"
-        :to-value="(value) => parseInt(value)"
-        type="number"
-      />
+      <InjectedFormulaInput v-model="values.status_code" allow-raw-values>
+        <template #raw-input="{ value, disabled, input }">
+          <Dropdown
+            :model-value="value"
+            :disabled="disabled"
+            @update:model-value="input"
+          >
+            <DropdownItem
+              v-for="statusCode in statusCodes"
+              :key="statusCode.value"
+              :name="statusCode.name"
+              :value="statusCode.value"
+            />
+          </Dropdown>
+        </template>
+      </InjectedFormulaInput>
     </FormGroup>
 
     <FormGroup
@@ -105,14 +115,7 @@ import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { useVuelidate } from '@vuelidate/core'
-import {
-  helpers,
-  integer,
-  maxLength,
-  maxValue,
-  minValue,
-  required,
-} from '@vuelidate/validators'
+import { helpers, maxLength, required } from '@vuelidate/validators'
 
 export default {
   name: 'CoreResponseServiceForm',
@@ -125,7 +128,7 @@ export default {
     return {
       allowedValues: ['status_code', 'body_type', 'body', 'headers'],
       values: {
-        status_code: 204,
+        status_code: { formula: '204', mode: 'raw' },
         body_type: 'empty',
         body: {},
         headers: [],
@@ -133,6 +136,14 @@ export default {
     }
   },
   computed: {
+    statusCodes() {
+      return [200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422, 429].map(
+        (value) => ({
+          value: value.toString(),
+          name: this.$t(`coreResponseServiceForm.statusCode${value}`),
+        })
+      )
+    },
     bodyTypes() {
       return [
         {
@@ -175,21 +186,7 @@ export default {
 
     return {
       values: {
-        status_code: {
-          minValue: helpers.withMessage(
-            this.$t('error.minValueField', { min: 100 }),
-            minValue(100)
-          ),
-          maxValue: helpers.withMessage(
-            this.$t('error.maxValueField', { max: 599 }),
-            maxValue(599)
-          ),
-          required: helpers.withMessage(
-            this.$t('error.requiredField'),
-            required
-          ),
-          integer: helpers.withMessage(this.$t('error.integerField'), integer),
-        },
+        status_code: {},
         headers: {
           $each: helpers.forEach({
             key: {

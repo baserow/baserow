@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import IntegrityError, router, transaction
 from django.db.models import Q, QuerySet
@@ -64,12 +65,16 @@ from baserow.contrib.integrations.core.models import (
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.utils import get_http_request_function
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BaserowFormulaObject,
+)
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
     ensure_email,
     ensure_file,
+    ensure_integer,
     ensure_string,
 )
 from baserow.core.registries import ImportExportConfig
@@ -102,6 +107,13 @@ if TYPE_CHECKING:
 # literal text like `foo(` (which isn't a real function) doesn't match. Function
 # names are case-insensitive, so the name is lowercased before the lookup.
 RE_FORMULA_FUNCTION = re.compile(r"\b([a-zA-Z_]+)\s*\(")
+
+
+def ensure_http_status_code(value: Any) -> int:
+    status_code = ensure_integer(value)
+    if not 100 <= status_code <= 599:
+        raise ValidationError("The value must be between 100 and 599.")
+    return status_code
 
 
 class CoreServiceType(ServiceType):
@@ -1999,12 +2011,12 @@ class CoreResponseServiceType(CoreServiceType):
     ]
 
     class SerializedDict(ServiceDict):
-        status_code: int
+        status_code: BaserowFormulaObject
         body_type: str
-        body: str
-        headers: List[Dict[str, str]]
+        body: BaserowFormulaObject
+        headers: List[Dict[str, str | BaserowFormulaObject]]
 
-    simple_formula_fields = ["body"]
+    simple_formula_fields = ["status_code", "body"]
 
     @property
     def serializer_field_overrides(self):
@@ -2013,14 +2025,16 @@ class CoreResponseServiceType(CoreServiceType):
         )
         from baserow.core.formula.serializers import FormulaSerializerField
 
+        status_code_field = FormulaSerializerField(
+            required=False,
+            help_text=CoreResponseService._meta.get_field("status_code").help_text,
+        )
+        status_code_field.default = BaserowFormulaObject.create(
+            "204", mode=BASEROW_FORMULA_MODE_RAW
+        )
+
         return {
-            "status_code": serializers.IntegerField(
-                required=False,
-                min_value=100,
-                max_value=599,
-                default=204,
-                help_text=CoreResponseService._meta.get_field("status_code").help_text,
-            ),
+            "status_code": status_code_field,
             "body_type": serializers.ChoiceField(
                 choices=RESPONSE_BODY_TYPE.choices,
                 required=False,
@@ -2137,6 +2151,15 @@ class CoreResponseServiceType(CoreServiceType):
     ) -> list[FormulaToResolve]:
         formulas = []
 
+        formulas.append(
+            FormulaToResolve(
+                "status_code",
+                service.status_code,
+                ensure_http_status_code,
+                "'status_code' property",
+            )
+        )
+
         if service.body_type != RESPONSE_BODY_TYPE.EMPTY:
             formulas.append(
                 FormulaToResolve(
@@ -2193,12 +2216,13 @@ class CoreResponseServiceType(CoreServiceType):
             if header.key
         }
         body = self._normalize_response_body(service.body_type, resolved_values)
+        status_code = resolved_values["status_code"]
 
         try:
             with transaction.atomic():
                 AutomationWorkflowHistoryResponse.objects.create(
                     workflow_history=workflow_history,
-                    status_code=service.status_code,
+                    status_code=status_code,
                     headers=headers,
                     body=body,
                     body_type=service.body_type,
@@ -2213,7 +2237,7 @@ class CoreResponseServiceType(CoreServiceType):
             "data": {
                 "response_written": created,
                 "ignored": not created,
-                "status_code": service.status_code,
+                "status_code": status_code,
                 "body_type": service.body_type,
             }
         }
@@ -2810,6 +2834,46 @@ class CoreStartWorkflowServiceType(CoreServiceType):
     class SerializedDict(ServiceDict):
         workflow_id: int
 
+    def get_schema_name(self, service: CoreStartWorkflowService) -> str:
+        return f"StartWorkflow{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreStartWorkflowService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        properties = {
+            "status_code": {
+                "type": "integer",
+                "title": "Status code",
+            },
+            "headers": {
+                "type": "object",
+                "title": "Headers",
+                "additionalProperties": {"type": "string"},
+            },
+            "body": {
+                "title": "Body",
+            },
+            "body_type": {
+                "type": "string",
+                "title": "Body type",
+                "enum": list(RESPONSE_BODY_TYPE.values),
+            },
+        }
+        if allowed_fields is not None:
+            properties = {
+                name: schema
+                for name, schema in properties.items()
+                if name in allowed_fields
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
     def deserialize_property(
         self,
         prop_name: str,
@@ -2877,6 +2941,7 @@ class CoreStartWorkflowServiceType(CoreServiceType):
                 "The workflow to start is not configured."
             )
 
+        from baserow.contrib.automation.history.handler import AutomationHistoryHandler
         from baserow.contrib.automation.workflows.constants import WorkflowState
         from baserow.contrib.automation.workflows.handler import (
             AutomationWorkflowHandler,
@@ -2900,8 +2965,30 @@ class CoreStartWorkflowServiceType(CoreServiceType):
                 "Only workflows with an immediate dispatch trigger can be started."
             )
 
-        AutomationWorkflowHandler().async_start_workflow(published_workflow)
-        return None
+        workflow_handler = AutomationWorkflowHandler()
+        history_handler = AutomationHistoryHandler()
+        should_wait = history_handler.workflow_has_response_node(published_workflow)
+        if should_wait:
+            history = workflow_handler.async_start_workflow(
+                published_workflow,
+                run_synchronously=True,
+            )
+        else:
+            history = workflow_handler.async_start_workflow(published_workflow)
+
+        if not should_wait or history is None:
+            return None
+
+        workflow_response = history_handler.get_workflow_history_response(history)
+        if workflow_response is None:
+            workflow_response = history_handler.ensure_default_response(history)
+
+        return {
+            "status_code": workflow_response.status_code,
+            "headers": workflow_response.headers,
+            "body": workflow_response.body,
+            "body_type": workflow_response.body_type,
+        }
 
     def dispatch_transform(
         self,

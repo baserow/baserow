@@ -67,7 +67,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("integrations", "0033_coregotonodeservice"),
+        ("integrations", "0034_coreresponseservice_and_more"),
     ]
 
     operations = [

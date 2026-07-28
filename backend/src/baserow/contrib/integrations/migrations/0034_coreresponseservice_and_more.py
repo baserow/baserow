@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0114_alter_workspaceinvitation_message'),
-        ('integrations', '0031_corestartworkflowservice'),
+        ('integrations', '0033_coregotonodeservice'),
     ]
 
     operations = [
@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             name='CoreResponseService',
             fields=[
                 ('service_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='core.service')),
-                ('status_code', models.PositiveSmallIntegerField(default=204, help_text='The HTTP status code to return.', validators=[django.core.validators.MinValueValidator(100, message='Value cannot be less than 100.'), django.core.validators.MaxValueValidator(599, message='Value cannot be greater than 599.')])),
+                ('status_code', baserow.core.formula.field.FormulaField(default='', help_text='The HTTP status code to return.', null=True)),
                 ('body_type', models.CharField(choices=[('empty', 'Empty'), ('json', 'JSON'), ('text', 'Text')], default='empty', help_text='The type of response body to return.', max_length=10)),
                 ('body', baserow.core.formula.field.FormulaField(blank=True, default='', help_text='The response body content.', null=True)),
             ],

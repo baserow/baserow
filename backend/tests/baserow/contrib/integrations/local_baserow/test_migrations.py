@@ -305,7 +305,7 @@ def test_0006_migrate_local_baserow_table_service_filter_formulas_to_value_is_fo
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0034_migrate_local_baserow_filter_value_mode_forwards(
+def test_0035_migrate_local_baserow_filter_value_mode_forwards(
     migrator, teardown_table_metadata
 ):
     migrate_from = [
@@ -314,7 +314,7 @@ def test_0034_migrate_local_baserow_filter_value_mode_forwards(
         ("integrations", "0033_coregotonodeservice"),
     ]
     migrate_to = [
-        ("integrations", "0034_migrate_local_baserow_filter_value_mode"),
+        ("integrations", "0035_migrate_local_baserow_filter_value_mode"),
     ]
 
     old_state = migrator.migrate(migrate_from)

@@ -118,12 +118,7 @@ class CoreResponseService(Service):
     A service for defining the response returned by an automation workflow.
     """
 
-    status_code = models.PositiveSmallIntegerField(
-        default=204,
-        validators=[
-            MinValueValidator(100, message="Value cannot be less than 100."),
-            MaxValueValidator(599, message="Value cannot be greater than 599."),
-        ],
+    status_code = FormulaField(
         help_text="The HTTP status code to return.",
     )
     body_type = models.CharField(

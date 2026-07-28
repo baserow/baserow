@@ -297,7 +297,9 @@ describe('FormulaInputField mode changes', () => {
     )
 
     const input = wrapper.find('.custom-raw-input')
+    const rawInputContainer = wrapper.find('.formula-input-field__raw-input')
     expect(input.exists()).toBe(true)
+    expect(rawInputContainer.find('.custom-raw-input').exists()).toBe(true)
     expect(input.element.value).toBe('primary')
 
     await input.setValue('secondary')

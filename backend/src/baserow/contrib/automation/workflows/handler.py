@@ -1143,12 +1143,15 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[List[Dict]] = None,
+        run_synchronously: bool = False,
     ) -> Optional[AutomationWorkflowHistory]:
         """
-        Runs the provided workflow in a celery task.
+        Starts the provided workflow.
 
         :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
+        :param run_synchronously: Whether to run the workflow in the current process
+            instead of scheduling it after the current transaction commits.
         """
 
         error = None
@@ -1235,9 +1238,12 @@ class AutomationWorkflowHandler:
             workflow_history=history,
         )
 
-        transaction.on_commit(
-            lambda: start_workflow_celery_task.delay(workflow.id, history.id)
-        )
+        if run_synchronously:
+            self.start_workflow(workflow, history).apply(throw=True)
+        else:
+            transaction.on_commit(
+                lambda: start_workflow_celery_task.delay(workflow.id, history.id)
+            )
         return history
 
     @baserow_trace(tracer)

@@ -1,3 +1,5 @@
+from django.core.exceptions import ValidationError
+
 import pytest
 
 from baserow.contrib.automation.automation_dispatch_context import (
@@ -8,6 +10,11 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.contrib.integrations.core.models import CoreResponseHeader
+from baserow.contrib.integrations.core.service_types import (
+    CoreResponseServiceType,
+    ensure_http_status_code,
+)
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
 
 
 @pytest.mark.django_db
@@ -16,7 +23,9 @@ def test_response_service_dispatch_writes_workflow_response(data_fixture):
     node = data_fixture.create_core_response_action_node(
         workflow=workflow,
         service_kwargs={
-            "status_code": 201,
+            "status_code": BaserowFormulaObject.create(
+                "201", mode=BASEROW_FORMULA_MODE_RAW
+            ),
             "body_type": RESPONSE_BODY_TYPE.TEXT,
             "body": "'Created'",
         },
@@ -44,6 +53,22 @@ def test_response_service_dispatch_writes_workflow_response(data_fixture):
     assert response.headers == {"X-Test": "yes"}
     assert response.source_node_id == node.id
     assert response.is_default is False
+
+
+@pytest.mark.parametrize("value", [99, 600, "not-a-status-code"])
+def test_ensure_http_status_code_rejects_invalid_values(value):
+    with pytest.raises(ValidationError):
+        ensure_http_status_code(value)
+
+
+def test_response_service_status_code_serializer_defaults_to_raw_204():
+    status_code_field = CoreResponseServiceType().serializer_field_overrides[
+        "status_code"
+    ]
+
+    assert status_code_field.default == BaserowFormulaObject.create(
+        "204", mode=BASEROW_FORMULA_MODE_RAW
+    )
 
 
 @pytest.mark.django_db
