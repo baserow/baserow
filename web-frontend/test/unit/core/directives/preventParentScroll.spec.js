@@ -1,6 +1,4 @@
-import preventParentScroll, {
-  WHEN_SCROLLABLE,
-} from '@baserow/modules/core/directives/preventParentScroll'
+import preventParentScroll from '@baserow/modules/core/directives/preventParentScroll'
 
 describe('preventParentScroll directive', () => {
   let parent
@@ -27,66 +25,90 @@ describe('preventParentScroll directive', () => {
   }
 
   test('stops propagation to the parent by default', () => {
-    preventParentScroll.beforeMount(child, { value: undefined })
+    preventParentScroll.beforeMount(child, { value: undefined, modifiers: {} })
     dispatchWheel()
     expect(parentListener).not.toHaveBeenCalled()
   })
 
   test('does not stop propagation when the binding value is false', () => {
-    preventParentScroll.beforeMount(child, { value: false })
+    preventParentScroll.beforeMount(child, { value: false, modifiers: {} })
     dispatchWheel()
     expect(parentListener).toHaveBeenCalledTimes(1)
   })
 
-  test('when-scrollable lets the event propagate if the element does not overflow', () => {
-    preventParentScroll.beforeMount(child, { value: WHEN_SCROLLABLE })
-    dispatchWheel()
-    expect(parentListener).toHaveBeenCalledTimes(1)
-  })
-
-  test('when-scrollable stops propagation if the element overflows', () => {
-    preventParentScroll.beforeMount(child, { value: WHEN_SCROLLABLE })
-    makeOverflowing()
-    dispatchWheel()
-    expect(parentListener).not.toHaveBeenCalled()
-  })
-
-  test('when-scrollable reacts to overflow changes after mount', () => {
-    preventParentScroll.beforeMount(child, { value: WHEN_SCROLLABLE })
-    dispatchWheel()
-    expect(parentListener).toHaveBeenCalledTimes(1)
-
-    makeOverflowing()
-    dispatchWheel()
-    expect(parentListener).toHaveBeenCalledTimes(1)
-  })
-
-  test('updated hook switches between modes', () => {
-    preventParentScroll.beforeMount(child, { value: true })
-    dispatchWheel()
-    expect(parentListener).not.toHaveBeenCalled()
-
-    preventParentScroll.updated(child, {
-      value: WHEN_SCROLLABLE,
-      oldValue: true,
+  test('whenScrollable lets the event propagate if the element does not overflow', () => {
+    preventParentScroll.beforeMount(child, {
+      value: undefined,
+      modifiers: { whenScrollable: true },
     })
     dispatchWheel()
     expect(parentListener).toHaveBeenCalledTimes(1)
   })
 
-  test('updated hook can enable when-scrollable from a disabled state', () => {
-    preventParentScroll.beforeMount(child, { value: false })
+  test('whenScrollable stops propagation if the element overflows', () => {
+    preventParentScroll.beforeMount(child, {
+      value: undefined,
+      modifiers: { whenScrollable: true },
+    })
+    makeOverflowing()
+    dispatchWheel()
+    expect(parentListener).not.toHaveBeenCalled()
+  })
+
+  test('whenScrollable reacts to overflow changes after mount', () => {
+    preventParentScroll.beforeMount(child, {
+      value: undefined,
+      modifiers: { whenScrollable: true },
+    })
+    dispatchWheel()
+    expect(parentListener).toHaveBeenCalledTimes(1)
+
+    makeOverflowing()
+    dispatchWheel()
+    expect(parentListener).toHaveBeenCalledTimes(1)
+  })
+
+  test('whenScrollable respects a false binding value', () => {
+    preventParentScroll.beforeMount(child, {
+      value: false,
+      modifiers: { whenScrollable: true },
+    })
+    makeOverflowing()
+    dispatchWheel()
+    expect(parentListener).toHaveBeenCalledTimes(1)
+  })
+
+  test('updated hook can enable whenScrollable from a disabled state', () => {
+    preventParentScroll.beforeMount(child, {
+      value: false,
+      modifiers: { whenScrollable: true },
+    })
     preventParentScroll.updated(child, {
-      value: WHEN_SCROLLABLE,
+      value: true,
       oldValue: false,
+      modifiers: { whenScrollable: true },
     })
     makeOverflowing()
     dispatchWheel()
     expect(parentListener).not.toHaveBeenCalled()
+  })
+
+  test('updated hook can disable the directive', () => {
+    preventParentScroll.beforeMount(child, { value: true, modifiers: {} })
+    dispatchWheel()
+    expect(parentListener).not.toHaveBeenCalled()
+
+    preventParentScroll.updated(child, {
+      value: false,
+      oldValue: true,
+      modifiers: {},
+    })
+    dispatchWheel()
+    expect(parentListener).toHaveBeenCalledTimes(1)
   })
 
   test('unmounted removes the listeners', () => {
-    preventParentScroll.beforeMount(child, { value: true })
+    preventParentScroll.beforeMount(child, { value: true, modifiers: {} })
     preventParentScroll.unmounted(child)
     dispatchWheel()
     expect(parentListener).toHaveBeenCalledTimes(1)

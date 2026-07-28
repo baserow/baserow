@@ -5,7 +5,7 @@
     :class="{ invalid: removingRelationships }"
   >
     <div
-      v-prevent-parent-scroll="WHEN_SCROLLABLE"
+      v-prevent-parent-scroll.whenScrollable
       class="grid-field-many-to-many__list"
     >
       <component
@@ -100,7 +100,6 @@ import ForeignRowEditModal from '@baserow/modules/database/components/row/Foreig
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import { isPrintableUnicodeCharacterKeyPress } from '@baserow/modules/core/utils/events'
-import { WHEN_SCROLLABLE } from '@baserow/modules/core/directives/preventParentScroll'
 
 export default {
   name: 'GridViewFieldLinkRow',
@@ -116,9 +115,6 @@ export default {
     }
   },
   computed: {
-    WHEN_SCROLLABLE() {
-      return WHEN_SCROLLABLE
-    },
     publicGrid() {
       return this.$store.getters['page/view/public/getIsPublic']
     },

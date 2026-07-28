@@ -10,7 +10,7 @@
       <textarea
         ref="input"
         v-model="copy"
-        v-prevent-parent-scroll="WHEN_SCROLLABLE"
+        v-prevent-parent-scroll.whenScrollable
         :disabled="readOnly"
         type="text"
         class="grid-field-long-text__textarea"
@@ -27,15 +27,9 @@
 <script>
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
-import { WHEN_SCROLLABLE } from '@baserow/modules/core/directives/preventParentScroll'
 
 export default {
   mixins: [gridField, gridFieldInput],
-  computed: {
-    WHEN_SCROLLABLE() {
-      return WHEN_SCROLLABLE
-    },
-  },
   methods: {
     afterEdit(event) {
       // If the enter key is pressed we do not want to add a new line to the textarea.
