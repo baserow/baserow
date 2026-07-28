@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0114_alter_workspaceinvitation_message'),
+        ('core', '0115_ai_provider'),
     ]
 
     operations = [
