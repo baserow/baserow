@@ -51,6 +51,22 @@ describe('resolveFormula parse tree cache', () => {
     expect(parseBaserowFormula).toHaveBeenCalledTimes(2)
   })
 
+  test('a formula that keeps being used is not evicted', () => {
+    const hot = literal('lru-hot')
+    expect(resolve(hot)).toBe('lru-hot')
+
+    // Fill the cache, touching the hot formula along the way. Eviction is
+    // least-recently-used, so the cold fillers go first and the hot one stays.
+    for (let i = 0; i < PARSE_TREE_CACHE_MAX_SIZE; i++) {
+      resolve(literal(`lru-filler-${i}`))
+      resolve(hot)
+    }
+
+    parseBaserowFormula.mockClear()
+    expect(resolve(hot)).toBe('lru-hot')
+    expect(parseBaserowFormula).not.toHaveBeenCalled()
+  })
+
   test('the oldest entry is evicted once the cache is full', () => {
     const first = literal('evict-me')
     expect(resolve(first)).toBe('evict-me')

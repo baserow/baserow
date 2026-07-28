@@ -1,5 +1,8 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { resolveButtonUrl } from '@baserow/modules/database/utils/buttonField'
+import {
+  encodeUrlWhitespace,
+  resolveButtonUrl,
+} from '@baserow/modules/database/utils/buttonField'
 
 describe('buttonField utils', () => {
   let testApp = null
@@ -30,7 +33,7 @@ describe('buttonField utils', () => {
     )
   })
 
-  test('encodes whitespace in resolved values so the URL stays valid', () => {
+  test('resolves the URL as the user built it, without encoding', () => {
     const field = {
       id: 2,
       type: 'button',
@@ -43,7 +46,35 @@ describe('buttonField utils', () => {
     const spacedRow = { id: 11, field_1: 'Red Button' }
     expect(
       resolveButtonUrl(testApp._app.$registry, field, spacedRow, fields)
-    ).toBe('https://example.com/item-Red%20Button')
+    ).toBe('https://example.com/item-Red Button')
+  })
+
+  test('lets the formula encode a value that holds reserved characters', () => {
+    const field = {
+      id: 2,
+      type: 'button',
+      label: 'Open',
+      url_formula: {
+        formula:
+          "concat('https://example.com/?q=', encode_uri_component(get('fields.field_1')))",
+        mode: 'simple',
+      },
+    }
+    const reservedRow = { id: 13, field_1: 'a&b=1' }
+    expect(
+      resolveButtonUrl(testApp._app.$registry, field, reservedRow, fields)
+    ).toBe('https://example.com/?q=a%26b%3D1')
+  })
+
+  test('encodeUrlWhitespace only touches whitespace', () => {
+    // Encoding more would mangle the URL structure the formula builds, and
+    // double-encode what `encode_uri_component()` already escaped.
+    expect(encodeUrlWhitespace('https://example.com/Red Button')).toBe(
+      'https://example.com/Red%20Button'
+    )
+    expect(encodeUrlWhitespace('https://example.com/?q=a%26b&x=1#top')).toBe(
+      'https://example.com/?q=a%26b&x=1#top'
+    )
   })
 
   test('returns empty string for empty or broken formulas', () => {

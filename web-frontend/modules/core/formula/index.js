@@ -13,15 +13,21 @@ export const PARSE_TREE_CACHE_MAX_SIZE = 512
 const parseTreeCache = new Map()
 
 const getCachedParseTree = (formula) => {
-  let tree = parseTreeCache.get(formula)
-  if (tree === undefined) {
-    tree = parseBaserowFormula(formula)
-    if (parseTreeCache.size >= PARSE_TREE_CACHE_MAX_SIZE) {
-      parseTreeCache.delete(parseTreeCache.keys().next().value)
-    }
+  const tree = parseTreeCache.get(formula)
+  if (tree !== undefined) {
+    // A Map iterates in insertion order, so re-inserting a hit moves it to the
+    // back and keeps the eviction below least-recently-used rather than
+    // first-in-first-out.
+    parseTreeCache.delete(formula)
     parseTreeCache.set(formula, tree)
+    return tree
   }
-  return tree
+  const parsed = parseBaserowFormula(formula)
+  if (parseTreeCache.size >= PARSE_TREE_CACHE_MAX_SIZE) {
+    parseTreeCache.delete(parseTreeCache.keys().next().value)
+  }
+  parseTreeCache.set(formula, parsed)
+  return parsed
 }
 
 /**

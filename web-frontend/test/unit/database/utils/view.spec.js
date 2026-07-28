@@ -1,5 +1,6 @@
 import {
   TreeGroupNode,
+  canRowsBeOptimisticallyUpdatedInView,
   createFiltersTree,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
@@ -271,5 +272,57 @@ describe('matchSearchFilters', () => {
         ],
       })
     ).toBe(true)
+  })
+})
+
+describe('canRowsBeOptimisticallyUpdatedInView', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const view = { sortings: [], filters: [], group_bys: [] }
+
+  it('gives up on optimistic updates when a searched view has a read-only field whose value the backend computes', () => {
+    const fields = [{ id: 1, type: 'formula' }]
+    expect(
+      canRowsBeOptimisticallyUpdatedInView(
+        testApp._app.$registry,
+        view,
+        fields,
+        'search'
+      )
+    ).toBe(false)
+  })
+
+  it('keeps optimistic updates when the only read-only field holds no value', () => {
+    // A button field is read only, but it has no cell value for the search to
+    // match, so the backend is not the source of truth for the result.
+    const fields = [{ id: 1, type: 'button' }]
+    expect(
+      canRowsBeOptimisticallyUpdatedInView(
+        testApp._app.$registry,
+        view,
+        fields,
+        'search'
+      )
+    ).toBe(true)
+  })
+
+  it('still gives up when a read-only field is sorted on', () => {
+    const fields = [{ id: 1, type: 'button' }]
+    expect(
+      canRowsBeOptimisticallyUpdatedInView(
+        testApp._app.$registry,
+        { ...view, sortings: [{ field: 1 }] },
+        fields,
+        null
+      )
+    ).toBe(false)
   })
 })

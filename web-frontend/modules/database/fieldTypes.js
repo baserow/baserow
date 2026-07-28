@@ -480,6 +480,15 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Whether the cell value takes part in the view search. Mirrors the backend
+   * `is_searchable`. A field without a cell value can never match a search
+   * term, so it doesn't make the backend the source of truth for one.
+   */
+  isSearchable(field) {
+    return true
+  }
+
+  /**
    * Indicates whether or not it is possible to group by this field in a view.
    */
   getCanGroupByInView(field) {
@@ -5431,7 +5440,7 @@ export class ButtonFieldType extends FieldType {
     return 'button'
   }
 
-  getIconClass() {
+  static getIconClass() {
     return 'iconoir-cursor-pointer'
   }
 
@@ -5474,6 +5483,10 @@ export class ButtonFieldType extends FieldType {
     return true
   }
 
+  isSearchable() {
+    return false
+  }
+
   getCanBePrimaryField() {
     return false
   }
@@ -5495,7 +5508,9 @@ export class ButtonFieldType extends FieldType {
   }
 
   getDocsDataType() {
-    return 'boolean'
+    // The cell holds no value: the button is built in the browser from the
+    // field's formula, and the API always responds with null.
+    return 'null'
   }
 
   getDocsDescription(field) {
