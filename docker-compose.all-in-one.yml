@@ -6,6 +6,7 @@ services:
     image: baserow/baserow:${BASEROW_VERSION:-2.3.3}
     environment:
       BASEROW_PUBLIC_URL: 'http://localhost'
+      BASEROW_FRONTEND_COOKIE_PREFIX:
     ports:
       - "80:80"
       - "443:443"

@@ -19,14 +19,16 @@ def extract_user_session_from_request(
     Extracts the user id from the user_session cookie value. The cookie is signed with a
     TimestampSigner and can be used to verify the user's identity. Look at the
     generate_session_tokens_for_user for more information on how the cookie is signed.
-    Ensure your client is sending that value as cookie with the user_session key.
+    Ensure your client sends that value using the configured frontend cookie prefix
+    followed by the ``user_session`` key.
 
     :param request: The request object.
     :param max_age: The max age of the signed data.
     :return: The user session payload if the cookie is valid, otherwise None.
     """
 
-    cookie = request.COOKIES.get("user_session", None) or ""
+    cookie_name = f"{settings.FRONTEND_COOKIE_PREFIX}user_session"
+    cookie = request.COOKIES.get(cookie_name, None) or ""
     signer = TimestampSigner()
 
     try:

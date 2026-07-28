@@ -199,6 +199,7 @@ up: _ensure-images
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e MIGRATE_ON_STARTUP=true \
             -e FEATURE_FLAGS="*" \
+            -e BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }} \
             -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
             -p {{ backend_port }}:8000 \
             {{ backend_image }} gunicorn
