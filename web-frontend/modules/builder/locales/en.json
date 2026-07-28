@@ -852,7 +852,9 @@
     "descriptionPlaceholder": "Enter text..."
   },
   "event": {
-    "addAction": "add action"
+    "addAction": "add action",
+    "searchActions": "Search actions",
+    "noActionsFound": "No actions found"
   },
   "collectionFieldType": {
     "boolean": "Boolean",

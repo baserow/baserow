@@ -4,6 +4,7 @@ import {
 } from '@baserow/modules/core/serviceTypes'
 import SlackWriteMessageServiceForm from '@baserow/modules/integrations/slack/components/services/SlackWriteMessageServiceForm'
 import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
+import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 
 export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -22,6 +23,13 @@ export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin
 
   get image() {
     return slackIntegration
+  }
+
+  get integrationType() {
+    return this.app.$registry.get(
+      'integration',
+      SlackBotIntegrationType.getType()
+    )
   }
 
   get description() {

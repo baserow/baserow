@@ -173,7 +173,7 @@
     "displayTitle": "Create automation node"
   },
   "workflowNodeContext": {
-    "searchPlaceholderTrigger": "Search for a trigger...",
+    "searchPlaceholderTrigger": "Search for an event...",
     "searchPlaceholderActions": "Search for actions...",
     "noResults": "No results found"
   },

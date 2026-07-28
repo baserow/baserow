@@ -55,7 +55,7 @@ describe('GroupedDropdown', () => {
   test('uses the ancestor image for the selected leaf', () => {
     const wrapper = mountComponent({ modelValue: 'get-row' })
 
-    expect(wrapper.find('.grouped-dropdown__menu--grouped').exists()).toBe(true)
+    expect(wrapper.find('.grouped-menu--grouped').exists()).toBe(true)
     expect(wrapper.find('.dropdown__selected-text').text()).toBe('Get row')
     expect(wrapper.find('.dropdown__selected-image').attributes('src')).toBe(
       '/local-baserow.svg'
@@ -67,11 +67,11 @@ describe('GroupedDropdown', () => {
 
     await wrapper.find('.grouped-dropdown__trigger').trigger('click')
     await wrapper
-      .findAll('.grouped-dropdown__navigation .menu-list__item-button')
+      .findAll('.grouped-menu__navigation .menu-list__item-button')
       .find((item) => item.text().includes('Local Baserow'))
       .trigger('click')
     await wrapper
-      .findAll('.grouped-dropdown__actions .menu-list__item-button')
+      .findAll('.grouped-menu__actions .menu-list__item-button')
       .find((item) => item.text().includes('List rows'))
       .trigger('click')
 
@@ -119,12 +119,12 @@ describe('GroupedDropdown', () => {
 
     expect(
       wrapper
-        .findAll('.grouped-dropdown__navigation .menu-list__item-label')
+        .findAll('.grouped-menu__navigation .menu-list__item-label')
         .map((item) => item.text())
     ).toEqual(['Local Baserow', 'Slack'])
     expect(
       wrapper
-        .findAll('.grouped-dropdown__actions .menu-list__item-label')
+        .findAll('.grouped-menu__actions .menu-list__item-label')
         .map((item) => item.text())
     ).toEqual(['Get row'])
 
@@ -132,21 +132,53 @@ describe('GroupedDropdown', () => {
 
     expect(
       wrapper
-        .findAll('.grouped-dropdown__navigation .menu-list__item-label')
+        .findAll('.grouped-menu__navigation .menu-list__item-label')
         .map((item) => item.text())
     ).toEqual(['Slack'])
     expect(
       wrapper
-        .findAll('.grouped-dropdown__actions .menu-list__item-label')
+        .findAll('.grouped-menu__actions .menu-list__item-label')
         .map((item) => item.text())
     ).toEqual(['Send message'])
 
     await wrapper.find('.menu-search__input').setValue('missing')
 
-    expect(wrapper.find('.grouped-dropdown__navigation').exists()).toBe(false)
-    expect(wrapper.find('.grouped-dropdown__empty').text()).toBe(
-      'No actions found'
-    )
+    expect(wrapper.find('.grouped-menu__navigation').exists()).toBe(false)
+    expect(wrapper.find('.grouped-menu__empty').text()).toBe('No actions found')
+  })
+
+  test('sorts groups alphabetically', () => {
+    const wrapper = mountComponent({
+      items: [
+        {
+          id: 'workflow',
+          label: 'Workflow',
+          children: [
+            { id: 'start-workflow', label: 'Start workflow', value: 'start' },
+          ],
+        },
+        {
+          id: 'http',
+          label: 'HTTP',
+          children: [
+            { id: 'http-request', label: 'Send request', value: 'request' },
+          ],
+        },
+        {
+          id: 'core',
+          label: 'Core',
+          children: [
+            { id: 'notification', label: 'Show notification', value: 'show' },
+          ],
+        },
+      ],
+    })
+
+    expect(
+      wrapper
+        .findAll('.grouped-menu__navigation .menu-list__item-label')
+        .map((item) => item.text())
+    ).toEqual(['Core', 'HTTP', 'Workflow'])
   })
 
   test('clears the search with the reset button', async () => {
@@ -191,12 +223,12 @@ describe('GroupedDropdown', () => {
 
     expect(
       wrapper
-        .find('.grouped-dropdown__navigation .menu-list__item-button--active')
+        .find('.grouped-menu__navigation .menu-list__item-button--active')
         .text()
     ).toContain('Local Baserow')
     expect(
       wrapper
-        .findAll('.grouped-dropdown__actions .menu-list__item-label')
+        .findAll('.grouped-menu__actions .menu-list__item-label')
         .map((item) => item.text())
     ).toEqual(['Get row'])
   })
@@ -232,23 +264,23 @@ describe('GroupedDropdown', () => {
     })
 
     const navigationButtons = wrapper.findAll(
-      '.grouped-dropdown__navigation .menu-list__item-button'
+      '.grouped-menu__navigation .menu-list__item-button'
     )
 
     expect(navigationButtons.map((button) => button.text())).toEqual([
-      'Disabled integration',
       'Available integration',
+      'Disabled integration',
     ])
-    expect(navigationButtons[0].attributes('aria-disabled')).toBe('true')
-    expect(navigationButtons[0].classes()).not.toContain(
+    expect(navigationButtons[0].classes()).toContain(
       'menu-list__item-button--active'
     )
-    expect(navigationButtons[1].classes()).toContain(
+    expect(navigationButtons[1].attributes('aria-disabled')).toBe('true')
+    expect(navigationButtons[1].classes()).not.toContain(
       'menu-list__item-button--active'
     )
     expect(
       wrapper
-        .findAll('.grouped-dropdown__actions .menu-list__item-label')
+        .findAll('.grouped-menu__actions .menu-list__item-label')
         .map((item) => item.text())
     ).toEqual(['Available action'])
   })
@@ -258,7 +290,7 @@ describe('GroupedDropdown', () => {
       items: [{ id: 'repeat', label: 'Repeat', value: 'repeat' }],
     })
 
-    expect(wrapper.find('.grouped-dropdown__navigation').exists()).toBe(false)
+    expect(wrapper.find('.grouped-menu__navigation').exists()).toBe(false)
     expect(wrapper.find('.menu-list__item-label').text()).toBe('Repeat')
   })
 
@@ -285,8 +317,8 @@ describe('GroupedDropdown', () => {
         ],
       })
 
-      expect(wrapper.find('.grouped-dropdown__panels').exists()).toBe(false)
-      expect(wrapper.find('.grouped-dropdown__empty').text()).toBe(
+      expect(wrapper.find('.grouped-menu__panels').exists()).toBe(false)
+      expect(wrapper.find('.grouped-menu__empty').text()).toBe(
         'No actions found'
       )
       expect(consoleWarn).toHaveBeenCalled()

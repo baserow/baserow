@@ -1,5 +1,29 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
+export const getCoreGroup = (app) => ({
+  id: 'core',
+  label: app.$i18n.t('groupedMenu.core'),
+  icon: 'iconoir-package',
+})
+
+export const getFilesGroup = (app) => ({
+  id: 'files',
+  label: app.$i18n.t('groupedMenu.files'),
+  icon: 'iconoir-page',
+})
+
+export const getHTTPGroup = (app) => ({
+  id: 'http',
+  label: app.$i18n.t('groupedMenu.http'),
+  icon: 'iconoir-globe',
+})
+
+export const getWorkflowGroup = (app) => ({
+  id: 'workflow',
+  label: app.$i18n.t('groupedMenu.workflow'),
+  icon: 'iconoir-git-fork',
+})
+
 export class ServiceType extends Registerable {
   get name() {
     throw new Error('Must be set on the type.')
@@ -10,6 +34,20 @@ export class ServiceType extends Registerable {
    */
   get integrationType() {
     return null
+  }
+
+  get group() {
+    const integrationType = this.integrationType
+    if (!integrationType) {
+      return getCoreGroup(this.app)
+    }
+
+    return {
+      id: `integration-${integrationType.getType()}`,
+      label: integrationType.name,
+      image: integrationType.image,
+      icon: integrationType.iconClass,
+    }
   }
 
   /**

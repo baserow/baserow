@@ -37,7 +37,7 @@ const renderDropdown = (args) => ({
 })
 
 export default {
-  title: 'Baserow/Form Elements/GroupedDropdown',
+  title: 'Baserow/Menus/GroupedDropdown',
   component: GroupedDropdown,
   tags: ['autodocs'],
   parameters: {

@@ -10,6 +10,19 @@ const localBaserowIntegrationType = {
   getOrder: () => 10,
 }
 
+const coreGroup = {
+  id: 'core',
+  label: 'Core',
+  icon: 'iconoir-package',
+}
+
+const localBaserowGroup = {
+  id: 'integration-local_baserow',
+  label: 'Local Baserow',
+  image: '/local-baserow.svg',
+  icon: null,
+}
+
 function makeNodeType({
   type,
   name,
@@ -26,6 +39,7 @@ function makeNodeType({
     image: integrationType ? integrationType.image : null,
     isTrigger,
     isWorkflowAction: !isTrigger,
+    group: integrationType ? localBaserowGroup : coreGroup,
     serviceType: { integrationType },
     getType: () => type,
     getOrder: () => order,
@@ -64,7 +78,13 @@ const triggerNodeType = makeNodeType({
   isTrigger: true,
 })
 
-const mountComponent = ({ onlyTrigger = false, node = null } = {}) =>
+const workflowTrigger = { id: 1, type: 'rows_created' }
+
+const mountComponent = ({
+  onlyTrigger = false,
+  node = null,
+  workflowNodes = [workflowTrigger],
+} = {}) =>
   mount(WorkflowAddNodeMenu, {
     props: {
       onlyTrigger,
@@ -73,7 +93,7 @@ const mountComponent = ({ onlyTrigger = false, node = null } = {}) =>
     global: {
       provide: {
         automation: { id: 1 },
-        workflow: { id: 1 },
+        workflow: { id: 1, nodes: workflowNodes },
         workspace: { id: 1 },
       },
       directives: {
@@ -88,6 +108,10 @@ const mountComponent = ({ onlyTrigger = false, node = null } = {}) =>
             repeatNodeType,
             triggerNodeType,
           ],
+          get: (registry, type) =>
+            registry === 'node' && type === triggerNodeType.getType()
+              ? triggerNodeType
+              : null,
           getAll: () => ({}),
         },
         $t: (key) => key,
@@ -96,38 +120,67 @@ const mountComponent = ({ onlyTrigger = false, node = null } = {}) =>
   })
 
 describe('WorkflowAddNodeMenu', () => {
-  test('shows workflow actions as a flat searchable list', async () => {
+  test('shows workflow actions in integration groups', async () => {
     const wrapper = mountComponent()
 
     expect(
-      wrapper.findAll('.menu-list__item-label').map((item) => item.text())
-    ).toEqual(['Create row', 'Get row', 'Repeat'])
+      wrapper
+        .findAll('.grouped-menu__navigation .menu-list__item-label')
+        .map((item) => item.text())
+    ).toEqual(['Core', 'Local Baserow'])
     expect(
-      wrapper.findAll('.menu-list__item-description').map((item) => item.text())
-    ).toEqual([
-      'Add a new record to a table.',
-      'Retrieve a single record from a table.',
-      'Run the following actions multiple times.',
-    ])
+      wrapper
+        .findAll('.grouped-menu__actions .menu-list__item-label')
+        .map((item) => item.text())
+    ).toEqual(['Repeat'])
+    expect(
+      wrapper
+        .findAll('.grouped-menu__actions .menu-list__item-description')
+        .map((item) => item.text())
+    ).toEqual(['Run the following actions multiple times.'])
     expect(wrapper.find('.menu-search__input').exists()).toBe(true)
+    expect(wrapper.find('.menu-search__input').attributes('placeholder')).toBe(
+      'workflowNodeContext.searchPlaceholderActions'
+    )
 
     await wrapper
-      .findAll('.menu-list__item-button')
+      .findAll('.grouped-menu__navigation .menu-list__item-button')
+      .find((item) => item.text().includes('Local Baserow'))
+      .trigger('click')
+
+    await wrapper
+      .findAll('.grouped-menu__actions .menu-list__item-button')
       .find((item) => item.text().includes('Create row'))
       .trigger('click')
 
     expect(wrapper.emitted('change')[0]).toEqual(['create_row'])
   })
 
-  test('keeps trigger choices flat and descriptive', () => {
-    const wrapper = mountComponent({ onlyTrigger: true })
+  test('shows triggers in integration groups with an event search', () => {
+    const wrapper = mountComponent({ onlyTrigger: true, workflowNodes: [] })
 
-    expect(wrapper.find('.menu-search__input').exists()).toBe(false)
-    expect(wrapper.find('.menu-list__item-label').text()).toBe(
-      'Rows are created'
+    expect(wrapper.find('.menu-search__input').exists()).toBe(true)
+    expect(wrapper.find('.menu-search__input').attributes('placeholder')).toBe(
+      'workflowNodeContext.searchPlaceholderTrigger'
     )
-    expect(wrapper.find('.menu-list__item-description').text()).toBe(
-      'Triggered when rows are created.'
+    expect(
+      wrapper.find('.grouped-menu__navigation .menu-list__item-label').text()
+    ).toBe('Local Baserow')
+    expect(
+      wrapper.find('.grouped-menu__actions .menu-list__item-label').text()
+    ).toBe('Rows are created')
+    expect(
+      wrapper.find('.grouped-menu__actions .menu-list__item-description').text()
+    ).toBe('Triggered when rows are created.')
+  })
+
+  test('uses the trigger search when workflow nodes do not include a trigger', () => {
+    const wrapper = mountComponent({
+      workflowNodes: [{ id: 1, type: 'create_row' }],
+    })
+
+    expect(wrapper.find('.menu-search__input').attributes('placeholder')).toBe(
+      'workflowNodeContext.searchPlaceholderTrigger'
     )
   })
 })

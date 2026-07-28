@@ -1,9 +1,8 @@
 <template>
   <div class="workflow-add-node-menu">
-    <MenuList
-      :items="menuItems"
-      :searchable="!editingTriggerNode"
-      :search-placeholder="$t('workflowNodeContext.searchPlaceholderActions')"
+    <GroupedMenu
+      :items="menuGroups"
+      :search-placeholder="searchPlaceholder"
       :empty-text="$t('workflowNodeContext.noResults')"
       @select="onMenuItemSelected"
       @disabled-click="onMenuItemSelected"
@@ -22,7 +21,7 @@
           />
         </template>
       </template>
-    </MenuList>
+    </GroupedMenu>
     <template v-for="nodeType in nodeTypes" :key="nodeType.getType()">
       <component
         :is="getDeactivatedClickModal(nodeType)[0]"
@@ -38,11 +37,11 @@
 
 <script>
 import { unref } from 'vue'
-import MenuList from '@baserow/modules/core/components/MenuList'
+import GroupedMenu from '@baserow/modules/core/components/GroupedMenu'
 
 export default {
   name: 'WorkflowAddNodeMenu',
-  components: { MenuList },
+  components: { GroupedMenu },
   inject: ['workspace', 'workflow', 'automation'],
   props: {
     node: {
@@ -70,6 +69,18 @@ export default {
     editingTriggerNode() {
       return this.onlyTrigger
     },
+    hasWorkflowTrigger() {
+      return this.resolvedWorkflow?.nodes?.some(
+        (node) => this.$registry.get('node', node.type)?.isTrigger
+      )
+    },
+    searchPlaceholder() {
+      return this.$t(
+        this.hasWorkflowTrigger
+          ? 'workflowNodeContext.searchPlaceholderActions'
+          : 'workflowNodeContext.searchPlaceholderTrigger'
+      )
+    },
     nodeTypes() {
       return this.$registry
         .getOrderedList('node')
@@ -81,10 +92,20 @@ export default {
               : nodeType.isWorkflowAction)
         )
     },
-    menuItems() {
-      return this.nodeTypes.map((nodeType) =>
-        this.makeNodeTypeMenuItem(nodeType)
-      )
+    menuGroups() {
+      const groups = new Map()
+
+      this.nodeTypes.forEach((nodeType) => {
+        const group = nodeType.group
+
+        if (!groups.has(group.id)) {
+          groups.set(group.id, { ...group, children: [] })
+        }
+
+        groups.get(group.id).children.push(this.makeNodeTypeMenuItem(nodeType))
+      })
+
+      return Array.from(groups.values())
     },
   },
   methods: {

@@ -1,6 +1,9 @@
 import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
 import {
   DataSourceServiceTypeMixin,
+  getFilesGroup,
+  getHTTPGroup,
+  getWorkflowGroup,
   ServiceType,
   TriggerServiceTypeMixin,
   WorkflowActionServiceTypeMixin,
@@ -12,6 +15,7 @@ import CoreIteratorServiceForm from '@baserow/modules/integrations/core/componen
 import CoreCSVFileReaderServiceForm from '@baserow/modules/integrations/core/components/services/CoreCSVFileReaderServiceForm'
 import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
 import CoreStartWorkflowServiceForm from '@baserow/modules/integrations/core/components/services/CoreStartWorkflowServiceForm.vue'
+import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -22,6 +26,10 @@ export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
 
   get icon() {
     return 'iconoir-cloud-upload'
+  }
+
+  get group() {
+    return getHTTPGroup(this.app)
   }
 
   get name() {
@@ -76,6 +84,10 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
 
   get icon() {
     return 'iconoir-send-mail'
+  }
+
+  get integrationType() {
+    return this.app.$registry.get('integration', SMTPIntegrationType.getType())
   }
 
   getErrorMessage({ service }) {
@@ -139,6 +151,10 @@ export class CoreRouterServiceType extends WorkflowActionServiceTypeMixin(
     return 'iconoir-git-fork'
   }
 
+  get group() {
+    return getWorkflowGroup(this.app)
+  }
+
   getEdgeErrorMessage(edge) {
     if (!edge.label.length) {
       return this.app.$i18n.t('serviceType.coreRouterEdgeLabelRequired')
@@ -198,6 +214,10 @@ export class CoreHTTPTriggerServiceType extends TriggerServiceTypeMixin(
 
   get icon() {
     return 'iconoir-globe'
+  }
+
+  get group() {
+    return getHTTPGroup(this.app)
   }
 
   getErrorMessage({ service }) {
@@ -268,6 +288,10 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
     return 'iconoir-repeat'
   }
 
+  get group() {
+    return getWorkflowGroup(this.app)
+  }
+
   get returnsList() {
     return true
   }
@@ -310,6 +334,10 @@ export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
 
   get icon() {
     return 'iconoir-page'
+  }
+
+  get group() {
+    return getFilesGroup(this.app)
   }
 
   get returnsList() {
@@ -375,6 +403,10 @@ export class CoreStartWorkflowServiceType extends WorkflowActionServiceTypeMixin
 
   get icon() {
     return 'iconoir-play'
+  }
+
+  get group() {
+    return getWorkflowGroup(this.app)
   }
 
   getWorkflow(workflowId) {

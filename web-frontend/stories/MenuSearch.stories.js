@@ -24,7 +24,7 @@ const renderMenuSearch = (args) => ({
 })
 
 export default {
-  title: 'Baserow/MenuSearch',
+  title: 'Baserow/Menus/MenuSearch',
   component: MenuSearch,
   tags: ['autodocs'],
   parameters: {

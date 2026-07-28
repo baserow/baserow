@@ -46,62 +46,21 @@
       @shown="onShown"
       @hidden="onHidden"
     >
-      <div
-        class="grouped-dropdown__menu"
-        :class="{
-          'grouped-dropdown__menu--grouped': hasGroupedItems,
-        }"
+      <GroupedMenu
+        ref="menu"
+        :items="items"
+        :model-value="currentValue"
+        :search-placeholder="searchPlaceholder"
+        :empty-text="emptyText"
+        :show-search="showSearch"
+        @select="selectItem"
+        @disabled-click="emit('disabled-click', $event)"
+        @close="hide"
       >
-        <MenuSearch
-          v-if="showSearch"
-          ref="menuSearch"
-          v-model="query"
-          :placeholder="searchPlaceholder"
-          @keydown="handleSearchKeydown"
-        />
-
-        <div v-if="visibleItems.length" class="grouped-dropdown__panels">
-          <div
-            v-if="navigationMenuItems.length"
-            class="grouped-dropdown__navigation"
-          >
-            <MenuList
-              ref="navigationMenu"
-              class="grouped-dropdown__menu-list"
-              :items="navigationMenuItems"
-              :model-value="activeNavigationValue"
-              :empty-text="emptyText"
-              :show-descriptions="false"
-              @select="selectNavigationItem"
-              @disabled-click="emit('disabled-click', $event)"
-              @close="hide"
-              @navigate-right="navigateToActions"
-            />
-          </div>
-
-          <div
-            class="grouped-dropdown__actions"
-            :class="{
-              'grouped-dropdown__actions--only': !navigationMenuItems.length,
-            }"
-          >
-            <MenuList
-              ref="actionMenu"
-              class="grouped-dropdown__menu-list"
-              :items="actionItems"
-              :model-value="currentValue"
-              :empty-text="emptyText"
-              @select="selectItem"
-              @disabled-click="emit('disabled-click', $event)"
-              @close="hide"
-              @navigate-left="focusNavigation"
-            />
-          </div>
-        </div>
-        <div v-else class="grouped-dropdown__empty">
-          {{ emptyText }}
-        </div>
-      </div>
+        <template #item-meta="{ item }">
+          <slot name="item-meta" :item="item" />
+        </template>
+      </GroupedMenu>
     </Context>
   </div>
 </template>
@@ -110,8 +69,7 @@
 import { computed, nextTick, ref } from 'vue'
 
 import Context from '@baserow/modules/core/components/Context'
-import MenuList from '@baserow/modules/core/components/MenuList'
-import MenuSearch from '@baserow/modules/core/components/MenuSearch'
+import GroupedMenu from '@baserow/modules/core/components/GroupedMenu'
 
 const props = defineProps({
   items: {
@@ -191,69 +149,15 @@ const emit = defineEmits([
 
 const context = ref(null)
 const trigger = ref(null)
-const menuSearch = ref(null)
-const navigationMenu = ref(null)
-const actionMenu = ref(null)
+const menu = ref(null)
 const open = ref(false)
 const menuMinWidth = ref(0)
-const query = ref('')
-const activeGroupKey = ref(null)
 
 const currentValue = computed(() =>
   props.modelValue !== undefined ? props.modelValue : props.value
 )
-const isGroupedInput = computed(() => props.items.some(isGroup))
-const nonEmptyItems = computed(() =>
-  isGroupedInput.value
-    ? removeEmptyGroups(props.items)
-    : props.items.filter(isAction)
-)
-const hasGroupedItems = computed(
-  () => isGroupedInput.value && nonEmptyItems.value.length > 0
-)
-const visibleItems = computed(() => {
-  const normalizedQuery = normalizeSearchValue(query.value)
-  if (!normalizedQuery) {
-    return nonEmptyItems.value
-  }
-  return isGroupedInput.value
-    ? filterGroupedItems(nonEmptyItems.value, normalizedQuery)
-    : nonEmptyItems.value.filter((item) =>
-        itemMatchesQuery(item, normalizedQuery)
-      )
-})
-const groupedItems = computed(() =>
-  isGroupedInput.value ? visibleItems.value : []
-)
-const selectableGroups = computed(() =>
-  groupedItems.value.filter((item) => !item.disabled)
-)
 const selectedResult = computed(() =>
-  findSelectedItem(nonEmptyItems.value, currentValue.value)
-)
-const selectedGroupKey = computed(() =>
-  getItemIdentity(selectedResult.value?.group)
-)
-const activeGroup = computed(
-  () =>
-    selectableGroups.value.find(
-      (item) => getItemIdentity(item) === activeGroupKey.value
-    ) ||
-    selectableGroups.value.find(
-      (item) => getItemIdentity(item) === selectedGroupKey.value
-    ) ||
-    selectableGroups.value[0] ||
-    null
-)
-const navigationMenuItems = computed(() =>
-  groupedItems.value.map((item) => ({
-    ...item,
-    value: getItemIdentity(item),
-  }))
-)
-const activeNavigationValue = computed(() => getItemIdentity(activeGroup.value))
-const actionItems = computed(() =>
-  isGroupedInput.value ? activeGroup.value?.children || [] : visibleItems.value
+  findSelectedItem(props.items, currentValue.value)
 )
 const selectedLabel = computed(() => selectedResult.value?.item.label || '')
 const selectedImage = computed(() => {
@@ -281,54 +185,8 @@ const contextStyle = computed(() => ({
   minWidth: menuMinWidth.value ? `${menuMinWidth.value}px` : undefined,
 }))
 
-function normalizeSearchValue(value) {
-  return String(value || '')
-    .trim()
-    .toLocaleLowerCase()
-}
-
-function itemMatchesQuery(item, normalizedQuery) {
-  const aliases = Array.isArray(item.aliases)
-    ? item.aliases
-    : item.aliases
-      ? [item.aliases]
-      : []
-  return [item.label, item.description, ...aliases].some((value) =>
-    normalizeSearchValue(value).includes(normalizedQuery)
-  )
-}
-
-function removeEmptyGroups(items) {
-  return items
-    .filter(isGroup)
-    .map((group) => ({
-      ...group,
-      children: group.children.filter(isAction),
-    }))
-    .filter(({ children }) => children.length > 0)
-}
-
-function filterGroupedItems(groups, normalizedQuery) {
-  return groups
-    .map((group) => {
-      const children = group.children.filter((item) =>
-        itemMatchesQuery(item, normalizedQuery)
-      )
-      return children.length ? { ...group, children } : null
-    })
-    .filter(Boolean)
-}
-
 function isGroup(item) {
   return Array.isArray(item?.children)
-}
-
-function isAction(item) {
-  return item != null && !isGroup(item)
-}
-
-function getItemIdentity(item) {
-  return item?.id ?? item?.value ?? item?.label ?? null
 }
 
 function findSelectedItem(items, value) {
@@ -368,21 +226,12 @@ function toggle() {
 }
 
 function resetMenu() {
-  query.value = ''
-  activeGroupKey.value = null
-  navigationMenu.value?.reset()
-  actionMenu.value?.reset()
+  menu.value?.reset()
 }
 
 async function focusMenu() {
   await nextTick()
-  if (props.showSearch && menuSearch.value) {
-    menuSearch.value.focus()
-  } else if (navigationMenuItems.value.length) {
-    navigationMenu.value?.focus()
-  } else {
-    actionMenu.value?.focus()
-  }
+  menu.value?.focus()
 }
 
 async function onShown() {
@@ -398,43 +247,12 @@ function onHidden() {
   emit('hide')
 }
 
-function selectNavigationItem(item) {
-  activeGroupKey.value = getItemIdentity(item)
-}
-
 function selectItem(item) {
   emit('input', item.value)
   emit('update:modelValue', item.value)
   emit('change', item.value)
   emit('select', item)
   hide()
-}
-
-async function navigateToActions(item) {
-  if (item.disabled) {
-    return
-  }
-  activeGroupKey.value = getItemIdentity(item)
-  await nextTick()
-  actionMenu.value?.focus()
-}
-
-function focusNavigation() {
-  navigationMenu.value?.focus()
-}
-
-function handleSearchKeydown(event) {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    hide()
-  } else if (event.key === 'ArrowDown') {
-    event.preventDefault()
-    if (navigationMenuItems.value.length) {
-      navigationMenu.value?.focus()
-    } else {
-      actionMenu.value?.focus()
-    }
-  }
 }
 
 defineExpose({ hide, show, toggle })

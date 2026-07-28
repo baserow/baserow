@@ -16,7 +16,7 @@ const renderMenu = (args) => ({
 })
 
 export default {
-  title: 'Baserow/MenuList',
+  title: 'Baserow/Menus/MenuList',
   component: MenuList,
   tags: ['autodocs'],
   decorators: [

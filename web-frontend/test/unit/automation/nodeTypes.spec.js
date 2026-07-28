@@ -39,4 +39,34 @@ describe('Automation node types', () => {
       'slack_write_message',
     ])
   })
+
+  test('groups HTTP trigger and request nodes under HTTP', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['http_trigger', 'http_request'].map(
+        (type) => registry.get('node', type).group.id
+      )
+    ).toEqual(['http', 'http'])
+  })
+
+  test('groups file reader nodes under Files', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['csv_file_reader', 'xls_file_reader'].map(
+        (type) => registry.get('node', type).group.id
+      )
+    ).toEqual(['files', 'files'])
+  })
+
+  test('groups workflow nodes under Workflow', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['start_workflow', 'iterator', 'router'].map(
+        (type) => registry.get('node', type).group.id
+      )
+    ).toEqual(['workflow', 'workflow', 'workflow'])
+  })
 })

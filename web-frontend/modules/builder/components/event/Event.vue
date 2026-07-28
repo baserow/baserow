@@ -33,8 +33,10 @@
         :hide-on-click-outside="true"
         max-height-if-outside-viewport
       >
-        <MenuList
-          :items="workflowActionMenuItems"
+        <GroupedMenu
+          :items="workflowActionMenuGroups"
+          :search-placeholder="$t('event.searchActions')"
+          :empty-text="$t('event.noActionsFound')"
           @select="onWorkflowActionMenuItemSelected"
           @disabled-click="onWorkflowActionMenuItemSelected"
           @close="$refs.workflowActionAddContext.hide()"
@@ -95,13 +97,13 @@
 import { mapActions } from 'vuex'
 import { Event } from '@baserow/modules/builder/eventTypes'
 import WorkflowAction from '@baserow/modules/builder/components/event/WorkflowAction'
-import MenuList from '@baserow/modules/core/components/MenuList'
+import GroupedMenu from '@baserow/modules/core/components/GroupedMenu'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'Event',
-  components: { MenuList, WorkflowAction },
+  components: { GroupedMenu, WorkflowAction },
   mixins: [applicationContext],
   inject: ['workspace', 'builder', 'elementPage'],
   props: {
@@ -130,21 +132,33 @@ export default {
     }
   },
   computed: {
-    workflowActionMenuItems() {
-      return this.availableWorkflowActionTypes.map((workflowActionType) => ({
-        id: `workflow-action-${workflowActionType.getType()}`,
-        label: workflowActionType.label,
-        value: workflowActionType.getType(),
-        icon: workflowActionType.icon,
-        image: workflowActionType.image,
-        disabled: workflowActionType.isDeactivated({
-          workspace: this.workspace,
-        }),
-        disabledReason: workflowActionType.isDeactivatedReason({
-          workspace: this.workspace,
-        }),
-        meta: workflowActionType,
-      }))
+    workflowActionMenuGroups() {
+      const groups = new Map()
+
+      this.availableWorkflowActionTypes.forEach((workflowActionType) => {
+        const group = workflowActionType.group
+
+        if (!groups.has(group.id)) {
+          groups.set(group.id, { ...group, children: [] })
+        }
+
+        groups.get(group.id).children.push({
+          id: `workflow-action-${workflowActionType.getType()}`,
+          label: workflowActionType.label,
+          value: workflowActionType.getType(),
+          icon: workflowActionType.icon,
+          image: workflowActionType.image,
+          disabled: workflowActionType.isDeactivated({
+            workspace: this.workspace,
+          }),
+          disabledReason: workflowActionType.isDeactivatedReason({
+            workspace: this.workspace,
+          }),
+          meta: workflowActionType,
+        })
+      })
+
+      return Array.from(groups.values())
     },
   },
   async mounted() {

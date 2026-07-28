@@ -278,6 +278,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return this.serviceType.image
   }
 
+  get group() {
+    return this.serviceType.group
+  }
+
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {
     const data = DataProviderType.getAllActionDispatchContext(
       this.app.$registry.getAll('builderDataProvider'),

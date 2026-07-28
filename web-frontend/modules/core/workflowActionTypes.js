@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { getCoreGroup } from '@baserow/modules/core/serviceTypes'
 
 export class WorkflowActionType extends Registerable {
   get form() {
@@ -11,6 +12,10 @@ export class WorkflowActionType extends Registerable {
 
   get icon() {
     return null
+  }
+
+  get group() {
+    return getCoreGroup(this.app)
   }
 
   /**

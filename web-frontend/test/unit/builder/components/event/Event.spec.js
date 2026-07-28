@@ -20,11 +20,36 @@ const ButtonTextStub = defineComponent({
   template: '<button><slot /></button>',
 })
 
+const coreGroup = {
+  id: 'core',
+  label: 'Core',
+  icon: 'iconoir-package',
+}
+
 const workflowActionType = {
   label: 'Show Notification',
   icon: 'iconoir-chat-bubble-empty',
   image: null,
+  group: coreGroup,
   getType: () => 'notification',
+  isDeactivated: () => false,
+  isDeactivatedReason: () => null,
+  getDeactivatedClickModal: () => null,
+}
+
+const localBaserowGroup = {
+  id: 'integration-local_baserow',
+  label: 'Local Baserow',
+  image: '/local-baserow.svg',
+  icon: null,
+}
+
+const createRowWorkflowActionType = {
+  label: 'Create row',
+  icon: 'iconoir-plus',
+  image: null,
+  group: localBaserowGroup,
+  getType: () => 'create_row',
   isDeactivated: () => false,
   isDeactivatedReason: () => null,
   getDeactivatedClickModal: () => null,
@@ -51,7 +76,10 @@ describe('Event', () => {
         event,
         element,
         workflowActions: [],
-        availableWorkflowActionTypes: [workflowActionType],
+        availableWorkflowActionTypes: [
+          workflowActionType,
+          createRowWorkflowActionType,
+        ],
       },
       global: {
         provide: {
@@ -76,18 +104,33 @@ describe('Event', () => {
     })
 
     await flushPromises()
-    expect(wrapper.find('.menu-list__item-label').text()).toBe(
-      'Show Notification'
-    )
+    expect(
+      wrapper
+        .findAll('.grouped-menu__navigation .menu-list__item-label')
+        .map((item) => item.text())
+    ).toEqual(['Core', 'Local Baserow'])
+    expect(
+      wrapper
+        .findAll('.grouped-menu__actions .menu-list__item-label')
+        .map((item) => item.text())
+    ).toEqual(['Show Notification'])
 
-    await wrapper.find('.menu-list__item-button').trigger('click')
+    await wrapper
+      .findAll('.grouped-menu__navigation .menu-list__item-button')
+      .find((item) => item.text().includes('Local Baserow'))
+      .trigger('click')
+
+    await wrapper
+      .findAll('.grouped-menu__actions .menu-list__item-button')
+      .find((item) => item.text().includes('Create row'))
+      .trigger('click')
     await flushPromises()
 
     expect(store.dispatch).toHaveBeenCalledWith(
       'builderWorkflowAction/create',
       {
         page: elementPage,
-        workflowActionType: 'notification',
+        workflowActionType: 'create_row',
         eventType: 'click',
         configuration: { element_id: element.id },
       }

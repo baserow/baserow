@@ -91,6 +91,10 @@ export class NodeType extends Registerable {
     throw new Error('This method must be implemented')
   }
 
+  get group() {
+    return this.serviceType.group
+  }
+
   /**
    * The icon which is shown inside the editor's node.
    * @returns {string} - The node's icon class.

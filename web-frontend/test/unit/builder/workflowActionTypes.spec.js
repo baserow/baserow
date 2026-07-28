@@ -38,6 +38,56 @@ describe('Builder workflow action types', () => {
     ])
   })
 
+  test('groups the Slack action with the Slack integration', () => {
+    const slackAction = testApp
+      .getRegistry()
+      .get('workflowAction', 'slack_write_message')
+
+    expect(slackAction.group.id).toBe('integration-slack_bot')
+  })
+
+  test('groups the email action with the SMTP integration', () => {
+    const emailAction = testApp
+      .getRegistry()
+      .get('workflowAction', 'smtp_email')
+
+    expect(emailAction.group.id).toBe('integration-smtp')
+  })
+
+  test('groups the HTTP request action under HTTP', () => {
+    const httpRequestAction = testApp
+      .getRegistry()
+      .get('workflowAction', 'http_request')
+
+    expect(httpRequestAction.group.id).toBe('http')
+  })
+
+  test('groups file reader actions under Files', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['csv_file_reader', 'xls_file_reader'].map(
+        (type) => registry.get('workflowAction', type).group.id
+      )
+    ).toEqual(['files', 'files'])
+  })
+
+  test('groups the start workflow action under Workflow', () => {
+    const startWorkflowAction = testApp
+      .getRegistry()
+      .get('workflowAction', 'start_workflow')
+
+    expect(startWorkflowAction.group.id).toBe('workflow')
+  })
+
+  test('groups actions without a service under Core', () => {
+    const notificationAction = testApp
+      .getRegistry()
+      .get('workflowAction', 'notification')
+
+    expect(notificationAction.group.id).toBe('core')
+  })
+
   test('open page action is in error when saved page parameters are outdated', () => {
     const workflowActionType = testApp
       .getRegistry()
