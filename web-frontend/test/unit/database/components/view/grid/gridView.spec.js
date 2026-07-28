@@ -1,6 +1,8 @@
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
+import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
+import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 
 describe('GridView component', () => {
   const fields = [
@@ -195,6 +197,102 @@ describe('GridView component', () => {
       {}
     )
   })
+
+  describe('grouped row dragging', () => {
+    const groupField = { id: 2, type: 'text' }
+    const groupPath = { field_2: 'A' }
+    const sectionKey = pathKey(groupPath, [groupField])
+    const row = { id: 20 }
+    const context = {
+      sourceGroupPath: groupPath,
+      groupByFields: [groupField],
+      groupBySectionRows: new Map([
+        [
+          sectionKey,
+          new Map([
+            [0, { id: 10 }],
+            [1, row],
+            [2, { id: 30 }],
+          ]),
+        ],
+      ]),
+      row,
+    }
+
+    test.each([1, 2])(
+      'treats insertion position %s beside the source row as a no-op',
+      (position) => {
+        expect(
+          GridViewRowDragging.methods.isGroupedTargetNoop.call(context, {
+            sectionKey,
+            position,
+          })
+        ).toBe(true)
+      }
+    )
+
+    test('keeps a cross-group insertion available', () => {
+      expect(
+        GridViewRowDragging.methods.isGroupedTargetNoop.call(context, {
+          sectionKey: pathKey({ field_2: 'B' }, [groupField]),
+          position: 1,
+        })
+      ).toBe(false)
+    })
+
+    test('does not dispatch a move when the pointer has no valid target', async () => {
+      const dispatch = vi.fn()
+      const dragContext = {
+        targetAvailable: false,
+        cancel: vi.fn(),
+        $store: { dispatch },
+      }
+
+      await GridViewRowDragging.methods.up.call(dragContext, {
+        preventDefault: vi.fn(),
+      })
+
+      expect(dragContext.cancel).toHaveBeenCalledOnce()
+      expect(dispatch).not.toHaveBeenCalled()
+    })
+
+    test('dispatches an explicit cross-group insertion target', async () => {
+      const dispatch = vi.fn().mockResolvedValue()
+      const before = { id: 30 }
+      const targetPath = { field_2: 'B' }
+      const dragContext = {
+        targetAvailable: true,
+        isGroupByMode: true,
+        cancel: vi.fn(),
+        getScrollElement: () => ({ scrollTop: 40 }),
+        $store: { dispatch },
+        storePrefix: '',
+        table: { id: 1 },
+        view: { id: 2 },
+        allFieldsInTable: [groupField],
+        row,
+        targetRow: before,
+        sourceGroupPath: groupPath,
+        groupTarget: { path: targetPath },
+      }
+
+      await GridViewRowDragging.methods.up.call(dragContext, {
+        preventDefault: vi.fn(),
+      })
+
+      expect(dispatch).toHaveBeenCalledWith('view/grid/moveRow', {
+        table: dragContext.table,
+        grid: dragContext.view,
+        fields: dragContext.allFieldsInTable,
+        getScrollTop: expect.any(Function),
+        row,
+        before,
+        sourceGroupPath: groupPath,
+        targetGroupPath: targetPath,
+      })
+    })
+  })
+
   describe('presence focus after the row edit modal closes', () => {
     const makeContext = ({ cellSelected }) => ({
       presenceFocus: {

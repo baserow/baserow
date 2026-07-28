@@ -321,7 +321,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         </div>
         <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
           <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
-          <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
+          <div class="grid-view__row-target" style="width: 672px; top: 0px; display: none;"></div>
         </div>
         <teleport-stub to="body">
           <div class="context visibility-hidden context--overflow-scroll">
@@ -660,7 +660,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         </div>
         <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
           <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
-          <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
+          <div class="grid-view__row-target" style="width: 672px; top: 0px; display: none;"></div>
         </div>
         <teleport-stub to="body">
           <div class="context visibility-hidden context--overflow-scroll">

@@ -84,6 +84,7 @@
             :include-row-details="includeRowDetails"
             :read-only="readOnly"
             :can-add-row="canCreateRow"
+            :can-drag="canMoveRow"
             :focus-entries-by-cell="focusEntriesByCell"
             :focus-entries-by-row="focusEntriesByRow"
             :store-prefix="storePrefix"
@@ -126,13 +127,7 @@
             :include-row-details="includeRowDetails"
             :include-group-by="includeGroupBy"
             :read-only="readOnly"
-            :can-drag="
-              $hasPermission(
-                'database.table.update_row',
-                table,
-                database.workspace.id
-              )
-            "
+            :can-drag="canMoveRow"
             :focus-entries-by-cell="focusEntriesByCell"
             :focus-entries-by-row="focusEntriesByRow"
             :store-prefix="storePrefix"
@@ -382,6 +377,21 @@ export default {
         ) ||
           this.$hasPermission(
             'database.table.view.create_row',
+            this.view,
+            this.database.workspace.id
+          ))
+      )
+    },
+    canMoveRow() {
+      return (
+        !this.readOnly &&
+        (this.$hasPermission(
+          'database.table.update_row',
+          this.table,
+          this.database.workspace.id
+        ) ||
+          this.$hasPermission(
+            'database.table.view.update_row',
             this.view,
             this.database.workspace.id
           ))

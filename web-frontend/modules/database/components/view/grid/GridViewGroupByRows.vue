@@ -38,7 +38,7 @@
           :include-group-by="false"
           :decorations-by-place="decorationsByPlace"
           :read-only="readOnly"
-          :can-drag="false"
+          :can-drag="canDrag && view.sortings.length === 0"
           :focus-entries-by-cell="focusEntriesByCell"
           :focus-entries-by-row="focusEntriesByRow"
           :store-prefix="storePrefix"
@@ -156,6 +156,7 @@ export default {
     includeRowDetails: { type: Boolean, default: false },
     readOnly: { type: Boolean, required: true },
     canAddRow: { type: Boolean, default: false },
+    canDrag: { type: Boolean, default: false },
     workspaceId: { type: Number, required: true },
     focusEntriesByCell: {
       type: Map,

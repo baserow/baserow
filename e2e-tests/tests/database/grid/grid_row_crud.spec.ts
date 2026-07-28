@@ -873,7 +873,7 @@ test.describe("2.4.4 Edit with formula-field group-by (deferred)", () => {
     await grid.expectGroupByBanner("Short", 1);
   });
 
-  test("2.4.4a paused formula-grouped edit shows typed value immediately but no move warning until backend responds", async ({
+  test("2.4.4a paused formula-grouped edit moves immediately after the backend resolves the group", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -893,16 +893,14 @@ test.describe("2.4.4 Edit with formula-field group-by (deferred)", () => {
     await grid.expectGroupByBanner("Short", 1);
 
     pausedUpdate.release();
-    // The "Row has moved" warning appears only after the backend computes the
-    // formula group.
-    await grid.expectRowHasWarning(1);
-    await grid.expectRowWarningText(1, "Row has moved");
-    await grid.expectRowNotLoading(1);
-
-    await grid.clickAway();
+    // Formula fields are read-only, so after the backend resolves the new group
+    // there is no editable group value to preserve with a move-warning placeholder.
     await grid.expectGroupByBanner("Long", 2);
     await grid.expectNoGroupByBanner("Short");
     await grid.expectRowCount(2);
+    await grid.expectPrimaryText(0, "Alexander");
+    await grid.expectRowNoWarning(0);
+    await grid.expectRowNotLoading(0);
   });
 
   test("2.4.4b deselecting before backend confirmation keeps the row in its group then moves it after the backend responds", async ({

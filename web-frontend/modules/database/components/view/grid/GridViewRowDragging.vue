@@ -10,6 +10,7 @@
       :style="{ width: width + 'px', top: draggingTop + 'px' }"
     ></div>
     <div
+      v-show="targetAvailable"
       class="grid-view__row-target"
       :style="{ width: width + 'px', top: targetTop + 'px' }"
     ></div>
@@ -21,6 +22,14 @@ import { mapGetters } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
+import {
+  canMoveRowsAcrossGroupByFields,
+  getGroupByFieldsFromActiveGroupBys,
+} from '@baserow/modules/database/utils/gridGroupBy'
+import {
+  pathKey,
+  resolveGroupByRowMoveTarget,
+} from '@baserow/modules/database/utils/gridGroupByRender'
 
 export default {
   name: 'GridViewRowDragging',
@@ -63,6 +72,10 @@ export default {
       rowTop: 0,
       // The row where the dragged row must be placed before.
       targetRow: null,
+      // The complete grouped insertion target, or null outside grouped mode.
+      groupTarget: null,
+      // Whether the pointer currently resolves to an explicit insertion slot.
+      targetAvailable: false,
       // The horizontal starting position of the mouse.
       mouseStart: 0,
       // The position of the dragging animation.
@@ -103,12 +116,54 @@ export default {
     allRows() {
       return this.$store.getters[this.storePrefix + 'view/grid/getAllRows']
     },
+    activeGroupBys() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getActiveGroupBys'
+      ]
+    },
+    groupByFields() {
+      return getGroupByFieldsFromActiveGroupBys(
+        this.activeGroupBys,
+        this.allFieldsInTable
+      )
+    },
+    isGroupByMode() {
+      return this.groupByFields.length > 0
+    },
+    groupByLayout() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupByLayout'
+      ]
+    },
+    groupBySectionRows() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupBySectionRowsMap'
+      ]
+    },
+    sourceGroupPath() {
+      if (!this.isGroupByMode || this.row === null) {
+        return null
+      }
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupByRowPath'
+      ](this.row.id, this.allFieldsInTable)
+    },
+    canMoveAcrossGroups() {
+      return canMoveRowsAcrossGroupByFields(this.groupByFields, this.$registry)
+    },
   },
   beforeUnmount() {
     this.cancel()
   },
   methods: {
     getRowTop(rowId) {
+      if (this.isGroupByMode) {
+        return (
+          this.$store.getters[
+            this.storePrefix + 'view/grid/getGroupByRowVerticalRange'
+          ](rowId, this.allFieldsInTable)?.top || 0
+        )
+      }
       const index = this.allRows.findIndex((row) => row.id === rowId)
       if (index < 0) {
         return 0
@@ -128,6 +183,8 @@ export default {
       this.startRowTop = this.getRowTop(row.id) - element.scrollTop
       this.targetRowId = row.id
       this.dragging = true
+      this.groupTarget = null
+      this.targetAvailable = !this.isGroupByMode
       this.mouseStart = event.clientY
       this.draggingTop = 0
       this.targetTop = 0
@@ -179,13 +236,32 @@ export default {
       // position the row is going to be placed. Note that the target effect lays over
       // the vertically scrollable rows.
       const mouseTop = event.clientY - elementRect.top + element.scrollTop
-      const rowIndex = Math.max(
-        0,
-        Math.min(Math.round(mouseTop / this.rowHeight), this.rowsCount)
-      )
-      this.targetTop = rowIndex * this.rowHeight - element.scrollTop
-      const beforeRow = this.allRows[rowIndex - this.bufferStartIndex]
-      this.targetRow = beforeRow === undefined ? null : beforeRow
+      if (this.isGroupByMode) {
+        const target = resolveGroupByRowMoveTarget({
+          layout: this.groupByLayout,
+          sectionRows: this.groupBySectionRows,
+          contentY: mouseTop,
+          fields: this.groupByFields,
+          sourcePath: this.sourceGroupPath,
+          allowCrossGroup: this.canMoveAcrossGroups,
+          rowHeight: this.rowHeight,
+        })
+        this.groupTarget = this.isGroupedTargetNoop(target) ? null : target
+        this.targetAvailable = this.groupTarget !== null
+        if (this.groupTarget !== null) {
+          this.targetTop = this.groupTarget.y - element.scrollTop
+          this.targetRow = this.groupTarget.before
+        }
+      } else {
+        const rowIndex = Math.max(
+          0,
+          Math.min(Math.round(mouseTop / this.rowHeight), this.rowsCount)
+        )
+        this.targetTop = rowIndex * this.rowHeight - element.scrollTop
+        const beforeRow = this.allRows[rowIndex - this.bufferStartIndex]
+        this.targetRow = beforeRow === undefined ? null : beforeRow
+        this.targetAvailable = true
+      }
 
       // If the user is not already auto scrolling, which happens while dragging and
       // moving the element close to the end of the view port at the top or bottom
@@ -226,6 +302,24 @@ export default {
       document.body.removeEventListener('keydown', this.keydownEvent)
       clearTimeout(this.scrollTimeout)
     },
+    isGroupedTargetNoop(target) {
+      if (target === null || this.sourceGroupPath === null) {
+        return false
+      }
+      const sourceSectionKey = pathKey(this.sourceGroupPath, this.groupByFields)
+      if (target.sectionKey !== sourceSectionKey) {
+        return false
+      }
+      const sourceRows = this.groupBySectionRows.get(sourceSectionKey)
+      const sourcePosition = [...(sourceRows?.entries() || [])].find(
+        ([, row]) => row.id === this.row.id
+      )?.[0]
+      return (
+        sourcePosition !== undefined &&
+        (target.position === sourcePosition ||
+          target.position === sourcePosition + 1)
+      )
+    },
     /**
      * Called when the user releases the mouse on a the desired position. It will
      * calculate the new position of the row in the list and if it has changed
@@ -235,9 +329,13 @@ export default {
       event.preventDefault()
       this.cancel()
 
+      if (!this.targetAvailable) {
+        return
+      }
+
       // We don't need to do anything if the row must be placed before or after itself
       // because that wouldn't change the position.
-      if (this.targetRow !== null) {
+      if (!this.isGroupByMode && this.targetRow !== null) {
         // If the row must be placed before itself.
         if (this.row.id === this.targetRow.id) {
           return
@@ -264,6 +362,8 @@ export default {
           getScrollTop,
           row: this.row,
           before: this.targetRow,
+          sourceGroupPath: this.sourceGroupPath,
+          targetGroupPath: this.groupTarget?.path || null,
         })
       } catch (error) {
         notifyIf(error, 'row')

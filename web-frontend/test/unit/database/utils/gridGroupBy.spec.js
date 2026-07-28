@@ -5,6 +5,7 @@ import {
   makeSectionRowsMap,
   getDefinedRowsFromSectionRows,
   groupPathDefaults,
+  canMoveRowsAcrossGroupByFields,
   groupPathFromRow,
   getGroupByPathDepth,
   getGroupByPathPrefix,
@@ -278,6 +279,19 @@ describe('gridGroupBy path helpers', () => {
     expect(groupPathDefaults({ field_1: null }, fields, registry)).toEqual({
       field_1: null,
     })
+  })
+
+  test('cross-group moves require every grouped field to be writable', () => {
+    const fields = [textField(1), textField(2)]
+    expect(canMoveRowsAcrossGroupByFields(fields, makeRegistry())).toBe(true)
+    expect(
+      canMoveRowsAcrossGroupByFields(
+        fields,
+        makeRegistry({
+          canWriteFieldValues: (field) => field.id !== 2,
+        })
+      )
+    ).toBe(false)
   })
 })
 

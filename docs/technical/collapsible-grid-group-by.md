@@ -100,6 +100,26 @@ The server remains authoritative when the client cannot know the final group
 membership locally, for example formula-backed groups, backend-only effects,
 missing group pages, or an error response that requires rollback.
 
+Once the server resolves a group change through a read-only or formula-backed
+group field, the row moves to that group immediately, even while selected. The
+selected-row move-warning placeholder is only useful for directly writable group
+fields whose in-progress edit must remain visible until deselection.
+
+### Row Ordering Inside Groups
+
+Grouped rows keep the table's manual row order as the final ordering key inside
+each leaf group. When no explicit view sort is active, a visible row insertion
+slot can therefore move a row before another row in the same leaf group or to
+that group's end.
+
+A move to another leaf group first replaces the row values represented by the
+complete destination group path and then updates its order. These two mutations
+form one atomic undo/redo operation. Cross-group moves are available only when
+every active group-by field is writable; if any grouped field is read-only, rows
+can only be reordered inside their current leaf group. Collapsed groups and
+unloaded row placeholders are not drop targets because they do not expose an
+unambiguous visible insertion slot.
+
 ### Bounded Fan-Out
 
 Requests that include descendants must be bounded. A wide or deep group tree
@@ -212,6 +232,8 @@ Known costs to keep in mind:
   must match the rendered UI dimensions, otherwise scroll math drifts.
 - Optimistic updates must keep row counts and row placement indexes consistent
   until the next server reconciliation.
+- Cross-group row moves must update the complete destination group path before
+  changing order, and both changes must roll back together if the move fails.
 
 ## Group Aggregations
 

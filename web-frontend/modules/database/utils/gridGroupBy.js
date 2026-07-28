@@ -226,6 +226,17 @@ export function groupPathDefaults(path, fields, registry) {
 }
 
 /**
+ * Whether a row can be moved to another leaf group. Every grouped field must be
+ * writable because a cross-group move replaces the row values represented by the
+ * complete destination path.
+ */
+export function canMoveRowsAcrossGroupByFields(fields, registry) {
+  return fields.every((field) =>
+    registry.get('field', field.type).canWriteFieldValues(field)
+  )
+}
+
+/**
  * Which group a row belongs to (its group-by path), from the row's field values.
  */
 export function groupPathFromRow(row, fields, registry) {

@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import patch
@@ -2781,6 +2782,143 @@ def test_move_row(api_client, data_fixture):
         response_json["detail"]["before_id"][0]["error"]
         == "A valid integer is required."
     )
+
+
+@pytest.mark.django_db
+def test_move_row_updates_field_values_before_moving(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    group_field = data_fixture.create_text_field(table=table, name="Group")
+    handler = RowHandler()
+    row_1 = handler.create_row(user, table, {f"field_{group_field.id}": "Group A"})
+    row_2 = handler.create_row(user, table, {f"field_{group_field.id}": "Group B"})
+    row_3 = handler.create_row(user, table, {f"field_{group_field.id}": "Group B"})
+
+    url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+    response = api_client.patch(
+        f"{url}?before_id={row_3.id}",
+        {f"field_{group_field.id}": "Group B"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{group_field.id}"] == "Group B"
+
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    row_3.refresh_from_db()
+    assert getattr(row_1, f"field_{group_field.id}") == "Group B"
+    assert row_2.order < row_1.order < row_3.order
+
+
+@pytest.mark.django_db
+def test_move_row_rejects_read_only_field_updates(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    read_only_field = data_fixture.create_text_field(
+        table=table, name="Read only", read_only=True
+    )
+    row = RowHandler().create_row(user, table)
+    original_order = row.order
+
+    url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+    response = api_client.patch(
+        url,
+        {f"field_{read_only_field.id}": "Other group"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"][f"field_{read_only_field.id}"][0]["code"] == (
+        "read_only"
+    )
+    row.refresh_from_db()
+    assert row.order == original_order
+
+
+@pytest.mark.django_db
+def test_move_row_rolls_back_field_update_if_move_fails(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    group_field = data_fixture.create_text_field(table=table, name="Group")
+    row = RowHandler().create_row(user, table, {f"field_{group_field.id}": "Group A"})
+
+    url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+    response = api_client.patch(
+        f"{url}?before_id=-1",
+        {f"field_{group_field.id}": "Group B"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    row.refresh_from_db()
+    assert getattr(row, f"field_{group_field.id}") == "Group A"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_move_row_with_field_update_undoes_and_redoes_as_one_group(
+    api_client, data_fixture
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    group_field = data_fixture.create_text_field(table=table, name="Group")
+    handler = RowHandler()
+    row_1 = handler.create_row(user, table, {f"field_{group_field.id}": "Group A"})
+    row_2 = handler.create_row(user, table, {f"field_{group_field.id}": "Group B"})
+    row_3 = handler.create_row(user, table, {f"field_{group_field.id}": "Group B"})
+    original_order = row_1.order
+    session_id = "grouped-row-move"
+    action_group = str(uuid.uuid4())
+
+    url = reverse(
+        "api:database:rows:move", kwargs={"table_id": table.id, "row_id": row_1.id}
+    )
+    response = api_client.patch(
+        f"{url}?before_id={row_3.id}",
+        {f"field_{group_field.id}": "Group B"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        HTTP_CLIENTSESSIONID=session_id,
+        HTTP_CLIENTUNDOREDOACTIONGROUPID=action_group,
+    )
+    assert response.status_code == HTTP_200_OK
+
+    response = api_client.patch(
+        reverse("api:user:undo"),
+        {"scopes": {"table": table.id}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+    assert response.status_code == HTTP_200_OK
+    row_1.refresh_from_db()
+    assert getattr(row_1, f"field_{group_field.id}") == "Group A"
+    assert row_1.order == original_order
+
+    response = api_client.patch(
+        reverse("api:user:redo"),
+        {"scopes": {"table": table.id}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+    assert response.status_code == HTTP_200_OK
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    row_3.refresh_from_db()
+    assert getattr(row_1, f"field_{group_field.id}") == "Group B"
+    assert row_2.order < row_1.order < row_3.order
 
 
 @pytest.mark.django_db

@@ -784,7 +784,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
             />
             <div
               class="grid-view__row-target"
-              style="width: 672px; top: 0px;"
+              style="width: 672px; top: 0px; display: none;"
             />
           </div>
           <teleport-stub

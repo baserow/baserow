@@ -708,3 +708,86 @@ export function renderViewport({
 
   return items
 }
+
+/**
+ * Resolves a pointer position in grouped layout-space to a visible row insertion
+ * slot. Group headers, gaps, unloaded row slots, and collapsed groups are not valid
+ * targets. The returned `before` row is null for the explicit end-of-group slot.
+ */
+export function resolveGroupByRowMoveTarget({
+  layout,
+  sectionRows,
+  contentY,
+  fields,
+  sourcePath,
+  allowCrossGroup,
+  rowHeight = ROW_HEIGHT,
+}) {
+  if (!sourcePath) {
+    return null
+  }
+  const sourceSectionKey = pathKey(sourcePath, fields)
+
+  for (const item of layout.items) {
+    if (contentY < item.y || contentY >= item.y + item.height) {
+      continue
+    }
+
+    if (item.type !== 'rowSection' && item.type !== 'addRow') {
+      return null
+    }
+
+    // A root add-row line in an empty grouped view has only a partial path and
+    // therefore cannot identify a destination leaf group.
+    const completePath = fields.every(
+      (field) => `field_${field.id}` in item.path
+    )
+    if (!completePath) {
+      return null
+    }
+
+    const sectionKey = pathKey(item.path, fields)
+    if (!allowCrossGroup && sectionKey !== sourceSectionKey) {
+      return null
+    }
+
+    const section = layout.items.find(
+      (candidate) =>
+        candidate.type === 'rowSection' &&
+        pathKey(candidate.path, fields) === sectionKey
+    )
+    if (!section) {
+      return null
+    }
+
+    const position =
+      item.type === 'addRow'
+        ? section.rowCount
+        : Math.max(
+            0,
+            Math.min(
+              section.rowCount,
+              Math.round((contentY - section.y) / rowHeight)
+            )
+          )
+    const before =
+      position === section.rowCount
+        ? null
+        : sectionRows.get(sectionKey)?.get(position)
+
+    // A sparse/unloaded row slot cannot provide the row id needed by the move API.
+    if (position < section.rowCount && before === undefined) {
+      return null
+    }
+
+    return {
+      before,
+      path: item.path,
+      sectionKey,
+      position,
+      y: section.y + position * rowHeight,
+    }
+  }
+
+  return null
+}

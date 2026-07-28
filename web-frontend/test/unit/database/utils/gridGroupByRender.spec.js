@@ -6,6 +6,7 @@ import {
   buildLayout,
   pathKey,
   renderViewport,
+  resolveGroupByRowMoveTarget,
   visibleGroupDepthPageInViewport,
   visibleGroupPagesInViewport,
   visibleSectionsInViewport,
@@ -141,6 +142,135 @@ describe('gridGroupByRender', () => {
         expect.objectContaining({ rowCount: 1, firstGlobalRowOffset: 2 }),
       ])
     )
+  })
+
+  describe('resolveGroupByRowMoveTarget', () => {
+    const fields = [textField(1)]
+    const pathA = { field_1: 'A' }
+    const pathB = { field_1: 'B' }
+    const rowA1 = { id: 1 }
+    const rowA2 = { id: 2 }
+    const rowB1 = { id: 3 }
+    const layout = buildLayout({
+      nodes: [
+        { path: pathA, depth: 0, row_count: 2 },
+        { path: pathB, depth: 0, row_count: 1 },
+      ],
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+    })
+    const sectionRows = buildSectionRows(
+      [
+        { path: pathA, rows: [rowA1, rowA2] },
+        { path: pathB, rows: [rowB1] },
+      ],
+      fields
+    )
+    const sectionA = layout.items.find(
+      (item) => item.type === 'rowSection' && item.path.field_1 === 'A'
+    )
+    const sectionB = layout.items.find(
+      (item) => item.type === 'rowSection' && item.path.field_1 === 'B'
+    )
+    const addRowB = layout.items.find(
+      (item) => item.type === 'addRow' && item.path.field_1 === 'B'
+    )
+
+    test('resolves visible row boundaries and the explicit end-of-group slot', () => {
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout,
+          sectionRows,
+          contentY: sectionA.y + 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: true,
+        })
+      ).toMatchObject({
+        before: rowA1,
+        path: pathA,
+        position: 0,
+        y: sectionA.y,
+      })
+
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout,
+          sectionRows,
+          contentY: addRowB.y + 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: true,
+        })
+      ).toMatchObject({ before: null, path: pathB, position: 1, y: addRowB.y })
+    })
+
+    test('allows a same-group target but rejects cross-group targets when constrained', () => {
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout,
+          sectionRows,
+          contentY: sectionA.y + 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: false,
+        })
+      ).not.toBeNull()
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout,
+          sectionRows,
+          contentY: sectionB.y + 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: false,
+        })
+      ).toBeNull()
+    })
+
+    test('rejects headers, collapsed groups, and unloaded row slots', () => {
+      const headerA = layout.items.find(
+        (item) => item.type === 'header' && item.path.field_1 === 'A'
+      )
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout,
+          sectionRows,
+          contentY: headerA.y + 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: true,
+        })
+      ).toBeNull()
+
+      const collapsedLayout = buildLayout({
+        nodes: [{ path: pathB, depth: 0, row_count: 1 }],
+        collapse: { mode: 'expand', paths: [pathB] },
+        fields,
+      })
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout: collapsedLayout,
+          sectionRows,
+          contentY: 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: true,
+        })
+      ).toBeNull()
+
+      const sparseRows = new Map([[pathKey(pathB, fields), new Map()]])
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout,
+          sectionRows: sparseRows,
+          contentY: sectionB.y + 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: true,
+        })
+      ).toBeNull()
+    })
   })
 
   test('an empty loaded paged layout keeps a top-level add-row line', () => {
