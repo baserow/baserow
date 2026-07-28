@@ -117,6 +117,8 @@ import {
   RuntimeSplit,
   RuntimeIsEmpty,
   RuntimeStrip,
+  RuntimeEncodeUri,
+  RuntimeEncodeUriComponent,
   RuntimeSum,
   RuntimeAvg,
   RuntimeAt,
@@ -302,6 +304,11 @@ export default defineNuxtPlugin({
     registry.register('runtimeFormulaFunction', new RuntimeSplit(context))
     registry.register('runtimeFormulaFunction', new RuntimeIsEmpty(context))
     registry.register('runtimeFormulaFunction', new RuntimeStrip(context))
+    registry.register('runtimeFormulaFunction', new RuntimeEncodeUri(context))
+    registry.register(
+      'runtimeFormulaFunction',
+      new RuntimeEncodeUriComponent(context)
+    )
     registry.register('runtimeFormulaFunction', new RuntimeSum(context))
     registry.register('runtimeFormulaFunction', new RuntimeAvg(context))
     registry.register('runtimeFormulaFunction', new RuntimeAt(context))

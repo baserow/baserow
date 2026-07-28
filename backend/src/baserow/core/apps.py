@@ -47,6 +47,8 @@ class CoreConfig(AppConfig):
             RuntimeDay,
             RuntimeDivide,
             RuntimeDurationFormat,
+            RuntimeEncodeUri,
+            RuntimeEncodeUriComponent,
             RuntimeEqual,
             RuntimeFromJson,
             RuntimeGenerateUUID,
@@ -137,6 +139,8 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeSplit())
         formula_runtime_function_registry.register(RuntimeIsEmpty())
         formula_runtime_function_registry.register(RuntimeStrip())
+        formula_runtime_function_registry.register(RuntimeEncodeUri())
+        formula_runtime_function_registry.register(RuntimeEncodeUriComponent())
         formula_runtime_function_registry.register(RuntimeSum())
         formula_runtime_function_registry.register(RuntimeAvg())
         formula_runtime_function_registry.register(RuntimeAt())

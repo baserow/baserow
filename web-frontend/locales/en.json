@@ -702,6 +702,8 @@
     "splitDescription": "Splits the first argument using the optional second argument as the separator. If the second argument is not provided, uses ' ' as the separator.",
     "isEmptyDescription": "Returns true if the argument is empty, otherwise returns false",
     "stripDescription": "Strips any leading and trailing whitespace from the argument",
+    "encodeUriDescription": "Percent encodes the characters that are not allowed in a URL, leaving the URL structure intact",
+    "encodeUriComponentDescription": "Percent encodes the argument so it can safely be used as a single part of a URL, like a path segment or a query parameter",
     "sumDescription": "Sums the numbers inside the argument.",
     "avgDescription": "Averages the numbers inside the argument.",
     "atDescription": "Returns the item in the first argument at the index specified by the second argument.",
