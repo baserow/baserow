@@ -1073,7 +1073,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "filterable": False,
             "original_type": "button",
             "metadata": {},
-            "type": "boolean",
+            "type": None,
         },
         field_db_column_by_name["ai"]: {
             "title": "ai",

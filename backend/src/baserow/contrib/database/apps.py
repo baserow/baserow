@@ -307,6 +307,7 @@ class DatabaseConfig(AppConfig):
 
         from .fields.field_converters import (
             AutonumberFieldConverter,
+            ButtonFieldConverter,
             FileFieldConverter,
             FormulaFieldConverter,
             FormViewEditRowFieldConverter,
@@ -334,6 +335,7 @@ class DatabaseConfig(AppConfig):
         field_converter_registry.register(FormViewEditRowFieldConverter())
         field_converter_registry.register(AutonumberFieldConverter())
         field_converter_registry.register(PasswordFieldConverter())
+        field_converter_registry.register(ButtonFieldConverter())
 
         from .fields.actions import (
             ChangePrimaryFieldActionType,

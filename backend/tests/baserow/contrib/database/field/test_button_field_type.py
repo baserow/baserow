@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.db import connection
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -311,3 +312,108 @@ def test_duplicate_table_with_button_field_broken_references(data_fixture):
     assert new_button.url_formula["formula"] == (
         "concat('test:',get('fields.field_0'))"
     )
+
+
+@pytest.mark.django_db
+def test_button_field_has_no_database_column(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = FieldHandler().create_field(
+        user, table, "button", name="btn", label="Open"
+    )
+
+    model = table.get_model()
+    model_field = model._meta.get_field(button_field.db_column)
+    # The field exists on the model so the handler can look it up, but it is
+    # not concrete, so no column is created and rows never select it.
+    assert model_field.column is None
+    assert model_field.concrete is False
+    assert model_field not in model._meta.concrete_fields
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
+            [table.get_database_table_name()],
+        )
+        assert button_field.db_column not in [row[0] for row in cursor.fetchall()]
+
+    row = model.objects.create()
+    assert getattr(row, button_field.db_column) is None
+    assert getattr(model.objects.get(pk=row.id), button_field.db_column) is None
+
+
+@pytest.mark.django_db
+def test_converting_to_and_from_a_button_field(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, name="convert me")
+    model = table.get_model()
+    row = model.objects.create(**{field.db_column: "keep"})
+
+    # Converting into a button drops the column, converting back recreates it.
+    FieldHandler().update_field(user, field, new_type_name="button", label="Open")
+    button_model = table.get_model()
+    assert button_model._meta.get_field(field.db_column).column is None
+    assert getattr(button_model.objects.get(pk=row.id), field.db_column) is None
+
+    FieldHandler().update_field(user, field.specific, new_type_name="text")
+    text_model = table.get_model()
+    assert text_model._meta.get_field(field.db_column).column == field.db_column
+    # The button held no data, so the recreated column starts empty.
+    assert getattr(text_model.objects.get(pk=row.id), field.db_column) is None
+
+
+@pytest.mark.django_db
+def test_updating_an_existing_button_field_with_flag_disabled(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+
+    # Only creation is gated: an existing button field stays editable so that
+    # turning the flag off never traps a table.
+    with override_settings(FEATURE_FLAGS=[]):
+        response = api_client.patch(
+            reverse("api:database:fields:item", kwargs={"field_id": button_field.id}),
+            {"label": "Renamed"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["label"] == "Renamed"
+
+
+@pytest.mark.django_db
+def test_converting_a_field_to_button_with_flag_disabled(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+
+    # Converting another type into a button is a creation, so it is gated.
+    with override_settings(FEATURE_FLAGS=[]):
+        response = api_client.patch(
+            reverse("api:database:fields:item", kwargs={"field_id": text_field.id}),
+            {"type": "button", "label": "Open"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
+
+
+@pytest.mark.django_db
+def test_deleting_a_button_field(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = FieldHandler().create_field(
+        user, table, "button", name="btn", label="Open"
+    )
+
+    # There is no column to drop, so the schema editor has to skip it rather
+    # than fail on a field it can't find.
+    FieldHandler().delete_field(user, button_field)
+    TrashHandler.permanently_delete(button_field)
+
+    assert not ButtonField.objects.filter(id=button_field.id).exists()
+    assert table.get_model().objects.count() == 0
