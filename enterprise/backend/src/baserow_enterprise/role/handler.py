@@ -37,6 +37,7 @@ from baserow_premium.license.handler import LicenseHandler
 
 from .constants import (
     ALLOWED_SUBJECT_TYPE_BY_PRIORITY,
+    FIELD_PERMISSION_EDITOR_ROLE_UID,
     NO_ACCESS_ROLE_UID,
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
     READ_ONLY_ROLE_UID,
@@ -418,7 +419,13 @@ class RoleAssignmentHandler:
                 RoleAssignment.objects.filter(
                     workspace=workspace,
                 )
-                .filter(subjects_q, ~Q(role__uid=NO_ROLE_LOW_PRIORITY_ROLE_UID))
+                .filter(subjects_q)
+                .exclude(
+                    role__uid__in=[
+                        NO_ROLE_LOW_PRIORITY_ROLE_UID,
+                        FIELD_PERMISSION_EDITOR_ROLE_UID,
+                    ]
+                )
                 .annotate(
                     scope_type_order=Case(
                         *scope_cases,

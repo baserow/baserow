@@ -17,6 +17,7 @@ from baserow.core.action.registries import (
 )
 
 from .handler import FieldPermissionsHandler, FieldPermissionUpdated
+from .models import FieldPermissionsRoleEnum
 
 
 class UpdateFieldPermissionsActionType(UndoableActionType):
@@ -50,6 +51,8 @@ class UpdateFieldPermissionsActionType(UndoableActionType):
         allow_in_forms: bool
         original_role: str
         original_allow_in_forms: bool
+        subjects: list[dict] | None = None
+        original_subjects: list[dict] | None = None
 
     @classmethod
     def get_field_for_update(cls, field_id: int) -> Field:
@@ -71,6 +74,7 @@ class UpdateFieldPermissionsActionType(UndoableActionType):
         field: Field,
         role: str,
         allow_in_forms: bool = False,
+        subjects: list[dict] | None = None,
     ) -> FieldPermissionUpdated:
         """
         Updates the field permissions for a given field, setting the role and whether
@@ -80,6 +84,7 @@ class UpdateFieldPermissionsActionType(UndoableActionType):
         :param field: The field instance that needs to be updated.
         :param role: The role to set for the field.
         :param allow_in_forms: Whether the field is allowed in forms.
+        :param subjects: The users and teams allowed to edit when role is CUSTOM.
         """
 
         original_field_permissions = FieldPermissionsHandler._get_field_permissions(
@@ -87,9 +92,22 @@ class UpdateFieldPermissionsActionType(UndoableActionType):
         )
         original_role = original_field_permissions.role
         original_allow_in_forms = original_field_permissions.allow_in_forms
+        original_subjects = (
+            FieldPermissionsHandler._get_field_permission_subject_identifiers(field)
+        )
+
+        if role == FieldPermissionsRoleEnum.CUSTOM.value:
+            if subjects is None:
+                subjects = (
+                    original_subjects
+                    if original_role == FieldPermissionsRoleEnum.CUSTOM.value
+                    else []
+                )
+        else:
+            subjects = []
 
         field_permissions = FieldPermissionsHandler.update_field_permissions(
-            user, field, role, allow_in_forms
+            user, field, role, allow_in_forms, subjects
         )
 
         table = field.table
@@ -104,6 +122,8 @@ class UpdateFieldPermissionsActionType(UndoableActionType):
             allow_in_forms,
             original_role,
             original_allow_in_forms,
+            subjects,
+            original_subjects,
         )
         workspace = table.database.workspace
         cls.register_action(user, params, cls.scope(table.id), workspace)
@@ -123,12 +143,20 @@ class UpdateFieldPermissionsActionType(UndoableActionType):
     ):
         field = cls.get_field_for_update(params.field_id)
         FieldPermissionsHandler.update_field_permissions(
-            user, field, params.original_role, params.original_allow_in_forms
+            user,
+            field,
+            params.original_role,
+            params.original_allow_in_forms,
+            params.original_subjects or [],
         )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         field = cls.get_field_for_update(params.field_id)
         FieldPermissionsHandler.update_field_permissions(
-            user, field, params.role, params.allow_in_forms
+            user,
+            field,
+            params.role,
+            params.allow_in_forms,
+            params.subjects or [],
         )

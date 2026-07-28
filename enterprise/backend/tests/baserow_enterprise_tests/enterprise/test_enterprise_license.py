@@ -23,7 +23,7 @@ from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.handler import UserFileHandler
 from baserow_enterprise.features import ENTERPRISE_SETTINGS, RBAC, SSO
 from baserow_enterprise.license_types import EnterpriseLicenseType
-from baserow_enterprise.role.default_roles import default_roles
+from baserow_enterprise.role.default_roles import seat_usage_role_uids
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.role.seat_usage_calculator import (
@@ -1885,7 +1885,7 @@ def test_order_of_roles_is_as_expected(
         "BUILDER",
         "ADMIN",
     ]
-    assert set(expected_role_order) == set(default_roles.keys())
+    assert set(expected_role_order) == set(seat_usage_role_uids)
     for idx, uid in enumerate(expected_role_order):
         table = data_fixture.create_database_table(
             name=f"table{idx}", database=database

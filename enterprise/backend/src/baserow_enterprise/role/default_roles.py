@@ -292,6 +292,7 @@ from baserow_enterprise.role.constants import (
     BUILDER_ROLE_UID,
     COMMENTER_ROLE_UID,
     EDITOR_ROLE_UID,
+    FIELD_PERMISSION_EDITOR_ROLE_UID,
     NO_ACCESS_ROLE_UID,
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
     READ_ONLY_ROLE_UID,
@@ -339,11 +340,18 @@ default_roles = {
     READ_ONLY_ROLE_UID: [],
     NO_ACCESS_ROLE_UID: [],
     NO_ROLE_LOW_PRIORITY_ROLE_UID: [],
+    FIELD_PERMISSION_EDITOR_ROLE_UID: [],
 }
+
+# This internal role is a marker for field-specific subject selection, not a user's
+# effective RBAC role, and must not appear in license seat usage summaries.
+seat_usage_role_uids = [
+    uid for uid in default_roles if uid != FIELD_PERMISSION_EDITOR_ROLE_UID
+]
 # Virtual roles are only used in-code, and it's not possible for the user to use these.
 # The READ_ONLY role is used give to the user when they don't have access to a lower
 # level object scope, but have access a higher one.
-hidden_roles = [READ_ONLY_ROLE_UID]
+hidden_roles = [READ_ONLY_ROLE_UID, FIELD_PERMISSION_EDITOR_ROLE_UID]
 
 if settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED not in default_roles:
     raise ImproperlyConfigured(

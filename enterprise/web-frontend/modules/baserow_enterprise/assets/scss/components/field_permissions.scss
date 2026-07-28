@@ -1,0 +1,137 @@
+.field-permission-subjects {
+  padding-top: 16px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.field-permission-subjects__section {
+  h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
+
+.field-permission-subjects__section-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  h3 {
+    margin-bottom: 0;
+  }
+}
+
+.field-permission-subjects__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 12px;
+  background: $palette-neutral-100;
+  color: $palette-neutral-700;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-permission-subjects__list {
+  max-height: 224px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 8px;
+  list-style: none;
+}
+
+.field-permission-subjects__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 10px 12px;
+
+  & + & {
+    border-top: 1px solid $palette-neutral-200;
+  }
+}
+
+.field-permission-subjects__identity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+
+  small {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    color: $palette-neutral-700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.field-permission-subjects__dropdown-option {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  gap: 10px;
+
+  small {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    color: $palette-neutral-700;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.field-permission-subjects__details {
+  min-width: 0;
+}
+
+.field-permission-subjects__label {
+  display: block;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-permission-subjects__team-icon {
+  display: flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: $palette-neutral-100;
+  color: $palette-neutral-700;
+  font-size: 16px;
+}
+
+.field-permission-subjects__team-icon--dropdown {
+  flex-basis: 32px;
+}
+
+.field-permission-subjects__empty {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: $palette-neutral-700;
+  text-align: center;
+}

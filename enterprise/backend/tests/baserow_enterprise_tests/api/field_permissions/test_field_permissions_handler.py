@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import reverse
 from django.test.utils import override_settings
 
@@ -7,12 +9,19 @@ import pytest
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK
 
+from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.handler import CoreHandler
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
 from baserow_enterprise.field_permissions.models import FieldPermissionsRoleEnum
+from baserow_enterprise.field_permissions.permission_manager import (
+    FieldPermissionManagerType,
+)
 from baserow_enterprise.role.handler import RoleAssignmentHandler
-from baserow_enterprise.role.models import Role
+from baserow_enterprise.role.models import Role, RoleAssignment
+from baserow_enterprise.teams.models import Team
 
 
 @pytest.mark.django_db
@@ -84,6 +93,184 @@ def test_only_builder_and_up_can_update_field_permissions(
     assert field_permissions.role == "NOBODY"
     assert field_permissions.allow_in_forms is False
     assert field_permissions.can_write_values is False
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_custom_field_permissions_require_selection_and_an_editor_or_higher_role(
+    enterprise_data_fixture, synced_roles
+):
+    admin = enterprise_data_fixture.create_user()
+    selected_editor = enterprise_data_fixture.create_user()
+    unselected_editor = enterprise_data_fixture.create_user()
+    selected_viewer = enterprise_data_fixture.create_user()
+    selected_team_member = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=admin)
+    workspace = database.workspace
+    for workspace_user in [
+        selected_editor,
+        unselected_editor,
+        selected_viewer,
+        selected_team_member,
+    ]:
+        enterprise_data_fixture.create_user_workspace(
+            user=workspace_user, workspace=workspace, permissions="EDITOR"
+        )
+
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table)
+    team = enterprise_data_fixture.create_team(
+        workspace=workspace, members=[selected_team_member]
+    )
+    enterprise_data_fixture.enable_enterprise()
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    viewer_role = Role.objects.get(uid="VIEWER")
+    for editor in [selected_editor, unselected_editor, selected_team_member]:
+        RoleAssignmentHandler().assign_role(
+            editor, workspace, editor_role, scope=database
+        )
+    RoleAssignmentHandler().assign_role(
+        selected_viewer, workspace, viewer_role, scope=database
+    )
+
+    FieldPermissionsHandler.update_field_permissions(
+        admin,
+        field,
+        FieldPermissionsRoleEnum.CUSTOM,
+        subjects=[
+            {"subject_id": selected_editor.id, "subject_type": "auth.User"},
+            {"subject_id": selected_viewer.id, "subject_type": "auth.User"},
+            {
+                "subject_id": team.id,
+                "subject_type": "baserow_enterprise.Team",
+            },
+        ],
+    )
+
+    def assert_can_write(user, expected):
+        if expected:
+            assert CoreHandler().check_permissions(
+                user,
+                WriteFieldValuesOperationType.type,
+                context=field,
+                workspace=workspace,
+            )
+        else:
+            with pytest.raises(PermissionDenied):
+                CoreHandler().check_permissions(
+                    user,
+                    WriteFieldValuesOperationType.type,
+                    context=field,
+                    workspace=workspace,
+                )
+
+    assert_can_write(selected_editor, True)
+    assert_can_write(selected_team_member, True)
+    assert_can_write(unselected_editor, False)
+    assert_can_write(selected_viewer, False)
+    assert_can_write(admin, False)
+
+    def write_exceptions_for(user):
+        permissions = CoreHandler().get_permissions(user, workspace=workspace)
+        field_manager = next(
+            manager
+            for manager in permissions
+            if manager["name"] == FieldPermissionManagerType.type
+        )
+        return field_manager["permissions"][WriteFieldValuesOperationType.type][
+            "exceptions"
+        ]
+
+    assert field.id not in write_exceptions_for(selected_editor)
+    assert field.id not in write_exceptions_for(selected_team_member)
+    assert field.id in write_exceptions_for(unselected_editor)
+    assert field.id in write_exceptions_for(selected_viewer)
+    assert field.id in write_exceptions_for(admin)
+
+    # The marker assignment must not replace the selected user's ordinary RBAC role.
+    roles_by_scope = RoleAssignmentHandler().get_roles_per_scope(
+        workspace, selected_editor
+    )
+    assert [
+        role.uid
+        for role in RoleAssignmentHandler().get_computed_roles(roles_by_scope, field)
+    ] == ["EDITOR"]
+
+    # Switching away from CUSTOM clears the selected subjects.
+    FieldPermissionsHandler.update_field_permissions(admin, field, "EDITOR")
+    assert FieldPermissionsHandler._get_field_permission_subjects(field) == []
+    assert_can_write(selected_editor, True)
+    assert_can_write(unselected_editor, True)
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_custom_field_subjects_are_resolved_in_two_queries_for_many_actors_and_fields(
+    enterprise_data_fixture, synced_roles, django_assert_num_queries
+):
+    admin = enterprise_data_fixture.create_user()
+    directly_selected = enterprise_data_fixture.create_user()
+    selected_via_team = enterprise_data_fixture.create_user()
+    unselected = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=admin)
+    workspace = database.workspace
+    for member in [directly_selected, selected_via_team, unselected]:
+        enterprise_data_fixture.create_user_workspace(
+            user=member, workspace=workspace, permissions="EDITOR"
+        )
+
+    table = enterprise_data_fixture.create_database_table(database=database)
+    fields = [enterprise_data_fixture.create_text_field(table=table) for _ in range(5)]
+    team = enterprise_data_fixture.create_team(
+        workspace=workspace, members=[selected_via_team]
+    )
+    subjects = [
+        {"subject_id": directly_selected.id, "subject_type": "auth.User"},
+        {"subject_id": team.id, "subject_type": "baserow_enterprise.Team"},
+    ]
+    for field in fields:
+        FieldPermissionsHandler._sync_field_permission_subjects(field, subjects)
+
+    ContentType.objects.get_for_models(get_user_model(), Team, Field)
+    manager = FieldPermissionManagerType()
+    actors = [directly_selected, selected_via_team, unselected]
+
+    with django_assert_num_queries(2):
+        fields_by_actor = manager._get_custom_field_ids_by_actor(
+            workspace, actors, {field.id for field in fields}
+        )
+
+    all_field_ids = {field.id for field in fields}
+    assert fields_by_actor[directly_selected] == all_field_ids
+    assert fields_by_actor[selected_via_team] == all_field_ids
+    assert fields_by_actor[unselected] == set()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_deleting_field_cascades_to_custom_field_subject_assignments(
+    enterprise_data_fixture, synced_roles
+):
+    admin = enterprise_data_fixture.create_user()
+    selected_user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=admin)
+    workspace = database.workspace
+    enterprise_data_fixture.create_user_workspace(
+        user=selected_user, workspace=workspace, permissions="EDITOR"
+    )
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table)
+
+    FieldPermissionsHandler._sync_field_permission_subjects(
+        field,
+        [{"subject_id": selected_user.id, "subject_type": "auth.User"}],
+    )
+    assert RoleAssignment.objects.filter(scope_id=field.id).exists()
+
+    field.delete()
+
+    assert not RoleAssignment.objects.filter(scope_id=field.id).exists()
 
 
 @pytest.mark.django_db(transaction=True)

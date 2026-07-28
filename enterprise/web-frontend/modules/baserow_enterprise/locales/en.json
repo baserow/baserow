@@ -737,10 +737,23 @@
     "builderDescription": "Users with Builder and Admin roles",
     "adminTitle": "Admins only",
     "adminDescription": "Users with Admin roles",
+    "customTitle": "Specific users or teams",
+    "customDescription": "Only selected users and team members who already have an Editor, Builder, or Admin role",
     "nobodyTitle": "Nobody",
     "nobodyDescription": "No users",
     "allowInForms": "Allow this field to be set in rows created through forms",
     "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
+  },
+  "fieldPermissionSubjectsSelector": {
+    "accessNote": "Selection does not grant table access. A selected user, or a member of a selected team, must also have an Editor, Builder, or Admin role where this table is located.",
+    "canEdit": "Selected users and teams",
+    "noSelectedSubjects": "Nobody is selected yet. Use the search above to add a user or team.",
+    "addPeopleOrTeams": "Add users or teams",
+    "searchPlaceholder": "Search users or teams",
+    "searchHint": "Search by name",
+    "teamDescription": "Team",
+    "teamSearchDescription": "Team · {count} member | Team · {count} members",
+    "remove": "Remove {subject}"
   },
   "builderSettingTypes": {
     "customCode": "Custom CSS/JS"
