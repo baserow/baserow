@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache
 from typing import Dict, Optional, Union
 
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
@@ -19,7 +20,7 @@ from baserow.core.utils import to_path
 
 class BaserowFormulaReplaceFieldReferences(BaserowFormulaVisitor):
     """
-    This visitor does nothing with most off the context but update the path of the
+    This visitor does nothing with most of the context but update the path of the
     `get()` function.
     """
 
@@ -53,13 +54,19 @@ class BaserowFormulaReplaceFieldReferences(BaserowFormulaVisitor):
     def _do_func_import(self, function_argument_expressions, function_name: str):
         args = [expr.accept(self) for expr in function_argument_expressions]
 
-        # If it's a get function then let's update the field reference.
-        if function_name == "get" and isinstance(
-            function_argument_expressions[0], BaserowFormula.StringLiteralContext
+        # If it's a get function then let's update the field reference. The
+        # argument count isn't guaranteed: `get()` and `get('fields')` both
+        # parse, so every index is guarded to keep an import from crashing.
+        if (
+            function_name == "get"
+            and args
+            and isinstance(
+                function_argument_expressions[0], BaserowFormula.StringLiteralContext
+            )
         ):
             unquoted_arg = args[0]
             name, *path = to_path(unquoted_arg[1:-1])
-            if name == "fields":
+            if name == "fields" and path:
                 field_id = get_field_id_from_field_key(path[0])
                 path[0] = f"field_{self.id_mapping[field_id]}"
 
@@ -195,6 +202,23 @@ class FieldIDExtractingVisitor(BaserowFormulaVisitor):
         ctx.expr().accept(self)
 
 
+EXTRACTED_FIELD_IDS_CACHE_SIZE = 512
+
+
+@lru_cache(maxsize=EXTRACTED_FIELD_IDS_CACHE_SIZE)
+def _extract_field_id_dependencies(formula_str: str) -> frozenset[int]:
+    """
+    The ids a formula string references never change, so the parse is cached.
+    Only successful parses are cached; an unparseable formula raises every
+    time, which is the rare path.
+    """
+
+    tree = get_parse_tree_for_formula(formula_str)
+    visitor = FieldIDExtractingVisitor()
+    visitor.visit(tree)
+    return frozenset(visitor.field_ids)
+
+
 def extract_field_id_dependencies(
     formula: Union[str, BaserowFormulaObject],
 ) -> set[int]:
@@ -206,10 +230,13 @@ def extract_field_id_dependencies(
     if not formula_str:
         return set()
 
-    tree = get_parse_tree_for_formula(formula_str)
-    visitor = FieldIDExtractingVisitor()
-    visitor.visit(tree)
-    return visitor.field_ids
+    # Raw formulas are literal text and are never parsed, so they reference
+    # nothing.
+    if not isinstance(formula, str) and formula["mode"] == BASEROW_FORMULA_MODE_RAW:
+        return set()
+
+    # Copied so a caller can't mutate the cached value.
+    return set(_extract_field_id_dependencies(formula_str))
 
 
 TABLE_FIELD_IDS_CACHE_KEY = "formula_field_table_field_ids"
@@ -251,7 +278,7 @@ def get_formula_field_error(
         return None
 
     try:
-        referenced_ids = extract_field_id_dependencies(formula_str)
+        referenced_ids = extract_field_id_dependencies(formula)
     except BaserowFormulaException:
         return "The formula could not be parsed."
 

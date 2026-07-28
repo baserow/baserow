@@ -54,6 +54,26 @@ def test_replace_field_id_references_skips_raw_formulas():
     )
 
 
+def test_replace_field_id_references_with_incomplete_get_calls():
+    # `get()` and `get('fields')` both pass the create API, so remapping them
+    # must not crash the import or duplication job they run inside.
+    assert replace_field_id_references("get()", {1: 2}) == "get()"
+    assert replace_field_id_references("get('fields')", {1: 2}) == "get('fields')"
+    assert (
+        replace_field_id_references("concat('x',get('fields'))", {1: 2})
+        == "concat('x',get('fields'))"
+    )
+
+
+def test_extract_field_id_dependencies_skips_raw_formulas():
+    assert (
+        extract_field_id_dependencies(
+            {"formula": "get('fields.field_1')", "mode": "raw"}
+        )
+        == set()
+    )
+
+
 def test_extract_field_id_dependencies():
     assert extract_field_id_dependencies(
         "concat(get('fields.field_1'), get('fields.field_3'))"
