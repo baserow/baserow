@@ -18,6 +18,7 @@ from rest_framework.status import (
 from baserow.core.abuse_reports.models import AbuseReport
 from baserow.core.handler import CoreHandler
 from baserow.core.notifications.models import NotificationRecipient
+from baserow.core.trash.handler import TrashHandler
 
 VALID_DESCRIPTION = (
     "This view is used for phishing. It pretends to be the login page of another "
@@ -159,6 +160,34 @@ def test_report_non_public_view(api_client, data_fixture):
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
     assert AbuseReport.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_report_trashed_view(api_client, data_fixture):
+    user = data_fixture.create_user()
+    view = data_fixture.create_grid_view(user=user, public=True)
+    TrashHandler.trash(user, view.table.database.workspace, view.table.database, view)
+
+    response = submit_report(api_client, view)
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
+    assert AbuseReport.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_report_is_kept_when_workspace_is_deleted(api_client, data_fixture):
+    user = data_fixture.create_user()
+    view = data_fixture.create_grid_view(user=user, public=True)
+    workspace = view.table.database.workspace
+
+    assert submit_report(api_client, view).status_code == HTTP_204_NO_CONTENT
+
+    TrashHandler.permanently_delete(workspace)
+
+    report = AbuseReport.objects.get()
+    assert report.workspace_id is None
+    assert report.workspace_name == workspace.name
 
 
 @pytest.mark.django_db
@@ -375,6 +404,26 @@ def test_report_without_admins_does_not_count_towards_cooldown(
         == 1
     )
     assert AbuseReport.objects.filter(admins_notified=True).count() == 1
+
+
+@pytest.mark.django_db
+def test_admins_are_notified_again_when_the_slug_changed(api_client, data_fixture):
+    user = data_fixture.create_user()
+    data_fixture.create_user(is_staff=True)
+    view = data_fixture.create_grid_view(user=user, public=True)
+
+    assert submit_report(api_client, view).status_code == HTTP_204_NO_CONTENT
+
+    view.rotate_slug()
+    view.save()
+
+    assert submit_report(api_client, view).status_code == HTTP_204_NO_CONTENT
+    assert (
+        NotificationRecipient.objects.filter(
+            notification__type="abuse_report_created"
+        ).count()
+        == 2
+    )
 
 
 @pytest.mark.django_db

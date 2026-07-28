@@ -36,6 +36,7 @@
         <FormViewFooterLinks
           :show-logo="showLogo"
           show-report-abuse
+          :identifier="$route.params.slug"
         ></FormViewFooterLinks>
         <div class="form-view__submit">
           <Button

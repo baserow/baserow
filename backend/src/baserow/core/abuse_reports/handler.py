@@ -46,9 +46,13 @@ class AbuseReportHandler:
         cooldown_start = timezone.now() - timedelta(
             seconds=settings.BASEROW_ABUSE_REPORT_NOTIFICATION_COOLDOWN_SECONDS
         )
+        # The public url is part of the check because it can change, for example when
+        # the slug of a shared view is rotated. The admins must then be notified
+        # again because the url they were notified about no longer resolves.
         already_notified = AbuseReport.objects.filter(
             resource_type=resource_type.type,
             resource_id=resource.resource_id,
+            public_url=resource.public_url,
             admins_notified=True,
             created_on__gte=cooldown_start,
         ).exists()

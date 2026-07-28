@@ -35,6 +35,8 @@ class DatabaseViewAbuseReportResourceType(AbuseReportResourceType):
             identifier,
             authorization_token=get_public_view_authorization_token(request),
         )
+        # `get_public_view_by_slug` also returns non public views if the user has
+        # access to the workspace, but only publicly shared views can be reported.
         if not view.public:
             raise ViewDoesNotExist("The view is not publicly shared.")
         return ReportedResource(
@@ -46,7 +48,6 @@ class DatabaseViewAbuseReportResourceType(AbuseReportResourceType):
 
     def _get_public_url(self, view: View) -> str:
         view_type = view_type_registry.get_by_model(view.specific_class)
-        base_url = (
-            settings.BASEROW_EMBEDDED_SHARE_URL or settings.PUBLIC_WEB_FRONTEND_URL
+        return urljoin(
+            settings.BASEROW_EMBEDDED_SHARE_URL, view_type.get_public_url_path(view)
         )
-        return urljoin(base_url, view_type.get_public_url_path(view))

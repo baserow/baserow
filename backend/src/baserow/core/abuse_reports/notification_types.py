@@ -47,13 +47,17 @@ class AbuseReportCreatedNotificationData:
 
 class AbuseReportCreatedNotificationType(EmailNotificationTypeMixin, NotificationType):
     type = "abuse_report_created"
+    # Must stay False because it makes the summary email link the notification title
+    # to the reported page, which is suspected of phishing.
     has_web_frontend_route = False
 
     @classmethod
     def notify_instance_admins(
         cls, report: AbuseReport
     ) -> Optional[List[NotificationRecipient]]:
-        admins = User.objects.filter(is_staff=True, is_active=True)
+        admins = User.objects.filter(
+            is_staff=True, is_active=True, profile__to_be_deleted=False
+        )
         if not admins.exists():
             return None
 

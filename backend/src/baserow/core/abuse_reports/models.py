@@ -18,6 +18,8 @@ class AbuseReport(models.Model):
     reporter_email = models.EmailField()
     description = models.TextField()
     ip_address = models.GenericIPAddressField(null=True, blank=True)
+    # Only reports that actually notified the admins count towards the notification
+    # cooldown, so that a report that notified nobody can't suppress future ones.
     admins_notified = models.BooleanField(default=False, db_default=False)
     created_on = models.DateTimeField(auto_now_add=True)
 

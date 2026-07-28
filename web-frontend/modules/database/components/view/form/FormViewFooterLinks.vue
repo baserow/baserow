@@ -11,7 +11,7 @@
       <ReportAbuseModal
         ref="reportAbuseModal"
         resource-type="database_view"
-        :identifier="$route.params.slug"
+        :identifier="identifier"
         :request-config="requestConfig"
       ></ReportAbuseModal>
     </template>
@@ -48,6 +48,11 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    identifier: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   computed: {

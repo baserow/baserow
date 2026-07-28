@@ -61,6 +61,7 @@
         <FormViewFooterLinks
           :show-logo="showLogo"
           show-report-abuse
+          :identifier="$route.params.slug"
         ></FormViewFooterLinks>
         <div class="form-view-survey__pagination">
           <div class="form-view-survey__pagination-buttons">
