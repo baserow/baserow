@@ -41,6 +41,75 @@ def test_create_workflow_action(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_ignores_a_supplied_integration(api_client, data_fixture):
+    """A service tied to an integration dispatches as that integration's
+    `authorized_user` instead of as the clicker, so the id must never be
+    accepted here (ADR 006 section 5)."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    other_user = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(
+        user=other_user, authorized_user=other_user
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:list",
+            kwargs={"field_id": button_field.id},
+        ),
+        {
+            "type": "create_row",
+            "service": {
+                "type": "local_baserow_upsert_row",
+                "integration_id": integration.id,
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    action = CreateRowWorkflowAction.objects.get(id=response.json()["id"])
+    assert action.service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_update_ignores_a_supplied_integration(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action = data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field
+    )
+    other_user = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(
+        user=other_user, authorized_user=other_user
+    )
+
+    response = api_client.patch(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": action.id},
+        ),
+        {
+            "type": "create_row",
+            "service": {
+                "type": "local_baserow_upsert_row",
+                "integration_id": integration.id,
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    action.refresh_from_db()
+    assert action.service.integration_id is None
+
+
+@pytest.mark.django_db
 def test_create_with_an_unknown_type(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)

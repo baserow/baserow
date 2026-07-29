@@ -156,6 +156,16 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             service = instance.service.specific
 
         service_values = values.pop("service", None) or {}
+        # Security rule, not tidiness. `integration_id` is writable on the
+        # request serializer and `IntegrationHandler.get_integration` is a
+        # global id lookup with no permission check, so a caller could point
+        # this service at any integration in the instance. At dispatch,
+        # `LocalBaserowServiceType.get_acting_user` prefers that integration's
+        # `authorized_user` over the dispatch context's actor, which would make
+        # every click run as the impersonated user. Database services are never
+        # tied to an integration; the clicker is the acting user (ADR 006
+        # section 5). Mirrors the hardcoded `None` in `deserialize_property`.
+        service_values.pop("integration_id", None)
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )

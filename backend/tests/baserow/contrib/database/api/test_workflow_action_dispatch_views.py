@@ -59,6 +59,60 @@ def test_dispatch_runs_the_actions(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_dispatch_acts_as_the_clicker_after_an_integration_was_offered(
+    api_client, data_fixture
+):
+    """The other half of the integration guard: even after a request tried to
+    attach one, the click still runs as the person who clicked."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, action = _button_with_create_action(
+        data_fixture, user
+    )
+    impersonated = data_fixture.create_user()
+    # A member of the same workspace, so a click that ran as them would succeed
+    # and be attributed to them rather than failing on a permission check.
+    data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=impersonated
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        user=impersonated, authorized_user=impersonated
+    )
+
+    update = api_client.patch(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": action.id},
+        ),
+        {
+            "type": "create_row",
+            "service": {
+                "type": "local_baserow_upsert_row",
+                "table_id": table.id,
+                "integration_id": integration.id,
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert update.status_code == HTTP_200_OK, update.json()
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    created = table.get_model().objects.exclude(id=row.id).get()
+    assert created.created_by_id == user.id
+
+
+@pytest.mark.django_db
 def test_dispatch_for_a_missing_row(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     _, _, button_field, _, _ = _button_with_create_action(data_fixture, user)
@@ -157,3 +211,26 @@ def test_dispatch_requires_authentication(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_a_database_token_cannot_dispatch(api_client, data_fixture):
+    """A database token never authenticates here, so the actions of a button
+    can't be run by something that has no user behind it."""
+
+    user = data_fixture.create_user()
+    table, _, button_field, row, _ = _button_with_create_action(data_fixture, user)
+    token = data_fixture.create_token(user=user, workspace=table.database.workspace)
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"Token {token.key}",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
