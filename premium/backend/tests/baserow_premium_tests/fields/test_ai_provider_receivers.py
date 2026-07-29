@@ -38,6 +38,9 @@ def test_disabling_model_broadcasts_updated_ai_field_error(
         patch(
             "baserow_premium.fields.receivers.page_registry.get"
         ) as page_registry_get,
+        patch(
+            "baserow.ws.signals.broadcast_ai_provider_update.delay"
+        ) as broadcast_ai_provider_update,
         django_capture_on_commit_callbacks(execute=True),
     ):
         AIProviderService.update_model(user, provider.models.get().id, is_enabled=False)
@@ -51,6 +54,7 @@ def test_disabling_model_broadcasts_updated_ai_field_error(
         "The selected AI model is disabled or no longer available."
     )
     assert broadcast.call_args.args[1] is None
+    broadcast_ai_provider_update.assert_called_once_with(None, True)
 
 
 @pytest.mark.django_db
@@ -76,7 +80,9 @@ def test_provider_metadata_update_does_not_broadcast_ai_field_error(
         patch(
             "baserow_premium.fields.receivers.page_registry.get"
         ) as page_registry_get,
-        patch("baserow.ws.signals.broadcast_to_users"),
+        patch(
+            "baserow.ws.signals.broadcast_ai_provider_update.delay"
+        ) as broadcast_ai_provider_update,
         django_capture_on_commit_callbacks(execute=True),
     ):
         AIProviderService.update_provider(
@@ -86,6 +92,7 @@ def test_provider_metadata_update_does_not_broadcast_ai_field_error(
         )
 
     page_registry_get.assert_not_called()
+    broadcast_ai_provider_update.assert_called_once_with(None, False)
 
 
 @pytest.mark.django_db

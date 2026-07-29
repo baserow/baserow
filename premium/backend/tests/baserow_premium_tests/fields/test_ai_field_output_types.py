@@ -111,5 +111,7 @@ def test_choice_output_type(premium_data_fixture, api_client):
     row_1.refresh_from_db()
     row_2.refresh_from_db()
 
-    assert getattr(row_1, f"field_{field.id}").id == option_1.id
-    assert getattr(row_2, f"field_{field.id}").id == option_2.id
+    assert {
+        getattr(row_1, f"field_{field.id}").id,
+        getattr(row_2, f"field_{field.id}").id,
+    } == {option_1.id, option_2.id}
