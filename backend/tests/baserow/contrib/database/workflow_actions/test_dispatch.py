@@ -2,6 +2,7 @@ from django.core.cache import cache
 
 import pytest
 
+from baserow.contrib.database.rows.signals import rows_created
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
@@ -108,6 +109,50 @@ def test_a_concurrent_click_is_rejected(data_fixture):
 
 
 @pytest.mark.django_db
+def test_a_click_landing_mid_sequence_is_rejected(data_fixture):
+    """The lock's actual point: mutual exclusion. Every other lock test here
+    passes against an implementation that never writes the key, because they
+    either seed it themselves or assert its absence. This one clicks again from
+    inside a running sequence, so it can only pass if `cache.add` really wrote
+    the key before the loop started."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+    service = DatabaseWorkflowActionService()
+    attempts = []
+
+    def click_again(sender, **kwargs):
+        # Guarded so that an unlocked implementation, whose re-entrant click
+        # succeeds and fires this signal again, fails the assertions below
+        # rather than recursing forever.
+        if attempts:
+            return
+        attempts.append(None)
+        try:
+            service.dispatch_workflow_actions(user, button_field, row)
+        except Exception as exc:
+            attempts[0] = exc
+
+    rows_created.connect(click_again)
+    try:
+        service.dispatch_workflow_actions(user, button_field, row)
+    finally:
+        rows_created.disconnect(click_again)
+
+    assert attempts, "The first action never ran, so nothing clicked again."
+    assert isinstance(attempts[0], WorkflowActionDispatchInProgress), (
+        "A second click arriving while the sequence is running must be "
+        f"rejected, got {attempts[0]!r}. If nothing was raised the lock is "
+        "never taken and a double click runs the sequence twice."
+    )
+    # The rejected click ran nothing, so only the outer click's row exists.
+    assert table.get_model().objects.exclude(id=row.id).count() == 1
+
+
+@pytest.mark.django_db
 def test_the_lock_is_released_after_a_success(data_fixture):
     user = data_fixture.create_user()
     table, name_field = _table_with_name(data_fixture, user)
@@ -185,6 +230,24 @@ def test_a_button_with_no_actions_dispatches_nothing(data_fixture):
 
     assert results == []
     assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None
+
+
+@pytest.mark.django_db
+def test_an_outsider_is_refused_on_a_button_with_no_actions(data_fixture):
+    """With no actions there are no per-action checks to run, so an unchecked
+    empty sequence would answer an outsider with `[]` instead of refusing,
+    telling them the field and row exist."""
+
+    owner = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, owner)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    with pytest.raises(PermissionException):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            outsider, button_field, row
+        )
 
 
 @pytest.mark.django_db

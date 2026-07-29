@@ -191,10 +191,22 @@ class DatabaseWorkflowActionService:
         :return: One result per action, in order.
         """
 
+        # Clicking is at least reading the field, and this check is field
+        # scoped, so it also covers the case below where there are no actions
+        # to check individually. Without it an outsider would get an empty
+        # result rather than a refusal, which tells them the field and row
+        # exist.
+        CoreHandler().check_permissions(
+            user,
+            ReadFieldOperationType.type,
+            workspace=field.table.database.workspace,
+            context=field,
+        )
+
         workflow_actions = list(self.handler.get_workflow_actions(field))
 
-        # A button with nothing configured has nothing to authorise, nothing to
-        # run and nothing to lock, so it returns before any of the three.
+        # A button with nothing configured has nothing to run and nothing to
+        # lock, so it returns before both.
         if not workflow_actions:
             return []
 
