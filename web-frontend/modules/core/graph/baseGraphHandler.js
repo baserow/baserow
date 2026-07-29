@@ -74,21 +74,14 @@ export default class BaseGraphHandler {
         : Object.entries(childrenDict)
 
     const result = []
-    // Seeded with the container itself (a corrupted graph could list the
-    // container as its own child) and shared across all slots so that no
-    // point is ever walked twice and the walk always terminates.
-    const targetId = targetPoint?.id ?? targetPoint
-    const seen = new Set(targetId != null ? [String(targetId)] : [])
     for (const [, headIds] of slotEntries) {
       if (!headIds.length) continue
       if (!followChains) {
-        if (seen.has(String(headIds[0]))) continue
         const point = this.getPoint(headIds[0])
         if (point) result.push(point)
       } else {
         let currentId = headIds[0]
-        while (currentId != null && !seen.has(String(currentId))) {
-          seen.add(String(currentId))
+        while (currentId) {
           const point = this.getPoint(currentId)
           if (!point && !skipMissing) break
           if (point) result.push(point)
@@ -193,17 +186,12 @@ export default class BaseGraphHandler {
   }
 
   getPreviousPositions(target) {
-    // Track visited points so a corrupted graph (self-references or cycles)
-    // terminates instead of recursing forever.
-    const visited = new Set()
     const explore = (currentPosition, path) => {
       const point = this.getPointAtPosition(...currentPosition)
       if (point === null) return null
 
       const pointId = String(point.id)
       if (pointId === String(target.id)) return path
-      if (visited.has(pointId)) return null
-      visited.add(pointId)
 
       const info = this.getInfo(pointId)
       const nextPositions = []
@@ -339,11 +327,9 @@ export default class BaseGraphHandler {
 
   // Delete pointId plus every node reachable by following its `next` chain AND
   // recursing into each node's `children`. Used when cascading into a container slot.
-  // The shared `seen` set guarantees termination on corrupted (looping) graphs.
-  _deleteChainAndDescendants(pointId, seen = new Set()) {
+  _deleteChainAndDescendants(pointId) {
     let currentId = pointId
-    while (currentId != null && !seen.has(String(currentId))) {
-      seen.add(String(currentId))
+    while (currentId) {
       const info = this.graph[currentId]
       if (!info || typeof info !== 'object') break
 
@@ -352,7 +338,7 @@ export default class BaseGraphHandler {
 
       for (const firstChildIds of Object.values(childrenDict)) {
         for (const cid of firstChildIds) {
-          this._deleteChainAndDescendants(cid, seen)
+          this._deleteChainAndDescendants(cid)
         }
       }
 
@@ -361,7 +347,7 @@ export default class BaseGraphHandler {
       // Follow default next; handle other outputs (automation routing) recursively.
       currentId = allNextIds[0] ?? null
       for (const nid of allNextIds.slice(1)) {
-        this._deleteChainAndDescendants(nid, seen)
+        this._deleteChainAndDescendants(nid)
       }
     }
   }
@@ -373,12 +359,10 @@ export default class BaseGraphHandler {
     const info = this.graph[pointId]
     if (!info || typeof info !== 'object') return
 
-    // Seeded with the point itself so a corrupted self-child never recurses.
-    const seen = new Set([String(pointId)])
     const childrenDict = this._getChildrenAsDict(info.children)
     for (const firstChildIds of Object.values(childrenDict)) {
       for (const cid of firstChildIds) {
-        this._deleteChainAndDescendants(cid, seen)
+        this._deleteChainAndDescendants(cid)
       }
     }
 
@@ -391,34 +375,31 @@ export default class BaseGraphHandler {
     const result = []
     const info = this.graph[pointId]
     if (!info || typeof info !== 'object') return result
-    // Seeded with the point itself so a corrupted self-child never recurses.
-    const seen = new Set([String(pointId)])
     const childrenDict = this._getChildrenAsDict(info.children)
     for (const headIds of Object.values(childrenDict)) {
       for (const cid of headIds) {
-        this._collectChainAndDescendants(cid, result, seen)
+        this._collectChainAndDescendants(cid, result)
       }
     }
     return result
   }
 
-  _collectChainAndDescendants(pointId, acc, seen = new Set()) {
+  _collectChainAndDescendants(pointId, acc) {
     let currentId = pointId
-    while (currentId != null && !seen.has(String(currentId))) {
-      seen.add(String(currentId))
+    while (currentId != null) {
       const info = this.graph[currentId]
       if (!info || typeof info !== 'object') break
       acc.push(currentId)
       const childrenDict = this._getChildrenAsDict(info.children)
       for (const headIds of Object.values(childrenDict)) {
         for (const cid of headIds) {
-          this._collectChainAndDescendants(cid, acc, seen)
+          this._collectChainAndDescendants(cid, acc)
         }
       }
       const allNext = Object.values(info.next || {}).flat()
       currentId = allNext[0] ?? null
       for (const nid of allNext.slice(1)) {
-        this._collectChainAndDescendants(nid, acc, seen)
+        this._collectChainAndDescendants(nid, acc)
       }
     }
   }
@@ -439,22 +420,16 @@ export default class BaseGraphHandler {
     const pointInfo = this.graph[point.id]
     const previousRefInfo = previousRef ? this.graph[previousRef.id] : null
 
-    // The successors that take the removed point's place. A corrupted graph
-    // can make a point its own successor; never splice that back in.
-    const successorIds = Object.values(pointInfo.next || {})
-      .flat()
-      .filter((id) => String(id) !== String(point.id))
-
     switch (position) {
       case 'south':
         if (previousRefInfo) {
           previousRefInfo.next[output] = replace(
             previousRefInfo.next[output],
             point.id,
-            successorIds
+            Object.values(pointInfo.next || {}).flat()
           )
-        } else if (successorIds.length) {
-          this.graph['0'] = successorIds[0]
+        } else if (this.graph[point.id]?.next?.['']) {
+          this.graph['0'] = this.graph[point.id].next[''][0]
         } else {
           delete this.graph['0']
         }
@@ -468,7 +443,7 @@ export default class BaseGraphHandler {
         childrenDict[output] = replace(
           childrenDict[output] || [],
           point.id,
-          successorIds
+          Object.values(pointInfo.next || {}).flat()
         )
         previousRefInfo.children = childrenDict
         break
@@ -488,19 +463,13 @@ export default class BaseGraphHandler {
   getLastPosition() {
     if (!this.graph['0']) return [null, 'south', '']
 
-    // Track visited points so a corrupted graph (a point whose next loops back
-    // onto itself or an ancestor) terminates at the loop instead of recursing
-    // forever.
-    const visited = new Set()
-    let currentId = this.graph['0']
-    for (;;) {
-      visited.add(String(currentId))
-      const next = this.graph[currentId]?.next?.[''] ?? []
-      if (!next.length || visited.has(String(next[0]))) {
-        return [this.getPoint(currentId), 'south', '']
-      }
-      currentId = next[0]
+    const searchLast = (pointId) => {
+      const next = this.graph[pointId]?.next?.[''] ?? []
+      if (!next.length) return [this.getPoint(pointId), 'south', '']
+      return searchLast(next[0])
     }
+
+    return searchLast(this.graph['0'])
   }
 
   // When targetHandler is supplied (and differs from this handler) the point is

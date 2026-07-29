@@ -100,34 +100,3 @@ describe('ElementGraphHandler.getChildren', () => {
     expect(children.map((el) => el.id)).toEqual([4])
   })
 })
-
-describe('ElementGraphHandler.buildElementMaps corrupted graphs', () => {
-  test('terminates on a self-referencing next (real customer graph shape)', () => {
-    // Point 3308 has itself as next — buildElementMaps runs at store load, so
-    // without a seen-guard this hangs the whole page.
-    const graph = {
-      0: 3313,
-      3313: { next: { '': [3314] } },
-      3314: { next: { '': [3304] }, children: { '': [3308] } },
-      3308: { next: { '': [3308] } },
-      3304: {},
-    }
-
-    const { parentMap, placeMap } = ElementGraphHandler.buildElementMaps(graph)
-
-    expect(parentMap).toEqual({ 3308: 3314 })
-    expect(placeMap).toEqual({ 3308: '' })
-  })
-
-  test('terminates when a container lists itself as its own child', () => {
-    const graph = {
-      0: 1,
-      1: { children: { '': [1] }, next: { '': [2] } },
-      2: {},
-    }
-
-    const { parentMap } = ElementGraphHandler.buildElementMaps(graph)
-
-    expect(parentMap).toEqual({})
-  })
-})

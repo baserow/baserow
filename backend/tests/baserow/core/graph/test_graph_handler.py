@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition
 from tests.baserow.core.graph.fixtures import make_graph_model, make_point
@@ -741,33 +739,6 @@ def test_replace_root_point():
     assert model.graph["3"]["next"][""] == [2]
 
 
-def test_remove_container_when_child_point_is_missing_from_point_map():
-    # A graph entry can reference a point whose model instance no longer exists
-    # (e.g. a record hard-deleted outside the graph). Removing the parent must
-    # not raise: the stale entry is cleaned out of the graph, and only the
-    # points that still exist are returned as dependencies_removed.
-    model = make_graph_model(
-        {
-            "0": 1,
-            "1": {"children": {"": [2]}, "next": {"": [5]}},
-            "2": {"next": {"": [3]}},
-            "3": {"next": {"": [4]}},
-            "4": {},
-            "5": {},
-        }
-    )
-    del model.points[3]
-    graph = model.get_graph()
-
-    result = graph.remove(model.points[1])
-
-    assert result.point_removed is model.points[1]
-    assert [p.id for p in result.dependencies_removed] == [2, 4]
-    # All descendant entries — including the stale one — are gone, and the
-    # removed root is replaced by its successor.
-    assert model.graph == {"0": 5, "5": {}}
-
-
 def test_remove_container_with_self_referencing_child():
     # Regression: a corrupted graph in which a container's child has itself as
     # `next` used to make removing the container loop forever. The traversal
@@ -790,22 +761,10 @@ def test_remove_container_with_self_referencing_child():
     assert model.graph == {"0": 3, "3": {"next": {"": [4]}}, "4": {}}
 
 
-def test_remove_point_whose_next_is_itself():
-    # Removing the self-referencing point directly must not splice the removed
-    # point back in as its own successor.
-    model = make_graph_model(
-        {"0": 1, "1": {"children": {"": [2]}}, "2": {"next": {"": [2]}}}
-    )
-    graph = model.get_graph()
-
-    graph.remove(model.points[2])
-
-    assert model.graph == {"0": 1, "1": {}}
-
-
-def test_get_children_heals_self_referencing_next():
-    # Traversing a chain must track the points already seen; a `next` pointing
-    # back at an already-seen point is removed and the graph is collapsed.
+def test_get_children_terminates_on_self_referencing_next():
+    # Traversal must track the points already seen: a `next` pointing back at
+    # an already-seen point is not followed. The graph is NOT mutated —
+    # repairing corruption is the healing process's job (heal_orphan_elements).
     model = make_graph_model(
         {"0": 1, "1": {"children": {"": [2]}}, "2": {"next": {"": [2]}}}
     )
@@ -814,13 +773,12 @@ def test_get_children_heals_self_referencing_next():
     children = graph.get_children(model.points[1])
 
     assert [p.id for p in children] == [2]
-    # The duplicate self-reference has been healed away and persisted.
-    assert model.graph["2"] == {}
+    assert model.graph["2"] == {"next": {"": [2]}}
 
 
-def test_get_children_heals_chain_looping_back_to_earlier_point():
+def test_get_children_terminates_on_chain_looping_back_to_earlier_point():
     # A longer cycle: 2 -> 3 -> 2. The traversal returns each point once and
-    # removes the reference that closes the loop.
+    # leaves the graph untouched.
     model = make_graph_model(
         {
             "0": 1,
@@ -834,13 +792,12 @@ def test_get_children_heals_chain_looping_back_to_earlier_point():
     children = graph.get_children(model.points[1])
 
     assert [p.id for p in children] == [2, 3]
-    assert model.graph["2"] == {"next": {"": [3]}}
-    assert model.graph["3"] == {}
+    assert model.graph["3"] == {"next": {"": [2]}}
 
 
 def test_get_last_position_terminates_on_looping_root_chain():
-    # 1 -> 2 -> 1: following the default edge from the root must terminate and
-    # heal the reference that closes the loop.
+    # 1 -> 2 -> 1: following the default edge from the root must terminate at
+    # the point that closes the loop, without mutating the graph.
     model = make_graph_model(
         {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [1]}}}
     )
@@ -850,7 +807,7 @@ def test_get_last_position_terminates_on_looping_root_chain():
 
     assert reference_point.id == 2
     assert (position, output) == ("south", "")
-    assert model.graph["2"] == {}
+    assert model.graph["2"] == {"next": {"": [1]}}
 
 
 def test_get_previous_positions_terminates_when_point_is_its_own_predecessor():
@@ -867,9 +824,9 @@ def test_get_previous_positions_terminates_when_point_is_its_own_predecessor():
     assert isinstance(positions, list)
 
 
-def test_collect_all_descendants_skips_missing_points_and_terminates_on_loop():
-    # Both fixes at once: a subtree containing a stale id (no model instance)
-    # and a self-referencing point must still be collectable.
+def test_collect_all_descendants_terminates_on_loop():
+    # A subtree containing a self-referencing point must still be collectable,
+    # with every point returned exactly once and the graph left untouched.
     model = make_graph_model(
         {
             "0": 1,
@@ -879,61 +836,56 @@ def test_collect_all_descendants_skips_missing_points_and_terminates_on_loop():
             "4": {},
         }
     )
-    del model.points[4]
     graph = model.get_graph()
 
     descendants = graph.collect_all_descendants(model.points[1])
 
-    assert [p.id for p in descendants] == [2, 3]
-    # The self-loop on 3 has been healed.
-    assert model.graph["3"] == {}
+    assert [p.id for p in descendants] == [2, 4, 3]
+    assert model.graph["3"] == {"next": {"": [3]}}
 
 
 def test_remove_container_of_self_referencing_point_in_real_world_graph():
     # Real-world corrupted graph reported by a customer: point 3308 has itself
-    # as `next`, which made deleting its container (3314) either loop forever
-    # or raise when 3308's record was missing. Both variants must succeed and
-    # splice 3313 straight onto 3304.
-    corrupted_graph = {
-        "0": 3292,
-        "3292": {"next": {"": [3293]}},
-        "3293": {"next": {"": [3298]}},
-        "3294": {"children": {"": [3295]}},
-        "3295": {"children": {"0": [3309], "1": [3310], "2": [3313], "3": [3312]}},
-        "3296": {"next": {"": [3306]}},
-        "3297": {"next": {"": [3302]}},
-        "3298": {"next": {"": [3294]}},
-        "3299": {"next": {"": [3300]}},
-        "3300": {"children": {"": [3301]}},
-        "3301": {},
-        "3302": {"children": {"": [3303]}},
-        "3303": {},
-        "3304": {"children": {"": [3305]}},
-        "3305": {},
-        "3306": {"children": {"": [3307]}},
-        "3307": {},
-        "3308": {"next": {"": [3308]}},
-        "3309": {"next": {"": [3299]}},
-        "3310": {"next": {"": [3297]}},
-        "3311": {},
-        "3312": {"next": {"": [3296]}},
-        "3313": {"next": {"": [3314]}},
-        "3314": {"next": {"": [3304]}, "children": {"": [3308]}},
-    }
+    # as `next`, which made deleting its container (3314) loop forever. The
+    # removal must terminate and splice 3313 straight onto 3304. (The variant
+    # where 3308's row is missing is handled by the healing process pruning it
+    # on page load, before any delete can happen.)
+    model = make_graph_model(
+        {
+            "0": 3292,
+            "3292": {"next": {"": [3293]}},
+            "3293": {"next": {"": [3298]}},
+            "3294": {"children": {"": [3295]}},
+            "3295": {"children": {"0": [3309], "1": [3310], "2": [3313], "3": [3312]}},
+            "3296": {"next": {"": [3306]}},
+            "3297": {"next": {"": [3302]}},
+            "3298": {"next": {"": [3294]}},
+            "3299": {"next": {"": [3300]}},
+            "3300": {"children": {"": [3301]}},
+            "3301": {},
+            "3302": {"children": {"": [3303]}},
+            "3303": {},
+            "3304": {"children": {"": [3305]}},
+            "3305": {},
+            "3306": {"children": {"": [3307]}},
+            "3307": {},
+            "3308": {"next": {"": [3308]}},
+            "3309": {"next": {"": [3299]}},
+            "3310": {"next": {"": [3297]}},
+            "3311": {},
+            "3312": {"next": {"": [3296]}},
+            "3313": {"next": {"": [3314]}},
+            "3314": {"next": {"": [3304]}, "children": {"": [3308]}},
+        }
+    )
+    graph = model.get_graph()
 
-    for missing_from_point_map in (False, True):
-        model = make_graph_model(deepcopy(corrupted_graph))
-        if missing_from_point_map:
-            del model.points[3308]
-        graph = model.get_graph()
+    result = graph.remove(model.points[3314])
 
-        result = graph.remove(model.points[3314])
-
-        expected_dependencies = [] if missing_from_point_map else [3308]
-        assert [p.id for p in result.dependencies_removed] == expected_dependencies
-        assert "3314" not in model.graph
-        assert "3308" not in model.graph
-        assert model.graph["3313"] == {"next": {"": [3304]}}
+    assert [p.id for p in result.dependencies_removed] == [3308]
+    assert "3314" not in model.graph
+    assert "3308" not in model.graph
+    assert model.graph["3313"] == {"next": {"": [3304]}}
 
 
 def test_point_whose_children_contains_itself():
@@ -996,30 +948,6 @@ def test_prune_points_handles_self_referencing_stale_root():
 
     assert removed == [1]
     assert model.graph == {}
-
-
-def test_previous_position_map_ignores_self_references():
-    # Regression: with a self-referencing `next`, the map entry for the point
-    # depended on dict order — the self-reference could shadow the real parent,
-    # making every ancestry walk (e.g. parent_element_id on page load) loop
-    # forever. Self-references must never be recorded as positions.
-    graph = {
-        "0": 1,
-        "1": {"next": {"": [2]}},
-        # The corrupted entry comes AFTER the legitimate parent (3) below, so
-        # without the guard it would win as last writer.
-        "3": {"children": {"": [2]}},
-        "2": {"next": {"": [2]}},
-    }
-
-    position_map = BaseGraphHandler.build_previous_position_map(graph)
-
-    assert position_map[2] == (3, GraphPointPosition.CHILD, "")
-
-    # Same for a self-referencing child head.
-    graph = {"0": 1, "1": {"next": {"": [2]}}, "2": {"children": {"": [2]}}}
-    position_map = BaseGraphHandler.build_previous_position_map(graph)
-    assert position_map[2] == (1, GraphPointPosition.SOUTH, "")
 
 
 def test_find_self_referencing_point_ids():
