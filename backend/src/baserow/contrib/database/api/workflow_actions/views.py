@@ -23,20 +23,29 @@ from baserow.api.utils import (
     validate_data_custom_fields,
 )
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
+from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
 from baserow.contrib.database.api.workflow_actions.errors import (
+    ERROR_WORKFLOW_ACTION_DISPATCH_FAILED,
+    ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS,
     ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
     ERROR_WORKFLOW_ACTION_NOT_IN_FIELD,
 )
 from baserow.contrib.database.api.workflow_actions.serializers import (
     CreateDatabaseWorkflowActionSerializer,
     DatabaseWorkflowActionSerializer,
+    DispatchWorkflowActionsResponseSerializer,
+    DispatchWorkflowActionsSerializer,
     OrderWorkflowActionsSerializer,
     UpdateDatabaseWorkflowActionSerializer,
 )
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import ButtonField
+from baserow.contrib.database.rows.exceptions import RowDoesNotExist
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionDispatchError,
+    WorkflowActionDispatchInProgress,
     WorkflowActionNotInField,
 )
 from baserow.contrib.database.workflow_actions.handler import (
@@ -342,3 +351,84 @@ class OrderDatabaseWorkflowActionsView(APIView):
         )
 
         return Response(status=204)
+
+
+class DispatchDatabaseWorkflowActionsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="field_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Runs the button field's actions, in order, for the "
+                "provided row.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Database table fields"],
+        operation_id="dispatch_database_field_workflow_actions",
+        description=(
+            "Runs every workflow action of a button field, in order, for the "
+            "given row, and returns one result per action."
+        ),
+        request=DispatchWorkflowActionsSerializer,
+        responses={
+            200: DispatchWorkflowActionsResponseSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED",
+                ]
+            ),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_FIELD_DOES_NOT_EXIST",
+                    "ERROR_ROW_DOES_NOT_EXIST",
+                ]
+            ),
+            409: get_error_schema(["ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS"]),
+        },
+    )
+    @map_exceptions(
+        {
+            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+            RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkflowActionDispatchInProgress: ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS,
+            WorkflowActionDispatchError: ERROR_WORKFLOW_ACTION_DISPATCH_FAILED,
+        }
+    )
+    @validate_body(DispatchWorkflowActionsSerializer)
+    def post(self, request, data: Dict, field_id: int):
+        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
+
+        field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
+        row = RowHandler().get_row(request.user, field.table, data["row_id"])
+
+        # The service returns one result per action, in the same order as the
+        # field's actions, so pairing them by position recovers which action
+        # produced which result.
+        workflow_actions = DatabaseWorkflowActionHandler().get_workflow_actions(field)
+        dispatch_results = DatabaseWorkflowActionService().dispatch_workflow_actions(
+            request.user, field, row
+        )
+
+        results = [
+            {
+                "workflow_action_id": workflow_action.id,
+                # Always "completed" for now: every action in this phase runs
+                # synchronously inside the request. The field exists so a
+                # later phase can return "dispatched" for an action still
+                # running in Celery, without changing the response shape.
+                "status": "completed",
+                "data": dispatch_result.data,
+            }
+            for workflow_action, dispatch_result in zip(
+                workflow_actions, dispatch_results
+            )
+        ]
+
+        return Response({"results": results})

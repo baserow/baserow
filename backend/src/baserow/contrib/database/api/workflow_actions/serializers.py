@@ -61,3 +61,28 @@ class OrderWorkflowActionsSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text="The ids of the workflow actions in the order they should be set.",
     )
+
+
+class DispatchWorkflowActionsSerializer(serializers.Serializer):
+    row_id = serializers.IntegerField(
+        help_text="The id of the row the button was clicked on."
+    )
+
+
+class DispatchResultSerializer(serializers.Serializer):
+    workflow_action_id = serializers.IntegerField(
+        help_text="The workflow action this result belongs to."
+    )
+    status = serializers.CharField(
+        help_text=(
+            "`completed` when the action finished during this request. Reserved "
+            "for `dispatched` when slow actions move behind a job."
+        )
+    )
+    data = serializers.JSONField(
+        allow_null=True, help_text="The action's result, if it produced one."
+    )
+
+
+class DispatchWorkflowActionsResponseSerializer(serializers.Serializer):
+    results = DispatchResultSerializer(many=True)
