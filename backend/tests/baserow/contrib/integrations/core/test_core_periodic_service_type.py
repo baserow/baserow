@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timezone
 from unittest.mock import call, patch
 from zoneinfo import ZoneInfo
@@ -26,6 +25,7 @@ from baserow.contrib.integrations.core.constants import (
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 
@@ -92,10 +92,7 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     assert service_specific.minute == 15
     assert service_specific.hour == 10
     assert service_specific.last_periodic_run is None
-    # Creating the service schedules it, 15 minutes on from 10:30.
-    assert service_specific.next_run_at == datetime(
-        2025, 2, 15, 10, 45, 0, tzinfo=timezone.utc
-    )
+    assert service_specific.next_run_at is None
 
     with freeze_time("2025-02-15 11:00:00"):
         updated_service = (
@@ -117,26 +114,40 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     assert updated_service_specific.minute == 30
     assert updated_service_specific.hour == 14
     assert updated_service_specific.day_of_week == 2
-    # Changing the schedule reschedules it onto the next matching hour, rather
-    # than leaving the `next_run_at` the previous schedule calculated.
-    assert updated_service_specific.next_run_at == datetime(
-        2025, 2, 15, 11, 30, 0, tzinfo=timezone.utc
-    )
+    assert updated_service_specific.next_run_at is None
 
 
 @pytest.mark.django_db
-def test_periodic_service_export_serializes_next_run_at_as_iso(data_fixture):
+@pytest.mark.parametrize("is_publishing", [True, False])
+def test_periodic_service_import_schedules_only_when_publishing(
+    data_fixture, is_publishing
+):
+    service_type = CorePeriodicServiceType()
     service = data_fixture.create_core_periodic_service(
-        interval=PERIODIC_INTERVAL_MINUTE,
-        minute=15,
-        next_run_at=datetime(2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc),
+        interval=PERIODIC_INTERVAL_WEEK,
+        day_of_week=0,
+        hour=5,
+        minute=0,
+        next_run_at=datetime(2025, 2, 10, 5, 0, tzinfo=timezone.utc),
     )
+    serialized = service_type.export_serialized(service)
+    assert "next_run_at" not in serialized
 
-    serialized = json.loads(
-        json.dumps(CorePeriodicServiceType().export_serialized(service))
+    with freeze_time("2025-02-12 14:23:00"):
+        imported = service_type.import_serialized(
+            None,
+            serialized,
+            {},
+            import_export_config=ImportExportConfig(
+                include_permission_data=True,
+                is_publishing=is_publishing,
+            ),
+        )
+
+    expected_next_run_at = (
+        datetime(2025, 2, 17, 5, 0, tzinfo=timezone.utc) if is_publishing else None
     )
-
-    assert serialized["next_run_at"] == "2025-02-15T10:30:00+00:00"
+    assert imported.next_run_at == expected_next_run_at
 
 
 @pytest.mark.django_db
@@ -483,24 +494,36 @@ def test_periodic_service_schedules_in_its_own_timezone(data_fixture):
         "hour": 9,
         "minute": 0,
     }
+    draft = data_fixture.create_core_periodic_service(**schedule)
+    serialized = service_type.export_serialized(draft)
+    publishing_config = ImportExportConfig(
+        include_permission_data=True,
+        is_publishing=True,
+    )
 
-    # Saved in December, when Amsterdam is on CET (UTC+1).
+    # Published in December, when Amsterdam is on CET (UTC+1).
     with freeze_time("2025-12-15 11:00:00"):
-        winter = ServiceHandler().create_service(service_type, **schedule)
-    assert winter.specific.next_run_at == datetime(
-        2025, 12, 22, 8, 0, tzinfo=timezone.utc
-    )
+        winter = service_type.import_serialized(
+            None,
+            serialized,
+            {},
+            import_export_config=publishing_config,
+        )
+    assert winter.next_run_at == datetime(2025, 12, 22, 8, 0, tzinfo=timezone.utc)
 
-    # Saved in July, when Amsterdam is on CEST (UTC+2).
+    # Published in July, when Amsterdam is on CEST (UTC+2).
     with freeze_time("2026-07-01 11:00:00"):
-        summer = ServiceHandler().create_service(service_type, **schedule)
-    assert summer.specific.next_run_at == datetime(
-        2026, 7, 6, 7, 0, tzinfo=timezone.utc
-    )
+        summer = service_type.import_serialized(
+            None,
+            serialized,
+            {},
+            import_export_config=publishing_config,
+        )
+    assert summer.next_run_at == datetime(2026, 7, 6, 7, 0, tzinfo=timezone.utc)
 
     # Both are 09:00 in Amsterdam, which is the point.
     for service in [winter, summer]:
-        local = service.specific.next_run_at.astimezone(ZoneInfo("Europe/Amsterdam"))
+        local = service.next_run_at.astimezone(ZoneInfo("Europe/Amsterdam"))
         assert (local.weekday(), local.hour, local.minute) == (0, 9, 0)
 
 

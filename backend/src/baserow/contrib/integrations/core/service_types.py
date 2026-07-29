@@ -1652,7 +1652,6 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         "hour",
         "day_of_week",
         "day_of_month",
-        "next_run_at",
     ]
 
     serializer_field_overrides = {
@@ -1707,7 +1706,6 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         hour: int
         day_of_week: int
         day_of_month: int
-        next_run_at: datetime
 
     def prepare_values(
         self,
@@ -1744,42 +1742,6 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
         return super().prepare_values(values, user, instance)
 
-    def _reschedule(self, service: CorePeriodicService) -> None:
-        """
-        Recalculates the service's `next_run_at` from its current schedule. Called
-        whenever the schedule is created or changed, so that `next_run_at` is never
-        left pointing at a time which the schedule no longer describes.
-
-        :param service: The service to reschedule.
-        """
-
-        next_run_at = calculate_next_periodic_run(
-            interval=service.interval,
-            minute=service.minute,
-            hour=service.hour,
-            day_of_week=service.day_of_week,
-            day_of_month=service.day_of_month,
-            tz=service.timezone,
-        )
-
-        if service.next_run_at != next_run_at:
-            service.next_run_at = next_run_at
-            service.save(update_fields=["next_run_at"])
-
-    def after_create(self, instance: CorePeriodicService, values: Dict[str, Any]):
-        self._reschedule(instance)
-
-    def after_update(
-        self,
-        instance: CorePeriodicService,
-        values: Dict[str, Any],
-        changes: Dict[str, Tuple],
-    ):
-        # Only reschedule if the schedule itself changed, so that an unrelated
-        # update doesn't push the next run further into the future.
-        if any(field in changes for field in self.allowed_fields):
-            self._reschedule(instance)
-
     def create_instance_from_serialized(
         self,
         serialized_values: Dict[str, Any],
@@ -1787,72 +1749,29 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         files_zip=None,
         storage=None,
         cache=None,
+        import_export_config: Optional[ImportExportConfig] = None,
         **kwargs,
     ) -> CorePeriodicService:
         """
-        The `next_run_at` of an imported service is recalculated rather than copied
-        from the source. Publishing a workflow imports a fresh copy of the service,
-        and the source is a draft which is never dispatched, so its `next_run_at` is
-        either `None` (which would make the copy immediately due, causing an
-        unscheduled run on publish) or a stale time from an earlier test run.
+        Initialize the runtime-only `next_run_at` when publishing. Draft services are
+        never dispatched, so this value is intentionally omitted from serialization.
 
         :param serialized_values: The deserialized values.
         :return: The created service.
         """
 
-        serialized_values["next_run_at"] = calculate_next_periodic_run(
-            interval=serialized_values.get("interval"),
-            minute=serialized_values.get("minute"),
-            hour=serialized_values.get("hour"),
-            day_of_week=serialized_values.get("day_of_week"),
-            day_of_month=serialized_values.get("day_of_month"),
-            tz=serialized_values.get("timezone"),
-        )
+        if import_export_config and import_export_config.is_publishing:
+            serialized_values["next_run_at"] = calculate_next_periodic_run(
+                interval=serialized_values.get("interval"),
+                minute=serialized_values.get("minute"),
+                hour=serialized_values.get("hour"),
+                day_of_week=serialized_values.get("day_of_week"),
+                day_of_month=serialized_values.get("day_of_month"),
+                tz=serialized_values.get("timezone"),
+            )
 
         return super().create_instance_from_serialized(
             serialized_values,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
-
-    def serialize_property(
-        self,
-        service: CorePeriodicService,
-        prop_name: str,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        if prop_name == "next_run_at":
-            return (
-                service.next_run_at.isoformat()
-                if service.next_run_at is not None
-                else None
-            )
-
-        return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
-        )
-
-    def deserialize_property(
-        self,
-        prop_name: str,
-        value: Any,
-        id_mapping: Dict[str, Any],
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ):
-        if prop_name == "next_run_at" and value is not None:
-            return datetime.fromisoformat(value)
-
-        return super().deserialize_property(
-            prop_name,
-            value,
             id_mapping,
             files_zip=files_zip,
             storage=storage,
@@ -1976,10 +1895,10 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
                 # A service without an interval hasn't been configured yet, so it
                 # has no schedule to be due against.
                 Q(interval__isnull=False),
-                # `next_run_at` is set whenever the schedule is saved or imported,
-                # so it's only null for services created before that was the case.
-                # They're treated as due so that they aren't stranded, and are
-                # rescheduled by the dispatch below.
+                # Publishing sets `next_run_at` during import. Draft services and
+                # records created before that behavior can still have a null value.
+                # Treat them as due so the parent can select dispatchable services;
+                # any dispatched service is rescheduled below.
                 Q(next_run_at__lte=current.replace(second=0, microsecond=0))
                 | Q(next_run_at__isnull=True),
             )
