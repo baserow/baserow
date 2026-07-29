@@ -274,3 +274,52 @@ def test_a_click_does_not_enter_the_undo_stack(data_fixture):
     )
     assert undone == []
     assert table.get_model().objects.exclude(id=row.id).count() == 1
+
+
+@pytest.mark.django_db
+def test_every_action_sees_the_row_as_it_was_at_click_time(data_fixture):
+    """ADR 006 section 4: the row provider is a snapshot."""
+
+    from baserow.contrib.database.workflow_actions.models import (
+        UpdateRowWorkflowAction,
+    )
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{name_field.id}": "before"})
+
+    # First action overwrites the clicked row's Name.
+    update = data_fixture.create_database_workflow_action(
+        UpdateRowWorkflowAction, field=button_field
+    )
+    update_service = update.service.specific
+    update_service.table = table
+    update_service.row_id = str(row.id)
+    update_service.save()
+    update_service.field_mappings.create(
+        field=name_field, value="'after'", enabled=True
+    )
+
+    # Second action copies the clicked row's Name into a new row. If the
+    # provider re-read the row it would copy 'after'.
+    copy = data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field
+    )
+    copy_service = copy.service.specific
+    copy_service.table = table
+    copy_service.save()
+    copy_service.field_mappings.create(
+        field=name_field, value=f"get('row.field_{name_field.id}')", enabled=True
+    )
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(user, button_field, row)
+
+    row.refresh_from_db()
+    assert getattr(row, f"field_{name_field.id}") == "after"
+    created = model.objects.exclude(id=row.id).get()
+    assert getattr(created, f"field_{name_field.id}") == "before", (
+        "The second action must see the row as it was at click time, not as the "
+        "first action left it (ADR 006 section 4)."
+    )
