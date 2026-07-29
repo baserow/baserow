@@ -408,10 +408,8 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
         row = RowHandler().get_row(request.user, field.table, data["row_id"])
 
-        # The service returns one result per action, in the same order as the
-        # field's actions, so pairing them by position recovers which action
-        # produced which result.
-        workflow_actions = DatabaseWorkflowActionHandler().get_workflow_actions(field)
+        # The service pairs each result with the action that produced it, so
+        # there's no separate fetch here to re-align by position.
         dispatch_results = DatabaseWorkflowActionService().dispatch_workflow_actions(
             request.user, field, row
         )
@@ -426,9 +424,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 "status": "completed",
                 "data": dispatch_result.data,
             }
-            for workflow_action, dispatch_result in zip(
-                workflow_actions, dispatch_results
-            )
+            for workflow_action, dispatch_result in dispatch_results
         ]
 
         return Response({"results": results})

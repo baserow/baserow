@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Tuple
 
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
@@ -170,7 +170,7 @@ class DatabaseWorkflowActionService:
 
     def dispatch_workflow_actions(
         self, user: AbstractUser, field: ButtonField, row: Any
-    ) -> List[DispatchResult]:
+    ) -> List[Tuple[DatabaseWorkflowAction, DispatchResult]]:
         """
         Runs a button field's actions in order, as the given user.
 
@@ -181,6 +181,12 @@ class DatabaseWorkflowActionService:
         standing would leave the sequence half applied in a way the user cannot
         see. Each action keeps whatever atomicity its own handler already has.
 
+        Each result is paired with the action that produced it, in the same
+        step, rather than left for a caller to re-fetch and re-align. A
+        caller re-fetching the actions afterwards would run against a
+        separate, unsynchronised query, which can drift from this one if the
+        field's actions change between the two reads.
+
         :param user: The user who clicked.
         :param field: The clicked button field.
         :param row: The clicked row.
@@ -188,7 +194,7 @@ class DatabaseWorkflowActionService:
             for this field and row.
         :raises WorkflowActionDispatchError: When an action fails. Actions before
             it have already run and are not rolled back.
-        :return: One result per action, in order.
+        :return: One (action, result) pair per action, in order.
         """
 
         # Clicking is at least reading the field, and this check is field
@@ -245,15 +251,14 @@ class DatabaseWorkflowActionService:
             with without_undo_redo_registration(user):
                 for workflow_action in workflow_actions:
                     try:
-                        results.append(
-                            self.handler.dispatch_workflow_action(
-                                workflow_action, dispatch_context
-                            )
+                        result = self.handler.dispatch_workflow_action(
+                            workflow_action, dispatch_context
                         )
                     except Exception as exc:
                         raise WorkflowActionDispatchError(
                             workflow_action.id, str(exc)
                         ) from exc
+                    results.append((workflow_action, result))
 
             return results
         finally:
