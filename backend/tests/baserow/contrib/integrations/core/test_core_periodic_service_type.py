@@ -18,6 +18,7 @@ from baserow.contrib.automation.nodes.registries import automation_node_type_reg
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.integrations.core.constants import (
+    PERIODIC_INTERVAL_DAY,
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
     PERIODIC_INTERVAL_WEEK,
@@ -676,3 +677,34 @@ def test_existing_utc_periodic_service_is_unaffected_across_dst(data_fixture):
     # are left alone rather than quietly reinterpreted as somebody's local time.
     local = service.next_run_at.astimezone(ZoneInfo("Europe/Amsterdam"))
     assert (local.weekday(), local.hour) == (0, 7)
+
+
+@pytest.mark.django_db
+def test_periodic_payload_timestamps_are_in_the_service_timezone(data_fixture):
+    """
+    The payload timestamps describe the same instants either way, but they're
+    formatted in the service's timezone so that a user who scheduled "23:30
+    Europe/London" sees 23:30 rather than the UTC equivalent.
+    """
+
+    service = data_fixture.create_core_periodic_service(
+        interval=PERIODIC_INTERVAL_DAY,
+        timezone="Europe/London",
+        hour=23,
+        minute=30,
+    )
+    service_type = CorePeriodicServiceType()
+
+    # 29 July is BST (UTC+1): 23:30 London is 22:30 UTC.
+    with freeze_time("2026-07-29 15:44:00"):
+        payload = service_type._get_simulation_payload(service)
+
+    assert payload["next_run_at"] == "2026-07-29T23:30:00+01:00"
+    assert payload["triggered_at"] == "2026-07-29T16:44:00+01:00"
+
+    # The dispatch payload is formatted the same way.
+    service.last_periodic_run = datetime(2026, 7, 28, 22, 30, tzinfo=timezone.utc)
+    service.next_run_at = datetime(2026, 7, 29, 22, 30, tzinfo=timezone.utc)
+    dispatch_payload = service_type._get_dispatch_payload(service)
+    assert dispatch_payload["triggered_at"] == "2026-07-28T23:30:00+01:00"
+    assert dispatch_payload["next_run_at"] == "2026-07-29T23:30:00+01:00"

@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -35,6 +36,7 @@ from baserow.contrib.integrations.core.constants import (
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
     PERIODIC_INTERVAL_MINUTE,
+    PERIODIC_TIMEZONE_DEFAULT,
     SMTP_EMAIL_TIMEOUT,
 )
 from baserow.contrib.integrations.core.exceptions import (
@@ -1656,6 +1658,8 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
     serializer_field_overrides = {
         "interval": serializers.ChoiceField(
             choices=PERIODIC_INTERVAL_CHOICES,
+            required=False,
+            allow_null=True,
             help_text=CorePeriodicService._meta.get_field("interval").help_text,
         ),
         "timezone": serializers.CharField(
@@ -1888,10 +1892,30 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         super().stop_listening()
         self._cancel_periodic_task()
 
+    def _localize(
+        self, service: CorePeriodicService, value: Optional[datetime]
+    ) -> Optional[str]:
+        """
+        Formats a run timestamp in the service's own timezone. The instant is
+        unchanged and the string keeps its UTC offset, so downstream formulas
+        parse it as before, but a user scheduling "23:30 Europe/London" sees
+        23:30 in the payload rather than the UTC equivalent.
+
+        :param service: The service whose timezone the value is formatted in.
+        :param value: The timestamp to format, or `None` if there isn't one.
+        :return: An ISO 8601 string, or `None`.
+        """
+
+        if value is None:
+            return None
+
+        zone = ZoneInfo(service.timezone or PERIODIC_TIMEZONE_DEFAULT)
+        return value.astimezone(zone).isoformat()
+
     def _get_dispatch_payload(self, service: CorePeriodicService) -> Dict[str, str]:
         return {
-            "triggered_at": service.last_periodic_run.isoformat(),
-            "next_run_at": service.next_run_at.isoformat(),
+            "triggered_at": self._localize(service, service.last_periodic_run),
+            "next_run_at": self._localize(service, service.next_run_at),
         }
 
     def _get_simulation_payload(self, service: CorePeriodicService) -> Dict[str, str]:
@@ -1906,9 +1930,8 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             tz=service.timezone,
         )
         return {
-            "triggered_at": now.isoformat(),
-            # A service with no interval yet has no next run to report.
-            "next_run_at": next_run.isoformat() if next_run else None,
+            "triggered_at": self._localize(service, now),
+            "next_run_at": self._localize(service, next_run),
         }
 
     def dispatch_data(
