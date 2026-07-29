@@ -1,7 +1,11 @@
 from typing import Any, List, Tuple
+from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
+
+from loguru import logger
 
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.fields.operations import (
@@ -34,12 +38,29 @@ from baserow.contrib.database.workflow_actions.signals import (
 )
 from baserow.core.action.context import without_undo_redo_registration
 from baserow.core.handler import CoreHandler
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    TriggerServiceNotDispatchable,
+)
 from baserow.core.services.types import DispatchResult
 from baserow.core.types import PermissionCheck
 
-# Only a backstop for a process that dies mid-click, never an expected
-# duration: the lock is deleted as soon as the sequence finishes, either way.
-BUTTON_DISPATCH_LOCK_TIMEOUT = 60
+# Dispatch failures whose message is written for the person who clicked, and so
+# is safe to hand back in the API response. Anything else, such as a
+# `DatabaseError`, a `PermissionException` or an internal `ValueError`, keeps
+# its message server side and reaches the generic 500 handler untouched.
+# `UnexpectedDispatchException` is deliberately left out: by definition it wraps
+# an error nobody anticipated, and its message is that error's own text.
+USER_FACING_DISPATCH_EXCEPTIONS = (
+    ServiceImproperlyConfiguredDispatchException,
+    InvalidContextDispatchException,
+    InvalidContextContentDispatchException,
+    TriggerServiceNotDispatchable,
+    DoesNotExist,
+)
 
 
 class DatabaseWorkflowActionService:
@@ -192,8 +213,10 @@ class DatabaseWorkflowActionService:
         :param row: The clicked row.
         :raises WorkflowActionDispatchInProgress: When a click is already running
             for this field and row.
-        :raises WorkflowActionDispatchError: When an action fails. Actions before
-            it have already run and are not rolled back.
+        :raises WorkflowActionDispatchError: When an action fails with a message
+            meant for the clicker. Any other failure is re-raised as it is, so
+            its message stays server side. Either way the actions before it have
+            already run and are not rolled back.
         :return: One (action, result) pair per action, in order.
         """
 
@@ -239,7 +262,12 @@ class DatabaseWorkflowActionService:
         # Keyed on the field and row together, so two button fields on one row
         # do not block each other (ADR 006 section 3).
         lock_key = f"button_dispatch_{field.id}_{row.id}"
-        if not cache.add(lock_key, True, timeout=BUTTON_DISPATCH_LOCK_TIMEOUT):
+        # The value identifies this click, so the release below can tell its own
+        # lock from one a later click took after this one's TTL expired.
+        lock_token = uuid4().hex
+        if not cache.add(
+            lock_key, lock_token, timeout=settings.BUTTON_DISPATCH_LOCK_TTL_SECONDS
+        ):
             raise WorkflowActionDispatchInProgress()
 
         try:
@@ -255,11 +283,29 @@ class DatabaseWorkflowActionService:
                             workflow_action, dispatch_context
                         )
                     except Exception as exc:
-                        raise WorkflowActionDispatchError(
-                            workflow_action.id, str(exc)
-                        ) from exc
+                        logger.exception(
+                            "Workflow action {action_id} of button field "
+                            "{field_id} failed while dispatching.",
+                            action_id=workflow_action.id,
+                            field_id=field.id,
+                        )
+                        # Only a message meant for the clicker travels back in
+                        # the response. Everything else keeps its message on the
+                        # server and becomes a plain 500.
+                        if isinstance(exc, USER_FACING_DISPATCH_EXCEPTIONS):
+                            raise WorkflowActionDispatchError(
+                                workflow_action.id, str(exc)
+                            ) from exc
+                        raise
                     results.append((workflow_action, result))
 
             return results
         finally:
-            cache.delete(lock_key)
+            # Release only this click's own lock. Once the TTL has expired the
+            # key can belong to a later click, and deleting that one would let a
+            # third click start while the second is still running. The read and
+            # the delete are not atomic together, so a lock expiring in the
+            # sliver between them can still be deleted by its previous holder;
+            # that is a strictly smaller window than deleting unconditionally.
+            if cache.get(lock_key) == lock_token:
+                cache.delete(lock_key)

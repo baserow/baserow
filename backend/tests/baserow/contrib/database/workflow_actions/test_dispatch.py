@@ -91,6 +91,39 @@ def test_a_failure_keeps_the_completed_actions_and_skips_the_rest(data_fixture):
 
 
 @pytest.mark.django_db
+def test_an_action_can_target_the_clicked_row(data_fixture):
+    """The archetypal button: "approve this row". `row_id` is a formula, so the
+    only way to name the clicked row is through the row data provider."""
+
+    from baserow.contrib.database.workflow_actions.models import (
+        UpdateRowWorkflowAction,
+    )
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Approve")
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{name_field.id}": "pending"})
+    other_row = model.objects.create(**{f"field_{name_field.id}": "untouched"})
+
+    action = data_fixture.create_database_workflow_action(
+        UpdateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.row_id = "get('row.id')"
+    service.save()
+    service.field_mappings.create(field=name_field, value="'approved'", enabled=True)
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(user, button_field, row)
+
+    row.refresh_from_db()
+    other_row.refresh_from_db()
+    assert getattr(row, f"field_{name_field.id}") == "approved"
+    assert getattr(other_row, f"field_{name_field.id}") == "untouched"
+
+
+@pytest.mark.django_db
 def test_a_concurrent_click_is_rejected(data_fixture):
     user = data_fixture.create_user()
     table, name_field = _table_with_name(data_fixture, user)
@@ -185,6 +218,39 @@ def test_the_lock_is_released_after_a_failure(data_fixture):
 
 
 @pytest.mark.django_db
+def test_a_lock_taken_by_a_later_click_is_left_alone(data_fixture):
+    """A sequence that outlives the lock's TTL must not delete the key on its
+    way out: by then the key can belong to a second click that is still
+    running, and removing it would let a third click start alongside it."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+    lock_key = f"button_dispatch_{button_field.id}_{row.id}"
+
+    def expire_and_retake(sender, **kwargs):
+        # Stands in for this click's lock expiring mid-sequence and a second
+        # click acquiring the key for itself.
+        cache.delete(lock_key)
+        cache.add(lock_key, "a-later-click", timeout=30)
+
+    rows_created.connect(expire_and_retake)
+    try:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    finally:
+        rows_created.disconnect(expire_and_retake)
+
+    assert cache.get(lock_key) == "a-later-click", (
+        "The finished sequence deleted a lock it no longer held, so the click "
+        "that owns it is now running unprotected."
+    )
+
+
+@pytest.mark.django_db
 def test_two_button_fields_on_one_row_do_not_block_each_other(data_fixture):
     user = data_fixture.create_user()
     table, name_field = _table_with_name(data_fixture, user)
@@ -198,6 +264,37 @@ def test_two_button_fields_on_one_row_do_not_block_each_other(data_fixture):
     DatabaseWorkflowActionService().dispatch_workflow_actions(user, second_button, row)
 
     assert table.get_model().objects.exclude(id=row.id).count() == 1
+
+
+@pytest.mark.django_db
+def test_an_internal_failure_keeps_its_message_off_the_response(data_fixture):
+    """`WorkflowActionDispatchError` renders its message straight into the API
+    response, so only messages written for the clicker may become one."""
+
+    from unittest.mock import patch
+
+    from baserow.contrib.database.workflow_actions.handler import (
+        DatabaseWorkflowActionHandler,
+    )
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+
+    with patch.object(
+        DatabaseWorkflowActionHandler,
+        "dispatch_workflow_action",
+        side_effect=ValueError("password=hunter2"),
+    ):
+        with pytest.raises(ValueError):
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+
+    # The lock is still released on the way out of an uncaught failure.
+    assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None
 
 
 @pytest.mark.django_db

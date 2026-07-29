@@ -22,6 +22,9 @@ ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS = (
     "A click is already running for this button and row.",
 )
 
+# `{e.message}` is rendered verbatim, so only messages written for the clicker
+# may reach it. `DatabaseWorkflowActionService` guarantees that by wrapping only
+# the exceptions in `USER_FACING_DISPATCH_EXCEPTIONS`.
 ERROR_WORKFLOW_ACTION_DISPATCH_FAILED = (
     "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED",
     HTTP_400_BAD_REQUEST,
