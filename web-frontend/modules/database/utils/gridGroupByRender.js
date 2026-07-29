@@ -759,6 +759,22 @@ export function resolveGroupByRowMoveTarget({
     if (!section) {
       return null
     }
+    const header = layout.items.find(
+      (candidate) =>
+        candidate.type === 'header' &&
+        pathKey(candidate.path, fields) === sectionKey
+    )
+
+    const rows = sectionRows.get(sectionKey)
+    if (item.type === 'rowSection') {
+      const hoveredPosition = Math.min(
+        section.rowCount - 1,
+        Math.floor((contentY - section.y) / rowHeight)
+      )
+      if (rows?.get(hoveredPosition) === undefined) {
+        return null
+      }
+    }
 
     const position =
       item.type === 'addRow'
@@ -770,10 +786,7 @@ export function resolveGroupByRowMoveTarget({
               Math.round((contentY - section.y) / rowHeight)
             )
           )
-    const before =
-      position === section.rowCount
-        ? null
-        : sectionRows.get(sectionKey)?.get(position)
+    const before = position === section.rowCount ? null : rows?.get(position)
 
     // A sparse/unloaded row slot cannot provide the row id needed by the move API.
     if (position < section.rowCount && before === undefined) {
@@ -783,6 +796,7 @@ export function resolveGroupByRowMoveTarget({
     return {
       before,
       path: item.path,
+      display: header?.display ?? null,
       sectionKey,
       position,
       y: section.y + position * rowHeight,

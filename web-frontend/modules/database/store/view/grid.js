@@ -62,6 +62,7 @@ import {
   getMissingGroupBySectionRanges,
   groupDisplayFromRow,
   canMoveRowsAcrossGroupByFields,
+  hasWritableGroupByPathChange,
   groupPathDefaults,
   groupPathFromRow,
   isGroupByDataPageLoaded,
@@ -4739,6 +4740,7 @@ export const actions = {
       before = null,
       sourceGroupPath = null,
       targetGroupPath = null,
+      targetGroupDisplay = null,
     }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -4769,7 +4771,12 @@ export const actions = {
     }
 
     const destinationGroupValues = crossesGroup
-      ? groupPathDefaults(targetGroupPath, groupByFields, $registry)
+      ? groupPathDefaults(
+          targetGroupPath,
+          groupByFields,
+          $registry,
+          targetGroupDisplay
+        )
       : {}
     const destinationGroupRequestValues = {}
     for (const field of groupByFields) {
@@ -4833,7 +4840,7 @@ export const actions = {
       }
     })
 
-    dispatch('updatedExistingRow', {
+    await dispatch('updatedExistingRow', {
       view: grid,
       fields,
       row,
@@ -4893,7 +4900,7 @@ export const actions = {
       const values = groupUpdateCompleted
         ? { ...groupUpdateResponseData, order: oldOrder }
         : { order: oldOrder, ...valuesBeforeOptimisticUpdate }
-      dispatch('updatedExistingRow', {
+      await dispatch('updatedExistingRow', {
         view: grid,
         fields,
         row,
@@ -5018,26 +5025,47 @@ export const actions = {
               row,
               values: { ...values },
             })
-            // No group draft to preserve (2.4.4a): move before flags recompute.
             const groupByFields = getGroupByFieldsFromActiveGroupBys(
               getters.getActiveGroupBys,
               fields
             )
             let groupChanged = false
-            if (
-              getters.isGroupByMode &&
-              !canMoveRowsAcrossGroupByFields(groupByFields, $registry)
-            ) {
-              groupChanged = moveGroupByRowToValueGroup(
-                { commit, getters, state },
-                {
-                  row: getters.getRow(row.id),
-                  view,
-                  fields,
-                  registry: $registry,
-                  onlyIfGroupChanged: true,
-                }
+            if (getters.isGroupByMode && groupByFields.length > 0) {
+              const rowInStore = getters.getRow(row.id)
+              const occupiedPath = getGroupByRowTreePath(
+                state,
+                getters,
+                rowInStore,
+                groupByFields,
+                $registry
               )
+              const valuePath = groupPathFromRow(
+                rowInStore,
+                groupByFields,
+                $registry
+              )
+              const hasWritablePathChange = hasWritableGroupByPathChange(
+                occupiedPath,
+                valuePath,
+                groupByFields,
+                $registry
+              )
+
+              // A read-only group change has no editable draft to preserve. Move
+              // before recomputing flags so the selected row does not retain a
+              // stale move warning in the group it no longer belongs to.
+              if (!hasWritablePathChange) {
+                groupChanged = moveGroupByRowToValueGroup(
+                  { commit, getters, state },
+                  {
+                    row: rowInStore,
+                    view,
+                    fields,
+                    registry: $registry,
+                    onlyIfGroupChanged: true,
+                  }
+                )
+              }
             }
             if (optimisticUpdate) {
               await dispatch('onRowChange', { view, row, fields })
@@ -5562,7 +5590,12 @@ export const actions = {
       getters.isGroupByMode &&
       groupByPathChanged &&
       !forceGroupByRowMove &&
-      canMoveRowsAcrossGroupByFields(groupByFields, $registry) &&
+      hasWritableGroupByPathChange(
+        oldGroupByPath,
+        newGroupByPath,
+        groupByFields,
+        $registry
+      ) &&
       isRowSelected(getters.getRow(newRow.id))
     const getFieldId = (key) => parseInt(key.split('_')[1])
     const clearPendingFieldOperations = () => {

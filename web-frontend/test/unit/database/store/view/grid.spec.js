@@ -219,7 +219,13 @@ describe('Grid view store', () => {
       lastGridId: 1,
       activeGroupBys: groupBys,
       count: 3,
-      fieldOptions: { 1: { hidden: false, order: 0 } },
+      fieldOptions: {
+        1: {
+          hidden: false,
+          order: 0,
+          aggregation_raw_type: 'count',
+        },
+      },
       groupBy: {
         ...gridStore.state().groupBy,
         treeNodes: [
@@ -396,6 +402,201 @@ describe('Grid view store', () => {
       expect.anything(),
       expect.objectContaining({ clearGroupByAggregationLoadingPaths: true })
     )
+
+    // When the first request fails, the optimistic group move is rolled back and
+    // no aggregation refresh follows. The rollback must finish before its loading
+    // paths are cleared, otherwise it can leave the group banners spinning forever.
+    store.commit('grid/SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [])
+    mockServer.mock.onPatch('/database/rows/table/1/12/').reply(500)
+
+    await expect(
+      store.dispatch('grid/moveRow', {
+        table: { id: 1 },
+        grid: {
+          id: 1,
+          filters: [],
+          filter_groups: [],
+          filter_type: 'AND',
+          sortings: [],
+          group_bys: groupBys,
+        },
+        fields,
+        getScrollTop: () => 0,
+        row: store.getters['grid/getRow'](12),
+        before: store.getters['grid/getRow'](11),
+        sourceGroupPath: { field_1: 'B' },
+        targetGroupPath: { field_1: 'A' },
+      })
+    ).rejects.toThrow()
+    await flushPromises()
+
+    expect(
+      getDefinedRowsFromSectionRows(
+        store.state.grid.groupBy.sectionRows,
+        groupPathKey(1, 'A')
+      ).map((row) => row.id)
+    ).toEqual([11])
+    expect(
+      getDefinedRowsFromSectionRows(
+        store.state.grid.groupBy.sectionRows,
+        groupPathKey(1, 'B')
+      ).map((row) => row.id)
+    ).toEqual([12, 10])
+    expect(store.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
+  })
+
+  test('moveRow immediately applies the destination group display value', async () => {
+    const optionA = { id: 101, value: 'A', color: 'blue' }
+    const optionB = { id: 102, value: 'B', color: 'green' }
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+      {
+        id: 2,
+        name: 'Group',
+        type: 'single_select',
+        primary: false,
+        select_options: [optionA, optionB],
+        _: { type: { type: 'single_select' } },
+      },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    store = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+            fetchAllFieldAggregationData: vi.fn(),
+          },
+        },
+        field: {
+          namespaced: true,
+          getters: { getAll: () => fields },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 2,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [
+          {
+            path: { field_2: optionA.id },
+            display: { field_2: optionA },
+            depth: 0,
+            row_count: 1,
+          },
+          {
+            path: { field_2: optionB.id },
+            display: { field_2: optionB },
+            depth: 0,
+            row_count: 1,
+          },
+        ],
+        collapse: { mode: 'expand', paths: [] },
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, optionA.id),
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: optionA,
+          _: { ...rowMetadata, persistentId: 'r10' },
+        },
+      ],
+    })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, optionB.id),
+      rows: [
+        {
+          id: 11,
+          order: '2.00',
+          field_1: 'Bob',
+          field_2: optionB,
+          _: { ...rowMetadata, persistentId: 'r11' },
+        },
+      ],
+    })
+
+    let finishUpdate
+    mockServer.mock.onPatch('/database/rows/table/1/10/').reply(
+      () =>
+        new Promise((resolve) => {
+          finishUpdate = () =>
+            resolve([
+              200,
+              {
+                id: 10,
+                order: '1.00',
+                field_1: 'Alice',
+                field_2: optionB,
+              },
+            ])
+        })
+    )
+    mockServer.mock.onPatch('/database/rows/table/1/10/move/').reply(200, {
+      id: 10,
+      order: '1.50',
+      field_1: 'Alice',
+      field_2: optionB,
+    })
+
+    const movePromise = store.dispatch('grid/moveRow', {
+      table: { id: 1 },
+      grid: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      fields,
+      getScrollTop: () => 0,
+      row: store.getters['grid/getRow'](10),
+      before: store.getters['grid/getRow'](11),
+      sourceGroupPath: { field_2: optionA.id },
+      targetGroupPath: { field_2: optionB.id },
+      targetGroupDisplay: { field_2: optionB },
+    })
+
+    await vi.waitFor(() => expect(finishUpdate).toBeTypeOf('function'))
+    const optimisticValue = store.getters['grid/getRow'](10).field_2
+    finishUpdate()
+    await movePromise
+
+    expect(optimisticValue).toEqual(optionB)
+    expect(JSON.parse(mockServer.mock.history.patch[0].data)).toEqual({
+      field_2: optionB.id,
+    })
   })
 
   // Regression safety net for the grouped-store refactor: flat mode and grouped

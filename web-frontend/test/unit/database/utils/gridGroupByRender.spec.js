@@ -148,13 +148,14 @@ describe('gridGroupByRender', () => {
     const fields = [textField(1)]
     const pathA = { field_1: 'A' }
     const pathB = { field_1: 'B' }
+    const displayB = { field_1: { id: 2, value: 'B' } }
     const rowA1 = { id: 1 }
     const rowA2 = { id: 2 }
     const rowB1 = { id: 3 }
     const layout = buildLayout({
       nodes: [
         { path: pathA, depth: 0, row_count: 2 },
-        { path: pathB, depth: 0, row_count: 1 },
+        { path: pathB, display: displayB, depth: 0, row_count: 1 },
       ],
       collapse: { mode: 'expand', paths: [] },
       fields,
@@ -202,7 +203,13 @@ describe('gridGroupByRender', () => {
           sourcePath: pathA,
           allowCrossGroup: true,
         })
-      ).toMatchObject({ before: null, path: pathB, position: 1, y: addRowB.y })
+      ).toMatchObject({
+        before: null,
+        path: pathB,
+        display: displayB,
+        position: 1,
+        y: addRowB.y,
+      })
     })
 
     test('allows a same-group target but rejects cross-group targets when constrained', () => {
@@ -265,6 +272,22 @@ describe('gridGroupByRender', () => {
           layout,
           sectionRows: sparseRows,
           contentY: sectionB.y + 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: true,
+        })
+      ).toBeNull()
+
+      const sparseRowsBeforeLoadedRow = new Map([
+        [pathKey(pathA, fields), new Map([[1, rowA2]])],
+      ])
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout,
+          sectionRows: sparseRowsBeforeLoadedRow,
+          // The nearest boundary is before loaded row A2, but the pointer itself
+          // is still over the unloaded A1 placeholder and must remain invalid.
+          contentY: sectionA.y + ROW_HEIGHT * 0.75,
           fields,
           sourcePath: pathA,
           allowCrossGroup: true,

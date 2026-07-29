@@ -260,6 +260,7 @@ describe('GridView component', () => {
       const dispatch = vi.fn().mockResolvedValue()
       const before = { id: 30 }
       const targetPath = { field_2: 'B' }
+      const targetDisplay = { field_2: { id: 2, value: 'B' } }
       const dragContext = {
         targetAvailable: true,
         isGroupByMode: true,
@@ -273,7 +274,7 @@ describe('GridView component', () => {
         row,
         targetRow: before,
         sourceGroupPath: groupPath,
-        groupTarget: { path: targetPath },
+        groupTarget: { path: targetPath, display: targetDisplay },
       }
 
       await GridViewRowDragging.methods.up.call(dragContext, {
@@ -289,6 +290,7 @@ describe('GridView component', () => {
         before,
         sourceGroupPath: groupPath,
         targetGroupPath: targetPath,
+        targetGroupDisplay: targetDisplay,
       })
     })
   })

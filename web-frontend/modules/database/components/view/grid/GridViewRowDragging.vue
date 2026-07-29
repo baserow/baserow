@@ -364,6 +364,7 @@ export default {
           before: this.targetRow,
           sourceGroupPath: this.sourceGroupPath,
           targetGroupPath: this.groupTarget?.path || null,
+          targetGroupDisplay: this.groupTarget?.display || null,
         })
       } catch (error) {
         notifyIf(error, 'row')

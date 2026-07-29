@@ -203,10 +203,11 @@ export function preserveGroupByRowUiState(row, existingRow) {
 }
 
 /**
- * Default row values for a new row created in a group, taken from the group path.
- * Used by the store when adding a row to a group.
+ * Default row values for a row placed in a group, taken from the group path.
+ * Rich display values from an existing group node take precedence because
+ * reference fields cannot be rendered from their canonical group IDs alone.
  */
-export function groupPathDefaults(path, fields, registry) {
+export function groupPathDefaults(path, fields, registry, display = null) {
   const values = {}
   for (const field of fields) {
     const fieldKey = `field_${field.id}`
@@ -217,10 +218,10 @@ export function groupPathDefaults(path, fields, registry) {
     if (!fieldType.canWriteFieldValues(field)) {
       continue
     }
-    values[fieldKey] = fieldType.getRowValueFromGroupValue(
-      field,
-      path[fieldKey]
-    )
+    values[fieldKey] =
+      display !== null && fieldKey in display
+        ? display[fieldKey]
+        : fieldType.getRowValueFromGroupValue(field, path[fieldKey])
   }
   return values
 }
@@ -234,6 +235,26 @@ export function canMoveRowsAcrossGroupByFields(fields, registry) {
   return fields.every((field) =>
     registry.get('field', field.type).canWriteFieldValues(field)
   )
+}
+
+/**
+ * Whether two group paths differ in at least one grouped field whose value the
+ * current user can write. Read-only path changes do not represent an editable
+ * draft that needs to remain visible in its original group while selected.
+ */
+export function hasWritableGroupByPathChange(
+  oldPath,
+  newPath,
+  fields,
+  registry
+) {
+  return fields.some((field) => {
+    const fieldType = registry.get('field', field.type)
+    return (
+      fieldType.canWriteFieldValues(field) &&
+      pathKey(oldPath, [field]) !== pathKey(newPath, [field])
+    )
+  })
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   getDefinedRowsFromSectionRows,
   groupPathDefaults,
   canMoveRowsAcrossGroupByFields,
+  hasWritableGroupByPathChange,
   groupPathFromRow,
   getGroupByPathDepth,
   getGroupByPathPrefix,
@@ -281,6 +282,20 @@ describe('gridGroupBy path helpers', () => {
     })
   })
 
+  test('groupPathDefaults prefers rich display values and falls back to the path', () => {
+    const fields = [textField(1), textField(2)]
+    const registry = makeRegistry({
+      getRowValueFromGroupValue: (_field, groupValue) => ({ id: groupValue }),
+    })
+    const displayValue = { id: 10, value: 'Group A', color: 'blue' }
+
+    expect(
+      groupPathDefaults({ field_1: 10, field_2: 20 }, fields, registry, {
+        field_1: displayValue,
+      })
+    ).toEqual({ field_1: displayValue, field_2: { id: 20 } })
+  })
+
   test('cross-group moves require every grouped field to be writable', () => {
     const fields = [textField(1), textField(2)]
     expect(canMoveRowsAcrossGroupByFields(fields, makeRegistry())).toBe(true)
@@ -290,6 +305,31 @@ describe('gridGroupBy path helpers', () => {
         makeRegistry({
           canWriteFieldValues: (field) => field.id !== 2,
         })
+      )
+    ).toBe(false)
+  })
+
+  test('selected-row placeholders depend only on the group fields that changed', () => {
+    const fields = [textField(1), textField(2)]
+    const registry = makeRegistry({
+      canWriteFieldValues: (field) => field.id === 1,
+    })
+    const oldPath = { field_1: 'A', field_2: 'X' }
+
+    expect(
+      hasWritableGroupByPathChange(
+        oldPath,
+        { field_1: 'B', field_2: 'X' },
+        fields,
+        registry
+      )
+    ).toBe(true)
+    expect(
+      hasWritableGroupByPathChange(
+        oldPath,
+        { field_1: 'A', field_2: 'Y' },
+        fields,
+        registry
       )
     ).toBe(false)
   })
