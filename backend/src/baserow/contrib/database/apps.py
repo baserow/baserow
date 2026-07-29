@@ -1082,11 +1082,15 @@ class DatabaseConfig(AppConfig):
             database_data_provider_type_registry,
         )
 
-        from .rows.data_providers import HumanReadableFieldsDataProviderType
+        from .rows.data_providers import (
+            HumanReadableFieldsDataProviderType,
+            RowDataProviderType,
+        )
 
         database_data_provider_type_registry.register(
             HumanReadableFieldsDataProviderType()
         )
+        database_data_provider_type_registry.register(RowDataProviderType())
 
         # notification_types
         from baserow.contrib.database.fields.notification_types import (
