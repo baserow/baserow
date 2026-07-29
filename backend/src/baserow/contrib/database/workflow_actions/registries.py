@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generator
+from typing import TYPE_CHECKING, Any, Dict, Generator
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Prefetch
@@ -16,11 +16,18 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
+from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.workflow_actions.registries import WorkflowActionType
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.workflow_actions.dispatch_context import (
+        DatabaseDispatchContext,
+    )
 
 
 class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
@@ -35,8 +42,9 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
         return {}
 
     def dispatch(self, workflow_action, dispatch_context):
-        # Dispatch arrives in phase 2c together with the endpoint that calls it.
-        raise NotImplementedError()
+        raise InvalidServiceTypeDispatchSource(
+            "This workflow action type cannot be dispatched."
+        )
 
 
 class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
@@ -194,6 +202,13 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
                     ),
                 )
             )
+        )
+
+    def dispatch(
+        self, workflow_action, dispatch_context: "DatabaseDispatchContext"
+    ) -> DispatchResult:
+        return ServiceHandler().dispatch_service(
+            workflow_action.service.specific, dispatch_context
         )
 
 

@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional, Type
+from typing import TYPE_CHECKING, Iterable, List, Optional, Type
 
 from django.db.models import QuerySet
 
@@ -12,8 +12,14 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registry import Registry
+from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.handler import WorkflowActionHandler
 from baserow.core.workflow_actions.registries import WorkflowActionType
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.workflow_actions.dispatch_context import (
+        DatabaseDispatchContext,
+    )
 
 
 class DatabaseWorkflowActionHandler(WorkflowActionHandler):
@@ -79,3 +85,19 @@ class DatabaseWorkflowActionHandler(WorkflowActionHandler):
             return DatabaseWorkflowAction.order_objects(base_qs, order)
         except IdDoesNotExist as error:
             raise WorkflowActionNotInField(error.not_existing_id)
+
+    def dispatch_workflow_action(
+        self,
+        workflow_action: DatabaseWorkflowAction,
+        dispatch_context: "DatabaseDispatchContext",
+    ) -> DispatchResult:
+        """
+        Dispatches a single workflow action. Permission checks and sequencing
+        live in the service layer; this is the plain execution step.
+
+        :param workflow_action: The action to dispatch.
+        :param dispatch_context: The context carrying the actor and clicked row.
+        :return: The result of dispatching the action.
+        """
+
+        return workflow_action.get_type().dispatch(workflow_action, dispatch_context)
