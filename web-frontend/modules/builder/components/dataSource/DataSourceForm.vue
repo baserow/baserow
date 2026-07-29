@@ -15,6 +15,7 @@
             :placeholder="$t('dataSourceForm.servicePlaceholder')"
             :search-placeholder="$t('dataSourceForm.searchActionPlaceholder')"
             :empty-text="$t('dataSourceForm.noActionsFound')"
+            panel-height="240px"
           />
         </FormGroup>
         <FormGroup
@@ -191,11 +192,13 @@ export default {
           label: integrationType.name,
           image: integrationType.image,
           icon: integrationType.iconClass,
+          iconColor: integrationType.iconColor,
           children: serviceTypes.map((serviceType) => ({
             id: `service-${serviceType.getType()}`,
             label: serviceType.name,
             value: serviceType.getType(),
             icon: serviceType.icon,
+            iconColor: serviceType.iconColor,
             description: serviceType.description,
             disabled: this.isServiceTypeDeactivated(serviceType),
             disabledReason: this.getServiceTypeDeactivatedReason(serviceType),

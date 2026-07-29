@@ -21,10 +21,6 @@ $connectorHeight: 32px;
   pointer-events: auto;
 
   @include rounded($rounded-lg);
-
-  .grouped-menu__menu-list .menu-list__items {
-    max-height: 680px;
-  }
 }
 
 .workflow-editor__trigger-selector-title {

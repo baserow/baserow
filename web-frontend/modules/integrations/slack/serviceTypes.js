@@ -3,7 +3,6 @@ import {
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import SlackWriteMessageServiceForm from '@baserow/modules/integrations/slack/components/services/SlackWriteMessageServiceForm'
-import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 
 export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin(
@@ -18,11 +17,7 @@ export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin
   }
 
   get icon() {
-    return ''
-  }
-
-  get image() {
-    return slackIntegration
+    return 'iconoir-message-text'
   }
 
   get integrationType() {

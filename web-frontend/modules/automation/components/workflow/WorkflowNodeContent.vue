@@ -18,6 +18,7 @@
     <div class="workflow-node-content__icon">
       <i
         v-if="nodeType.iconClass"
+        :style="nodeIconStyle"
         :class="{
           loading: loading,
           'iconoir-hammer': !loading && !isInteractionReady,
@@ -120,6 +121,7 @@ import { useVueFlow } from '@vue-flow/core'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 import flushPromises from 'flush-promises'
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
+import { resolveColor } from '@baserow/modules/core/utils/colors'
 
 const { onMove } = useVueFlow()
 const props = defineProps({
@@ -204,6 +206,16 @@ const workspace = inject('workspace')
 const nodeType = computed(() => {
   return app.$registry.get('node', props.node.type)
 })
+const nodeIconStyle = computed(() =>
+  nodeType.value.iconColor
+    ? {
+        '--workflow-node-icon-color': resolveColor(
+          nodeType.value.iconColor,
+          {}
+        ),
+      }
+    : undefined
+)
 
 const isDraggable = computed(() => {
   return !props.readOnly && !nodeType.value.isFixed

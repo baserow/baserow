@@ -8,6 +8,7 @@ const items = [
     label: 'Repeat',
     value: 'repeat',
     icon: 'iconoir-repeat',
+    iconColor: 'darker-purple',
     description: 'Runs actions multiple times.',
     aliases: ['loop'],
   },
@@ -43,6 +44,9 @@ describe('MenuList', () => {
     expect(
       wrapper.findAll('.menu-list__item-label').map((item) => item.text())
     ).toEqual(['Repeat', 'Get row'])
+    expect(wrapper.find('.menu-list__item-icon').attributes('style')).toContain(
+      '--menu-list-item-icon-color: darker-purple'
+    )
 
     await wrapper
       .findAll('.menu-list__item-button')

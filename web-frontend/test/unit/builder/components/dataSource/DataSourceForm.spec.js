@@ -48,6 +48,11 @@ const GroupedDropdownStub = defineComponent({
       required: false,
       default: '',
     },
+    panelHeight: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
   emits: ['update:modelValue'],
   template: '<div class="grouped-dropdown-stub" />',
@@ -93,6 +98,7 @@ const localBaserowIntegrationType = {
   name: 'Local Baserow',
   image: '/local-baserow.svg',
   iconClass: 'iconoir-database',
+  iconColor: 'darker-blue',
   getType: () => 'local_baserow',
 }
 
@@ -105,6 +111,7 @@ const otherIntegrationType = {
 const serviceType = {
   name: 'Get row',
   icon: 'iconoir-pin',
+  iconColor: 'darker-blue',
   description: 'Reads a row from a Baserow table.',
   integrationType: localBaserowIntegrationType,
   isDataSource: true,
@@ -167,18 +174,21 @@ describe('DataSourceForm', () => {
     const wrapper = await mountComponent()
     const actionDropdown = wrapper.findComponent(GroupedDropdownStub)
 
+    expect(actionDropdown.props('panelHeight')).toBe('240px')
     expect(actionDropdown.props('items')).toEqual([
       {
         id: 'integration-local_baserow',
         label: 'Local Baserow',
         image: '/local-baserow.svg',
         icon: 'iconoir-database',
+        iconColor: 'darker-blue',
         children: [
           {
             id: 'service-local_baserow_get_row',
             label: 'Get row',
             value: 'local_baserow_get_row',
             icon: 'iconoir-pin',
+            iconColor: 'darker-blue',
             description: 'Reads a row from a Baserow table.',
             disabled: false,
             disabledReason: null,

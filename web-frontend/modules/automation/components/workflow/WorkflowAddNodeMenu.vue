@@ -1,6 +1,7 @@
 <template>
   <div class="workflow-add-node-menu">
     <GroupedMenu
+      ref="groupedMenu"
       :items="menuGroups"
       :search-placeholder="searchPlaceholder"
       :empty-text="$t('workflowNodeContext.noResults')"
@@ -109,12 +110,16 @@ export default {
     },
   },
   methods: {
+    focus() {
+      return this.$refs.groupedMenu?.focus()
+    },
     makeNodeTypeMenuItem(nodeType) {
       return {
         id: `node-${nodeType.getType()}`,
         label: nodeType.name,
         value: nodeType.getType(),
         icon: nodeType.iconClass,
+        iconColor: nodeType.iconColor,
         image: nodeType.image,
         description: nodeType.description,
         disabled: nodeType.isDeactivated({

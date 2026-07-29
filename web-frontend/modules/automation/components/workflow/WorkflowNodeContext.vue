@@ -3,8 +3,10 @@
     ref="context"
     class="workflow-node__context"
     max-height-if-outside-viewport
+    @shown="focusMenu"
   >
     <WorkflowAddNodeMenu
+      ref="menu"
       :node="node"
       :only-trigger="onlyTrigger"
       @change="onChange($event)"
@@ -34,6 +36,10 @@ export default {
   },
   emits: ['change'],
   methods: {
+    async focusMenu() {
+      await this.$nextTick()
+      await this.$refs.menu?.focus()
+    },
     onChange(nodeType) {
       this.hide()
       this.$emit('change', nodeType)

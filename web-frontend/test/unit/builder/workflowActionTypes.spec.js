@@ -44,6 +44,10 @@ describe('Builder workflow action types', () => {
       .get('workflowAction', 'slack_write_message')
 
     expect(slackAction.group.id).toBe('integration-slack_bot')
+    expect(slackAction.group.image).toBeDefined()
+    expect(slackAction.icon).toBe('iconoir-message-text')
+    expect(slackAction.iconColor).toBe('darker-pink')
+    expect(slackAction.image).toBeUndefined()
   })
 
   test('groups the email action with the SMTP integration', () => {
@@ -52,6 +56,7 @@ describe('Builder workflow action types', () => {
       .get('workflowAction', 'smtp_email')
 
     expect(emailAction.group.id).toBe('integration-smtp')
+    expect(emailAction.iconColor).toBe('darker-red')
   })
 
   test('groups the HTTP request action under HTTP', () => {
@@ -60,6 +65,7 @@ describe('Builder workflow action types', () => {
       .get('workflowAction', 'http_request')
 
     expect(httpRequestAction.group.id).toBe('http')
+    expect(httpRequestAction.iconColor).toBe('darker-cyan')
   })
 
   test('groups file reader actions under Files', () => {
@@ -70,6 +76,9 @@ describe('Builder workflow action types', () => {
         (type) => registry.get('workflowAction', type).group.id
       )
     ).toEqual(['files', 'files'])
+    expect(registry.get('workflowAction', 'csv_file_reader').iconColor).toBe(
+      'darker-yellow'
+    )
   })
 
   test('groups the start workflow action under Workflow', () => {
@@ -78,6 +87,7 @@ describe('Builder workflow action types', () => {
       .get('workflowAction', 'start_workflow')
 
     expect(startWorkflowAction.group.id).toBe('workflow')
+    expect(startWorkflowAction.iconColor).toBe('darker-purple')
   })
 
   test('groups actions without a service under Core', () => {
@@ -86,6 +96,20 @@ describe('Builder workflow action types', () => {
       .get('workflowAction', 'notification')
 
     expect(notificationAction.group.id).toBe('core')
+    expect(notificationAction.iconColor).toBe('darker-green')
+    expect(notificationAction.description).toBe(
+      'workflowActionTypes.notificationDescription'
+    )
+  })
+
+  test('uses service descriptions for service workflow actions', () => {
+    const createRowAction = testApp
+      .getRegistry()
+      .get('workflowAction', 'create_row')
+
+    expect(createRowAction.description).toBe(
+      'serviceType.localBaserowCreateRowDescription'
+    )
   })
 
   test('open page action is in error when saved page parameters are outdated', () => {

@@ -4,24 +4,28 @@ export const getCoreGroup = (app) => ({
   id: 'core',
   label: app.$i18n.t('groupedMenu.core'),
   icon: 'iconoir-package',
+  iconColor: 'darker-green',
 })
 
 export const getFilesGroup = (app) => ({
   id: 'files',
   label: app.$i18n.t('groupedMenu.files'),
   icon: 'iconoir-page',
+  iconColor: 'darker-yellow',
 })
 
 export const getHTTPGroup = (app) => ({
   id: 'http',
   label: app.$i18n.t('groupedMenu.http'),
   icon: 'iconoir-globe',
+  iconColor: 'darker-cyan',
 })
 
 export const getWorkflowGroup = (app) => ({
   id: 'workflow',
   label: app.$i18n.t('groupedMenu.workflow'),
   icon: 'iconoir-git-fork',
+  iconColor: 'darker-purple',
 })
 
 export class ServiceType extends Registerable {
@@ -47,6 +51,7 @@ export class ServiceType extends Registerable {
       label: integrationType.name,
       image: integrationType.image,
       icon: integrationType.iconClass,
+      iconColor: integrationType.iconColor,
     }
   }
 
@@ -59,6 +64,10 @@ export class ServiceType extends Registerable {
 
   get icon() {
     return 'iconoir-question-mark'
+  }
+
+  get iconColor() {
+    return this.group.iconColor
   }
 
   /**

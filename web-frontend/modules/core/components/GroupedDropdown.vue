@@ -135,6 +135,11 @@ const props = defineProps({
     validator: (value) => ['regular', 'large'].includes(value),
     default: 'regular',
   },
+  panelHeight: {
+    type: String,
+    required: false,
+    default: null,
+  },
 })
 
 const emit = defineEmits([
@@ -183,6 +188,7 @@ const selectedIcon = computed(() => {
 })
 const contextStyle = computed(() => ({
   minWidth: menuMinWidth.value ? `${menuMinWidth.value}px` : undefined,
+  '--grouped-menu-panel-height': props.panelHeight,
 }))
 
 function isGroup(item) {

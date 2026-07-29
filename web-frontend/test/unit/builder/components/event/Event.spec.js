@@ -28,6 +28,7 @@ const coreGroup = {
 
 const workflowActionType = {
   label: 'Show Notification',
+  description: 'Show a notification message to the user.',
   icon: 'iconoir-chat-bubble-empty',
   image: null,
   group: coreGroup,
@@ -46,6 +47,7 @@ const localBaserowGroup = {
 
 const createRowWorkflowActionType = {
   label: 'Create row',
+  description: 'Add a new record to a table.',
   icon: 'iconoir-plus',
   image: null,
   group: localBaserowGroup,
@@ -114,11 +116,20 @@ describe('Event', () => {
         .findAll('.grouped-menu__actions .menu-list__item-label')
         .map((item) => item.text())
     ).toEqual(['Show Notification'])
+    expect(
+      wrapper
+        .findAll('.grouped-menu__actions .menu-list__item-description')
+        .map((item) => item.text())
+    ).toEqual(['Show a notification message to the user.'])
 
     await wrapper
       .findAll('.grouped-menu__navigation .menu-list__item-button')
       .find((item) => item.text().includes('Local Baserow'))
       .trigger('click')
+
+    expect(
+      wrapper.find('.grouped-menu__actions .menu-list__item-description').text()
+    ).toBe('Add a new record to a table.')
 
     await wrapper
       .findAll('.grouped-menu__actions .menu-list__item-button')

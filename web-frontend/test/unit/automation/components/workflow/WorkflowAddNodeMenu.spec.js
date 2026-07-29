@@ -36,7 +36,7 @@ function makeNodeType({
     name,
     description,
     iconClass: `iconoir-${type}`,
-    image: integrationType ? integrationType.image : null,
+    image: null,
     isTrigger,
     isWorkflowAction: !isTrigger,
     group: integrationType ? localBaserowGroup : coreGroup,
@@ -148,12 +148,53 @@ describe('WorkflowAddNodeMenu', () => {
       .find((item) => item.text().includes('Local Baserow'))
       .trigger('click')
 
+    expect(
+      wrapper
+        .findAll('.grouped-menu__actions .menu-list__item-icon')
+        .map((item) => item.classes())
+    ).toEqual([
+      ['menu-list__item-icon', 'iconoir-create_row'],
+      ['menu-list__item-icon', 'iconoir-get_row'],
+    ])
+    expect(
+      wrapper.find('.grouped-menu__actions .menu-list__item-image').exists()
+    ).toBe(false)
+
     await wrapper
       .findAll('.grouped-menu__actions .menu-list__item-button')
       .find((item) => item.text().includes('Create row'))
       .trigger('click')
 
     expect(wrapper.emitted('change')[0]).toEqual(['create_row'])
+  })
+
+  test('navigates actions in their visual order', async () => {
+    const wrapper = mountComponent()
+    document.body.append(wrapper.element)
+    const searchInput = wrapper.find('.menu-search__input')
+
+    try {
+      await wrapper.vm.focus()
+      expect(document.activeElement).toBe(searchInput.element)
+
+      await searchInput.trigger('keydown', { key: 'ArrowDown' })
+      await wrapper
+        .find('.grouped-menu__navigation .menu-list')
+        .trigger('keydown', { key: 'ArrowDown' })
+      await wrapper
+        .find('.grouped-menu__navigation .menu-list')
+        .trigger('keydown', { key: 'ArrowRight' })
+
+      expect(document.activeElement.textContent).toContain('Create row')
+
+      await wrapper
+        .find('.grouped-menu__actions .menu-list')
+        .trigger('keydown', { key: 'ArrowDown' })
+
+      expect(document.activeElement.textContent).toContain('Get row')
+    } finally {
+      wrapper.unmount()
+    }
   })
 
   test('shows triggers in integration groups with an event search', () => {

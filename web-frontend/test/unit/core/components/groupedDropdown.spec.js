@@ -52,6 +52,14 @@ const mountComponent = (props = {}) =>
   })
 
 describe('GroupedDropdown', () => {
+  test('sets a custom panel height on the teleported context', () => {
+    const wrapper = mountComponent({ panelHeight: '240px' })
+
+    expect(wrapper.find('.context-stub').attributes('style')).toContain(
+      '--grouped-menu-panel-height: 240px'
+    )
+  })
+
   test('uses the ancestor image for the selected leaf', () => {
     const wrapper = mountComponent({ modelValue: 'get-row' })
 

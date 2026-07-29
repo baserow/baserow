@@ -74,7 +74,7 @@
 .menu-list__item-icon {
   width: 16px;
   height: 16px;
-  color: $palette-neutral-700;
+  color: var(--menu-list-item-icon-color, $palette-neutral-700);
   font-size: 16px;
   text-align: center;
   flex: 0 0 16px;

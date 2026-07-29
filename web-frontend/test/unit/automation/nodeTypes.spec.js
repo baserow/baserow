@@ -69,4 +69,28 @@ describe('Automation node types', () => {
       )
     ).toEqual(['workflow', 'workflow', 'workflow'])
   })
+
+  test('uses service-specific icons and images for workflow action nodes', () => {
+    const registry = testApp.getRegistry()
+    const createRow = registry.get('node', 'local_baserow_create_row')
+    const updateRow = registry.get('node', 'local_baserow_update_row')
+    const aiAgent = registry.get('node', 'ai_agent')
+    const smtp = registry.get('node', 'smtp_email')
+    const slack = registry.get('node', 'slack_write_message')
+
+    expect([createRow.iconClass, updateRow.iconClass]).toEqual([
+      'iconoir-plus',
+      'iconoir-edit-pencil',
+    ])
+    expect([createRow.iconColor, updateRow.iconColor]).toEqual([
+      'darker-blue',
+      'darker-blue',
+    ])
+    expect([createRow.image, updateRow.image]).toEqual([undefined, undefined])
+    expect(aiAgent.iconColor).toBe('darker-orange')
+    expect(smtp.iconColor).toBe('darker-red')
+    expect(slack.iconClass).toBe('iconoir-message-text')
+    expect(slack.iconColor).toBe('darker-pink')
+    expect(slack.image).toBeUndefined()
+  })
 })

@@ -15,12 +15,12 @@
     >
       <li
         v-for="(item, index) in visibleItems"
-        :key="getItemKey(item, index)"
+        :key="item.id"
         class="menu-list__item"
         role="none"
       >
         <button
-          :ref="setItemButton"
+          :ref="(element) => setItemButton(element, index)"
           v-tooltip="item.disabledReason || null"
           type="button"
           class="menu-list__item-button"
@@ -44,6 +44,7 @@
             v-else-if="item.icon"
             class="menu-list__item-icon"
             :class="item.icon"
+            :style="getItemIconStyle(item)"
           />
 
           <span class="menu-list__item-content">
@@ -72,6 +73,7 @@
 import { computed, nextTick, onBeforeUpdate, ref, watch } from 'vue'
 
 import MenuSearch from '@baserow/modules/core/components/MenuSearch'
+import { resolveColor } from '@baserow/modules/core/utils/colors'
 
 const props = defineProps({
   items: {
@@ -148,6 +150,14 @@ function normalizeSearchValue(value) {
     .toLocaleLowerCase()
 }
 
+function getItemIconStyle(item) {
+  return item.iconColor
+    ? {
+        '--menu-list-item-icon-color': resolveColor(item.iconColor, {}),
+      }
+    : undefined
+}
+
 function itemMatchesQuery(item, normalizedQuery) {
   const aliases = Array.isArray(item.aliases)
     ? item.aliases
@@ -159,17 +169,13 @@ function itemMatchesQuery(item, normalizedQuery) {
   )
 }
 
-function getItemKey(item, index) {
-  return item.id ?? item.value ?? item.label ?? index
-}
-
 function isActive(item) {
   return item.value !== undefined && Object.is(item.value, currentValue.value)
 }
 
-function setItemButton(element) {
+function setItemButton(element, index) {
   if (element) {
-    itemButtons.value.push(element)
+    itemButtons.value[index] = element
   }
 }
 

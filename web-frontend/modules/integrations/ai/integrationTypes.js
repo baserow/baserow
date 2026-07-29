@@ -14,6 +14,10 @@ export class AIIntegrationType extends IntegrationType {
     return 'iconoir-spark'
   }
 
+  get iconColor() {
+    return 'darker-orange'
+  }
+
   getSummary(integration) {
     const aiSettings = integration.ai_settings || {}
     const overrideCount = Object.keys(aiSettings).length

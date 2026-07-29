@@ -10,8 +10,16 @@ export class WorkflowActionType extends Registerable {
     return null
   }
 
+  get description() {
+    return null
+  }
+
   get icon() {
     return null
+  }
+
+  get iconColor() {
+    return this.group.iconColor
   }
 
   get group() {

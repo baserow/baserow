@@ -15,17 +15,28 @@
 
 .grouped-menu__panels {
   display: grid;
+  height: var(--grouped-menu-panel-height, 360px);
   min-height: 0;
   grid-template-columns: minmax(140px, 196px) minmax(0, 1fr);
 }
 
 .grouped-menu__navigation,
 .grouped-menu__actions {
+  display: flex;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .grouped-menu__menu-list {
+  height: auto;
   min-width: 0;
+  flex: 1;
+
+  .menu-list__items {
+    max-height: none;
+    flex: 1;
+  }
 }
 
 .grouped-menu__navigation {

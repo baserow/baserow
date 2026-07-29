@@ -147,7 +147,9 @@ export default {
           label: workflowActionType.label,
           value: workflowActionType.getType(),
           icon: workflowActionType.icon,
+          iconColor: workflowActionType.iconColor,
           image: workflowActionType.image,
+          description: workflowActionType.description,
           disabled: workflowActionType.isDeactivated({
             workspace: this.workspace,
           }),
