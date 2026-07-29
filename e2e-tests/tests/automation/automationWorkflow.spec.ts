@@ -22,6 +22,15 @@ async function gotoAndExpectWorkflowPage(
   }
 }
 
+async function expectTriggerChooser(page: Page) {
+  await expect(
+    page
+      .locator(".workflow-editor__trigger-selector")
+      .getByRole("searchbox"),
+    "Ensure the trigger chooser is visible."
+  ).toBeVisible();
+}
+
 test.describe("Automation workflow test suite", () => {
   test.beforeEach(async ({ automationWorkflowPage, page }) => {
     await gotoAndExpectWorkflowPage(automationWorkflowPage, page);
@@ -48,11 +57,7 @@ test.describe("Automation workflow test suite", () => {
       "Ensure the default automation name is displayed in the sidebar."
     ).toBeVisible();
 
-    const chooseTriggerTitle = page.getByText("Choose an event...");
-    await expect(
-      chooseTriggerTitle,
-      "Ensure the trigger chooser is visible."
-    ).toBeVisible();
+    await expectTriggerChooser(page);
   });
 
   test("Can duplicate a workflow", async ({ page }) => {
@@ -80,11 +85,7 @@ test.describe("Automation workflow test suite", () => {
     ).toBeVisible();
     await workflowLink.click();
 
-    const chooseTriggerTitle = page.getByText("Choose an event...");
-    await expect(
-      chooseTriggerTitle,
-      "Ensure the trigger chooser is visible."
-    ).toBeVisible();
+    await expectTriggerChooser(page);
   });
 
   test("Can rename a workflow", async ({ page }) => {
@@ -116,11 +117,7 @@ test.describe("Automation workflow test suite", () => {
       "Ensure the renamed workflow is displayed in the sidebar."
     ).toBeVisible();
 
-    const chooseTriggerTitle = page.getByText("Choose an event...");
-    await expect(
-      chooseTriggerTitle,
-      "Ensure the trigger chooser is visible."
-    ).toBeVisible();
+    await expectTriggerChooser(page);
   });
 
   // For some reasons this test is flaky. Marked as slow for now to prevent CI execution
