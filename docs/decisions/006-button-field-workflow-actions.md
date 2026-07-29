@@ -130,9 +130,17 @@ navigation branch already stores its target as a formula object, the same shape 
 `url_formula`, so the action type has an implementation to mirror rather than invent.
 
 Because the type is frontend-only, the client executes it without calling the dispatch
-endpoint. A URL-only button therefore keeps working in public views exactly as it does
-today, while any button carrying a dispatch-backed action stays unavailable to anonymous
-users under section 7.
+endpoint at all. That keeps the action type cheap, and it matches how the builder already
+treats its notification and open-page actions.
+
+Public views are not part of that reasoning. An earlier draft of this section argued the
+client-side path preserved the phase-1 behaviour of a URL button working in a publicly
+shared view. That is no longer true and no longer wanted: phase 1 review concluded button
+fields should not appear in public views at all, and `ButtonFieldType` now sets
+`can_be_in_public_view = False`. There is no public-view button left to preserve, so
+nothing in the action design should be shaped around one. Section 7's rule is the whole
+story: buttons are unavailable to anonymous users, whether or not their actions reach the
+server.
 
 ### 3. Execution flow and failure behavior
 
