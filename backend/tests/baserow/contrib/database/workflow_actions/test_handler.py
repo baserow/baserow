@@ -127,3 +127,23 @@ def test_dispatch_a_create_row_action(data_fixture):
 
     created = table.get_model().objects.exclude(id=row.id).get()
     assert getattr(created, f"field_{name_field.id}") == "Ada"
+
+
+def test_base_action_type_dispatch_refuses():
+    from baserow.contrib.database.workflow_actions.models import (
+        DatabaseWorkflowAction,
+    )
+    from baserow.contrib.database.workflow_actions.registries import (
+        DatabaseWorkflowActionType,
+    )
+    from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
+
+    # A frontend-only action type, e.g. a future success toast, extends the
+    # base type directly rather than the service-backed subclass and must
+    # never be dispatchable server side.
+    class FrontendOnlyWorkflowActionType(DatabaseWorkflowActionType):
+        type = "frontend_only_test"
+        model_class = DatabaseWorkflowAction
+
+    with pytest.raises(InvalidServiceTypeDispatchSource):
+        FrontendOnlyWorkflowActionType().dispatch(None, None)
