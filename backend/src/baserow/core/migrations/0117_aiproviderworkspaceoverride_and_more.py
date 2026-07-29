@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0115_ai_provider'),
+        ('core', '0116_abuse_report_and_allow_reporting_abuse'),
     ]
 
     operations = [
