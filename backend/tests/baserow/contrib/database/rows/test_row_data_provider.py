@@ -6,6 +6,9 @@ from baserow.contrib.database.rows.data_providers import (
     HumanReadableFieldsDataProviderType,
     RowDataProviderType,
 )
+from baserow.contrib.database.rows.runtime_formula_contexts import (
+    HumanReadableRowContext,
+)
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.dispatch_context import (
     DatabaseDispatchContext,
@@ -67,16 +70,26 @@ def test_it_differs_from_the_human_readable_provider(data_fixture):
     # Refetch for the same reason as above: only a queried instance's number
     # field is normalized to Decimal by Django.
     row = model.objects.get(pk=created.pk)
-    dispatch_context = _dispatch_context(data_fixture, user, table, row)
 
+    # Each provider is exercised through the context it is actually built
+    # for: `HumanReadableFieldsDataProviderType` reads
+    # `human_readable_row_values` off `HumanReadableRowContext`, while
+    # `RowDataProviderType` reads `row` off `DatabaseDispatchContext`. Same
+    # underlying row, same field, deliberately different context types.
+    human_readable_context = HumanReadableRowContext(row)
+    human_readable = HumanReadableFieldsDataProviderType().get_data_chunk(
+        human_readable_context, [f"field_{age_field.id}"]
+    )
+
+    dispatch_context = _dispatch_context(data_fixture, user, table, row)
     raw = RowDataProviderType().get_data_chunk(
         dispatch_context, [f"field_{age_field.id}"]
     )
 
-    assert isinstance(raw, Decimal)
+    assert human_readable == "36"
+    assert isinstance(human_readable, str)
+    assert raw == Decimal("36")
     assert not isinstance(raw, str)
-    assert HumanReadableFieldsDataProviderType.type == "fields"
-    assert RowDataProviderType.type == "row"
 
 
 @pytest.mark.django_db
