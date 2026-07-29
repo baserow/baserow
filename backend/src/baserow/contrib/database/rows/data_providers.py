@@ -34,7 +34,16 @@ class HumanReadableFieldsDataProviderType(DataProviderType):
 
         first_part = path[0]
 
-        return dispatch_context.human_readable_row_values.get(first_part, "")
+        # Both providers live in the same registry, so a `get('fields.…')`
+        # written in a button action argument resolves here against a
+        # `DatabaseDispatchContext`, which has no human readable values. Return
+        # nothing rather than raising an `AttributeError` the caller sees as a
+        # 500.
+        row_values = getattr(dispatch_context, "human_readable_row_values", None)
+        if row_values is None:
+            return None
+
+        return row_values.get(first_part, "")
 
 
 class RowDataProviderType(DataProviderType):
@@ -61,7 +70,19 @@ class RowDataProviderType(DataProviderType):
             return None
 
         field_name = path[0]
-        row = dispatch_context.row
+
+        # The mirror of the guard in `HumanReadableFieldsDataProviderType`: a
+        # `get('row.…')` written in an AI field's prompt resolves here against a
+        # `HumanReadableRowContext`, which carries no row.
+        row = getattr(dispatch_context, "row", None)
+        if row is None:
+            return None
+
+        # The row's own id, so an update or delete action can target the row
+        # that was clicked. `row_id` on those services is a formula, so
+        # `get('row.id')` is the only way to express it.
+        if field_name == "id":
+            return row.id
 
         field_names = {
             field_object["name"]

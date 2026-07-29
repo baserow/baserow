@@ -107,6 +107,63 @@ def test_an_unknown_field_resolves_to_none(data_fixture):
 
 
 @pytest.mark.django_db
+def test_the_clicked_rows_id_is_reachable(data_fixture):
+    """`row_id` on the update and delete services is a formula, so this is the
+    only way an action can target the row that was clicked."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    row = table.get_model().objects.create()
+    dispatch_context = _dispatch_context(data_fixture, user, table, row)
+
+    assert RowDataProviderType().get_data_chunk(dispatch_context, ["id"]) == row.id
+    assert dispatch_context["row.id"] == row.id
+
+
+@pytest.mark.django_db
+def test_the_row_provider_against_a_human_readable_context(data_fixture):
+    """Both providers share one registry, so `get('row.…')` inside an AI field's
+    prompt resolves here against a context that carries no row. It must answer
+    `None` rather than raise, which the caller would see as a 500."""
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    row = table.get_model().objects.create(**{f"field_{name_field.id}": "Ada"})
+    context = HumanReadableRowContext(row)
+
+    assert (
+        RowDataProviderType().get_data_chunk(context, [f"field_{name_field.id}"])
+        is None
+    )
+    assert RowDataProviderType().get_data_chunk(context, ["id"]) is None
+
+
+@pytest.mark.django_db
+def test_the_human_readable_provider_against_a_dispatch_context(data_fixture):
+    """The mirror case: `get('fields.…')` inside a button action argument."""
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    row = table.get_model().objects.create(**{f"field_{name_field.id}": "Ada"})
+    dispatch_context = _dispatch_context(data_fixture, user, table, row)
+
+    assert (
+        HumanReadableFieldsDataProviderType().get_data_chunk(
+            dispatch_context, [f"field_{name_field.id}"]
+        )
+        is None
+    )
+
+
+@pytest.mark.django_db
 def test_it_resolves_through_the_registry(data_fixture):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
