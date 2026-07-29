@@ -4,10 +4,17 @@ import os
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
 
+from django.db.models import Q
+
 from loguru import logger
 
 from baserow.core.ai_provider.constants import AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY
+from baserow.core.ai_provider.models import (
+    AIProviderConfig,
+    AIProviderWorkspaceOverride,
+)
 from baserow.core.cache import local_cache
+from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
@@ -941,14 +948,6 @@ class GenerativeAIModelTypeRegistry(Registry):
         Resolving enabled models per workspace is otherwise a query per
         workspace, which is paid on every workspace list serialization.
         """
-
-        from django.db.models import Q
-
-        from baserow.core.ai_provider.models import (
-            AIProviderConfig,
-            AIProviderWorkspaceOverride,
-        )
-        from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 
         if not feature_flag_is_enabled(FF_AI_PROVIDERS):
             return

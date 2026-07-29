@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any
 
 from django.db import IntegrityError
@@ -33,22 +34,52 @@ from .provider_types import (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class WorkspaceAIProviderConfig:
+    """The explicit, workspace-scoped representation of an AI provider."""
+
+    id: int
+    provider_type: str
+    extra_settings: dict[str, Any]
+    is_active: bool
+    models: list[AIProviderModel]
+    workspace_enabled: bool
+    read_only: bool
+
+
 class AIProviderHandler:
     @staticmethod
     def _invalidate_resolution_cache() -> None:
         local_cache.delete(f"{AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY}*")
 
     @staticmethod
-    def _decorate_provider(
+    def _workspace_provider_config(
         provider: AIProviderConfig,
-        workspace: Workspace | None,
         workspace_enabled: bool = True,
-    ) -> AIProviderConfig:
-        inherited = workspace is not None and provider.workspace_id is None
-        provider.workspace_enabled = workspace_enabled
-        provider.effective_is_active = provider.is_active and workspace_enabled
-        provider.read_only = inherited
-        return provider
+    ) -> WorkspaceAIProviderConfig:
+        inherited = provider.workspace_id is None
+        return WorkspaceAIProviderConfig(
+            id=provider.id,
+            provider_type=provider.provider_type,
+            extra_settings={} if inherited else provider.extra_settings,
+            is_active=provider.is_active and workspace_enabled,
+            models=list(provider.models.all()),
+            workspace_enabled=workspace_enabled,
+            read_only=inherited,
+        )
+
+    @classmethod
+    def get_workspace_provider_config(
+        cls, provider: AIProviderConfig, workspace: Workspace
+    ) -> WorkspaceAIProviderConfig:
+        inherited = provider.workspace_id is None
+        workspace_enabled = not (
+            inherited
+            and AIProviderWorkspaceOverride.objects.filter(
+                workspace=workspace, provider_config=provider
+            ).exists()
+        )
+        return cls._workspace_provider_config(provider, workspace_enabled)
 
     @staticmethod
     def _inherited_scope() -> Q:
@@ -87,13 +118,10 @@ class AIProviderHandler:
     @classmethod
     def list_providers(
         cls, workspace: Workspace | None = None
-    ) -> list[AIProviderConfig]:
+    ) -> list[AIProviderConfig | WorkspaceAIProviderConfig]:
         queryset = AIProviderConfig.objects.prefetch_related("models").order_by("id")
         if workspace is None:
-            return [
-                cls._decorate_provider(provider, None)
-                for provider in queryset.filter(workspace__isnull=True)
-            ]
+            return list(queryset.filter(workspace__isnull=True))
 
         owned = list(queryset.filter(workspace=workspace))
         inherited = cls._inherited_providers()
@@ -103,11 +131,9 @@ class AIProviderHandler:
                 provider_config_id__in=[provider.id for provider in inherited],
             ).values_list("provider_config_id", flat=True)
         )
-        providers = [
-            cls._decorate_provider(provider, workspace) for provider in owned
-        ] + [
-            cls._decorate_provider(
-                provider, workspace, provider.id not in disabled_provider_ids
+        providers = [cls._workspace_provider_config(provider) for provider in owned] + [
+            cls._workspace_provider_config(
+                provider, provider.id not in disabled_provider_ids
             )
             for provider in inherited
         ]
@@ -131,12 +157,7 @@ class AIProviderHandler:
             raise AIProviderDoesNotExist(provider_id) from exc
         inherited = workspace is not None and provider.workspace_id is None
         prefetch_related_objects([provider], cls._models_prefetch(inherited))
-        workspace_enabled = True
-        if inherited:
-            workspace_enabled = not AIProviderWorkspaceOverride.objects.filter(
-                workspace=workspace, provider_config=provider
-            ).exists()
-        return cls._decorate_provider(provider, workspace, workspace_enabled)
+        return provider
 
     @classmethod
     def get_model(

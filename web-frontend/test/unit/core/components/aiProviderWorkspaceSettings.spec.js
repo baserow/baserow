@@ -41,14 +41,6 @@ describe('AIProviderWorkspaceSettings', () => {
     const dispatch = vi
       .spyOn(testApp.store, 'dispatch')
       .mockResolvedValue(undefined)
-    testApp.mock.onGet('/workspaces/').reply(200, [
-      {
-        id: 42,
-        name: 'Workspace',
-        generative_ai_models_enabled: {},
-      },
-    ])
-
     const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
       props: { workspace: { id: 42 } },
     })
@@ -76,14 +68,9 @@ describe('AIProviderWorkspaceSettings', () => {
       workspaceId: 42,
       values: { is_active: false },
     })
-    expect(dispatch).toHaveBeenCalledWith('workspace/forceUpdate', {
-      workspace: { id: 42 },
-      values: {
-        id: 42,
-        name: 'Workspace',
-        generative_ai_models_enabled: {},
-      },
-    })
+    expect(
+      dispatch.mock.calls.some(([action]) => action === 'workspace/forceUpdate')
+    ).toBe(false)
 
     const addWorkspaceConfiguration = wrapper
       .find('.ai-provider-hierarchy__header')

@@ -151,7 +151,6 @@ import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProvid
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
 import AIProviderModelFormModal from '@baserow/modules/core/components/ai/AIProviderModelFormModal'
-import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 export default {
   name: 'AIProviderWorkspaceSettings',
@@ -243,28 +242,12 @@ export default {
         this.initialLoadFailed = true
       }
     },
-    async refreshWorkspace() {
-      try {
-        const { data } = await WorkspaceService(this.$client).fetchAll()
-        const workspace = data.find((item) => item.id === this.workspace.id)
-        if (workspace) {
-          await this.$store.dispatch('workspace/forceUpdate', {
-            workspace: this.workspace,
-            values: workspace,
-          })
-        }
-      } catch {
-        return
-      }
-    },
     async providerSaved() {
       this.providerFormOpen = false
       await this.loadProviders()
-      await this.refreshWorkspace()
     },
-    async modelSaved() {
+    modelSaved() {
       this.modelFormOpen = false
-      await this.refreshWorkspace()
     },
     providerType(type) {
       return this.providerTypes.find(
@@ -426,11 +409,8 @@ export default {
             values: { model_ids: resource.models.map((model) => model.id) },
           })
         }
-        if (!modelIdsUnderTest.length) {
-          if (kind === 'provider-delete') {
-            await this.loadProviders()
-          }
-          await this.refreshWorkspace()
+        if (kind === 'provider-delete') {
+          await this.loadProviders()
         }
         return true
       } catch (error) {

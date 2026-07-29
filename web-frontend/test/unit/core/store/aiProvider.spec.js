@@ -144,6 +144,8 @@ describe('AI provider store', () => {
 
     expect(getters.getAll(storeState)(42)).toEqual([{ id: 1 }])
     expect(getters.getTypes(storeState)(42)).toEqual([{ type: 'openai' }])
+    expect(getters.hasLoaded(storeState)).toBe(true)
+    expect(getters.getWorkspaceId(storeState)).toBe(42)
     expect(getters.isLoaded(storeState)(42)).toBe(true)
 
     expect(getters.getAll(storeState)(null)).toEqual([])
@@ -167,6 +169,26 @@ describe('AI provider store', () => {
     expect(service.fetchTypes).not.toHaveBeenCalled()
     expect(commit).toHaveBeenCalledWith('SET_PROVIDERS', [{ id: 1 }])
     expect(providers).toEqual([{ id: 1 }])
+  })
+
+  test('realtime snapshots replace only the loaded matching scope', () => {
+    const commit = vi.fn()
+    const storeState = makeState()
+    storeState.loaded = true
+    storeState.workspaceId = 42
+
+    actions.replaceFromRealtime(
+      { commit, state: storeState },
+      { workspaceId: 7, providers: [{ id: 7 }] }
+    )
+    expect(commit).not.toHaveBeenCalled()
+
+    actions.replaceFromRealtime(
+      { commit, state: storeState },
+      { workspaceId: 42, providers: [{ id: 42 }] }
+    )
+    expect(commit).toHaveBeenCalledOnce()
+    expect(commit).toHaveBeenCalledWith('SET_PROVIDERS', [{ id: 42 }])
   })
 
   test('workspace actions scope all requests to the workspace', async () => {
@@ -267,6 +289,31 @@ describe('AI provider store', () => {
 
     expect(state.providers).toEqual([
       { id: 1, models: [{ id: 2, model_identifier: 'new' }] },
+    ])
+  })
+
+  test('create responses upsert data already delivered by realtime', () => {
+    const state = makeState()
+    state.providers = [
+      { id: 1, provider_type: 'openai', models: [{ id: 2, value: 'old' }] },
+    ]
+
+    mutations.ADD_PROVIDER(state, {
+      id: 1,
+      provider_type: 'openai',
+      models: [{ id: 2, value: 'new' }],
+    })
+    mutations.ADD_MODEL(state, {
+      providerId: 1,
+      model: { id: 2, value: 'newer' },
+    })
+
+    expect(state.providers).toEqual([
+      {
+        id: 1,
+        provider_type: 'openai',
+        models: [{ id: 2, value: 'newer' }],
+      },
     ])
   })
 

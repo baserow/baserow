@@ -88,7 +88,6 @@
         />
         <Button
           type="secondary"
-          size="small"
           icon="iconoir-cancel"
           :title="$t('aiProviderAdmin.removeModel')"
           :aria-label="$t('aiProviderAdmin.removeModel')"

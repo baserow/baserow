@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.db import connection
 from django.test import override_settings
 
@@ -7,7 +9,10 @@ from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
 from baserow.config.asgi import application
+from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.models import WORKSPACE_USER_PERMISSION_MEMBER
 from baserow.ws.tasks import (
+    broadcast_ai_provider_update,
     broadcast_to_channel_group,
     broadcast_to_group,
     broadcast_to_groups,
@@ -15,6 +20,61 @@ from baserow.ws.tasks import (
     broadcast_to_users_individual_payloads,
     force_disconnect_users,
 )
+
+
+@pytest.mark.django_db
+def test_ai_provider_update_payloads_are_complete_and_permission_scoped(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    staff = data_fixture.create_user(is_staff=True)
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        user=member,
+        workspace=workspace,
+        permissions=WORKSPACE_USER_PERMISSION_MEMBER,
+    )
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        extra_settings={"organization": "instance-organization"},
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+
+    with patch(
+        "baserow.ws.tasks.broadcast_to_users_individual_payloads"
+    ) as mock_broadcast:
+        broadcast_ai_provider_update(None, True)
+
+    payload_map = mock_broadcast.call_args.args[0]
+    workspace_key = str(workspace.id)
+
+    assert str(outsider.id) not in payload_map
+    assert payload_map[str(member.id)] == {
+        "type": "ai_provider_updated",
+        "model_availability_updated": True,
+        "generative_ai_models_enabled_by_workspace": {
+            workspace_key: {"openai": ["gpt-5"]}
+        },
+    }
+
+    admin_payload = payload_map[str(admin.id)]
+    assert admin_payload["generative_ai_models_enabled_by_workspace"] == {
+        workspace_key: {"openai": ["gpt-5"]}
+    }
+    workspace_providers = admin_payload["ai_providers_by_workspace"][workspace_key]
+    assert workspace_providers[0]["provider_type"] == "openai"
+    assert workspace_providers[0]["extra_settings"] == {}
+
+    staff_payload = payload_map[str(staff.id)]
+    assert "generative_ai_models_enabled_by_workspace" not in staff_payload
+    assert staff_payload["instance_ai_providers"][0]["provider_type"] == "openai"
+    assert staff_payload["instance_ai_providers"][0]["extra_settings"] == {
+        "organization": "instance-organization"
+    }
 
 
 @pytest.mark.asyncio

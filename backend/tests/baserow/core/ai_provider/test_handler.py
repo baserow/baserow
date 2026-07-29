@@ -9,7 +9,10 @@ from baserow.core.ai_provider.exceptions import (
     AIProviderTypeAlreadyConfigured,
     InvalidAIProviderSettings,
 )
-from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.ai_provider.handler import (
+    AIProviderHandler,
+    WorkspaceAIProviderConfig,
+)
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 
 
@@ -108,6 +111,28 @@ def test_provider_type_is_unique_per_instance_or_workspace(data_fixture):
         AIProviderHandler.create_provider(
             "openai", api_key="duplicate-key", workspace=workspace_a
         )
+
+
+@pytest.mark.django_db
+def test_workspace_provider_list_uses_an_explicit_scoped_representation(data_fixture):
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-key",
+        extra_settings={"base_url": "https://instance.example"},
+        models_data=[{"model_identifier": "gpt-5.6"}],
+    )
+
+    scoped_provider = AIProviderHandler.list_providers(workspace)[0]
+
+    assert isinstance(scoped_provider, WorkspaceAIProviderConfig)
+    assert scoped_provider.id == provider.id
+    assert scoped_provider.extra_settings == {}
+    assert scoped_provider.is_active is True
+    assert scoped_provider.workspace_enabled is True
+    assert scoped_provider.read_only is True
+    assert [model.model_identifier for model in scoped_provider.models] == ["gpt-5.6"]
+    assert not hasattr(provider, "workspace_enabled")
 
 
 @pytest.mark.django_db

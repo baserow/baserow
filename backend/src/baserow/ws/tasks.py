@@ -222,6 +222,99 @@ def broadcast_to_users_individual_payloads(
 
 
 @app.task(bind=True)
+def broadcast_ai_provider_update(
+    self, workspace_id: int | None, model_availability_updated: bool
+):
+    """Broadcast complete, permission-scoped AI provider state to each user."""
+
+    from django.contrib.auth import get_user_model
+
+    from baserow.api.ai_provider.serializers import (
+        AIProviderConfigSerializer,
+        WorkspaceAIProviderConfigSerializer,
+    )
+    from baserow.core.ai_provider.handler import AIProviderHandler
+    from baserow.core.generative_ai.registries import (
+        generative_ai_model_type_registry,
+    )
+    from baserow.core.handler import CoreHandler
+    from baserow.core.models import Workspace
+    from baserow.core.operations import UpdateWorkspaceOperationType
+
+    workspaces = list(
+        Workspace.objects.filter(id=workspace_id)
+        if workspace_id is not None
+        else Workspace.objects.all()
+    )
+    workspace_ids = [workspace.id for workspace in workspaces]
+    if model_availability_updated:
+        generative_ai_model_type_registry.prefetch_workspace_configuration(
+            workspace_ids
+        )
+
+    payload_map: PayloadMap = {}
+
+    def payload_for(user_id: int) -> dict[str, Any]:
+        return payload_map.setdefault(
+            str(user_id),
+            {
+                "type": "ai_provider_updated",
+                "model_availability_updated": model_availability_updated,
+            },
+        )
+
+    for workspace in workspaces:
+        workspace_users = [
+            workspace_user.user
+            for workspace_user in workspace.workspaceuser_set.select_related("user")
+        ]
+        workspace_key = str(workspace.id)
+
+        if model_availability_updated:
+            enabled_models = (
+                generative_ai_model_type_registry.get_enabled_models_per_type(workspace)
+            )
+            for user in workspace_users:
+                payload_for(user.id).setdefault(
+                    "generative_ai_models_enabled_by_workspace", {}
+                )[workspace_key] = enabled_models
+
+        permitted_users = CoreHandler().check_permission_for_multiple_actors(
+            workspace_users,
+            UpdateWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+        if permitted_users:
+            providers = list(
+                WorkspaceAIProviderConfigSerializer(
+                    AIProviderHandler.list_providers(workspace), many=True
+                ).data
+            )
+            for user in permitted_users:
+                payload_for(user.id).setdefault("ai_providers_by_workspace", {})[
+                    workspace_key
+                ] = providers
+
+    if workspace_id is None:
+        instance_providers = list(
+            AIProviderConfigSerializer(
+                AIProviderHandler.list_providers(), many=True
+            ).data
+        )
+        staff_user_ids = (
+            get_user_model()
+            .objects.filter(is_active=True, is_staff=True)
+            .values_list("id", flat=True)
+        )
+        for user_id in staff_user_ids:
+            payload_for(user_id)["instance_ai_providers"] = instance_providers
+
+    if payload_map:
+        broadcast_to_users_individual_payloads(payload_map)
+
+
+@app.task(bind=True)
 def broadcast_many_to_channel_group(
     self,
     payloads: list[tuple[str, Dict[str, Any]]],

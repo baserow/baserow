@@ -93,25 +93,18 @@ class Command(BaseCommand):
         )
 
     def _plan_instance_import(self) -> tuple[list[dict[str, Any]], int]:
-        existing_types = set(
-            AIProviderConfig.objects.filter(workspace__isnull=True).values_list(
-                "provider_type", flat=True
-            )
-        )
+        existing_by_type = {
+            provider.provider_type: provider
+            for provider in AIProviderConfig.objects.filter(
+                workspace__isnull=True
+            ).prefetch_related("models")
+        }
         planned = []
         skipped_count = 0
         for provider_type in PROVIDER_ENVIRONMENT_SETTINGS:
             values = get_environment_provider_values(provider_type)
             provider_name = PROVIDER_ENVIRONMENT_SETTINGS[provider_type]["name"]
             if not values["configured"]:
-                continue
-            if provider_type in existing_types:
-                skipped_count += 1
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"{provider_name}: keeping existing database configuration."
-                    )
-                )
                 continue
             try:
                 validate_provider_settings(
@@ -130,6 +123,18 @@ class Command(BaseCommand):
                 )
                 skipped_count += 1
                 continue
+            if provider_type in existing_by_type:
+                skipped_count += 1
+                differences = self._describe_existing_configuration(
+                    existing_by_type[provider_type], values, "environment"
+                )
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"{provider_name}: keeping existing database configuration "
+                        f"({differences})."
+                    )
+                )
+                continue
             planned.append({**values, "workspace": None})
             self.stdout.write(
                 f"{provider_name}: import {len(values['models'])} model(s); "
@@ -138,11 +143,12 @@ class Command(BaseCommand):
         return planned, skipped_count
 
     def _plan_workspace_import(self) -> tuple[list[dict[str, Any]], int]:
-        existing = set(
-            AIProviderConfig.objects.filter(workspace__isnull=False).values_list(
-                "workspace_id", "provider_type"
-            )
-        )
+        existing = {
+            (provider.workspace_id, provider.provider_type): provider
+            for provider in AIProviderConfig.objects.filter(
+                workspace__isnull=False
+            ).prefetch_related("models")
+        }
         planned = []
         skipped_count = 0
 
@@ -162,15 +168,6 @@ class Command(BaseCommand):
 
                 provider_name = config["name"]
                 prefix = f"Workspace {workspace.id} ({workspace.name}), {provider_name}"
-                if (workspace.id, provider_type) in existing:
-                    skipped_count += 1
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f"{prefix}: keeping existing database configuration."
-                        )
-                    )
-                    continue
-
                 try:
                     values = get_legacy_workspace_provider_values(
                         provider_type, raw_values
@@ -184,6 +181,20 @@ class Command(BaseCommand):
                     )
                     continue
 
+                existing_provider = existing.get((workspace.id, provider_type))
+                if existing_provider is not None:
+                    skipped_count += 1
+                    differences = self._describe_existing_configuration(
+                        existing_provider, values, "legacy settings"
+                    )
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"{prefix}: keeping existing database configuration "
+                            f"({differences})."
+                        )
+                    )
+                    continue
+
                 planned.append({**values, "workspace": workspace})
                 self.stdout.write(
                     f"{prefix}: import {len(values['models'])} model(s); credential "
@@ -191,6 +202,67 @@ class Command(BaseCommand):
                 )
 
         return planned, skipped_count
+
+    @staticmethod
+    def _describe_existing_configuration(
+        provider: AIProviderConfig,
+        incoming: dict[str, Any],
+        incoming_label: str,
+    ) -> str:
+        """Describe a skipped import without printing credential or setting values."""
+
+        differences = []
+        if provider.api_key != incoming["api_key"]:
+            differences.append("credential differs")
+
+        database_settings = provider.extra_settings or {}
+        incoming_settings = incoming["extra_settings"] or {}
+        settings_only_in_incoming = sorted(incoming_settings.keys() - database_settings)
+        settings_only_in_database = sorted(database_settings.keys() - incoming_settings)
+        changed_settings = sorted(
+            key
+            for key in incoming_settings.keys() & database_settings
+            if incoming_settings[key] != database_settings[key]
+        )
+        if settings_only_in_incoming:
+            differences.append(
+                f"settings only in {incoming_label}: "
+                f"{', '.join(settings_only_in_incoming)}"
+            )
+        if settings_only_in_database:
+            differences.append(
+                f"settings only in database: {', '.join(settings_only_in_database)}"
+            )
+        if changed_settings:
+            differences.append(
+                f"settings with different values: {', '.join(changed_settings)}"
+            )
+
+        database_models = {model.model_identifier for model in provider.models.all()}
+        incoming_models = set(incoming["models"])
+        models_only_in_incoming = sorted(incoming_models - database_models)
+        models_only_in_database = sorted(database_models - incoming_models)
+        disabled_database_models = sorted(
+            model.model_identifier
+            for model in provider.models.all()
+            if not model.is_enabled and model.model_identifier in incoming_models
+        )
+        if models_only_in_incoming:
+            differences.append(
+                f"models only in {incoming_label}: {', '.join(models_only_in_incoming)}"
+            )
+        if models_only_in_database:
+            differences.append(
+                f"models only in database: {', '.join(models_only_in_database)}"
+            )
+        if disabled_database_models:
+            differences.append(
+                f"models disabled in database: {', '.join(disabled_database_models)}"
+            )
+        if not provider.is_active:
+            differences.append("database provider is disabled")
+
+        return "; ".join(differences) or f"matches {incoming_label}"
 
     def _report_unconfigured_instance_settings(self) -> None:
         self.stdout.write(

@@ -331,7 +331,8 @@
     "title": "Workspace Settings"
   },
   "workspaceSettingType": {
-    "generativeAI": "Generative AI"
+    "generativeAI": "Generative AI",
+    "aiProviders": "AI providers"
   },
   "generativeAIModelType": {
     "openai": "OpenAI",

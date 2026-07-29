@@ -17,7 +17,6 @@ from baserow.api.workspaces.serializers import (
 from baserow.core import signals
 from baserow.core.ai_provider.signals import ai_provider_updated
 from baserow.core.db import specific_iterator
-from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs import signals as jobs_signals
 from baserow.core.models import Application, WorkspaceUser
@@ -30,6 +29,7 @@ from baserow.core.user import signals as user_signals
 from baserow.core.utils import generate_hash
 
 from .tasks import (
+    broadcast_ai_provider_update,
     broadcast_application_created,
     broadcast_to_group,
     broadcast_to_groups,
@@ -44,38 +44,18 @@ def broadcast_ai_provider_updated(
     sender, model_availability_updated, workspace=None, **kwargs
 ):
     """
-    A workspace-owned change only concerns that workspace, so it is sent to its
-    members. When model availability changed, the recomputed result is included
-    to spare every client a refetch. An instance-level change can affect every
-    workspace, so it still notifies everyone and they refresh their own scope.
+    Schedule one server-computed realtime update after the database transaction.
+
+    The task builds user-specific payloads containing every provider and enabled-model
+    snapshot that user may see, so clients never need to fetch state after the event.
     """
 
-    if workspace is None:
-        transaction.on_commit(
-            lambda: broadcast_to_users.delay(
-                [],
-                {
-                    "type": "ai_provider_updated",
-                    "model_availability_updated": model_availability_updated,
-                },
-                send_to_all_users=True,
-            )
+    workspace_id = workspace.id if workspace is not None else None
+    transaction.on_commit(
+        lambda: broadcast_ai_provider_update.delay(
+            workspace_id, model_availability_updated
         )
-        return
-
-    def broadcast_workspace_update():
-        payload = {
-            "type": "ai_provider_updated",
-            "workspace_id": workspace.id,
-            "model_availability_updated": model_availability_updated,
-        }
-        if model_availability_updated:
-            payload["generative_ai_models_enabled"] = (
-                generative_ai_model_type_registry.get_enabled_models_per_type(workspace)
-            )
-        broadcast_to_group.delay(workspace.id, payload)
-
-    transaction.on_commit(broadcast_workspace_update)
+    )
 
 
 @receiver(signals.user_updated)

@@ -7,7 +7,7 @@ from baserow.core.models import Workspace
 from baserow.core.operations import UpdateWorkspaceOperationType
 
 from .exceptions import AIProviderIsReadOnly
-from .handler import AIProviderHandler
+from .handler import AIProviderHandler, WorkspaceAIProviderConfig
 from .models import AIProviderConfig, AIProviderModel
 from .operations import ManageAIProvidersOperationType
 from .provider_types import get_provider_type_metadata
@@ -15,6 +15,14 @@ from .signals import ai_provider_updated
 
 
 class AIProviderService:
+    @staticmethod
+    def _scope_provider_result(
+        provider: AIProviderConfig, workspace: Workspace | None
+    ) -> AIProviderConfig | WorkspaceAIProviderConfig:
+        if workspace is None:
+            return provider
+        return AIProviderHandler.get_workspace_provider_config(provider, workspace)
+
     @staticmethod
     def _check_permissions(
         user: AbstractUser, workspace_id: int | None = None
@@ -54,7 +62,7 @@ class AIProviderService:
     @classmethod
     def list_providers(
         cls, user: AbstractUser, workspace_id: int | None = None
-    ) -> list[AIProviderConfig]:
+    ) -> list[AIProviderConfig | WorkspaceAIProviderConfig]:
         workspace = cls._check_permissions(user, workspace_id)
         return AIProviderHandler.list_providers(workspace)
 
@@ -68,11 +76,11 @@ class AIProviderService:
     @classmethod
     def create_provider(
         cls, user: AbstractUser, workspace_id: int | None = None, **values
-    ) -> AIProviderConfig:
+    ) -> AIProviderConfig | WorkspaceAIProviderConfig:
         workspace = cls._check_permissions(user, workspace_id)
         provider = AIProviderHandler.create_provider(workspace=workspace, **values)
         cls._send_updated(user, workspace, True, provider.provider_type)
-        return provider
+        return cls._scope_provider_result(provider, workspace)
 
     @classmethod
     def update_provider(
@@ -81,7 +89,7 @@ class AIProviderService:
         provider_id: int,
         workspace_id: int | None = None,
         **values,
-    ) -> AIProviderConfig:
+    ) -> AIProviderConfig | WorkspaceAIProviderConfig:
         workspace = cls._check_permissions(user, workspace_id)
         provider = AIProviderHandler.get_provider(
             provider_id,
@@ -95,7 +103,7 @@ class AIProviderService:
                 workspace, provider, values["is_active"]
             )
             cls._send_updated(user, workspace, True, provider.provider_type)
-            return provider
+            return cls._scope_provider_result(provider, workspace)
 
         was_active = provider.is_active
         provider = AIProviderHandler.update_provider(provider, **values)
@@ -106,7 +114,7 @@ class AIProviderService:
             model_availability_updated,
             provider.provider_type,
         )
-        return provider
+        return cls._scope_provider_result(provider, workspace)
 
     @classmethod
     def delete_provider(

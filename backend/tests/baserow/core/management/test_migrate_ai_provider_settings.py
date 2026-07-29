@@ -7,7 +7,7 @@ import pytest
 
 from baserow.core.ai_provider.constants import PROVIDER_ENVIRONMENT_SETTINGS
 from baserow.core.ai_provider.handler import AIProviderHandler
-from baserow.core.ai_provider.models import AIProviderConfig
+from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 
 
@@ -259,18 +259,32 @@ def test_workspace_scope_migrates_every_current_legacy_provider_setting(
 def test_workspace_scope_keeps_conflicts_and_reports_invalid_settings(data_fixture):
     workspace = data_fixture.create_workspace(
         generative_ai_models_settings={
-            "openai": {"models": ["legacy-model"]},
-            "anthropic": {
-                "api_key": "legacy-anthropic-key",
-                "models": ["legacy-claude"],
+            "openai": {
+                "api_key": "legacy-openai-key",
+                "models": ["legacy-only", "shared-model"],
+                "organization": "legacy-org",
+                "base_url": "https://legacy.example",
             },
+            "anthropic": {"models": ["legacy-claude"]},
             "mistral": "invalid-settings",
         }
     )
     existing = AIProviderConfig.objects.create(
         workspace=workspace,
-        provider_type="anthropic",
+        provider_type="openai",
         api_key="database-key",
+        extra_settings={
+            "organization": "database-org",
+            "database_only_setting": "database-setting-value",
+        },
+    )
+    AIProviderModel.objects.create(
+        provider_config=existing,
+        model_identifier="shared-model",
+        is_enabled=False,
+    )
+    AIProviderModel.objects.create(
+        provider_config=existing, model_identifier="database-only"
     )
 
     output = StringIO()
@@ -285,8 +299,25 @@ def test_workspace_scope_keeps_conflicts_and_reports_invalid_settings(data_fixtu
     assert AIProviderConfig.objects.filter(workspace=workspace).count() == 1
     existing.refresh_from_db()
     assert existing.api_key == "database-key"
-    assert output.getvalue().count("skipping incomplete legacy settings") == 2
-    assert "keeping existing database configuration" in output.getvalue()
+    command_output = output.getvalue()
+    assert command_output.count("skipping incomplete legacy settings") == 2
+    assert "keeping existing database configuration" in command_output
+    assert "credential differs" in command_output
+    assert "settings only in legacy settings: base_url" in command_output
+    assert "settings only in database: database_only_setting" in command_output
+    assert "settings with different values: organization" in command_output
+    assert "models only in legacy settings: legacy-only" in command_output
+    assert "models only in database: database-only" in command_output
+    assert "models disabled in database: shared-model" in command_output
+    for secret in (
+        "legacy-openai-key",
+        "database-key",
+        "legacy-org",
+        "database-org",
+        "database-setting-value",
+        "https://legacy.example",
+    ):
+        assert secret not in command_output
 
 
 @pytest.mark.django_db

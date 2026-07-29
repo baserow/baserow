@@ -25,7 +25,12 @@ export const mutations = {
     state.loaded = loaded
   },
   ADD_PROVIDER(state, provider) {
-    state.providers.push(provider)
+    const index = state.providers.findIndex((item) => item.id === provider.id)
+    if (index === -1) {
+      state.providers.push(provider)
+    } else {
+      state.providers.splice(index, 1, provider)
+    }
   },
   UPDATE_PROVIDER(state, provider) {
     const index = state.providers.findIndex((item) => item.id === provider.id)
@@ -36,7 +41,14 @@ export const mutations = {
   },
   ADD_MODEL(state, { providerId, model }) {
     const provider = state.providers.find((item) => item.id === providerId)
-    if (provider) provider.models.push(model)
+    if (provider) {
+      const index = provider.models.findIndex((item) => item.id === model.id)
+      if (index === -1) {
+        provider.models.push(model)
+      } else {
+        provider.models.splice(index, 1, model)
+      }
+    }
   },
   UPDATE_MODEL(state, model) {
     for (const provider of state.providers) {
@@ -124,6 +136,11 @@ export const actions = {
     }
     commit('SET_PROVIDERS', data)
     return data
+  },
+  replaceFromRealtime({ commit, state }, { workspaceId, providers }) {
+    if (state.loaded && state.workspaceId === workspaceId) {
+      commit('SET_PROVIDERS', providers)
+    }
   },
   async create({ commit, state }, payload) {
     const workspaceId = payload.workspaceId ?? null
@@ -224,6 +241,8 @@ export const getters = {
   getTypes: (state) => (workspaceId) =>
     state.workspaceId === workspaceId ? state.providerTypes : [],
   isLoading: (state) => state.loading,
+  hasLoaded: (state) => state.loaded,
+  getWorkspaceId: (state) => state.workspaceId,
   isLoaded: (state) => (workspaceId) =>
     state.loaded && state.workspaceId === workspaceId,
 }
