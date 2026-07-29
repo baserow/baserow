@@ -4846,14 +4846,31 @@ export const actions = {
       forceGroupByRowMove: crossesGroup,
     })
 
+    let groupUpdateCompleted = false
+    let groupUpdateResponseData = null
+
     try {
+      if (crossesGroup) {
+        // Keep value updates and ordering as separate API operations. They share an
+        // action group for undo/redo, but a successful update intentionally remains
+        // applied if the following move fails.
+        const { data } = await RowService($client).update(
+          table.id,
+          row.id,
+          destinationGroupRequestValues,
+          grid.id,
+          undoRedoActionGroupId
+        )
+        groupUpdateCompleted = true
+        groupUpdateResponseData = data
+      }
+
       const { data } = await RowService($client).move(
         table.id,
         row.id,
         before !== null ? before.id : null,
         grid.id,
-        undoRedoActionGroupId,
-        destinationGroupRequestValues
+        undoRedoActionGroupId
       )
       // Use the return value to update the moved row with values from
       // the backend
@@ -4873,16 +4890,30 @@ export const actions = {
         clearGroupByAggregationLoadingPaths: crossesGroup,
       })
     } catch (error) {
+      const values = groupUpdateCompleted
+        ? { ...groupUpdateResponseData, order: oldOrder }
+        : { order: oldOrder, ...valuesBeforeOptimisticUpdate }
       dispatch('updatedExistingRow', {
         view: grid,
         fields,
         row,
-        values: { order: oldOrder, ...valuesBeforeOptimisticUpdate },
+        values,
         markGroupAggregationsLoading: crossesGroup,
         forceGroupByRowMove: crossesGroup,
       })
       if (crossesGroup) {
-        commit('SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [])
+        if (groupUpdateCompleted) {
+          dispatch('fetchByScrollTopDelayed', {
+            scrollTop: getScrollTop(),
+            fields,
+          })
+          dispatch('fetchAllFieldAggregationData', {
+            view: grid,
+            clearGroupByAggregationLoadingPaths: true,
+          })
+        } else {
+          commit('SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [])
+        }
       }
       throw error
     }

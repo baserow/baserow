@@ -261,6 +261,9 @@ describe('Grid view store', () => {
     })
 
     mockServer.mock
+      .onPatch('/database/rows/table/1/10/')
+      .reply(200, { id: 10, order: '1.00', field_1: 'B' })
+    mockServer.mock
       .onPatch('/database/rows/table/1/10/move/')
       .reply(200, { id: 10, order: '2.50', field_1: 'B' })
 
@@ -282,10 +285,16 @@ describe('Grid view store', () => {
       targetGroupPath: { field_1: 'B' },
     })
 
-    const request = mockServer.mock.history.patch[0]
-    expect(JSON.parse(request.data)).toEqual({ field_1: 'B' })
-    expect(request.params).toMatchObject({ before_id: 12, view: 1 })
-    expect(request.headers.ClientUndoRedoActionGroupId).toBeTruthy()
+    const updateRequest = mockServer.mock.history.patch[0]
+    const moveRequest = mockServer.mock.history.patch[1]
+    expect(JSON.parse(updateRequest.data)).toEqual({ field_1: 'B' })
+    expect(updateRequest.params).toMatchObject({ view: 1 })
+    expect(JSON.parse(moveRequest.data)).toBeNull()
+    expect(moveRequest.params).toMatchObject({ before_id: 12, view: 1 })
+    expect(updateRequest.headers.ClientUndoRedoActionGroupId).toBeTruthy()
+    expect(moveRequest.headers.ClientUndoRedoActionGroupId).toBe(
+      updateRequest.headers.ClientUndoRedoActionGroupId
+    )
     expect(
       getDefinedRowsFromSectionRows(
         store.state.grid.groupBy.sectionRows,
@@ -325,8 +334,8 @@ describe('Grid view store', () => {
       targetGroupPath: { field_1: 'B' },
     })
 
-    const sameGroupRequest = mockServer.mock.history.patch[1]
-    expect(JSON.parse(sameGroupRequest.data)).toEqual({})
+    const sameGroupRequest = mockServer.mock.history.patch[2]
+    expect(JSON.parse(sameGroupRequest.data)).toBeNull()
     expect(sameGroupRequest.params).toMatchObject({ before_id: 11, view: 1 })
     expect(sameGroupRequest.headers.ClientUndoRedoActionGroupId).toBeUndefined()
     expect(
@@ -339,6 +348,53 @@ describe('Grid view store', () => {
     expect(fetchAllFieldAggregationData).toHaveBeenLastCalledWith(
       expect.anything(),
       expect.objectContaining({ clearGroupByAggregationLoadingPaths: false })
+    )
+
+    mockServer.mock
+      .onPatch('/database/rows/table/1/11/')
+      .reply(200, { id: 11, order: '2.00', field_1: 'A' })
+    mockServer.mock.onPatch('/database/rows/table/1/11/move/').reply(500)
+    testApp.dontFailOnErrorResponses()
+
+    await expect(
+      store.dispatch('grid/moveRow', {
+        table: { id: 1 },
+        grid: {
+          id: 1,
+          filters: [],
+          filter_groups: [],
+          filter_type: 'AND',
+          sortings: [],
+          group_bys: groupBys,
+        },
+        fields,
+        getScrollTop: () => 0,
+        row: store.getters['grid/getRow'](11),
+        sourceGroupPath: { field_1: 'B' },
+        targetGroupPath: { field_1: 'A' },
+      })
+    ).rejects.toThrow()
+
+    const partialUpdateRequest = mockServer.mock.history.patch[3]
+    const failedMoveRequest = mockServer.mock.history.patch[4]
+    expect(failedMoveRequest.headers.ClientUndoRedoActionGroupId).toBe(
+      partialUpdateRequest.headers.ClientUndoRedoActionGroupId
+    )
+    expect(
+      getDefinedRowsFromSectionRows(
+        store.state.grid.groupBy.sectionRows,
+        groupPathKey(1, 'A')
+      ).map((row) => row.id)
+    ).toEqual([11])
+    expect(store.getters['grid/getRow'](11)).toMatchObject({
+      field_1: 'A',
+      order: '2.00',
+    })
+    expect(store.state.grid.groupBy.treeNodes[0].row_count).toBe(1)
+    expect(store.state.grid.groupBy.treeNodes[1].row_count).toBe(2)
+    expect(fetchAllFieldAggregationData).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ clearGroupByAggregationLoadingPaths: true })
     )
   })
 

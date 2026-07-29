@@ -1210,24 +1210,17 @@ class RowMoveView(APIView):
         ],
         tags=["Database table rows"],
         operation_id="move_database_table_row",
-        description=(
-            "Moves the row related to given `row_id` parameter to another position. "
-            "It is only possible to move the row before another existing row or to "
-            "the end. If the `before_id` is provided then the row related to the "
-            "`row_id` parameter is moved before that row. If the `before_id` parameter "
-            "is not provided, then the row will be moved to the end. Optional field "
-            "values in the request body are applied before the row is moved."
-        ),
-        request=get_example_row_serializer_class(
-            example_type="patch", user_field_names=True
-        ),
+        description="Moves the row related to given `row_id` parameter to another "
+        "position. It is only possible to move the row before another existing row or "
+        "to the end. If the `before_id` is provided then the row related to "
+        "the `row_id` parameter is moved before that row. If the `before_id` "
+        "parameter is not provided, then the row will be moved to the end.",
+        request=None,
         responses={
             200: get_example_row_serializer_class(
                 example_type="get", user_field_names=True
             ),
-            400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
-            ),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
             404: get_error_schema(
                 [
@@ -1250,13 +1243,11 @@ class RowMoveView(APIView):
         }
     )
     @atomic_with_retry_on_deadlock()
-    @require_request_data_type(dict)
     @validate_query_parameters(MoveRowQueryParamsSerializer)
     def patch(self, request, table_id, row_id, query_params):
-        """Optionally updates the row and then moves it to another position."""
+        """Moves the row to another position."""
 
         table = TableHandler().get_table(table_id)
-        request_data = deepcopy(request.data)
 
         TokenHandler().check_table_permissions(request, "update", table, False)
 
@@ -1267,35 +1258,6 @@ class RowMoveView(APIView):
         view = ViewHandler().get_view(view_id, table_id=table.id) if view_id else None
 
         model = table.get_model()
-
-        if request_data:
-            field_ids, field_names = None, None
-            if user_field_names:
-                field_names = request_data.keys()
-            else:
-                field_ids = RowHandler().extract_field_ids_from_dict(request_data)
-
-            validation_serializer = get_row_serializer_class(
-                model,
-                field_ids=field_ids,
-                field_names_to_include=field_names,
-                user_field_names=user_field_names,
-            )
-            data = validate_data(
-                validation_serializer, request_data, return_validated=True
-            )
-            try:
-                data["id"] = int(row_id)
-                action_type_registry.get_by_type(UpdateRowsActionType).do(
-                    request.user,
-                    table,
-                    [data],
-                    model=model,
-                    view=view,
-                    send_webhook_events=send_webhook_events,
-                )
-            except ValidationError as exc:
-                raise RequestBodyValidationException(detail=exc.message) from exc
 
         row_handler = RowHandler()
 

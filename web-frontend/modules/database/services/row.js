@@ -155,8 +155,7 @@ export default (client) => {
       rowId,
       beforeRowId = null,
       viewId = null,
-      undoRedoActionGroupId = null,
-      values = {}
+      undoRedoActionGroupId = null
     ) {
       const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
 
@@ -170,7 +169,7 @@ export default (client) => {
 
       return client.patch(
         `/database/rows/table/${tableId}/${rowId}/move/`,
-        values,
+        null,
         config
       )
     },

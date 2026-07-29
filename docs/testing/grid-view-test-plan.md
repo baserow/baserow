@@ -1136,7 +1136,8 @@ flat/group-by runs, the same way filters and sorts do.
     - Source and destination group counts update immediately.
     - One undo restores both the original grouped values and original row
       position; one redo reapplies both changes.
-    - If the move request fails, both grouped values and order roll back.
+    - If the value update succeeds but the move request fails, the row remains in
+      the destination group with its original order.
 
 ### 19.1.3 Read-only grouping constrains row ordering to the current leaf
 

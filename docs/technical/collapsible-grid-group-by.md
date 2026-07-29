@@ -113,8 +113,10 @@ slot can therefore move a row before another row in the same leaf group or to
 that group's end.
 
 A move to another leaf group first replaces the row values represented by the
-complete destination group path and then updates its order. These two mutations
-form one atomic undo/redo operation. Cross-group moves are available only when
+complete destination group path and then updates its order. These are separate
+API requests with the same action group, so one undo or redo applies both changes.
+If the order request fails after the value update succeeds, the row remains in the
+destination group at its previous order. Cross-group moves are available only when
 every active group-by field is writable; if any grouped field is read-only, rows
 can only be reordered inside their current leaf group. Collapsed groups and
 unloaded row placeholders are not drop targets because they do not expose an
@@ -233,7 +235,8 @@ Known costs to keep in mind:
 - Optimistic updates must keep row counts and row placement indexes consistent
   until the next server reconciliation.
 - Cross-group row moves must update the complete destination group path before
-  changing order, and both changes must roll back together if the move fails.
+  changing order. A failed order request does not roll back a successful group
+  value update.
 
 ## Group Aggregations
 
