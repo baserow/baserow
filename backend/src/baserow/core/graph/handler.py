@@ -274,8 +274,17 @@ class BaseGraphHandler(ABC):
         if self.graph.get(self.GRAPH_ROOT_KEY) is None:
             return None, "south", ""
 
-        tail_id = self._get_chain_tail_id(self.graph[self.GRAPH_ROOT_KEY])
-        return self.get_point(tail_id), "south", ""
+        point_id = self.graph[self.GRAPH_ROOT_KEY]
+        seen_ids = {int(point_id)}
+        while True:
+            next_points = self.get_info(point_id).get("next", {}).get("", [])
+            unseen_next_points = [
+                next_id for next_id in next_points if int(next_id) not in seen_ids
+            ]
+            if not unseen_next_points:
+                return self.get_point(point_id), "south", ""
+            point_id = unseen_next_points[0]
+            seen_ids.add(int(point_id))
 
     def append(self, point: GraphPoint) -> None:
         """
@@ -585,44 +594,26 @@ class BaseGraphHandler(ABC):
 
         return self.collect_all_descendants(point)
 
-    def _collect_descendant_ids(
-        self, point_id: str | int, seen: Optional[set[int]] = None
-    ) -> List[int]:
-        """
-        Collect the IDs of all descendants (direct and transitive children) of
-        the given point in depth-first order, operating purely on the
-        serialized graph. Because no ID is ever resolved to a model instance,
-        this is safe to call when the graph contains stale entries whose model
-        instance no longer exists, and the shared `seen` set guarantees
-        termination on corrupted (looping) graphs.
-
-        :param point_id: The ID of the point to collect the descendants of.
-        :param seen: The set of point IDs already visited (mutated in place).
-        :return: Ordered list of all descendant IDs.
-        """
-
-        if seen is None:
-            seen = {int(point_id)}
-
-        result: List[int] = []
-        point_info = self.graph.get(str(point_id), {})
-        for child_ids in self._get_children_dict(point_info).values():
-            for head_id in child_ids:
-                for chain_id in self._walk_chain_ids(head_id, seen):
-                    result.append(int(chain_id))
-                    result.extend(self._collect_descendant_ids(chain_id, seen))
-        return result
-
     def collect_all_descendants(self, point: GraphPoint) -> List[GraphPoint]:
         """
         Returns all descendants (direct and transitive children) of a point in
-        depth-first order.
+        depth-first order, by recursing into each child returned by get_children.
+        Every point is returned at most once so corrupted cycles terminate.
         """
 
-        return [
-            self.get_point(descendant_id)
-            for descendant_id in self._collect_descendant_ids(point.id)
-        ]
+        seen_ids = {point.id}
+
+        def collect(current_point):
+            result = []
+            for child in self.get_children(current_point):
+                if child.id in seen_ids:
+                    continue
+                seen_ids.add(child.id)
+                result.append(child)
+                result.extend(collect(child))
+            return result
+
+        return collect(point)
 
     def merge_children_into_place(
         self,
@@ -852,20 +843,20 @@ class BaseGraphHandler(ABC):
 
         dependencies: List[GraphPoint] = []
         if not keep_info:
-            # Collect all descendant IDs before touching the graph so that the
+            # Collect all descendants before touching the graph so that the traversal
             # traversal still has access to the full graph structure.
-            dependency_ids = self._collect_descendant_ids(point_to_delete.id)
-            dependencies = [self.get_point(dep_id) for dep_id in dependency_ids]
-            for dep_id in dependency_ids:
-                graph.pop(str(dep_id), None)
+            dependencies = self.collect_all_descendants(point_to_delete)
+            for dep in dependencies:
+                graph.pop(str(dep.id), None)
 
         next_point_ids = self._get_all_next_points(point_to_delete)
 
         point_position_id, position, output = self.get_position(point_to_delete)
 
         if point_position_id is None:
-            if next_point_ids:
-                graph[self.GRAPH_ROOT_KEY] = next_point_ids[0]
+            next_points = self._get_all_next_points(point_to_delete)
+            if next_points:
+                graph[self.GRAPH_ROOT_KEY] = next_points[0]
             else:
                 del graph[self.GRAPH_ROOT_KEY]
 
@@ -880,12 +871,11 @@ class BaseGraphHandler(ABC):
             if not graph[point_position_id]["next"]:
                 del graph[point_position_id]["next"]
         elif position == "child":
+            next_points = self._get_all_next_points(point_to_delete)
             parent_info = graph[point_position_id]
             children_dict = self._get_children_dict(parent_info)
             children_on_edge = children_dict.get(output, [])
-            new_children = _replace(
-                children_on_edge, point_to_delete.id, next_point_ids
-            )
+            new_children = _replace(children_on_edge, point_to_delete.id, next_points)
             self._set_children(parent_info, output, new_children)
 
         if not keep_info:
@@ -1019,8 +1009,8 @@ class BaseGraphHandler(ABC):
             removed.
         """
 
-        for dep_id in self._collect_descendant_ids(point.id):
-            self.graph.pop(str(dep_id), None)
+        for dep in self.collect_all_descendants(point):
+            self.graph.pop(str(dep.id), None)
         self.graph.pop(str(point.id), None)
         self._update_graph()
 
