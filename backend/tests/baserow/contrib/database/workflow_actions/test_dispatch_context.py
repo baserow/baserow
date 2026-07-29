@@ -56,6 +56,41 @@ def test_nothing_about_it_is_public(data_fixture):
 
 
 @pytest.mark.django_db
+def test_it_requires_a_field(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    row = table.get_model().objects.create()
+
+    with pytest.raises(TypeError):
+        DatabaseDispatchContext(user, None, row)
+
+
+@pytest.mark.django_db
+def test_it_requires_a_row(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+
+    with pytest.raises(TypeError):
+        DatabaseDispatchContext(user, button_field, None)
+
+
+@pytest.mark.django_db
+def test_the_guard_does_not_break_clone(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    # clone() reconstructs via own_properties, which always supplies field
+    # and row, so the guard above must not reject that reconstruction.
+    cloned = DatabaseDispatchContext(user, button_field, row).clone()
+
+    assert cloned.field == button_field
+    assert cloned.row == row
+
+
+@pytest.mark.django_db
 def test_it_uses_the_database_data_provider_registry(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

@@ -41,6 +41,14 @@ class DatabaseDispatchContext(DispatchContext):
         :param row: The clicked row, as a generated table model instance.
         """
 
+        # The defaults above exist only so `clone()` can reconstruct this
+        # class without passing `actor`. `field` and `row` are never
+        # optional for a real button dispatch, so a caller that forgets one
+        # must fail here rather than surface a confusing error later inside
+        # a data provider.
+        if field is None or row is None:
+            raise TypeError("DatabaseDispatchContext requires field and row")
+
         self.field = field
         self.row = row
 
