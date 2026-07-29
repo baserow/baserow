@@ -397,6 +397,7 @@ class FieldFixtures:
 
     def create_button_field(self, user=None, create_field=True, **kwargs):
         self.set_test_field_kwarg_defaults(user, kwargs)
+        kwargs.setdefault("label", "Open")
 
         field = ButtonField.objects.create(**kwargs)
 

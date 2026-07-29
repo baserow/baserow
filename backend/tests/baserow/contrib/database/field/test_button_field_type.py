@@ -417,3 +417,180 @@ def test_deleting_a_button_field(data_fixture):
 
     assert not ButtonField.objects.filter(id=button_field.id).exists()
     assert table.get_model().objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_create_button_field_without_a_label_via_api(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    # The label is the only text the button shows, so it can't be left out.
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Open profile",
+            "type": "button",
+            "url_formula": {"formula": "'https://example.com'", "mode": "simple"},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("label", ["", "   "])
+def test_create_button_field_with_a_blank_label_via_api(
+    api_client, data_fixture, label
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {"name": "Open profile", "type": "button", "label": label},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED"
+
+
+@pytest.mark.django_db
+def test_emptying_a_button_field_label_via_api(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Open")
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": button_field.id}),
+        {"label": ""},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED"
+    button_field.refresh_from_db()
+    assert button_field.label == "Open"
+
+
+@pytest.mark.django_db
+def test_updating_a_button_field_without_a_label_keeps_the_existing_one(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Open")
+
+    # An update that doesn't mention the label isn't a request to empty it.
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": button_field.id}),
+        {"url_formula": {"formula": "'https://example.com'", "mode": "simple"}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["label"] == "Open"
+
+
+@pytest.mark.django_db
+def test_converting_a_field_to_button_without_a_label_via_api(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+
+    # Converting into a button creates one, so the label is required here too.
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": text_field.id}),
+        {"type": "button"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED"
+
+
+@pytest.mark.django_db
+def test_button_field_is_not_returned_by_the_public_view_info_endpoint(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Name")
+    button_field = data_fixture.create_button_field(
+        table=table, name="btn", label="Open"
+    )
+    grid_view = data_fixture.create_grid_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    # Visible field options aren't enough: the label and the URL formula are
+    # configuration and must never reach an anonymous visitor.
+    data_fixture.create_grid_view_field_option(grid_view, text_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, button_field, hidden=False)
+
+    response = api_client.get(
+        reverse("api:database:views:public_info", kwargs={"slug": grid_view.slug})
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    returned_ids = [field["id"] for field in response.json()["fields"]]
+    assert returned_ids == [text_field.id]
+
+
+@pytest.mark.django_db
+def test_button_field_is_not_returned_in_public_view_rows(api_client, data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Name")
+    button_field = data_fixture.create_button_field(
+        table=table, name="btn", label="Open"
+    )
+    grid_view = data_fixture.create_grid_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    data_fixture.create_grid_view_field_option(grid_view, text_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, button_field, hidden=False)
+    table.get_model().objects.create(**{text_field.db_column: "ada"})
+
+    response = api_client.get(
+        reverse("api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug})
+        + "?include=field_options"
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    response_json = response.json()
+    assert button_field.db_column not in response_json["results"][0]
+    assert text_field.db_column in response_json["results"][0]
+    assert str(button_field.id) not in response_json["field_options"]
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_button_field_changes_are_not_broadcast_to_public_views(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = FieldHandler().create_field(
+        user, table, "button", name="btn", label="Open"
+    )
+    grid_view = data_fixture.create_grid_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    data_fixture.create_grid_view_field_option(grid_view, button_field, hidden=False)
+
+    FieldHandler().update_field(user, button_field, label="Renamed")
+
+    # The realtime payload carries the label and the URL formula too, so the
+    # public view page must not receive it either.
+    assert [
+        call
+        for call in mock_broadcast_to_channel_group.delay.mock_calls
+        if call.args and call.args[0] == f"view-{grid_view.slug}"
+    ] == []

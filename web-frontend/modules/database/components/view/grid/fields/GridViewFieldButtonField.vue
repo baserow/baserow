@@ -10,10 +10,10 @@
         :href="getHref(resolvedButtonValue)"
         target="_blank"
       >
-        {{ getLabelOrURL(resolvedButtonValue) }}
+        {{ resolvedButtonValue.label }}
       </Button>
       <Button v-else type="secondary" tag="a" size="tiny" disabled>
-        {{ getLabelOrURL(resolvedButtonValue) }}
+        {{ resolvedButtonValue.label }}
       </Button>
     </div>
   </div>

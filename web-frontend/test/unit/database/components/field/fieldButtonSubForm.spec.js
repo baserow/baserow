@@ -37,9 +37,19 @@ describe('FieldButtonSubForm', () => {
     )
   })
 
+  test('a missing label blocks submission', async () => {
+    const wrapper = await mountForm({
+      type: 'button',
+      url_formula: { formula: "get('fields.field_1')", mode: 'advanced' },
+    })
+    wrapper.vm.v$.$touch()
+    expect(wrapper.vm.isFormValid()).toBe(false)
+  })
+
   test('empty formula blocks submission', async () => {
     const wrapper = await mountForm({
       type: 'button',
+      label: 'Open',
       url_formula: { formula: '', mode: 'simple' },
     })
     wrapper.vm.v$.$touch()

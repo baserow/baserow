@@ -9,10 +9,10 @@
       target="_blank"
       rel="nofollow noopener noreferrer"
     >
-      {{ labelOrURL }}
+      {{ resolvedButtonValue.label }}
     </Button>
     <Button v-else tag="a" size="tiny" type="secondary" disabled>
-      {{ labelOrURL }}
+      {{ resolvedButtonValue.label }}
     </Button>
   </div>
 </template>
@@ -28,9 +28,6 @@ export default {
   computed: {
     isValidLinkURL() {
       return this.resolvedButtonValue && this.isValid(this.resolvedButtonValue)
-    },
-    labelOrURL() {
-      return this.getLabelOrURL(this.resolvedButtonValue)
     },
   },
 }

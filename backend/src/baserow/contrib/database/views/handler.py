@@ -51,7 +51,10 @@ from baserow.contrib.database.fields.field_filters import (
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import (
+    exclude_field_options_not_allowed_in_public_views,
+    field_type_registry,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
@@ -3883,7 +3886,9 @@ class ViewHandler:
         if adhoc_filters is None:
             adhoc_filters = AdHocFilters()
 
-        visible_field_options = view_type.get_visible_field_options_in_order(view)
+        visible_field_options = exclude_field_options_not_allowed_in_public_views(
+            view_type.get_visible_field_options_in_order(view)
+        )
         visible_field_ids = {o.field_id for o in visible_field_options}
 
         field_ids = get_include_exclude_field_ids(

@@ -45,37 +45,25 @@ describe('GridViewFieldButtonField', () => {
     expect(anchor.text()).toBe('Open')
   })
 
-  test('falls back to the URL as typed when there is no label', async () => {
-    // Not the percent-encoded href: the label is what the user built.
+  test('percent-encodes the whitespace in the href but not in the label', async () => {
     const wrapper = await mountCell({
-      field: { ...field, label: '' },
       row: { id: 1, field_1: 'Red Button' },
     })
     const anchor = wrapper.find('a')
     expect(anchor.attributes('href')).toBe('https://example.com/Red%20Button')
-    expect(anchor.text()).toBe('https://example.com/Red Button')
+    expect(anchor.text()).toBe('Open')
   })
 
-  test('falls back to a default label when there is no label and no URL', async () => {
-    const wrapper = await mountCell({
-      field: {
-        ...field,
-        label: '',
-        url_formula: { formula: '', mode: 'simple' },
-      },
-    })
-    // The test i18n stub returns the key rather than the translation.
-    expect(wrapper.find('a').text()).toBe('buttonField.defaultLabel')
-  })
-
-  test('renders a disabled button when the URL does not resolve', async () => {
+  test('renders a disabled button with the label when the URL does not resolve', async () => {
     // An empty url_formula never resolves (resolveButtonUrl short-circuits
     // to ''), unlike an empty field_1 which still yields a valid base URL
     // once concatenated with the literal prefix above.
     const wrapper = await mountCell({
       field: { ...field, url_formula: { formula: '', mode: 'simple' } },
     })
-    expect(wrapper.find('a').attributes('href')).toBeUndefined()
+    const anchor = wrapper.find('a')
+    expect(anchor.attributes('href')).toBeUndefined()
+    expect(anchor.text()).toBe('Open')
   })
 
   test('renders a disabled button when the field has a broken formula error, even if the URL would otherwise resolve', async () => {

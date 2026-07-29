@@ -11,10 +11,10 @@
       class="forced-pointer-events-auto"
       @mousedown.stop
     >
-      {{ getLabelOrURL(resolvedButtonValue) }}
+      {{ resolvedButtonValue.label }}
     </Button>
     <Button v-else tag="a" type="secondary" size="tiny" disabled>
-      {{ getLabelOrURL(resolvedButtonValue) }}
+      {{ resolvedButtonValue.label }}
     </Button>
   </div>
 </template>

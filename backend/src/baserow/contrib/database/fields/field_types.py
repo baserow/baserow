@@ -59,6 +59,7 @@ from loguru import logger
 from rest_framework import serializers
 
 from baserow.contrib.database.api.fields.errors import (
+    ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED,
     ERROR_DATE_FORCE_TIMEZONE_OFFSET_ERROR,
     ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE,
     ERROR_INVALID_COUNT_THROUGH_FIELD,
@@ -186,6 +187,7 @@ from .exceptions import (
     AllProvidedCollaboratorIdsMustBeValidUsers,
     AllProvidedMultipleSelectValuesMustBeSelectOption,
     AllProvidedValuesMustBeIntegersOrStrings,
+    ButtonFieldLabelNotProvided,
     DateForceTimezoneOffsetValueError,
     FieldDoesNotExist,
     IncompatiblePrimaryFieldTypeError,
@@ -7909,10 +7911,9 @@ class ButtonFieldType(ReadOnlyFieldType):
         "label": serializers.CharField(
             required=False,
             allow_blank=True,
-            default="",
             max_length=255,
-            help_text="The text shown on the button. Falls back to the resolved "
-            "URL when empty.",
+            help_text="The text shown on the button. Must be provided when the "
+            "field is created, and can't be set to an empty value afterwards.",
         ),
         "url_formula": FormulaSerializerField(
             required=False,
@@ -7928,7 +7929,13 @@ class ButtonFieldType(ReadOnlyFieldType):
             "else null.",
         ),
     }
+    api_exceptions_map = {
+        ButtonFieldLabelNotProvided: ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED,
+    }
     can_be_in_form_view = False
+    # The label and the URL formula are only meaningful to someone configuring
+    # the field, and they'd be handed to anonymous visitors as-is.
+    can_be_in_public_view = False
     _can_order_by_types = []
     _can_be_primary_field = False
     can_get_unique_values = False
@@ -7947,11 +7954,33 @@ class ButtonFieldType(ReadOnlyFieldType):
         # template install) deliberately isn't gated either: it round-trips
         # fields that already exist rather than creating new ones.
         feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
+        self._validate_label(allowed_field_values, required=True)
 
     def before_update(self, from_field, to_field_values, user, field_kwargs):
         # Converting another field type into a button counts as creating one.
-        if not isinstance(from_field, ButtonField):
+        converting_into_button = not isinstance(from_field, ButtonField)
+        if converting_into_button:
             feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
+        self._validate_label(to_field_values, required=converting_into_button)
+
+    def _validate_label(self, field_values, required: bool):
+        """
+        The label is the only text a button shows, so it must be set on creation
+        and can never be emptied. An update that doesn't mention the label keeps
+        the one it already has.
+        """
+
+        if "label" not in field_values:
+            if required:
+                raise ButtonFieldLabelNotProvided(
+                    "The label argument must be provided when creating a button field."
+                )
+            return
+
+        if not (field_values["label"] or "").strip():
+            raise ButtonFieldLabelNotProvided(
+                "The label of a button field can't be empty."
+            )
 
     def get_serializer_field(self, instance, **kwargs):
         # The cell holds nothing, so don't advertise the type of a placeholder

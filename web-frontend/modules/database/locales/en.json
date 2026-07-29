@@ -1257,9 +1257,6 @@
     "notPublic": "(not public)",
     "formDoesNotExist": "The selected form does not exist anymore."
   },
-  "buttonField": {
-    "defaultLabel": "Click me"
-  },
   "fieldButtonSubForm": {
     "label": "Label",
     "labelPlaceholder": "Open",

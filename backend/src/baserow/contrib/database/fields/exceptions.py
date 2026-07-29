@@ -50,6 +50,13 @@ class LinkRowTableNotProvided(Exception):
     """
 
 
+class ButtonFieldLabelNotProvided(Exception):
+    """
+    Raised when a button field is created or updated without a label. The label is
+    the only text the button shows, so it can't be empty.
+    """
+
+
 class LinkRowTableNotInSameDatabase(Exception):
     """
     Raised when the desired link row table is not in the same database as the table.

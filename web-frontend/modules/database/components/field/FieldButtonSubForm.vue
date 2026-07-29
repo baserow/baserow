@@ -2,6 +2,7 @@
   <div class="context__form-container">
     <FormGroup
       small-label
+      required
       :label="$t('fieldButtonSubForm.label')"
       :error="fieldHasErrors('label')"
     >
@@ -9,6 +10,9 @@
         v-model="v$.values.label.$model"
         :placeholder="$t('fieldButtonSubForm.labelPlaceholder')"
       />
+      <template #error>
+        {{ $t('error.requiredField') }}
+      </template>
     </FormGroup>
     <FormGroup
       small-label
@@ -127,7 +131,7 @@ export default {
   validations() {
     return {
       values: {
-        label: {},
+        label: { required },
         url_formula: { formula: { required } },
       },
     }

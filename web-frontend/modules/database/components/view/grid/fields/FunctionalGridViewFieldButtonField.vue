@@ -10,10 +10,10 @@
         target="_blank"
         rel="nofollow noopener noreferrer"
       >
-        {{ getLabelOrURL(resolvedButtonValue) }}
+        {{ resolvedButtonValue.label }}
       </Button>
       <Button v-else tag="a" type="secondary" size="tiny" disabled>
-        {{ getLabelOrURL(resolvedButtonValue) }}
+        {{ resolvedButtonValue.label }}
       </Button>
     </div>
   </div>

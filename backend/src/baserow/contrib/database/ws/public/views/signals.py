@@ -3,6 +3,9 @@ from django.dispatch import receiver
 
 from baserow.contrib.database.api.views.serializers import PublicViewInfoSerializer
 from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.registries import (
+    exclude_field_options_not_allowed_in_public_views,
+)
 from baserow.contrib.database.views import signals as view_signals
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_iterator
@@ -32,7 +35,9 @@ def _send_force_view_refresh_if_view_public(
             return
 
         def on_commit():
-            field_options = view_type.get_visible_field_options_in_order(view)
+            field_options = exclude_field_options_not_allowed_in_public_views(
+                view_type.get_visible_field_options_in_order(view)
+            )
             fields = specific_iterator(
                 Field.objects.filter(id__in=field_options.values_list("field_id"))
                 .select_related("content_type")

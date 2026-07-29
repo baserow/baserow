@@ -26,10 +26,7 @@ export default {
           )
       return {
         url: encodeUrlWhitespace(resolved),
-        // Without a label the URL itself is shown, as the user built it and
-        // not percent-encoded, and a default when there is nothing at all.
-        label:
-          this.field.label || resolved || this.$t('buttonField.defaultLabel'),
+        label: this.field.label,
       }
     },
   },
