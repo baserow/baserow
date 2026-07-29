@@ -4,6 +4,11 @@ import pytest
 from rest_framework import serializers
 
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.automation.history.models import (
+    AutomationNodeHistory,
+    AutomationWorkflowHistory,
+)
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import (
     CoreManualTriggerNodeType,
     CorePeriodicTriggerNodeType,
@@ -158,12 +163,35 @@ def test_start_workflow_automation_node_waits_for_response_node(data_fixture):
 
     history = AutomationWorkflowHandler().async_start_workflow(
         published_parent,
-        run_synchronously=True,
+        defer_scheduling=True,
     )
     start_node = published_parent.automation_workflow_nodes.get(
         service__content_type__model="corestartworkflowservice"
     )
+    canvas = AutomationNodeHandler().dispatch_node(start_node.id, history.id)
+    child_history = AutomationWorkflowHistory.objects.filter(
+        original_workflow=child_workflow
+    ).latest("id")
+    AutomationHistoryHandler().create_workflow_history_response(
+        child_history,
+        status_code=200,
+        body="Child response",
+        body_type=RESPONSE_BODY_TYPE.TEXT,
+    )
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=history,
+        node=start_node,
+    )
 
+    assert canvas is not None
+    assert (
+        AutomationNodeHandler().complete_deferred_node(
+            node_history.id,
+            child_history.id,
+            "",
+        )
+        is None
+    )
     assert AutomationHistoryHandler().get_node_result(history, start_node, "") == {
         "status_code": 200,
         "headers": {},

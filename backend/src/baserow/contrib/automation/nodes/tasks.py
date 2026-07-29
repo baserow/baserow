@@ -39,3 +39,30 @@ def dispatch_node_celery_task(
         return self.replace(result)
 
     return None
+
+
+@app.task(bind=True, queue="automation_workflow")
+def resume_deferred_node_celery_task(
+    self,
+    node_history_id: int,
+    deferred_history_id: int,
+    iteration_path: str,
+    current_iterations: Optional[Dict[int, int]] = None,
+) -> Signature | None:
+    """Completes a node after its deferred child workflow canvas has finished."""
+
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+    @atomic_with_retry_on_deadlock()
+    def _resume():
+        return AutomationNodeHandler().complete_deferred_node(
+            node_history_id,
+            deferred_history_id,
+            iteration_path,
+            current_iterations,
+        )
+
+    result = _resume()
+    if isinstance(result, Signature):
+        return self.replace(result)
+    return None

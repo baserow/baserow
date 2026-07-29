@@ -2941,6 +2941,7 @@ class CoreStartWorkflowServiceType(CoreServiceType):
                 "The workflow to start is not configured."
             )
 
+        from baserow.contrib.automation.history.constants import HistoryStatusChoices
         from baserow.contrib.automation.history.handler import AutomationHistoryHandler
         from baserow.contrib.automation.workflows.constants import WorkflowState
         from baserow.contrib.automation.workflows.handler import (
@@ -2971,27 +2972,97 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         if should_wait:
             history = workflow_handler.async_start_workflow(
                 published_workflow,
-                run_synchronously=True,
+                defer_scheduling=True,
             )
+            if history is None:
+                return None
+            if history.status != HistoryStatusChoices.STARTED:
+                workflow_response = history_handler.get_workflow_history_response(
+                    history
+                ) or history_handler.ensure_default_response(history)
+                return {
+                    "status_code": workflow_response.status_code,
+                    "headers": workflow_response.headers,
+                    "body": workflow_response.body,
+                    "body_type": workflow_response.body_type,
+                }
+            return {
+                "_deferred_workflow_id": published_workflow.id,
+                "_deferred_history_id": history.id,
+            }
         else:
             history = workflow_handler.async_start_workflow(published_workflow)
 
-        if not should_wait or history is None:
-            return None
-
-        workflow_response = history_handler.get_workflow_history_response(history)
-        if workflow_response is None:
-            workflow_response = history_handler.ensure_default_response(history)
-
-        return {
-            "status_code": workflow_response.status_code,
-            "headers": workflow_response.headers,
-            "body": workflow_response.body,
-            "body_type": workflow_response.body_type,
-        }
+        return None
 
     def dispatch_transform(
         self,
         data: Any,
     ) -> DispatchResult:
+        if data and "_deferred_workflow_id" in data:
+            return DispatchResult(
+                data=None,
+                deferred_workflow_id=data["_deferred_workflow_id"],
+                deferred_history_id=data["_deferred_history_id"],
+            )
         return DispatchResult(data=data)
+
+    def after_dispatch(
+        self,
+        service: CoreStartWorkflowService,
+        dispatch_result: DispatchResult,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        if (
+            dispatch_result.deferred_history_id is None
+            or getattr(dispatch_context, "history", None) is not None
+        ):
+            return dispatch_result
+
+        from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+        from baserow.contrib.automation.workflows.tasks import (
+            start_workflow_celery_task,
+        )
+
+        start_workflow_celery_task.delay(
+            dispatch_result.deferred_workflow_id,
+            dispatch_result.deferred_history_id,
+        )
+        history_handler = AutomationHistoryHandler()
+        history = history_handler.get_workflow_history(
+            dispatch_result.deferred_history_id
+        )
+        workflow_response = history_handler.wait_for_workflow_response(history, 30)
+        if workflow_response is None:
+            return DispatchResult(
+                data={
+                    "status_code": 504,
+                    "headers": {},
+                    "body": None,
+                    "body_type": RESPONSE_BODY_TYPE.EMPTY,
+                }
+            )
+        return DispatchResult(
+            data={
+                "status_code": workflow_response.status_code,
+                "headers": workflow_response.headers,
+                "body": workflow_response.body,
+                "body_type": workflow_response.body_type,
+            }
+        )
+
+    def requires_autocommit(self, service: CoreStartWorkflowService) -> bool:
+        if service.workflow_id is None:
+            return False
+
+        from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        published_workflow = AutomationWorkflowHandler().get_published_workflow(
+            service.workflow
+        )
+        return published_workflow is not None and (
+            AutomationHistoryHandler().workflow_has_response_node(published_workflow)
+        )

@@ -1143,15 +1143,15 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[List[Dict]] = None,
-        run_synchronously: bool = False,
+        defer_scheduling: bool = False,
     ) -> Optional[AutomationWorkflowHistory]:
         """
         Starts the provided workflow.
 
         :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
-        :param run_synchronously: Whether to run the workflow in the current process
-            instead of scheduling it after the current transaction commits.
+        :param defer_scheduling: Whether the caller will compose the workflow into
+            another Celery canvas.
         """
 
         error = None
@@ -1238,9 +1238,7 @@ class AutomationWorkflowHandler:
             workflow_history=history,
         )
 
-        if run_synchronously:
-            self.start_workflow(workflow, history).apply(throw=True)
-        else:
+        if not defer_scheduling:
             transaction.on_commit(
                 lambda: start_workflow_celery_task.delay(workflow.id, history.id)
             )
