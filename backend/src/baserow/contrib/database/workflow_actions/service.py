@@ -1,16 +1,27 @@
-from typing import List
+from typing import Any, List
 
 from django.contrib.auth.models import AbstractUser
+from django.core.cache import cache
 
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.fields.operations import (
     ReadFieldOperationType,
     UpdateFieldOperationType,
 )
+from baserow.contrib.database.workflow_actions.dispatch_context import (
+    DatabaseDispatchContext,
+)
+from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionDispatchError,
+    WorkflowActionDispatchInProgress,
+)
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
 from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
+from baserow.contrib.database.workflow_actions.operations import (
+    DispatchDatabaseWorkflowActionOperationType,
+)
 from baserow.contrib.database.workflow_actions.registries import (
     DatabaseWorkflowActionType,
     database_workflow_action_type_registry,
@@ -21,7 +32,14 @@ from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_updated,
     workflow_actions_reordered,
 )
+from baserow.core.action.context import without_undo_redo_registration
 from baserow.core.handler import CoreHandler
+from baserow.core.services.types import DispatchResult
+from baserow.core.types import PermissionCheck
+
+# Only a backstop for a process that dies mid-click, never an expected
+# duration: the lock is deleted as soon as the sequence finishes, either way.
+BUTTON_DISPATCH_LOCK_TIMEOUT = 60
 
 
 class DatabaseWorkflowActionService:
@@ -149,3 +167,82 @@ class DatabaseWorkflowActionService:
         workflow_actions_reordered.send(self, field=field, order=full_order, user=user)
 
         return full_order
+
+    def dispatch_workflow_actions(
+        self, user: AbstractUser, field: ButtonField, row: Any
+    ) -> List[DispatchResult]:
+        """
+        Runs a button field's actions in order, as the given user.
+
+        Deliberately not wrapped in a transaction: ADR 006 section 3 requires
+        completed actions to stay when a later one fails, because a sequence can
+        contain irreversible effects, such as a sent email, that no rollback can
+        take back. Undoing the rows while leaving the irreversible effects
+        standing would leave the sequence half applied in a way the user cannot
+        see. Each action keeps whatever atomicity its own handler already has.
+
+        :param user: The user who clicked.
+        :param field: The clicked button field.
+        :param row: The clicked row.
+        :raises WorkflowActionDispatchInProgress: When a click is already running
+            for this field and row.
+        :raises WorkflowActionDispatchError: When an action fails. Actions before
+            it have already run and are not rolled back.
+        :return: One result per action, in order.
+        """
+
+        workflow_actions = list(self.handler.get_workflow_actions(field))
+
+        # A button with nothing configured has nothing to authorise, nothing to
+        # run and nothing to lock, so it returns before any of the three.
+        if not workflow_actions:
+            return []
+
+        # The dispatch operation is scoped to the action rather than the field,
+        # so every action in the sequence is checked. A role granted on the
+        # field covers all of them, which is how "who can click this button"
+        # is expressed today (ADR 006 section 7). Deliberately checked before
+        # the lock is taken, so a refused user never holds it at all.
+        CoreHandler().check_multiple_permissions(
+            [
+                PermissionCheck(
+                    user,
+                    DispatchDatabaseWorkflowActionOperationType.type,
+                    workflow_action,
+                )
+                for workflow_action in workflow_actions
+            ],
+            workspace=field.table.database.workspace,
+            raise_exception=True,
+        )
+
+        # `cache.add` is atomic on the Redis-backed cache and only succeeds when
+        # the key is absent, so a double click cannot run the sequence twice.
+        # Keyed on the field and row together, so two button fields on one row
+        # do not block each other (ADR 006 section 3).
+        lock_key = f"button_dispatch_{field.id}_{row.id}"
+        if not cache.add(lock_key, True, timeout=BUTTON_DISPATCH_LOCK_TIMEOUT):
+            raise WorkflowActionDispatchInProgress()
+
+        try:
+            dispatch_context = DatabaseDispatchContext(user, field, row)
+            results = []
+
+            # The clicker's own actions must not land in their undo stack
+            # (ADR 006 section 8), while still firing `action_done`.
+            with without_undo_redo_registration(user):
+                for workflow_action in workflow_actions:
+                    try:
+                        results.append(
+                            self.handler.dispatch_workflow_action(
+                                workflow_action, dispatch_context
+                            )
+                        )
+                    except Exception as exc:
+                        raise WorkflowActionDispatchError(
+                            workflow_action.id, str(exc)
+                        ) from exc
+
+            return results
+        finally:
+            cache.delete(lock_key)

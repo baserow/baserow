@@ -8,3 +8,20 @@ class WorkflowActionNotInField(Exception):
             *args,
             **kwargs,
         )
+
+
+class WorkflowActionDispatchInProgress(Exception):
+    """A click is already running for this button field and row."""
+
+
+class WorkflowActionDispatchError(Exception):
+    """An action in the sequence failed. Earlier actions have already run."""
+
+    def __init__(self, workflow_action_id, message, *args, **kwargs):
+        self.workflow_action_id = workflow_action_id
+        self.message = message
+        super().__init__(
+            f"The workflow action {workflow_action_id} failed: {message}",
+            *args,
+            **kwargs,
+        )
