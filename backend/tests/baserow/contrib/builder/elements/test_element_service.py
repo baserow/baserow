@@ -1303,3 +1303,112 @@ def test_heal_reattaches_live_children_of_pruned_stale_container(data_fixture):
 
     page.refresh_from_db(fields=["graph"])
     assert page.graph == {"0": child.id, str(child.id): {}}
+
+
+@pytest.mark.django_db(transaction=False)
+def test_graph_mutations_lock_the_page_row(data_fixture):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    heading = element_type_registry.get("heading")
+
+    # Creating an element inserts into the page graph; the graph is a single
+    # JSON document written back whole, so the mutation must take a row lock
+    # on the page (concurrent read-modify-writes were the root cause of the
+    # graph corruption incidents).
+    with CaptureQueriesContext(connection) as ctx:
+        ElementService().create_element(user, heading, page=page)
+
+    assert any(
+        "FOR UPDATE" in query["sql"] and "builder_page" in query["sql"]
+        for query in ctx.captured_queries
+    )
+
+
+@pytest.mark.django_db
+def test_write_through_stale_page_instance_does_not_lose_concurrent_update(
+    data_fixture,
+):
+    # Deterministic replay of the lost-update interleaving behind the graph
+    # corruption incidents: request 1 loads the page, request 2 commits a graph
+    # change, then request 1 writes through its now-stale page instance.
+    # The pre-lock read-modify-write overwrote the whole graph JSON and lost
+    # request 2's element; the lock + in-place refresh must preserve both.
+    from django.db import transaction
+
+    from baserow.contrib.builder.pages.models import Page
+    from baserow.core.cache import local_cache
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    heading = element_type_registry.get("heading")
+
+    # "Request 1" loads its page instance first...
+    stale_page = Page.objects.get(id=page.id)
+
+    # ...then "request 2" creates an element and commits.
+    with local_cache.context(), transaction.atomic():
+        e1 = ElementService().create_element(
+            user, heading, page=Page.objects.get(id=page.id)
+        )
+
+    # "Request 1" now creates an element through its stale instance.
+    with local_cache.context(), transaction.atomic():
+        e2 = ElementService().create_element(user, heading, page=stale_page)
+
+    final_graph = Page.objects.get(id=page.id).graph
+    assert final_graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e2.id]}},
+        str(e2.id): {},
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_element_creations_both_land_in_graph(data_fixture):
+    # True two-connection race: both transactions insert into the same page
+    # graph at the same time. The page row lock must serialise them so that
+    # neither write is lost and the resulting chain is consistent.
+    import threading
+
+    from django.db import connection, transaction
+
+    from baserow.contrib.builder.pages.models import Page
+    from baserow.core.cache import local_cache
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    heading = element_type_registry.get("heading")
+
+    barrier = threading.Barrier(2)
+    created_ids = []
+    errors = []
+
+    def worker():
+        try:
+            barrier.wait(timeout=10)
+            with local_cache.context(), transaction.atomic():
+                element = ElementService().create_element(
+                    user, heading, page=Page.objects.get(id=page.id)
+                )
+            created_ids.append(element.id)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+        finally:
+            connection.close()
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+
+    assert errors == []
+    graph = Page.objects.get(id=page.id).graph
+    root_id = graph["0"]
+    # Both elements landed: one is the root, the other its next, and nothing
+    # else is in the graph.
+    assert set(created_ids) == {root_id, graph[str(root_id)]["next"][""][0]}
+    assert set(graph) == {"0", *(str(element_id) for element_id in created_ids)}

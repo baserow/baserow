@@ -2,10 +2,13 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
+from django.db import models, transaction
+
 from baserow.core.cache import local_cache
 from baserow.core.graph.exceptions import (
     GraphPointDoesNotExist,
     GraphPointNotFoundInGraph,
+    GraphPointReferencePointInvalid,
 )
 from baserow.core.graph.types import (
     GraphModelInstance,
@@ -99,10 +102,50 @@ class BaseGraphHandler(ABC):
 
     def __init__(self, instance: GraphModelInstance):
         self.instance = instance
+        self._instance_locked = False
 
     @property
     def graph(self) -> SerializedGraph:
         return self.instance.graph
+
+    def _lock_instance_for_update(self):
+        """
+        Take a row lock on the container before mutating its graph, and refresh
+        the in-memory graph from the locked row.
+
+        The graph is a single JSON document written back whole by every
+        mutation; without a lock, two concurrent transactions read-modify-write
+        it last-writer-wins, silently resurrecting or discarding each other's
+        changes (the root cause of the self-reference and ghost-point
+        corruptions). The refresh re-synchronises this request's in-memory copy
+        with the latest committed state once the lock is held.
+
+        The refresh mutates the existing graph dict in place (rather than
+        rebinding it) so that every object sharing it — see
+        `GraphModelMixin.get_graph`'s rebinding — observes the refreshed state.
+
+        Locking is skipped for non-model instances (test doubles) and outside
+        an atomic block, where `SELECT FOR UPDATE` is either unsupported or
+        meaningless (each statement would commit and release immediately).
+        """
+
+        if self._instance_locked or not isinstance(self.instance, models.Model):
+            return
+
+        if not transaction.get_connection().in_atomic_block:
+            return
+
+        locked = (
+            type(self.instance)
+            ._base_manager.select_for_update()
+            .only("graph")
+            .get(pk=self.instance.pk)
+        )
+        current_graph = self.instance.graph
+        current_graph.clear()
+        current_graph.update(locked.graph)
+        local_cache.delete(self.generate_previous_position_map_cache_key(self.instance))
+        self._instance_locked = True
 
     def _update_graph(self, graph: Optional[SerializedGraph] = None):
         """
@@ -291,6 +334,10 @@ class BaseGraphHandler(ABC):
         Insert a point at the end of the default edge chain.
         """
 
+        # Lock before computing the position: "the end of the chain" must be
+        # resolved against the latest committed graph, not a stale read taken
+        # before a concurrent transaction appended its own point.
+        self._lock_instance_for_update()
         ref, position, output = self.get_last_position()
         self.insert(point, ref, position, output)
 
@@ -636,6 +683,8 @@ class BaseGraphHandler(ABC):
         :return: All GraphPoint instances that were moved (in chain order, per place).
         """
 
+        self._lock_instance_for_update()
+
         from_places = [str(p) for p in from_places]
         to_place = str(to_place)
 
@@ -735,8 +784,40 @@ class BaseGraphHandler(ABC):
         # place_in_container).
         output = "" if output is None else str(output)
 
+        self._lock_instance_for_update()
+
+        if reference_point is not None and reference_point.id == point.id:
+            raise GraphPointReferencePointInvalid(
+                f"Point {point.id} cannot be inserted relative to itself."
+            )
+
         graph = self.graph
-        point_info = graph.setdefault(str(point.id), {})
+
+        # Inserting a point that the reference (or the root) already points at
+        # is a double insert: the point's "old successor" would be read as the
+        # point itself, writing a self-referencing `next` into the graph. This
+        # state is reachable through concurrent transactions (e.g. a stale
+        # write resurrecting a reference that a trash had removed, followed by
+        # a restore); reject it loudly so the transaction rolls back instead
+        # of persisting a corrupted graph.
+        if reference_point is None:
+            already_referenced = graph.get(self.GRAPH_ROOT_KEY) == point.id
+        elif position == "south":
+            already_referenced = point.id in self.get_info(reference_point).get(
+                "next", {}
+            ).get(output, [])
+        elif position == "child":
+            already_referenced = point.id in self._get_children_dict(
+                self.get_info(reference_point)
+            ).get(output, [])
+        else:
+            already_referenced = False
+        if already_referenced:
+            raise GraphPointReferencePointInvalid(
+                f"Point {point.id} is already referenced by its insertion "
+                f"reference; inserting it again would corrupt the graph."
+            )
+
         new_next = None
 
         # If the `reference_point` is `None`, it means that we want to insert the
@@ -744,6 +825,7 @@ class BaseGraphHandler(ABC):
         # of the graph to point to the new point, and make the old root (if it exists)
         # a child of the new point.
         if reference_point is None:
+            point_info = graph.setdefault(str(point.id), {})
             if self.GRAPH_ROOT_KEY in graph:
                 new_next = [graph[self.GRAPH_ROOT_KEY]]
 
@@ -760,9 +842,14 @@ class BaseGraphHandler(ABC):
             # Insert the point before the reference point. The new point takes
             # the reference point's position, and the reference point becomes
             # the new point's next on the default output.
+            # Resolve the reference's position BEFORE creating the point's
+            # graph entry: get_position can raise, and mutating first would
+            # leave a detached `{}` entry behind for any caller that catches
+            # the exception and carries on.
             ref_position_id, ref_position, ref_output = self.get_position(
                 reference_point
             )
+            point_info = graph.setdefault(str(point.id), {})
 
             # If the reference itself has no reference ID, then it's the root.
             # We'll then replace the root with our new `point`.
@@ -786,6 +873,8 @@ class BaseGraphHandler(ABC):
 
             self._update_graph()
             return
+
+        point_info = graph.setdefault(str(point.id), {})
 
         if position == "south":
             if output in self.get_info(reference_point).get("next", {}):
@@ -835,6 +924,7 @@ class BaseGraphHandler(ABC):
         :return: A GraphPointRemoved with point_removed and dependencies_removed.
         """
 
+        self._lock_instance_for_update()
         graph = self.instance.graph
 
         if str(point_to_delete.id) not in graph:
@@ -895,6 +985,8 @@ class BaseGraphHandler(ABC):
         :param point_to_replace: The point to replace.
         :param new_point: The point to replace with.
         """
+
+        self._lock_instance_for_update()
 
         reference_point_id, position, output = self.get_position(point_to_replace)
 
@@ -957,6 +1049,19 @@ class BaseGraphHandler(ABC):
         target = target_graph or self
         is_cross_graph = target is not self
 
+        # Moving a point relative to itself would remove it from the graph and
+        # then re-insert it relative to its own (now removed) position, leaving
+        # a detached "ghost" entry behind. The services guard this too, but the
+        # graph is the last line of defense for internal callers.
+        if reference_point is not None and reference_point.id == point_to_move.id:
+            raise GraphPointReferencePointInvalid(
+                f"Point {point_to_move.id} cannot be moved relative to itself."
+            )
+
+        self._lock_instance_for_update()
+        if is_cross_graph:
+            target._lock_instance_for_update()
+
         # An orphaned point (in the DB but absent from this graph, e.g. created
         # during a not-yet-zero-downtime deployment) has no entry or subtree to
         # capture or remove; the move simply inserts it, making it join the graph.
@@ -1009,6 +1114,7 @@ class BaseGraphHandler(ABC):
             removed.
         """
 
+        self._lock_instance_for_update()
         for dep in self.collect_all_descendants(point):
             self.graph.pop(str(dep.id), None)
         self.graph.pop(str(point.id), None)
@@ -1068,6 +1174,7 @@ class BaseGraphHandler(ABC):
         :return: The ids that were actually pruned (those present in the graph).
         """
 
+        self._lock_instance_for_update()
         removed: List[int] = []
 
         for point_id in ids_to_remove:
@@ -1211,6 +1318,7 @@ class BaseGraphHandler(ABC):
         :return: The ids of the points whose self-references were stripped.
         """
 
+        self._lock_instance_for_update()
         stripped = sorted(self.find_self_referencing_point_ids(self.graph))
         for point_id in stripped:
             self._remove_references_to(point_id, {point_id})
@@ -1318,6 +1426,8 @@ class BaseGraphHandler(ABC):
         :return: The ids of the re-attached (head) points.
         """
 
+        self._lock_instance_for_update()
+
         def attach(head_id: int):
             if container is not None:
                 container_info = self.get_info(container)
@@ -1384,6 +1494,8 @@ class BaseGraphHandler(ABC):
         :param id_mapping: A dict containing the mapping of old IDs to new IDs for both
             points and edges.
         """
+
+        self._lock_instance_for_update()
 
         # The mapping key is absent when nothing was imported for this graph's
         # point model (e.g. a page with no elements): every graph reference is
