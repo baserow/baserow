@@ -807,6 +807,9 @@ class DatabaseConfig(AppConfig):
             DatabaseViewObjectScopeType,
             DatabaseViewSortObjectScopeType,
         )
+        from .workflow_actions.object_scopes import (
+            DatabaseWorkflowActionObjectScopeType,
+        )
 
         object_scope_type_registry.register(DatabaseObjectScopeType())
         object_scope_type_registry.register(DatabaseTableObjectScopeType())
@@ -818,6 +821,7 @@ class DatabaseConfig(AppConfig):
         object_scope_type_registry.register(DatabaseViewFilterObjectScopeType())
         object_scope_type_registry.register(DatabaseViewFilterGroupObjectScopeType())
         object_scope_type_registry.register(TokenObjectScopeType())
+        object_scope_type_registry.register(DatabaseWorkflowActionObjectScopeType())
 
         from baserow.contrib.database.views.operations import (
             CanReceiveNotificationOnSubmitFormViewOperationType,
@@ -944,6 +948,9 @@ class DatabaseConfig(AppConfig):
             TestTriggerWebhookOperationType,
             UpdateWebhookOperationType,
         )
+        from .workflow_actions.operations import (
+            DispatchDatabaseWorkflowActionOperationType,
+        )
 
         operation_type_registry.register(ReadViewRowOperationType())
         operation_type_registry.register(ReadAdjacentViewRowOperationType())
@@ -1054,6 +1061,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(ListDataSyncJobsOperationType())
         operation_type_registry.register(ListPropertiesOperationType())
         operation_type_registry.register(GetIncludingPublicValuesOperationType())
+        operation_type_registry.register(DispatchDatabaseWorkflowActionOperationType())
 
         from baserow.core.registries import permission_manager_type_registry
 

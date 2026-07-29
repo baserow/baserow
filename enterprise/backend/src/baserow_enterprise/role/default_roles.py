@@ -217,6 +217,9 @@ from baserow.contrib.database.webhooks.operations import (
     TestTriggerWebhookOperationType,
     UpdateWebhookOperationType,
 )
+from baserow.contrib.database.workflow_actions.operations import (
+    DispatchDatabaseWorkflowActionOperationType,
+)
 from baserow.core.integrations.operations import (
     CreateIntegrationOperationType,
     DeleteIntegrationOperationType,
@@ -453,6 +456,7 @@ default_roles[EDITOR_ROLE_UID].extend(
         MoveViewRowOperationType,
         DeleteViewRowOperationType,
         ReadViewDefaultValuesOperationType,
+        DispatchDatabaseWorkflowActionOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
