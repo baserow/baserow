@@ -1856,3 +1856,56 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
         CoreHandler().get_permissions(viewer, workspace=workspace)
 
     assert len(captured_1.captured_queries) == len(captured_2.captured_queries)
+
+
+@pytest.mark.django_db
+def test_dispatching_a_button_field_needs_at_least_the_editor_role(
+    data_fixture, enterprise_data_fixture
+):
+    """Asserting the operation appears in `default_roles` is a config check that
+    passes even when RBAC cannot resolve the scope. The dispatch operation's
+    parent chain runs workspace -> database -> table -> field -> workflow
+    action, so it is worth resolving for real."""
+
+    from baserow.contrib.database.table.handler import TableHandler
+    from baserow.contrib.database.workflow_actions.models import CreateRowWorkflowAction
+    from baserow.contrib.database.workflow_actions.service import (
+        DatabaseWorkflowActionService,
+    )
+
+    admin = data_fixture.create_user()
+    clicker = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[clicker])
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    table = TableHandler().create_table_and_fields(
+        user=admin, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(field=name_field, value="'Ada'", enabled=True)
+
+    role_handler = RoleAssignmentHandler()
+    role_handler.assign_role(clicker, workspace, role=Role.objects.get(uid="VIEWER"))
+
+    with pytest.raises(PermissionException):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            clicker, button_field, row
+        )
+
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
+
+    role_handler.assign_role(clicker, workspace, role=Role.objects.get(uid="EDITOR"))
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(
+        clicker, button_field, row
+    )
+
+    created = table.get_model().objects.exclude(id=row.id).get()
+    assert getattr(created, f"field_{name_field.id}") == "Ada"
