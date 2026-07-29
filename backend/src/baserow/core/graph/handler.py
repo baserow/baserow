@@ -1231,6 +1231,48 @@ class BaseGraphHandler(ABC):
         return stripped
 
     @classmethod
+    def find_dangling_reference_ids(cls, graph: SerializedGraph | None) -> set[int]:
+        """
+        Return point IDs referenced by ``next`` or ``children`` which have no
+        corresponding point entry in the serialized graph.
+
+        :param graph: A raw serialized graph dict (maybe ``None``).
+        :return: The IDs referenced by the graph but not keyed in it.
+        """
+
+        graph = graph or {}
+        point_ids = {int(key) for key in graph if key != cls.GRAPH_ROOT_KEY}
+        referenced_ids: set[int] = set()
+        for key, info in graph.items():
+            if key == cls.GRAPH_ROOT_KEY or not isinstance(info, dict):
+                continue
+            for next_ids in info.get("next", {}).values():
+                referenced_ids.update(int(next_id) for next_id in next_ids)
+            for child_ids in cls._get_children_dict_from_info(info).values():
+                referenced_ids.update(int(child_id) for child_id in child_ids)
+
+        return referenced_ids - point_ids
+
+    def strip_dangling_references(self) -> List[int]:
+        """
+        Drop every ``next`` or ``children`` reference whose point has no entry
+        in the serialized graph. Valid references on the same edge are kept,
+        and empty outputs or child slots are cleaned up.
+
+        :return: The dangling point IDs that were stripped.
+        """
+
+        stripped = sorted(self.find_dangling_reference_ids(self.graph))
+        from_ids = {int(key) for key in self.graph if key != self.GRAPH_ROOT_KEY}
+        for point_id in stripped:
+            self._remove_references_to(point_id, from_ids)
+
+        if stripped:
+            self._update_graph()
+
+        return stripped
+
+    @classmethod
     def find_unreachable_point_ids(cls, graph: SerializedGraph | None) -> set[int]:
         """
         Return the ids of every point keyed in the graph that cannot be reached

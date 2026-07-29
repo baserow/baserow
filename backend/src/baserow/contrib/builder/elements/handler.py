@@ -315,7 +315,7 @@ class ElementHandler:
         graph the single source of truth means downstream operations (move, delete,
         …) never have to special-case a missing or dangling graph entry.
 
-        Three kinds of inconsistency are reconciled:
+        Five kinds of inconsistency are reconciled:
 
         - "orphans": rows present in the DB but absent from the graph (e.g. created
           by old code). They are inserted where a newly added element would land:
@@ -335,6 +335,10 @@ class ElementHandler:
           self-edges are stripped via `strip_self_references`; detection is a
           pure in-memory scan, so the steady-state fast path stays as cheap as
           before (one id-list query, no lock, no writes).
+
+        - "dangling references": ids listed in `next` or `children` which have
+          no corresponding point entry in the graph. They are simply dropped
+          via `strip_dangling_references`.
 
         - "detached points": live elements keyed in the graph but unreachable
           from the root (no incoming reference) — invisible in the editor and
@@ -356,38 +360,51 @@ class ElementHandler:
 
         root_key = page.get_graph().GRAPH_ROOT_KEY
 
-        def compute_drift(graph) -> tuple[set, set, set, set]:
+        def compute_drift(graph) -> tuple[set, set, set, set, set]:
             graph_ids = {int(k) for k in graph if k != root_key}
             db_ids = set(Element.objects.filter(page=page).values_list("id", flat=True))
             # (orphans missing from the graph, stale points missing from the DB,
-            # points referencing themselves via next/children, live points keyed
-            # in the graph but unreachable from the root). The last two checks
-            # are pure in-memory scans — no extra query.
+            # points referencing themselves via next/children, references with
+            # no corresponding graph point, live points keyed in the graph but
+            # unreachable from the root). The last three checks are pure
+            # in-memory scans — no extra query.
             return (
                 db_ids - graph_ids,
                 graph_ids - db_ids,
                 BaseGraphHandler.find_self_referencing_point_ids(graph),
+                BaseGraphHandler.find_dangling_reference_ids(graph),
                 BaseGraphHandler.find_unreachable_point_ids(graph) & db_ids,
             )
 
         # Fast path: nothing to reconcile (the steady state). Avoid locking/writes.
-        orphan_ids, stale_ids, self_ref_ids, detached_ids = compute_drift(
+        orphan_ids, stale_ids, self_ref_ids, dangling_ids, detached_ids = compute_drift(
             page.get_graph().graph
         )
-        if not orphan_ids and not stale_ids and not self_ref_ids and not detached_ids:
+        if (
+            not orphan_ids
+            and not stale_ids
+            and not self_ref_ids
+            and not dangling_ids
+            and not detached_ids
+        ):
             return {}
 
         # Re-check under a row lock so concurrent reads can't race on the same graph.
         with transaction.atomic():
             locked_page = Page.objects.select_for_update().get(id=page.id)
             graph_handler = locked_page.get_graph()
-            orphan_ids, stale_ids, self_ref_ids, detached_ids = compute_drift(
-                graph_handler.graph
-            )
+            (
+                orphan_ids,
+                stale_ids,
+                self_ref_ids,
+                dangling_ids,
+                detached_ids,
+            ) = compute_drift(graph_handler.graph)
             if (
                 not orphan_ids
                 and not stale_ids
                 and not self_ref_ids
+                and not dangling_ids
                 and not detached_ids
             ):
                 return {}
@@ -400,6 +417,11 @@ class ElementHandler:
             # until a chain traversal happens to walk (and heal) that subtree.
             if self_ref_ids:
                 graph_handler.strip_self_references()
+
+            # Drop references which cannot be traversed because the referenced
+            # point has no serialized graph entry.
+            if dangling_ids:
+                graph_handler.strip_dangling_references()
 
             # Prune stale points next so orphan placement (which traverses the
             # graph, e.g. append → get_last_position) can't walk into a missing
@@ -442,7 +464,13 @@ class ElementHandler:
         self.invalidate_element_cache(page)
 
         self._report_graph_heal(
-            page, orphan_ids, stale_ids, self_ref_ids, set(reattached_ids), patch
+            page,
+            orphan_ids,
+            stale_ids,
+            self_ref_ids,
+            dangling_ids,
+            set(reattached_ids),
+            patch,
         )
 
         return patch
@@ -453,6 +481,7 @@ class ElementHandler:
         healed_ids: set,
         pruned_ids: set,
         self_ref_ids: set,
+        dangling_ids: set,
         reattached_ids: set,
         graph_patch: Dict[str, Any],
     ) -> None:
@@ -480,6 +509,8 @@ class ElementHandler:
                     "pruned_stale_ids": sorted(pruned_ids),
                     "stripped_self_reference_count": len(self_ref_ids),
                     "stripped_self_reference_ids": sorted(self_ref_ids),
+                    "stripped_dangling_reference_count": len(dangling_ids),
+                    "stripped_dangling_reference_ids": sorted(dangling_ids),
                     "reattached_detached_count": len(reattached_ids),
                     "reattached_detached_ids": sorted(reattached_ids),
                     "graph_patch": graph_patch,
@@ -488,7 +519,8 @@ class ElementHandler:
             sentry_sdk.capture_message(
                 f"Healed {len(healed_ids)} orphan element(s), pruned "
                 f"{len(pruned_ids)} stale point(s), stripped "
-                f"{len(self_ref_ids)} self-reference(s) and re-attached "
+                f"{len(self_ref_ids)} self-reference(s), stripped "
+                f"{len(dangling_ids)} dangling reference(s) and re-attached "
                 f"{len(reattached_ids)} detached point(s) in the graph of "
                 f"builder page {page.id}.",
                 level="warning",

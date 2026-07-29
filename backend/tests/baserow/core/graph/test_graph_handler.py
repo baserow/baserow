@@ -994,6 +994,40 @@ def test_strip_self_references():
     assert graph.strip_self_references() == []
 
 
+def test_find_dangling_reference_ids():
+    graph = {
+        "0": 1,
+        "1": {"next": {"": [2], "missing": [99]}},
+        "2": {"children": {"0": [3], "1": [98]}},
+        "3": {"children": [97]},
+    }
+
+    assert BaseGraphHandler.find_dangling_reference_ids(graph) == {97, 98, 99}
+    assert BaseGraphHandler.find_dangling_reference_ids({}) == set()
+    assert BaseGraphHandler.find_dangling_reference_ids(None) == set()
+
+
+def test_strip_dangling_references():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [99, 2], "missing": [98]}},
+            "2": {"children": {"0": [97, 3], "1": [96]}},
+            "3": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.strip_dangling_references() == [96, 97, 98, 99]
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"children": {"0": [3]}},
+        "3": {},
+    }
+    assert graph.strip_dangling_references() == []
+
+
 def test_find_unreachable_point_ids():
     graph = {
         "0": 1,

@@ -1214,6 +1214,44 @@ def test_heal_strips_self_referencing_point(data_fixture):
 
 
 @pytest.mark.django_db
+def test_heal_strips_dangling_next_and_children_references(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    column = element_type_registry.get("column")
+    heading = element_type_registry.get("heading")
+    container = ElementService().create_element(user, column, page=page)
+    child = ElementService().create_element(
+        user,
+        heading,
+        page=page,
+        reference_element_id=container.id,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
+    )
+
+    page.refresh_from_db(fields=["graph"])
+    missing_next_id = max(container.id, child.id) + 1000
+    missing_child_id = missing_next_id + 1
+    page.graph[str(child.id)]["next"] = {"": [missing_next_id]}
+    page.graph[str(container.id)]["children"]["1"] = [missing_child_id]
+    page.save(update_fields=["graph"])
+
+    patch = ElementHandler().heal_orphan_elements(page)
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": container.id,
+        str(container.id): {"children": {"0": [child.id]}},
+        str(child.id): {},
+    }
+    assert patch == {
+        str(container.id): {"children": {"0": [child.id]}},
+        str(child.id): {},
+    }
+
+
+@pytest.mark.django_db
 def test_heal_reattaches_detached_element(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
