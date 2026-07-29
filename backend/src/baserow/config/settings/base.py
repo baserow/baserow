@@ -465,6 +465,13 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     USER_SOURCE_AUTHENTICATION_HEADER,
 ]
 
+BUILDER_GRAPH_PATCH_HEADER = "X-Baserow-Builder-Graph-Patch"
+
+# Response headers the browser is allowed to read on cross-origin requests
+CORS_EXPOSE_HEADERS = [
+    BUILDER_GRAPH_PATCH_HEADER,
+]
+
 ACCESS_TOKEN_LIFETIME = timedelta(
     minutes=int(os.getenv("BASEROW_ACCESS_TOKEN_LIFETIME_MINUTES", 10))  # 10 minutes
 )

@@ -1184,3 +1184,84 @@ def test_move_element_cross_page_removes_entry_from_source_graph(data_fixture):
         "0": element2.id,
         str(element2.id): {},
     }
+
+
+@pytest.mark.django_db
+def test_heal_strips_self_referencing_point(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+
+    # Simulate the real-world corruption: the tail element lists itself as its
+    # own `next`. There is no DB<->graph drift, so only the self-reference scan
+    # can detect this.
+    page.graph[str(e2.id)]["next"] = {"": [e2.id]}
+    page.save(update_fields=["graph"])
+
+    patch = ElementHandler().heal_orphan_elements(page)
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e2.id]}},
+        str(e2.id): {},
+    }
+    # The stripped entry is carried in the patch so clients can shallow-merge.
+    assert patch == {str(e2.id): {}}
+
+
+@pytest.mark.django_db
+def test_heal_reattaches_detached_element(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+
+    # Simulate the real-world "3311" corruption: e2 stays keyed in the graph
+    # and its row exists, but nothing references it. There is no DB<->graph
+    # drift, so only the reachability scan can detect it.
+    page.graph = {"0": e1.id, str(e1.id): {}, str(e2.id): {}}
+    page.save(update_fields=["graph"])
+
+    patch = ElementHandler().heal_orphan_elements(page)
+
+    page.refresh_from_db(fields=["graph"])
+    # e2 is re-attached as the last element of the page.
+    assert page.graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e2.id]}},
+        str(e2.id): {},
+    }
+    assert patch == {str(e1.id): {"next": {"": [e2.id]}}}
+
+
+@pytest.mark.django_db
+def test_heal_reattaches_live_children_of_pruned_stale_container(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    column = element_type_registry.get("column")
+    heading = element_type_registry.get("heading")
+    container = ElementService().create_element(user, column, page=page)
+    child = ElementService().create_element(
+        user,
+        heading,
+        page=page,
+        parent_element_id=container.id,
+        place_in_container="0",
+    )
+
+    # Old code hard-deletes the container row without touching the graph. The
+    # stale container is pruned, which detaches its live child — the child must
+    # be re-attached in the same heal pass, not become a ghost.
+    Element.objects.filter(id=container.id).delete()
+
+    ElementHandler().heal_orphan_elements(page)
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {"0": child.id, str(child.id): {}}

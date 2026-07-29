@@ -84,6 +84,10 @@ export default class ElementGraphHandler extends BaseGraphHandler {
   static buildElementMaps(graph) {
     const parentMap = {}
     const placeMap = {}
+    // A corrupted graph can contain self-references (a point whose next or
+    // child is itself) or cycles; track the walked points so the chain walk
+    // always terminates instead of hanging the page.
+    const seen = new Set()
     for (const [nodeId, info] of Object.entries(graph)) {
       if (nodeId === '0' || !info || typeof info !== 'object') continue
       const children = info.children
@@ -91,7 +95,12 @@ export default class ElementGraphHandler extends BaseGraphHandler {
       const childrenObj = Array.isArray(children) ? { '': children } : children
       for (const [place, headIds] of Object.entries(childrenObj)) {
         let currentId = headIds[0] ?? null
-        while (currentId) {
+        while (
+          currentId != null &&
+          Number(currentId) !== Number(nodeId) &&
+          !seen.has(Number(currentId))
+        ) {
+          seen.add(Number(currentId))
           const id = Number(currentId)
           parentMap[id] = Number(nodeId)
           placeMap[id] = place

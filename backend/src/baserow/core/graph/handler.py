@@ -229,6 +229,21 @@ class BaseGraphHandler(ABC):
 
         return self.get_point_map()[int(point_id)]
 
+    def _get_point_or_none(self, point_id: str | int) -> Optional[GraphPoint]:
+        """
+        Like `get_point`, but returns `None` when the graph references a point
+        whose model instance no longer exists (e.g. a stale entry for a
+        hard-deleted record), so traversals can skip it instead of failing.
+
+        :param point_id: The ID of the graph point to retrieve.
+        :return: The model instance, or `None` if it doesn't exist.
+        """
+
+        try:
+            return self.get_point(int(point_id))
+        except self.does_not_exist_exception:
+            return None
+
     def get_point_at_position(
         self,
         reference_point: GraphPoint,
@@ -274,14 +289,8 @@ class BaseGraphHandler(ABC):
         if self.graph.get(self.GRAPH_ROOT_KEY) is None:
             return None, "south", ""
 
-        def search_last(point_id):
-            next_points = self.get_info(point_id).get("next", {}).get("", [])
-            if not next_points:
-                return self.get_point(point_id), "south", ""
-            else:
-                return search_last(next_points[0])
-
-        return search_last(self.graph[self.GRAPH_ROOT_KEY])
+        tail_id = self._get_chain_tail_id(self.graph[self.GRAPH_ROOT_KEY])
+        return self.get_point(tail_id), "south", ""
 
     def append(self, point: GraphPoint) -> None:
         """
@@ -348,7 +357,13 @@ class BaseGraphHandler(ABC):
         positions = []
         current_id = target_point.id
         found = False
+        seen_ids: set[int] = set()
         while previous_position := previous_position_map.get(current_id):
+            if current_id in seen_ids:
+                # A corrupted graph can make a point (transitively) its own
+                # predecessor; stop instead of walking the cycle forever.
+                break
+            seen_ids.add(current_id)
             found = True
             reference_id, position, output = previous_position
             if reference_id is None:
@@ -411,20 +426,35 @@ class BaseGraphHandler(ABC):
         :param first_only: When True, return only the entry-point child of each
             edge/slot without following the next[""] chain within slots. Use this
             when the caller will handle chaining via get_next_points itself.
-        :return: A list of children of the given point.
+        :return: A list of children of the given point. Ids referenced by the
+            graph whose model instance no longer exists are skipped.
         """
+
+        if point is None:
+            point_id = self.graph[self.GRAPH_ROOT_KEY]
+        elif hasattr(point, "id"):
+            point_id = point.id
+        else:
+            point_id = point
 
         point_info = self.get_info(point)
         children_dict = self._get_children_dict(point_info)
         result = []
+        # Seeded with the container itself (a corrupted graph could list the
+        # container as its own child) and shared across all edges/slots so
+        # that no point can ever be traversed twice.
+        seen: set[int] = {int(point_id)}
         for edge_key, child_ids in children_dict.items():
             if output is not None and edge_key != output:
                 continue
             for cid in child_ids:
                 if first_only:
-                    result.append(self.get_point(cid))
+                    if int(cid) in seen:
+                        continue
+                    if (child := self._get_point_or_none(cid)) is not None:
+                        result.append(child)
                 else:
-                    result.extend(self._get_chain_elements(cid))
+                    result.extend(self._get_chain_elements(cid, seen))
         return result
 
     @classmethod
@@ -487,6 +517,12 @@ class BaseGraphHandler(ABC):
             reference_id = int(str_id)
             for output, next_ids in info.get("next", {}).items():
                 for next_id in next_ids:
+                    # A corrupted graph can list a point as its own `next` or
+                    # child. Never record a self-reference as a position — it
+                    # would shadow the point's real predecessor and make every
+                    # ancestry walk loop on itself.
+                    if int(next_id) == reference_id:
+                        continue
                     previous_position_map[int(next_id)] = (
                         reference_id,
                         GraphPointPosition.SOUTH,
@@ -495,7 +531,7 @@ class BaseGraphHandler(ABC):
 
             children_dict = cls._get_children_dict_from_info(info)
             for output, child_ids in children_dict.items():
-                if child_ids:
+                if child_ids and int(child_ids[0]) != reference_id:
                     previous_position_map[int(child_ids[0])] = (
                         reference_id,
                         GraphPointPosition.CHILD,
@@ -503,6 +539,56 @@ class BaseGraphHandler(ABC):
                     )
 
         return previous_position_map
+
+    def _walk_chain_ids(self, first_id: str | int, seen: set[int]) -> List[str]:
+        """
+        Follow the default next[""] chain from first_id and return the string IDs
+        of the visited points, in order. Every visited point is added to `seen`,
+        which callers can share across multiple walks (e.g. the slots of a
+        container) so that no point is ever visited twice and the walk always
+        terminates.
+
+        A `next` reference to an already-seen point means the serialized graph
+        is corrupted (e.g. a point whose `next` loops back onto itself or an
+        ancestor). Such duplicate references are removed so that the chain
+        collapses onto the first not-yet-seen successor, and the healed graph
+        is persisted.
+
+        :param first_id: The starting point ID.
+        :param seen: The set of point IDs already visited by the wider
+            traversal; mutated in place.
+        :return: Ordered list of the string IDs in the chain.
+        """
+
+        result: List[str] = []
+        healed = False
+        current = str(first_id) if int(first_id) not in seen else None
+        while current is not None:
+            seen.add(int(current))
+            result.append(current)
+
+            point_info = self.graph.get(current, {})
+            next_ids = point_info.get("next", {}).get("", [])
+            unseen_next_ids = [nid for nid in next_ids if int(nid) not in seen]
+
+            if len(unseen_next_ids) != len(next_ids):
+                # The chain references a point that was already visited: drop
+                # the duplicate reference(s) and collapse the chain onto the
+                # remaining successors so the graph no longer loops.
+                if unseen_next_ids:
+                    point_info["next"][""] = unseen_next_ids
+                else:
+                    del point_info["next"][""]
+                    if not point_info["next"]:
+                        del point_info["next"]
+                healed = True
+
+            current = str(unseen_next_ids[0]) if unseen_next_ids else None
+
+        if healed:
+            self._update_graph()
+
+        return result
 
     def _get_chain_tail_id(self, first_id: str | int) -> str:
         """
@@ -513,31 +599,30 @@ class BaseGraphHandler(ABC):
         :return: String ID of the tail element.
         """
 
-        current = str(first_id)
-        while True:
-            next_ids = self.graph.get(current, {}).get("next", {}).get("", [])
-            if not next_ids:
-                return current
-            current = str(next_ids[0])
+        return self._walk_chain_ids(first_id, set())[-1]
 
-    def _get_chain_elements(self, first_id: str | int) -> List[GraphPoint] | List[int]:
+    def _get_chain_elements(
+        self, first_id: str | int, seen: Optional[set[int]] = None
+    ) -> List[GraphPoint]:
         """
         Collect all graph points reachable via the default next[""] chain from
-        first_id, in order.
-
-        Returns model instances in GRAPH_POINT mode, or integer IDs in GRAPH_ID mode.
+        first_id, in order. IDs referenced by the graph whose model instance no
+        longer exists (e.g. a stale entry for a hard-deleted record) are
+        skipped so that a corrupted graph never blocks traversal.
 
         :param first_id: The starting point ID.
-        :return: Ordered list of all points (or IDs) in the chain.
+        :param seen: Optionally, the set of point IDs already visited by the
+            wider traversal (mutated in place); those points are not visited
+            again.
+        :return: Ordered list of all points in the chain.
         """
 
-        result = []
-        current = str(first_id)
-        while current:
-            result.append(self.get_point(int(current)))
-            next_ids = self.graph.get(current, {}).get("next", {}).get("", [])
-            current = str(next_ids[0]) if next_ids else None
-        return result
+        chain_ids = self._walk_chain_ids(first_id, seen if seen is not None else set())
+        return [
+            point
+            for point_id in chain_ids
+            if (point := self._get_point_or_none(point_id)) is not None
+        ]
 
     def get_descendants(self, point: GraphPoint) -> List[GraphPoint]:
         """
@@ -550,17 +635,46 @@ class BaseGraphHandler(ABC):
 
         return self.collect_all_descendants(point)
 
+    def _collect_descendant_ids(
+        self, point_id: str | int, seen: Optional[set[int]] = None
+    ) -> List[int]:
+        """
+        Collect the IDs of all descendants (direct and transitive children) of
+        the given point in depth-first order, operating purely on the
+        serialized graph. Because no ID is ever resolved to a model instance,
+        this is safe to call when the graph contains stale entries whose model
+        instance no longer exists, and the shared `seen` set guarantees
+        termination on corrupted (looping) graphs.
+
+        :param point_id: The ID of the point to collect the descendants of.
+        :param seen: The set of point IDs already visited (mutated in place).
+        :return: Ordered list of all descendant IDs.
+        """
+
+        if seen is None:
+            seen = {int(point_id)}
+
+        result: List[int] = []
+        point_info = self.graph.get(str(point_id), {})
+        for child_ids in self._get_children_dict(point_info).values():
+            for head_id in child_ids:
+                for chain_id in self._walk_chain_ids(head_id, seen):
+                    result.append(int(chain_id))
+                    result.extend(self._collect_descendant_ids(chain_id, seen))
+        return result
+
     def collect_all_descendants(self, point: GraphPoint) -> List[GraphPoint]:
         """
         Returns all descendants (direct and transitive children) of a point in
-        depth-first order, by recursing into each child returned by get_children.
+        depth-first order. IDs referenced by the graph whose model instance no
+        longer exists are skipped.
         """
 
-        result = []
-        for child in self.get_children(point):
-            result.append(child)
-            result.extend(self.collect_all_descendants(child))
-        return result
+        return [
+            descendant
+            for descendant_id in self._collect_descendant_ids(point.id)
+            if (descendant := self._get_point_or_none(descendant_id)) is not None
+        ]
 
     def merge_children_into_place(
         self,
@@ -789,21 +903,37 @@ class BaseGraphHandler(ABC):
             return GraphPointRemoved(point_removed=point_to_delete)
 
         dependencies: List[GraphPoint] = []
+        dependency_ids: List[int] = []
         if not keep_info:
-            # Collect all descendants before touching the graph so that the traversal
-            # still has access to the full graph structure.
-            dependencies = self.collect_all_descendants(point_to_delete)
-            for dep in dependencies:
-                graph.pop(str(dep.id), None)
+            # Collect all descendant IDs before touching the graph so that the
+            # traversal still has access to the full graph structure. Working
+            # with IDs (rather than model instances) means a stale entry — one
+            # whose model instance no longer exists — never blocks the removal
+            # and still gets cleaned out of the graph.
+            dependency_ids = self._collect_descendant_ids(point_to_delete.id)
+            dependencies = [
+                dependency
+                for dep_id in dependency_ids
+                if (dependency := self._get_point_or_none(dep_id)) is not None
+            ]
+            for dep_id in dependency_ids:
+                graph.pop(str(dep_id), None)
 
-        next_point_ids = self._get_all_next_points(point_to_delete)
+        # The successors that take the removed point's place. A corrupted graph
+        # can make a point its own successor (or point at one of its removed
+        # descendants); such references must not be spliced back in.
+        removed_ids = {int(point_to_delete.id), *dependency_ids}
+        next_point_ids = [
+            next_id
+            for next_id in self._get_all_next_points(point_to_delete)
+            if int(next_id) not in removed_ids
+        ]
 
         point_position_id, position, output = self.get_position(point_to_delete)
 
         if point_position_id is None:
-            next_points = self._get_all_next_points(point_to_delete)
-            if next_points:
-                graph[self.GRAPH_ROOT_KEY] = next_points[0]
+            if next_point_ids:
+                graph[self.GRAPH_ROOT_KEY] = next_point_ids[0]
             else:
                 del graph[self.GRAPH_ROOT_KEY]
 
@@ -818,11 +948,12 @@ class BaseGraphHandler(ABC):
             if not graph[point_position_id]["next"]:
                 del graph[point_position_id]["next"]
         elif position == "child":
-            next_points = self._get_all_next_points(point_to_delete)
             parent_info = graph[point_position_id]
             children_dict = self._get_children_dict(parent_info)
             children_on_edge = children_dict.get(output, [])
-            new_children = _replace(children_on_edge, point_to_delete.id, next_points)
+            new_children = _replace(
+                children_on_edge, point_to_delete.id, next_point_ids
+            )
             self._set_children(parent_info, output, new_children)
 
         if not keep_info:
@@ -956,8 +1087,8 @@ class BaseGraphHandler(ABC):
             removed.
         """
 
-        for dep in self.collect_all_descendants(point):
-            self.graph.pop(str(dep.id), None)
+        for dep_id in self._collect_descendant_ids(point.id):
+            self.graph.pop(str(dep_id), None)
         self.graph.pop(str(point.id), None)
         self._update_graph()
 
@@ -979,7 +1110,14 @@ class BaseGraphHandler(ABC):
             return None, GraphPointPosition.SOUTH, ""
 
         for key, info in self.graph.items():
-            if key == self.GRAPH_ROOT_KEY or not isinstance(info, dict):
+            # Skip the point's own entry (mirroring `get_position`): a corrupted
+            # graph can list a point as its own `next` or child, and that
+            # self-reference must never be reported as its incoming position.
+            if (
+                key == self.GRAPH_ROOT_KEY
+                or key == str(point_id)
+                or not isinstance(info, dict)
+            ):
                 continue
             for output, next_ids in info.get("next", {}).items():
                 if point_id in next_ids:
@@ -1020,8 +1158,13 @@ class BaseGraphHandler(ABC):
             # children are intentionally not promoted: a parent is only ever deleted
             # by a cascade that also deletes its children, so those child ids are
             # themselves stale and get pruned (and dropped as detached) in this same
-            # pass.
-            successors = self.graph[point_key].get("next", {}).get("", [])
+            # pass. A corrupted graph can list the point as its own successor —
+            # never splice that back in.
+            successors = [
+                successor_id
+                for successor_id in self.graph[point_key].get("next", {}).get("", [])
+                if int(successor_id) != point_id
+            ]
 
             incoming = self._incoming_position(point_id)
             if incoming is None:
@@ -1067,18 +1210,235 @@ class BaseGraphHandler(ABC):
 
         return removed
 
+    @classmethod
+    def find_self_referencing_point_ids(cls, graph: SerializedGraph | None) -> set[int]:
+        """
+        Cheap O(n) scan over the serialized graph for points that reference
+        themselves via `next` or `children` — a violation of the graph
+        invariant that a point can never be its own successor or child. No
+        traversal, no model resolution and no queries, so it is safe to call
+        on every request as a fast-path corruption check.
+
+        :param graph: A raw serialized graph dict (maybe `None`).
+        :return: The ids of the self-referencing points.
+        """
+
+        result: set[int] = set()
+        for key, info in (graph or {}).items():
+            if key == cls.GRAPH_ROOT_KEY or not isinstance(info, dict):
+                continue
+            point_id = int(key)
+            references = [
+                *info.get("next", {}).values(),
+                *cls._get_children_dict_from_info(info).values(),
+            ]
+            if any(point_id in reference_ids for reference_ids in references):
+                result.add(point_id)
+        return result
+
+    def _remove_references_to(self, target_id: int, from_ids: set[int]):
+        """
+        Remove every `next`/`children` reference to `target_id` held by the
+        points in `from_ids`, cleaning up emptied `next` outputs and children
+        edges. Operates purely on the serialized graph; does not persist.
+
+        :param target_id: The id whose incoming references should be removed.
+        :param from_ids: The ids of the points to remove the references from.
+        """
+
+        for from_id in from_ids:
+            info = self.graph.get(str(from_id))
+            if not isinstance(info, dict):
+                continue
+
+            next_dict = info.get("next", {})
+            for output in list(next_dict):
+                if target_id in next_dict[output]:
+                    remaining = [
+                        next_id
+                        for next_id in next_dict[output]
+                        if int(next_id) != target_id
+                    ]
+                    if remaining:
+                        next_dict[output] = remaining
+                    else:
+                        del next_dict[output]
+            if "next" in info and not info["next"]:
+                del info["next"]
+
+            children_dict = self._get_children_dict(info)
+            for edge in list(children_dict):
+                if target_id in children_dict[edge]:
+                    self._set_children(
+                        info,
+                        edge,
+                        [
+                            child_id
+                            for child_id in children_dict[edge]
+                            if int(child_id) != target_id
+                        ],
+                    )
+
+    def strip_self_references(self) -> List[int]:
+        """
+        Remove every `next`/`children` reference a point holds to itself. The
+        point itself stays in the graph, at the position its parent references;
+        only the corrupted self-edges are dropped. The graph is persisted when
+        anything was stripped.
+
+        :return: The ids of the points whose self-references were stripped.
+        """
+
+        stripped = sorted(self.find_self_referencing_point_ids(self.graph))
+        for point_id in stripped:
+            self._remove_references_to(point_id, {point_id})
+
+        if stripped:
+            self._update_graph()
+
+        return stripped
+
+    @classmethod
+    def find_unreachable_point_ids(cls, graph: SerializedGraph | None) -> set[int]:
+        """
+        Return the ids of every point keyed in the graph that cannot be reached
+        from the root by following `next` (all outputs) and `children` (all
+        edges). Detached points are invisible to ordered traversals and cannot
+        be positioned (`get_position` raises), so they need re-attaching.
+
+        A pure in-memory O(n) walk with a seen set — no model resolution and no
+        queries — so it is safe to call on every request as a fast-path
+        corruption check.
+
+        :param graph: A raw serialized graph dict (maybe `None`).
+        :return: The ids of the unreachable points.
+        """
+
+        graph = graph or {}
+        all_ids = {int(key) for key in graph if key != cls.GRAPH_ROOT_KEY}
+
+        reachable: set[int] = set()
+        stack = [int(graph[cls.GRAPH_ROOT_KEY])] if cls.GRAPH_ROOT_KEY in graph else []
+        while stack:
+            point_id = stack.pop()
+            if point_id in reachable:
+                continue
+            reachable.add(point_id)
+
+            info = graph.get(str(point_id))
+            if not isinstance(info, dict):
+                continue
+            for next_ids in info.get("next", {}).values():
+                stack.extend(int(next_id) for next_id in next_ids)
+            for child_ids in cls._get_children_dict_from_info(info).values():
+                stack.extend(int(child_id) for child_id in child_ids)
+
+        return all_ids - reachable
+
+    def reattach_unreachable_points(
+        self,
+        container: GraphPoint | None = None,
+        slot: str = "",
+    ) -> List[int]:
+        """
+        Re-attach every unreachable point at the bottom of the graph, so it
+        becomes the last point of the default chain (visible and deletable
+        again). Only the *head* of each detached subtree is linked; its chain
+        and children ride along untouched. The graph is persisted when
+        anything was re-attached.
+
+        :param container: When given, attach at the end of this container's
+            `slot` children chain instead of the end of the root chain (e.g.
+            the shared page's root container).
+        :param slot: The children edge of `container` to attach into.
+        :return: The ids of the re-attached (head) points.
+        """
+
+        def attach(head_id: int):
+            if container is not None:
+                container_info = self.get_info(container)
+                head_ids = self._get_children_dict(container_info).get(slot, [])
+                if head_ids:
+                    tail_key = self._get_chain_tail_id(head_ids[0])
+                    self.graph.setdefault(tail_key, {}).setdefault("next", {})[""] = [
+                        head_id
+                    ]
+                else:
+                    self._set_children(container_info, slot, [head_id])
+            elif self.GRAPH_ROOT_KEY not in self.graph:
+                self.graph[self.GRAPH_ROOT_KEY] = head_id
+            else:
+                tail_key = self._get_chain_tail_id(self.graph[self.GRAPH_ROOT_KEY])
+                self.graph.setdefault(tail_key, {}).setdefault("next", {})[""] = [
+                    head_id
+                ]
+
+        reattached: List[int] = []
+        while unreachable := self.find_unreachable_point_ids(self.graph):
+            # Heads are unreachable points that no other unreachable point
+            # references — attaching a head brings its whole subtree back.
+            referenced: set[int] = set()
+            for point_id in unreachable:
+                info = self.graph.get(str(point_id))
+                if not isinstance(info, dict):
+                    continue
+                for next_ids in info.get("next", {}).values():
+                    referenced.update(int(next_id) for next_id in next_ids)
+                for child_ids in self._get_children_dict(info).values():
+                    referenced.update(int(child_id) for child_id in child_ids)
+
+            heads = sorted(unreachable - referenced)
+            if not heads:
+                # A fully cyclic detached component (e.g. A -> B -> A with no
+                # external reference): break the cycle deterministically at the
+                # lowest id so it gains a head, then re-attach it.
+                head = min(unreachable)
+                self._remove_references_to(head, unreachable)
+                heads = [head]
+
+            for head in heads:
+                attach(head)
+                reattached.append(head)
+
+        if reattached:
+            self._update_graph()
+
+        return reattached
+
     def migrate_graph(self, id_mapping: Dict[str, Any]):
         """
         Updates the point IDs and edge UIDs in the graph from the id_mapping.
+
+        A corrupted source graph can reference points that have no imported
+        counterpart in the id_mapping (e.g. an exported graph carrying a stale
+        reference to a record that no longer existed at export time). Keyed
+        entries for such points are pruned first — splicing their mapped
+        successors into place so surviving chains stay connected — and
+        remaining unkeyed dangling references are dropped during mapping, so a
+        corrupted export can always be imported.
 
         :param id_mapping: A dict containing the mapping of old IDs to new IDs for both
             points and edges.
         """
 
+        # The mapping key is absent when nothing was imported for this graph's
+        # point model (e.g. a page with no elements): every graph reference is
+        # then unmapped by definition.
+        point_mapping = id_mapping.get(self.instance_id_mapping, {})
+
+        stale_ids = {
+            int(key) for key in self.graph if key != self.GRAPH_ROOT_KEY
+        } - set(point_mapping)
+        if stale_ids:
+            self.prune_points(stale_ids)
+
         migrated = {}
 
+        def is_mapped(nid):
+            return int(nid) in point_mapping
+
         def map_point(nid):
-            return id_mapping[self.instance_id_mapping][int(nid)]
+            return point_mapping[int(nid)]
 
         def map_output(uid):
             if uid == "":
@@ -1087,15 +1447,19 @@ class BaseGraphHandler(ABC):
 
         for key, info in self.graph.items():
             if key == self.GRAPH_ROOT_KEY:
-                migrated[self.GRAPH_ROOT_KEY] = id_mapping[self.instance_id_mapping][
-                    info
-                ]
+                # An unmapped root reference (an unkeyed dangling id) is
+                # dropped; a keyed stale root was already promoted by the
+                # prune above.
+                if is_mapped(info):
+                    migrated[self.GRAPH_ROOT_KEY] = map_point(info)
 
             else:
                 migrated[str(map_point(key))] = {}
                 if "next" in info:
                     migrated[str(map_point(key))]["next"] = {
-                        map_output(uid): [map_point(nid) for nid in nids]
+                        map_output(uid): [
+                            map_point(nid) for nid in nids if is_mapped(nid)
+                        ]
                         for uid, nids in info["next"].items()
                     }
                 if "children" in info:
@@ -1103,14 +1467,14 @@ class BaseGraphHandler(ABC):
                     if isinstance(children, list):
                         # Legacy format: migrate to new dict format with default edge
                         migrated[str(map_point(key))]["children"] = {
-                            "": [map_point(nid) for nid in children]
+                            "": [map_point(nid) for nid in children if is_mapped(nid)]
                         }
                     else:
                         # New format: children edge keys are place names (e.g. "0",
                         # "1") that are static and don't need remapping — only `next`
                         # edge keys are output UIDs that need remapping.
                         migrated[str(map_point(key))]["children"] = {
-                            edge_key: [map_point(nid) for nid in nids]
+                            edge_key: [map_point(nid) for nid in nids if is_mapped(nid)]
                             for edge_key, nids in children.items()
                         }
 
