@@ -1,14 +1,45 @@
 import logging
+import os
+import subprocess
+import sys
 from unittest.mock import patch
 
 import pytest
 from sentry_sdk.envelope import Envelope
 
 from baserow.core.sentry import (
-    ConsoleSentryTransport,
     drop_expected_asyncio_websocket_disconnect_events,
     log_sentry_event_to_console,
 )
+from baserow.core.sentry_transport import ConsoleSentryTransport
+
+
+def test_sentry_sdk_is_not_loaded_when_sentry_is_disabled():
+    code = """
+import sys
+from types import SimpleNamespace
+
+from django.conf import settings
+
+settings.configure(SENTRY_DSN="")
+
+from baserow.core.sentry import setup_user_in_sentry
+
+setup_user_in_sentry(SimpleNamespace(id=1))
+assert not any(
+    module == "sentry_sdk" or module.startswith("sentry_sdk.")
+    for module in sys.modules
+)
+"""
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)}
+
+    subprocess.run(  # noqa: S603 - only the current interpreter runs fixed test code.
+        [sys.executable, "-c", code],
+        check=True,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
 
 
 def _asyncio_record(msg: str, name: str = "asyncio") -> logging.LogRecord:

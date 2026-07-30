@@ -35,6 +35,10 @@ class DisableTwoFactorAuthSerializer(serializers.Serializer):
 
 
 class VerifyTOTPSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    email = serializers.EmailField(
+        required=False,
+        help_text="Deprecated. User identity is resolved from the 2FA token. "
+        "This field is ignored and will be removed in a future version.",
+    )
     code = serializers.CharField(required=False)
     backup_code = serializers.CharField(required=False)

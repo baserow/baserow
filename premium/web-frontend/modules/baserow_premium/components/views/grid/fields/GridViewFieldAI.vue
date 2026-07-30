@@ -5,11 +5,11 @@
       ref="cell"
       class="grid-view__cell active"
     >
-      <div class="grid-field-button">
+      <div v-tooltip="fieldError" class="grid-field-button">
         <Button
           type="secondary"
           size="tiny"
-          :disabled="!modelAvailable || generating"
+          :disabled="!modelAvailable || generating || fieldHasError"
           :loading="generating"
           :icon="isDeactivated ? 'iconoir-lock' : ''"
           @click="generate()"
@@ -37,11 +37,14 @@
       @add-row-after="(...args) => $emit('add-row-after', ...args)"
     >
       <template v-if="!readOnly && editing" #default>
-        <div style="background-color: #fff; padding: 8px">
+        <div
+          v-tooltip="fieldError"
+          style="background-color: #fff; padding: 8px"
+        >
           <ButtonText
             v-if="!isDeactivated"
             icon="iconoir-magic-wand"
-            :disabled="!modelAvailable || generating"
+            :disabled="!modelAvailable || generating || fieldHasError"
             :loading="generating"
             @mousedown.prevent.stop="generate()"
           >

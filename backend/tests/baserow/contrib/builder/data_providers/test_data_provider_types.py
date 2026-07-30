@@ -1542,6 +1542,58 @@ def test_current_record_provider_get_data_chunk(data_fixture):
 
 
 @pytest.mark.django_db
+def test_current_record_provider_with_element_created_after_it(data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Fruit", "text")],
+        rows=[["Apple"], ["Banana"], ["Cherry"]],
+    )
+    field = table.field_set.get(name="Fruit")
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table, integration_args={"authorized_user": user}
+    )
+    repeat_element = data_fixture.create_builder_repeat_element(
+        page=page, data_source=data_source
+    )
+    button_element = data_fixture.create_builder_button_element(
+        page=page,
+        reference_element=repeat_element,
+        position=GraphPointPosition.CHILD,
+    )
+    # A root-level element created after the button. This button
+    # will be the highest-id element.
+    data_fixture.create_builder_heading_element(page=page)
+
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=button_element, event=EventTypes.CLICK, user=user
+    )
+
+    fake_request = HttpRequest()
+    fake_request.user = user
+    fake_request.data = {
+        "metadata": json.dumps(
+            {"current_record": {"index": 0, "record_id": rows[0].id}}
+        )
+    }
+
+    dispatch_context = BuilderDispatchContext(
+        fake_request, page, workflow_action, only_expose_public_allowed_properties=False
+    )
+
+    current_record_provider = CurrentRecordDataProviderType()
+
+    assert (
+        current_record_provider.get_data_chunk(dispatch_context, [field.db_column])
+        == "Apple"
+    )
+
+
+@pytest.mark.django_db
 def test_current_record_provider_type_import_path(data_fixture):
     # When a `current_record` provider is imported, and the path only contains the
     # current record index (`__idx__`), then there is no need to update the path.

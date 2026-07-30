@@ -50,6 +50,23 @@
             >
           </div>
         </div>
+        <div class="admin-settings__item">
+          <div class="admin-settings__label">
+            <div class="admin-settings__name">
+              {{ $t('settings.settingAllowReportingAbuseName') }}
+            </div>
+            <div class="admin-settings__description">
+              {{ $t('settings.settingAllowReportingAbuseDescription') }}
+            </div>
+          </div>
+          <div class="admin-settings__control">
+            <SwitchInput
+              :value="settings.allow_reporting_abuse"
+              @input="updateSettings({ allow_reporting_abuse: $event })"
+              >{{ $t('settings.enabled') }}</SwitchInput
+            >
+          </div>
+        </div>
       </div>
       <div class="admin-settings__group">
         <h2 class="admin-settings__group-title">

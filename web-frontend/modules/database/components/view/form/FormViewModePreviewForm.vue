@@ -57,24 +57,18 @@
             <i class="form-view__edit-icon iconoir-edit-pencil"></i
           ></a>
         </h1>
-        <p v-if="!readOnly || view.description" class="form-view__description">
-          <Editable
-            ref="description"
-            :value="view.description"
+        <div
+          v-if="!readOnly || view.description"
+          class="form-view__description"
+        >
+          <FormViewDescription
+            :value="view.description || ''"
+            :read-only="readOnly"
             :placeholder="$t('formViewModePreviewForm.descriptionPlaceholder')"
-            :multiline="true"
-            @change="updateForm({ description: $event.value })"
-            @editing="editingDescription = $event"
-          ></Editable>
-          <a
-            v-if="!readOnly"
-            class="form-view__edit"
-            :class="{ 'form-view__edit--hidden': editingDescription }"
-            @click="$refs.description.edit()"
-          >
-            <i class="form-view__edit-icon iconoir-edit-pencil"></i
-          ></a>
-        </p>
+            :get-scroll-area-element="getScrollAreaElement"
+            @change="updateForm({ description: $event })"
+          ></FormViewDescription>
+        </div>
         <div v-if="fields.length === 0" class="form-view__no-fields">
           <div class="form-view__no-fields-title">
             {{ $t('formViewModePreviewForm.noFieldsTitle') }}
@@ -101,6 +95,7 @@
           :field-options="fieldOptions[field.id]"
           :fields="fields"
           :read-only="readOnly"
+          :get-scroll-area-element="getScrollAreaElement"
           @hide="updateFieldOptionsOfField(view, field, { enabled: false })"
           @updated-field-options="
             updateFieldOptionsOfField(view, field, $event)
@@ -108,11 +103,8 @@
         >
         </FormViewField>
       </div>
-      <div
-        class="form-view__actions"
-        :class="{ 'form-view__actions--single': !view.show_logo }"
-      >
-        <FormViewPoweredBy v-if="view.show_logo"></FormViewPoweredBy>
+      <div class="form-view__actions">
+        <FormViewFooterLinks :show-logo="view.show_logo"></FormViewFooterLinks>
         <div class="form-view__submit">
           <Editable
             ref="submit_text"
@@ -151,16 +143,18 @@
 import FormViewField from '@baserow/modules/database/components/view/form/FormViewField'
 import FormViewImageUpload from '@baserow/modules/database/components/view/form/FormViewImageUpload'
 import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 import FormViewMetaControls from '@baserow/modules/database/components/view/form/FormViewMetaControls'
+import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 
 export default {
   name: 'FormViewModePreviewForm',
   components: {
-    FormViewPoweredBy,
+    FormViewFooterLinks,
     FormViewField,
     FormViewImageUpload,
     FormViewMetaControls,
+    FormViewDescription,
   },
   mixins: [formViewHelpers],
   props: {
@@ -184,13 +178,18 @@ export default {
       type: Boolean,
       required: true,
     },
+    // Resolves the scrollable preview container owned by FormViewPreview.
+    getScrollAreaElement: {
+      type: Function,
+      required: false,
+      default: null,
+    },
   },
   emits: ['ordered-fields'],
   data() {
     return {
       editingTitle: false,
       editingSubmitText: false,
-      editingDescription: false,
     }
   },
   methods: {

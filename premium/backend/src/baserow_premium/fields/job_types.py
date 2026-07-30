@@ -11,6 +11,7 @@ from loguru import logger
 from rest_framework import serializers
 
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
+from baserow.api.generative_ai.errors import ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
 from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
@@ -34,10 +35,12 @@ from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
+from baserow_premium.api.fields.errors import ERROR_AI_FIELD_PROMPT_INVALID
 
-from .exceptions import AIFieldEmptyPromptError
+from .exceptions import AIFieldEmptyPromptError, AIFieldPromptInvalidError
 from .handler import AIFieldHandler
 from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
+from .visitors import get_ai_prompt_error
 
 
 class AIValueUpdate(NamedTuple):
@@ -57,6 +60,8 @@ class GenerateAIValuesJobType(JobType):
         WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
         ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
         FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+        AIFieldPromptInvalidError: ERROR_AI_FIELD_PROMPT_INVALID,
+        ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
     }
     serializer_field_names = [
         "field_id",
@@ -189,6 +194,12 @@ class GenerateAIValuesJobType(JobType):
         }
 
         AIFieldHandler.get_valid_model_type_or_raise(ai_field)
+
+        # Validate here rather than in the API views so every entry point
+        # (dedicated endpoint, generic /jobs/ endpoint) shares the invariant.
+        prompt_error = get_ai_prompt_error(ai_field.ai_prompt, ai_field.table_id)
+        if prompt_error:
+            raise AIFieldPromptInvalidError(prompt_error)
 
         if unsaved_job.mode == GenerateAIValuesJob.MODES.AUTO_UPDATE:
             if not AIFieldScheduledUpdate.objects.filter(field_id=ai_field.id).exists():

@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import {
+  ANONYMOUS_FOCUS_ENABLED,
   createPresenceFocusSender,
   getPresenceVisibleUsers,
   isUserPresenceEnabled,
@@ -35,6 +36,22 @@ describe('isUserPresenceEnabled', () => {
 
   test('disabled when visible users is missing', () => {
     expect(isUserPresenceEnabled({ $config: { public: {} } })).toBe(false)
+  })
+
+  test('disabled on public views even when visible users > 0', () => {
+    const vm = {
+      $config: { public: { baserowPresenceVisibleUsers: '3' } },
+      $store: { getters: { 'page/view/public/getIsPublic': true } },
+    }
+    expect(isUserPresenceEnabled(vm)).toBe(false)
+  })
+
+  test('enabled when not a public view and visible users > 0', () => {
+    const vm = {
+      $config: { public: { baserowPresenceVisibleUsers: '3' } },
+      $store: { getters: { 'page/view/public/getIsPublic': false } },
+    }
+    expect(isUserPresenceEnabled(vm)).toBe(true)
   })
 })
 
@@ -134,6 +151,20 @@ describe('resolvePresencePageParams', () => {
       params: { table_id: 10 },
       spaceName: 'table-10',
       focusEnabled: true,
+    })
+  })
+
+  test('returns focusEnabled matching ANONYMOUS_FOCUS_ENABLED for public view', () => {
+    const result = resolvePresencePageParams(null, null, null, null, {
+      isPublicView: true,
+      slug: 'abc',
+      token: 'tok',
+    })
+    expect(result).toEqual({
+      page: 'view',
+      params: { slug: 'abc', token: 'tok' },
+      spaceName: null,
+      focusEnabled: ANONYMOUS_FOCUS_ENABLED,
     })
   })
 

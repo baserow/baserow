@@ -2899,19 +2899,28 @@ export const actions = {
       return refresh
     }
 
-    if (lastRefreshRequest !== null) {
-      lastRefreshRequestController.abort()
-    }
+    const searchSnapshot = getters.getServerSearchTerm
+    const searchModeSnapshot = getDefaultSearchModeFromEnv($config)
+    const filtersSnapshot = getFilters(view, adhocFiltering)
+    const orderBySnapshot = getOrderBy(view, adhocSorting)
+    const groupBySnapshot = getGroupBy(
+      rootGetters,
+      getters.getLastGridId,
+      getters.getAdhocGrouping
+    )
+    const isPublic = rootGetters['page/view/public/getIsPublic']
+    const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+
     lastRefreshRequestController = new AbortController()
     lastRefreshRequest = GridService($client)
       .fetchCount({
         gridId,
-        search: getters.getServerSearchTerm,
-        searchMode: getDefaultSearchModeFromEnv($config),
+        search: searchSnapshot,
+        searchMode: searchModeSnapshot,
         signal: lastRefreshRequestController.signal,
-        publicUrl: rootGetters['page/view/public/getIsPublic'],
-        publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-        filters: getFilters(view, adhocFiltering),
+        publicUrl: isPublic,
+        publicAuthToken,
+        filters: filtersSnapshot,
       })
       .then((response) => {
         const count = response.data.count
@@ -2932,17 +2941,13 @@ export const actions = {
             limit,
             includeFieldOptions,
             signal: lastRefreshRequestController.signal,
-            search: getters.getServerSearchTerm,
-            searchMode: getDefaultSearchModeFromEnv($config),
-            publicUrl: rootGetters['page/view/public/getIsPublic'],
-            publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-            groupBy: getGroupBy(
-              rootGetters,
-              getters.getLastGridId,
-              getters.getAdhocGrouping
-            ),
-            orderBy: getOrderBy(view, adhocSorting),
-            filters: getFilters(view, adhocFiltering),
+            search: searchSnapshot,
+            searchMode: searchModeSnapshot,
+            publicUrl: isPublic,
+            publicAuthToken,
+            groupBy: groupBySnapshot,
+            orderBy: orderBySnapshot,
+            filters: filtersSnapshot,
             excludeCount: true, // We already have it from the previous request.
           })
           .then(({ data }) => ({
@@ -2972,9 +2977,11 @@ export const actions = {
           bufferLimit: data.results.length,
         })
 
-        dispatch('updateSearch', { fields })
+        if (searchSnapshot === getters.getServerSearchTerm) {
+          dispatch('updateSearch', { fields })
+        }
         if (includeFieldOptions) {
-          if (rootGetters['page/view/public/getIsPublic']) {
+          if (isPublic) {
             commit('REPLACE_PUBLIC_FIELD_OPTIONS', data.field_options)
           } else {
             commit('REPLACE_ALL_FIELD_OPTIONS', data.field_options)
@@ -2995,6 +3002,11 @@ export const actions = {
         }
       })
     return lastRefreshRequest
+  },
+  abortRefresh() {
+    if (lastRefreshRequestController !== null) {
+      lastRefreshRequestController.abort()
+    }
   },
   async refreshActiveGroupBys(
     { commit, dispatch, getters, rootGetters, state },
@@ -4818,6 +4830,10 @@ export const actions = {
     }
   ) {
     const { $registry, $client, $i18n, $config } = this
+    // Closing the row modal clears its store entry, so a late blur-save gets an empty row.
+    if (row?.id === undefined) {
+      return
+    }
     const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
       `table_${table.id}`
     )

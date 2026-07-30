@@ -443,6 +443,13 @@ if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
         "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
+BASEROW_ABUSE_REPORT_THROTTLE_RATE = os.getenv(
+    "BASEROW_ABUSE_REPORT_THROTTLE_RATE", "5/h"
+)
+BASEROW_ABUSE_REPORT_NOTIFICATION_COOLDOWN_SECONDS = int(
+    os.getenv("BASEROW_ABUSE_REPORT_NOTIFICATION_COOLDOWN_SECONDS", 60 * 60 * 24)
+)
+
 BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 120))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
@@ -463,6 +470,13 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     CLIENT_SESSION_ID_HEADER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_HEADER,
     USER_SOURCE_AUTHENTICATION_HEADER,
+]
+
+BUILDER_GRAPH_PATCH_HEADER = "X-Baserow-Builder-Graph-Patch"
+
+# Response headers the browser is allowed to read on cross-origin requests
+CORS_EXPOSE_HEADERS = [
+    BUILDER_GRAPH_PATCH_HEADER,
 ]
 
 ACCESS_TOKEN_LIFETIME = timedelta(
@@ -494,7 +508,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.3.2",
+    "VERSION": "2.3.3",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -975,6 +989,11 @@ AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS = int(
 AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES", 60)
 )
+# The maximum number of node dispatches allowed in a single workflow run.
+# This protects against infinite dispatches due to a misconfigured node.
+AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN = int(
+    os.getenv("BASEROW_AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN", 1000)
+)
 
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
 
@@ -1217,6 +1236,9 @@ OAUTH_BACKEND_URL = os.getenv("BASEROW_OAUTH_BACKEND_URL") or PUBLIC_BACKEND_URL
 INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
     os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
 )
+BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS = str_to_bool(
+    os.getenv("BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS") or "true"
+)
 INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 # The minimum amount of minutes the periodic task's "minute" interval
 # supports. Self-hosters can run every minute, if they choose to.
@@ -1249,6 +1271,13 @@ PRESENCE_VISIBLE_USERS = int(os.getenv("BASEROW_PRESENCE_VISIBLE_USERS") or 3)
 BASEROW_BACKEND_LOG_LEVEL = os.getenv("BASEROW_BACKEND_LOG_LEVEL", "INFO")
 BASEROW_BACKEND_DATABASE_LOG_LEVEL = os.getenv(
     "BASEROW_BACKEND_DATABASE_LOG_LEVEL", "ERROR"
+)
+BASEROW_OTEL_LOG_LEVEL = os.getenv("BASEROW_OTEL_LOG_LEVEL") or "WARNING"
+BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS = float(
+    os.getenv("BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS") or 10
+)
+BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS = float(
+    os.getenv("BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS") or 60
 )
 
 BASEROW_JOB_EXPIRATION_TIME_LIMIT = int(
@@ -1466,13 +1495,12 @@ if SENTRY_DSN:
     import sentry_sdk
     import sentry_sdk.integrations as _sentry_integrations
     from loguru import logger
+    from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-    from baserow.core.sentry import (
-        ConsoleSentryTransport,
-        drop_expected_asyncio_websocket_disconnect_events,
-    )
+    from baserow.core.sentry import drop_expected_asyncio_websocket_disconnect_events
+    from baserow.core.sentry_transport import ConsoleSentryTransport
 
     # Exclude integrations whose module-level imports are incompatible:
     # - pydantic_ai: sentry-sdk patches ToolManager._call_tool which was
@@ -1501,9 +1529,35 @@ if SENTRY_DSN:
         0 if sentry_transport else float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", 0.01))
     )
 
+    # Auto-create Sentry cron monitors for celery beat tasks. Beat dispatches tasks
+    # with sentry-monitor-* headers and workers send the check-ins, so both processes
+    # need this integration; they all load these settings. Disabled with the console
+    # transport (fake DSN in dev) to avoid spamming check-in envelopes to the console.
+    sentry_monitor_beat_tasks = not sentry_transport and str_to_bool(
+        os.getenv("SENTRY_MONITOR_BEAT_TASKS") or "true"
+    )
+    # Validate patterns here: sentry-sdk matches them unguarded on every beat
+    # dispatch, so one invalid regex would stop all periodic tasks from being sent.
+    sentry_exclude_beat_tasks = []
+    for task in (os.getenv("SENTRY_EXCLUDE_BEAT_TASKS") or "").split(","):
+        task = task.strip()
+        if not task:
+            continue
+        try:
+            re.compile(task)
+            sentry_exclude_beat_tasks.append(task)
+        except re.error:
+            logger.warning(f"[SENTRY] Ignoring invalid exclude beat task: {task}")
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
+        integrations=[
+            DjangoIntegration(signals_spans=False, middleware_spans=False),
+            CeleryIntegration(
+                monitor_beat_tasks=sentry_monitor_beat_tasks,
+                exclude_beat_tasks=sentry_exclude_beat_tasks,
+            ),
+        ],
         traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
         before_send=drop_expected_asyncio_websocket_disconnect_events,

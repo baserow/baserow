@@ -279,7 +279,18 @@ export default {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
     },
     fieldTypes() {
-      return this.$registry.getAll('field')
+      const allFieldTypes = this.$registry.getAll('field')
+      // The type of the field being edited is always listed, even when hidden,
+      // otherwise the dropdown has no item matching its own value and renders
+      // blank for an existing field of a hidden type.
+      const currentType = this.defaultValues?.type
+      return Object.fromEntries(
+        Object.entries(allFieldTypes).filter(
+          ([type, fieldType]) =>
+            type === currentType ||
+            fieldType.isVisibleInDropdown(this.workspace)
+        )
+      )
     },
     hasFormComponent() {
       return !!this.values.type && this.getFormComponent(this.values.type)

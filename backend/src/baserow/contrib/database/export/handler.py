@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from loguru import logger
+from opentelemetry import trace
 
 from baserow.contrib.database.export.models import (
     EXPORT_JOB_CANCELLED_STATUS,
@@ -30,6 +31,7 @@ from baserow.core.storage import (
     _create_storage_dir_if_missing_and_open,
     get_default_storage,
 )
+from baserow.core.telemetry.utils import baserow_trace
 
 from .exceptions import (
     ExportJobCanceledException,
@@ -41,6 +43,7 @@ from .registries import TableExporter, table_exporter_registry
 from .utils import view_is_publicly_exportable
 
 User = get_user_model()
+tracer = trace.get_tracer(__name__)
 
 
 class ExportHandler:
@@ -138,6 +141,7 @@ class ExportHandler:
         return job
 
     @staticmethod
+    @baserow_trace(tracer)
     def run_export_job(job) -> ExportJob:
         """
         Given an export job will run the export and store the result in the configured

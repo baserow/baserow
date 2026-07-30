@@ -10,6 +10,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NO
 
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
+from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FileField
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -19,9 +20,11 @@ from baserow.contrib.database.fields.utils.deferred_foreign_key_updater import (
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
+from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
+from baserow.core.trash.handler import TrashHandler
 from baserow_premium.fields.field_types import AIFieldType
 from baserow_premium.fields.models import AIField
 
@@ -425,6 +428,7 @@ def test_create_ai_field_type_via_api_invalid_formula(premium_data_fixture, api_
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
+    # An unparseable prompt is rejected on save.
     assert response.status_code == HTTP_400_BAD_REQUEST
     response_json = response.json()
     assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
@@ -1305,6 +1309,33 @@ def test_create_ai_field_with_references(premium_data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
+def test_ai_field_ignores_cross_table_references_in_dependencies(
+    premium_data_fixture,
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    other_table = premium_data_fixture.create_database_table(user=user)
+    other_field = premium_data_fixture.create_text_field(table=other_table)
+
+    ai_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="ai",
+        name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt=f"get('fields.field_{other_field.id}')",
+    )
+
+    # A reference to another table's field is invalid, so it must not create a
+    # dependency edge that would let that field's changes touch this one.
+    assert ai_field.error is not None
+    assert not FieldDependency.objects.filter(dependant_id=ai_field.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
 def test_create_ai_field_auto_update_user(premium_data_fixture):
     """
     Test if AI field type handler sets the user when auto-update flag is set.
@@ -1463,6 +1494,46 @@ def test_import_serialized_ai_field_file_field_mapped_correctly(
     assert new_ai_field.ai_file_field.id != ai_field.id
 
     FileField.objects.get(table=imported_table, id=new_ai_field.ai_file_field.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_import_serialized_ai_field_keeps_the_prompt_mode(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(
+        table=table, order=0, name="text", primary=True
+    )
+    # A raw prompt is natural language, so it doesn't parse as a formula. The
+    # import must keep it raw: re-saving it as `simple` would make every row's
+    # generation fail on parsing the prose.
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt={"formula": "Write a concise summary", "mode": "raw"},
+    )
+    assert ai_field.ai_prompt["mode"] == "raw"
+
+    serialized = DatabaseApplicationType().export_serialized(
+        database, ImportExportConfig(include_permission_data=False)
+    )
+    serialized = json.loads(json.dumps(serialized))
+    imported_database = DatabaseApplicationType().import_serialized(
+        premium_data_fixture.create_workspace(user=user),
+        serialized,
+        ImportExportConfig(include_permission_data=True),
+        id_mapping={},
+    )
+
+    imported_table = Table.objects.get(database=imported_database)
+    new_ai_field = AIField.objects.get(table=imported_table)
+    assert new_ai_field.ai_prompt["mode"] == "raw"
+    assert new_ai_field.ai_prompt["formula"] == "Write a concise summary"
 
 
 @pytest.mark.django_db
@@ -1733,3 +1804,309 @@ def test_import_ai_field_disables_auto_update(premium_data_fixture):
     imported_field = AIField.objects.get(id=imported_field.id)
     assert imported_field.ai_auto_update is False
     assert imported_field.ai_auto_update_user_id is None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_error_property_detects_broken_prompt(premium_data_fixture):
+    premium_data_fixture.register_fake_generate_ai_type()
+    table = premium_data_fixture.create_database_table()
+    broken = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_999999')"},
+    )
+    assert broken.error is not None
+
+    text_field = premium_data_fixture.create_text_field(table=table)
+    valid = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI2",
+        ai_prompt={
+            "version": 1,
+            "formula": f"get('fields.field_{text_field.id}')",
+        },
+    )
+    assert valid.error is None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_error_property_detects_unavailable_model(premium_data_fixture):
+    table = premium_data_fixture.create_database_table()
+    table.database.workspace.generative_ai_models_settings = {
+        "test_generative_ai": {"models": ["another-model"]}
+    }
+    table.database.workspace.save(update_fields=["generative_ai_models_settings"])
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt="'Valid prompt'",
+    )
+
+    assert field.error == ("The selected AI model is disabled or no longer available.")
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_api_serializes_error(api_client, premium_data_fixture):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_999999')"},
+    )
+    response = api_client.get(
+        reverse("api:database:fields:item", kwargs={"field_id": field.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["error"] is not None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_list_api_serializes_disabled_instance_model_error(
+    settings, api_client, premium_data_fixture
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    workspace = table.database.workspace
+    workspace.generative_ai_models_settings = {
+        "openai": {
+            "api_key": "workspace-secret",
+            "models": ["gpt-5"],
+        }
+    }
+    workspace.save(update_fields=("generative_ai_models_settings",))
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5", "is_enabled": False}],
+    )
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="gpt-5",
+        ai_prompt="'Valid prompt'",
+    )
+
+    response = api_client.get(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    serialized_field = next(
+        serialized for serialized in response.json() if serialized["id"] == field.id
+    )
+    assert serialized_field["error"] == (
+        "The selected AI model is disabled or no longer available."
+    )
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_create_ai_field_rejects_disabled_instance_model(
+    settings, api_client, premium_data_fixture
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    workspace = table.database.workspace
+    workspace.generative_ai_models_settings = {
+        "openai": {
+            "api_key": "workspace-secret",
+            "models": ["gpt-5"],
+        }
+    }
+    workspace.save(update_fields=("generative_ai_models_settings",))
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5", "is_enabled": False}],
+    )
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "AI",
+            "type": "ai",
+            "ai_generative_ai_type": "openai",
+            "ai_generative_ai_model": "gpt-5",
+            "ai_prompt": "'Valid prompt'",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE"
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_error_clears_when_prompt_fixed(premium_data_fixture):
+    table = premium_data_fixture.create_database_table()
+    text_field = premium_data_fixture.create_text_field(table=table)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_999999')"},
+    )
+    assert field.error is not None
+
+    field.ai_prompt = {
+        "version": 1,
+        "formula": f"get('fields.field_{text_field.id}')",
+    }
+    field.save()
+    field.refresh_from_db()
+
+    assert field.error is None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_import_with_broken_reference_records_error(premium_data_fixture):
+    table = premium_data_fixture.create_database_table()
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_424242')"},
+    )
+    field_type = field_type_registry.get_by_model(field)
+    exported = field_type.export_serialized(field)
+
+    # id_mapping without the referenced field id -> after_import_serialized swallows
+    # the KeyError and leaves the broken reference, so import must not raise.
+    id_mapping = {"database_fields": {}}
+    imported_field = field_type.import_serialized(
+        table,
+        exported,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping,
+        deferred_fk_update_collector=DeferredForeignKeyUpdater(),
+    )
+    field_type.after_import_serialized(imported_field, FieldCache(), id_mapping)
+
+    imported_field = AIField.objects.get(id=imported_field.id)
+    assert imported_field.error is not None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_ai_field_import_with_unparseable_prompt_records_error(premium_data_fixture):
+    table = premium_data_fixture.create_database_table()
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="AI",
+        ai_prompt={"version": 1, "formula": "get('fields.field_1') x hello"},
+    )
+    field_type = field_type_registry.get_by_model(field)
+    exported = field_type.export_serialized(field)
+
+    # An unparseable prompt (e.g. from an old or hand-edited export) must not
+    # break the import; the field simply ends up broken.
+    id_mapping = {"database_fields": {}}
+    imported_field = field_type.import_serialized(
+        table,
+        exported,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping,
+        deferred_fk_update_collector=DeferredForeignKeyUpdater(),
+    )
+    field_type.after_import_serialized(imported_field, FieldCache(), id_mapping)
+
+    imported_field = AIField.objects.get(id=imported_field.id)
+    assert imported_field.error is not None
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+def test_deleting_referenced_field_marks_ai_field_as_updated(premium_data_fixture):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table)
+    ai_field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt={
+            "version": 1,
+            "formula": f"get('fields.field_{text_field.id}')",
+        },
+    )
+    assert ai_field.error is None
+
+    # A previously generated value must survive the dependency deletion.
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{ai_field.id}": "generated"})
+
+    # Deleting the referenced field must report the AI field as updated so the
+    # client re-fetches it and sees the new broken state.
+    updated = FieldHandler().delete_field(user, text_field)
+    assert ai_field.id in [f.id for f in updated]
+
+    ai_field.refresh_from_db()
+    assert ai_field.error is not None
+
+    row.refresh_from_db()
+    assert getattr(row, f"field_{ai_field.id}") == "generated"
+
+
+@pytest.mark.field_ai
+@pytest.mark.django_db
+@patch("baserow.contrib.database.fields.signals.field_restored.send")
+def test_restoring_referenced_field_clears_ai_field_error(
+    field_restored_mock, premium_data_fixture
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table)
+    ai_field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt={
+            "version": 1,
+            "formula": f"get('fields.field_{text_field.id}')",
+        },
+    )
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{ai_field.id}": "generated"})
+
+    FieldHandler().delete_field(user, text_field)
+    ai_field.refresh_from_db()
+    assert ai_field.error is not None
+
+    # Restoring the referenced field must report the AI field as updated so the
+    # client re-fetches it and sees the error is gone.
+    TrashHandler.restore_item(user, "field", text_field.id)
+    related = field_restored_mock.call_args[1]["related_fields"]
+    assert ai_field.id in [f.id for f in related]
+
+    ai_field.refresh_from_db()
+    assert ai_field.error is None
+
+    # The generated cell value must survive the delete/restore round trip.
+    row.refresh_from_db()
+    assert getattr(row, f"field_{ai_field.id}") == "generated"

@@ -232,6 +232,42 @@ export const actions = {
     }
   },
   /**
+   * Refreshes enabled AI models for every locally loaded workspace without
+   * replacing local UI and permission state.
+   */
+  async refreshAllGenerativeAIModels({ commit, getters }) {
+    const { $client } = this
+    const { data } = await WorkspaceService($client).fetchAll()
+
+    for (const refreshedWorkspace of data) {
+      if (getters.get(refreshedWorkspace.id) === undefined) {
+        continue
+      }
+      commit('UPDATE_ITEM', {
+        id: refreshedWorkspace.id,
+        values: {
+          generative_ai_models_enabled:
+            refreshedWorkspace.generative_ai_models_enabled || {},
+        },
+      })
+    }
+    return data
+  },
+  /**
+   * Refreshes the enabled AI models for one workspace.
+   */
+  async refreshGenerativeAIModels({ dispatch }, workspaceId) {
+    const data = await dispatch('refreshAllGenerativeAIModels')
+    const refreshedWorkspace = data.find(
+      (workspace) => workspace.id === workspaceId
+    )
+    if (refreshedWorkspace === undefined) {
+      return null
+    }
+
+    return refreshedWorkspace.generative_ai_models_enabled || {}
+  },
+  /**
    * Creates a new workspace with the given values.
    */
   async create({ commit, dispatch }, values) {

@@ -2,6 +2,8 @@ from datetime import timedelta
 
 from django.conf import settings
 
+from loguru import logger
+
 from baserow.config.celery import app
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.registries import job_type_registry
@@ -73,6 +75,13 @@ def run_async_job(self, job_id: int):
 
             job.set_state_failed(str(e), error)
             job.save()
+
+            try:
+                job_type.on_error(job, e)
+            except Exception:
+                logger.exception(
+                    f"The on_error hook of the {job_type.type} job {job.id} failed."
+                )
 
             if should_raise:
                 raise

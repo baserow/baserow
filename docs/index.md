@@ -54,6 +54,9 @@ Baserow by following one the guides below:
   the supported and recommended runtime dependencies.
 * [Monitoring Baserow](installation/monitoring.md): Learn how to monitor your Baserow
   server using open telemetry.
+* [Build OpenTelemetry boards and queries](installation/otel-boards-and-queries.md):
+  Configure request, endpoint, and per-user metrics boards and investigate retained
+  traces.
 * [Setup AI-assistant](installation/ai-assistant.md): A quick guide on how to setup the
   AI-assistant.
 
@@ -86,6 +89,9 @@ Baserow provides various APIs detailed below:
   redo technically.
 * [Permissions handling Guide](technical/permissions-guide.md): How Baserow implements
   permission checking technically.
+* [Copy and paste](technical/copy-and-paste.md): How cell values move through the
+  clipboard, why Baserow keeps the exact value in local storage, and how the long text
+  field behaves across every copy/paste path.
 
 ## Development
 

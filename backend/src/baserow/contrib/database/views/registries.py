@@ -197,6 +197,19 @@ class ViewType(
     options
     """
 
+    def get_public_url_path(self, view: "View") -> str:
+        """
+        Returns the web frontend path where the publicly shared view can be visited.
+        It's used to construct absolute public URLs on the backend, for example in
+        the abuse report admin notification. View types with a different public
+        route, like the form view, can override this method.
+
+        :param view: The publicly shared view.
+        :return: The path of the public page of the view.
+        """
+
+        return f"/public/{self.type}/{view.slug}"
+
     @property
     def model_reference_field_name(self):
         """

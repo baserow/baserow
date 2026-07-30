@@ -85,6 +85,7 @@
           <LocalBaserowTableServiceConditionalForm
             v-if="values.table_id"
             v-model="values.filters"
+            v-model:filter-groups="values.filter_groups"
             v-model:filter-type="values.filter_type"
             :fields="tableFields"
           />
@@ -150,6 +151,7 @@
             <LocalBaserowTableServiceConditionalForm
               v-if="values.table_id"
               v-model="values.filters"
+              v-model:filter-groups="values.filter_groups"
               v-model:filter-type="values.filter_type"
               :fields="tableFields"
             />

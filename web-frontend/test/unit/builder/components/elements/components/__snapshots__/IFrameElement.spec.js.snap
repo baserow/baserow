@@ -1,0 +1,47 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`IFrameElement > allows embedded scripts in an isolated editing sandbox 1`] = `
+<iframe
+  class="iframe-element__iframe"
+  height="300"
+  sandbox="allow-scripts"
+  srcdoc="<script>window.parent.document.cookie</script>"
+  style="pointer-events: none;"
+/>
+`;
+
+exports[`IFrameElement > allows restricted capabilities for external URLs in preview mode 1`] = `
+<iframe
+  class="iframe-element__iframe"
+  height="300"
+  sandbox="allow-scripts allow-forms allow-popups"
+  src="https://example.com"
+/>
+`;
+
+exports[`IFrameElement > allows restricted capabilities for external URLs in public mode 1`] = `
+<iframe
+  class="iframe-element__iframe"
+  height="300"
+  sandbox="allow-scripts allow-forms allow-popups"
+  src="https://example.com"
+/>
+`;
+
+exports[`IFrameElement > does not sandbox user-provided content in preview mode 1`] = `
+<iframe
+  class="iframe-element__iframe"
+  height="300"
+  srcdoc="<script>window.parent.document.cookie</script>"
+/>
+`;
+
+exports[`IFrameElement > fully sandboxes external URLs in editing mode 1`] = `
+<iframe
+  class="iframe-element__iframe"
+  height="300"
+  sandbox=""
+  src="https://example.com"
+  style="pointer-events: none;"
+/>
+`;

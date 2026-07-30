@@ -15,11 +15,12 @@
       <div class="form-view__heading">
         <Thumbnail v-if="logoImage !== null" :src="logoImage.url" width="200" />
         <h1 v-if="title !== ''" class="form-view__title">{{ title }}</h1>
-        <!-- prettier-ignore -->
-        <p
-          v-if="description !== ''"
-          class="form-view__description whitespace-pre-wrap"
-        >{{ description }}</p>
+        <div v-if="description !== ''" class="form-view__description">
+          <FormViewDescription
+            :value="description"
+            read-only
+          ></FormViewDescription>
+        </div>
       </div>
       <FormPageField
         v-for="field in visibleFields"
@@ -31,11 +32,12 @@
         :class="{ hidden: field._.hiddenViaQueryParam }"
         @input="updateValue('field_' + field.field.id, $event)"
       ></FormPageField>
-      <div
-        class="form-view__actions"
-        :class="{ 'form-view__actions--single': !showLogo }"
-      >
-        <FormViewPoweredBy v-if="showLogo"></FormViewPoweredBy>
+      <div class="form-view__actions">
+        <FormViewFooterLinks
+          :show-logo="showLogo"
+          show-report-abuse
+          :identifier="$route.params.slug"
+        ></FormViewFooterLinks>
         <div class="form-view__submit">
           <Button
             type="primary"
@@ -61,15 +63,17 @@
 <script>
 import baseFormViewMode from '@baserow/modules/database/mixins/baseFormViewMode'
 import FormPageField from '@baserow/modules/database/components/view/form/FormPageField'
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 import FormViewSubmitted from '@baserow/modules/database/components/view/form/FormViewSubmitted'
+import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 
 export default {
   name: 'FormViewModeForm',
   components: {
     FormViewSubmitted,
     FormPageField,
-    FormViewPoweredBy,
+    FormViewFooterLinks,
+    FormViewDescription,
   },
   mixins: [baseFormViewMode],
   emits: ['submit'],

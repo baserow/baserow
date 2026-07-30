@@ -193,6 +193,11 @@ export class GridPage {
     return this.page.locator(".grid-view__cell.active .grid-view__cell-error");
   }
 
+  /** The active rich text (TipTap) cell editor, visible while editing a rich text cell */
+  activeRichTextEditor(): Locator {
+    return this.page.locator(".grid-view__cell.active .tiptap.ProseMirror");
+  }
+
   /** The selected primary field cell content for the row at `rowIndex`. */
   selectedPrimaryCellAt(rowIndex: number): Locator {
     return this.primaryCellAt(rowIndex).locator(".grid-view__cell.active");
@@ -394,6 +399,18 @@ export class GridPage {
     await this.selectPrimaryCell(rowIndex);
     await this.page.keyboard.press("Enter");
     await expect(this.activeEditor()).toBeVisible({ timeout: 10_000 });
+  }
+
+  /**
+   * Select a rich text cell and press Enter to open its TipTap editor.
+   */
+  async startEditingRichTextField(
+    rowIndex: number,
+    fieldIndex: number,
+  ): Promise<void> {
+    await this.selectFieldCell(rowIndex, fieldIndex);
+    await this.page.keyboard.press("Enter");
+    await expect(this.activeRichTextEditor()).toBeVisible({ timeout: 10_000 });
   }
 
   /** Type into the currently active editor (replaces existing content) */

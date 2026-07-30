@@ -45,6 +45,8 @@ import {
   RuntimeSplit,
   RuntimeIsEmpty,
   RuntimeStrip,
+  RuntimeEncodeUri,
+  RuntimeEncodeUriComponent,
   RuntimeSum,
   RuntimeAvg,
   RuntimeAt,
@@ -2023,6 +2025,58 @@ describe('RuntimeStrip', () => {
     const formulaType = new RuntimeStrip()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
+  })
+})
+
+// The backend resolves the same formulas, so these must match
+// `RuntimeEncodeUri` / `RuntimeEncodeUriComponent` in Python exactly.
+describe('RuntimeEncodeUri', () => {
+  test.each([
+    { args: [''], expected: '' },
+    {
+      args: ['https://example.com/a b'],
+      expected: 'https://example.com/a%20b',
+    },
+    {
+      args: ['https://example.com/?q=1&x=2#top'],
+      expected: 'https://example.com/?q=1&x=2#top',
+    },
+    { args: ['100%'], expected: '100%25' },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeEncodeUri()
+    expect(formulaType.execute({}, formulaType.parseArgs(args))).toBe(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    expect(new RuntimeEncodeUri().validateNumberOfArgs(args)).toBe(expected)
+  })
+})
+
+describe('RuntimeEncodeUriComponent', () => {
+  test.each([
+    { args: [''], expected: '' },
+    { args: ['shoes#7'], expected: 'shoes%237' },
+    { args: ['a&b=1'], expected: 'a%26b%3D1' },
+    { args: ['a b'], expected: 'a%20b' },
+    { args: ['100%'], expected: '100%25' },
+    { args: ["-_.!~*'()"], expected: "-_.!~*'()" },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeEncodeUriComponent()
+    expect(formulaType.execute({}, formulaType.parseArgs(args))).toBe(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    expect(new RuntimeEncodeUriComponent().validateNumberOfArgs(args)).toBe(
+      expected
+    )
   })
 })
 

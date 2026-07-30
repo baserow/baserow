@@ -108,7 +108,11 @@ from .signals import (
     workspaces_reordered,
 )
 from .storage import get_default_storage
-from .telemetry.utils import baserow_trace_methods, disable_instrumentation
+from .telemetry.utils import (
+    baserow_trace,
+    baserow_trace_handler,
+    disable_instrumentation,
+)
 from .trash.handler import TrashHandler
 from .types import (
     Actor,
@@ -132,6 +136,8 @@ WorkspaceForUpdate = NewType("WorkspaceForUpdate", Workspace)
 
 tracer = trace.get_tracer(__name__)
 
+WORKSPACE_INVITATION_CREATED_METRIC_OBSERVATION = "workspace_invitation_created"
+
 
 @dataclass
 class ApplicationUpdatedResult:
@@ -140,7 +146,8 @@ class ApplicationUpdatedResult:
     updated_app_allowed_values: Dict[str, Any]
 
 
-class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context")):
+@baserow_trace_handler
+class CoreHandler:
     default_create_allowed_fields = ["name", "init_with_data"]
     default_update_allowed_fields = ["name"]
 
@@ -209,6 +216,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
                 "co_branding_logo",
                 "email_verification",
                 "verify_import_signature",
+                "allow_reporting_abuse",
             ],
             settings_instance,
         )
@@ -216,6 +224,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         settings_instance.save()
         return settings_instance
 
+    @baserow_trace(tracer, allow_nested=True)
     def check_multiple_permissions(
         self,
         checks: List[PermissionCheck],
@@ -308,6 +317,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         return result
 
+    @baserow_trace(tracer, allow_nested=True)
     def check_permission_for_multiple_actors(
         self,
         actors: List[Actor],
@@ -338,6 +348,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         return [actor for (actor, _, _), result in checked.items() if result is True]
 
+    @baserow_trace(tracer, allow_nested=True)
     def check_permissions(
         self,
         actor: Actor,
@@ -426,6 +437,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
                 f"{operation_name}."
             )
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_permissions(
         self, actor: Actor, workspace: Optional[Workspace] = None
     ) -> List[PermissionObjectResult]:
@@ -483,6 +495,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         return result
 
+    @baserow_trace(tracer, allow_nested=True)
     def filter_queryset(
         self,
         actor: Actor,
@@ -699,7 +712,12 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
             updated_fields.append("generative_ai_models_settings")
 
         workspace.save(update_fields=updated_fields)
-        workspace_updated.send(self, workspace=workspace, user=user)
+        workspace_updated.send(
+            self,
+            workspace=workspace,
+            user=user,
+            updated_fields=updated_fields,
+        )
 
         return workspace
 
@@ -1179,6 +1197,19 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         )
 
         self.send_workspace_invitation_email(invitation, base_url)
+
+        # Emit a sampling-independent metric observation without retaining another
+        # application span in the trace. The Collector turns this short-lived span
+        # into a cardinality-bounded per-user counter and then discards the span.
+        tracer.start_span(
+            "WorkspaceInvitation.created",
+            attributes={
+                "baserow.metric.observation": (
+                    WORKSPACE_INVITATION_CREATED_METRIC_OBSERVATION
+                ),
+                "user.id": user.id,
+            },
+        ).end()
 
         return invitation
 

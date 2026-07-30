@@ -521,8 +521,8 @@ export function isAdhocGroupBy(app, workspace, view, publicView) {
 }
 
 /**
- * If filters, sorts or group bys are read only (i.e. formula fields) or there are
- * read-only fields and there's an activeSearchTerm, then the rows cannot be
+ * If filters, sorts or group bys are read only (i.e. formula fields) or there is
+ * an activeSearchTerm and a searchable read-only field, then the rows cannot be
  * optimistically because the backend calculates the read-only values based on other
  * fields and the UI cannot predict the outcome reliably.
  */
@@ -532,10 +532,16 @@ export function canRowsBeOptimisticallyUpdatedInView(
   fields,
   activeSearchTerm
 ) {
+  const readOnlyFields = fields.filter((f) =>
+    $registry.get('field', f.type).isReadOnlyField(f)
+  )
   const readOnlyFieldIds = new Set(
-    fields
-      .filter((f) => $registry.get('field', f.type).isReadOnlyField(f))
-      .map((field) => String(field.id))
+    readOnlyFields.map((field) => String(field.id))
+  )
+  // A read-only field the search can't match, like one holding no value at
+  // all, never makes the search result depend on the backend.
+  const searchableReadOnlyFields = readOnlyFields.filter((f) =>
+    $registry.get('field', f.type).isSearchable(f)
   )
   const hasReadOnlyField = (sort) => readOnlyFieldIds.has(String(sort.field))
   const readOnlyGroupBys = view.group_bys
@@ -552,7 +558,7 @@ export function canRowsBeOptimisticallyUpdatedInView(
     readOnlyGroupBys ||
     readOnlySorts ||
     readOnlyFilters ||
-    (activeSearchTerm && readOnlyFieldIds.size > 0)
+    (activeSearchTerm && searchableReadOnlyFields.length > 0)
   return !needsServerSideCalculation
 }
 

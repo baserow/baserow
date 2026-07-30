@@ -223,7 +223,7 @@ export default {
       default: () => ({}),
     },
   },
-  emits: ['input', 'update:mode'],
+  emits: ['input', 'update:mode', 'update:invalid'],
   data() {
     return {
       editor: null,
@@ -387,6 +387,11 @@ export default {
     },
   },
   watch: {
+    // The `input` event only fires for valid formulas, so parents that must
+    // block submission on an invalid one need this signal too.
+    isFormulaInvalid(newValue) {
+      this.$emit('update:invalid', newValue)
+    },
     disabled(newValue) {
       this.editor.setOptions({ editable: !newValue && !this.readOnly })
     },

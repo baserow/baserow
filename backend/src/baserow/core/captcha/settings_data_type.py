@@ -18,7 +18,9 @@ class CaptchaSettingsDataType(SettingsDataType):
             return disabled
 
         enabled_contexts = [
-            ctx for ctx in ["signup"] if CaptchaHandler.is_captcha_enabled_for(ctx)
+            ctx
+            for ctx in ["signup", "abuse_report"]
+            if CaptchaHandler.is_captcha_enabled_for(ctx)
         ]
 
         if not enabled_contexts:

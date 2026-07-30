@@ -57,6 +57,7 @@ class IntegrationsConfig(AppConfig):
 
         from baserow.contrib.integrations.core.service_types import (
             CoreCSVFileReaderServiceType,
+            CoreGotoServiceType,
             CoreHTTPRequestServiceType,
             CoreHTTPTriggerServiceType,
             CoreIteratorServiceType,
@@ -70,6 +71,7 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(CoreHTTPRequestServiceType())
         service_type_registry.register(CoreSMTPEmailServiceType())
         service_type_registry.register(CoreRouterServiceType())
+        service_type_registry.register(CoreGotoServiceType())
         service_type_registry.register(CoreHTTPTriggerServiceType())
         service_type_registry.register(CoreManualTriggerServiceType())
         service_type_registry.register(CoreIteratorServiceType())

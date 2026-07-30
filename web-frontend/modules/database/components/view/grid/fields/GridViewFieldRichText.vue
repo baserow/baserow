@@ -22,7 +22,7 @@
       v-else
       ref="input"
       v-model="richCopy"
-      v-prevent-parent-scroll="editing"
+      v-prevent-parent-scroll.whenScrollable="editing"
       class="grid-field-rich-text__textarea"
       :class="{ 'grid-field-rich-text__textarea--resizable': editing }"
       :editable="editing && !isModalOpen()"
@@ -30,6 +30,8 @@
       :mentionable-users="workspace ? workspace.users : null"
       :thin-scrollbar="true"
       :menu-container="getMenuContainer"
+      :scrollable-area-element="getScrollableAreaElement"
+      :clipboard-markdown-resolver="resolveClipboardMarkdown"
     />
     <i
       v-if="editing && !isModalOpen()"
@@ -59,6 +61,7 @@ import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
 import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
+import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   components: { RichTextEditor, FieldRichTextModal },
@@ -67,6 +70,7 @@ export default {
     return {
       // local copy of the value storing the JSON representation of the rich text editor
       richCopy: '',
+      hasEdits: false,
     }
   },
   computed: {
@@ -89,14 +93,24 @@ export default {
       immediate: true,
     },
     editing(editing) {
+      this.hasEdits = false
       if (!editing) {
         this.richCopy = this.value || ''
       }
     },
+    richCopy() {
+      if (this.editing) {
+        this.hasEdits = true
+      }
+    },
   },
   methods: {
+    resolveClipboardMarkdown: getRichTextClipboardContent,
     getMenuContainer() {
       return document.body
+    },
+    getScrollableAreaElement() {
+      return this.$el?.closest('.grid-view__body') ?? null
     },
     isModalOpen() {
       return this.$refs.expandedModal?.isOpen()
@@ -130,6 +144,10 @@ export default {
       return this.isModalOpen() ? this.getError() : null
     },
     beforeSave() {
+      // Reserializing an untouched legacy value could rewrite it on mere blur.
+      if (!this.hasEdits) {
+        return this.value
+      }
       const ref = this.isModalOpen() ? 'expandedModal' : 'input'
       return this.$refs[ref].serializeToMarkdown()
     },
@@ -146,6 +164,10 @@ export default {
         return
       }
       this.save()
+    },
+    onPaste() {
+      // Prevent the grid paste handler from intercepting TipTap editor pastes.
+      return this.editing
     },
     canSaveByPressingEnter() {
       return false

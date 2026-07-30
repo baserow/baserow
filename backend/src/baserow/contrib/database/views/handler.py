@@ -51,7 +51,10 @@ from baserow.contrib.database.fields.field_filters import (
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import (
+    exclude_field_options_not_allowed_in_public_views,
+    field_type_registry,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
@@ -113,7 +116,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     MirrorDict,
@@ -240,7 +243,7 @@ class GroupByLevel:
     view_group_by: ViewGroupBy
 
 
-class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
+class ViewIndexingHandler:
     @classmethod
     def does_index_exist(cls, index_name: str) -> bool:
         """
@@ -681,7 +684,8 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
             view.save(update_fields=["db_index_name"])
 
 
-class ViewHandler(metaclass=baserow_trace_methods(tracer)):
+@baserow_trace_handler
+class ViewHandler:
     PUBLIC_VIEW_TOKEN_ALGORITHM = "HS256"  # nosec
 
     def list_views(
@@ -840,6 +844,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return views
 
+    @baserow_trace(tracer)
     def get_view_as_user(
         self,
         user: AbstractUser,
@@ -3024,6 +3029,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             user=user,
         )
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_queryset(
         self,
         user: Optional[AbstractUser],
@@ -3199,6 +3205,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return (valid_cached_values, need_computation)
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_view_field_aggregations(
         self,
         user: AbstractUser,
@@ -3345,6 +3352,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return values
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_field_aggregations(
         self,
         user: AbstractUser,
@@ -3619,6 +3627,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             for field in enabled_field_options
         ]
 
+    @baserow_trace(tracer)
     def submit_form_view(
         self,
         user: AbstractUser,
@@ -3676,6 +3685,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         )
         return created_row
 
+    @baserow_trace(tracer)
     def edit_form_view_row(
         self,
         user: AbstractUser,
@@ -3821,6 +3831,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         except jwt.InvalidTokenError:
             return False
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_public_rows_queryset_and_field_ids(
         self,
         view: View,
@@ -3875,7 +3886,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         if adhoc_filters is None:
             adhoc_filters = AdHocFilters()
 
-        visible_field_options = view_type.get_visible_field_options_in_order(view)
+        visible_field_options = exclude_field_options_not_allowed_in_public_views(
+            view_type.get_visible_field_options_in_order(view)
+        )
         visible_field_ids = {o.field_id for o in visible_field_options}
 
         field_ids = get_include_exclude_field_ids(
@@ -4030,6 +4043,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             for group_by in self._resolve_view_group_bys(base_queryset, view_group_bys)
         ]
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_group_by_data(
         self,
         base_queryset: QuerySet,
@@ -4138,6 +4152,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             "group_count": group_count,
         }
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_group_by_data_for_depth(
         self,
         base_queryset: QuerySet,
@@ -4780,6 +4795,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return self._fetch_group_by_data_rows(outer_sql, params)
 
+    @baserow_trace(tracer, allow_nested=True)
     def get_group_by_data_for_parents(
         self,
         base_queryset: QuerySet,

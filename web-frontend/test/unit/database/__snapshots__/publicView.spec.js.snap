@@ -92,8 +92,34 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
             <!--v-if-->
           </li>
           <!--v-if-->
+          <li
+            class="header__filter-item header__filter-item--no-margin-left"
+          >
+            <a
+              class="header__filter-link"
+              href="#"
+              title="publicViewMenu.moreOptions"
+            >
+              <i
+                class="header__filter-icon baserow-icon-more-vertical"
+              />
+            </a>
+            <teleport-stub
+              to="body"
+            >
+              <div
+                class="context visibility-hidden"
+              >
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+            <teleport-stub
+              to="body"
+            >
+              <!--v-if-->
+            </teleport-stub>
+          </li>
           
-          <!--v-if-->
           
           <li
             class="header__filter-item"
@@ -336,16 +362,9 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               </div>
             </div>
           </li>
-          
-          <li
-            class="header__filter-item header__filter-item--right header__filter-item--stretch"
-          >
-            <!--v-if-->
-          </li>
           <!--v-if-->
-          
           <li
-            class="header__filter-item"
+            class="header__filter-item header__filter-item--right"
           >
             <div
               class="header__search"

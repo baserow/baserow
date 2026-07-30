@@ -174,7 +174,8 @@
     "ai": "AI prompt",
     "multipleCollaboratorsDropdown": "Dropdown",
     "multipleCollaboratorsCheckboxes": "Checkboxes",
-    "defaultValueFunctionNow": "Current date"
+    "defaultValueFunctionNow": "Current date",
+    "button": "Button"
   },
   "fieldErrors": {
     "invalidNumber": "Invalid number",
@@ -224,7 +225,8 @@
     "uuid": "A read-only unique and persistent uuid.",
     "autonumber": "A read-only field that automatically increments a number for each new row.",
     "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it.",
-    "formViewEditRow": "A read-only field that generates a unique, signed URL allowing the row to be edited through the linked form view."
+    "formViewEditRow": "A read-only field that generates a unique, signed URL allowing the row to be edited through the linked form view.",
+    "button": "A button field. Clicking the button opens a URL built from the row's values. The cell stores no data and writes are rejected."
   },
   "fieldConstraint": {
     "uniqueWithEmpty": "Unique with empty"
@@ -460,8 +462,8 @@
     "cannotCreateFieldTypeDescription": "The requested field type cannot be created at the moment. It might be just a temporary problem with older tables. Please try again later.",
     "generativeAIDoesNotExistTitle": "Generative AI does not exist",
     "generativeAIDoesNotExistDescription": "The generative AI model does not exist.",
-    "modelDoesNotBelongToTypeTitle": "The selected model does not belong to the AI Type",
-    "modelDoesNotBelongToTypeDescription": "The selected model does not belong to the selected AI type.",
+    "modelDoesNotBelongToTypeTitle": "AI model unavailable",
+    "modelDoesNotBelongToTypeDescription": "The selected AI model is disabled or no longer available.",
     "generateAIPromptTitle": "Prompt error",
     "generateAIPromptDescription": "Something was wrong with the constructed prompt.",
     "fieldIsAlreadyPrimaryTitle": "Field is already primary",
@@ -700,6 +702,8 @@
     "splitDescription": "Splits the first argument using the optional second argument as the separator. If the second argument is not provided, uses ' ' as the separator.",
     "isEmptyDescription": "Returns true if the argument is empty, otherwise returns false",
     "stripDescription": "Strips any leading and trailing whitespace from the argument",
+    "encodeUriDescription": "Percent encodes the characters that are not allowed in a URL, leaving the URL structure intact",
+    "encodeUriComponentDescription": "Percent encodes the argument so it can safely be used as a single part of a URL, like a path segment or a query parameter",
     "sumDescription": "Sums the numbers inside the argument.",
     "avgDescription": "Averages the numbers inside the argument.",
     "atDescription": "Returns the item in the first argument at the index specified by the second argument.",

@@ -7,6 +7,7 @@ from baserow.contrib.database.fields.field_types import AutonumberFieldType
 from baserow.contrib.database.fields.models import (
     AutonumberField,
     BooleanField,
+    ButtonField,
     CreatedByField,
     CreatedOnField,
     DateField,
@@ -388,6 +389,17 @@ class FieldFixtures:
         self.set_test_field_kwarg_defaults(user, kwargs)
 
         field = UUIDField.objects.create(**kwargs)
+
+        if create_field:
+            self.create_model_field(kwargs["table"], field)
+
+        return field
+
+    def create_button_field(self, user=None, create_field=True, **kwargs):
+        self.set_test_field_kwarg_defaults(user, kwargs)
+        kwargs.setdefault("label", "Open")
+
+        field = ButtonField.objects.create(**kwargs)
 
         if create_field:
             self.create_model_field(kwargs["table"], field)

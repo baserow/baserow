@@ -7,7 +7,28 @@ and/or released.
 
 Add/remove features flags to the list below:
 
+- `ai-providers` — instance-wide AI provider management in the admin area.
+- `button-field`: enables the button field type
+  ([#1722](https://github.com/baserow/baserow/issues/1722)).
 
+### Preparing the `ai-providers` feature
+
+Before enabling `ai-providers` on an instance that already uses AI provider
+environment variables, preview the import:
+
+```bash
+just b manage migrate_ai_provider_settings
+```
+
+Review the reported providers, then apply it atomically:
+
+```bash
+just b manage migrate_ai_provider_settings --apply
+```
+
+The command does not print credentials and preserves provider types already configured
+in the database. It is safe to run again because only missing provider types are
+imported.
 
 ## Enabling feature flags
 
@@ -79,4 +100,3 @@ methods: {
     }
 }
 ```
-

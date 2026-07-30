@@ -67,6 +67,9 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field, LinkRowField
+from baserow.contrib.database.fields.registries import (
+    exclude_field_options_not_allowed_in_public_views,
+)
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
@@ -2221,7 +2224,9 @@ class PublicViewInfoView(APIView):
         if not view_type.has_public_info:
             raise ViewDoesNotExist()
 
-        field_options = view_type.get_visible_field_options_in_order(view_specific)
+        field_options = exclude_field_options_not_allowed_in_public_views(
+            view_type.get_visible_field_options_in_order(view_specific)
+        )
         ordered_field_ids = list(field_options.values_list("field_id", flat=True))
         fields = specific_iterator(
             Field.objects.filter(id__in=ordered_field_ids)

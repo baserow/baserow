@@ -216,8 +216,7 @@
   },
   "elementForms": {
     "textInputPlaceholder": "Enter text...",
-    "urlInputPlaceholder": "Enter url...",
-    "invalidFormula": "The formula is invalid"
+    "urlInputPlaceholder": "Enter url..."
   },
   "headingElement": {
     "missingValue": "Missing title...",
@@ -341,6 +340,8 @@
     "urlHelp": "Note: please make sure that you have control over, or trust the url entered.",
     "embedLabel": "Embed",
     "embedPlaceholder": "Raw HTML content to be embedded",
+    "warningTitle": "Only use trusted content",
+    "warningMessage": "IFrame content is sandboxed in the editor, where embedded HTML can run scripts in isolation. In previews and published applications, embedded HTML can run without restrictions, while external URLs can run scripts, submit forms, and open popups.",
     "heightLabel": "Height (px)",
     "heightPlaceholder": "Height in pixels"
   },
@@ -734,7 +735,7 @@
     "submitLabel": "On submit",
     "afterLoginLabel": "After login"
   },
-  "getFormulaComponent": {
+  "getExpressionComponent": {
     "errorTooltip": "Invalid reference"
   },
   "fontSidePanelForm": {
@@ -936,7 +937,7 @@
     "optionType": "Options type",
     "manual": "Manual",
     "dataSource": "Data source",
-    "formulas": "Formulas"
+    "expressions": "Expressions"
   },
   "fieldMappingContext": {
     "enableField": "Enable field",
@@ -983,7 +984,7 @@
     "errorFetchingRolesTitle": "Could not fetch User Roles",
     "errorFetchingRolesMessage": "There was a problem while fetching User Roles.",
     "visibilityCondition": "Visibility condition",
-    "visibilityConditionHelper": "If the result of this formula is true, and the visitor choice above is true, the element will be visible. This condition only affects the element’s visibility. To exclude data from the server response instead, use the user role filtering option above.",
+    "visibilityConditionHelper": "If the result of this expression is true, and the visitor choice above is true, the element will be visible. This condition only affects the element’s visibility. To exclude data from the server response instead, use the user role filtering option above.",
     "visibilityConditionPlaceholder": "Condition..."
   },
   "userDataProviderType": {

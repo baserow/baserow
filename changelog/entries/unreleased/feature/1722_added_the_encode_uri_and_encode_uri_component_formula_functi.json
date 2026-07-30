@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added the encode_uri and encode_uri_component formula functions.",
+    "issue_origin": "github",
+    "issue_number": 1722,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-07-28"
+}

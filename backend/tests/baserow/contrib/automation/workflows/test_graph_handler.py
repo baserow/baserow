@@ -965,3 +965,61 @@ def test_graph_handler_migrate():
         "48": {"children": {"": []}},
         "49": {},
     }
+
+
+@pytest.mark.django_db
+def test_graph_handler_migrate_with_unmapped_points():
+    # Regression: a corrupted export can reference points that were never
+    # exported (e.g. a stale reference to a record hard-deleted before export).
+    # Those ids have no entry in the id_mapping, which used to raise KeyError
+    # and abort the whole import. Keyed stale entries must be pruned (splicing
+    # their successors into the chain) and unkeyed dangling references dropped.
+    workflow = MagicMock()
+    workflow.graph = {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {"children": [7], "next": {"": [4]}},
+        "4": {"next": {"": [5], "randomUid": [9]}},
+        "7": {"next": {"": [8]}},
+        "8": {"children": []},
+        "9": {},
+    }
+
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
+
+    # 2 (keyed) and 5 (referenced but unkeyed) have no imported counterpart.
+    graph_handler.migrate_graph(
+        {
+            "automation_workflow_nodes": {1: 41, 3: 43, 4: 44, 7: 47, 8: 48, 9: 49},
+            "automation_edge_outputs": {"randomUid": "anotherRandomUid"},
+        }
+    )
+
+    assert graph_handler.graph == {
+        "0": 41,
+        # 2 was pruned and its successor spliced in: 1 -> 3.
+        "41": {"next": {"": [43]}},
+        "43": {"next": {"": [44]}, "children": {"": [47]}},
+        # The dangling reference to 5 is dropped.
+        "44": {"next": {"": [], "anotherRandomUid": [49]}},
+        "47": {"next": {"": [48]}},
+        "48": {"children": {"": []}},
+        "49": {},
+    }
+
+
+@pytest.mark.django_db
+def test_graph_handler_migrate_with_unmapped_root():
+    # A root reference that is unkeyed and unmapped is dropped instead of
+    # raising; the surviving points are re-attached by the heal on next load.
+    workflow = MagicMock()
+    workflow.graph = {"0": 99, "1": {}}
+
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
+
+    graph_handler.migrate_graph(
+        {"automation_workflow_nodes": {1: 41}, "automation_edge_outputs": {}}
+    )
+
+    assert graph_handler.graph == {"41": {}}

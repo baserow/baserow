@@ -10,7 +10,7 @@
       <textarea
         ref="input"
         v-model="copy"
-        v-prevent-parent-scroll
+        v-prevent-parent-scroll.whenScrollable
         :disabled="readOnly"
         type="text"
         class="grid-field-long-text__textarea"

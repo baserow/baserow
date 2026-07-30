@@ -50,12 +50,14 @@ from baserow.core.cache import global_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.storage import ExportZipFile
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
 
 BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS = 60 * 60
 
 
+@baserow_trace_handler
 class PageHandler:
     def get_page(self, page_id: int, base_queryset: Optional[QuerySet] = None) -> Page:
         """

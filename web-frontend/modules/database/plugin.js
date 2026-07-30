@@ -1,4 +1,5 @@
 import { defineNuxtPlugin } from '#app'
+import { DatabaseViewsAdminType } from '@baserow/modules/database/adminTypes'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import {
   DuplicateTableJobType,
@@ -40,6 +41,7 @@ import {
   AutonumberFieldType,
   PasswordFieldType,
   FormViewEditRowFieldType,
+  ButtonFieldType,
 } from '@baserow/modules/database/fieldTypes'
 import {
   EqualViewFilterType,
@@ -358,6 +360,7 @@ import {
 import {
   SyncedFieldsConfigureDataSyncType,
   SettingsConfigureDataSyncType,
+  SyncHistoryConfigureDataSyncType,
 } from '@baserow/modules/database/configureDataSyncTypes'
 import { DatabaseGuidedTourType } from '@baserow/modules/database/guidedTourTypes'
 import {
@@ -399,6 +402,7 @@ export default defineNuxtPlugin({
 
     $registry.register('plugin', new DatabasePlugin(context))
     $registry.register('application', new DatabaseApplicationType(context))
+    $registry.register('admin', new DatabaseViewsAdminType(context))
 
     $registry.register('job', new DuplicateTableJobType(context))
     $registry.register('job', new SyncDataSyncTableJobType(context))
@@ -700,6 +704,9 @@ export default defineNuxtPlugin({
     $registry.register('field', new AutonumberFieldType(context))
     $registry.register('field', new PasswordFieldType(context))
     $registry.register('field', new FormViewEditRowFieldType(context))
+    // Always registered so existing button fields keep rendering when the
+    // flag is off; the field type dropdown hides it via isVisibleInDropdown.
+    $registry.register('field', new ButtonFieldType(context))
 
     $registry.register(
       'fieldConstraint',
@@ -1066,6 +1073,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'configureDataSync',
       new SettingsConfigureDataSyncType(context)
+    )
+    $registry.register(
+      'configureDataSync',
+      new SyncHistoryConfigureDataSyncType(context)
     )
 
     $registry.register('guidedTour', new DatabaseGuidedTourType(context))

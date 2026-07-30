@@ -279,6 +279,9 @@ def test_generate_ai_field_value_view_generative_ai_model_does_not_belong_to_typ
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE"
+    assert response.json()["detail"] == (
+        "The selected AI model is disabled or no longer available."
+    )
 
 
 @pytest.mark.django_db
@@ -479,3 +482,101 @@ def test_list_jobs_filter_by_type_and_field_id(premium_data_fixture, api_client)
     assert response_data["jobs"][0]["id"] == job_2_id
     assert response_data["jobs"][0]["type"] == "generate_ai_values"
     assert response_data["jobs"][0]["field_id"] == field_2.id
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_generate_ai_field_value_rejected_when_prompt_broken(
+    premium_data_fixture, api_client
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="ai",
+        ai_prompt={"version": 1, "formula": "get('fields.field_999999')"},
+    )
+
+    rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
+
+    response = api_client.post(
+        reverse(
+            "api:premium:fields:async_generate_ai_field_values",
+            kwargs={"field_id": field.id},
+        ),
+        {"row_ids": [rows[0].id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_AI_FIELD_PROMPT_INVALID"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_bulk_generate_ai_values_job_rejected_when_prompt_broken(
+    premium_data_fixture, api_client
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+
+    database = premium_data_fixture.create_database_application(
+        user=user, name="database"
+    )
+    table = premium_data_fixture.create_database_table(name="table", database=database)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        name="ai",
+        ai_prompt={"version": 1, "formula": "get('fields.field_999999')"},
+    )
+
+    # The whole-view/table bulk modal posts directly to the generic jobs endpoint.
+    response = api_client.post(
+        reverse("api:jobs:list"),
+        {"type": "generate_ai_values", "field_id": field.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_AI_FIELD_PROMPT_INVALID"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_bulk_generate_ai_values_job_rejected_when_model_unavailable(
+    premium_data_fixture, api_client
+):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        ai_generative_ai_model="disabled-model",
+        ai_prompt="'Valid prompt'",
+    )
+
+    response = api_client.post(
+        reverse("api:jobs:list"),
+        {"type": "generate_ai_values", "field_id": field.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE",
+        "detail": "The selected AI model is disabled or no longer available.",
+    }

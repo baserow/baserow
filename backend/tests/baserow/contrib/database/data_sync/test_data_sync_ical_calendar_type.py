@@ -1,13 +1,18 @@
 from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
+from django.test.utils import override_settings
+
 import pytest
 import responses
 from freezegun import freeze_time
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import DataSyncSyncedProperty
-from baserow.contrib.database.data_sync.utils import compare_date
+from baserow.contrib.database.data_sync.utils import (
+    DATA_SYNC_BLOCKED_URL_ERROR,
+    compare_date,
+)
 
 ICAL_FEED_WITH_ONE_ITEMS_WITHOUT_DTEND = """BEGIN:VCALENDAR
 VERSION:2.0
@@ -71,6 +76,59 @@ def test_ical_sync_data_sync_table_without_dtend(data_fixture):
         2024, 9, 1, 0, 0, tzinfo=timezone.utc
     )
     assert getattr(sync_1_rows[0], f"field_{fields['dtend'].id}") is None
+
+
+@pytest.mark.django_db
+def test_ical_sync_private_address_blocked_when_not_allowed(data_fixture):
+    # When private addresses are not allowed the request goes through advocate, so
+    # an iCal URL pointing to a private address must fail with a clear sync error.
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid"],
+        # Port 80 is in advocate's whitelist, so the private IP check itself is hit.
+        ical_url="http://127.0.0.1:80/ical.ics",
+    )
+    data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert data_sync.last_error == DATA_SYNC_BLOCKED_URL_ERROR
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=True)
+@responses.activate
+def test_ical_sync_private_address_allowed_when_setting_enabled(data_fixture):
+    responses.add(
+        responses.GET,
+        "http://127.0.0.1/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS_WITHOUT_DTEND,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid"],
+        ical_url="http://127.0.0.1/ical.ics",
+    )
+    data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    assert data_sync.last_error is None
+    model = data_sync.table.get_model()
+    assert model.objects.count() == 1
 
 
 @pytest.mark.django_db

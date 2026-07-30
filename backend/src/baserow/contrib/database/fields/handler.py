@@ -21,7 +21,6 @@ from django.db.models import Prefetch, QuerySet
 from django.db.utils import DatabaseError, DataError, ProgrammingError
 
 from loguru import logger
-from opentelemetry import trace
 
 from baserow.contrib.database.db.schema import (
     lenient_schema_editor,
@@ -58,7 +57,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry, User
-from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
@@ -104,8 +103,6 @@ from .signals import (
     field_restored,
     field_updated,
 )
-
-tracer = trace.get_tracer(__name__)
 
 
 def _validate_field_name(
@@ -161,7 +158,8 @@ def _validate_field_name(
 T = TypeVar("T", bound="Field")
 
 
-class FieldHandler(metaclass=baserow_trace_methods(tracer)):
+@baserow_trace_handler
+class FieldHandler:
     def get_field(
         self,
         field_id: int,

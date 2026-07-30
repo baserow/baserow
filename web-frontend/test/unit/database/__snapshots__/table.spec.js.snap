@@ -21,6 +21,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </div>
           </teleport-stub>
         </li>
+        <!--v-if-->
         <li class="header__filter-item" data-highlight="view-filters">
           <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a>
             <teleport-stub to="body">
@@ -359,6 +360,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </div>
           </teleport-stub>
         </li>
+        <!--v-if-->
         <li class="header__filter-item" data-highlight="view-filters">
           <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a>
             <teleport-stub to="body">

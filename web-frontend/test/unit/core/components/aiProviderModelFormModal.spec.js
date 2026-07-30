@@ -1,0 +1,252 @@
+import { flushPromises } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+
+import AIProviderModelFormModal from '@baserow/modules/core/components/ai/AIProviderModelFormModal'
+import { TestApp } from '@baserow/test/helpers/testApp'
+
+describe('AIProviderModelFormModal', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+    vi.restoreAllMocks()
+  })
+
+  test('shows discovered models, excludes configured models, and accepts a suggestion', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation((action) => {
+        if (action === 'aiProvider/discoverModels') {
+          return Promise.resolve({
+            models: ['configured-model', 'claude-sonnet-5', 'claude-opus-4-8'],
+            supported: true,
+          })
+        }
+        if (action === 'aiProvider/createModel') {
+          return Promise.resolve({
+            id: 2,
+            model_identifier: 'claude-sonnet-5',
+          })
+        }
+        return Promise.resolve()
+      })
+    const wrapper = await testApp.mount(AIProviderModelFormModal, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'anthropic',
+          models: [{ model_identifier: 'configured-model' }],
+        },
+      },
+    })
+    await flushPromises()
+    await wrapper.vm.show()
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/discoverModels',
+      expect.anything()
+    )
+    await wrapper
+      .find('.ai-provider-model-combobox .form-input__input')
+      .trigger('focus')
+    await flushPromises()
+
+    expect(wrapper.find('.control__helper-text').text()).toBe(
+      'generativeAIModelType.anthropicModelIdentifierDescription'
+    )
+    expect(dispatch).toHaveBeenCalledWith(
+      'aiProvider/discoverModels',
+      'anthropic'
+    )
+    expect(
+      wrapper
+        .findAll('.ai-provider-model-combobox__suggestion')
+        .map((suggestion) => suggestion.text())
+    ).toEqual(['claude-sonnet-5', 'claude-opus-4-8'])
+
+    await wrapper
+      .findAll('.ai-provider-model-combobox__suggestion')[0]
+      .trigger('click')
+
+    expect(
+      wrapper.find('.ai-provider-model-combobox .form-input__input').element
+        .value
+    ).toBe('claude-sonnet-5')
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/createModel', {
+      providerId: 1,
+      values: { model_identifier: 'claude-sonnet-5' },
+    })
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/testModels',
+      expect.anything()
+    )
+  })
+
+  test('keeps manual entry available when discovery fails', async () => {
+    vi.spyOn(testApp.store, 'dispatch').mockRejectedValue(
+      new Error('Discovery failed')
+    )
+    const wrapper = await testApp.mount(AIProviderModelFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', models: [] },
+      },
+    })
+    await flushPromises()
+    await wrapper.vm.show()
+    const input = wrapper.find('.ai-provider-model-combobox .form-input__input')
+    await input.trigger('focus')
+    await flushPromises()
+
+    expect(wrapper.find('.select__items--empty').text()).toBe(
+      'aiProviderAdmin.modelDiscoveryUnavailable'
+    )
+
+    await input.trigger('focus')
+    await flushPromises()
+    expect(testApp.store.dispatch).toHaveBeenCalledTimes(2)
+
+    await input.setValue('custom-compatible-model')
+    await flushPromises()
+
+    expect(input.element.value).toBe('custom-compatible-model')
+    expect(wrapper.find('.actions button').attributes('disabled')).toBe(
+      undefined
+    )
+  })
+
+  test('does not automatically test a custom model identifier', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation((action) => {
+        if (action === 'aiProvider/discoverModels') {
+          return Promise.resolve({ models: ['gpt-5.6'], supported: true })
+        }
+        if (action === 'aiProvider/createModel') {
+          return Promise.resolve({
+            id: 2,
+            model_identifier: 'custom-model',
+          })
+        }
+        return Promise.resolve()
+      })
+    const wrapper = await testApp.mount(AIProviderModelFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', models: [] },
+      },
+    })
+    await flushPromises()
+    await wrapper.vm.show()
+    const modelInput = wrapper.find(
+      '.ai-provider-model-combobox .form-input__input'
+    )
+    await modelInput.trigger('focus')
+    await flushPromises()
+    await modelInput.setValue('custom-model')
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/createModel', {
+      providerId: 1,
+      values: { model_identifier: 'custom-model' },
+    })
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/testModels',
+      expect.anything()
+    )
+  })
+
+  test('does not discover models while editing an existing model', async () => {
+    const dispatch = vi.spyOn(testApp.store, 'dispatch')
+    const wrapper = await testApp.mount(AIProviderModelFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'mistral', models: [] },
+        model: {
+          id: 2,
+          model_identifier: 'mistral-large-latest',
+        },
+      },
+    })
+    await flushPromises()
+    await wrapper.vm.show()
+
+    expect(wrapper.find('.ai-provider-model-combobox').exists()).toBe(false)
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/discoverModels',
+      expect.anything()
+    )
+  })
+
+  test('shows and clears a duplicate identifier error on the model field', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation((action) => {
+        if (action === 'aiProvider/createModel') {
+          return Promise.reject({
+            response: {
+              data: {
+                error: 'ERROR_AI_PROVIDER_MODEL_ALREADY_CONFIGURED',
+                detail:
+                  'That model identifier is already configured for this provider.',
+              },
+            },
+          })
+        }
+        return Promise.resolve()
+      })
+    const wrapper = await testApp.mount(AIProviderModelFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', models: [] },
+      },
+    })
+    await wrapper.vm.show()
+    const modelInput = wrapper.find(
+      '.ai-provider-model-combobox .form-input__input'
+    )
+    await modelInput.setValue('gpt-5.4')
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    const modelField = wrapper.find('.control')
+    expect(modelField.find('.control__messages--error').text()).toBe(
+      'That model identifier is already configured for this provider.'
+    )
+    expect(modelField.find('.form-input').classes()).toContain(
+      'form-input--error'
+    )
+    const fieldContentOrder = modelField
+      .findAll(
+        '.form-input, .control__messages--error, .ai-provider-form__hint, .control__helper-text'
+      )
+      .map((element) =>
+        [
+          'form-input',
+          'control__messages--error',
+          'ai-provider-form__hint',
+          'control__helper-text',
+        ].find((className) => element.classes().includes(className))
+      )
+    expect(fieldContentOrder).toEqual([
+      'form-input',
+      'control__messages--error',
+      'ai-provider-form__hint',
+      'control__helper-text',
+    ])
+    expect(dispatch).not.toHaveBeenCalledWith('toast/error', expect.anything())
+
+    await wrapper
+      .find('.ai-provider-model-combobox .form-input__input')
+      .setValue('gpt-5.4-mini')
+    await flushPromises()
+    expect(wrapper.find('.control__messages--error').exists()).toBe(false)
+    expect(wrapper.find('.form-input').classes()).not.toContain(
+      'form-input--error'
+    )
+  })
+})

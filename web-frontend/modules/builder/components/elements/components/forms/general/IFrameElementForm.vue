@@ -14,6 +14,11 @@
       </RadioGroup>
     </FormGroup>
 
+    <Alert type="warning" class="margin-bottom-2">
+      <template #title>{{ $t('iframeElementForm.warningTitle') }}</template>
+      {{ $t('iframeElementForm.warningMessage') }}
+    </Alert>
+
     <FormGroup
       v-if="v$.values.source_type.$model === IFRAME_SOURCE_TYPES.URL"
       key="url"

@@ -29,7 +29,9 @@ from baserow.contrib.database.fields.field_types import (
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
     ModelDoesNotBelongToType,
@@ -82,6 +84,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         "ai_prompt",
         "ai_file_field_id",
         "ai_auto_update",
+        "error",
     ]
     serializer_field_overrides = {
         "ai_output_type": serializers.ChoiceField(
@@ -115,6 +118,15 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             allow_null=True,
             help_text="If set, AI field will be recalculated if a value of a "
             "referenced field has been changed.",
+        ),
+        "error": serializers.CharField(
+            required=False,
+            read_only=True,
+            allow_null=True,
+            help_text=(
+                "The error message if the field's prompt or model configuration "
+                "is invalid, else null."
+            ),
         ),
         **SelectOptionBaseFieldType.serializer_field_overrides,
     }
@@ -352,14 +364,31 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     def get_field_dependencies(
         self, field_instance: AIField, field_cache: "FieldCache"
     ) -> FieldDependencies:
-        field_ids = set(
-            extract_field_id_dependencies(field_instance.ai_prompt["formula"])
-        )
+        try:
+            field_ids = set(
+                extract_field_id_dependencies(field_instance.ai_prompt["formula"])
+            )
+        except BaserowFormulaException:
+            # An unparseable prompt (e.g. from an import) is surfaced via the
+            # field's `error`; it simply has no field dependencies.
+            field_ids = set()
         if field_instance.ai_file_field_id is not None:
             field_ids.add(field_instance.ai_file_field_id)
+        # Scoped to the field's table, matching `get_ai_prompt_error`; a prompt
+        # can only reference fields in the same table.
         existing_field_ids = set(
-            Field.objects.filter(id__in=field_ids).values_list("id", flat=True)
+            Field.objects.filter(
+                id__in=field_ids, table_id=field_instance.table_id
+            ).values_list("id", flat=True)
         )
+        # A trashed referenced field is declared as a broken reference (by name,
+        # like formula fields) so the edge survives and restoring the field
+        # re-links it and re-reports this field's error to the client.
+        trashed_names = Field.objects_and_trash.filter(
+            id__in=field_ids - existing_field_ids,
+            table_id=field_instance.table_id,
+            trashed=True,
+        ).values_list("name", flat=True)
         return [
             FieldDependency(
                 dependency_id=field_id,
@@ -368,7 +397,45 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             )
             for field_id in field_ids
             if field_id in existing_field_ids
+        ] + [
+            FieldDependency(
+                broken_reference_field_name=name,
+                dependant=field_instance,
+                via=None,
+            )
+            for name in trashed_names
         ]
+
+    def field_dependency_updated(
+        self,
+        field,
+        updated_field,
+        updated_old_field,
+        update_collector,
+        field_cache,
+        via_path_to_starting_table=None,
+    ):
+        # When a referenced field is created, updated, deleted or restored, the
+        # prompt's validity (and thus the computed `error`) can change. Mark the
+        # field as changed so it is re-serialized and pushed to the client,
+        # without touching its stored cell values (a None update statement is
+        # the collector's "changed without a cell update"). Not
+        # `add_field_which_has_changed`: that only reports via the
+        # additional-signals path, which skips the starting table, and the AI
+        # field usually lives in the same table as the changed dependency.
+        # (`field_dependency_created` and `field_dependency_deleted` both
+        # delegate here in the base type.)
+        update_collector.add_field_with_pending_update_statement(
+            field, None, via_path_to_starting_table
+        )
+        super().field_dependency_updated(
+            field,
+            updated_field,
+            updated_old_field,
+            update_collector,
+            field_cache,
+            via_path_to_starting_table,
+        )
 
     def _handle_dependent_rows_change(
         self,
@@ -568,14 +635,23 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
         if field.ai_prompt:
             try:
-                field.ai_prompt = replace_field_id_references(
-                    field.ai_prompt, id_mapping["database_fields"]
-                )
+                # Assign the whole object, not just the formula string: saving a
+                # bare string makes `to_python` re-wrap it as `simple` mode,
+                # which turns a raw natural language prompt into an
+                # unparseable formula.
+                prompt = BaserowFormulaObject.to_formula(field.ai_prompt)
+                field.ai_prompt = {
+                    **prompt,
+                    "formula": replace_field_id_references(
+                        prompt, id_mapping["database_fields"]
+                    ),
+                }
                 save = True
-            except KeyError:
-                # Raised when the field ID is not found in the mapping. If that's the
-                # case, we leave the field ID references broken so that the import
-                # can still succeed.
+            except (KeyError, BaserowFormulaException):
+                # KeyError: a referenced field ID isn't in the mapping.
+                # BaserowFormulaException: the prompt can't be parsed.
+                # In both cases we leave the prompt as-is so the import can still
+                # succeed; the broken state is surfaced via the field's `error`.
                 pass
 
         if save:

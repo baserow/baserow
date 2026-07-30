@@ -205,6 +205,28 @@ describe('BaseGraphHandler', () => {
       ])
     })
 
+    test('traverses non-default next outputs (router branches) before the default chain', () => {
+      // A router at pt(2) with a named branch (3 -> 4) and a default/fallback
+      // branch (5 -> 6). The named branch's nodes were previously skipped
+      // entirely because only the default '' chain was followed.
+      const h = make(
+        {
+          0: 1,
+          1: { next: { '': [2] } },
+          2: { next: { 'branch-uuid': [3], '': [5] } },
+          3: { next: { '': [4] } },
+          4: {},
+          5: { next: { '': [6] } },
+          6: {},
+        },
+        pm(1, 2, 3, 4, 5, 6)
+      )
+
+      expect(h.getPointsInDepthFirstOrder().map((p) => p.id)).toEqual([
+        1, 2, 3, 4, 5, 6,
+      ])
+    })
+
     test('can skip missing points without visiting their children', () => {
       const h = make(
         {

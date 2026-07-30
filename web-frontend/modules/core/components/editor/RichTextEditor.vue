@@ -13,15 +13,17 @@
         ref="bubbleMenu"
         :editor="editor"
         :visible="bubbleMenuVisible"
-        :append-to="menuContainer"
+        :append-to="resolvedMenuContainer"
         :scroll-target="scrollElement"
+        :visibility-targets="visibilityElements"
       />
       <RichTextEditorFloatingMenu
         ref="floatingMenu"
         :editor="editor"
         :visible="floatingMenuVisible"
-        :append-to="menuContainer"
+        :append-to="resolvedMenuContainer"
         :scroll-target="scrollElement"
+        :visibility-targets="visibilityElements"
       />
     </div>
     <EditorContent
@@ -41,90 +43,29 @@ import _ from 'lodash'
 import { mapGetters } from 'vuex'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Placeholder } from '@tiptap/extension-placeholder'
-import { Mention } from '@baserow/modules/core/editor/mention'
-import { Document } from '@tiptap/extension-document'
-import { Paragraph } from '@tiptap/extension-paragraph'
-import { HardBreak } from '@tiptap/extension-hard-break'
-import { Heading } from '@tiptap/extension-heading'
-import { ListItem } from '@tiptap/extension-list-item'
-import { BulletList } from '@tiptap/extension-bullet-list'
-import { OrderedList } from '@tiptap/extension-ordered-list'
-import { Bold } from '@tiptap/extension-bold'
-import { Italic } from '@tiptap/extension-italic'
-import { Strike } from '@tiptap/extension-strike'
-import { Link } from '@tiptap/extension-link'
-import { Underline } from '@tiptap/extension-underline'
-import { Subscript } from '@tiptap/extension-subscript'
-import { Superscript } from '@tiptap/extension-superscript'
-import { Blockquote } from '@tiptap/extension-blockquote'
-import { CodeBlock } from '@tiptap/extension-code-block'
-import { HorizontalRule } from '@tiptap/extension-horizontal-rule'
-import { TaskItem } from '@tiptap/extension-task-item'
-import { TaskList } from '@tiptap/extension-task-list'
-import { Text } from '@tiptap/extension-text'
-import { Dropcursor } from '@tiptap/extension-dropcursor'
-import { Gapcursor } from '@tiptap/extension-gapcursor'
-import { History } from '@tiptap/extension-history'
-import { mergeAttributes, isActive, posToDOMRect } from '@tiptap/core'
-
-import { Markdown } from 'tiptap-markdown'
+import { isActive } from '@tiptap/core'
 
 import RichTextEditorBubbleMenu from '@baserow/modules/core/components/editor/RichTextEditorBubbleMenu'
 import RichTextEditorFloatingMenu from '@baserow/modules/core/components/editor/RichTextEditorFloatingMenu'
 import { EnterStopEditExtension } from '@baserow/modules/core/editor/enterStopEditExtension'
-import { ScalableImage } from '@baserow/modules/core/editor/image'
+import {
+  createPlainTextEditorExtensions,
+  createRichTextEditorExtensions,
+  parseMarkdownClipboard,
+} from '@baserow/modules/core/editor/richTextExtensions'
+import { createMention } from '@baserow/modules/core/editor/mention'
+import {
+  decodeQuotedGridCell,
+  isRichTextEditorClipboard,
+  plainTextToRichTextContent,
+} from '@baserow/modules/core/editor/richTextClipboard'
+import { isRichTextSelectionVisible } from '@baserow/modules/core/editor/richTextMenuPosition'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
 import suggestion from '@baserow/modules/core/editor/suggestion'
-
-const richTextEditorExtensions = ({
-  openLinksOnClick = false,
-  enableImages = false,
-}) => {
-  const extensions = [
-    // Nodes
-    Heading.configure({ levels: [1, 2, 3] }),
-    ListItem,
-    OrderedList,
-    BulletList,
-    CodeBlock,
-    Blockquote,
-    HorizontalRule,
-    TaskItem,
-    TaskList,
-    // Marks
-    Bold,
-    Italic,
-    Strike,
-    Underline,
-    Subscript,
-    Superscript,
-    Link.configure({
-      protocols: [
-        { scheme: 'ftp' },
-        { scheme: 'mailto', optionalSlashes: true },
-        { scheme: 'tel', optionalSlashes: true },
-      ],
-      autolink: false,
-      openOnClick: openLinksOnClick,
-    }),
-    // Extensions
-    Markdown.configure({
-      html: false,
-      breaks: true,
-      transformPastedText: true,
-      transformCopiedText: true,
-    }),
-    History,
-  ]
-  if (enableImages) {
-    extensions.push(...[ScalableImage, Dropcursor, Gapcursor])
-  }
-  return extensions
-}
 
 export default {
   components: {
@@ -134,7 +75,7 @@ export default {
   },
   props: {
     modelValue: {
-      type: [Object, String],
+      type: [Object, String, null],
       required: true,
     },
     placeholder: {
@@ -166,7 +107,7 @@ export default {
       default: false,
     },
     scrollableAreaElement: {
-      type: Object,
+      type: [Object, Array, Function],
       default: null,
     },
     thinScrollbar: {
@@ -176,6 +117,10 @@ export default {
     menuContainer: {
       type: [Object, Function],
       default: undefined,
+    },
+    clipboardMarkdownResolver: {
+      type: Function,
+      default: null,
     },
   },
   emits: ['blur', 'focus', 'update:modelValue', 'stop-edit'],
@@ -189,6 +134,9 @@ export default {
       mousedownEvent: null,
       scrollEvent: null,
       scrollElement: null,
+      scrollEventElements: [],
+      visibilityElements: [],
+      scrollAnimationFrame: null,
     }
   },
   computed: {
@@ -199,41 +147,51 @@ export default {
       const enableImages = false
       return this.editable && this.enableRichTextFormatting && enableImages
     },
+    // Body-level default: floating-ui's fixed strategy mis-positions under a
+    // positioned ancestor. Keep the lookup lazy so server rendering never touches
+    // the browser-only document global.
+    resolvedMenuContainer() {
+      return this.menuContainer ?? (() => document.body)
+    },
   },
   watch: {
     editable: {
-      handler(editable) {
-        this.editor.destroy()
+      handler() {
+        this.teardownEditor()
         this.createEditor()
       },
     },
     modelValue(value) {
       if (!_.isEqual(value, this.editor.getJSON())) {
-        this.editor.commands.setContent(value, false)
+        this.editor.commands.setContent(value, {
+          emitUpdate: false,
+          contentType: this.getContentType(value),
+        })
+        this.initialDocument = clone(this.editor.getJSON())
       }
     },
   },
   mounted() {
     this.scrollElement = this.getScrollElement()
+    this.visibilityElements = this.getVisibilityElements()
+    this.scrollEventElements = this.getScrollEventElements()
     this.createEditor()
   },
   beforeUnmount() {
-    if (this.mousedownEvent !== null) {
-      this.$refs.root.removeEventListener('mousedown', this.mousedownEvent)
-    }
-    if (this.scrollEvent !== null) {
-      const elem = this.getScrollElement()
-      elem.removeEventListener('scroll', this.scrollEvent)
-    }
-  },
-  unmount() {
-    if (this.editor) {
-      this.editor.destroy()
-    }
-    this.unregisterResizeObserver()
+    this.teardownEditor()
   },
   methods: {
+    teardownEditor() {
+      this.unregisterAutoCollapseFloatingMenuHandler()
+      this.unregisterMenuScrollHandlers()
+      this.unregisterResizeObserver()
+      if (this.editor && !this.editor.isDestroyed) {
+        this.editor.destroy()
+      }
+      this.editor = null
+    },
     registerResizeObserver() {
+      this.unregisterResizeObserver()
       let lastWidth = null
       let lastHeight = null
       const resizeObserver = new ResizeObserver((entries) => {
@@ -256,13 +214,10 @@ export default {
         if (sizeChanged && this.editor && this.scrollElement) {
           requestAnimationFrame(() => {
             if (!this.editor || !this.scrollElement) return
-            const { from, to } = this.editor.state.selection
-            const selectionRect = posToDOMRect(this.editor.view, from, to)
-            const containerRect = this.scrollElement.getBoundingClientRect()
-            const inBounds =
-              selectionRect.bottom > containerRect.top &&
-              selectionRect.top < containerRect.bottom
-            this.setMenuScrollVisibility(inBounds)
+            this.setMenuScrollVisibility(
+              isRichTextSelectionVisible(this.editor, this.visibilityElements)
+            )
+            this.updateMenuPosition()
           })
         }
       })
@@ -275,17 +230,15 @@ export default {
         this.resizeObserver = null
       }
     },
+    getContentType(content) {
+      return typeof content === 'string' ? 'markdown' : 'json'
+    },
     getConfiguredExtensions() {
-      // Base extensions that are always enabled.
-      const extensions = [Document, Paragraph, Text, HardBreak]
-
-      if (this.enableRichTextFormatting) {
-        extensions.push(
-          ...richTextEditorExtensions({
+      const extensions = this.enableRichTextFormatting
+        ? createRichTextEditorExtensions({
             openLinksOnClick: !this.editable,
           })
-        )
-      }
+        : createPlainTextEditorExtensions()
 
       if (this.enterStopEdit || this.shiftEnterStopEdit) {
         const enterKeyExt = EnterStopEditExtension.configure({
@@ -298,10 +251,8 @@ export default {
       // If mentionable users are provided, add the mention extension.
       const users = this.mentionableUsers
       if (users !== null) {
-        const users = this.mentionableUsers
-        const renderHTML = this.renderHTMLMention()
-        const mentionsExt = Mention.configure({
-          renderHTML,
+        const mentionsExt = createMention({
+          loggedUserId: this.loggedUserId,
           suggestion: suggestion({ users }),
           users,
         })
@@ -321,6 +272,7 @@ export default {
       const extensions = this.getConfiguredExtensions()
       this.editor = new Editor({
         content: this.modelValue,
+        contentType: this.getContentType(this.modelValue),
         editable: this.editable,
         editorProps: {
           handleClickOn: (view, pos, node, nodePos, event, direct) => {
@@ -336,9 +288,43 @@ export default {
           },
           handlePaste: (view, event) => {
             const plainText = event.clipboardData.getData('text/plain')
-            if (plainText.startsWith('"') && plainText.endsWith('"')) {
-              const cleanText = plainText.slice(1, -1)
-              this.editor.commands.insertContent(cleanText)
+            const copiedFromRichTextEditor =
+              this.enableRichTextFormatting &&
+              isRichTextEditorClipboard(plainText)
+            const resolvedClipboardMarkdown =
+              this.enableRichTextFormatting &&
+              !copiedFromRichTextEditor &&
+              this.clipboardMarkdownResolver
+                ? this.clipboardMarkdownResolver(plainText)
+                : null
+            if (typeof resolvedClipboardMarkdown === 'string') {
+              const slice = parseMarkdownClipboard(
+                this.editor,
+                resolvedClipboardMarkdown,
+                false
+              )
+              view.dispatch(
+                view.state.tr.replaceSelection(slice).scrollIntoView()
+              )
+              return true
+            }
+            const gridCellText = copiedFromRichTextEditor
+              ? null
+              : decodeQuotedGridCell(plainText)
+            const plainTextWithBlankLines =
+              this.enableRichTextFormatting &&
+              !copiedFromRichTextEditor &&
+              !event.clipboardData.getData('text/html') &&
+              /\r?\n[\t ]*\r?\n/.test(plainText)
+                ? plainText
+                : null
+            const textToInsert = gridCellText ?? plainTextWithBlankLines
+            if (textToInsert !== null) {
+              this.editor.commands.insertContent(
+                this.enableRichTextFormatting
+                  ? plainTextToRichTextContent(textToInsert)
+                  : textToInsert
+              )
               return true
             }
             return false
@@ -369,18 +355,22 @@ export default {
           this.setMenuScrollVisibility(true)
         },
       })
+      this.initialDocument = clone(this.editor.getJSON())
       this.setupEditor()
     },
     setupEditor() {
       if (this.editable) {
         this.registerResizeObserver()
         this.registerAutoCollapseFloatingMenuHandler()
-        this.registerAutoHideBubbleMenuHandler()
+        this.registerMenuScrollHandlers()
       } else {
+        this.unregisterAutoCollapseFloatingMenuHandler()
+        this.unregisterMenuScrollHandlers()
         this.unregisterResizeObserver()
       }
     },
     registerAutoCollapseFloatingMenuHandler() {
+      this.unregisterAutoCollapseFloatingMenuHandler()
       this.mousedownEvent = (event) => {
         if (this.$refs.floatingMenu?.isEventTargetInside(event)) {
           return
@@ -389,8 +379,38 @@ export default {
       }
       this.$refs.root.addEventListener('mousedown', this.mousedownEvent)
     },
+    unregisterAutoCollapseFloatingMenuHandler() {
+      if (this.mousedownEvent !== null) {
+        this.$refs.root?.removeEventListener('mousedown', this.mousedownEvent)
+        this.mousedownEvent = null
+      }
+    },
     getScrollElement() {
-      return this.scrollableAreaElement ?? this.$refs.root
+      return this.getConfiguredScrollElements()[0] ?? this.$refs.root
+    },
+    getConfiguredScrollElements() {
+      const configured =
+        typeof this.scrollableAreaElement === 'function'
+          ? this.scrollableAreaElement()
+          : this.scrollableAreaElement
+      return (Array.isArray(configured) ? configured : [configured]).filter(
+        Boolean
+      )
+    },
+    getVisibilityElements() {
+      return [
+        ...new Set([this.$refs.root, ...this.getConfiguredScrollElements()]),
+      ]
+    },
+    getScrollEventElements() {
+      const elements = []
+      let element = this.$refs.root
+      while (element) {
+        elements.push(element)
+        element = element.parentElement
+      }
+      elements.push(window)
+      return [...new Set(elements)]
     },
     setMenuScrollVisibility(visible) {
       const floatingEl = this.$refs.floatingMenu?.$el
@@ -398,49 +418,53 @@ export default {
       if (floatingEl) floatingEl.style.visibility = visible ? '' : 'hidden'
       if (bubbleEl) bubbleEl.style.visibility = visible ? '' : 'hidden'
     },
-    registerAutoHideBubbleMenuHandler() {
+    updateMenuPosition() {
+      if (!this.editor) return
+      const transaction = this.editor.state.tr
+        .setMeta('inlineBubbleMenu', 'updatePosition')
+        .setMeta('floatingBlockMenu', 'updatePosition')
+      this.editor.view.dispatch(transaction)
+    },
+    registerMenuScrollHandlers() {
+      this.unregisterMenuScrollHandlers()
       this.scrollEvent = () => {
-        if (!this.editor) return
-
-        const { from, to } = this.editor.state.selection
-        const selectionRect = posToDOMRect(this.editor.view, from, to)
-        const containerRect = this.scrollElement.getBoundingClientRect()
-
-        const inBounds =
-          selectionRect.bottom > containerRect.top &&
-          selectionRect.top < containerRect.bottom
-
-        this.setMenuScrollVisibility(inBounds)
+        if (this.scrollAnimationFrame !== null) return
+        this.scrollAnimationFrame = requestAnimationFrame(() => {
+          this.scrollAnimationFrame = null
+          if (!this.editor) return
+          this.setMenuScrollVisibility(
+            isRichTextSelectionVisible(this.editor, this.visibilityElements)
+          )
+          this.updateMenuPosition()
+        })
       }
 
-      const elem = this.getScrollElement()
-      elem.addEventListener('scroll', this.scrollEvent)
+      this.scrollEventElements.forEach((element) =>
+        element.addEventListener('scroll', this.scrollEvent)
+      )
     },
-    renderHTMLMention() {
-      const loggedUserId = this.loggedUserId
-      const isUserInWorkspace = (userId) =>
-        this.mentionableUsers.some((user) => user.user_id === userId)
-
-      return ({ node, options }) => {
-        let className = 'rich-text-editor__mention'
-        const userId = parseInt(node.attrs.id)
-        if (userId === loggedUserId) {
-          className += ' rich-text-editor__mention--current-user'
-        } else if (!isUserInWorkspace(userId)) {
-          className += ' rich-text-editor__mention--user-gone'
-        }
-        return [
-          'span',
-          mergeAttributes({ class: className }, this.HTMLAttributes),
-          `@${node.attrs.label ?? node.attrs.id}`,
-        ]
+    unregisterMenuScrollHandlers() {
+      if (this.scrollEvent !== null) {
+        this.scrollEventElements.forEach((element) =>
+          element.removeEventListener('scroll', this.scrollEvent)
+        )
+        this.scrollEvent = null
+      }
+      if (this.scrollAnimationFrame !== null) {
+        cancelAnimationFrame(this.scrollAnimationFrame)
+        this.scrollAnimationFrame = null
       }
     },
     focus() {
       this.editor.commands.focus('end')
     },
     serializeToMarkdown() {
-      return this.editor.storage.markdown.getMarkdown()
+      return this.enableRichTextFormatting
+        ? this.editor.getMarkdown()
+        : this.editor.getText({ blockSeparator: '\n' })
+    },
+    isDirty() {
+      return !_.isEqual(this.editor.getJSON(), this.initialDocument)
     },
     isEventFromMenu(event) {
       return (

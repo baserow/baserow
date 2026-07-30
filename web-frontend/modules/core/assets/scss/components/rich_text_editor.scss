@@ -170,7 +170,7 @@ span[data-type='mention'] {
 // Override any transitions to make show/hide instant (no fade).
 .rich-text-editor__menu-container {
   transition: none !important;
-  z-index: 6;
+  z-index: $z-index-modal + 1;
 }
 
 .rich-text-editor__floating-menu,

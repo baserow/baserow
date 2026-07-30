@@ -681,6 +681,9 @@ class FormViewType(ViewType):
             path("form/", include(api_urls, namespace=self.type)),
         ]
 
+    def get_public_url_path(self, view):
+        return f"/form/{view.slug}"
+
     def after_fields_type_change(self, fields):
         fields_cannot_be_in_form_view = [
             field

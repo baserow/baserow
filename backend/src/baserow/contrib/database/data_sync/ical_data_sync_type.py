@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional
 from icalendar import Calendar
 from requests.exceptions import RequestException
 
-import advocate
 from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.database.fields.models import DateField, TextField
 from baserow.core.utils import ChildProgressBuilder
@@ -11,7 +10,11 @@ from baserow.core.utils import ChildProgressBuilder
 from .exceptions import SyncError
 from .models import ICalCalendarDataSync
 from .registries import DataSyncProperty, DataSyncType
-from .utils import compare_date
+from .utils import (
+    DATA_SYNC_BLOCKED_URL_ERROR,
+    compare_date,
+    get_data_sync_request_function,
+)
 
 
 class UIDICalCalendarDataSyncProperty(DataSyncProperty):
@@ -87,8 +90,12 @@ class ICalCalendarDataSyncType(DataSyncType):
         progress = ChildProgressBuilder.build(progress_builder, child_total=3)
 
         try:
-            response = advocate.get(instance.ical_url, timeout=60)
-        except (RequestException, UnacceptableAddressException, ConnectionError):
+            response = get_data_sync_request_function()(
+                "GET", instance.ical_url, timeout=60
+            )
+        except UnacceptableAddressException:
+            raise SyncError(DATA_SYNC_BLOCKED_URL_ERROR)
+        except (RequestException, ConnectionError):
             raise SyncError("The provided URL could not be reached.")
 
         if not response.ok:

@@ -524,6 +524,20 @@ export class RealTimeHandler {
       store.dispatch('auth/forceUpdateUserData', data.user_data)
     })
 
+    this.registerEvent('ai_provider_updated', async ({ store }, data) => {
+      const refreshes = []
+      if (
+        store.getters['workspace/isLoaded'] &&
+        data.workspace_models_changed
+      ) {
+        refreshes.push(store.dispatch('workspace/refreshAllGenerativeAIModels'))
+      }
+      if (store.getters['aiProvider/isLoaded']) {
+        refreshes.push(store.dispatch('aiProvider/refresh'))
+      }
+      await Promise.allSettled(refreshes)
+    })
+
     this.registerEvent('user_updated', ({ store }, data) => {
       store.dispatch('workspace/forceUpdateWorkspaceUserAttributes', {
         userId: data.user.id,
@@ -719,6 +733,13 @@ export class RealTimeHandler {
         space: data.space,
         presence_id: data.presence_id,
         focus: data.focus,
+      })
+    })
+
+    this.registerEvent('presence.editors_active', ({ store }, data) => {
+      store.dispatch('presence/handleEditorsActive', {
+        space: data.space,
+        active: data.active,
       })
     })
 

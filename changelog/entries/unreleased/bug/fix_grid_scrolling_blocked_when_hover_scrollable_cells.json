@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes grid scrolling being blocked when hovering a scrollable cell.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-27"
+}

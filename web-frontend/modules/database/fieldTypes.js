@@ -1,4 +1,5 @@
 import BigNumber from 'bignumber.js'
+import { FF_BUTTON_FIELD } from '@baserow/modules/core/plugins/featureFlags'
 import {
   DURATION_FORMATS,
   formatDurationValue,
@@ -27,6 +28,10 @@ import moment from '@baserow/modules/core/moment'
 import guessFormat from 'moment-guess'
 import { Registerable } from '@baserow/modules/core/registry'
 import { mix } from '@baserow/modules/core/mixins'
+import {
+  plainTextToMarkdown,
+  richMarkdownToPlainText,
+} from '@baserow/modules/core/editor/richTextClipboard'
 import FieldNumberSubForm from '@baserow/modules/database/components/field/FieldNumberSubForm'
 import FieldAutonumberSubForm from '@baserow/modules/database/components/field/FieldAutonumberSubForm'
 import FieldDurationSubForm from '@baserow/modules/database/components/field/FieldDurationSubForm'
@@ -185,6 +190,11 @@ import ViewFilterTypeNumber from '@baserow/modules/database/components/view/View
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
 import FormViewFieldOptionsAllowedSelectOptions from '@baserow/modules/database/components/view/form/FormViewFieldOptionsAllowedSelectOptions'
 import FieldFormViewEditRowSubForm from '@baserow/modules/database/components/field/FieldFormViewEditRowSubForm'
+import FieldButtonSubForm from '@baserow/modules/database/components/field/FieldButtonSubForm'
+import GridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButtonField'
+import FunctionalGridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldButtonField'
+import RowEditFieldButtonField from '@baserow/modules/database/components/row/RowEditFieldButtonField'
+import RowCardFieldButtonField from '@baserow/modules/database/components/card/RowCardFieldButtonField'
 
 export class FieldType extends Registerable {
   /**
@@ -466,6 +476,15 @@ export class FieldType extends Registerable {
    * Indicates whether or not it is possible to sort in a view.
    */
   getCanSortInView(field) {
+    return true
+  }
+
+  /**
+   * Whether the cell value takes part in the view search. Mirrors the backend
+   * `is_searchable`. A field without a cell value can never match a search
+   * term, so it doesn't make the backend the source of truth for one.
+   */
+  isSearchable(field) {
     return true
   }
 
@@ -1055,6 +1074,15 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Indicates whether the field type is listed at all in the field type
+   * dropdown. Unlike `isEnabled`, a hidden type is not rendered, not even in
+   * a disabled state. Existing fields of a hidden type keep working.
+   */
+  isVisibleInDropdown(workspace) {
+    return true
+  }
+
+  /**
    * Can return a modal vue component that's opened when the user clicks in this
    * field type, but `isEnabled` is false. Should return [component, props as {}]
    */
@@ -1343,6 +1371,26 @@ export class LongTextFieldType extends FieldType {
 
   getDefaultValue(field, flat) {
     return ''
+  }
+
+  prepareRichValueForCopy(field, value) {
+    return {
+      value: this.prepareValueForCopy(field, value),
+      richText: field.long_text_enable_rich_text,
+    }
+  }
+
+  prepareValueForPaste(field, clipboardData, richClipboardData) {
+    if (!field.long_text_enable_rich_text) {
+      // A rich source pasted into a plain field would otherwise carry markdown sentinels.
+      return richClipboardData?.richText
+        ? richMarkdownToPlainText(richClipboardData.value)
+        : clipboardData
+    }
+    if (richClipboardData?.richText) {
+      return richClipboardData.value
+    }
+    return plainTextToMarkdown(clipboardData)
   }
 
   canUpsert() {
@@ -5384,5 +5432,96 @@ export class FormViewEditRowFieldType extends FieldType {
       count: formNames.length,
       formNames: formNames.join(', '),
     })
+  }
+}
+
+export class ButtonFieldType extends FieldType {
+  static getType() {
+    return 'button'
+  }
+
+  static getIconClass() {
+    return 'iconoir-cursor-pointer'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('fieldType.button')
+  }
+
+  getFormComponent() {
+    return FieldButtonSubForm
+  }
+
+  getGridViewFieldComponent() {
+    return GridViewFieldButtonField
+  }
+
+  getFunctionalGridViewFieldComponent() {
+    return FunctionalGridViewFieldButtonField
+  }
+
+  getRowEditFieldComponent() {
+    return RowEditFieldButtonField
+  }
+
+  getCardComponent() {
+    return RowCardFieldButtonField
+  }
+
+  getFormViewFieldComponents() {
+    return {}
+  }
+
+  isVisibleInDropdown(workspace) {
+    // Hidden (not just disabled) while the feature flag is off. Existing
+    // button fields keep rendering because the type stays registered.
+    return this.app.$featureFlagIsEnabled(FF_BUTTON_FIELD)
+  }
+
+  isReadOnlyField() {
+    return true
+  }
+
+  isSearchable() {
+    return false
+  }
+
+  getCanBePrimaryField() {
+    return false
+  }
+
+  getCanSortInView() {
+    return false
+  }
+
+  getCanGroupByInView() {
+    return false
+  }
+
+  canBeDefaultValue() {
+    return false
+  }
+
+  getEmptyValue() {
+    return null
+  }
+
+  getDocsDataType() {
+    // The cell holds no value: the button is built in the browser from the
+    // field's formula, and the API always responds with null.
+    return 'null'
+  }
+
+  getDocsDescription(field) {
+    return this.app.$i18n.t('fieldDocs.button')
+  }
+
+  getDocsRequestExample() {
+    return 'it is invalid to include request data for this field as it is read only'
+  }
+
+  getDocsResponseExample() {
+    return null
   }
 }

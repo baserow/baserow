@@ -101,6 +101,7 @@ x-backend-variables:
   BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES:
   BASEROW_AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS:
   BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES:
+  BASEROW_AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN:
 
   BASEROW_EXTRA_ALLOWED_HOSTS:
   ADDITIONAL_APPS:
@@ -121,9 +122,13 @@ x-backend-variables:
   FEATURE_FLAGS:
   BASEROW_PRESENCE_VISIBLE_USERS:
   BASEROW_ENABLE_OTEL:
+  BASEROW_OTEL_LOG_LEVEL:
+  BASEROW_OTEL_SLOW_REQUEST_THRESHOLD_SECONDS:
+  BASEROW_OTEL_SLOW_CELERY_TASK_THRESHOLD_SECONDS:
   BASEROW_DEPLOYMENT_ENV:
   OTEL_EXPORTER_OTLP_ENDPOINT:
   OTEL_RESOURCE_ATTRIBUTES:
+  OTEL_SEMCONV_STABILITY_OPT_IN: ${OTEL_SEMCONV_STABILITY_OPT_IN:-http}
   POSTHOG_PROJECT_API_KEY:
   POSTHOG_HOST:
 
@@ -166,6 +171,8 @@ x-backend-variables:
   BASEROW_WEBHOOKS_REQUEST_TIMEOUT_SECONDS:
   BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS:
   BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
+  BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS:
+  BASEROW_SSO_ALLOW_PRIVATE_ADDRESS:
   BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES:
   BASEROW_ENTERPRISE_AUDIT_LOG_RETENTION_DAYS:
   BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT:
@@ -180,12 +187,13 @@ x-backend-variables:
   BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS:
   BASEROW_CACHE_TTL_SECONDS:
   BASEROW_THROTTLE_IP_ENABLED:
+  BASEROW_ABUSE_REPORT_THROTTLE_RATE:
+  BASEROW_ABUSE_REPORT_NOTIFICATION_COOLDOWN_SECONDS:
   BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT:
   BASEROW_LOGIN_ACTION_LOG_LIMIT:
   BASEROW_OSS_ONLY:
   OTEL_TRACES_SAMPLER:
   OTEL_TRACES_SAMPLER_ARG:
-  OTEL_PER_MODULE_SAMPLER_OVERRIDES:
   BASEROW_CACHALOT_ENABLED:
   BASEROW_CACHALOT_MODE:
   BASEROW_CACHALOT_ONLY_CACHABLE_TABLES:
@@ -217,7 +225,7 @@ x-backend-variables:
 
 services:
   backend:
-    image: baserow/backend:2.3.2
+    image: baserow/backend:2.3.3
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
@@ -232,7 +240,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:2.3.2
+    image: baserow/web-frontend:2.3.3
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
@@ -293,7 +301,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:2.3.2
+    image: baserow/backend:2.3.3
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -314,7 +322,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:2.3.2
+    image: baserow/backend:2.3.3
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -335,7 +343,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:2.3.2
+    image: baserow/backend:2.3.3
     restart: unless-stopped
     command: celery-beat
     environment:

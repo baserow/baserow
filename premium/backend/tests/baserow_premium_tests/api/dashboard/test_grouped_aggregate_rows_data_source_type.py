@@ -115,6 +115,7 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
         "dashboard_id": dashboard.id,
         "filter_type": "AND",
         "filters": [],
+        "filter_groups": [],
         "aggregation_sorts": [
             {
                 "sort_on": "GROUP_BY",
@@ -140,6 +141,7 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
         "default_result_count": 20,
         "filter_type": "AND",
         "filters": [],
+        "filter_groups": [],
         "sortings": [],
         "id": data_source2.id,
         "integration_id": AnyInt(),

@@ -4,6 +4,8 @@ from typing import Iterable, List, Optional, cast
 from django.db.models import QuerySet
 from django.db.utils import IntegrityError
 
+from opentelemetry import trace
+
 from baserow.contrib.builder.domains.exceptions import (
     DomainDoesNotExist,
     DomainNameNotUniqueError,
@@ -20,8 +22,11 @@ from baserow.core.models import Workspace
 from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import get_default_storage
+from baserow.core.telemetry.utils import baserow_trace
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress, extract_allowed
+
+tracer = trace.get_tracer(__name__)
 
 
 class DomainHandler:
@@ -230,6 +235,7 @@ class DomainHandler:
             else applications
         )
 
+    @baserow_trace(tracer)
     def publish(self, domain: Domain, progress: Progress | None = None):
         """
         Publishes a builder for the given domain object. If the builder was

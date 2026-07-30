@@ -10,6 +10,7 @@ from baserow.core.psycopg import sql
 
 from .models import (
     AutonumberField,
+    ButtonField,
     FileField,
     FormulaField,
     FormViewEditRowField,
@@ -151,6 +152,19 @@ class PasswordFieldConverter(RecreateFieldConverter):
         from_password = isinstance(from_field, PasswordField)
         to_password = isinstance(to_field, PasswordField)
         return to_password or from_password
+
+
+class ButtonFieldConverter(RecreateFieldConverter):
+    """
+    A button field has no database column, so the lenient schema editor can't
+    alter into or out of it. Dropping and recreating the column instead is
+    always correct here: the button holds no cell data to preserve.
+    """
+
+    type = "button"
+
+    def is_applicable(self, from_model, from_field, to_field):
+        return isinstance(from_field, ButtonField) != isinstance(to_field, ButtonField)
 
 
 class LinkRowFieldConverter(RecreateFieldConverter):

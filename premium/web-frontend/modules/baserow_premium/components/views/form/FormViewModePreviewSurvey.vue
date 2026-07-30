@@ -41,6 +41,7 @@
                 :field-options="fieldOptions[field.id]"
                 :fields="fields"
                 :read-only="readOnly"
+                :get-scroll-area-element="getScrollAreaElement"
                 :add-order-buttons="true"
                 :add-handle="false"
                 @hide="hideField(view, field)"
@@ -110,11 +111,8 @@
           </div>
         </div>
       </form>
-      <div
-        class="form-view-survey__footer form-view-survey__footer--absolute"
-        :class="{ 'form-view-survey__footer--single': !view.show_logo }"
-      >
-        <FormViewPoweredBy v-if="view.show_logo"></FormViewPoweredBy>
+      <div class="form-view-survey__footer form-view-survey__footer--absolute">
+        <FormViewFooterLinks :show-logo="view.show_logo"></FormViewFooterLinks>
         <div class="form-view-survey__pagination">
           <a
             v-if="!readOnly"
@@ -168,7 +166,7 @@
 <script>
 import FormViewField from '@baserow/modules/database/components/view/form/FormViewField'
 import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 import FormViewMetaControls from '@baserow/modules/database/components/view/form/FormViewMetaControls'
 import ViewFieldsContext from '@baserow/modules/database/components/view/ViewFieldsContext'
 
@@ -177,7 +175,7 @@ export default {
   emits: ['ordered-fields'],
   components: {
     ViewFieldsContext,
-    FormViewPoweredBy,
+    FormViewFooterLinks,
     FormViewField,
     FormViewMetaControls,
   },
@@ -202,6 +200,12 @@ export default {
     readOnly: {
       type: Boolean,
       required: true,
+    },
+    // Resolves the scrollable preview container owned by FormViewPreview.
+    getScrollAreaElement: {
+      type: Function,
+      required: false,
+      default: null,
     },
   },
   data() {

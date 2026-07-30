@@ -96,6 +96,7 @@ def test_dashboard_export_serialized_with_chart_widget(premium_data_fixture):
                 "service": {
                     "filter_type": "AND",
                     "filters": [],
+                    "filter_groups": [],
                     "id": service.id,
                     "sample_data": None,
                     "integration_id": service.integration.id,
@@ -177,6 +178,7 @@ def test_dashboard_import_serialized_with_widgets(premium_data_fixture):
                 "service": {
                     "filter_type": "AND",
                     "filters": [],
+                    "filter_groups": [],
                     "id": 1,
                     "integration_id": 1,
                     "service_aggregation_group_bys": [
@@ -346,6 +348,7 @@ def test_dashboard_export_serialized_with_chart_widget_config(premium_data_fixtu
                 "service": {
                     "filter_type": "AND",
                     "filters": [],
+                    "filter_groups": [],
                     "id": service.id,
                     "sample_data": None,
                     "integration_id": service.integration.id,
@@ -427,6 +430,7 @@ def test_dashboard_import_serialized_with_widget_config(premium_data_fixture):
                 "service": {
                     "filter_type": "AND",
                     "filters": [],
+                    "filter_groups": [],
                     "id": 1,
                     "integration_id": 1,
                     "service_aggregation_group_bys": [],
@@ -578,6 +582,7 @@ def test_dashboard_export_serialized_with_default_chart_type(premium_data_fixtur
                 "service": {
                     "filter_type": "AND",
                     "filters": [],
+                    "filter_groups": [],
                     "id": service.id,
                     "sample_data": None,
                     "integration_id": service.integration.id,
@@ -645,6 +650,7 @@ def test_dashboard_import_serialized_with_default_chart_type(premium_data_fixtur
                 "service": {
                     "filter_type": "AND",
                     "filters": [],
+                    "filter_groups": [],
                     "id": 1,
                     "integration_id": 1,
                     "service_aggregation_group_bys": [],

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed workflow actions inside collection elements failing to resolve the current_record.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-07-16"
+}

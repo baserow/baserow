@@ -59,6 +59,9 @@
     "coreRouterEdgeLabelRequired": "A branch label is required.",
     "coreRouterEdgeConditionRequired": "A branch condition is required.",
     "coreRouterDescription": "Routes the workflow to the next branch based on a condition.",
+    "coreGoto": "Go to",
+    "coreGotoDescription": "Jumps to another point in the workflow when a condition is true.",
+    "coreGotoDestinationRequired": "A destination is required.",
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
     "coreIteration": "Iterator",
     "coreIterationDescription": "Iterate on items.",
@@ -135,7 +138,6 @@
   },
   "localBaserowGetRowForm": {
     "rowFieldLabel": "Row ID",
-    "invalidFormula": "The formula is invalid",
     "rowFieldPlaceHolder": "Choose a single row ID",
     "rowFieldHelpText": "Leave this value empty to return the first row.",
     "searchFieldPlaceHolder": "Enter a search term...",
@@ -171,7 +173,8 @@
     "fieldHelper": "The workflow only triggers when one of these fields' values changes."
   },
   "localBaserowTableServiceConditionalForm": {
-    "addFilter": "Add additional filter",
+    "addFilter": "Add filter",
+    "addFilterGroup": "Add filter group",
     "noFilterTitle": "You have not yet created a data source filter",
     "noFilterText": "Data source filters allow you to show Baserow table rows that apply to your conditions.",
     "relatedFieldNotFound": "The related field is not found.",
@@ -179,8 +182,8 @@
     "noCompatibleFilterTypesErrorTitle": "No compatible filter types",
     "noCompatibleFilterTypesErrorMessage": "None of your fields have any compatible filter types",
     "textFilterInputPlaceholder": "Enter text...",
-    "formulaFilterInputPlaceholder": "Choose a formula...",
-    "useFormulaForValue": "Use a formula for this filter",
+    "expressionFilterInputPlaceholder": "Choose an expression...",
+    "useExpressionForValue": "Use an expression for this filter",
     "useDefaultForValue": "Use the default filter for this field"
   },
   "localBaserowTableServiceSortForm": {
@@ -242,6 +245,14 @@
     "automation": "Automation",
     "workflow": "Workflow",
     "workflowHelperText": "Only published workflows with a manual trigger can be started. If this workflow has unpublished changes, the latest published version will run."
+  },
+  "coreGotoServiceForm": {
+    "conditionLabel": "Condition",
+    "conditionDescription": "When this condition is true, the workflow jumps to the destination node instead of continuing to the next node.",
+    "conditionPlaceholder": "If true, we jump to the destination node.",
+    "destinationLabel": "Destination node",
+    "destinationDescription": "The node to jump to when the condition is true.",
+    "destinationPlaceholder": "Choose a destination node..."
   },
   "slackBotForm": {
     "tokenLabel": "Bot User Token",
@@ -383,11 +394,11 @@
   "localBaserowCreateRowsServiceForm": {
     "rowsLabel": "Rows",
     "rowsPlaceholder": "Choose a list of row objects",
-    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Use field names or field IDs as object keys. Up to {limit} rows can be created at once."
+    "rowsHelper": "The expression must return an array of row objects, or a JSON string that parses to one. Use field names or field IDs as object keys. Up to {limit} rows can be created at once."
   },
   "localBaserowUpdateRowsServiceForm": {
     "rowsLabel": "Rows",
     "rowsPlaceholder": "Choose a list of row objects with IDs",
-    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
+    "rowsHelper": "The expression must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
   }
 }

@@ -49,27 +49,16 @@
           </a>
         </div>
         <div
-          v-show="selected || fieldOptions.description"
+          v-if="selected || fieldOptions.description"
           class="form-view__field-description"
         >
-          <Editable
-            ref="description"
-            :value="fieldOptions.description"
+          <FormViewDescription
+            :value="fieldOptions.description || ''"
+            :read-only="readOnly"
             :placeholder="$t('formViewField.descriptionPlaceholder')"
-            :multiline="true"
-            @change="
-              $emit('updated-field-options', { description: $event.value })
-            "
-            @editing="editingDescription = $event"
-          ></Editable>
-          <a
-            v-if="!readOnly"
-            class="form-view__edit form-view-field-edit"
-            :class="{ 'form-view__edit--hidden': editingDescription }"
-            @click="$refs.description.edit()"
-          >
-            <i class="form-view__edit-icon iconoir-edit-pencil"></i
-          ></a>
+            :get-scroll-area-element="getScrollAreaElement"
+            @change="$emit('updated-field-options', { description: $event })"
+          ></FormViewDescription>
         </div>
         <p
           v-if="!readOnly && cannotSubmitValues"
@@ -196,10 +185,11 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm'
 import { createFiltersTree } from '@baserow/modules/database/utils/view'
+import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 
 export default {
   name: 'FormViewField',
-  components: { ViewFieldConditionsForm },
+  components: { ViewFieldConditionsForm, FormViewDescription },
   provide() {
     return {
       registerChild: this.registerChild,
@@ -239,13 +229,18 @@ export default {
       required: false,
       default: true,
     },
+    // Resolves the scrollable preview container owned by FormViewPreview.
+    getScrollAreaElement: {
+      type: Function,
+      required: false,
+      default: null,
+    },
   },
   emits: ['updated-field-options', 'hide'],
   data() {
     return {
       selected: false,
       editingName: false,
-      editingDescription: false,
       value: null,
       children: [],
     }

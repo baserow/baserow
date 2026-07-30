@@ -108,6 +108,7 @@
     "statusError": "Failed to run",
     "statusSuccessBadge": "Completed",
     "statusErrorBadge": "Failed",
+    "statusSkippedBadge": "Skipped",
     "statusDisabled": "Disabled by Baserow",
     "successfulRuns": "Successful runs",
     "completedInSeconds": "Completed in {s} seconds.",
@@ -142,6 +143,10 @@
     "startWorkflowLabel": "Start {workflowName}",
     "smtpEmailLabel": "Send an email",
     "routerLabel": "Follow 1 of {edgeCount} branches",
+    "routerHistoryLabel": "{label} ({edge})",
+    "gotoNodeLabel": "Go to node",
+    "gotoNodeLabelWithDestination": "Go to node → {destination}",
+    "gotoHistoryLabel": "{label} → {destination}",
     "iterationLabel": "Iterate on items",
     "defaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
@@ -167,7 +172,9 @@
     "moreReplace": "Replace",
     "nodeOptions": "Node options",
     "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
-    "moreDuplicate": "Duplicate"
+    "moreDuplicate": "Duplicate",
+    "gotoMarkerSource": "Jumps to marker {marker}",
+    "gotoMarkerDestination": "Destination of marker {marker}"
   },
   "workflowAddNode": {
     "displayTitle": "Create automation node"

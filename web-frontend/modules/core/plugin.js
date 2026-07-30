@@ -34,6 +34,7 @@ import {
   UploadViaURLUserFileUploadType,
 } from '@baserow/modules/core/userFileUploadTypes'
 import {
+  AIProvidersAdminType,
   DashboardAdminType,
   UsersAdminType,
   WorkspacesAdminType,
@@ -59,6 +60,7 @@ import {
   WorkspaceInvitationAcceptedNotificationType,
   WorkspaceInvitationRejectedNotificationType,
   BaserowVersionUpgradeNotificationType,
+  AbuseReportCreatedNotificationType,
 } from '@baserow/modules/core/notificationTypes'
 import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
@@ -116,6 +118,8 @@ import {
   RuntimeSplit,
   RuntimeIsEmpty,
   RuntimeStrip,
+  RuntimeEncodeUri,
+  RuntimeEncodeUriComponent,
   RuntimeSum,
   RuntimeAvg,
   RuntimeAt,
@@ -223,6 +227,7 @@ export default defineNuxtPlugin({
     registry.register('admin', new DashboardAdminType(context))
     registry.register('admin', new UsersAdminType(context))
     registry.register('admin', new WorkspacesAdminType(context))
+    registry.register('admin', new AIProvidersAdminType(context))
     registry.register('admin', new SettingsAdminType(context))
     registry.register('admin', new HealthCheckAdminType(context))
 
@@ -300,6 +305,11 @@ export default defineNuxtPlugin({
     registry.register('runtimeFormulaFunction', new RuntimeSplit(context))
     registry.register('runtimeFormulaFunction', new RuntimeIsEmpty(context))
     registry.register('runtimeFormulaFunction', new RuntimeStrip(context))
+    registry.register('runtimeFormulaFunction', new RuntimeEncodeUri(context))
+    registry.register(
+      'runtimeFormulaFunction',
+      new RuntimeEncodeUriComponent(context)
+    )
     registry.register('runtimeFormulaFunction', new RuntimeSum(context))
     registry.register('runtimeFormulaFunction', new RuntimeAvg(context))
     registry.register('runtimeFormulaFunction', new RuntimeAt(context))
@@ -380,6 +390,10 @@ export default defineNuxtPlugin({
     registry.register(
       'notification',
       new BaserowVersionUpgradeNotificationType(context)
+    )
+    registry.register(
+      'notification',
+      new AbuseReportCreatedNotificationType(context)
     )
 
     registry.register('twoFactorAuth', new TOTPAuthType(context))

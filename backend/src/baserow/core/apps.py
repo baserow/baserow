@@ -6,7 +6,6 @@ from django.db.models.signals import post_migrate, pre_migrate
 from health_check.storage.backends import DefaultFileStorageHealthCheck
 
 from baserow.cachalot_patch import clear_cachalot_cache
-from baserow.core.sentry import patch_user_model_str
 
 
 class CoreConfig(AppConfig):
@@ -48,6 +47,8 @@ class CoreConfig(AppConfig):
             RuntimeDay,
             RuntimeDivide,
             RuntimeDurationFormat,
+            RuntimeEncodeUri,
+            RuntimeEncodeUriComponent,
             RuntimeEqual,
             RuntimeFromJson,
             RuntimeGenerateUUID,
@@ -138,6 +139,8 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeSplit())
         formula_runtime_function_registry.register(RuntimeIsEmpty())
         formula_runtime_function_registry.register(RuntimeStrip())
+        formula_runtime_function_registry.register(RuntimeEncodeUri())
+        formula_runtime_function_registry.register(RuntimeEncodeUriComponent())
         formula_runtime_function_registry.register(RuntimeSum())
         formula_runtime_function_registry.register(RuntimeAvg())
         formula_runtime_function_registry.register(RuntimeAt())
@@ -208,6 +211,7 @@ class CoreConfig(AppConfig):
         subject_type_registry.register(AnonymousUserSubjectType())
         subject_type_registry.register(UserSourceUserSubjectType())
 
+        from .ai_provider.operations import ManageAIProvidersOperationType
         from .notifications.operations import (
             ClearNotificationsOperationType,
             ListNotificationsOperationType,
@@ -276,6 +280,7 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(DuplicateApplicationOperationType())
         operation_type_registry.register(DeleteApplicationOperationType())
         operation_type_registry.register(UpdateSettingsOperationType())
+        operation_type_registry.register(ManageAIProvidersOperationType())
         operation_type_registry.register(CreateSnapshotApplicationOperationType())
         operation_type_registry.register(DeleteApplicationSnapshotOperationType())
         operation_type_registry.register(ListSnapshotsApplicationOperationType())
@@ -488,6 +493,14 @@ class CoreConfig(AppConfig):
         )
         notification_type_registry.register(BaserowVersionUpgradeNotificationType())
 
+        from baserow.core.abuse_reports.actions import SubmitAbuseReportActionType
+        from baserow.core.abuse_reports.notification_types import (
+            AbuseReportCreatedNotificationType,
+        )
+
+        action_type_registry.register(SubmitAbuseReportActionType())
+        notification_type_registry.register(AbuseReportCreatedNotificationType())
+
         from baserow.core.generative_ai.generative_ai_model_types import (
             AnthropicGenerativeAIModelType,
             MistralGenerativeAIModelType,
@@ -519,6 +532,8 @@ class CoreConfig(AppConfig):
             pre_migrate.connect(lambda *a, **kw: clear_cachalot_cache(), sender=self)
 
         if settings.SENTRY_DSN:
+            from baserow.core.sentry import patch_user_model_str
+
             patch_user_model_str()
 
         import baserow.core.receivers  # noqa: F401

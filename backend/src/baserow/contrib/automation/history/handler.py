@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from django.db.models import Prefetch, QuerySet
 
@@ -126,15 +126,25 @@ class AutomationHistoryHandler:
     def get_node_result(self, history, node, iteration_path):
         """
         Returns the result for the given history/node/iteration_path.
+
+        A node can be dispatched several times within a single run when a jump
+        (e.g. the "Go to node" node) loops execution back to it. Each pass writes a
+        new result with the same iteration_path, so we return the most recent one
+        rather than assuming a single result exists.
         """
 
-        try:
-            node_result = AutomationNodeResult.objects.only("result").get(
+        node_result = (
+            AutomationNodeResult.objects.only("result")
+            .filter(
                 node_history__workflow_history_id=history.id,
                 node_history__node_id=node.id,
                 iteration_path=iteration_path,
             )
-        except AutomationNodeResult.DoesNotExist:
+            .order_by("-node_history__started_on", "-node_history_id")
+            .first()
+        )
+
+        if node_result is None:
             raise AutomationWorkflowHistoryNodeResultDoesNotExist()
 
         return node_result.result
@@ -271,3 +281,46 @@ class AutomationHistoryHandler:
             for nr in results
             if (label := nr.result.get("edge", {}).get("label"))
         }
+
+    def get_destination_labels(
+        self, node_histories: List[AutomationNodeHistory]
+    ) -> Dict[int, Dict[str, Any]]:
+        """
+        For each history entry whose node redirected execution to another node
+        (e.g. the "Go to node" node), return a mapping that describes the node
+        it jumped to, e.g.:
+            {
+                "id": <destination node id>,
+                "type": <destination node type>,
+                "label": <destination label>,
+            }`
+
+        The destination node belongs to the published workflow copy that
+        actually ran, so its id cannot be resolved against the editor workflow.
+        We therefore also return its type, allowing the frontend to display a
+        human-readable name from the node type registry when the node has no
+        custom label.
+        """
+
+        # A node can be dispatched many times within a single run when a jump
+        # loops execution back to it, so we resolve each distinct node only
+        # once. Resolving a destination costs several queries, and the result
+        # only depends on the node, not on the individual dispatch.
+        resolved: Dict[int, Optional[Dict[str, Any]]] = {}
+        labels = {}
+        for nh in node_histories:
+            node = nh.node
+            if node.id not in resolved:
+                destination = node.get_type().get_history_destination_node(node)
+                resolved[node.id] = (
+                    {
+                        "id": destination.id,
+                        "type": destination.get_type().type,
+                        "label": destination.label,
+                    }
+                    if destination is not None
+                    else None
+                )
+            if (destination_label := resolved[node.id]) is not None:
+                labels[nh.id] = destination_label
+        return labels

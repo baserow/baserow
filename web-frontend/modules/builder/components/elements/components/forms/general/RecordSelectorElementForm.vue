@@ -39,8 +39,8 @@
     </FormGroup>
     <!--
     We use a key here otherwise Vuejs reuse the components of the following
-    formula input with the old application context when the v-if becomes true.
-    Therefore the "allowSameElement" value is wrong showing invalid formula when they
+    expression input with the old application context when the v-if becomes true.
+    Therefore the "allowSameElement" value is wrong showing invalid expression when they
     are valid. We could also solve this by using a v-show instead of a v-if.
     -->
     <FormGroup
@@ -208,7 +208,7 @@ export default {
       handler(value) {
         this.values.data_source_id = value
 
-        // If the data source was removed we should also delete the name formula
+        // If the data source was removed we should also delete the name expression
         if (value === null) {
           this.values.option_name_suffix = ''
         }

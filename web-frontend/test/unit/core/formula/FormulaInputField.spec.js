@@ -180,4 +180,22 @@ describe('FormulaInputField validates on display', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.vm.isFormulaInvalid).toBe(true)
   })
+
+  it('emits update:invalid when validity changes', async () => {
+    const wrapper = await mountField('now()')
+    expect(wrapper.emitted('update:invalid')).toBeUndefined()
+
+    await wrapper.setProps({ value: '$formula: now()' })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('update:invalid').at(-1)).toEqual([true])
+
+    await wrapper.setProps({ value: 'today()' })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('update:invalid').at(-1)).toEqual([false])
+  })
+
+  it('emits update:invalid for an invalid initial value', async () => {
+    const wrapper = await mountField('$formula: now()')
+    expect(wrapper.emitted('update:invalid').at(-1)).toEqual([true])
+  })
 })

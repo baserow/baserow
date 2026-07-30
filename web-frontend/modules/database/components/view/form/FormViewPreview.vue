@@ -9,6 +9,7 @@
         :fields="fields"
         :store-prefix="storePrefix"
         :read-only="readOnly"
+        :get-scroll-area-element="getScrollAreaElement"
         @ordered-fields="$emit('ordered-fields', $event)"
       ></component>
     </div>
@@ -49,6 +50,13 @@ export default {
       return this.$registry
         .get('formViewMode', this.view.mode)
         .getPreviewComponent()
+    },
+  },
+  methods: {
+    // This component owns the scrollable preview container; descendants use
+    // this resolver so rich text editor menus can stick to it while scrolling.
+    getScrollAreaElement() {
+      return this.$el
     },
   },
 }

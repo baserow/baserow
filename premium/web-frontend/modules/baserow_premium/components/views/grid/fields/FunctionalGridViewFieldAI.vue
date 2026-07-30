@@ -1,12 +1,11 @@
 <template>
   <div v-if="shouldShowGenerateButton" class="grid-view__cell">
-    <div class="grid-field-button">
+    <div v-tooltip="fieldError" class="grid-field-button">
       <Button
-        tag="a"
         size="tiny"
         type="secondary"
         :loading="generating"
-        :disabled="!modelAvailable"
+        :disabled="!modelAvailable || fieldHasError"
         :icon="isDeactivatedFunctional ? 'iconoir-lock' : ''"
       >
         <i18n-t keypath="functionalGridViewFieldAI.generate" tag="span" />

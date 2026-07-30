@@ -29,6 +29,7 @@
               ? resolvedEmbed
               : null
           "
+          :sandbox="sandboxPermissions"
           :style="isEditMode ? 'pointer-events: none' : ''"
         >
         </iframe>
@@ -70,6 +71,16 @@ export default {
     },
     resolvedEmbed() {
       return ensureString(this.resolveFormula(this.element.embed))
+    },
+    sandboxPermissions() {
+      if (this.isEditMode) {
+        return this.element.source_type === IFRAME_SOURCE_TYPES.EMBED
+          ? 'allow-scripts'
+          : ''
+      }
+      return this.element.source_type === IFRAME_SOURCE_TYPES.URL
+        ? 'allow-scripts allow-forms allow-popups'
+        : null
     },
     IFRAME_SOURCE_TYPES() {
       return IFRAME_SOURCE_TYPES

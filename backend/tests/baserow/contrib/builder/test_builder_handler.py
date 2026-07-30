@@ -145,7 +145,7 @@ def test_public_allowed_properties_is_cached(data_fixture, django_assert_num_que
     }
 
     # Initially calling the property should cause a bunch of DB queries.
-    with django_assert_num_queries(14):
+    with django_assert_num_queries(15):
         result = handler.get_builder_public_properties(user_source_user, builder)
         assert result == expected_results
 

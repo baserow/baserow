@@ -1,0 +1,131 @@
+/**
+ * The sorted ancestor-id chain that identifies a node's "level". Two nodes are
+ * at the same level when these chains are equal.
+ */
+const levelOf = (ancestorsOf, node) =>
+  ancestorsOf(node)
+    .map((ancestor) => ancestor.id)
+    .sort((a, b) => a - b)
+
+const sameLevel = (a, b) =>
+  a.length === b.length && a.every((id, index) => id === b[index])
+
+/**
+ * Whether jumping from `gotoNode` to `destinationNode` is a backward jump: the
+ * destination runs before the Go to node, so it is one of its previous nodes.
+ * Only backward jumps are valid for now (see `isValidGotoDestination`), and
+ * this is the primitive that path check is built from.
+ *
+ * @param {Object} gotoNode The source Go to node.
+ * @param {Object} destinationNode The destination node.
+ * @param {Function} previousNodesOf `(node) => node[]` — the nodes that run before it.
+ * @returns {boolean} True when the destination runs before the Go to node.
+ */
+export function isBackwardGotoJump({
+  gotoNode,
+  destinationNode,
+  previousNodesOf,
+}) {
+  return previousNodesOf(gotoNode).some(
+    (node) => node.id === destinationNode.id
+  )
+}
+
+/**
+ * Whether `destinationNode` is a valid "Go to node" destination for `gotoNode`.
+ *
+ * This mirrors the backend `validate_goto_destination`: the destination must be
+ * a non-trigger node, at the same level as the Go to node, and run before it on
+ * its own path (a backward jump) - and it cannot be the Go to node itself.
+ * Forward jumps are not allowed for now: they would leave the skipped nodes
+ * unexecuted, so a later node reading a skipped node's output would fail.
+ * Keeping the rule in a single helper means the connector overlay, the
+ * destination dropdown and the post-move store cleanup all agree on what a valid
+ * jump is.
+ *
+ * The graph lookups are passed in as callbacks so this stays free of any Vuex /
+ * registry coupling and is trivially testable:
+ *
+ * @param {Object} gotoNode The source Go to node.
+ * @param {Object} destinationNode The candidate destination node.
+ * @param {Function} ancestorsOf `(node) => node[]` — the node's container ancestors.
+ * @param {Function} previousNodesOf `(node) => node[]` — the nodes that run before it.
+ * @param {Function} isTrigger `(node) => boolean` — whether the node is a trigger.
+ * @returns {boolean} True when the jump is valid.
+ */
+export function isValidGotoDestination({
+  gotoNode,
+  destinationNode,
+  ancestorsOf,
+  previousNodesOf,
+  isTrigger,
+}) {
+  if (!destinationNode || destinationNode.id === gotoNode.id) {
+    return false
+  }
+  if (isTrigger(destinationNode)) {
+    return false
+  }
+  if (
+    !sameLevel(
+      levelOf(ancestorsOf, gotoNode),
+      levelOf(ancestorsOf, destinationNode)
+    )
+  ) {
+    return false
+  }
+  // The destination must run before the Go to node on its own path (a backward
+  // jump). This both rejects forward jumps and a same-level node on a different
+  // branch, whose own predecessors would not have run when the jump lands on it.
+  return isBackwardGotoJump({
+    gotoNode,
+    destinationNode,
+    previousNodesOf,
+  })
+}
+
+/**
+ * Builds the selectable destinations for a "Go to node" dropdown: every valid
+ * jump target (see `isValidGotoDestination`) that already carries a service,
+ * mapped to the `{ value, name }` shape the generic `CoreGotoServiceForm`
+ * renders. `value` is the destination's service id, which is what the goto
+ * node's `destination_service_id` points at.
+ *
+ * This lives here so the `CoreGotoNodeType.getDestinations` hook can compute it
+ * and the automation `NodeSidePanel` can pass it into the integrations service
+ * form as a prop.
+ *
+ * @param {Object} gotoNode The source Go to node.
+ * @param {Object[]} nodes All nodes in the workflow.
+ * @param {Function} ancestorsOf `(node) => node[]` — the node's container ancestors.
+ * @param {Function} previousNodesOf `(node) => node[]` — the nodes that run before it.
+ * @param {Function} isTrigger `(node) => boolean` — whether the node is a trigger.
+ * @param {Function} nameOf `(node) => string` — the destination's display name.
+ * @returns {{ value: number, name: string }[]}
+ */
+export function buildGotoDestinations({
+  gotoNode,
+  nodes,
+  ancestorsOf,
+  previousNodesOf,
+  isTrigger,
+  nameOf,
+}) {
+  return nodes
+    .filter(
+      (node) =>
+        // A node is only a selectable destination once it has a service (its id
+        // is what `destination_service_id` points at). Optimistically created
+        // nodes have no service yet, so they're skipped until the real node
+        // lands.
+        Boolean(node.service?.id) &&
+        isValidGotoDestination({
+          gotoNode,
+          destinationNode: node,
+          ancestorsOf,
+          previousNodesOf,
+          isTrigger,
+        })
+    )
+    .map((node) => ({ value: node.service.id, name: nameOf(node) }))
+}

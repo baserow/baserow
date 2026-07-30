@@ -510,6 +510,20 @@ def test_get_ancestors(data_fixture, django_assert_num_queries):
 
 
 @pytest.mark.django_db
+def test_get_ancestors_of_non_last_element(data_fixture):
+    page = data_fixture.create_builder_page()
+    parent = data_fixture.create_builder_column_element(column_amount=1, page=page)
+    child = data_fixture.create_builder_heading_element(
+        page=page, reference_element=parent, position=GraphPointPosition.CHILD
+    )
+    # An unrelated root-level element created afterwards (highest id on page).
+    data_fixture.create_builder_heading_element(page=page)
+
+    ancestors = ElementHandler().get_ancestors(child, page)
+    assert [a.id for a in ancestors] == [parent.id]
+
+
+@pytest.mark.django_db
 def test_get_first_ancestor_of_type(data_fixture, django_assert_num_queries):
     page = data_fixture.create_builder_page()
     grandparent = data_fixture.create_builder_column_element(column_amount=1, page=page)
