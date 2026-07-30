@@ -22,7 +22,7 @@
       v-else
       ref="input"
       v-model="richCopy"
-      v-prevent-parent-scroll="editing"
+      v-prevent-parent-scroll.whenScrollable="editing"
       class="grid-field-rich-text__textarea"
       :class="{ 'grid-field-rich-text__textarea--resizable': editing }"
       :editable="editing && !isModalOpen()"

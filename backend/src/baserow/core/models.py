@@ -19,7 +19,9 @@ from baserow.core.jobs.mixins import (
 from baserow.core.jobs.models import Job
 from baserow.core.user_files.models import UserFile
 
+from .abuse_reports.models import AbuseReport
 from .action.models import Action
+from .ai_provider.models import AIProviderConfig, AIProviderModel
 from .integrations.models import Integration
 from .mixins import (
     CreatedAndUpdatedOnMixin,
@@ -52,10 +54,13 @@ __all__ = [
     "Service",
     "Notification",
     "BlacklistedToken",
+    "AIProviderConfig",
+    "AIProviderModel",
     "ExportApplicationsJob",
     "ImportApplicationsJob",
     "ImportExportResource",
     "ImportExportTrustedSource",
+    "AbuseReport",
 ]
 
 from baserow.core.trash.registries import (
@@ -161,6 +166,12 @@ class Settings(models.Model):
         default=True,
         db_default=True,
         help_text="Indicates whether the signature of imported files should be verified.",
+    )
+    allow_reporting_abuse = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="Indicates whether anonymous visitors can report publicly shared "
+        "resources, like views and forms, for abuse.",
     )
 
 

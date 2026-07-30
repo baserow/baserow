@@ -1,6 +1,7 @@
 import json
 from typing import Dict
 
+from django.conf import settings
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
@@ -135,7 +136,7 @@ class ElementsView(APIView):
         # so the list response body stays a bare array. Tiny by construction, so it
         # never risks a reverse proxy's response-header size limit.
         if graph_patch:
-            response["X-Baserow-Builder-Graph-Patch"] = json.dumps(graph_patch)
+            response[settings.BUILDER_GRAPH_PATCH_HEADER] = json.dumps(graph_patch)
 
         return response
 

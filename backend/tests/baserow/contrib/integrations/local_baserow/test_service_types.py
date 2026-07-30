@@ -1065,6 +1065,16 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "metadata": {},
             "type": None,
         },
+        field_db_column_by_name["button"]: {
+            "title": "button",
+            "default": None,
+            "searchable": False,
+            "sortable": False,
+            "filterable": False,
+            "original_type": "button",
+            "metadata": {},
+            "type": None,
+        },
         field_db_column_by_name["ai"]: {
             "title": "ai",
             "default": None,

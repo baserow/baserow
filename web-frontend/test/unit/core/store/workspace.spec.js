@@ -66,6 +66,40 @@ describe('Workspace store', () => {
     expect(workspace.users[1].permissions).toBe('MEMBER')
   })
 
+  test('refreshAllGenerativeAIModels updates models without replacing local state', async () => {
+    await store.dispatch('workspace/forceCreate', {
+      id: 1,
+      name: 'Workspace 1',
+      generative_ai_models_enabled: {
+        openai: ['enabled-model', 'disabled-model'],
+      },
+    })
+    const workspace = store.getters['workspace/get'](1)
+    workspace._.permissions = { role: 'ADMIN' }
+
+    testApp.mock.onGet('/workspaces/').reply(200, [
+      {
+        id: 1,
+        name: 'Workspace 1 from the API',
+        generative_ai_models_enabled: {
+          openai: ['enabled-model'],
+        },
+      },
+    ])
+
+    await store.dispatch('workspace/refreshAllGenerativeAIModels')
+
+    expect(store.getters['workspace/get'](1)).toMatchObject({
+      name: 'Workspace 1',
+      generative_ai_models_enabled: {
+        openai: ['enabled-model'],
+      },
+      _: {
+        permissions: { role: 'ADMIN' },
+      },
+    })
+  })
+
   test('forceUpdateWorkspaceUser updates a user from the workspace', async () => {
     const state = Object.assign(workspaceStore.state(), {
       items: [

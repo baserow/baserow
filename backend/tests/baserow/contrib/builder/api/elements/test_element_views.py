@@ -1579,3 +1579,13 @@ def test_element_full_lifecycle(api_client, data_fixture, element_type):
     assert not Element.objects_and_trash.filter(id=element_id).exists()
     if child_id is not None:
         assert not Element.objects_and_trash.filter(id=child_id).exists()
+
+
+def test_graph_patch_header_is_cors_exposed(settings):
+    # The graph patch is applied by browser-side JS. On cross-origin requests
+    # (e.g. the dev web-frontend talking to the backend on another port) the
+    # browser hides non-safelisted response headers from JS unless they are
+    # explicitly exposed — without this, the patch silently never applies and
+    # the editor needs a second reload to see a healed graph.
+    assert settings.BUILDER_GRAPH_PATCH_HEADER == "X-Baserow-Builder-Graph-Patch"
+    assert settings.BUILDER_GRAPH_PATCH_HEADER in settings.CORS_EXPOSE_HEADERS

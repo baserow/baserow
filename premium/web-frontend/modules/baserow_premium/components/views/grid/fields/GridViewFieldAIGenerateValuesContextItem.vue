@@ -1,10 +1,10 @@
 <template>
   <li class="context__menu-item">
     <a
-      v-tooltip="promptBroken ? $t('gridView.promptBroken') : null"
+      v-tooltip="fieldError"
       class="context__menu-item-link"
       :class="{
-        disabled: !modelAvailable || !hasPremium || promptBroken,
+        disabled: !modelAvailable || !hasPremium || fieldHasError,
         'context__menu-item-link--loading': loading,
       }"
       @click.prevent.stop="generateAIFieldValues()"
@@ -19,6 +19,7 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import FieldService from '@baserow_premium/services/field'
 import PremiumFeatures from '@baserow_premium/features'
+import { setAIFieldErrorFromGenerationError } from '@baserow_premium/utils/aiField'
 
 export default {
   emits: ['click'],
@@ -65,14 +66,16 @@ export default {
     hasPremium() {
       return this.$hasFeature(PremiumFeatures.PREMIUM, this.workspace.id)
     },
-    // Indicates if the field's prompt is broken and can't be used to generate values.
-    promptBroken() {
-      return !!this.field.error
+    fieldError() {
+      return this.field.error || null
+    },
+    fieldHasError() {
+      return !!this.fieldError
     },
   },
   methods: {
     async generateAIFieldValues($event) {
-      if (!this.modelAvailable || !this.hasPremium || this.promptBroken) {
+      if (!this.modelAvailable || !this.hasPremium || this.fieldHasError) {
         return
       }
 
@@ -98,6 +101,7 @@ export default {
       try {
         await FieldService(this.$client).generateAIFieldValues(fieldId, rowIds)
       } catch (error) {
+        setAIFieldErrorFromGenerationError(this.$store, this.field, error)
         this.$store.dispatch(
           this.storePrefix + 'view/grid/setPendingFieldOperations',
           { fieldId, rowIds, value: false }

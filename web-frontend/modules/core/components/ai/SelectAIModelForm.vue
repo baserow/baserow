@@ -9,6 +9,7 @@
       <Dropdown
         v-model="v$.values.ai_generative_ai_type.$model"
         class="dropdown--floating"
+        :disabled="modelsLoading"
         :error="fieldHasErrors('ai_generative_ai_type')"
         :fixed-items="true"
         :show-search="false"
@@ -39,6 +40,7 @@
         ref="aiModel"
         v-model="v$.values.ai_generative_ai_model.$model"
         class="dropdown--floating"
+        :disabled="modelsLoading"
         :error="fieldHasErrors('ai_generative_ai_model')"
         :fixed-items="true"
         :show-search="false"
@@ -54,6 +56,9 @@
       <template #error>
         <div v-if="v$.values.ai_generative_ai_model.required.$invalid">
           {{ $t('error.requiredField') }}
+        </div>
+        <div v-else-if="v$.values.ai_generative_ai_model.available.$invalid">
+          {{ $t('selectAIModelForm.modelUnavailable') }}
         </div>
       </template>
     </FormGroup>
@@ -96,6 +101,7 @@ import { mapGetters } from 'vuex'
 import { required, decimal, minValue, maxValue } from '@vuelidate/validators'
 import modal from '@baserow/modules/core/mixins/modal'
 import form from '@baserow/modules/core/mixins/form'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'SelectAIModelForm',
@@ -123,6 +129,7 @@ export default {
         ai_temperature: 0.1,
       },
       temperature: null,
+      modelsLoading: true,
     }
   },
   computed: {
@@ -174,7 +181,18 @@ export default {
       }
     },
   },
-  mounted() {
+  async mounted() {
+    try {
+      await this.$store.dispatch(
+        'workspace/refreshGenerativeAIModels',
+        this.database.workspace.id
+      )
+    } catch (error) {
+      notifyIf(error)
+    } finally {
+      this.modelsLoading = false
+    }
+
     if (!this.values.ai_generative_ai_type && this.aITypes.length > 0) {
       const aiType = this.aITypes[0].getType()
       this.values.ai_generative_ai_type = aiType
@@ -191,7 +209,10 @@ export default {
     return {
       values: {
         ai_generative_ai_type: { required },
-        ai_generative_ai_model: { required },
+        ai_generative_ai_model: {
+          required,
+          available: (value) => !value || this.aIModelsPerType.includes(value),
+        },
         ai_temperature: {
           decimal,
           minValue: minValue(0),

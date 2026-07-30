@@ -29,6 +29,7 @@ from baserow.contrib.database.table.constants import (
     get_tsv_vector_field_name,
 )
 from baserow.core.constants import RatingStyleChoices
+from baserow.core.formula.field import FormulaField as CoreFormulaModelField
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -988,6 +989,29 @@ class FormViewEditRowField(Field):
         related_name="edit_row_fields",
         help_text="The form view that will be used to edit rows via this field.",
     )
+
+
+class ButtonField(Field):
+    """
+    Read-only field rendering a per-row button that opens a URL resolved
+    client-side from the row's values. Stores configuration only, no cell data.
+    """
+
+    label = models.CharField(max_length=255, blank=True, default="", db_default="")
+    url_formula = CoreFormulaModelField(default="", db_default="")
+
+    @property
+    def error(self):
+        # Computed (not stored) so broken references surface after imports or
+        # referenced-field deletion without a migration.
+        if not self.table_id:
+            return None
+
+        from baserow.contrib.database.fields.formula_visitors import (
+            get_formula_field_error,
+        )
+
+        return get_formula_field_error(self.url_formula, self.table_id)
 
 
 class DuplicateFieldJob(

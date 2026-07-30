@@ -7,6 +7,7 @@ from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.api.views.serializers import PublicFieldSerializer
 from baserow.contrib.database.fields import signals as field_signals
 from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
@@ -21,6 +22,11 @@ def _broadcast_payload_to_views_with_restricted_related_fields(
     views_with_hidden_fields: List[Tuple[View, Set[int]]],
 ):
     view_page_type = page_registry.get("view")
+    serialized_related_fields = [
+        f
+        for f in serialized_related_fields
+        if field_type_registry.get(f["type"]).can_be_in_public_view
+    ]
     for view, hidden_fields in views_with_hidden_fields:
         payload["related_fields"] = [
             f for f in serialized_related_fields if f["id"] not in hidden_fields
@@ -118,6 +124,9 @@ def _get_views_where_field_visible_and_hidden_fields_in_view(
     :return: A list of (view, hidden_field_ids) tuples for views where field is
         visible.
     """
+
+    if not field_type_registry.get_by_model(field.specific_class).can_be_in_public_view:
+        return []
 
     field_ids = (
         list({field.id, *hidden_fields_field_ids_filter})

@@ -359,6 +359,16 @@ const mockedFields = {
     table_id: 42,
     ai_output_type: 'text',
   },
+  button: {
+    id: 28,
+    name: 'button',
+    order: 28,
+    primary: false,
+    table_id: 42,
+    type: 'button',
+    label: 'Open',
+    url_formula: { formula: '', mode: 'simple' },
+  },
 }
 
 const valuesToCall = [null, undefined]

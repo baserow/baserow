@@ -103,11 +103,8 @@
         >
         </FormViewField>
       </div>
-      <div
-        class="form-view__actions"
-        :class="{ 'form-view__actions--single': !view.show_logo }"
-      >
-        <FormViewPoweredBy v-if="view.show_logo"></FormViewPoweredBy>
+      <div class="form-view__actions">
+        <FormViewFooterLinks :show-logo="view.show_logo"></FormViewFooterLinks>
         <div class="form-view__submit">
           <Editable
             ref="submit_text"
@@ -146,14 +143,14 @@
 import FormViewField from '@baserow/modules/database/components/view/form/FormViewField'
 import FormViewImageUpload from '@baserow/modules/database/components/view/form/FormViewImageUpload'
 import formViewHelpers from '@baserow/modules/database/mixins/formViewHelpers'
-import FormViewPoweredBy from '@baserow/modules/database/components/view/form/FormViewPoweredBy'
+import FormViewFooterLinks from '@baserow/modules/database/components/view/form/FormViewFooterLinks'
 import FormViewMetaControls from '@baserow/modules/database/components/view/form/FormViewMetaControls'
 import FormViewDescription from '@baserow/modules/database/components/view/form/FormViewDescription'
 
 export default {
   name: 'FormViewModePreviewForm',
   components: {
-    FormViewPoweredBy,
+    FormViewFooterLinks,
     FormViewField,
     FormViewImageUpload,
     FormViewMetaControls,

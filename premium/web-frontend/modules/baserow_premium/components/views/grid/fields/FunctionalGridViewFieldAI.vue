@@ -1,14 +1,11 @@
 <template>
   <div v-if="shouldShowGenerateButton" class="grid-view__cell">
-    <div
-      v-tooltip="promptBroken ? $t('gridViewFieldAI.promptBroken') : null"
-      class="grid-field-button"
-    >
+    <div v-tooltip="fieldError" class="grid-field-button">
       <Button
         size="tiny"
         type="secondary"
         :loading="generating"
-        :disabled="!modelAvailable || promptBroken"
+        :disabled="!modelAvailable || fieldHasError"
         :icon="isDeactivatedFunctional ? 'iconoir-lock' : ''"
       >
         <i18n-t keypath="functionalGridViewFieldAI.generate" tag="span" />

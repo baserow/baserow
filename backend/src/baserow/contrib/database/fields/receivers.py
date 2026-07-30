@@ -2,12 +2,17 @@ from collections import defaultdict
 
 from django.dispatch import receiver
 
+from baserow.contrib.database.fields.formula_visitors import (
+    TABLE_FIELD_IDS_CACHE_KEY,
+)
 from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
 )
 from baserow.contrib.database.fields.signals import field_updated
 from baserow.contrib.database.rows import signals as row_signals
+from baserow.contrib.database.table.signals import table_schema_changed
 from baserow.contrib.database.views import signals as view_signals
+from baserow.core.cache import local_cache
 
 from .models import LinkRowField
 
@@ -61,3 +66,11 @@ def clear_link_row_limit_selection_view_when_view_is_deleted(
             related_fields=link_rows[1:],
             user=None,
         )
+
+
+@receiver(table_schema_changed)
+def invalidate_formula_field_table_field_ids_cache(sender, table_id, **kwargs):
+    # Invalidate the cached field ids used to validate formula field references
+    # (see formula_visitors.get_table_field_ids) when a field is added, updated,
+    # trashed or restored.
+    local_cache.delete(f"{TABLE_FIELD_IDS_CACHE_KEY}_{table_id}")

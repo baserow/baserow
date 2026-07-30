@@ -2523,6 +2523,78 @@ export class RuntimeStrip extends RuntimeFormulaFunction {
   }
 }
 
+export class RuntimeEncodeUri extends RuntimeFormulaFunction {
+  static getType() {
+    return 'encode_uri'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [value]) {
+    return encodeURI(value)
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.encodeUriDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "encode_uri('https://example.com/a b')",
+        result: "'https://example.com/a%20b'",
+      },
+    ]
+  }
+}
+
+export class RuntimeEncodeUriComponent extends RuntimeFormulaFunction {
+  static getType() {
+    return 'encode_uri_component'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [value]) {
+    return encodeURIComponent(value)
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.encodeUriComponentDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "encode_uri_component('a&b')",
+        result: "'a%26b'",
+      },
+    ]
+  }
+}
+
 export class RuntimeSum extends RuntimeFormulaFunction {
   static getType() {
     return 'sum'

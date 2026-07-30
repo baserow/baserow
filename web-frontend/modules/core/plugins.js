@@ -136,6 +136,15 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can inject additional `context__menu-item`
+   * components into the shared three dots menu that's shown on publicly shared
+   * views.
+   */
+  getAdditionalPublicViewMenuItems(view) {
+    return []
+  }
+
+  /**
    * Every registered plugin can display multiple additional context items in the
    * application context displayed by the sidebar when opening the context menu of
    * an application.

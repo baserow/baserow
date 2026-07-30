@@ -982,6 +982,13 @@
     "noFieldsTitle": "This form doesn't have any fields",
     "noFieldsContent": "Click on a field in the left sidebar to add one."
   },
+  "formViewFooterLinks": {
+    "reportAbuse": "Report abuse"
+  },
+  "publicViewMenu": {
+    "reportAbuse": "Report abuse",
+    "moreOptions": "More options"
+  },
   "table": {
     "adjacentRow": {
       "toast": {
@@ -1256,6 +1263,13 @@
     "notPublicWarning": "This form view is not publicly shared. The edit link will not work until the form is made public.",
     "notPublic": "(not public)",
     "formDoesNotExist": "The selected form does not exist anymore."
+  },
+  "fieldButtonSubForm": {
+    "label": "Label",
+    "labelPlaceholder": "Open",
+    "url": "URL",
+    "urlPlaceholder": "e.g. concat('https://example.com/', get('fields.field_1'))",
+    "invalidUrl": "The URL formula is invalid."
   },
   "editRowLink": {
     "editRow": "Edit row"

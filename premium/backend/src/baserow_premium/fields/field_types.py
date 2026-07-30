@@ -31,6 +31,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
     ModelDoesNotBelongToType,
@@ -122,7 +123,10 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             required=False,
             read_only=True,
             allow_null=True,
-            help_text="The error message if the field's prompt is broken, else null.",
+            help_text=(
+                "The error message if the field's prompt or model configuration "
+                "is invalid, else null."
+            ),
         ),
         **SelectOptionBaseFieldType.serializer_field_overrides,
     }
@@ -631,9 +635,17 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
         if field.ai_prompt:
             try:
-                field.ai_prompt = replace_field_id_references(
-                    field.ai_prompt, id_mapping["database_fields"]
-                )
+                # Assign the whole object, not just the formula string: saving a
+                # bare string makes `to_python` re-wrap it as `simple` mode,
+                # which turns a raw natural language prompt into an
+                # unparseable formula.
+                prompt = BaserowFormulaObject.to_formula(field.ai_prompt)
+                field.ai_prompt = {
+                    **prompt,
+                    "formula": replace_field_id_references(
+                        prompt, id_mapping["database_fields"]
+                    ),
+                }
                 save = True
             except (KeyError, BaserowFormulaException):
                 # KeyError: a referenced field ID isn't in the mapping.

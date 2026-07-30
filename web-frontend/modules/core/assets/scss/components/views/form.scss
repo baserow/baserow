@@ -606,19 +606,37 @@
   justify-content: space-between;
   padding: 20px;
   font-size: 13px;
-
-  &--single {
-    justify-content: flex-end;
-  }
 }
 
-.form-view__powered-by {
+.form-view__footer-links {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.form-view__powered-by-baserow {
+  display: flex;
+  align-items: center;
+}
+
+.form-view__report-abuse {
+  @extend %ellipsis;
+
+  color: $palette-neutral-700;
+  font-size: 12px;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-900;
+  }
 }
 
 .form-view__submit {
   @include flex-align-items(5px);
+
+  margin-left: auto;
 }
 
 .form-view__submit-button-editing {

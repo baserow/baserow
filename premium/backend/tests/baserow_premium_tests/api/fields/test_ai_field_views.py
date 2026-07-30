@@ -279,6 +279,9 @@ def test_generate_ai_field_value_view_generative_ai_model_does_not_belong_to_typ
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE"
+    assert response.json()["detail"] == (
+        "The selected AI model is disabled or no longer available."
+    )
 
 
 @pytest.mark.django_db
@@ -547,3 +550,33 @@ def test_bulk_generate_ai_values_job_rejected_when_prompt_broken(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_AI_FIELD_PROMPT_INVALID"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_bulk_generate_ai_values_job_rejected_when_model_unavailable(
+    premium_data_fixture, api_client
+):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(
+        table=table,
+        ai_generative_ai_model="disabled-model",
+        ai_prompt="'Valid prompt'",
+    )
+
+    response = api_client.post(
+        reverse("api:jobs:list"),
+        {"type": "generate_ai_values", "field_id": field.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE",
+        "detail": "The selected AI model is disabled or no longer available.",
+    }

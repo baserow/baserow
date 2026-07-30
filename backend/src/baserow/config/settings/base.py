@@ -443,6 +443,13 @@ if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
         "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
+BASEROW_ABUSE_REPORT_THROTTLE_RATE = os.getenv(
+    "BASEROW_ABUSE_REPORT_THROTTLE_RATE", "5/h"
+)
+BASEROW_ABUSE_REPORT_NOTIFICATION_COOLDOWN_SECONDS = int(
+    os.getenv("BASEROW_ABUSE_REPORT_NOTIFICATION_COOLDOWN_SECONDS", 60 * 60 * 24)
+)
+
 BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 120))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
@@ -463,6 +470,13 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     CLIENT_SESSION_ID_HEADER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_HEADER,
     USER_SOURCE_AUTHENTICATION_HEADER,
+]
+
+BUILDER_GRAPH_PATCH_HEADER = "X-Baserow-Builder-Graph-Patch"
+
+# Response headers the browser is allowed to read on cross-origin requests
+CORS_EXPOSE_HEADERS = [
+    BUILDER_GRAPH_PATCH_HEADER,
 ]
 
 ACCESS_TOKEN_LIFETIME = timedelta(

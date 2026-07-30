@@ -121,6 +121,7 @@ def test_can_export_every_interesting_different_field_to_json(
     "autonumber": 1,
     "password": "",
     "form_view_edit_row": "FORM_VIEW_EDIT_ROW_URL_ROW1",
+    "button": "",
     "ai": "",
     "ai_choice": ""
 },
@@ -271,6 +272,7 @@ def test_can_export_every_interesting_different_field_to_json(
     "autonumber": 2,
     "password": true,
     "form_view_edit_row": "FORM_VIEW_EDIT_ROW_URL_ROW2",
+    "button": "",
     "ai": "I'm an AI.",
     "ai_choice": "Object"
 }
@@ -449,6 +451,7 @@ def test_can_export_every_interesting_different_field_to_xml(
       <autonumber>1</autonumber>
       <password/>
       <form-view-edit-row>FORM_VIEW_EDIT_ROW_URL_ROW1</form-view-edit-row>
+      <button/>
       <ai/>
       <ai-choice/>
    </row>
@@ -599,6 +602,7 @@ def test_can_export_every_interesting_different_field_to_xml(
       <autonumber>2</autonumber>
       <password>true</password>
       <form-view-edit-row>FORM_VIEW_EDIT_ROW_URL_ROW2</form-view-edit-row>
+      <button/>
       <ai>I'm an AI.</ai>
       <ai-choice>Object</ai-choice>
    </row>
@@ -848,6 +852,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "autonumber",
         "password",
         "form_view_edit_row",
+        "button",
         "ai",
         "ai_choice",
     ]
@@ -929,6 +934,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         form_view_edit_row_url_row1,
         None,
         None,
+        None,
     ]
 
     expected_second_row = [
@@ -1006,6 +1012,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "2",
         "True",
         form_view_edit_row_url_row2,
+        None,
         "I'm an AI.",
         "Object",
     ]

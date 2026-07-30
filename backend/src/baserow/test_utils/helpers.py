@@ -309,6 +309,7 @@ def setup_interesting_test_table(
             "multiple_collaborators_lookup",
             "multiple_select_with_default",
             "form_view_edit_row",
+            "button",
         }
     )
     assert missing_fields == set(), (

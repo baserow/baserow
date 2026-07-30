@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a race condition where changing search terms, filters, or sort order during an in-flight request could display stale rows",
+    "issue_origin": "github",
+    "issue_number": 5764,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-21"
+}

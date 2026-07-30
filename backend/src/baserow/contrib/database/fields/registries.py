@@ -145,6 +145,13 @@ class FieldType(
     can_be_in_form_view = True
     """Indicates whether the field is compatible with the form view."""
 
+    can_be_in_public_view = True
+    """
+    Indicates whether the field can be exposed to the visitors of a publicly shared
+    view. When `False` the field is left out of every public payload, even when the
+    view's field options say it's visible.
+    """
+
     can_get_unique_values = True
     """
     Indicates whether this field can generate a list of unique values using the
@@ -2714,3 +2721,45 @@ field_aggregation_registry: FieldAggregationTypeRegistry = (
     FieldAggregationTypeRegistry()
 )
 field_constraint_registry: FieldConstraintRegistry = FieldConstraintRegistry()
+
+
+def get_content_type_ids_not_allowed_in_public_views() -> Set[int]:
+    """
+    Returns the content type ids of the field types that must never reach the
+    visitors of a publicly shared view.
+    """
+
+    from django.contrib.contenttypes.models import ContentType
+
+    models = [
+        field_type.model_class
+        for field_type in field_type_registry.get_all()
+        if not field_type.can_be_in_public_view
+    ]
+    if not models:
+        return set()
+
+    # Django caches content types per model, so this doesn't query per call.
+    return {
+        content_type.id
+        for content_type in ContentType.objects.get_for_models(*models).values()
+    }
+
+
+def exclude_field_options_not_allowed_in_public_views(
+    field_options: QuerySet,
+) -> QuerySet:
+    """
+    Drops the options of the fields that must never reach the visitors of a
+    publicly shared view, so that a visible field option isn't enough to expose
+    them.
+
+    :param field_options: The field options queryset to filter.
+    :return: The filtered field options queryset.
+    """
+
+    content_type_ids = get_content_type_ids_not_allowed_in_public_views()
+    if not content_type_ids:
+        return field_options
+
+    return field_options.exclude(field__content_type_id__in=content_type_ids)

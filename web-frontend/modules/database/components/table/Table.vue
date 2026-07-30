@@ -74,6 +74,14 @@
           >
           </ViewContext>
         </li>
+        <PublicViewMenu
+          v-if="isPublic && hasSelectedView"
+          :database="database"
+          :table="table"
+          :view="view"
+          :fields="fields"
+          :store-prefix="storePrefix"
+        ></PublicViewMenu>
         <component
           :is="component"
           v-for="(component, index) in getAdditionalTableHeaderComponents(
@@ -255,6 +263,7 @@ import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ViewsContext from '@baserow/modules/database/components/view/ViewsContext'
 import ViewContext from '@baserow/modules/database/components/view/ViewContext'
+import PublicViewMenu from '@baserow/modules/database/components/view/PublicViewMenu'
 import ViewFilter from '@baserow/modules/database/components/view/ViewFilter'
 import ViewSort from '@baserow/modules/database/components/view/ViewSort'
 import ViewDecoratorMenu from '@baserow/modules/database/components/view/ViewDecoratorMenu'
@@ -264,7 +273,7 @@ import ShareViewLink from '@baserow/modules/database/components/view/ShareViewLi
 import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLinkBaserowLogo'
 import ViewGroupBy from '@baserow/modules/database/components/view/ViewGroupBy'
 import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
-import { waitFor } from '@baserow/modules/core/utils/queue'
+import { TaskQueue } from '@baserow/modules/core/utils/queue'
 
 /**
  * This page component is the skeleton for a table. Depending on the selected view it
@@ -284,6 +293,7 @@ export default {
     ViewSort,
     ViewSearch,
     ViewContext,
+    PublicViewMenu,
   },
   /**
    * Because there is no hook that is called before the route changes, we need the
@@ -365,9 +375,22 @@ export default {
       // Indicates if the elements within the header are overflowing. In case of true,
       // we can hide certain values to make sure that it fits within the header.
       headerOverflow: false,
-      // Indicates whether the table is currently being refreshed using via the
-      // `refresh-table` signal.
-      isRefreshing: false,
+      // Serializes concurrent refresh calls so each runs to completion before
+      // the next starts. Sets viewLoading to false when the queue drains.
+      refreshQueue: new TaskQueue({
+        doneCallback: () => {
+          this.$nextTick(() => {
+            this.viewLoading = false
+          })
+        },
+        onSuperseded: () => {
+          try {
+            this.$store.dispatch(this.storePrefix + 'view/grid/abortRefresh')
+          } catch {
+            // Non-grid view types don't have abortRefresh.
+          }
+        },
+      }),
     }
   },
   computed: {
@@ -580,9 +603,6 @@ export default {
      * the same as seeing the view for the first time.
      */
     async refresh(event) {
-      // If could be that the refresh event is for a specific table and in table case
-      // we check if the refresh event is related to this table and stop if that is not
-      // the case.
       if (
         typeof event === 'object' &&
         Object.prototype.hasOwnProperty.call(event, 'tableId') &&
@@ -597,23 +617,6 @@ export default {
         }
       }
 
-      if (this.isRefreshing) {
-        try {
-          // If the table is already refreshing, then we don't have to do anything,
-          // apart from waiting for the refresh to complete.
-          await waitFor(() => !this.isRefreshing, 5, 30000)
-        } catch (error) {
-          // If the timeout is reached, then the table has been refreshing for too
-          // long
-        }
-        // Regardless of the refreshing was completed, the callback must be called,
-        // otherwise, the state of the table might not be updated correctly.
-        await callCallback()
-        return
-      }
-
-      this.isRefreshing = true
-
       const includeFieldOptions =
         typeof event === 'object' ? event.includeFieldOptions : false
 
@@ -624,42 +627,32 @@ export default {
 
       this.viewLoading = true
       const type = this.$registry.get('view', this.view.type)
-      try {
-        await type.refresh(
-          { store: this.$store, app: this },
-          this.database,
-          this.view,
-          fieldsToRefresh,
-          this.storePrefix,
-          includeFieldOptions,
-          event?.sourceEvent
-        )
-      } catch (error) {
-        if (error instanceof RefreshCancelledError) {
-          // Multiple refresh calls have been made and the view has indicated that
-          // this particular one should be cancelled. However we do not want to
-          // set viewLoading back to false as the other non cancelled call/s might
-          // still be loading.
-          return
-        } else {
+
+      const taskId = this.refreshQueue.add(async () => {
+        try {
+          await type.refresh(
+            { store: this.$store, app: this },
+            this.database,
+            this.view,
+            fieldsToRefresh,
+            this.storePrefix,
+            includeFieldOptions,
+            event?.sourceEvent
+          )
+        } catch (error) {
+          if (error instanceof RefreshCancelledError) {
+            await callCallback()
+            return
+          }
           notifyIf(error)
         }
-      }
-      if (typeof this.$refs.view?.refresh === 'function') {
-        await this.$refs.view.refresh()
-      }
-      // Before the callback is called, mark the table as not refreshing anymore, so
-      // that other callbacks that are waiting can be resolved the moment the table has
-      // been refreshed.
-      this.isRefreshing = false
-      // It might be possible that the event has a callback that needs to be called
-      // after the rows are refreshed. This is for example the case when a field has
-      // changed. In that case we want to update the field in the store after the rows
-      // have been refreshed to prevent incompatible values in field types.
-      await callCallback()
-      this.$nextTick(() => {
-        this.viewLoading = false
+        if (typeof this.$refs.view?.refresh === 'function') {
+          await this.$refs.view.refresh()
+        }
+        await callCallback()
       })
+
+      await this.refreshQueue.waitFor(taskId)
     },
     someViewHasPermission(op) {
       return this.views.some((v) =>

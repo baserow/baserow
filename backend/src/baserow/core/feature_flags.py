@@ -3,6 +3,8 @@ from django.conf import settings
 from baserow.core.exceptions import FeatureDisabledException
 
 FF_ENABLE_ALL = "*"
+FF_AI_PROVIDERS = "ai-providers"
+FF_BUTTON_FIELD = "button-field"
 
 
 def feature_flag_is_enabled(feature_flag: str, raise_if_disabled=False) -> bool:

@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 /**
  * An admin type is visible in the sidebar under the admin menu item. All
@@ -71,6 +72,13 @@ export class AdminType extends Registerable {
       name: this.getName(),
       routeName: this.routeName,
     }
+  }
+
+  /**
+   * Indicates whether this admin type should be rendered in navigation.
+   */
+  isVisible() {
+    return true
   }
 
   /**
@@ -187,6 +195,32 @@ export class SettingsAdminType extends AdminType {
 
   getOrder() {
     return 9999
+  }
+}
+
+export class AIProvidersAdminType extends AdminType {
+  static getType() {
+    return 'ai-providers'
+  }
+
+  getIconClass() {
+    return 'iconoir-sparks'
+  }
+
+  getName() {
+    return this.app.$i18n.t('adminType.aiProviders')
+  }
+
+  getRouteName() {
+    return 'admin-ai-providers'
+  }
+
+  getOrder() {
+    return 130
+  }
+
+  isVisible() {
+    return this.app.$featureFlagIsEnabled(FF_AI_PROVIDERS)
   }
 }
 

@@ -737,3 +737,402 @@ def test_replace_root_point():
     assert model.graph["0"] == 3
     assert "1" not in model.graph
     assert model.graph["3"]["next"][""] == [2]
+
+
+def test_remove_container_with_self_referencing_child():
+    # Regression: a corrupted graph in which a container's child has itself as
+    # `next` used to make removing the container loop forever. The traversal
+    # must detect the already-seen point, heal the duplicate reference, and
+    # complete the removal.
+    model = make_graph_model(
+        {
+            "0": 3,
+            "3": {"next": {"": [1]}},
+            "1": {"children": {"": [2]}, "next": {"": [4]}},
+            "2": {"next": {"": [2]}},
+            "4": {},
+        }
+    )
+    graph = model.get_graph()
+
+    result = graph.remove(model.points[1])
+
+    assert [p.id for p in result.dependencies_removed] == [2]
+    assert model.graph == {"0": 3, "3": {"next": {"": [4]}}, "4": {}}
+
+
+def test_get_children_terminates_on_self_referencing_next():
+    # Traversal must track the points already seen: a `next` pointing back at
+    # an already-seen point is not followed. The graph is NOT mutated —
+    # repairing corruption is the healing process's job (heal_orphan_elements).
+    model = make_graph_model(
+        {"0": 1, "1": {"children": {"": [2]}}, "2": {"next": {"": [2]}}}
+    )
+    graph = model.get_graph()
+
+    children = graph.get_children(model.points[1])
+
+    assert [p.id for p in children] == [2]
+    assert model.graph["2"] == {"next": {"": [2]}}
+
+
+def test_get_children_terminates_on_chain_looping_back_to_earlier_point():
+    # A longer cycle: 2 -> 3 -> 2. The traversal returns each point once and
+    # leaves the graph untouched.
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"": [2]}},
+            "2": {"next": {"": [3]}},
+            "3": {"next": {"": [2]}},
+        }
+    )
+    graph = model.get_graph()
+
+    children = graph.get_children(model.points[1])
+
+    assert [p.id for p in children] == [2, 3]
+    assert model.graph["3"] == {"next": {"": [2]}}
+
+
+def test_get_last_position_terminates_on_looping_root_chain():
+    # 1 -> 2 -> 1: following the default edge from the root must terminate at
+    # the point that closes the loop, without mutating the graph.
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [1]}}}
+    )
+    graph = model.get_graph()
+
+    reference_point, position, output = graph.get_last_position()
+
+    assert reference_point.id == 2
+    assert (position, output) == ("south", "")
+    assert model.graph["2"] == {"next": {"": [1]}}
+
+
+def test_get_previous_positions_terminates_when_point_is_its_own_predecessor():
+    # In this corrupted graph the previous-position map ends up recording point
+    # 2 as its own predecessor (its self-referencing `next` overwrites the
+    # legitimate entry). Walking the ancestry must stop instead of looping.
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [2]}}}
+    )
+    graph = model.get_graph()
+
+    positions = graph.get_previous_positions(model.points[2])
+
+    assert isinstance(positions, list)
+
+
+def test_collect_all_descendants_terminates_on_loop():
+    # A subtree containing a self-referencing point must still be collectable,
+    # with every point returned exactly once and the graph left untouched.
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"": [2]}},
+            "2": {"next": {"": [3]}, "children": {"": [4]}},
+            "3": {"next": {"": [3]}},
+            "4": {},
+        }
+    )
+    graph = model.get_graph()
+
+    descendants = graph.collect_all_descendants(model.points[1])
+
+    assert [p.id for p in descendants] == [2, 4, 3]
+    assert model.graph["3"] == {"next": {"": [3]}}
+
+
+def test_remove_container_of_self_referencing_point_in_real_world_graph():
+    # Real-world corrupted graph reported by a customer: point 3308 has itself
+    # as `next`, which made deleting its container (3314) loop forever. The
+    # removal must terminate and splice 3313 straight onto 3304. (The variant
+    # where 3308's row is missing is handled by the healing process pruning it
+    # on page load, before any delete can happen.)
+    model = make_graph_model(
+        {
+            "0": 3292,
+            "3292": {"next": {"": [3293]}},
+            "3293": {"next": {"": [3298]}},
+            "3294": {"children": {"": [3295]}},
+            "3295": {"children": {"0": [3309], "1": [3310], "2": [3313], "3": [3312]}},
+            "3296": {"next": {"": [3306]}},
+            "3297": {"next": {"": [3302]}},
+            "3298": {"next": {"": [3294]}},
+            "3299": {"next": {"": [3300]}},
+            "3300": {"children": {"": [3301]}},
+            "3301": {},
+            "3302": {"children": {"": [3303]}},
+            "3303": {},
+            "3304": {"children": {"": [3305]}},
+            "3305": {},
+            "3306": {"children": {"": [3307]}},
+            "3307": {},
+            "3308": {"next": {"": [3308]}},
+            "3309": {"next": {"": [3299]}},
+            "3310": {"next": {"": [3297]}},
+            "3311": {},
+            "3312": {"next": {"": [3296]}},
+            "3313": {"next": {"": [3314]}},
+            "3314": {"next": {"": [3304]}, "children": {"": [3308]}},
+        }
+    )
+    graph = model.get_graph()
+
+    result = graph.remove(model.points[3314])
+
+    assert [p.id for p in result.dependencies_removed] == [3308]
+    assert "3314" not in model.graph
+    assert "3308" not in model.graph
+    assert model.graph["3313"] == {"next": {"": [3304]}}
+
+
+def test_point_whose_children_contains_itself():
+    # The `children` variant of the self-reference corruption: the container
+    # lists itself as its own child. Traversal must skip it, and both the
+    # point itself and (in the nested variant below) its parent stay deletable.
+    model = make_graph_model(
+        {"0": 1, "1": {"children": {"": [1]}, "next": {"": [2]}}, "2": {}}
+    )
+    graph = model.get_graph()
+
+    assert graph.get_children(model.points[1]) == []
+    assert graph.collect_all_descendants(model.points[1]) == []
+
+    graph.remove(model.points[1])
+    assert model.graph == {"0": 2, "2": {}}
+
+
+def test_remove_parent_of_point_whose_children_contains_itself():
+    # Deleting the parent of a self-childed point must cascade cleanly.
+    model = make_graph_model(
+        {"0": 1, "1": {"children": {"": [2]}}, "2": {"children": {"": [2]}}}
+    )
+    graph = model.get_graph()
+
+    result = graph.remove(model.points[1])
+
+    assert [p.id for p in result.dependencies_removed] == [2]
+    assert model.graph == {}
+
+
+def test_prune_points_handles_self_referencing_stale_point():
+    # prune_points is the heal_orphan_elements path for graph entries whose DB
+    # row is gone. A stale point whose `next` is itself must not be reported as
+    # its own predecessor (leaving the real parent's children dangling), nor be
+    # spliced back in as its own successor.
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"": [2]}, "next": {"": [3]}},
+            "2": {"next": {"": [2]}},
+            "3": {},
+        }
+    )
+    del model.points[2]
+    graph = model.get_graph()
+
+    removed = graph.prune_points([2])
+
+    assert removed == [2]
+    assert model.graph == {"0": 1, "1": {"next": {"": [3]}}, "3": {}}
+
+
+def test_prune_points_handles_self_referencing_stale_root():
+    model = make_graph_model({"0": 1, "1": {"next": {"": [1]}}})
+    del model.points[1]
+    graph = model.get_graph()
+
+    removed = graph.prune_points([1])
+
+    assert removed == [1]
+    assert model.graph == {}
+
+
+def test_find_self_referencing_point_ids():
+    graph = {
+        "0": 1,
+        "1": {"children": {"": [2]}},
+        "2": {"next": {"": [2]}},
+        "3": {"children": {"0": [3], "1": [4]}},
+        "4": {"next": {"": [1], "uuid1": [4]}},
+        "5": {"children": [5]},
+        "6": {"next": {"": [1]}},
+    }
+
+    assert BaseGraphHandler.find_self_referencing_point_ids(graph) == {2, 3, 4, 5}
+    assert BaseGraphHandler.find_self_referencing_point_ids({}) == set()
+    assert BaseGraphHandler.find_self_referencing_point_ids(None) == set()
+
+
+def test_strip_self_references():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"": [2]}, "next": {"": [6]}},
+            "2": {"next": {"": [2]}},
+            "3": {"children": {"0": [3], "1": [4]}},
+            "4": {"next": {"": [1], "uuid1": [4]}},
+            "6": {},
+        }
+    )
+    graph = model.get_graph()
+
+    stripped = graph.strip_self_references()
+
+    assert stripped == [2, 3, 4]
+    assert model.graph == {
+        "0": 1,
+        "1": {"children": {"": [2]}, "next": {"": [6]}},
+        "2": {},
+        "3": {"children": {"1": [4]}},
+        "4": {"next": {"": [1]}},
+        "6": {},
+    }
+    # Already-clean graph: nothing stripped, nothing changed.
+    assert graph.strip_self_references() == []
+
+
+def test_find_dangling_reference_ids():
+    graph = {
+        "0": 1,
+        "1": {"next": {"": [2], "missing": [99]}},
+        "2": {"children": {"0": [3], "1": [98]}},
+        "3": {"children": [97]},
+    }
+
+    assert BaseGraphHandler.find_dangling_reference_ids(graph) == {97, 98, 99}
+    assert BaseGraphHandler.find_dangling_reference_ids({}) == set()
+    assert BaseGraphHandler.find_dangling_reference_ids(None) == set()
+
+
+def test_strip_dangling_references():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [99, 2], "missing": [98]}},
+            "2": {"children": {"0": [97, 3], "1": [96]}},
+            "3": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.strip_dangling_references() == [96, 97, 98, 99]
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"children": {"0": [3]}},
+        "3": {},
+    }
+    assert graph.strip_dangling_references() == []
+
+
+def test_find_unreachable_point_ids():
+    graph = {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"children": {"0": [3]}},
+        "3": {},
+        # Detached chain: 4 -> 5, nothing references 4.
+        "4": {"next": {"": [5]}},
+        "5": {},
+        # Detached lone point.
+        "6": {},
+        # Detached cycle: 7 <-> 8.
+        "7": {"next": {"": [8]}},
+        "8": {"next": {"": [7]}},
+    }
+
+    assert BaseGraphHandler.find_unreachable_point_ids(graph) == {4, 5, 6, 7, 8}
+    assert BaseGraphHandler.find_unreachable_point_ids({"0": 1, "1": {}}) == set()
+    assert BaseGraphHandler.find_unreachable_point_ids({}) == set()
+    assert BaseGraphHandler.find_unreachable_point_ids(None) == set()
+
+
+def test_reattach_unreachable_points_appends_at_bottom():
+    # 3311-style ghost: keyed in the graph, has a model instance, but nothing
+    # references it. It must become the last point of the root chain.
+    model = make_graph_model({"0": 1, "1": {"next": {"": [2]}}, "2": {}, "3": {}})
+    graph = model.get_graph()
+
+    reattached = graph.reattach_unreachable_points()
+
+    assert reattached == [3]
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }
+    # Second call is a no-op.
+    assert graph.reattach_unreachable_points() == []
+
+
+def test_reattach_unreachable_points_preserves_subtree():
+    # Only the head of a detached subtree is linked; its chain and children
+    # ride along untouched.
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {},
+            "4": {"next": {"": [5]}, "children": {"": [6]}},
+            "5": {},
+            "6": {},
+        }
+    )
+    graph = model.get_graph()
+
+    reattached = graph.reattach_unreachable_points()
+
+    assert reattached == [4]
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [4]}},
+        "4": {"next": {"": [5]}, "children": {"": [6]}},
+        "5": {},
+        "6": {},
+    }
+
+
+def test_reattach_unreachable_points_into_empty_graph_becomes_root():
+    model = make_graph_model({"1": {}})
+    graph = model.get_graph()
+
+    assert graph.reattach_unreachable_points() == [1]
+    assert model.graph == {"0": 1, "1": {}}
+
+
+def test_reattach_unreachable_points_into_container_slot():
+    # Shared-page style: attach at the end of the container's default slot.
+    model = make_graph_model({"0": 1, "1": {"children": {"": [2]}}, "2": {}, "3": {}})
+    graph = model.get_graph()
+
+    reattached = graph.reattach_unreachable_points(container=model.points[1])
+
+    assert reattached == [3]
+    assert model.graph == {
+        "0": 1,
+        "1": {"children": {"": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
+def test_reattach_unreachable_points_breaks_detached_cycle():
+    # A fully cyclic detached component has no head; the cycle is broken at
+    # the lowest id, which is then re-attached with the rest as its chain.
+    model = make_graph_model(
+        {"0": 1, "1": {}, "7": {"next": {"": [8]}}, "8": {"next": {"": [7]}}}
+    )
+    graph = model.get_graph()
+
+    reattached = graph.reattach_unreachable_points()
+
+    assert reattached == [7]
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [7]}},
+        "7": {"next": {"": [8]}},
+        "8": {},
+    }

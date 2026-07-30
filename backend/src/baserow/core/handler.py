@@ -216,6 +216,7 @@ class CoreHandler:
                 "co_branding_logo",
                 "email_verification",
                 "verify_import_signature",
+                "allow_reporting_abuse",
             ],
             settings_instance,
         )
@@ -711,7 +712,12 @@ class CoreHandler:
             updated_fields.append("generative_ai_models_settings")
 
         workspace.save(update_fields=updated_fields)
-        workspace_updated.send(self, workspace=workspace, user=user)
+        workspace_updated.send(
+            self,
+            workspace=workspace,
+            user=user,
+            updated_fields=updated_fields,
+        )
 
         return workspace
 

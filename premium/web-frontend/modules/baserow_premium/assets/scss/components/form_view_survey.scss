@@ -75,15 +75,12 @@
   &.form-view-survey__footer--absolute {
     position: absolute;
   }
-
-  &--single {
-    justify-content: flex-end;
-  }
 }
 
 .form-view-survey__pagination {
   display: flex;
   align-items: center;
+  margin-left: auto;
 }
 
 .form-view-survey__order-fields {

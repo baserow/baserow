@@ -340,6 +340,8 @@
     "urlHelp": "Note: please make sure that you have control over, or trust the url entered.",
     "embedLabel": "Embed",
     "embedPlaceholder": "Raw HTML content to be embedded",
+    "warningTitle": "Only use trusted content",
+    "warningMessage": "IFrame content is sandboxed in the editor, where embedded HTML can run scripts in isolation. In previews and published applications, embedded HTML can run without restrictions, while external URLs can run scripts, submit forms, and open popups.",
     "heightLabel": "Height (px)",
     "heightPlaceholder": "Height in pixels"
   },

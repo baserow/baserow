@@ -5,6 +5,7 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
+from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
 from baserow.test_utils.helpers import is_dict_subset
@@ -482,6 +483,36 @@ def test_workspace_settings_override_global_generative_ai_settings(
     assert response.status_code == HTTP_200_OK
     settings = response.json()[0]["generative_ai_models_enabled"]
     assert settings["test_generative_ai"] == ["wp_model_setting"]  # it was "test_1"
+
+
+@pytest.mark.django_db
+def test_list_workspaces_excludes_disabled_instance_ai_models(
+    settings, api_client, data_fixture
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    workspace.generative_ai_models_settings = {
+        "openai": {
+            "api_key": "workspace-secret",
+            "models": ["gpt-5"],
+        }
+    }
+    workspace.save(update_fields=("generative_ai_models_settings",))
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5", "is_enabled": False}],
+    )
+
+    response = api_client.get(
+        reverse("api:workspaces:list"),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    enabled_models = response.json()[0]["generative_ai_models_enabled"]
+    assert enabled_models.get("openai", []) == []
 
 
 @pytest.mark.django_db

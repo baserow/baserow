@@ -1249,6 +1249,45 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
         assert response_json["error"] == "ERROR_FILTERS_PARAM_VALIDATION_ERROR"
 
 
+@pytest.mark.django_db
+def test_list_rows_public_all_fields_hidden_rejects_adhoc_filter(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    hidden_field = data_fixture.create_text_field(table=table, name="hidden")
+    gallery_view = data_fixture.create_gallery_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    data_fixture.create_gallery_view_field_option(
+        gallery_view, hidden_field, hidden=True
+    )
+
+    RowHandler().create_row(
+        user, table, values={"hidden": "secret"}, user_field_names=True
+    )
+
+    url = reverse(
+        "api:database:views:gallery:public_rows",
+        kwargs={"slug": gallery_view.slug},
+    )
+    advanced_filters = {
+        "filter_type": "AND",
+        "filters": [
+            {
+                "field": hidden_field.id,
+                "type": "contains",
+                "value": "secret",
+            }
+        ],
+    }
+    get_params = ["filters=" + json.dumps(advanced_filters)]
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
 @pytest.mark.enable_signals(
