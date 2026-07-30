@@ -7,6 +7,7 @@ from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 
 import pytest
+import requests
 import responses
 from rest_framework import serializers
 
@@ -217,7 +218,7 @@ def test_to_baserow_database_export():
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -229,7 +230,7 @@ def test_to_baserow_database_export():
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -590,7 +591,7 @@ def test_config_skip_files(tmpdir, data_fixture):
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -602,7 +603,7 @@ def test_config_skip_files(tmpdir, data_fixture):
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -698,7 +699,7 @@ def test_to_baserow_database_export_without_primary_value():
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -710,7 +711,7 @@ def test_to_baserow_database_export_without_primary_value():
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -860,7 +861,7 @@ def test_import_from_airtable_to_workspace(
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -872,7 +873,7 @@ def test_import_from_airtable_to_workspace(
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1007,7 +1008,7 @@ def test_import_from_airtable_to_workspace_file_size_over_limit(
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1019,7 +1020,7 @@ def test_import_from_airtable_to_workspace_file_size_over_limit(
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1125,7 +1126,7 @@ def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdi
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/e93dc201ce27080d9ad9df5775527d09/93e85b28/file-sample_500kB.doc",
+            "https://airtable.com/v0.3/row/rec9Imz1INvNXgRIXn1/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1137,7 +1138,7 @@ def test_import_from_airtable_to_workspace_with_report_table(data_fixture, tmpdi
         body = file_handler.read()
         responses.add(
             responses.GET,
-            "https://dl.airtable.com/.attachments/025730a04991a764bb3ace6d524b45e5/bd61798a/file_example_JPG_100kB.jpg",
+            "https://airtable.com/v0.3/row/recyANUudYjDqIXdq9Z/downloadAttachment",
             status=206,
             body=body,
             headers={"Content-Range": f"bytes 0-{len(body) - 1}/{len(body)}"},
@@ -1578,3 +1579,21 @@ def test_airtable_file_import_open_download_failure_raises_key_error():
     with pytest.raises(KeyError, match="could not be downloaded"):
         with file_import.open("broken.pdf"):
             pass
+
+
+@responses.activate
+def test_download_airtable_file_request_exception_wraps_to_file_download_failed():
+    responses.add(
+        responses.GET,
+        STUB_AIRTABLE_FETCH_DOWNLOAD_FILE.url,
+        body=requests.exceptions.ConnectionError("Connection refused"),
+    )
+
+    with pytest.raises(FileDownloadFailed, match="could not be downloaded"):
+        download_airtable_file(
+            name="unreachable.pdf",
+            download_file=STUB_AIRTABLE_FETCH_DOWNLOAD_FILE,
+            init_data={},
+            request_id="req1",
+            cookies={},
+        )

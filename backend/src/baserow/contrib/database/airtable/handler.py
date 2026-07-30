@@ -14,6 +14,7 @@ from django.core.files.storage import Storage
 
 import requests
 from requests import Response
+from requests.exceptions import RequestException
 
 from baserow.contrib.database.airtable.constants import (
     AIRTABLE_API_BASE_URL,
@@ -109,21 +110,26 @@ def download_airtable_file(
     :raises FileDownloadFailed: When the file could not be downloaded.
     """
 
-    if download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH:
-        response = requests.get(download_file.url, headers=headers)  # noqa: S113
-    elif download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT:
-        response = AirtableHandler.fetch_attachment(
-            row_id=download_file.row_id,
-            column_id=download_file.column_id,
-            attachment_id=download_file.attachment_id,
-            init_data=init_data,
-            request_id=request_id,
-            cookies=cookies,
-            headers=headers,
-        )
-    else:
+    try:
+        if download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH:
+            response = requests.get(download_file.url, headers=headers)  # noqa: S113
+        elif download_file.type == AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT:
+            response = AirtableHandler.fetch_attachment(
+                row_id=download_file.row_id,
+                column_id=download_file.column_id,
+                attachment_id=download_file.attachment_id,
+                init_data=init_data,
+                request_id=request_id,
+                cookies=cookies,
+                headers=headers,
+            )
+        else:
+            raise FileDownloadFailed(
+                f"Unknown download file type: {download_file.type}",
+            )
+    except RequestException as e:
         raise FileDownloadFailed(
-            f"Unknown download file type: {download_file.type}",
+            f"File {name} could not be downloaded: {e}",
         )
     if response.status_code not in [HTTPStatus.OK, HTTPStatus.PARTIAL_CONTENT]:
         raise FileDownloadFailed(
@@ -966,7 +972,7 @@ class AirtableHandler:
                     and url in signed_user_content_urls
                 ):
                     download_file.url = signed_user_content_urls[url]
-                elif signed_user_content_urls is None:
+                else:
                     download_file.type = AIRTABLE_DOWNLOAD_FILE_TYPE_ATTACHMENT_ENDPOINT
 
                 files_to_download[file_name] = download_file
