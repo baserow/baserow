@@ -4,28 +4,28 @@ export const getCoreGroup = (app) => ({
   id: 'core',
   label: app.$i18n.t('groupedMenu.core'),
   icon: 'iconoir-package',
-  iconColor: 'var(--palette-green-700)',
+  iconColor: 'muted-green',
 })
 
 export const getFilesGroup = (app) => ({
   id: 'files',
   label: app.$i18n.t('groupedMenu.files'),
   icon: 'iconoir-page',
-  iconColor: 'var(--palette-yellow-700)',
+  iconColor: 'muted-yellow',
 })
 
 export const getHTTPGroup = (app) => ({
   id: 'http',
   label: app.$i18n.t('groupedMenu.http'),
   icon: 'iconoir-globe',
-  iconColor: 'var(--palette-cyan-700)',
+  iconColor: 'muted-cyan',
 })
 
 export const getWorkflowGroup = (app) => ({
   id: 'workflow',
   label: app.$i18n.t('groupedMenu.workflow'),
   icon: 'iconoir-git-fork',
-  iconColor: 'var(--palette-purple-700)',
+  iconColor: 'muted-purple',
 })
 
 export class ServiceType extends Registerable {

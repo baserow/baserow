@@ -156,8 +156,8 @@ describe('Automation node types', () => {
       'darker-blue',
     ])
     expect([createRow.image, updateRow.image]).toEqual([undefined, undefined])
-    expect(aiAgent.iconColor).toBe('var(--palette-blue-700)')
-    expect(smtp.iconColor).toBe('var(--palette-red-700)')
+    expect(aiAgent.iconColor).toBe('muted-blue')
+    expect(smtp.iconColor).toBe('muted-red')
     expect(slack.iconClass).toBe('iconoir-message-text')
     expect(slack.iconColor).toBe('darker-pink')
     expect(slack.image).toBeUndefined()

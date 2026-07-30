@@ -56,7 +56,7 @@ describe('Builder workflow action types', () => {
       .get('workflowAction', 'smtp_email')
 
     expect(emailAction.group.id).toBe('integration-smtp')
-    expect(emailAction.iconColor).toBe('var(--palette-red-700)')
+    expect(emailAction.iconColor).toBe('muted-red')
   })
 
   test('groups the HTTP request action under HTTP', () => {
@@ -65,7 +65,7 @@ describe('Builder workflow action types', () => {
       .get('workflowAction', 'http_request')
 
     expect(httpRequestAction.group.id).toBe('http')
-    expect(httpRequestAction.iconColor).toBe('var(--palette-cyan-700)')
+    expect(httpRequestAction.iconColor).toBe('muted-cyan')
   })
 
   test('groups file reader actions under Files', () => {
@@ -77,7 +77,7 @@ describe('Builder workflow action types', () => {
       )
     ).toEqual(['files', 'files'])
     expect(registry.get('workflowAction', 'csv_file_reader').iconColor).toBe(
-      'var(--palette-yellow-700)'
+      'muted-yellow'
     )
   })
 
@@ -87,7 +87,7 @@ describe('Builder workflow action types', () => {
       .get('workflowAction', 'start_workflow')
 
     expect(startWorkflowAction.group.id).toBe('workflow')
-    expect(startWorkflowAction.iconColor).toBe('var(--palette-purple-700)')
+    expect(startWorkflowAction.iconColor).toBe('muted-purple')
   })
 
   test('groups actions without a service under Core', () => {
@@ -96,7 +96,7 @@ describe('Builder workflow action types', () => {
       .get('workflowAction', 'notification')
 
     expect(notificationAction.group.id).toBe('core')
-    expect(notificationAction.iconColor).toBe('var(--palette-green-700)')
+    expect(notificationAction.iconColor).toBe('muted-green')
     expect(notificationAction.description).toBe(
       'workflowActionTypes.notificationDescription'
     )
