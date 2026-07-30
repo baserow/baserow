@@ -111,6 +111,16 @@ $palette-purple-900: #69308c !default;
 $palette-purple-1000: #582875 !default;
 $palette-purple-1100: #46205e !default;
 
+// Palette values used by dynamically styled UI elements.
+:root {
+  --palette-blue-700: #{$palette-blue-700};
+  --palette-green-700: #{$palette-green-700};
+  --palette-red-700: #{$palette-red-700};
+  --palette-cyan-700: #{$palette-cyan-700};
+  --palette-yellow-700: #{$palette-yellow-700};
+  --palette-purple-700: #{$palette-purple-700};
+}
+
 // Temporarily using the "old" color variable names. This is because we're still
 // figuring out which old color is going to be replaced by which new color. Having this
 // map allows us to easily tweak them without having to do a massive search and replace.

@@ -15,7 +15,7 @@ export class SMTPIntegrationType extends IntegrationType {
   }
 
   get iconColor() {
-    return 'darker-red'
+    return 'var(--palette-red-700)'
   }
 
   getSummary(integration) {

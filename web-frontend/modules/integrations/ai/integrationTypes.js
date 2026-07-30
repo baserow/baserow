@@ -15,7 +15,7 @@ export class AIIntegrationType extends IntegrationType {
   }
 
   get iconColor() {
-    return 'darker-orange'
+    return 'var(--palette-blue-700)'
   }
 
   getSummary(integration) {
