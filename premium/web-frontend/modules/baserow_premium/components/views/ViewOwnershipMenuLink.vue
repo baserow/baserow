@@ -51,10 +51,28 @@ export default {
   },
   computed: {
     isVisible() {
-      return [
-        CollaborativeViewOwnershipType.getType(),
-        PersonalViewOwnershipType.getType(),
-      ].includes(this.view.ownership_type)
+      if (
+        ![
+          CollaborativeViewOwnershipType.getType(),
+          PersonalViewOwnershipType.getType(),
+        ].includes(this.view.ownership_type)
+      ) {
+        return false
+      }
+
+      const workspaceId = this.database.workspace.id
+
+      if (
+        !this.$hasPermission(
+          'database.table.view.update',
+          this.view,
+          workspaceId
+        )
+      ) {
+        return false
+      }
+
+      return true
     },
     changeOwnershipTypeOptions() {
       const collaborativeOwnershipType = this.$registry.get(
