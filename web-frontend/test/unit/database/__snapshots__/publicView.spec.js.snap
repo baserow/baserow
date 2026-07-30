@@ -240,7 +240,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                 >
                   <!--v-if-->
                   <ul
-                    class="select__items"
+                    class="select__items prevent-scroll"
                     tabindex="-1"
                   >
                     

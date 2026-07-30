@@ -46,7 +46,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 1`] = 
             >
               <!--v-if-->
               <ul
-                class="select__items"
+                class="select__items prevent-scroll"
                 style="display: none;"
                 tabindex="-1"
               >
@@ -136,7 +136,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 2`] = 
             >
               <!--v-if-->
               <ul
-                class="select__items"
+                class="select__items prevent-scroll"
                 style="display: none;"
                 tabindex="-1"
               >
@@ -226,7 +226,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 3`] = 
             >
               <!--v-if-->
               <ul
-                class="select__items"
+                class="select__items prevent-scroll"
                 style="display: none;"
                 tabindex="-1"
               >

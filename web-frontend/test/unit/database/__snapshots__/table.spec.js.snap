@@ -83,7 +83,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               <!--v-if-->
               <div class="dropdown__items hidden">
                 <!--v-if-->
-                <ul class="select__items" tabindex="-1">
+                <ul class="select__items prevent-scroll" tabindex="-1">
                   <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
                       <div class="select__item-name">
                         <!--v-if-->
@@ -421,7 +421,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               <!--v-if-->
               <div class="dropdown__items hidden">
                 <!--v-if-->
-                <ul class="select__items" tabindex="-1">
+                <ul class="select__items prevent-scroll" tabindex="-1">
                   <li class="select__item select__item--no-options visible active" role="listitem"><a class="select__item-link">
                       <div class="select__item-name">
                         <!--v-if-->

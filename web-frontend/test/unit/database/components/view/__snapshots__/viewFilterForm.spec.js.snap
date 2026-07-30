@@ -131,7 +131,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
                   />
                 </div>
                 <ul
-                  class="select__items select__items--no-max-height"
+                  class="select__items select__items--no-max-height prevent-scroll"
                   tabindex="-1"
                 >
                   
@@ -272,7 +272,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
                   />
                 </div>
                 <ul
-                  class="select__items select__items--no-max-height"
+                  class="select__items select__items--no-max-height prevent-scroll"
                   tabindex="-1"
                 >
                   
@@ -647,7 +647,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
             >
               <!--v-if-->
               <ul
-                class="select__items select__items--no-max-height"
+                class="select__items select__items--no-max-height prevent-scroll"
                 tabindex="-1"
               >
                 
@@ -763,7 +763,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
                   />
                 </div>
                 <ul
-                  class="select__items select__items--no-max-height"
+                  class="select__items select__items--no-max-height prevent-scroll"
                   tabindex="-1"
                 >
                   
@@ -904,7 +904,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
                   />
                 </div>
                 <ul
-                  class="select__items select__items--no-max-height"
+                  class="select__items select__items--no-max-height prevent-scroll"
                   tabindex="-1"
                 >
                   
@@ -1263,7 +1263,7 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
                   />
                 </div>
                 <ul
-                  class="select__items select__items--no-max-height"
+                  class="select__items select__items--no-max-height prevent-scroll"
                   tabindex="-1"
                 >
                   
