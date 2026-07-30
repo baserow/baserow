@@ -38,7 +38,7 @@ test.describe("Builder page show notification action test suite", () => {
       .click();
     await actionMenu
       .locator(".grouped-menu__actions")
-      .getByRole("menuitem", { name: "Show Notification", exact: true })
+      .getByRole("menuitem", { name: "Show Notification" })
       .click();
 
     await expect(
