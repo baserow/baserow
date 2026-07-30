@@ -1,4 +1,5 @@
 import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
+import CoreManualTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreManualTriggerServiceForm'
 import {
   DataSourceServiceTypeMixin,
   getFilesGroup,
@@ -315,6 +316,10 @@ export class CoreManualTriggerServiceType extends TriggerServiceTypeMixin(
 
   get icon() {
     return 'iconoir-play'
+  }
+
+  get formComponent() {
+    return CoreManualTriggerServiceForm
   }
 
   canBeImmediatelyDispatched(service) {

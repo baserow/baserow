@@ -103,7 +103,9 @@ def test_start_workflow_service_dispatch_starts_configured_workflow(data_fixture
 def test_start_workflow_service_waits_for_response_node(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(
-        user=user, trigger_type=CoreManualTriggerNodeType.type
+        user=user,
+        trigger_type=CoreManualTriggerNodeType.type,
+        trigger_service_kwargs={"wait_for_response": True},
     )
     response_node = data_fixture.create_core_response_action_node(
         workflow=workflow,
@@ -137,7 +139,9 @@ def test_start_workflow_service_waits_for_response_node(data_fixture):
 def test_start_workflow_automation_node_waits_for_response_node(data_fixture):
     user = data_fixture.create_user()
     child_workflow = data_fixture.create_automation_workflow(
-        user=user, trigger_type=CoreManualTriggerNodeType.type
+        user=user,
+        trigger_type=CoreManualTriggerNodeType.type,
+        trigger_service_kwargs={"wait_for_response": True},
     )
     data_fixture.create_core_response_action_node(
         workflow=child_workflow,
@@ -197,6 +201,54 @@ def test_start_workflow_automation_node_waits_for_response_node(data_fixture):
         "headers": {},
         "body": "Child response",
         "body_type": RESPONSE_BODY_TYPE.TEXT,
+    }
+
+
+@pytest.mark.django_db
+def test_start_workflow_service_does_not_wait_when_manual_trigger_disables_it(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user=user, trigger_type=CoreManualTriggerNodeType.type
+    )
+    data_fixture.create_core_response_action_node(workflow=workflow)
+    published_workflow = AutomationWorkflowHandler().publish(workflow)
+    service = data_fixture.create_core_start_workflow_service(workflow=workflow)
+
+    with patch(
+        "baserow.contrib.automation.workflows.handler."
+        "AutomationWorkflowHandler.async_start_workflow"
+    ) as async_start_workflow:
+        result = ServiceHandler().dispatch_service(service, fake_dispatch_context())
+
+    async_start_workflow.assert_called_once_with(published_workflow)
+    assert result.data is None
+
+
+@pytest.mark.django_db
+def test_start_workflow_service_waits_for_completion_without_response_node(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        trigger_type=CoreManualTriggerNodeType.type,
+        trigger_service_kwargs={
+            "wait_for_response": True,
+            "response_timeout_seconds": 1,
+        },
+    )
+    AutomationWorkflowHandler().publish(workflow)
+    service = data_fixture.create_core_start_workflow_service(workflow=workflow)
+
+    result = ServiceHandler().dispatch_service(service, fake_dispatch_context())
+
+    assert result.data == {
+        "status_code": 204,
+        "headers": {},
+        "body": None,
+        "body_type": RESPONSE_BODY_TYPE.EMPTY,
     }
 
 

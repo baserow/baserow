@@ -1270,6 +1270,14 @@
     "methodsOptionExcludeGet": "Exclude GET",
     "responseOptionsLabel": "Response",
     "waitForResponse": "Wait for workflow response",
+    "waitForResponseDescription": "Wait until a Response node is reached. If none is reached, wait for the workflow to finish and return the default response.",
+    "responseTimeout": "Response timeout",
+    "seconds": "seconds"
+  },
+  "coreManualTriggerServiceForm": {
+    "responseOptionsLabel": "Response",
+    "waitForResponse": "Wait for workflow response",
+    "waitForResponseDescription": "Wait until a Response node is reached. If none is reached, wait for the workflow to finish and return the default response.",
     "responseTimeout": "Response timeout",
     "seconds": "seconds"
   },

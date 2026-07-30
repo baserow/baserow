@@ -52,6 +52,7 @@
       <Checkbox v-model="values.wait_for_response">
         {{ $t('coreHTTPTriggerServiceForm.waitForResponse') }}
       </Checkbox>
+      <p>{{ $t('coreHTTPTriggerServiceForm.waitForResponseDescription') }}</p>
     </FormGroup>
 
     <FormGroup

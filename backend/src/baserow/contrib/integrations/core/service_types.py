@@ -2491,8 +2491,43 @@ class CoreManualTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "manual"
     model_class = CoreManualTriggerService
 
+    allowed_fields = [
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    serializer_field_names = [
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    request_serializer_field_names = [
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+
     class SerializedDict(ServiceDict):
-        pass
+        wait_for_response: bool
+        response_timeout_seconds: int
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "response_timeout_seconds": serializers.IntegerField(
+                required=False,
+                min_value=1,
+                max_value=120,
+                default=30,
+                help_text=CoreManualTriggerService._meta.get_field(
+                    "response_timeout_seconds"
+                ).help_text,
+            ),
+            "wait_for_response": serializers.BooleanField(
+                required=False,
+                default=False,
+                help_text=CoreManualTriggerService._meta.get_field(
+                    "wait_for_response"
+                ).help_text,
+            ),
+        }
 
     def can_be_immediately_dispatched(self, service: CoreManualTriggerService):
         return True
@@ -2968,7 +3003,11 @@ class CoreStartWorkflowServiceType(CoreServiceType):
 
         workflow_handler = AutomationWorkflowHandler()
         history_handler = AutomationHistoryHandler()
-        should_wait = history_handler.workflow_has_response_node(published_workflow)
+        trigger_service = published_workflow.get_trigger().service.specific
+        should_wait = bool(getattr(trigger_service, "wait_for_response", False))
+        response_timeout_seconds = getattr(
+            trigger_service, "response_timeout_seconds", 30
+        )
         if should_wait:
             history = workflow_handler.async_start_workflow(
                 published_workflow,
@@ -2989,6 +3028,7 @@ class CoreStartWorkflowServiceType(CoreServiceType):
             return {
                 "_deferred_workflow_id": published_workflow.id,
                 "_deferred_history_id": history.id,
+                "_deferred_timeout_seconds": response_timeout_seconds,
             }
         else:
             history = workflow_handler.async_start_workflow(published_workflow)
@@ -3004,6 +3044,7 @@ class CoreStartWorkflowServiceType(CoreServiceType):
                 data=None,
                 deferred_workflow_id=data["_deferred_workflow_id"],
                 deferred_history_id=data["_deferred_history_id"],
+                deferred_timeout_seconds=data["_deferred_timeout_seconds"],
             )
         return DispatchResult(data=data)
 
@@ -3032,7 +3073,10 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         history = history_handler.get_workflow_history(
             dispatch_result.deferred_history_id
         )
-        workflow_response = history_handler.wait_for_workflow_response(history, 30)
+        workflow_response = history_handler.wait_for_workflow_response(
+            history,
+            dispatch_result.deferred_timeout_seconds,
+        )
         if workflow_response is None:
             return DispatchResult(
                 data={
@@ -3055,7 +3099,6 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         if service.workflow_id is None:
             return False
 
-        from baserow.contrib.automation.history.handler import AutomationHistoryHandler
         from baserow.contrib.automation.workflows.handler import (
             AutomationWorkflowHandler,
         )
@@ -3063,6 +3106,8 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         published_workflow = AutomationWorkflowHandler().get_published_workflow(
             service.workflow
         )
-        return published_workflow is not None and (
-            AutomationHistoryHandler().workflow_has_response_node(published_workflow)
-        )
+        if published_workflow is None:
+            return False
+
+        trigger_service = published_workflow.get_trigger().service.specific
+        return bool(getattr(trigger_service, "wait_for_response", False))

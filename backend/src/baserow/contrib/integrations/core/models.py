@@ -99,6 +99,21 @@ class CoreManualTriggerService(Service):
     A trigger service for workflows that can only be started manually.
     """
 
+    wait_for_response = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the caller should wait for the workflow response.",
+    )
+    response_timeout_seconds = models.PositiveSmallIntegerField(
+        default=30,
+        db_default=30,
+        validators=[
+            MinValueValidator(1, message="Value cannot be less than 1."),
+            MaxValueValidator(120, message="Value cannot be greater than 120."),
+        ],
+        help_text="The maximum time to wait for the workflow response in seconds.",
+    )
+
 
 class CoreStartWorkflowService(Service):
     """
@@ -386,7 +401,7 @@ class CoreHTTPTriggerService(Service):
     wait_for_response = models.BooleanField(
         default=False,
         db_default=False,
-        help_text="Whether the HTTP caller should wait for the workflow response.",
+        help_text="Whether the caller should wait for the workflow response.",
     )
     response_timeout_seconds = models.PositiveSmallIntegerField(
         default=30,

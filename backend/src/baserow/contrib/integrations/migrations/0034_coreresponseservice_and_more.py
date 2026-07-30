@@ -35,7 +35,17 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='corehttptriggerservice',
             name='wait_for_response',
-            field=models.BooleanField(db_default=False, default=False, help_text='Whether the HTTP caller should wait for the workflow response.'),
+            field=models.BooleanField(db_default=False, default=False, help_text='Whether the caller should wait for the workflow response.'),
+        ),
+        migrations.AddField(
+            model_name='coremanualtriggerservice',
+            name='response_timeout_seconds',
+            field=models.PositiveSmallIntegerField(db_default=30, default=30, help_text='The maximum time to wait for the workflow response in seconds.', validators=[django.core.validators.MinValueValidator(1, message='Value cannot be less than 1.'), django.core.validators.MaxValueValidator(120, message='Value cannot be greater than 120.')]),
+        ),
+        migrations.AddField(
+            model_name='coremanualtriggerservice',
+            name='wait_for_response',
+            field=models.BooleanField(db_default=False, default=False, help_text='Whether the caller should wait for the workflow response.'),
         ),
         migrations.CreateModel(
             name='CoreResponseHeader',

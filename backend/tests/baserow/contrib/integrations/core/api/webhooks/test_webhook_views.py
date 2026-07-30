@@ -67,6 +67,7 @@ def test_http_trigger_with_response_node_returns_workflow_response(
 ):
     trigger = data_fixture.create_http_trigger_node(
         service_kwargs={
+            "wait_for_response": True,
             "response_timeout_seconds": 1,
         },
     )
@@ -94,3 +95,19 @@ def test_http_trigger_with_response_node_returns_workflow_response(
     assert resp.status_code == HTTP_200_OK
     assert resp.content == b"Hello"
     assert resp["X-Workflow"] == "done"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_http_trigger_does_not_wait_for_response_when_disabled(
+    api_client, data_fixture
+):
+    trigger = data_fixture.create_http_trigger_node()
+    workflow = trigger.workflow
+    workflow.state = WorkflowState.LIVE
+    workflow.allow_test_run_until = timezone.now()
+    workflow.save()
+    data_fixture.create_core_response_action_node(workflow=workflow)
+
+    resp = api_client.post(get_url(trigger.service.uid) + "?test=true")
+
+    assert resp.status_code == HTTP_204_NO_CONTENT
