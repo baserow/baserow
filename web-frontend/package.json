@@ -40,8 +40,8 @@
   },
   "dependencies": {
     "@nuxtjs/i18n": "10.2.4",
-    "@sentry/node": "10.47.0",
-    "@sentry/nuxt": "10.47.0",
+    "@sentry/node": "10.69.0",
+    "@sentry/nuxt": "10.69.0",
     "@sentry/vue": "10.47.0",
     "@tiptap/core": "3.27.4",
     "@tiptap/extension-blockquote": "3.27.4",
