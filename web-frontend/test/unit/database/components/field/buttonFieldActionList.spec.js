@@ -59,6 +59,28 @@ describe('ButtonFieldActionList', () => {
     expect(emitted[0][0].map((a) => a.id)).toEqual([2, 1])
   })
 
+  test('onSortableUpdate resolves ids correctly when a saved action id collides with an unsaved action index', async () => {
+    // The saved action's real id (1) is numerically identical to the unsaved
+    // action's fallback index (1). The sortable id namespacing must keep
+    // these two apart, or the id-to-action lookup collides and drops one
+    // action as undefined.
+    const wrapper = await mountList([
+      { id: 1, type: 'create_row', service: {} },
+      { type: 'delete_row', service: {} },
+    ])
+
+    await wrapper.vm.onSortableUpdate(['new-1', 1])
+
+    const emitted = wrapper.emitted('input')
+    const [reordered] = emitted[emitted.length - 1]
+    expect(reordered).toHaveLength(2)
+    expect(reordered.every((a) => a !== undefined)).toBe(true)
+    expect(reordered[0].type).toBe('delete_row')
+    expect(reordered[0].id).toBeUndefined()
+    expect(reordered[1].type).toBe('create_row')
+    expect(reordered[1].id).toBe(1)
+  })
+
   test('it renders one form per action', async () => {
     const wrapper = await mountList([
       { id: 1, type: 'create_row', service: {} },

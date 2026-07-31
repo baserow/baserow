@@ -4,7 +4,7 @@
       v-for="(action, index) in value"
       :key="`${action.id ?? 'new'}-${index}`"
       v-sortable="{
-        id: action.id ?? index,
+        id: action.id ?? `new-${index}`,
         handle: '[data-sortable-handle]',
         update: onSortableUpdate,
       }"
@@ -149,8 +149,12 @@ export default {
       this.$emit('input', newList)
     },
     onSortableUpdate(newOrder) {
+      // Unsaved actions have no id, so they fall back to an index-based key.
+      // That fallback must be namespaced (`new-${index}`) so it can never
+      // collide with a real id — otherwise a saved action and an unsaved one
+      // could resolve to the same sortable id.
       const bySortId = new Map(
-        this.value.map((action, index) => [action.id ?? index, action])
+        this.value.map((action, index) => [action.id ?? `new-${index}`, action])
       )
       this.orderActions(newOrder.map((id) => bySortId.get(id)))
     },
