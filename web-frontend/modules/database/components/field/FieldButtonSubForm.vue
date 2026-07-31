@@ -197,7 +197,13 @@ export default {
           const { data } = await service.create(fieldId, action.type)
           createdIds.push(data.id)
           if (action.service && Object.keys(action.service).length > 0) {
-            await service.update(data.id, { service: action.service })
+            // A buffered service carries no `type` until the server has made
+            // one, and the API's polymorphic service serializer refuses a
+            // payload it cannot type. Take it from the service the create
+            // just returned, letting the buffer win if it ever has its own.
+            await service.update(data.id, {
+              service: { type: data.service?.type, ...action.service },
+            })
           }
         }
 

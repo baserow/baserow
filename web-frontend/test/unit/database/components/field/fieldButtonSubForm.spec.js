@@ -119,6 +119,34 @@ describe('FieldButtonSubForm', () => {
       )
     })
 
+    test('a created action is configured with the service type the server assigned', async () => {
+      // A buffered service carries no `type` until the server has made one,
+      // and the API's polymorphic service serializer refuses a payload it
+      // cannot type (it 500s). The follow-up update therefore has to take the
+      // type from the service the create just returned, or a brand new
+      // action's configuration is never persisted.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [
+        { type: 'create_row', service: { table_id: 3 } },
+      ]
+
+      wrapper.vm.$client.post.mockResolvedValueOnce({
+        data: {
+          id: 55,
+          type: 'create_row',
+          service: { id: 9, type: 'local_baserow_upsert_row', table_id: null },
+        },
+      })
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
+        'database/workflow_action/55/',
+        { service: { type: 'local_baserow_upsert_row', table_id: 3 } }
+      )
+    })
+
     test('saving deletes a removed action and orders the rest', async () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
