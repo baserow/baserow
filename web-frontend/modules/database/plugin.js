@@ -370,6 +370,11 @@ import {
   DatabaseRowSearchType,
 } from '@baserow/modules/database/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
+import {
+  CreateRowWorkflowActionType,
+  UpdateRowWorkflowActionType,
+  DeleteRowWorkflowActionType,
+} from '@baserow/modules/database/workflowActionTypes'
 
 export default defineNuxtPlugin({
   name: 'database',
@@ -395,6 +400,7 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('viewAggregation')
     $registry.registerNamespace('formViewMode')
     $registry.registerNamespace('databaseDataProvider')
+    $registry.registerNamespace('databaseWorkflowActionType')
     $registry.registerNamespace('rowModalSidebar')
     $registry.registerNamespace('onboardingTrackFields')
     $registry.registerNamespace('configureDataSync')
@@ -1080,6 +1086,19 @@ export default defineNuxtPlugin({
     )
 
     $registry.register('guidedTour', new DatabaseGuidedTourType(context))
+
+    $registry.register(
+      'databaseWorkflowActionType',
+      new CreateRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new UpdateRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new DeleteRowWorkflowActionType(context)
+    )
 
     $registry.registerNamespace('fieldContextItem')
 
