@@ -2,6 +2,7 @@ import time
 from collections import deque
 from collections.abc import Iterable
 from functools import wraps
+from math import ceil
 from uuid import uuid4
 
 from django.conf import settings
@@ -48,6 +49,47 @@ if allowed then
 end
 
 return { allowed, count }
+"""
+
+
+# Evaluates every configured rate limit and reserves a slot in the same round
+# trip. Doing this in one script is what makes the limit hold under a burst:
+# with a separate count and insert, parallel requests all observe the same free
+# slot before any of them has taken it.
+reserve_rate_limit_slot_if_allowed_lua_script = """
+local key = KEYS[1]
+
+local timestamp = tonumber(ARGV[1])
+local member = ARGV[2]
+local largest_period = tonumber(ARGV[3])
+
+redis.call("zremrangebyscore", key, 0, timestamp - largest_period)
+
+-- The first element tells the caller whether the slot was reserved, the rest
+-- are the number of calls counted for every rate limit, in the same order.
+local result = {1}
+local allowed = true
+
+for index = 4, #ARGV, 2 do
+  local period = tonumber(ARGV[index])
+  local number_of_calls = tonumber(ARGV[index + 1])
+  local count = redis.call("zcount", key, timestamp - period, "+inf")
+
+  result[#result + 1] = count
+
+  if count >= number_of_calls then
+    allowed = false
+  end
+end
+
+if allowed then
+  redis.call("zadd", key, timestamp, member)
+  redis.call("expire", key, largest_period)
+else
+  result[1] = 0
+end
+
+return result
 """
 
 
@@ -218,24 +260,35 @@ class RateLimitThrottle(BaseThrottle):
     example 30 calls per minute and 100 calls per hour at the same time. It's
     disabled when no rate limits are configured.
 
-    Every allowed call is stored in a Redis sorted set holding the timestamps of
-    the recent calls, and every rule is evaluated against the tail of that same
-    set. Unlike DRF's ``SimpleRateThrottle``, which reads a list from the cache
-    and writes it back, the calls are counted with Redis operations that are
-    atomic on their own, so parallel requests can't undercount each other.
+    Every allowed call reserves a slot in a Redis sorted set holding the
+    timestamps of the recent calls, and all rate limits are evaluated against
+    that same set. Checking and reserving happen in one atomic Lua script, so
+    unlike DRF's ``SimpleRateThrottle``, which reads a list from the cache and
+    writes it back, the limit also holds when requests come in parallel.
 
     Subclasses must set ``scope`` and implement ``get_rate_limits`` and
-    ``get_ident``. Set ``consume_on_success`` when only successful calls should
-    count, in which case the view must call ``record`` once the operation
-    actually succeeded.
+    ``get_ident``. Views that should only count calls that actually did
+    something must call ``release`` when they didn't, because the slot is
+    reserved before the view runs.
     """
 
     scope = None
-    consume_on_success = False
     cache_key_format = "baserow_rate_limit:%(scope)s:%(ident)s"
+    _reserve_script = None
 
     def __init__(self):
         self._wait = None
+        self._reserved = None
+
+    @property
+    def reserve_script(self):
+        # Registering compiles the script once and lets redis-py call it by its
+        # hash, falling back to sending the source when redis doesn't know it.
+        if RateLimitThrottle._reserve_script is None:
+            RateLimitThrottle._reserve_script = self.redis_cli.register_script(
+                reserve_rate_limit_slot_if_allowed_lua_script
+            )
+        return RateLimitThrottle._reserve_script
 
     @property
     def redis_cli(self):
@@ -280,54 +333,80 @@ class RateLimitThrottle(BaseThrottle):
             return True
 
         now = self.timer()
+        member = str(uuid4())
         largest_period = max(rate.period_in_seconds for rate in rate_limits)
 
-        pipeline = self.redis_cli.pipeline()
-        pipeline.zremrangebyscore(cache_key, 0, now - largest_period)
+        args = [now, member, largest_period]
         for rate in rate_limits:
-            pipeline.zcount(cache_key, now - rate.period_in_seconds, "+inf")
-        counts = pipeline.execute()[1:]
+            args += [rate.period_in_seconds, rate.number_of_calls]
 
-        for rate, count in zip(rate_limits, counts):
-            if count >= rate.number_of_calls:
-                self._deny(request, cache_key, rate)
+        reserved, *counts = self.reserve_script(
+            keys=[cache_key], args=args, client=self.redis_cli
+        )
 
-        if not self.consume_on_success:
-            self._consume(cache_key, rate_limits)
+        if not reserved:
+            waits = [
+                (self._seconds_until_window_frees_up(cache_key, rate, count, now), rate)
+                for rate, count in zip(rate_limits, counts)
+                if count >= rate.number_of_calls
+            ]
+            # Every exceeded rate limit has to accept the call again, so the one
+            # that takes the longest determines when it's worth retrying.
+            wait, rate = max(waits, key=lambda wait_and_rate: wait_and_rate[0])
+            self._deny(request, cache_key, rate, wait)
+
+        self._reserved = (cache_key, member)
 
         return True
 
-    def record(self, request):
+    def release(self):
         """
-        Consumes one call from the window of the provided request. Only needed
-        when ``consume_on_success`` is set, in which case the view must call this
-        after the operation has succeeded.
+        Gives the reserved slot back so that the call doesn't count towards the
+        rate limits, for example because the view didn't get to do the work that
+        the limits are meant to protect. Calling it without a reservation, or
+        more than once, does nothing.
         """
 
-        rate_limits = tuple(self.get_rate_limits(request) or ())
+        if self._reserved is None:
+            return
 
-        if rate_limits and (cache_key := self.get_cache_key(request)) is not None:
-            self._consume(cache_key, rate_limits)
+        cache_key, member = self._reserved
+        self._reserved = None
+        self.redis_cli.zrem(cache_key, member)
 
-    def _consume(self, cache_key: str, rate_limits: tuple[RateLimit, ...]):
-        largest_period = max(rate.period_in_seconds for rate in rate_limits)
+    def _seconds_until_window_frees_up(
+        self, cache_key: str, rate: RateLimit, count: int, now: float
+    ) -> int:
+        """
+        Returns how long it takes before the provided rate limit accepts a call
+        again, given that ``count`` calls are currently in its window.
 
-        pipeline = self.redis_cli.pipeline()
-        pipeline.zadd(cache_key, {str(uuid4()): self.timer()})
-        pipeline.expire(cache_key, largest_period)
-        pipeline.execute()
+        Enough of the oldest calls must leave the window to get back under the
+        limit, so with `count` calls and a limit of `n` it's the `count - n + 1`
+        oldest call that must expire.
 
-    def _seconds_until_window_frees_up(self, cache_key: str, rate: RateLimit) -> int:
-        oldest = self.redis_cli.zrange(cache_key, 0, 0, withscores=True)
+        Only the calls within the window of this rate limit are looked at,
+        because the sorted set also holds older calls that are only still
+        relevant to a rate limit with a longer period.
+        """
+
+        window_start = now - rate.period_in_seconds
+        oldest = self.redis_cli.zrangebyscore(
+            cache_key,
+            window_start,
+            "+inf",
+            start=max(0, count - rate.number_of_calls),
+            num=1,
+            withscores=True,
+        )
 
         if not oldest:
             return rate.period_in_seconds
 
         oldest_timestamp = oldest[0][1]
-        return max(1, int(oldest_timestamp + rate.period_in_seconds - self.timer()))
+        return max(1, ceil(oldest_timestamp + rate.period_in_seconds - self.timer()))
 
-    def _deny(self, request, cache_key: str, rate: RateLimit):
-        wait = self._seconds_until_window_frees_up(cache_key, rate)
+    def _deny(self, request, cache_key: str, rate: RateLimit, wait: int):
         logger.warning(
             "Denying {scope} request on path={path} for key={cache_key} for {wait} "
             "seconds. Exceeded limit: {calls} per {period}s",
@@ -352,14 +431,14 @@ class WorkspaceInvitationRateThrottle(RateLimitThrottle):
 
     Only invitations that were actually created and emailed count, so a request
     failing on for example a permission or validation error doesn't cost the user
-    any budget.
+    any budget. The view takes care of that by releasing the reserved slot when
+    it responds with an error.
 
     The counter is keyed on the user, not on the workspace, because an abuser can
     create as many workspaces as they like.
     """
 
     scope = "workspace_invitation"
-    consume_on_success = True
 
     def get_rate_limits(self, request):
         return settings.BASEROW_WORKSPACE_INVITATION_RATE_LIMITS

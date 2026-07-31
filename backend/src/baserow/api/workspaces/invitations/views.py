@@ -85,6 +85,15 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
 
         return throttles
 
+    def finalize_response(self, request, response, *args, **kwargs):
+        # The throttle reserves a slot before this view runs, so that parallel
+        # requests can't all pass the check. If no invitation was sent after all,
+        # the slot is given back and the request costs the user nothing.
+        if response.status_code >= 400 and hasattr(self, "invitation_throttle"):
+            self.invitation_throttle.release()
+
+        return super().finalize_response(request, response, *args, **kwargs)
+
     @extend_schema(
         parameters=[
             OpenApiParameter(
@@ -206,10 +215,6 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
                 data["permissions"],
                 data["base_url"],
             )
-
-        # Only invitations that were actually created and emailed consume from the
-        # rate limit, so a request failing on validation costs the user nothing.
-        self.invitation_throttle.record(request)
 
         return Response(WorkspaceInvitationSerializer(workspace_invitation).data)
 

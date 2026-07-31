@@ -102,11 +102,7 @@ describe('WorkspaceMemberInviteModal', () => {
   test('shows an invitation specific message when rate limited', async () => {
     mockServer.mock
       .onPost('/workspaces/invitations/workspace/1/')
-      .reply(
-        429,
-        { detail: 'Request was throttled.' },
-        { 'retry-after': '14400' }
-      )
+      .reply(429, { detail: 'Request was throttled.' })
 
     const wrapper = await mountAndFillForm()
     await wrapper.find('form').trigger('submit.prevent')

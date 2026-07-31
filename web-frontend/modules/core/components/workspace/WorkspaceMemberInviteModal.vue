@@ -37,7 +37,6 @@
 </template>
 
 <script>
-import moment from '@baserow/modules/core/moment'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import WorkspaceInviteForm from '@baserow/modules/core/components/workspace/WorkspaceInviteForm'
@@ -100,7 +99,9 @@ export default {
             this.$t(
               'membersSettings.membersInviteModal.errors.tooManyInvitations.title'
             ),
-            this.getTooManyInvitationsText(error)
+            this.$t(
+              'membersSettings.membersInviteModal.errors.tooManyInvitations.text'
+            )
           )
           error.handler.handled()
           this.inviteLoading = false
@@ -127,20 +128,6 @@ export default {
     },
     onCaptchaToken(token) {
       this.captchaToken = token
-    },
-    getTooManyInvitationsText(error) {
-      const retryAfter = parseInt(error.response?.headers?.['retry-after'], 10)
-
-      if (!retryAfter) {
-        return this.$t(
-          'membersSettings.membersInviteModal.errors.tooManyInvitations.text'
-        )
-      }
-
-      return this.$t(
-        'membersSettings.membersInviteModal.errors.tooManyInvitations.textWithWait',
-        { wait: moment.duration(retryAfter, 'seconds').humanize() }
-      )
     },
   },
 }

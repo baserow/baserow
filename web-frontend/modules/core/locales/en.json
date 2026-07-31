@@ -799,8 +799,7 @@
         },
         "tooManyInvitations": {
           "title": "Too many invitations sent.",
-          "text": "You have sent too many invitations. Please try again later.",
-          "textWithWait": "You have sent too many invitations. Please try again in {wait}."
+          "text": "You have sent too many invitations. Please try again later."
         }
       }
     }
