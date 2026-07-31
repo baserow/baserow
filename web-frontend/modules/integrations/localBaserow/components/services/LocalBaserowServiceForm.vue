@@ -15,15 +15,15 @@
       />
     </FormGroup>
     <LocalBaserowTableSelector
-      v-if="selectedIntegration"
+      v-if="selectedIntegration || databases"
       v-model="fakeTableId"
       v-model:view-id="values.view_id"
-      :databases="databases"
+      :databases="availableDatabases"
       :service-type="serviceType"
       :display-view-dropdown="enableViewPicker"
     />
     <FormGroup
-      v-if="enableRowId && values.integration_id"
+      v-if="enableRowId && (values.integration_id || databases)"
       small-label
       :label="$t(rowIdLabel)"
       :helper-text="rowIdHelperText"
@@ -109,6 +109,16 @@ export default {
       required: false,
       default: true,
     },
+    /**
+     * An explicit list of databases to choose a table from, for callers that
+     * have no integration to source one from. When null (the default) the list
+     * comes from the selected integration, exactly as before.
+     */
+    databases: {
+      type: Array,
+      required: false,
+      default: null,
+    },
   },
   emits: ['table-changed'],
   data() {
@@ -161,8 +171,12 @@ export default {
         this.values.integration_id
       )
     },
-    databases() {
-      return this.selectedIntegration?.context_data?.databases || []
+    availableDatabases() {
+      return (
+        this.databases ??
+        this.selectedIntegration?.context_data?.databases ??
+        []
+      )
     },
   },
   watch: {
