@@ -6,6 +6,7 @@
     :service-type="serviceType"
     :enable-integration-picker="false"
     :databases="workspaceDatabases"
+    :saves-on-table-change="false"
     :default-values="defaultValues.service"
     @values-changed="values.service = { ...defaultValues.service, ...$event }"
   />

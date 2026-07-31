@@ -12,7 +12,7 @@
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
     <div v-if="tableLoading" class="loading-spinner margin-bottom-1"></div>
-    <p v-if="(values.integration_id || databases) && !values.table_id">
+    <p v-if="(values.integration_id || databases) && !service?.table_id">
       {{ $t('localBaserowUpsertRowServiceForm.noTableSelectedMessage') }}
     </p>
     <FieldMappingsForm
@@ -89,6 +89,17 @@ export default {
       required: false,
       default: null,
     },
+    /**
+     * Whether the parent saves the service when the table changes, and so
+     * toggles `loading` around that round trip. True (the default) keeps
+     * today's behaviour. A caller that buffers its changes instead of saving
+     * them must pass false, or the spinner it raises is never lowered.
+     */
+    savesOnTableChange: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   emits: ['values-changed'],
   data() {
@@ -137,9 +148,14 @@ export default {
      * has changed, we'll flag our `tableLoading` boolean as true.
      * We want to display a loading spinner between the `table_id`
      * changing, and the `field_mappings` being loaded.
+     *
+     * Only the `loading` prop going false lowers the spinner again, so a
+     * caller that never saves on a table change must opt out of raising it.
      */
     handleTableChange(newValue) {
-      this.tableLoading = true
+      if (this.savesOnTableChange) {
+        this.tableLoading = true
+      }
     },
     /**
      * When `LocalBaserowServiceForm` informs us that service specific
