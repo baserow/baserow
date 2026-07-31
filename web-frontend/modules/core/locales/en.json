@@ -796,6 +796,11 @@
         "userAlreadyInWorkspace": {
           "title": "User is already in the workspace.",
           "text": "It is not possible to send an invitation when the user is already a member of the workspace."
+        },
+        "tooManyInvitations": {
+          "title": "Too many invitations sent.",
+          "text": "You have sent too many invitations. Please try again later.",
+          "textWithWait": "You have sent too many invitations. Please try again in {wait}."
         }
       }
     }

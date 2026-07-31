@@ -1,5 +1,6 @@
 import time
 from collections import deque
+from collections.abc import Iterable
 from functools import wraps
 from uuid import uuid4
 
@@ -8,7 +9,7 @@ from django.core.cache import cache
 
 from django_redis import get_redis_connection
 from loguru import logger
-from rest_framework.throttling import SimpleRateThrottle
+from rest_framework.throttling import BaseThrottle, SimpleRateThrottle
 
 from baserow.api.exceptions import ThrottledAPIException
 from baserow.core.utils import get_user_remote_ip_address_from_request
@@ -209,6 +210,167 @@ class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
 
     def wait(self):
         return self._wait
+
+
+class RateLimitThrottle(BaseThrottle):
+    """
+    Throttles a view based on a configurable list of ``RateLimit`` rules, for
+    example 30 calls per minute and 100 calls per hour at the same time. It's
+    disabled when no rate limits are configured.
+
+    Every allowed call is stored in a Redis sorted set holding the timestamps of
+    the recent calls, and every rule is evaluated against the tail of that same
+    set. Unlike DRF's ``SimpleRateThrottle``, which reads a list from the cache
+    and writes it back, the calls are counted with Redis operations that are
+    atomic on their own, so parallel requests can't undercount each other.
+
+    Subclasses must set ``scope`` and implement ``get_rate_limits`` and
+    ``get_ident``. Set ``consume_on_success`` when only successful calls should
+    count, in which case the view must call ``record`` once the operation
+    actually succeeded.
+    """
+
+    scope = None
+    consume_on_success = False
+    cache_key_format = "baserow_rate_limit:%(scope)s:%(ident)s"
+
+    def __init__(self):
+        self._wait = None
+
+    @property
+    def redis_cli(self):
+        return _get_redis_cli()
+
+    def timer(self):
+        return time.time()
+
+    def get_rate_limits(self, request) -> Iterable[RateLimit]:
+        """
+        Returns the rate limits that must be applied to the provided request. An
+        empty value disables the throttle.
+        """
+
+        raise NotImplementedError(
+            "The get_rate_limits method must be implemented by the subclass."
+        )
+
+    def get_ident(self, request) -> str | None:
+        """
+        Returns the identifier of the subject the calls are counted for, for
+        example a user id or an IP address, or ``None`` if the request must be
+        exempt from the rate limits.
+        """
+
+        raise NotImplementedError(
+            "The get_ident method must be implemented by the subclass."
+        )
+
+    def get_cache_key(self, request) -> str | None:
+        ident = self.get_ident(request)
+
+        if ident is None:
+            return None
+
+        return self.cache_key_format % {"scope": self.scope, "ident": ident}
+
+    def allow_request(self, request, view) -> bool:
+        rate_limits = tuple(self.get_rate_limits(request) or ())
+
+        if not rate_limits or (cache_key := self.get_cache_key(request)) is None:
+            return True
+
+        now = self.timer()
+        largest_period = max(rate.period_in_seconds for rate in rate_limits)
+
+        pipeline = self.redis_cli.pipeline()
+        pipeline.zremrangebyscore(cache_key, 0, now - largest_period)
+        for rate in rate_limits:
+            pipeline.zcount(cache_key, now - rate.period_in_seconds, "+inf")
+        counts = pipeline.execute()[1:]
+
+        for rate, count in zip(rate_limits, counts):
+            if count >= rate.number_of_calls:
+                self._deny(request, cache_key, rate)
+
+        if not self.consume_on_success:
+            self._consume(cache_key, rate_limits)
+
+        return True
+
+    def record(self, request):
+        """
+        Consumes one call from the window of the provided request. Only needed
+        when ``consume_on_success`` is set, in which case the view must call this
+        after the operation has succeeded.
+        """
+
+        rate_limits = tuple(self.get_rate_limits(request) or ())
+
+        if rate_limits and (cache_key := self.get_cache_key(request)) is not None:
+            self._consume(cache_key, rate_limits)
+
+    def _consume(self, cache_key: str, rate_limits: tuple[RateLimit, ...]):
+        largest_period = max(rate.period_in_seconds for rate in rate_limits)
+
+        pipeline = self.redis_cli.pipeline()
+        pipeline.zadd(cache_key, {str(uuid4()): self.timer()})
+        pipeline.expire(cache_key, largest_period)
+        pipeline.execute()
+
+    def _seconds_until_window_frees_up(self, cache_key: str, rate: RateLimit) -> int:
+        oldest = self.redis_cli.zrange(cache_key, 0, 0, withscores=True)
+
+        if not oldest:
+            return rate.period_in_seconds
+
+        oldest_timestamp = oldest[0][1]
+        return max(1, int(oldest_timestamp + rate.period_in_seconds - self.timer()))
+
+    def _deny(self, request, cache_key: str, rate: RateLimit):
+        wait = self._seconds_until_window_frees_up(cache_key, rate)
+        logger.warning(
+            "Denying {scope} request on path={path} for key={cache_key} for {wait} "
+            "seconds. Exceeded limit: {calls} per {period}s",
+            scope=self.scope,
+            path=request.path,
+            cache_key=cache_key,
+            wait=wait,
+            calls=rate.number_of_calls,
+            period=rate.period_in_seconds,
+        )
+        self._wait = wait
+        raise ThrottledAPIException(wait=wait)
+
+    def wait(self):
+        return self._wait
+
+
+class WorkspaceInvitationRateThrottle(RateLimitThrottle):
+    """
+    Limits how many workspace invitations a single user can send, using the rate
+    limits configured in ``BASEROW_WORKSPACE_INVITATION_RATE_LIMITS``.
+
+    Only invitations that were actually created and emailed count, so a request
+    failing on for example a permission or validation error doesn't cost the user
+    any budget.
+
+    The counter is keyed on the user, not on the workspace, because an abuser can
+    create as many workspaces as they like.
+    """
+
+    scope = "workspace_invitation"
+    consume_on_success = True
+
+    def get_rate_limits(self, request):
+        return settings.BASEROW_WORKSPACE_INVITATION_RATE_LIMITS
+
+    def get_ident(self, request) -> str | None:
+        user = request.user
+
+        if not user.is_authenticated or user.is_staff:
+            return None
+
+        return str(user.id)
 
 
 def rate_limit(rate: RateLimit, key: str, raise_exception: bool = True):
