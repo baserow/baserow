@@ -1281,6 +1281,9 @@
     "dispatchErrorTitle": "Could not run the actions",
     "dispatchErrorMessage": "Something went wrong while running the button's actions. Please try again."
   },
+  "rowEditFieldButtonField": {
+    "createRowBefore": "The actions can be run after the row has been created."
+  },
   "editRowLink": {
     "editRow": "Edit row"
   },

@@ -1,14 +1,23 @@
 <template>
   <div class="control__elements">
-    <Button
+    <span
       v-if="hasWorkflowActions"
-      size="tiny"
-      type="secondary"
-      :loading="dispatching"
-      @click="dispatchWorkflowActions"
+      v-tooltip="
+        rowIsCreated ? null : $t('rowEditFieldButtonField.createRowBefore')
+      "
     >
-      {{ field.label }}
-    </Button>
+      <!-- The row create modal renders every field, but there is no row to
+           run the actions against yet. -->
+      <Button
+        size="tiny"
+        type="secondary"
+        :loading="dispatching"
+        :disabled="!rowIsCreated"
+        @click="dispatchWorkflowActions"
+      >
+        {{ field.label }}
+      </Button>
+    </span>
     <Button
       v-else-if="isValidLinkURL"
       tag="a"
