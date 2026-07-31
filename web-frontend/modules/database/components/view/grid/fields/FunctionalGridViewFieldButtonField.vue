@@ -2,7 +2,16 @@
   <div ref="cell" class="grid-view__cell">
     <div class="grid-field-button">
       <Button
-        v-if="isValid(resolvedButtonValue)"
+        v-if="hasWorkflowActions"
+        type="secondary"
+        size="tiny"
+        :loading="dispatching"
+        @click="dispatchWorkflowActions"
+      >
+        {{ field.label }}
+      </Button>
+      <Button
+        v-else-if="isValid(resolvedButtonValue)"
         tag="a"
         type="secondary"
         size="tiny"

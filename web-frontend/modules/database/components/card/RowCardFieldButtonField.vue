@@ -1,7 +1,18 @@
 <template>
   <div>
     <Button
-      v-if="isValid(resolvedButtonValue)"
+      v-if="hasWorkflowActions"
+      size="tiny"
+      type="secondary"
+      :loading="dispatching"
+      class="forced-pointer-events-auto"
+      @mousedown.stop
+      @click="dispatchWorkflowActions"
+    >
+      {{ field.label }}
+    </Button>
+    <Button
+      v-else-if="isValid(resolvedButtonValue)"
       :href="getHref(resolvedButtonValue)"
       tag="a"
       target="_blank"

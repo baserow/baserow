@@ -1275,6 +1275,10 @@
     "addAction": "Add action",
     "empty": "No actions yet. Add one to define what happens when the button is clicked."
   },
+  "buttonField": {
+    "dispatchErrorTitle": "Could not run the actions",
+    "dispatchErrorMessage": "Something went wrong while running the button's actions. Please try again."
+  },
   "editRowLink": {
     "editRow": "Edit row"
   },

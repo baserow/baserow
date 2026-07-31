@@ -1,7 +1,16 @@
 <template>
   <div class="control__elements">
     <Button
-      v-if="isValidLinkURL"
+      v-if="hasWorkflowActions"
+      size="tiny"
+      type="secondary"
+      :loading="dispatching"
+      @click="dispatchWorkflowActions"
+    >
+      {{ field.label }}
+    </Button>
+    <Button
+      v-else-if="isValidLinkURL"
       tag="a"
       size="tiny"
       type="secondary"
