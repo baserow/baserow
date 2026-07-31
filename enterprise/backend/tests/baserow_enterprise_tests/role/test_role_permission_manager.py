@@ -1911,9 +1911,24 @@ def test_dispatching_a_button_field_needs_at_least_the_editor_role(
     assert getattr(created, f"field_{name_field.id}") == "Ada"
 
 
+@pytest.fixture
+def drop_role_cache_afterwards():
+    """Drops the process wide role cache once the test is done.
+
+    `RoleAssignmentHandler` caches roles and their operations on the class, so
+    a test that deletes an operation row leaves later tests in the same xdist
+    worker with a cache missing it if it errors before re-syncing. The rows
+    themselves roll back with the transaction, so dropping the cache is enough
+    for the next test to rebuild it from a clean database.
+    """
+
+    yield
+    RoleAssignmentHandler._init = False
+
+
 @pytest.mark.django_db
 def test_the_dispatch_operation_reaches_the_roles_of_an_existing_instance(
-    data_fixture, enterprise_data_fixture
+    data_fixture, enterprise_data_fixture, synced_roles, drop_role_cache_afterwards
 ):
     """RBAC reads the operations a role grants from `core_operation` rows, not
     from the registry, so an instance whose table predates a newly registered
