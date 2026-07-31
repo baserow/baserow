@@ -56,6 +56,7 @@ import ButtonFieldActionList from '@baserow/modules/database/components/field/Bu
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import { reconcileWorkflowActions } from '@baserow/modules/database/utils/workflowActionReconciliation'
 import { clone } from '@baserow/modules/core/utils/object'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
 import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
 
@@ -135,15 +136,19 @@ export default {
   },
   async mounted() {
     // A new field has no id yet, so there is nothing to fetch: the server
-    // list stays empty and every local action is new.
-    if (this.defaultValues.id) {
-      const { data } = await WorkflowActionService(this.$client).fetchAll(
-        this.defaultValues.id
-      )
-      this.serverActions = data
-      // A deep copy: editing localActions must never mutate serverActions,
-      // or the reconciliation below would diff a list against itself.
-      this.localActions = clone(data)
+    // list stays empty and every local action is new. Also guard on the
+    // field actually being a button field: FieldForm swaps this sub-form in
+    // live as the user browses the type dropdown, so `defaultValues` can
+    // still be the persisted field of a different type (with a real id)
+    // while this component is only being previewed.
+    if (this.defaultValues.id && this.defaultValues.type === 'button') {
+      try {
+        await this.fetchWorkflowActions(this.defaultValues.id)
+      } catch (error) {
+        // Degrade to an empty list instead of an unhandled rejection; the
+        // user can still add actions from scratch.
+        notifyIf(error, 'field')
+      }
     }
   },
   methods: {
@@ -156,6 +161,22 @@ export default {
     },
     updatedFormulaStr(newFormulaStr) {
       this.v$.values.url_formula.formula.$model = newFormulaStr
+    },
+    /**
+     * Fetches the field's actions from the server and resets both
+     * `serverActions` and the editable `localActions` copy from the
+     * response. Used both on mount and to re-sync after a save, so a
+     * second save in the same mounted instance reconciles against real
+     * ids instead of re-creating actions the first save already made.
+     */
+    async fetchWorkflowActions(fieldId) {
+      const { data } = await WorkflowActionService(this.$client).fetchAll(
+        fieldId
+      )
+      this.serverActions = data
+      // A deep copy: editing localActions must never mutate serverActions,
+      // or the reconciliation below would diff a list against itself.
+      this.localActions = clone(data)
     },
     /**
      * Reconciles the buffered action list against the server and issues the
@@ -171,29 +192,46 @@ export default {
       const service = WorkflowActionService(this.$client)
       const createdIds = []
 
-      for (const action of toCreate) {
-        const { data } = await service.create(fieldId, action.type)
-        createdIds.push(data.id)
-        if (action.service && Object.keys(action.service).length > 0) {
-          await service.update(data.id, { service: action.service })
+      try {
+        for (const action of toCreate) {
+          const { data } = await service.create(fieldId, action.type)
+          createdIds.push(data.id)
+          if (action.service && Object.keys(action.service).length > 0) {
+            await service.update(data.id, { service: action.service })
+          }
         }
-      }
 
-      for (const { id, values } of toUpdate) {
-        await service.update(id, values)
-      }
+        for (const { id, values } of toUpdate) {
+          await service.update(id, values)
+        }
 
-      for (const id of toDelete) {
-        await service.delete(id)
-      }
+        for (const id of toDelete) {
+          await service.delete(id)
+        }
 
-      // `order` carries null where a created action's id was unknown; fill
-      // them in from the creates, in the order they were made.
-      const created = [...createdIds]
-      const finalOrder = order.map((id) => (id === null ? created.shift() : id))
+        // `order` carries null where a created action's id was unknown;
+        // fill them in from the creates, in the order they were made.
+        const created = [...createdIds]
+        const finalOrder = order.map((id) =>
+          id === null ? created.shift() : id
+        )
 
-      if (finalOrder.length > 0) {
-        await service.order(fieldId, finalOrder)
+        if (finalOrder.length > 0) {
+          await service.order(fieldId, finalOrder)
+        }
+      } finally {
+        // Re-sync from the server whether the above succeeded or partially
+        // failed. On success this captures the real ids the server
+        // assigned, so a later save in the same mounted instance never
+        // treats an already-created action as new again. On a partial
+        // failure it shows the user what actually persisted instead of the
+        // stale local buffer. A failure here must not mask the original
+        // error, which is left to keep propagating to the caller.
+        try {
+          await this.fetchWorkflowActions(fieldId)
+        } catch (refreshError) {
+          notifyIf(refreshError, 'field')
+        }
       }
     },
     updateMode(newMode) {

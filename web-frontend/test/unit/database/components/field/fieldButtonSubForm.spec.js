@@ -140,37 +140,134 @@ describe('FieldButtonSubForm', () => {
 
     test('editing an already-edited action accumulates both edits', async () => {
       // Pins the defaultValues staleness concern: DatabaseWorkflowActionWithService
-      // merges against `defaultValues.service`, so ButtonFieldActionList must
-      // keep that prop in sync as localActions changes, or a second edit
-      // would merge against the pre-first-edit snapshot and lose it.
+      // merges the nested service form's payload against `defaultValues.service`
+      // (see DatabaseWorkflowActionWithService.vue), so ButtonFieldActionList
+      // must keep that prop live as localActions changes, or a second, partial
+      // edit would merge against the pre-first-edit snapshot and lose it.
+      //
+      // This drives the real ButtonFieldActionList -> DatabaseWorkflowActionWithService
+      // chain, including its merge line. Only the innermost create_row form is
+      // stubbed, so each `values-changed` below goes through the actual merge.
+      const StubServiceForm = {
+        name: 'StubServiceForm',
+        props: ['application', 'service', 'serviceType', 'defaultValues'],
+        emits: ['values-changed'],
+        template: '<div />',
+      }
+      const serviceType = testApp
+        .getRegistry()
+        .get('service', 'local_baserow_create_row')
+      vi.spyOn(serviceType, 'formComponent', 'get').mockReturnValue(
+        StubServiceForm
+      )
+
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [{ id: 1, type: 'create_row', service: {} }]
       wrapper.vm.localActions = [{ id: 1, type: 'create_row', service: {} }]
       await wrapper.vm.$nextTick()
 
-      const list = wrapper.findComponent({ name: 'ButtonFieldActionList' })
+      const stubForm = wrapper.findComponent({ name: 'StubServiceForm' })
 
-      // First edit, as DatabaseWorkflowActionWithService would emit it.
-      list.vm.onActionValuesChanged(0, { service: { table_id: 3 } })
+      // First edit: a genuinely partial payload, as the real form emits.
+      stubForm.vm.$emit('values-changed', { table_id: 3 })
       await wrapper.vm.$nextTick()
 
       expect(wrapper.vm.localActions[0].service).toEqual({ table_id: 3 })
-      // The list's own `value` prop must have picked up the update, or the
-      // second edit below would merge against the stale first snapshot.
-      expect(list.vm.value[0].service).toEqual({ table_id: 3 })
 
-      // Second edit. A real DatabaseWorkflowActionWithService would compute
-      // this by merging `defaultValues.service` (now { table_id: 3 } if the
-      // prop stayed live) with its own new field.
-      list.vm.onActionValuesChanged(0, {
-        service: { table_id: 3, row_id: 9 },
-      })
+      // Second edit: only the new field, nothing else. This only survives if
+      // DatabaseWorkflowActionWithService merged against a live
+      // `defaultValues.service`, not the pre-first-edit `{}` snapshot.
+      stubForm.vm.$emit('values-changed', { row_id: 9 })
       await wrapper.vm.$nextTick()
 
       expect(wrapper.vm.localActions[0].service).toEqual({
         table_id: 3,
         row_id: 9,
       })
+    })
+
+    test('mounting on a non-button field does not fetch workflow actions', async () => {
+      // FieldForm swaps this sub-form in live as the user browses the type
+      // dropdown. `defaultValues` is still the persisted field, which may be
+      // of a different type with a real id.
+      const wrapper = await mountForm({ type: 'text', label: 'Go', id: 7 })
+
+      expect(wrapper.vm.$client.get).not.toHaveBeenCalled()
+    })
+
+    test('a failed fetch on mount degrades to an empty list', async () => {
+      const client = testApp.getApp().$client
+      client.get.mockRejectedValueOnce(
+        Object.assign(new Error('not found'), {
+          handler: { notifyIf: () => {} },
+        })
+      )
+
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+
+      expect(wrapper.vm.serverActions).toEqual([])
+      expect(wrapper.vm.localActions).toEqual([])
+    })
+
+    test('a second save does not recreate an action the first save already created', async () => {
+      // Regression test: UpdateFieldContext mounts this component once per
+      // field and keeps it mounted across open/edit/save cycles (Context.vue
+      // uses v-if="openedOnce"), so serverActions/localActions must reflect
+      // what really exists server-side after each save, or reconciliation on
+      // the next save treats an already-created action as new again.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [{ id: 1, type: 'create_row', service: {} }]
+      wrapper.vm.localActions = [
+        { id: 1, type: 'create_row', service: {} },
+        { type: 'delete_row', service: {} },
+      ]
+
+      let nextId = 99
+      wrapper.vm.$client.post.mockImplementation((url, body) => {
+        if (url === 'database/field/7/workflow_actions/') {
+          return Promise.resolve({ data: { id: nextId++, type: body.type } })
+        }
+        return Promise.resolve({ data: {} })
+      })
+      wrapper.vm.$client.get.mockResolvedValueOnce({
+        data: [
+          { id: 1, type: 'create_row', service: {} },
+          { id: 99, type: 'delete_row', service: {} },
+        ],
+      })
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      // The re-sync picked up the real id: the buffer no longer has an
+      // id-less action for the next reconciliation to treat as new.
+      expect(wrapper.vm.serverActions.map((a) => a.id)).toEqual([1, 99])
+      expect(wrapper.vm.localActions.map((a) => a.id)).toEqual([1, 99])
+
+      wrapper.vm.$client.post.mockClear()
+      wrapper.vm.$client.get.mockResolvedValueOnce({
+        data: [
+          { id: 1, type: 'create_row', service: {} },
+          { id: 99, type: 'delete_row', service: {} },
+          { id: 100, type: 'create_row', service: {} },
+        ],
+      })
+
+      // Add a third action and save again on the same mounted instance,
+      // without a remount in between.
+      wrapper.vm.localActions = [
+        ...wrapper.vm.localActions,
+        { type: 'create_row', service: {} },
+      ]
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      const createCalls = wrapper.vm.$client.post.mock.calls.filter(
+        ([url]) => url === 'database/field/7/workflow_actions/'
+      )
+      // Only the new (third) action is created. A2 (id 99) must not be
+      // recreated.
+      expect(createCalls).toHaveLength(1)
+      expect(createCalls[0][1]).toEqual({ type: 'create_row' })
     })
   })
 })
