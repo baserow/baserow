@@ -1052,7 +1052,9 @@
     "passwordDeleted": "The password was deleted"
   },
   "dataProviderTypes": {
-    "fieldsName": "Fields"
+    "fieldsName": "Fields",
+    "rowName": "Row",
+    "rowId": "Row ID"
   },
   "userMentionInRichTextFieldNotification": {
     "title": "{sender} mentioned you in field {fieldName} of row {rowId} in {tableName}",

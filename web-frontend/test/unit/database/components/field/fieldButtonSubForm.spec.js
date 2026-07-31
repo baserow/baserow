@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import FieldButtonSubForm from '@baserow/modules/database/components/field/FieldButtonSubForm'
+import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 
 describe('FieldButtonSubForm', () => {
   let testApp = null
@@ -296,6 +297,78 @@ describe('FieldButtonSubForm', () => {
       // recreated.
       expect(createCalls).toHaveLength(1)
       expect(createCalls[0][1]).toEqual({ type: 'create_row' })
+    })
+  })
+
+  describe('formula injection', () => {
+    // A "create a row" action's field mappings render their formula input
+    // through the shared `InjectedFormulaInput`, which resolves the component
+    // to render from an injected `formulaComponent`. Nothing in the database
+    // module provided one, so the injection was undefined and Vue rendered a
+    // bare comment node: the mapping showed an empty area instead of an input.
+    const mountInjectedInput = async (formWrapper, attrs = {}) =>
+      testApp.mount(InjectedFormulaInput, {
+        attrs,
+        global: { provide: formWrapper.vm.$.provides },
+      })
+
+    test('the sub-form provides what InjectedFormulaInput injects', async () => {
+      const wrapper = await mountForm({ type: 'button', label: 'Go' })
+      const provides = wrapper.vm.$.provides
+
+      expect(provides.formulaComponent).toBeTruthy()
+      // Only the clicked row resolves in a button action's arguments.
+      expect(provides.dataProvidersAllowed).toEqual(['row'])
+    })
+
+    test('InjectedFormulaInput renders a real input under the sub-form', async () => {
+      const form = await mountForm({ type: 'button', label: 'Go' })
+
+      const input = await mountInjectedInput(form, {
+        modelValue: { formula: "'hi'", mode: 'simple' },
+      })
+
+      // The defect: without a provided component this rendered nothing but a
+      // comment node, so both of these were false/empty.
+      expect(input.findComponent({ name: 'FormulaInputField' }).exists()).toBe(
+        true
+      )
+      expect(input.html()).not.toBe('<!---->')
+    })
+
+    test('the injected input offers the clicked row fields', async () => {
+      const form = await mountForm({ type: 'button', label: 'Go' })
+
+      const input = await mountInjectedInput(form, {
+        modelValue: { formula: "'hi'", mode: 'simple' },
+      })
+
+      const formulaInput = input.findComponent({ name: 'DatabaseFormulaInput' })
+      const dataGroup = formulaInput.vm.nodesHierarchy.find(
+        (group) => group.type === 'data'
+      )
+      // `allFieldsInTable` above holds a single "Name" field.
+      const rowNode = dataGroup.nodes.find((node) => node.identifier === 'row')
+      expect(rowNode.nodes.map((node) => node.identifier)).toEqual([
+        'id',
+        'field_1',
+      ])
+    })
+
+    test('editing the injected input emits the whole value object', async () => {
+      const form = await mountForm({ type: 'button', label: 'Go' })
+
+      const input = await mountInjectedInput(form, {
+        modelValue: { formula: "'old'", mode: 'simple' },
+      })
+
+      input
+        .findComponent({ name: 'DatabaseFormulaInput' })
+        .vm.onFormulaChanged("'new'")
+
+      expect(input.emitted('update:modelValue')[0]).toEqual([
+        { formula: "'new'", mode: 'simple' },
+      ])
     })
   })
 })

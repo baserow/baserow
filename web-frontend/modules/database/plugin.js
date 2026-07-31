@@ -334,7 +334,10 @@ import {
   WebhookPayloadTooLargedNotificationType,
 } from '@baserow/modules/database/notificationTypes'
 import { HistoryRowModalSidebarType } from '@baserow/modules/database/rowModalSidebarTypes'
-import { FieldsDataProviderType } from '@baserow/modules/database/dataProviderTypes'
+import {
+  FieldsDataProviderType,
+  RowDataProviderType,
+} from '@baserow/modules/database/dataProviderTypes'
 
 import {
   DatabaseOnboardingType,
@@ -995,6 +998,7 @@ export default defineNuxtPlugin({
       'databaseDataProvider',
       new FieldsDataProviderType(context)
     )
+    $registry.register('databaseDataProvider', new RowDataProviderType(context))
 
     // notifications
     $registry.register(

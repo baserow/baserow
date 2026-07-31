@@ -47,12 +47,14 @@
 </template>
 
 <script>
+import { computed, markRaw } from 'vue'
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
+import DatabaseFormulaInput from '@baserow/modules/database/components/field/DatabaseFormulaInput'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import { reconcileWorkflowActions } from '@baserow/modules/database/utils/workflowActionReconciliation'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -64,11 +66,23 @@ export default {
   name: 'FieldButtonSubForm',
   components: { FormulaInputField, ButtonFieldActionList },
   mixins: [form, fieldSubForm],
-  // The nested action forms (via FieldMappingsForm) need the workspace to
-  // check field permissions.
   provide() {
     return {
+      // The nested action forms (via FieldMappingsForm) need the workspace to
+      // check field permissions.
       workspace: this.database.workspace,
+      // A field mapping renders its formula input through the shared
+      // `InjectedFormulaInput`, which resolves the component to render from
+      // this injection. Without it the injection is undefined and the input
+      // renders as an empty area. The builder and automation editors provide
+      // their own component the same way.
+      formulaComponent: markRaw(DatabaseFormulaInput),
+      // Only the clicked row resolves in a button action's arguments: a
+      // `DatabaseDispatchContext` carries no human readable values, so
+      // `get('fields.…')` would resolve to nothing (ADR 006 section 4).
+      dataProvidersAllowed: ['row'],
+      // Lazily read, so the explorer picks up the table's fields as they load.
+      databaseFormulaContext: computed(() => this.applicationContext),
     }
   },
   setup() {
