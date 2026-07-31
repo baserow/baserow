@@ -1909,3 +1909,85 @@ def test_dispatching_a_button_field_needs_at_least_the_editor_role(
 
     created = table.get_model().objects.exclude(id=row.id).get()
     assert getattr(created, f"field_{name_field.id}") == "Ada"
+
+
+@pytest.mark.django_db
+def test_the_dispatch_operation_reaches_the_roles_of_an_existing_instance(
+    data_fixture, enterprise_data_fixture
+):
+    """RBAC reads the operations a role grants from `core_operation` rows, not
+    from the registry, so an instance whose table predates a newly registered
+    operation denies it to every role including ADMIN. The rows are only
+    written by the `post_migrate` receivers, which is why a test database,
+    rebuilt and migrated for each run, never shows this while a long lived one
+    refuses the click until it is migrated again.
+
+    Both halves matter: the first pins the symptom to the missing row rather
+    than to the scope chain or the role definitions, and the second pins that
+    a migrate really does repair it.
+    """
+
+    from django.apps import apps as django_apps
+
+    from baserow.contrib.database.table.handler import TableHandler
+    from baserow.contrib.database.workflow_actions.models import CreateRowWorkflowAction
+    from baserow.contrib.database.workflow_actions.operations import (
+        DispatchDatabaseWorkflowActionOperationType,
+    )
+    from baserow.contrib.database.workflow_actions.service import (
+        DatabaseWorkflowActionService,
+    )
+    from baserow.core.apps import sync_operations_after_migrate
+    from baserow.core.models import Operation
+    from baserow_enterprise.apps import sync_default_roles_after_migrate
+
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    table = TableHandler().create_table_and_fields(
+        user=admin, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(field=name_field, value="'Ada'", enabled=True)
+
+    RoleAssignmentHandler().assign_role(
+        admin, workspace, role=Role.objects.get(uid="ADMIN")
+    )
+
+    # An instance whose operations were last synced before the button field
+    # work landed. Deleting the row also drops every role's grant of it.
+    Operation.objects.filter(
+        name=DispatchDatabaseWorkflowActionOperationType.type
+    ).delete()
+    # The handler caches the roles and their operations for the lifetime of the
+    # process, so a worker started before the sync keeps the old answer too.
+    RoleAssignmentHandler._init = False
+
+    with pytest.raises(PermissionException):
+        with local_cache.context():
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                admin, button_field, row
+            )
+
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
+
+    # What `manage.py migrate` fires, and what an upgrade therefore does.
+    sync_operations_after_migrate(None, apps=django_apps)
+    sync_default_roles_after_migrate(None, apps=django_apps)
+    RoleAssignmentHandler._init = False
+
+    with local_cache.context():
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            admin, button_field, row
+        )
+
+    created = table.get_model().objects.exclude(id=row.id).get()
+    assert getattr(created, f"field_{name_field.id}") == "Ada"
