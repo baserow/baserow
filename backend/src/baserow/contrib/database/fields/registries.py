@@ -1219,6 +1219,24 @@ class FieldType(
         :param id_mapping:
         """
 
+    def after_field_duplicated(
+        self,
+        original_field: Field,
+        new_field: Field,
+        serialized_field: Dict[str, Any],
+    ):
+        """
+        Called after a single field has been duplicated, once the new field
+        exists. `duplicate_field` does not go through the serialization import
+        path, so anything a field type keeps outside its own allowed fields has
+        to be copied here.
+
+        :param original_field: The field that was duplicated.
+        :param new_field: The newly created copy.
+        :param serialized_field: The original field's exported representation,
+            minus the keys `duplicate_field` strips.
+        """
+
     def after_rows_imported(
         self,
         field: Field,

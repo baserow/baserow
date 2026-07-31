@@ -10,6 +10,9 @@ from baserow.contrib.database.workflow_actions.models import (
     DatabaseWorkflowAction,
     DeleteRowWorkflowAction,
 )
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowTableServiceFieldMapping,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 
@@ -59,21 +62,17 @@ def test_duplicating_the_table_remaps_the_action_target(data_fixture):
 
 
 @pytest.mark.django_db
-@pytest.mark.xfail(
-    reason="ADR 006 section 8 promises actions and services are duplicated with the "
-    "field, but `FieldHandler.duplicate_field` passes the exported values through "
-    "`create_field`, where `extract_allowed` drops `workflow_actions`. Fixing it "
-    "needs a per-type duplication hook on `FieldType`, which is a separate design "
-    "decision. Delete this marker once that hook exists.",
-    strict=True,
-)
 def test_duplicating_a_single_field_copies_its_actions(data_fixture):
     user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    button_field = data_fixture.create_button_field(table=table, name="btn")
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    target_table = data_fixture.create_database_table(user=user, database=database)
+    button_field = data_fixture.create_button_field(table=table, name="btn", label="Go")
+    target_field = data_fixture.create_text_field(table=target_table)
     service = data_fixture.create_local_baserow_upsert_row_service(
-        integration=None, table=table
+        integration=None, table=target_table
     )
+    service.field_mappings.create(field=target_field, value="'hi'", enabled=True)
     data_fixture.create_database_workflow_action(
         CreateRowWorkflowAction, field=button_field, service=service
     )
@@ -82,7 +81,26 @@ def test_duplicating_a_single_field_copies_its_actions(data_fixture):
 
     actions = list(DatabaseWorkflowAction.objects.filter(field=duplicated_field))
     assert [a.specific.get_type().type for a in actions] == ["create_row"]
-    assert actions[0].specific.service.specific.table_id == table.id
+    assert actions[0].specific.service_id != service.id, (
+        "The duplicate must own its own service, not share the original's."
+    )
+    duplicated_service = actions[0].specific.service.specific
+    assert duplicated_service.table_id == target_table.id, (
+        "The duplicated action must still point at the original target table. "
+        "An id_mapping that maps the table to nothing nulls it, which produces "
+        "a copy that looks correct and does nothing."
+    )
+    # Queried fresh: the service instance carries the mappings it was created
+    # with, whose in-memory `value` isn't converted back into a formula object.
+    duplicated_mappings = LocalBaserowTableServiceFieldMapping.objects.filter(
+        service_id=duplicated_service.id
+    )
+    assert [(m.field_id, m.value["formula"]) for m in duplicated_mappings] == [
+        (target_field.id, "'hi'")
+    ], (
+        "The field mappings must keep pointing at the fields of the target "
+        "table, which an id_mapping without them would drop."
+    )
 
 
 @pytest.mark.django_db(transaction=True)

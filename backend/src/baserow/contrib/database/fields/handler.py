@@ -958,6 +958,8 @@ class FieldHandler:
         )
         progress.increment()
 
+        field_type.after_field_duplicated(specific_field, new_field, serialized_field)
+
         if duplicate_data and field_type.keep_data_on_duplication:
             FieldDataBackupHandler.duplicate_field_data(field, new_field)
         progress.increment()

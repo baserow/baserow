@@ -7902,6 +7902,25 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
         pass
 
 
+class UnchangedIdMapping(dict[int, int]):
+    """
+    An import id mapping that maps every id to itself, for a copy created next
+    to its original, which therefore keeps referencing the very objects the
+    original referenced.
+
+    An empty mapping can't say that: importers look an id up with
+    `.get(value, None)` and read a miss as "the object is gone", so they null
+    the reference instead of leaving it alone. Both lookup forms are covered,
+    since importers use `mapping[id]` as well as `mapping.get(id)`.
+    """
+
+    def __missing__(self, key: int) -> int:
+        return key
+
+    def get(self, key: int, default=None) -> int:
+        return key
+
+
 class ButtonFieldType(ReadOnlyFieldType):
     """
     Read-only field whose cells render a button opening a URL resolved
@@ -8193,3 +8212,37 @@ class ButtonFieldType(ReadOnlyFieldType):
             action_type.import_serialized(field, serialized_action, id_mapping)
 
         FieldDependencyHandler.rebuild_dependencies([field], field_cache)
+
+    def after_field_duplicated(
+        self,
+        original_field: ButtonField,
+        new_field: ButtonField,
+        serialized_field: Dict[str, Any],
+    ):
+        # Duplicating a single field doesn't go through the serialization import
+        # path, so without this the actions promised by ADR 006 section 8 would
+        # be dropped: `create_field` only keeps the type's `allowed_fields`.
+        serialized_actions = serialized_field.get("workflow_actions") or []
+        if not serialized_actions:
+            return
+
+        # The copy lands in the same table, so every table and field the actions
+        # reference still exists under its own id and must be kept as it is. The
+        # mapping has to say that explicitly instead of being left empty: the
+        # backing services resolve their target table with
+        # `id_mapping["database_tables"].get(value, None)`, so an id the mapping
+        # doesn't know about is read as "trashed" and nulled, which yields a
+        # button that looks configured and dispatches nothing.
+        id_mapping = {
+            # Read by `LocalBaserowTableServiceType` for the target `table_id`.
+            "database_tables": UnchangedIdMapping(),
+            # Read by `LocalBaserowUpsertRowServiceType` for the
+            # `field_mappings[].field_id` of the create and update actions.
+            "database_fields": UnchangedIdMapping(),
+        }
+
+        for serialized_action in serialized_actions:
+            action_type = database_workflow_action_type_registry.get(
+                serialized_action["type"]
+            )
+            action_type.import_serialized(new_field, serialized_action, id_mapping)
