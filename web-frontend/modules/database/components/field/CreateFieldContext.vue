@@ -114,6 +114,17 @@ export default {
           forceCreate: false,
           undoRedoActionGroupId: actionGroupId,
         })
+
+        // The field now exists and has an id, so a button field's actions
+        // can be saved. A failure here must not roll back the field: it was
+        // already created successfully, so we surface the error and leave
+        // whatever actions did save in place.
+        try {
+          await this.$refs.form.saveWorkflowActions(newField.id)
+        } catch (error) {
+          notifyIf(error, 'field')
+        }
+
         const callback = async () => {
           await forceCreateCallback()
           this.createdId = null

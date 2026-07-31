@@ -128,6 +128,17 @@ export default {
           values,
           forceUpdate: false,
         })
+
+        // The field update succeeded, so a button field's actions can be
+        // saved against its (already known) id. A failure here must not
+        // undo the field update: surface the error and leave whatever
+        // actions did save in place.
+        try {
+          await this.$refs.form.saveWorkflowActions(this.field.id)
+        } catch (error) {
+          notifyIf(error, 'field')
+        }
+
         // The callback must be called as soon the parent page has refreshed the rows.
         // This is to prevent incompatible values when the field changes before the
         // actual column row has been updated. If there is nothing to refresh then the

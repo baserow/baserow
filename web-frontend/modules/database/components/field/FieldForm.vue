@@ -459,6 +459,16 @@ export default {
       this.showDescription = !!this.values.description
       return this.showDescription
     },
+    /**
+     * Delegates to the field-type sub-form's own `saveWorkflowActions`, if it
+     * has one. Only button fields do. Called by the create/update contexts
+     * once the field itself has been saved and its id is known.
+     */
+    async saveWorkflowActions(fieldId) {
+      if (typeof this.$refs.childForm?.saveWorkflowActions === 'function') {
+        await this.$refs.childForm.saveWorkflowActions(fieldId)
+      }
+    },
     getFormValues() {
       // Only set the `db_index` to true if the frontend knows for certain that the
       // field type is supported.
