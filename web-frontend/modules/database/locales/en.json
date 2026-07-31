@@ -1271,6 +1271,10 @@
     "urlPlaceholder": "e.g. concat('https://example.com/', get('fields.field_1'))",
     "invalidUrl": "The URL formula is invalid."
   },
+  "buttonFieldActionList": {
+    "addAction": "Add action",
+    "empty": "No actions yet. Add one to define what happens when the button is clicked."
+  },
   "editRowLink": {
     "editRow": "Edit row"
   },
