@@ -87,4 +87,29 @@ describe('reconcileWorkflowActions', () => {
     ])
     expect(result.order).toEqual([2, 1, null])
   })
+
+  test('a type change on an existing action is not detected', () => {
+    // The editor offers no way to change an existing action's type — you
+    // delete and re-add. This test documents that assumption: if a type
+    // dropdown is ever added, this test fails and the diff must grow a
+    // type comparison.
+    const server = [{ id: 1, type: 'create_row', service: { table_id: 3 } }]
+    const local = [{ id: 1, type: 'update_row', service: { table_id: 3 } }]
+
+    const result = reconcileWorkflowActions(server, local)
+
+    expect(result.toUpdate).toEqual([])
+  })
+
+  test('an id the server does not know is treated as new', () => {
+    const local = [{ id: 99, type: 'delete_row', service: { table_id: 4 } }]
+
+    const result = reconcileWorkflowActions([], local)
+
+    expect(result.toUpdate).toEqual([])
+    expect(result.toCreate).toEqual([
+      { type: 'delete_row', service: { table_id: 4 } },
+    ])
+    expect(result.order).toEqual([null])
+  })
 })
