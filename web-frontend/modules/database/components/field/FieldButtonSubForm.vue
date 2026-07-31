@@ -267,6 +267,15 @@ export default {
         }
       }
     },
+    /**
+     * Whether the field has actions server side, as of the last sync. Read by
+     * the field create/update contexts to patch the store, because the
+     * `has_workflow_actions` the field response carried was computed before
+     * `saveWorkflowActions` ran.
+     */
+    hasWorkflowActions() {
+      return this.serverActions.length > 0
+    },
     updateMode(newMode) {
       this.localMode = newMode
       this.values.url_formula = { ...this.values.url_formula, mode: newMode }

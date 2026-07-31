@@ -247,6 +247,35 @@ describe('FieldButtonSubForm', () => {
       })
     })
 
+    test('hasWorkflowActions follows what the save left on the server', async () => {
+      // The field create/update response computes `has_workflow_actions`
+      // before these calls are made, so the contexts patch the store from
+      // this instead. It has to answer for what really persisted, in both
+      // directions.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      expect(wrapper.vm.hasWorkflowActions()).toBe(false)
+
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [{ type: 'create_row', service: {} }]
+      wrapper.vm.$client.post.mockResolvedValueOnce({
+        data: { id: 55, type: 'create_row' },
+      })
+      wrapper.vm.$client.get.mockResolvedValueOnce({
+        data: [{ id: 55, type: 'create_row', service: {} }],
+      })
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.hasWorkflowActions()).toBe(true)
+
+      wrapper.vm.localActions = []
+      wrapper.vm.$client.get.mockResolvedValueOnce({ data: [] })
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.hasWorkflowActions()).toBe(false)
+    })
+
     test('mounting on a non-button field does not fetch workflow actions', async () => {
       // FieldForm swaps this sub-form in live as the user browses the type
       // dropdown. `defaultValues` is still the persisted field, which may be

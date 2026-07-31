@@ -124,9 +124,20 @@ export default {
         } catch (error) {
           notifyIf(error, 'field')
         }
+        // Read after the save (and after its re-sync, which also runs when the
+        // save partially failed) so it describes what really exists.
+        const hasWorkflowActions = this.$refs.form.hasWorkflowActions()
 
         const callback = async () => {
           await forceCreateCallback()
+          // Only after the response has been committed: the field response was
+          // built before the actions existed, so its flag is stale.
+          if (hasWorkflowActions !== null) {
+            await this.$store.dispatch('field/setItemHasWorkflowActions', {
+              id: newField.id,
+              value: hasWorkflowActions,
+            })
+          }
           this.createdId = null
           this.loading = false
           this.$refs.form.reset()

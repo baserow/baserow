@@ -36,6 +36,12 @@ export const mutations = {
     const fieldToUpdate = storedField || field
     fieldToUpdate.error = value
   },
+  SET_ITEM_HAS_WORKFLOW_ACTIONS(state, { id, value }) {
+    const storedField = state.items.find((item) => item.id === id)
+    if (storedField) {
+      storedField.has_workflow_actions = value
+    }
+  },
   SET_LOADED(state, value) {
     state.loaded = value
       ? { tableId: value.tableId, viewId: value.viewId }
@@ -79,6 +85,15 @@ export const actions = {
    */
   setItemError({ commit }, { field, value }) {
     commit('SET_ITEM_ERROR', { field, value })
+  },
+  /**
+   * Updates a field's `has_workflow_actions` flag locally. The flag is derived
+   * server side, so the create/update response is already stale by the time
+   * the field's workflow actions are saved right after it. Without this the
+   * cell keeps the rendering the response described until the page reloads.
+   */
+  setItemHasWorkflowActions({ commit }, { id, value }) {
+    commit('SET_ITEM_HAS_WORKFLOW_ACTIONS', { id, value })
   },
   /**
    * Refreshes computed field errors for the table cached in the field store.

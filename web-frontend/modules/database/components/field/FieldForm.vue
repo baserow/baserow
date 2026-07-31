@@ -469,6 +469,17 @@ export default {
         await this.$refs.childForm.saveWorkflowActions(fieldId)
       }
     },
+    /**
+     * Whether the field-type sub-form has workflow actions server side. Only
+     * button fields know about them, so `null` means "this field type has no
+     * such notion" and the caller must leave the flag alone.
+     */
+    hasWorkflowActions() {
+      if (typeof this.$refs.childForm?.hasWorkflowActions === 'function') {
+        return this.$refs.childForm.hasWorkflowActions()
+      }
+      return null
+    },
     getFormValues() {
       // Only set the `db_index` to true if the frontend knows for certain that the
       // field type is supported.
