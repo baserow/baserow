@@ -177,6 +177,19 @@ export default {
       this.v$.values.url_formula.formula.$model = newFormulaStr
     },
     /**
+     * `UpdateFieldContext` keeps one instance of this sub-form per field
+     * alive across opens (Context.vue renders on `openedOnce`), so nothing
+     * remounts when the editor is reopened. Cancelling only calls `reset()`,
+     * which the form mixin applies to `values` alone, leaving the buffered
+     * action list untouched. Rebuild it from the last server response here,
+     * or a discarded action stays listed on the next open and gets created
+     * for real if the user then saves.
+     */
+    async reset(deep = false) {
+      await form.methods.reset.call(this, deep)
+      this.localActions = clone(this.serverActions)
+    },
+    /**
      * Fetches the field's actions from the server and resets both
      * `serverActions` and the editable `localActions` copy from the
      * response. Used both on mount and to re-sync after a save, so a

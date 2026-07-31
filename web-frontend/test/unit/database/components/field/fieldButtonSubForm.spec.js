@@ -98,6 +98,38 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
     })
 
+    test('cancelling drops the discarded action from the reopened editor', async () => {
+      // Regression test: UpdateFieldContext keeps this sub-form mounted per
+      // field, so reopening the editor after a cancel shows whatever is still
+      // buffered. Cancel goes through FieldForm.reset(), which the form mixin
+      // forwards to child forms, so the buffer has to be rebuilt there. If it
+      // is not, the discarded action is still listed and a later save creates
+      // it for real.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [{ id: 1, type: 'create_row', service: {} }]
+      wrapper.vm.localActions = [{ id: 1, type: 'create_row', service: {} }]
+
+      wrapper.vm.localActions = [
+        ...wrapper.vm.localActions,
+        { type: 'delete_row', service: {} },
+      ]
+
+      await wrapper.vm.reset()
+
+      expect(wrapper.vm.localActions).toEqual([
+        { id: 1, type: 'create_row', service: {} },
+      ])
+
+      // The rebuilt buffer is a copy, so editing it cannot write through to
+      // the server list that the next reconciliation diffs against.
+      wrapper.vm.localActions[0].service.table_id = 3
+      expect(wrapper.vm.serverActions[0].service).toEqual({})
+
+      // Nothing was persisted by the cancel itself.
+      expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
+      expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
+    })
+
     test('saving creates a new action then applies its config', async () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = []
