@@ -173,6 +173,17 @@ export default {
     isFormValid(deep = false) {
       return !this.urlInvalid && form.methods.isFormValid.call(this, deep)
     },
+    /**
+     * Only the field's own values, never the child forms'. The action editor's
+     * service forms register up this chain (`ButtonFieldActionList` is not a
+     * form, so it is transparent), and the default implementation would fold
+     * their `service`, `table_id`, `field_mappings` and so on into the field
+     * create/update payload. Their values are persisted by
+     * `saveWorkflowActions` instead, against the workflow action endpoints.
+     */
+    getFormValues() {
+      return { ...this.values }
+    },
     updatedFormulaStr(newFormulaStr) {
       this.v$.values.url_formula.formula.$model = newFormulaStr
     },

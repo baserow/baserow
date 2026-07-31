@@ -276,6 +276,25 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.hasWorkflowActions()).toBe(false)
     })
 
+    test('the action editor stays out of the field payload', async () => {
+      // The nested action forms register up the form chain, so without an
+      // override the field create/update body would also carry `service` and
+      // whatever the service form put in it. DRF ignores unknown keys today,
+      // but the field payload must not be coupled to the action editor.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.localActions = [
+        { type: 'create_row', service: { table_id: 3 } },
+      ]
+      await wrapper.vm.$nextTick()
+
+      // The nested form really did register, or this asserts nothing.
+      expect(wrapper.vm.registeredChildForms.length).toBeGreaterThan(0)
+      expect(Object.keys(wrapper.vm.getFormValues()).sort()).toEqual([
+        'label',
+        'url_formula',
+      ])
+    })
+
     test('mounting on a non-button field does not fetch workflow actions', async () => {
       // FieldForm swaps this sub-form in live as the user browses the type
       // dropdown. `defaultValues` is still the persisted field, which may be
