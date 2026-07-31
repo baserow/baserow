@@ -31,20 +31,17 @@ describe('databaseWorkflowActionType registry', () => {
     }
   })
 
-  test('delete resolves a form distinct from create and update', () => {
+  test('each type resolves the exact service type it declares', () => {
     const registry = testApp._app.$registry
-    const create = registry.get('databaseWorkflowActionType', 'create_row')
-    const update = registry.get('databaseWorkflowActionType', 'update_row')
-    const del = registry.get('databaseWorkflowActionType', 'delete_row')
-
-    // Update's form wraps create's upsert form (LocalBaserowUpdateRowServiceForm
-    // renders LocalBaserowUpsertRowServiceForm), so they are related but not the
-    // same component instance. Delete must not resolve to either of them.
-    expect(del.serviceType.formComponent).not.toBe(
-      create.serviceType.formComponent
-    )
-    expect(del.serviceType.formComponent).not.toBe(
-      update.serviceType.formComponent
-    )
+    const cases = [
+      ['create_row', 'local_baserow_create_row'],
+      ['update_row', 'local_baserow_update_row'],
+      ['delete_row', 'local_baserow_delete_row'],
+    ]
+    for (const [actionType, serviceType] of cases) {
+      expect(
+        registry.get('databaseWorkflowActionType', actionType).serviceType
+      ).toBe(registry.get('service', serviceType))
+    }
   })
 })
