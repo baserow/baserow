@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import FieldButtonSubForm from '@baserow/modules/database/components/field/FieldButtonSubForm'
+import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 
 describe('FieldButtonSubForm', () => {
@@ -87,12 +88,19 @@ describe('FieldButtonSubForm', () => {
       vi.restoreAllMocks()
     })
 
-    test('cancelling after adding an action issues no api calls', async () => {
+    test('adding an action buffers it without calling the api', async () => {
+      // Nothing is persisted until the field form is submitted, which is what
+      // makes "add an action, press Cancel" discard it. Driven through the
+      // list editor rather than by assigning `localActions`, or the test would
+      // still pass if `addAction` called the API itself.
       const wrapper = await mountForm({ type: 'button', label: 'Go' })
 
-      wrapper.vm.localActions = [{ type: 'create_row', service: {} }]
+      wrapper.findComponent(ButtonFieldActionList).vm.addAction('create_row')
+      await wrapper.vm.$nextTick()
 
-      // No save call is made. Nothing should have reached the client.
+      expect(wrapper.vm.localActions).toEqual([
+        { type: 'create_row', service: {} },
+      ])
       expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
       expect(wrapper.vm.$client.patch).not.toHaveBeenCalled()
       expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
