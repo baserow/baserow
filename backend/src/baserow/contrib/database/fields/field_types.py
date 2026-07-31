@@ -7912,7 +7912,12 @@ class ButtonFieldType(ReadOnlyFieldType):
     type = "button"
     model_class = ButtonField
     allowed_fields = ["label", "url_formula"]
-    serializer_field_names = ["label", "url_formula", "error"]
+    serializer_field_names = [
+        "label",
+        "url_formula",
+        "error",
+        "has_workflow_actions",
+    ]
     serializer_field_overrides = {
         "label": serializers.CharField(
             required=False,
@@ -7933,6 +7938,13 @@ class ButtonFieldType(ReadOnlyFieldType):
             allow_null=True,
             help_text="The error message if the field's URL formula is broken, "
             "else null.",
+        ),
+        "has_workflow_actions": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether the field has any configured actions. The client "
+            "uses this to decide whether a cell renders a button that dispatches "
+            "actions or the plain URL link.",
         ),
     }
     api_exceptions_map = {

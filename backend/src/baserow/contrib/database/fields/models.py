@@ -1013,6 +1013,12 @@ class ButtonField(Field):
 
         return get_formula_field_error(self.url_formula, self.table_id)
 
+    @property
+    def has_workflow_actions(self):
+        # Derived, not stored: the cell only needs to know whether actions
+        # exist, not what they are.
+        return self.workflow_actions.exists()
+
 
 class DuplicateFieldJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job

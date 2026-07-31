@@ -594,3 +594,30 @@ def test_button_field_changes_are_not_broadcast_to_public_views(
         for call in mock_broadcast_to_channel_group.delay.mock_calls
         if call.args and call.args[0] == f"view-{grid_view.slug}"
     ] == []
+
+
+@pytest.mark.django_db
+def test_button_field_reports_whether_it_has_actions(api_client, data_fixture):
+    from baserow.contrib.database.workflow_actions.models import (
+        CreateRowWorkflowAction,
+    )
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+
+    def get_payload():
+        response = api_client.get(
+            reverse("api:database:fields:item", kwargs={"field_id": button_field.id}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK, response.json()
+        return response.json()
+
+    assert get_payload()["has_workflow_actions"] is False
+
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field
+    )
+
+    assert get_payload()["has_workflow_actions"] is True
