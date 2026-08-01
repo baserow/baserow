@@ -9373,10 +9373,10 @@ node-mock-http@^1.0.4:
   resolved "https://registry.yarnpkg.com/node-mock-http/-/node-mock-http-1.0.4.tgz#21f2ab4ce2fe4fbe8a660d7c5195a1db85e042a4"
   integrity sha512-8DY+kFsDkNXy1sJglUfuODx1/opAGJGyrTuFqEoN90oRc2Vk0ZbD4K2qmKXBBEhZQzdKHIVfEJpDU8Ak2NJEvQ==
 
-node-mocks-http@^1.17.2:
-  version "1.17.2"
-  resolved "https://registry.yarnpkg.com/node-mocks-http/-/node-mocks-http-1.17.2.tgz#e947d9b94defb13e3775414a8200c848f6b2fc74"
-  integrity sha512-HVxSnjNzE9NzoWMx9T9z4MLqwMpLwVvA0oVZ+L+gXskYXEJ6tFn3Kx4LargoB6ie7ZlCLplv7QbWO6N+MysWGA==
+node-mocks-http@^1.18.1:
+  version "1.18.1"
+  resolved "https://registry.yarnpkg.com/node-mocks-http/-/node-mocks-http-1.18.1.tgz#27d40e58cf86490802cac708ff159d8ef29a8501"
+  integrity sha512-hPMOLJZzhgT4i/zbYpfy1P2ulAlHtzFcrEGxPh/4pDRegCY3+p2sxDhQm1fxte5EgI/RwDx+NNW7v8kJcyxtMg==
   dependencies:
     accepts "^1.3.7"
     content-disposition "^0.5.3"
@@ -9385,7 +9385,6 @@ node-mocks-http@^1.17.2:
     merge-descriptors "^1.0.1"
     methods "^1.1.2"
     mime "^1.3.4"
-    parseurl "^1.3.3"
     range-parser "^1.2.0"
     type-is "^1.6.18"
 
