@@ -22,7 +22,7 @@ dependencies = [
     "psycopg2-binary==2.9.11",
     "Faker==40.1.0",
     "gunicorn==23.0.0",
-    "uvicorn[standard]==0.40.0",
+    "uvicorn[standard]==0.52.0",
     "websockets==16.0.0",
     "requests==2.34.2",
     "itsdangerous==2.2.0",
