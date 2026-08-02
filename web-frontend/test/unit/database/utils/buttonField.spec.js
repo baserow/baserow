@@ -30,4 +30,25 @@ describe('buttonField utils', () => {
     expect(urlWithAllowedProtocol('JavaScript:alert(1)')).toBe('')
     expect(urlWithAllowedProtocol('data:text/html,<script>')).toBe('')
   })
+
+  test('urlWithAllowedProtocol drops a protocol hidden behind C0 controls', () => {
+    // These control characters are not whitespace, so neither `trim()` nor
+    // `encodeUrlWhitespace` removes them, but the browser's URL parser strips
+    // them before deciding the protocol. A row value can hold any of them.
+    for (const control of ['\u0001', '\u0008', '\u000e', '\u001f']) {
+      expect(urlWithAllowedProtocol(`${control}javascript:alert(1)`)).toBe('')
+      expect(
+        urlWithAllowedProtocol(`${control}${control}javascript:alert(1)`)
+      ).toBe('')
+    }
+    // A tab anywhere in the URL is removed by the same parser.
+    expect(urlWithAllowedProtocol('java\tscript:alert(1)')).toBe('')
+  })
+
+  test('urlWithAllowedProtocol still passes an ordinary relative URL', () => {
+    expect(urlWithAllowedProtocol('/rows/1')).toBe('/rows/1')
+    expect(urlWithAllowedProtocol('rows/1?q=a%20b#top')).toBe(
+      'rows/1?q=a%20b#top'
+    )
+  })
 })

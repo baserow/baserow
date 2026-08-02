@@ -27,17 +27,34 @@ export const ALLOWED_BUTTON_URL_PROTOCOLS = [
 ]
 
 /**
+ * Only used so a relative URL parses at all. Its protocol is an allowed one,
+ * so relative URLs keep passing through.
+ */
+const RELATIVE_URL_BASE = 'http://baserow.invalid'
+
+/**
  * Returns the URL when its protocol is allowed, and an empty string when it is
  * not. A URL without a protocol is relative and passes through. This is what
  * keeps a `javascript:` URL built by a formula from being navigated to.
+ *
+ * The protocol comes from `new URL()`, the same WHATWG parse the browser runs
+ * when the URL reaches `window.location`. A regex over the raw string decides
+ * differently from that parser: the parser first strips leading C0 control
+ * characters, so `\x01javascript:alert(1)` looks relative to a regex while the
+ * browser still runs it as `javascript:`.
+ *
+ * The original string is returned rather than the parsed one, because parsing
+ * normalises and re-encodes a URL the formula deliberately built.
  */
 export function urlWithAllowedProtocol(url) {
-  if (!/^[A-Za-z]+:/.test(url)) {
-    return url
+  let protocol
+  try {
+    protocol = new URL(url, RELATIVE_URL_BASE).protocol
+  } catch (error) {
+    // Not something the browser could navigate to either.
+    return ''
   }
-  const lowerCased = url.toLowerCase()
-  const allowed = ALLOWED_BUTTON_URL_PROTOCOLS.some((protocol) =>
-    lowerCased.startsWith(protocol)
-  )
-  return allowed ? url : ''
+  return ALLOWED_BUTTON_URL_PROTOCOLS.includes(protocol.toLowerCase())
+    ? url
+    : ''
 }
