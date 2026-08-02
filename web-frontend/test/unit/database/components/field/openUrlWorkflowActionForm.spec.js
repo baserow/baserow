@@ -30,12 +30,23 @@ describe('OpenUrlWorkflowActionForm', () => {
       propsData: { defaultValues },
     })
 
-  test('a blank target reports Same tab as selected', async () => {
+  test('a missing target reports Same tab as selected', async () => {
     const wrapper = await mountForm({
       url: { formula: "'https://x.test'", mode: 'simple' },
     })
 
     expect(wrapper.findComponent(SegmentControl).vm.activeIndex).toBe(0)
+  })
+
+  // The design puts the control at 36px, which only the `small` size gives:
+  // the default one is 44px (6px of container padding either side of a 32px
+  // button), while `small` zeroes that padding and makes the buttons 36.
+  test('the segmented control is the 36px small size', async () => {
+    const wrapper = await mountForm({
+      url: { formula: "'https://x.test'", mode: 'simple' },
+    })
+
+    expect(wrapper.findComponent(SegmentControl).props('size')).toBe('small')
   })
 
   test('a blank target selects New tab', async () => {
