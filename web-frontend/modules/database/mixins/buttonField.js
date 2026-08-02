@@ -1,16 +1,12 @@
-import {
-  encodeUrlWhitespace,
-  resolveButtonUrl,
-} from '@baserow/modules/database/utils/buttonField'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 /**
- * Computes the {url, label} value of a button field cell, and dispatches the
- * field's configured actions when clicked. Uses the allFieldsInTable prop
- * where the render context provides it (selected grid cell, row edit modal)
- * and falls back to the field store for contexts that only pass row + field
- * (functional grid cells, cards).
+ * Dispatches a button field cell's configured actions when clicked, and runs
+ * the ones the backend hands back for the browser. Uses the allFieldsInTable
+ * prop where the render context provides it (selected grid cell, row edit
+ * modal) and falls back to the field store for contexts that only pass
+ * row + field (functional grid cells, cards).
  */
 export default {
   data() {
@@ -19,24 +15,6 @@ export default {
     }
   },
   computed: {
-    resolvedButtonValue() {
-      // A broken formula (e.g. referencing a deleted field) must disable
-      // the button rather than resolve to a misleading URL.
-      const resolved = this.field.error
-        ? ''
-        : resolveButtonUrl(
-            this.$registry,
-            this.field,
-            this.row,
-            this.allFieldsInTable?.length > 0
-              ? this.allFieldsInTable
-              : this.$store.getters['field/getAll']
-          )
-      return {
-        url: encodeUrlWhitespace(resolved),
-        label: this.field.label,
-      }
-    },
     hasWorkflowActions() {
       return this.field.has_workflow_actions === true
     },
@@ -53,10 +31,11 @@ export default {
       }
       this.dispatching = true
       try {
-        await WorkflowActionService(this.$client).dispatch(
+        const { data } = await WorkflowActionService(this.$client).dispatch(
           this.field.id,
           this.row.id
         )
+        await this.runClientActions(data?.client_actions || [])
       } catch (error) {
         // A handled API error already carries its own message. Anything
         // else (e.g. a network failure) still needs its own toast rather
@@ -71,6 +50,25 @@ export default {
         }
       } finally {
         this.dispatching = false
+      }
+    },
+    /**
+     * Runs the actions the backend does not run itself, in the order it
+     * returned them. The response only carries them when the server side
+     * actions all succeeded, so a failed row action never navigates away.
+     */
+    async runClientActions(clientActions) {
+      const fields =
+        this.allFieldsInTable?.length > 0
+          ? this.allFieldsInTable
+          : this.$store.getters['field/getAll']
+      for (const workflowAction of clientActions) {
+        await this.$registry
+          .get('databaseWorkflowActionType', workflowAction.type)
+          .execute({
+            workflowAction,
+            applicationContext: { row: this.row, fields },
+          })
       }
     },
   },

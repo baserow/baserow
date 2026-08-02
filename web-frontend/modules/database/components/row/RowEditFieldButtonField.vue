@@ -18,35 +18,19 @@
         {{ field.label }}
       </Button>
     </span>
-    <Button
-      v-else-if="isValidLinkURL"
-      tag="a"
-      size="tiny"
-      type="secondary"
-      :href="getHref(resolvedButtonValue)"
-      target="_blank"
-      rel="nofollow noopener noreferrer"
-    >
-      {{ resolvedButtonValue.label }}
-    </Button>
-    <Button v-else tag="a" size="tiny" type="secondary" disabled>
-      {{ resolvedButtonValue.label }}
+    <!-- A button with no actions has nothing to run. -->
+    <Button v-else size="tiny" type="secondary" disabled>
+      {{ field.label }}
     </Button>
   </div>
 </template>
 
 <script>
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
-import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 import buttonField from '@baserow/modules/database/mixins/buttonField'
 
 export default {
   name: 'RowEditFieldButtonField',
-  mixins: [rowEditField, linkURLField, buttonField],
-  computed: {
-    isValidLinkURL() {
-      return this.resolvedButtonValue && this.isValid(this.resolvedButtonValue)
-    },
-  },
+  mixins: [rowEditField, buttonField],
 }
 </script>

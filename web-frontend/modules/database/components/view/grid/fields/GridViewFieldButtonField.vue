@@ -10,19 +10,9 @@
       >
         {{ field.label }}
       </Button>
-      <Button
-        v-else-if="isValid(resolvedButtonValue)"
-        tag="a"
-        size="tiny"
-        type="secondary"
-        rel="nofollow noopener noreferrer"
-        :href="getHref(resolvedButtonValue)"
-        target="_blank"
-      >
-        {{ resolvedButtonValue.label }}
-      </Button>
-      <Button v-else type="secondary" tag="a" size="tiny" disabled>
-        {{ resolvedButtonValue.label }}
+      <!-- A button with no actions has nothing to run. -->
+      <Button v-else size="tiny" type="secondary" disabled>
+        {{ field.label }}
       </Button>
     </div>
   </div>
@@ -30,11 +20,10 @@
 
 <script>
 import gridField from '@baserow/modules/database/mixins/gridField'
-import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 import buttonField from '@baserow/modules/database/mixins/buttonField'
 
 export default {
   name: 'GridViewFieldButtonField',
-  mixins: [gridField, linkURLField, buttonField],
+  mixins: [gridField, buttonField],
 }
 </script>

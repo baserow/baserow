@@ -4,26 +4,36 @@ import GridViewFieldButtonField from '@baserow/modules/database/components/view/
 
 describe('GridViewFieldButtonField', () => {
   let testApp = null
+  let openUrlType = null
 
   beforeAll(() => {
     testApp = new TestApp()
+    openUrlType = testApp._app.$registry.get(
+      'databaseWorkflowActionType',
+      'open_url'
+    )
   })
 
   afterEach(() => {
     testApp.afterEach()
+    vi.restoreAllMocks()
   })
 
   const field = {
     id: 2,
     type: 'button',
     label: 'Open',
-    url_formula: {
-      formula: "concat('https://example.com/', get('fields.field_1'))",
-      mode: 'simple',
-    },
+    has_workflow_actions: true,
   }
 
-  const mountCell = async (props = {}) => {
+  const openUrlAction = {
+    id: 1,
+    type: 'open_url',
+    url: { formula: "'https://example.com'", mode: 'simple', version: 1 },
+    target: 'blank',
+  }
+
+  const mountCell = async (props = {}, responseData = {}) => {
     const wrapper = await testApp.mount(GridViewFieldButtonField, {
       propsData: {
         field,
@@ -40,76 +50,84 @@ describe('GridViewFieldButtonField', () => {
     // Dispatch goes through the real $client instance shared by the test
     // app, so replace .post with a fresh mock per mount instead of hitting
     // the network mock adapter.
-    wrapper.vm.$client.post = vi.fn().mockResolvedValue({ data: {} })
+    wrapper.vm.$client.post = vi.fn().mockResolvedValue({
+      data: { results: [], client_actions: [], ...responseData },
+    })
     return wrapper
   }
 
-  test('renders an enabled link with the resolved URL', async () => {
-    const wrapper = await mountCell()
-    const anchor = wrapper.find('a')
-    expect(anchor.attributes('href')).toBe('https://example.com/ada')
-    expect(anchor.attributes('target')).toBe('_blank')
-    expect(anchor.text()).toBe('Open')
-  })
-
-  test('percent-encodes the whitespace in the href but not in the label', async () => {
-    const wrapper = await mountCell({
-      row: { id: 1, field_1: 'Red Button' },
-    })
-    const anchor = wrapper.find('a')
-    expect(anchor.attributes('href')).toBe('https://example.com/Red%20Button')
-    expect(anchor.text()).toBe('Open')
-  })
-
-  test('renders a disabled button with the label when the URL does not resolve', async () => {
-    // An empty url_formula never resolves (resolveButtonUrl short-circuits
-    // to ''), unlike an empty field_1 which still yields a valid base URL
-    // once concatenated with the literal prefix above.
-    const wrapper = await mountCell({
-      field: { ...field, url_formula: { formula: '', mode: 'simple' } },
-    })
-    const anchor = wrapper.find('a')
-    expect(anchor.attributes('href')).toBeUndefined()
-    expect(anchor.text()).toBe('Open')
-  })
-
-  test('renders a disabled button when the field has a broken formula error, even if the URL would otherwise resolve', async () => {
-    const wrapper = await mountCell({
-      field: {
-        ...field,
-        error: 'The formula references a field that no longer exists.',
-      },
-    })
-    expect(wrapper.find('a').attributes('href')).toBeUndefined()
-  })
-
   test('a field with actions renders a button and dispatches on click', async () => {
-    const fieldWithActions = { ...field, has_workflow_actions: true }
-    const wrapper = await mountCell({ field: fieldWithActions })
+    const wrapper = await mountCell()
 
-    expect(wrapper.find('button').exists()).toBe(true)
+    expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('button').text()).toBe('Open')
 
     await wrapper.find('button').trigger('click')
 
     expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
-      `database/field/${fieldWithActions.id}/workflow_actions/dispatch/`,
+      `database/field/${field.id}/workflow_actions/dispatch/`,
       { row_id: 1 }
     )
   })
 
-  test('a field with no actions still renders a link', async () => {
+  test('a field without actions renders a disabled button and no link', async () => {
     const wrapper = await mountCell({
       field: { ...field, has_workflow_actions: false },
     })
 
-    expect(wrapper.find('a').exists()).toBe(true)
-    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.find('a').exists()).toBe(false)
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('button').text()).toBe('Open')
   })
 
-  test('a failed dispatch leaves the cell clickable', async () => {
-    const fieldWithActions = { ...field, has_workflow_actions: true }
-    const wrapper = await mountCell({ field: fieldWithActions })
+  test('runs the returned client actions after the response', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell({}, { client_actions: [openUrlAction] })
+
+    await wrapper.find('button').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(execute).toHaveBeenCalledWith({
+      workflowAction: openUrlAction,
+      applicationContext: {
+        row: { id: 1, field_1: 'ada' },
+        fields: [{ id: 1, type: 'text', name: 'Slug' }, field],
+      },
+    })
+  })
+
+  test('runs the client actions in the order the backend returned them', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const second = { ...openUrlAction, id: 2, target: 'self' }
+    const wrapper = await mountCell(
+      {},
+      { client_actions: [openUrlAction, second] }
+    )
+
+    await wrapper.find('button').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(execute.mock.calls.map((call) => call[0].workflowAction.id)).toEqual(
+      [1, 2]
+    )
+  })
+
+  test('a failed dispatch runs no client action and leaves the cell clickable', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
     wrapper.vm.$client.post.mockRejectedValueOnce(new Error('nope'))
+
+    await wrapper.find('button').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(execute).not.toHaveBeenCalled()
+    expect(wrapper.vm.dispatching).toBe(false)
+  })
+
+  test('a client action that throws leaves the cell clickable', async () => {
+    vi.spyOn(openUrlType, 'execute').mockRejectedValue(new Error('nope'))
+    const wrapper = await mountCell({}, { client_actions: [openUrlAction] })
 
     await wrapper.find('button').trigger('click')
     await wrapper.vm.$nextTick()

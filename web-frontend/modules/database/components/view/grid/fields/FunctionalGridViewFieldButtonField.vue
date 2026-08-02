@@ -10,31 +10,20 @@
       >
         {{ field.label }}
       </Button>
-      <Button
-        v-else-if="isValid(resolvedButtonValue)"
-        tag="a"
-        type="secondary"
-        size="tiny"
-        :href="getHref(resolvedButtonValue)"
-        target="_blank"
-        rel="nofollow noopener noreferrer"
-      >
-        {{ resolvedButtonValue.label }}
-      </Button>
-      <Button v-else tag="a" type="secondary" size="tiny" disabled>
-        {{ resolvedButtonValue.label }}
+      <!-- A button with no actions has nothing to run. -->
+      <Button v-else type="secondary" size="tiny" disabled>
+        {{ field.label }}
       </Button>
     </div>
   </div>
 </template>
 
 <script>
-import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 import buttonField from '@baserow/modules/database/mixins/buttonField'
 
 export default {
   name: 'FunctionalGridViewFieldButtonField',
-  mixins: [linkURLField, buttonField],
+  mixins: [buttonField],
   props: {
     row: { type: Object, required: true },
     field: { type: Object, required: true },

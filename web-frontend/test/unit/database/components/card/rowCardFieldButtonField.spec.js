@@ -1,12 +1,12 @@
 import { vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import FunctionalGridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldButtonField'
+import RowCardFieldButtonField from '@baserow/modules/database/components/card/RowCardFieldButtonField'
 
-describe('FunctionalGridViewFieldButtonField', () => {
+describe('RowCardFieldButtonField', () => {
   let testApp = null
   let openUrlType = null
 
-  beforeAll(() => {
+  beforeEach(() => {
     testApp = new TestApp()
     openUrlType = testApp._app.$registry.get(
       'databaseWorkflowActionType',
@@ -14,8 +14,8 @@ describe('FunctionalGridViewFieldButtonField', () => {
     )
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
     vi.restoreAllMocks()
   })
 
@@ -27,7 +27,7 @@ describe('FunctionalGridViewFieldButtonField', () => {
   }
 
   const mountCell = async (props = {}, responseData = {}) => {
-    const wrapper = await testApp.mount(FunctionalGridViewFieldButtonField, {
+    const wrapper = await testApp.mount(RowCardFieldButtonField, {
       propsData: {
         field,
         value: null,
@@ -51,9 +51,7 @@ describe('FunctionalGridViewFieldButtonField', () => {
     expect(wrapper.find('button').text()).toBe('Open')
   })
 
-  test('resolves the client action fields from the field store', async () => {
-    const storeFields = [{ id: 1, type: 'text', name: 'Slug' }, field]
-    testApp.store.commit('field/SET_ITEMS', storeFields)
+  test('dispatches on click and runs the returned client actions', async () => {
     const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
     const action = {
       id: 1,
@@ -66,12 +64,11 @@ describe('FunctionalGridViewFieldButtonField', () => {
     await wrapper.find('button').trigger('click')
     await wrapper.vm.$nextTick()
 
-    expect(execute).toHaveBeenCalledWith({
-      workflowAction: action,
-      applicationContext: {
-        row: { id: 1, field_1: 'ada' },
-        fields: storeFields,
-      },
-    })
+    expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
+      `database/field/${field.id}/workflow_actions/dispatch/`,
+      { row_id: 1 }
+    )
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(execute.mock.calls[0][0].workflowAction).toEqual(action)
   })
 })
