@@ -88,17 +88,59 @@ describe('reconcileWorkflowActions', () => {
     expect(result.order).toEqual([2, 1, null])
   })
 
-  test('a type change on an existing action is not detected', () => {
-    // The editor offers no way to change an existing action's type — you
-    // delete and re-add. This test documents that assumption: if a type
-    // dropdown is ever added, this test fails and the diff must grow a
-    // type comparison.
+  test('emits a type change and keeps the position', () => {
+    const server = [{ id: 1, type: 'create_row', service: { table_id: 5 } }]
+    const local = [{ id: 1, type: 'open_url', url: { formula: "'x'" } }]
+
+    const { toUpdate, order } = reconcileWorkflowActions(server, local)
+
+    expect(toUpdate).toEqual([
+      { id: 1, values: { type: 'open_url', url: { formula: "'x'" } } },
+    ])
+    expect(order).toEqual([1])
+  })
+
+  test('a type change between two service types sends the new config', () => {
     const server = [{ id: 1, type: 'create_row', service: { table_id: 3 } }]
     const local = [{ id: 1, type: 'update_row', service: { table_id: 3 } }]
 
     const result = reconcileWorkflowActions(server, local)
 
+    expect(result.toUpdate).toEqual([
+      { id: 1, values: { type: 'update_row', service: { table_id: 3 } } },
+    ])
+  })
+
+  test('the keys the api owns are never diffed or sent', () => {
+    // `order` and `field_id` come back on every action but belong to the
+    // server, not to the editor: the order is applied by its own endpoint and
+    // the field never changes. Diffing them would make a pure reorder look
+    // like a config change and send them straight back.
+    const server = [
+      { id: 1, type: 'create_row', order: 1, field_id: 7, service: {} },
+    ]
+    const local = [
+      { id: 1, type: 'create_row', order: 9, field_id: 7, service: {} },
+    ]
+
+    const result = reconcileWorkflowActions(server, local)
+
     expect(result.toUpdate).toEqual([])
+  })
+
+  test('a row whose type has not been chosen yet is not an action', () => {
+    // The picker adds an empty row first and the user chooses its type
+    // afterwards. Saving before that must produce no work at all, and no
+    // slot in the order.
+    const server = [{ id: 1, type: 'create_row', service: {} }]
+    const local = [{ id: 1, type: 'create_row', service: {} }, { type: null }]
+
+    const result = reconcileWorkflowActions(server, local)
+
+    expect(result.toCreate).toEqual([])
+    expect(result.toUpdate).toEqual([])
+    expect(result.toDelete).toEqual([])
+    expect(result.order).toEqual([1])
   })
 
   test('an id the server does not know is treated as new', () => {

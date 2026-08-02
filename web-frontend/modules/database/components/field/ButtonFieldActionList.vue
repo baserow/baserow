@@ -10,71 +10,61 @@
       }"
       class="button-field-action-list__item margin-bottom-2"
     >
-      <div class="flex align-items-center margin-bottom-1">
+      <div class="button-field-action-list__header">
         <i
-          class="iconoir-drag margin-right-1"
-          style="cursor: grab"
+          class="iconoir-drag button-field-action-list__handle"
           data-sortable-handle
         ></i>
-        <Icon
-          v-if="actionTypeOf(action).icon"
-          :icon="actionTypeOf(action).icon"
-          class="margin-right-1"
-        />
-        <div class="flex-grow-1">
-          {{ actionTypeOf(action).label }}
-        </div>
+        <Dropdown
+          class="button-field-action-list__type"
+          :value="action.type ?? null"
+          :placeholder="$t('buttonFieldActionList.chooseAction')"
+          :fixed-items="true"
+          @input="onActionTypeChanged(index, $event)"
+        >
+          <DropdownItem
+            v-for="actionType in availableActionTypes"
+            :key="actionType.getType()"
+            :icon="actionType.icon"
+            :name="actionType.label"
+            :value="actionType.getType()"
+          ></DropdownItem>
+        </Dropdown>
         <ButtonIcon
           icon="iconoir-bin"
           @click="removeAction(index)"
         ></ButtonIcon>
       </div>
-      <DatabaseWorkflowActionWithService
-        :workflow-action="action"
-        :database="database"
-        :default-values="action"
-        @values-changed="onActionValuesChanged(index, $event)"
-      />
+      <template v-if="action.type">
+        <div class="button-field-action-list__separator"></div>
+        <div class="button-field-action-list__form">
+          <component
+            :is="actionTypeOf(action).form"
+            v-bind="
+              actionTypeOf(action).getFormProps({
+                workflowAction: action,
+                database,
+              })
+            "
+            :default-values="action"
+            @values-changed="onActionValuesChanged(index, $event)"
+          />
+        </div>
+      </template>
     </div>
 
     <p v-if="value.length === 0" class="margin-bottom-2">
       {{ $t('buttonFieldActionList.empty') }}
     </p>
 
-    <ButtonText
-      ref="addActionButton"
-      type="secondary"
-      icon="iconoir-plus"
-      @click="
-        $refs.addActionContext.toggle(
-          $refs.addActionButton.$el,
-          'bottom',
-          'left'
-        )
-      "
-    >
+    <ButtonText type="secondary" icon="iconoir-plus" @click="addAction()">
       {{ $t('buttonFieldActionList.addAction') }}
     </ButtonText>
-    <Context ref="addActionContext" :hide-on-click-outside="true">
-      <div class="flex flex-wrap" style="--gap: 4px">
-        <ButtonText
-          v-for="actionType in availableActionTypes"
-          :key="actionType.getType()"
-          type="primary"
-          size="small"
-          :icon="actionType.icon"
-          @click="onAddActionClicked(actionType)"
-        >
-          {{ actionType.label }}
-        </ButtonText>
-      </div>
-    </Context>
   </div>
 </template>
 
 <script>
 import _ from 'lodash'
-import DatabaseWorkflowActionWithService from '@baserow/modules/database/components/field/DatabaseWorkflowActionWithService'
 
 /**
  * Controlled editor for a button field's ordered action list. It owns no
@@ -82,14 +72,13 @@ import DatabaseWorkflowActionWithService from '@baserow/modules/database/compone
  * array via `input` and makes no API calls, so a field sub-form can discard
  * changes simply by not saving.
  *
- * Changing an existing action's type is intentionally not possible here. To
- * change type the user deletes the action and adds a new one, because the
- * reconciliation that turns this list into API calls only diffs an action's
- * `service`, never its `type`.
+ * Each row picks its own type from a dropdown, so an existing action's type
+ * can be changed in place. The reconciliation that turns this list into API
+ * calls diffs `type` as well as the config, and the server implements a type
+ * change as a delete plus a create that keeps the action's position.
  */
 export default {
   name: 'ButtonFieldActionList',
-  components: { DatabaseWorkflowActionWithService },
   props: {
     value: {
       type: Array,
@@ -110,18 +99,45 @@ export default {
     actionTypeOf(action) {
       return this.$registry.get('databaseWorkflowActionType', action.type)
     },
-    onAddActionClicked(actionType) {
-      this.$refs.addActionContext.hide()
-      this.addAction(actionType.getType())
+    /**
+     * Adds a new action. It carries no type until the user picks one from the
+     * row's dropdown, and never carries an `id`: that is only assigned once
+     * the field is saved and the backend creates the action.
+     */
+    addAction(type = null) {
+      this.$emit('input', [...this.value, this.newAction(type)])
+    },
+    newAction(type) {
+      if (type === null) {
+        return { type: null }
+      }
+      return {
+        type,
+        ...this.$registry
+          .get('databaseWorkflowActionType', type)
+          .getNewActionValues(),
+      }
     },
     /**
-     * Adds a new action of the given type. New actions never carry an `id`:
-     * that is only assigned once the field is saved and the backend creates
-     * the underlying service.
+     * Swaps a row's type. The old type's config is dropped rather than merged:
+     * it means nothing to the new type, and the server deletes and recreates
+     * the action rather than converting it. The `id` is kept so the change is
+     * reconciled as an update of the existing action, which is what preserves
+     * its position.
      */
-    addAction(type) {
-      const newAction = { type, service: {} }
-      this.$emit('input', [...this.value, newAction])
+    onActionTypeChanged(index, type) {
+      const action = this.value[index]
+      if (action.type === type) {
+        return
+      }
+      const replacement = this.newAction(type)
+      if (action.id != null) {
+        replacement.id = action.id
+      }
+      this.$emit(
+        'input',
+        this.value.map((a, i) => (i === index ? replacement : a))
+      )
     },
     removeAction(index) {
       this.$emit(
@@ -135,12 +151,14 @@ export default {
     /**
      * The per-action form mounts its own default values on creation, which
      * emits `values-changed` once even when nothing actually changed. Only
-     * emit `input` when the service has genuinely changed to avoid spurious
-     * updates.
+     * emit `input` when the keys the form sent have genuinely changed, to
+     * avoid spurious updates. Which keys those are depends on the type: a
+     * service backed action sends `service`, `open_url` sends `url` and
+     * `target`.
      */
     onActionValuesChanged(index, values) {
       const action = this.value[index]
-      if (_.isEqual(values.service, action.service)) {
+      if (_.isEqual(values, _.pick(action, Object.keys(values)))) {
         return
       }
       const newList = this.value.map((a, i) =>

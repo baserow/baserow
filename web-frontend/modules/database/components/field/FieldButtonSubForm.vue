@@ -47,6 +47,7 @@
 </template>
 
 <script>
+import _ from 'lodash'
 import { computed, markRaw } from 'vue'
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
@@ -56,7 +57,10 @@ import FormulaInputField from '@baserow/modules/core/components/formula/FormulaI
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
 import DatabaseFormulaInput from '@baserow/modules/database/components/field/DatabaseFormulaInput'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
-import { reconcileWorkflowActions } from '@baserow/modules/database/utils/workflowActionReconciliation'
+import {
+  reconcileWorkflowActions,
+  workflowActionConfig,
+} from '@baserow/modules/database/utils/workflowActionReconciliation'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
@@ -217,6 +221,30 @@ export default {
       this.localActions = clone(data)
     },
     /**
+     * The payload that applies a freshly created action's buffered config.
+     * The create call only carries the type, so everything the user
+     * configured has to follow in an update.
+     *
+     * A service backed action needs one fixup: a buffered service carries no
+     * `type` until the server has made one, and the API's polymorphic service
+     * serializer refuses a payload it cannot type. Take it from the service
+     * the create just returned, letting the buffer win if it ever has its own.
+     * An action with no service (`open_url`) is sent as it stands.
+     */
+    configPayload(action, created) {
+      const config = workflowActionConfig(action)
+      if (!config.service) {
+        return config
+      }
+      if (Object.keys(config.service).length === 0) {
+        return _.omit(config, 'service')
+      }
+      return {
+        ...config,
+        service: { type: created.service?.type, ...config.service },
+      }
+    },
+    /**
      * Reconciles the buffered action list against the server and issues the
      * calls to match: creates, updates, deletes, then order. Called by the
      * field form once the field itself has been saved, because a new field
@@ -229,24 +257,26 @@ export default {
       )
       const service = WorkflowActionService(this.$client)
       const createdIds = []
+      const replacedIds = new Map()
 
       try {
         for (const action of toCreate) {
           const { data } = await service.create(fieldId, action.type)
           createdIds.push(data.id)
-          if (action.service && Object.keys(action.service).length > 0) {
-            // A buffered service carries no `type` until the server has made
-            // one, and the API's polymorphic service serializer refuses a
-            // payload it cannot type. Take it from the service the create
-            // just returned, letting the buffer win if it ever has its own.
-            await service.update(data.id, {
-              service: { type: data.service?.type, ...action.service },
-            })
+          const values = this.configPayload(action, data)
+          if (Object.keys(values).length > 0) {
+            await service.update(data.id, values)
           }
         }
 
         for (const { id, values } of toUpdate) {
-          await service.update(id, values)
+          const { data } = await service.update(id, values)
+          // A type change is a delete plus a create server side, so the
+          // response carries a brand new id. The order below still holds the
+          // old one, so remember the swap.
+          if (data?.id != null && data.id !== id) {
+            replacedIds.set(id, data.id)
+          }
         }
 
         for (const id of toDelete) {
@@ -257,7 +287,7 @@ export default {
         // fill them in from the creates, in the order they were made.
         const created = [...createdIds]
         const finalOrder = order.map((id) =>
-          id === null ? created.shift() : id
+          id === null ? created.shift() : (replacedIds.get(id) ?? id)
         )
 
         if (finalOrder.length > 0) {

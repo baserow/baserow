@@ -1289,6 +1289,7 @@
   },
   "buttonFieldActionList": {
     "addAction": "Add action",
+    "chooseAction": "Choose action...",
     "empty": "No actions yet. Add one to define what happens when the button is clicked."
   },
   "buttonField": {

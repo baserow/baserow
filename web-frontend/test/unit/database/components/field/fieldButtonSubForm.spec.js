@@ -188,6 +188,79 @@ describe('FieldButtonSubForm', () => {
       )
     })
 
+    test('saving a new open url action persists its own config', async () => {
+      // `open_url` is backed by no service, so its config is `url`/`target` on
+      // the action itself. The create only carries the type, so the follow-up
+      // update has to send whatever config the type actually has.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [
+        {
+          type: 'open_url',
+          url: { formula: "'x'", mode: 'simple' },
+          target: 'blank',
+        },
+      ]
+
+      wrapper.vm.$client.post.mockResolvedValueOnce({
+        data: { id: 55, type: 'open_url' },
+      })
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
+        'database/workflow_action/55/',
+        { url: { formula: "'x'", mode: 'simple' }, target: 'blank' }
+      )
+    })
+
+    test('a type change follows the new id the server hands back', async () => {
+      // A type change is a delete plus a create server side (it carries
+      // `field` and `order` across), so the PATCH response carries a new id.
+      // The order call has to use that one, not the id the editor still holds.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [
+        { id: 1, type: 'create_row', service: { table_id: 3 } },
+        { id: 2, type: 'delete_row', service: {} },
+      ]
+      wrapper.vm.localActions = [
+        { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
+        { id: 2, type: 'delete_row', service: {} },
+      ]
+
+      wrapper.vm.$client.patch.mockResolvedValueOnce({
+        data: { id: 88, type: 'open_url' },
+      })
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
+        'database/workflow_action/1/',
+        { type: 'open_url', url: { formula: "'x'", mode: 'simple' } }
+      )
+      expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
+        'database/field/7/workflow_actions/order/',
+        { workflow_action_ids: [88, 2] }
+      )
+    })
+
+    test('a row with no type chosen makes no api calls at all', async () => {
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+
+      wrapper.findComponent(ButtonFieldActionList).vm.addAction()
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.vm.localActions).toEqual([{ type: null }])
+
+      wrapper.vm.$client.post.mockClear()
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
+      expect(wrapper.vm.$client.patch).not.toHaveBeenCalled()
+      expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
+    })
+
     test('saving deletes a removed action and orders the rest', async () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [

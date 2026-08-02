@@ -1,8 +1,10 @@
+// The 12px inset the Figma gives this form comes from the action card that
+// wraps it (`.button-field-action-list__form`), so every action type's form
+// is inset the same way.
 .open-url-workflow-action-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px;
 }
 
 .open-url-workflow-action-form__row {

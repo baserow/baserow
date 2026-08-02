@@ -1,5 +1,18 @@
 import _ from 'lodash'
 
+// The keys an action carries that belong to the API rather than to the
+// editor. Everything else is the type's own config: `service` for the row
+// actions, `url` and `target` for `open_url`.
+const API_OWNED_KEYS = ['id', 'type', 'order', 'field_id']
+
+/**
+ * The type specific config of an action, without the keys the API owns. Used
+ * both to diff two actions and to build the payload that persists one.
+ */
+export function workflowActionConfig(action) {
+  return _.omit(action, API_OWNED_KEYS)
+}
+
 /**
  * Works out the API calls needed to make the server's action list match the
  * editor's local one.
@@ -8,11 +21,15 @@ import _ from 'lodash'
  * field edit discards them. That means the difference has to be computed at
  * submit time rather than applied as it happens.
  *
- * An entry carrying an `id` is assumed to keep the same `type` for its
- * lifetime: the editor offers no way to change an existing action's type,
- * only to delete it and add a new one. Because of that, `toUpdate` compares
- * only `service`, never `type`. If a type dropdown for existing actions is
- * ever added, this function must be revisited to also diff `type`.
+ * An entry carrying an `id` may have changed `type`: the editor offers a type
+ * dropdown per row. A changed type is sent together with the new type's whole
+ * config, because the server implements a type change as a delete plus a
+ * create and needs everything in one payload. It also hands back a **new id**,
+ * which the caller has to substitute into `order`.
+ *
+ * A row whose `type` is still `null` is a row the user added but has not
+ * chosen a type for yet. It is not an action: it produces no call and takes no
+ * slot in the order.
  *
  * A local id the server does not recognise (e.g. gone stale) is treated as a
  * new action rather than issuing an update against a nonexistent id: it is
@@ -35,6 +52,11 @@ export function reconcileWorkflowActions(serverActions, localActions) {
   const keptIds = new Set()
 
   localActions.forEach((action) => {
+    if (action.type == null) {
+      // A row the user added but has not picked a type for yet.
+      return
+    }
+
     const serverAction =
       action.id == null ? undefined : serverById.get(action.id)
 
@@ -50,8 +72,13 @@ export function reconcileWorkflowActions(serverActions, localActions) {
     keptIds.add(action.id)
     order.push(action.id)
 
-    if (!_.isEqual(action.service, serverAction.service)) {
-      toUpdate.push({ id: action.id, values: { service: action.service } })
+    const config = workflowActionConfig(action)
+    const typeChanged = action.type !== serverAction.type
+
+    if (typeChanged) {
+      toUpdate.push({ id: action.id, values: { type: action.type, ...config } })
+    } else if (!_.isEqual(config, workflowActionConfig(serverAction))) {
+      toUpdate.push({ id: action.id, values: config })
     }
   })
 

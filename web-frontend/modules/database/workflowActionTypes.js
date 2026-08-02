@@ -36,6 +36,14 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
   get serviceType() {
     throw new Error('Must be set on the type.')
   }
+
+  getFormProps({ workflowAction, database }) {
+    return { workflowAction, database }
+  }
+
+  getNewActionValues() {
+    return { service: {} }
+  }
 }
 
 /**
@@ -62,6 +70,21 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
 
   get icon() {
     return 'iconoir-link'
+  }
+
+  /**
+   * The form edits the action's own fields, so it needs no context beyond the
+   * default values the list already passes it.
+   */
+  getFormProps() {
+    return {}
+  }
+
+  /**
+   * Nothing to seed: the form emits its own defaults on mount.
+   */
+  getNewActionValues() {
+    return {}
   }
 
   /**
