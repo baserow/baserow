@@ -124,6 +124,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
+    PermissionDeniedDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.registries import (
@@ -2151,14 +2152,30 @@ class LocalBaserowUpsertRowServiceType(
             workspace=self.get_permission_workspace(service),
         )
 
-        # Only iterate over field mappings which we know our authorized user is
-        # allowed to write values to. Writable doesn't refer to the field type being
-        # writable, but rather if the authorized user has the correct permission.
-        authorized_user_writable_field_mappings = [
-            context_map[check.context]
-            for check, check_result in permission_check_results.items()
-            if check_result
-        ]
+        # Split the mappings by whether the acting user may write their field.
+        # Writable doesn't refer to the field type being writable, but rather if
+        # the acting user has the correct permission.
+        authorized_user_writable_field_mappings = []
+        unwritable_fields = []
+        for check, check_result in permission_check_results.items():
+            if check_result:
+                authorized_user_writable_field_mappings.append(
+                    context_map[check.context]
+                )
+            else:
+                unwritable_fields.append(check.context)
+
+        # The builder, automation and dashboards skip the fields their
+        # integration's user cannot write and go on, which is what those
+        # products document. A dispatch source that runs as the person in front
+        # of the screen asks for the opposite, so a click never half writes a
+        # row without saying so (ADR 006 section 5). Raised before anything is
+        # written, so nothing lands.
+        if unwritable_fields and dispatch_context.requires_writable_fields:
+            names = ", ".join(sorted(field.name for field in unwritable_fields))
+            raise PermissionDeniedDispatchException(
+                f"You don't have permission to write the following fields: {names}."
+            )
 
         for field_mapping in authorized_user_writable_field_mappings:
             if field_mapping.id not in resolved_values:

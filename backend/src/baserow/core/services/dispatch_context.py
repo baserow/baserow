@@ -25,6 +25,19 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     """
     only_record_id = None
 
+    """
+    Whether a service that writes fields must fail when the acting user cannot
+    write one of them, instead of skipping it and writing the rest. Off by
+    default: the builder, automation and dashboards deliberately skip, because
+    their services run as an integration's `authorized_user` on behalf of
+    someone else. A dispatch source whose acting user is the person in front of
+    the screen turns it on, so a refusal is reported rather than swallowed
+    (ADR 006 section 5). Set per dispatch source rather than per dispatch, so it
+    is a class attribute and needs no place in `own_properties` to survive
+    `clone()`.
+    """
+    requires_writable_fields = False
+
     def __init__(
         self,
         only_record_id=None,

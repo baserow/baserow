@@ -42,6 +42,7 @@ from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
     InvalidContextDispatchException,
+    PermissionDeniedDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     TriggerServiceNotDispatchable,
 )
@@ -58,6 +59,7 @@ USER_FACING_DISPATCH_EXCEPTIONS = (
     ServiceImproperlyConfiguredDispatchException,
     InvalidContextDispatchException,
     InvalidContextContentDispatchException,
+    PermissionDeniedDispatchException,
     TriggerServiceNotDispatchable,
     DoesNotExist,
 )

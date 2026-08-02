@@ -31,6 +31,14 @@ class InvalidContextContentDispatchException(DispatchException):
     """
 
 
+class PermissionDeniedDispatchException(DispatchException):
+    """
+    Raised when the acting user lacks a permission the dispatch needs, and the
+    dispatch source wants that refusal reported rather than worked around. The
+    message is written for that user, so it is safe to show them.
+    """
+
+
 class DoesNotExist(Exception):
     """Raised when calling a service dispatch method and nothing is found."""
 
