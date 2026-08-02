@@ -368,6 +368,40 @@ def test_order_workflow_actions(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_can_create_open_url_action_with_a_field_reference(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Slug")
+    button = data_fixture.create_button_field(table=table)
+
+    response = api_client.post(
+        reverse("api:database:workflow_actions:list", kwargs={"field_id": button.id}),
+        {"type": "open_url"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    action_id = response.json()["id"]
+
+    response = api_client.patch(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": action_id},
+        ),
+        {
+            "url": {
+                "formula": f"concat('https://x.test/', get('fields.{text_field.id}'))",
+                "mode": "simple",
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert str(text_field.id) in response.json()["url"]["formula"]
+
+
+@pytest.mark.django_db
 def test_order_with_an_action_from_another_field(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)

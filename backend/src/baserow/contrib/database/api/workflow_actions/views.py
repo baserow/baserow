@@ -38,6 +38,7 @@ from baserow.contrib.database.api.workflow_actions.serializers import (
     OrderWorkflowActionsSerializer,
     UpdateDatabaseWorkflowActionSerializer,
 )
+from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import ButtonField
@@ -109,6 +110,7 @@ class DatabaseWorkflowActionsView(APIView):
     @validate_body_custom_fields(
         database_workflow_action_type_registry,
         base_serializer_class=CreateDatabaseWorkflowActionSerializer,
+        serializer_class_context={"application_type": DatabaseApplicationType},
     )
     def post(self, request, data: Dict, field_id: int):
         feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
@@ -287,6 +289,7 @@ class DatabaseWorkflowActionView(APIView):
             database_workflow_action_type_registry,
             request.data,
             base_serializer_class=UpdateDatabaseWorkflowActionSerializer,
+            serializer_class_context={"application_type": DatabaseApplicationType},
             partial=True,
         )
 
