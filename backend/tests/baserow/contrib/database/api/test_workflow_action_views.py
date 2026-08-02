@@ -389,7 +389,11 @@ def test_can_create_open_url_action_with_a_field_reference(api_client, data_fixt
         ),
         {
             "url": {
-                "formula": f"concat('https://x.test/', get('fields.{text_field.id}'))",
+                # `fields.field_<id>` is the reference form the migration
+                # writes and the frontend data provider resolves.
+                "formula": (
+                    f"concat('https://x.test/', get('fields.field_{text_field.id}'))"
+                ),
                 "mode": "simple",
             }
         },
@@ -398,7 +402,12 @@ def test_can_create_open_url_action_with_a_field_reference(api_client, data_fixt
     )
 
     assert response.status_code == HTTP_200_OK, response.json()
-    assert str(text_field.id) in response.json()["url"]["formula"]
+    # The response is built from the persisted object, so the exact string
+    # coming back proves the formula survived validation and storage intact.
+    assert response.json()["url"]["formula"] == (
+        f"concat('https://x.test/', get('fields.field_{text_field.id}'))"
+    )
+    assert response.json()["url"]["mode"] == "simple"
 
 
 @pytest.mark.django_db
