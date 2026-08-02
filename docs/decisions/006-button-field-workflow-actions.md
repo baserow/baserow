@@ -157,20 +157,20 @@ server.
 ### 3. Execution flow and failure behavior
 
 A dispatch endpoint receives the click, builds a `DatabaseDispatchContext`, and
-dispatches the actions in order. State changes are broadcast over the existing row
-realtime channel, as the AI field already does, so every open view sees the loading
-state.
+dispatches the actions in order. The loading state belongs to the person who clicked:
+their own cell shows it until the response arrives, and ignores further clicks meanwhile.
 
 ```mermaid
 sequenceDiagram
     actor User as Clicking user
+    participant Cell as The clicked cell
     participant API as Dispatch endpoint
     participant H as DatabaseWorkflowActionHandler
     participant SH as ServiceHandler
-    participant WS as Realtime channel
 
-    User->>API: click (button field id, row id)
-    API->>WS: button enters loading state (all open views)
+    User->>Cell: click
+    Cell->>API: dispatch (button field id, row id)
+    Note over Cell: loading until the response arrives
     loop actions in order
         API->>H: dispatch(action, DatabaseDispatchContext)
         H->>SH: dispatch_service(service, context)
@@ -179,11 +179,19 @@ sequenceDiagram
     end
     alt an action fails
         H-->>API: error for the failed action
-        API-->>User: error toast naming the failed action
+        API-->>Cell: error toast naming the failed action
         Note over H: remaining actions are skipped,<br/>completed actions stay
     end
-    API->>WS: button back to idle, row updates broadcast
+    API-->>Cell: results, plus the frontend-only actions to run
 ```
+
+An earlier draft of this section broadcast that loading state to every open view over the
+row realtime channel, the way the AI field does. That was descoped on 2026-07-28 and now
+belongs to phase 4. Local dispatch is synchronous, so the clicking user has the outcome in
+the response, and other viewers see the row changes arrive through the normal row-update
+signals; between the two there is nothing for a concurrent viewer to watch. A broadcast
+loading state is built when external actions make a dispatch slow enough for that gap to
+be worth showing, which is also when the job/Celery pattern arrives.
 
 Failure behavior matches the builder: execution stops at the first failing action, the
 rest are skipped, and the user sees an error toast. Nothing is rolled back, since
