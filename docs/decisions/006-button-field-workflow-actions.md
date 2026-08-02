@@ -118,20 +118,32 @@ filter) will likely be wanted later. The `service` foreign key therefore goes on
 abstract `DatabaseWorkflowServiceAction`, exactly as in the builder, so frontend-only
 types can be added later without a schema migration.
 
-Phase 1's `url_formula` field attribute is scaffolding, not part of the end state. It
-exists because the button shipped before the action layer. When that layer arrives,
-opening a URL becomes a frontend-only `open_url` action like any other and the attribute
-is retired under the zero-downtime rules: no longer read in one release, dropped in the
-next. A button never carries both a `url_formula` and an action list, and nothing is
-designed around them coexisting.
+Phase 1's `url_formula` field attribute was scaffolding, not part of the end state. It
+existed because the button shipped before the action layer. That layer has since arrived:
+opening a URL is a frontend-only `open_url` action like any other, a data migration turns
+every existing `url_formula` into one, and nothing reads the attribute any more. The
+column itself stays on `ButtonField` as deprecated under the zero-downtime rule, to be
+dropped in a later release. A button never carries both a `url_formula` and an action
+list, and nothing is designed around them coexisting.
 
 The builder's `open_page` is the working precedent, not just an analogy. Its `custom`
 navigation branch already stores its target as a formula object, the same shape as
-`url_formula`, so the action type has an implementation to mirror rather than invent.
+`url_formula`, so the action type had an implementation to mirror rather than invent.
 
-Because the type is frontend-only, the client executes it without calling the dispatch
-endpoint at all. That keeps the action type cheap, and it matches how the builder already
-treats its notification and open-page actions.
+The client does not, however, run a frontend-only action on its own. A click always calls
+the dispatch endpoint; the endpoint dispatches the service-backed actions, skips the
+frontend-only ones, and hands them back under a `client_actions` key for the browser to
+execute once the response arrives. This is where the database diverges from the builder,
+which does execute its notification and open-page actions without a round trip.
+Implementation established why: running the two kinds in list order would need one
+dispatch call per contiguous run of service-backed actions, and the click lock is keyed on
+`(field_id, row_id)`, so every call after the first would be rejected with 409. Returning
+the whole frontend tail in one response avoids that, and it buys a second property that
+matters now that **same tab** is the default target: a failing action raises before the
+response is built, so `client_actions` never reaches the browser and the navigation does
+not happen, leaving the user on the error toast rather than carrying them away from it.
+The cost is that a frontend-only action always runs after every service-backed one,
+whatever its position in the list.
 
 Public views are not part of that reasoning. An earlier draft of this section argued the
 client-side path preserved the phase-1 behaviour of a URL button working in a publicly
@@ -431,6 +443,6 @@ defer unifying execution until a real need appears.
 - External integration types are scheduled: ship them with explicit sharing warnings on
   every integration, and plan the ownership iteration (`created_by` plus `is_shared`,
   private by default) with the builder team (section 5).
-- Frontend-only button actions are prioritized: design the shared dispatch mechanism
-  with the builder team before building one alone. Retiring `url_formula` per section 2
-  rides along with that work, so the two do not drift apart.
+- A second frontend-only button action is prioritized: `open_url` shipped with a
+  client-side dispatch mechanism of its own (section 2), so the next one is the moment to
+  design a shared one with the builder team rather than copy it a third time.
