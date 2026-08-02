@@ -9,6 +9,7 @@ from baserow.contrib.database.workflow_actions.models import (
     CreateRowWorkflowAction,
     DatabaseWorkflowAction,
     DeleteRowWorkflowAction,
+    OpenUrlWorkflowAction,
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFieldMapping,
@@ -101,6 +102,53 @@ def test_duplicating_a_single_field_copies_its_actions(data_fixture):
         "The field mappings must keep pointing at the fields of the target "
         "table, which an id_mapping without them would drop."
     )
+
+
+@pytest.mark.django_db
+def test_duplicate_table_remaps_open_url_action_field_references(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={
+            "formula": f"get('fields.field_{text_field.id}')",
+            "mode": "simple",
+        },
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (action,) = OpenUrlWorkflowAction.objects.filter(field=duplicated_field)
+    new_text_field_id = (
+        duplicated_table.field_set.exclude(id=duplicated_field.id).get().id
+    )
+
+    assert action.url["formula"] == f"get('fields.field_{new_text_field_id}')"
+    assert action.url["mode"] == "simple"
+
+
+@pytest.mark.django_db
+def test_duplicate_table_keeps_raw_open_url_action_formula_working(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={"formula": "https://example.com?x=(1", "mode": "raw"},
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (action,) = OpenUrlWorkflowAction.objects.filter(field=duplicated_field)
+
+    # A raw formula is literal text that is never parsed. Downgrading it to
+    # `simple` would make this unparseable and break the duplicated action.
+    assert action.url["mode"] == "raw"
+    assert action.url["formula"] == "https://example.com?x=(1"
 
 
 @pytest.mark.django_db(transaction=True)
