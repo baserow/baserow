@@ -101,13 +101,16 @@ describe('reconcileWorkflowActions', () => {
   })
 
   test('a type change between two service types sends the new config', () => {
+    // The editor resets the config when the type changes, so the service it
+    // hands over is empty. Carrying the old type's `table_id` across would
+    // not just be wrong, it is something the editor cannot produce.
     const server = [{ id: 1, type: 'create_row', service: { table_id: 3 } }]
-    const local = [{ id: 1, type: 'update_row', service: { table_id: 3 } }]
+    const local = [{ id: 1, type: 'update_row', service: {} }]
 
     const result = reconcileWorkflowActions(server, local)
 
     expect(result.toUpdate).toEqual([
-      { id: 1, values: { type: 'update_row', service: { table_id: 3 } } },
+      { id: 1, values: { type: 'update_row', service: {} } },
     ])
   })
 

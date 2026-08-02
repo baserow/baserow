@@ -117,6 +117,29 @@ describe('ButtonFieldActionList', () => {
     ).toHaveLength(1)
   })
 
+  test('changing between two service types remounts the form', async () => {
+    // `create_row` and `update_row` resolve to the same form component and
+    // the same `serviceType.formComponent`, and the row's own key does not
+    // change on a type swap. Without a type derived key Vue reuses the
+    // instance, so the inner form keeps the values it seeded from the old
+    // config and the user still sees the old table selected.
+    const wrapper = await mountList([
+      { id: 1, type: 'create_row', service: { table_id: 3 } },
+    ])
+    const before = wrapper.findComponent({
+      name: 'DatabaseWorkflowActionWithService',
+    }).vm
+
+    await wrapper.setProps({
+      value: [{ id: 1, type: 'update_row', service: {} }],
+    })
+
+    const after = wrapper.findComponent({
+      name: 'DatabaseWorkflowActionWithService',
+    }).vm
+    expect(after).not.toBe(before)
+  })
+
   test('changing a row type keeps its id and drops the old config', async () => {
     // The old type's config means nothing to the new one, and the server
     // deletes and recreates the action rather than converting it.

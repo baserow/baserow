@@ -38,8 +38,16 @@
       <template v-if="action.type">
         <div class="button-field-action-list__separator"></div>
         <div class="button-field-action-list__form">
+          <!--
+            Keyed by type, not by the row: `create_row` and `update_row`
+            resolve to the same form component and the same service form, and
+            the row's own key does not change on a type swap, so Vue would
+            reuse the instance and carry the old type's seeded values into a
+            config that has just been reset.
+          -->
           <component
             :is="actionTypeOf(action).form"
+            :key="action.type"
             v-bind="
               actionTypeOf(action).getFormProps({
                 workflowAction: action,

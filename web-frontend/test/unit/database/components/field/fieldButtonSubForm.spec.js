@@ -244,6 +244,73 @@ describe('FieldButtonSubForm', () => {
       )
     })
 
+    test('a type change into a service type sends no untyped service', async () => {
+      // Changing the type resets the config, so the buffered service is `{}`.
+      // It has never been round-tripped through the API, so it carries no
+      // nested `type`, and `BasePolymorphicSerializer.get_type_from_mapping`
+      // answers a payload it cannot type with `self.fail(...)` — which DRF
+      // turns into an AssertionError, an HTTP 500 rather than a 400. Nothing
+      // untyped may reach the wire.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [
+        { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
+      ]
+      wrapper.vm.localActions = [{ id: 1, type: 'delete_row', service: {} }]
+
+      wrapper.vm.$client.patch.mockResolvedValueOnce({
+        data: {
+          id: 88,
+          type: 'delete_row',
+          service: { id: 9, type: 'local_baserow_delete_row' },
+        },
+      })
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.$client.patch).toHaveBeenCalledTimes(1)
+      expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
+        'database/workflow_action/1/',
+        { type: 'delete_row' }
+      )
+    })
+
+    test('a type change into a service type types the service it then sends', async () => {
+      // The user can change the type and configure the new form before
+      // saving. The type change goes on its own, then the service config
+      // follows against the recreated action, typed from what it answered —
+      // exactly as a create does.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [
+        { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
+      ]
+      wrapper.vm.localActions = [
+        { id: 1, type: 'create_row', service: { table_id: 3 } },
+      ]
+
+      wrapper.vm.$client.patch.mockResolvedValueOnce({
+        data: {
+          id: 88,
+          type: 'create_row',
+          service: { id: 9, type: 'local_baserow_upsert_row', table_id: null },
+        },
+      })
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.$client.patch.mock.calls).toEqual([
+        ['database/workflow_action/1/', { type: 'create_row' }],
+        [
+          'database/workflow_action/88/',
+          { service: { type: 'local_baserow_upsert_row', table_id: 3 } },
+        ],
+      ])
+      // The follow-up went to the recreated action, and so does the order.
+      expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
+        'database/field/7/workflow_actions/order/',
+        { workflow_action_ids: [88] }
+      )
+    })
+
     test('a row with no type chosen makes no api calls at all', async () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
 

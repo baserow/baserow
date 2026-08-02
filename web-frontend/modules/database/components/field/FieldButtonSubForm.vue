@@ -221,15 +221,17 @@ export default {
       this.localActions = clone(data)
     },
     /**
-     * The payload that applies a freshly created action's buffered config.
-     * The create call only carries the type, so everything the user
-     * configured has to follow in an update.
+     * The payload that applies a buffered config to an action the server has
+     * just made, either by a create or by the recreate a type change does.
+     * Both only carry the type, so everything the user configured follows in
+     * an update.
      *
      * A service backed action needs one fixup: a buffered service carries no
      * `type` until the server has made one, and the API's polymorphic service
-     * serializer refuses a payload it cannot type. Take it from the service
-     * the create just returned, letting the buffer win if it ever has its own.
-     * An action with no service (`open_url`) is sent as it stands.
+     * serializer refuses a payload it cannot type — with an `AssertionError`,
+     * so a 500 rather than a 400. Take it from the service the server just
+     * returned, letting the buffer win if it ever has its own. An action with
+     * no service (`open_url`) is sent as it stands.
      */
     configPayload(action, created) {
       const config = workflowActionConfig(action)
@@ -270,12 +272,27 @@ export default {
         }
 
         for (const { id, values } of toUpdate) {
-          const { data } = await service.update(id, values)
-          // A type change is a delete plus a create server side, so the
-          // response carries a brand new id. The order below still holds the
-          // old one, so remember the swap.
+          // A type change is a delete plus a create server side, so whatever
+          // service it brings is brand new and the buffered one carries no
+          // `type` for the polymorphic serializer to key on. There is no
+          // response to take one from yet, so the type change goes on its own
+          // and the config follows against the recreated action, exactly as
+          // it does for a create.
+          const defersConfig = values.type !== undefined && 'service' in values
+          const { data } = await service.update(
+            id,
+            defersConfig ? _.omit(values, 'service') : values
+          )
+          // The recreate hands back a brand new id. The order below still
+          // holds the old one, so remember the swap.
           if (data?.id != null && data.id !== id) {
             replacedIds.set(id, data.id)
+          }
+          if (defersConfig) {
+            const config = this.configPayload(values, data)
+            if (Object.keys(config).length > 0) {
+              await service.update(data?.id ?? id, config)
+            }
           }
         }
 
