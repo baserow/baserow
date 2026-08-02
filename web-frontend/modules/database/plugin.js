@@ -374,6 +374,7 @@ import {
 } from '@baserow/modules/database/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import {
+  OpenUrlWorkflowActionType,
   CreateRowWorkflowActionType,
   UpdateRowWorkflowActionType,
   DeleteRowWorkflowActionType,
@@ -1091,6 +1092,10 @@ export default defineNuxtPlugin({
 
     $registry.register('guidedTour', new DatabaseGuidedTourType(context))
 
+    $registry.register(
+      'databaseWorkflowActionType',
+      new OpenUrlWorkflowActionType(context)
+    )
     $registry.register(
       'databaseWorkflowActionType',
       new CreateRowWorkflowActionType(context)

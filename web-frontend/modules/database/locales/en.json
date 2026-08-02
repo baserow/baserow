@@ -1273,6 +1273,20 @@
     "urlPlaceholder": "e.g. concat('https://example.com/', get('fields.field_1'))",
     "invalidUrl": "The URL formula is invalid."
   },
+  "databaseWorkflowActionType": {
+    "openUrl": "Open URL"
+  },
+  "openUrlWorkflowActionForm": {
+    "url": "URL",
+    "urlPlaceholder": "URL...",
+    "openIn": "Open in",
+    "sameTab": "Same tab",
+    "newTab": "New tab"
+  },
+  "openUrlWorkflowAction": {
+    "invalidUrlTitle": "Could not open the URL",
+    "invalidUrlMessage": "The URL could not be resolved for this row, or it uses a protocol that is not allowed."
+  },
   "buttonFieldActionList": {
     "addAction": "Add action",
     "empty": "No actions yet. Add one to define what happens when the button is clicked."

@@ -1,4 +1,6 @@
+import { vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import OpenUrlWorkflowActionForm from '@baserow/modules/database/components/field/OpenUrlWorkflowActionForm'
 
 describe('databaseWorkflowActionType registry', () => {
   let testApp = null
@@ -11,12 +13,25 @@ describe('databaseWorkflowActionType registry', () => {
     testApp.afterEach()
   })
 
-  test('the three types are registered', () => {
+  test('the four types are registered', () => {
     const types = testApp._app.$registry.getAll('databaseWorkflowActionType')
     expect(Object.keys(types).sort()).toEqual([
       'create_row',
       'delete_row',
+      'open_url',
       'update_row',
+    ])
+  })
+
+  test('open url is offered above the row actions', () => {
+    const ordered = testApp._app.$registry.getOrderedList(
+      'databaseWorkflowActionType'
+    )
+    expect(ordered.map((type) => type.getType())).toEqual([
+      'open_url',
+      'create_row',
+      'update_row',
+      'delete_row',
     ])
   })
 
@@ -43,5 +58,157 @@ describe('databaseWorkflowActionType registry', () => {
         registry.get('databaseWorkflowActionType', actionType).serviceType
       ).toBe(registry.get('service', serviceType))
     }
+  })
+})
+
+describe('OpenUrlWorkflowActionType', () => {
+  let testApp = null
+  let actionType = null
+  let openSpy = null
+  let dispatchSpy = null
+  let originalLocation = null
+
+  const row = { id: 1, field_1: 'example.com' }
+  const fields = [{ id: 1, type: 'text', name: 'Domain' }]
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    actionType = testApp._app.$registry.get(
+      'databaseWorkflowActionType',
+      'open_url'
+    )
+  })
+
+  beforeEach(() => {
+    openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    dispatchSpy = vi.spyOn(testApp._app.$store, 'dispatch')
+    originalLocation = window.location
+    Object.defineProperty(window, 'location', {
+      value: { href: '' },
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    })
+    vi.restoreAllMocks()
+    testApp.afterEach()
+  })
+
+  const execute = (workflowAction) =>
+    actionType.execute({
+      workflowAction,
+      applicationContext: { row, fields },
+    })
+
+  test('it renders its own form, not a service one', () => {
+    expect(actionType.form).toBe(OpenUrlWorkflowActionForm)
+    expect(actionType.icon).toBe('iconoir-link')
+    expect(actionType.label).toBeTruthy()
+  })
+
+  test('the same tab target navigates the current page', async () => {
+    await execute({
+      type: 'open_url',
+      url: { formula: "concat('https://', get('fields.field_1'))" },
+      target: 'self',
+    })
+
+    expect(window.location.href).toBe('https://example.com')
+    expect(openSpy).not.toHaveBeenCalled()
+  })
+
+  test('the new tab target opens a new window', async () => {
+    await execute({
+      type: 'open_url',
+      url: { formula: "'https://example.com'" },
+      target: 'blank',
+    })
+
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://example.com',
+      '_blank',
+      'noopener,noreferrer'
+    )
+    expect(window.location.href).toBe('')
+  })
+
+  test('whitespace in a resolved url is encoded', async () => {
+    await execute({
+      type: 'open_url',
+      url: { formula: "'https://example.com/a b'" },
+      target: 'self',
+    })
+
+    expect(window.location.href).toBe('https://example.com/a%20b')
+  })
+
+  // The `row` provider returns raw values and is only for action arguments,
+  // so a URL formula must never be able to reach it (ADR 006 section 4).
+  test('the url resolves against the fields provider only', async () => {
+    await execute({
+      type: 'open_url',
+      url: { formula: "get('row.field_1')" },
+      target: 'self',
+    })
+
+    expect(window.location.href).toBe('')
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      'toast/error',
+      expect.objectContaining({
+        title: 'openUrlWorkflowAction.invalidUrlTitle',
+      })
+    )
+  })
+
+  test('a url pointing at a missing field raises a toast instead of throwing', async () => {
+    await expect(
+      execute({
+        type: 'open_url',
+        url: { formula: "get('fields.field_404')" },
+        target: 'blank',
+      })
+    ).resolves.toBeUndefined()
+
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      'toast/error',
+      expect.objectContaining({
+        title: 'openUrlWorkflowAction.invalidUrlTitle',
+      })
+    )
+  })
+
+  test('a javascript url is refused', async () => {
+    await execute({
+      type: 'open_url',
+      url: { formula: "'javascript:alert(1)'" },
+      target: 'self',
+    })
+
+    expect(window.location.href).toBe('')
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      'toast/error',
+      expect.objectContaining({
+        title: 'openUrlWorkflowAction.invalidUrlTitle',
+      })
+    )
+  })
+
+  test('an empty formula raises a toast rather than navigating', async () => {
+    await execute({ type: 'open_url', url: { formula: '' }, target: 'self' })
+
+    expect(window.location.href).toBe('')
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      'toast/error',
+      expect.objectContaining({
+        title: 'openUrlWorkflowAction.invalidUrlTitle',
+      })
+    )
   })
 })
