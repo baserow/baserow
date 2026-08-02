@@ -483,7 +483,14 @@ def test_a_failing_row_action_means_no_client_actions(data_fixture):
 def test_a_button_with_only_an_open_url_does_not_take_the_lock(data_fixture):
     """No server actions means nothing to serialise a click against, so the
     lock is never taken. Otherwise a second click on a button that only opens
-    a URL, which has no state to protect, would be rejected."""
+    a URL, which has no state to protect, would be rejected.
+
+    Asserting the key is absent afterwards, as the other lock tests do,
+    would not catch a regression here: the lock is released in a `finally`
+    (`service.py`), so the key reads `None` whether it was never taken or
+    was taken and released. Seeding the key first, the way
+    `test_a_concurrent_click_is_rejected` does, and asserting dispatch still
+    succeeds is the only way to prove the lock was never taken at all."""
 
     user = data_fixture.create_user()
     table, _ = _table_with_name(data_fixture, user)
@@ -492,6 +499,7 @@ def test_a_button_with_only_an_open_url_does_not_take_the_lock(data_fixture):
     data_fixture.create_database_workflow_action(
         OpenUrlWorkflowAction, field=button_field
     )
+    cache.add(f"button_dispatch_{button_field.id}_{row.id}", True, timeout=30)
 
     results, client_actions = DatabaseWorkflowActionService().dispatch_workflow_actions(
         user, button_field, row
@@ -499,4 +507,3 @@ def test_a_button_with_only_an_open_url_does_not_take_the_lock(data_fixture):
 
     assert results == []
     assert len(client_actions) == 1
-    assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None

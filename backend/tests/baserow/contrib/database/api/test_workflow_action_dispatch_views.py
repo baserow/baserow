@@ -11,7 +11,10 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.table.handler import TableHandler
-from baserow.contrib.database.workflow_actions.models import CreateRowWorkflowAction
+from baserow.contrib.database.workflow_actions.models import (
+    CreateRowWorkflowAction,
+    OpenUrlWorkflowAction,
+)
 
 
 def _button_with_create_action(data_fixture, user, value="Ada"):
@@ -56,6 +59,43 @@ def test_dispatch_runs_the_actions(api_client, data_fixture):
     assert results[0]["status"] == "completed"
     created = table.get_model().objects.exclude(id=row.id).get()
     assert getattr(created, f"field_{name_field.id}") == "Ada"
+
+
+@pytest.mark.django_db
+def test_dispatch_returns_client_actions_for_open_url(api_client, data_fixture):
+    """`client_actions` is the wire contract a later, frontend task reads to
+    run frontend-only actions itself: the key name, that it is a list, and
+    that each entry carries `type`, `url` and `target`."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, action = _button_with_create_action(
+        data_fixture, user
+    )
+    open_url = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    open_url.url = "'https://example.com'"
+    open_url.target = "blank"
+    open_url.save()
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    # The create_row action still ran server side and is unaffected.
+    assert len(response.json()["results"]) == 1
+    client_actions = response.json()["client_actions"]
+    assert len(client_actions) == 1
+    assert client_actions[0]["type"] == "open_url"
+    assert client_actions[0]["url"]["formula"] == "'https://example.com'"
+    assert client_actions[0]["target"] == "blank"
 
 
 @pytest.mark.django_db
