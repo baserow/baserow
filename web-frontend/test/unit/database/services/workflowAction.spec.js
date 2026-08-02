@@ -54,7 +54,10 @@ describe('workflowAction service', () => {
     service.dispatch(11, 5)
     expect(client.post).toHaveBeenCalledWith(
       'database/field/11/workflow_actions/dispatch/',
-      { row_id: 5 }
+      { row_id: 5 },
+      // Without this the realtime layer leaves the clicking session out of
+      // the broadcast, and their grid stays stale until a reload.
+      { omitWebSocketId: true }
     )
   })
 })

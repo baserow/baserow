@@ -67,7 +67,8 @@ describe('GridViewFieldButtonField', () => {
 
     expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
       `database/field/${field.id}/workflow_actions/dispatch/`,
-      { row_id: 1 }
+      { row_id: 1 },
+      { omitWebSocketId: true }
     )
   })
 

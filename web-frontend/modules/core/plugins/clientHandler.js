@@ -524,7 +524,7 @@ export function makeErrorResponseInterceptor(
 /**
  * Add the user related headers according to the current authentication status.
  */
-const prepareRequestHeaders = (store) => (config) => {
+export const prepareRequestHeaders = (store) => (config) => {
   const application = store.getters['userSourceUser/getCurrentApplication']
   if (store.getters['auth/isAuthenticated']) {
     const token = store.getters['auth/token']
@@ -552,7 +552,9 @@ const prepareRequestHeaders = (store) => (config) => {
       config.headers.Authorization = `JWT ${userSourceToken}`
     }
   }
-  if (store.getters['auth/webSocketId'] !== null) {
+  // This header leaves the sending session out of the broadcast its own
+  // request triggers. A request that applies nothing itself opts out.
+  if (store.getters['auth/webSocketId'] !== null && !config.omitWebSocketId) {
     const webSocketId = store.getters['auth/webSocketId']
     config.headers.WebSocketId = webSocketId
   }

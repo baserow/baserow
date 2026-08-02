@@ -66,7 +66,8 @@ describe('RowCardFieldButtonField', () => {
 
     expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
       `database/field/${field.id}/workflow_actions/dispatch/`,
-      { row_id: 1 }
+      { row_id: 1 },
+      { omitWebSocketId: true }
     )
     expect(execute).toHaveBeenCalledTimes(1)
     expect(execute.mock.calls[0][0].workflowAction).toEqual(action)

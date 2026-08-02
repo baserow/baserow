@@ -56,7 +56,8 @@ describe('RowEditFieldButtonField', () => {
 
     expect(client.post).toHaveBeenCalledWith(
       'database/field/3/workflow_actions/dispatch/',
-      { row_id: 11 }
+      { row_id: 11 },
+      { omitWebSocketId: true }
     )
   })
 

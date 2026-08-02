@@ -23,9 +23,11 @@ export default (client) => {
       })
     },
     dispatch(fieldId, rowId) {
+      // Changes rows server side, so the clicker needs the broadcast too.
       return client.post(
         `database/field/${fieldId}/workflow_actions/dispatch/`,
-        { row_id: rowId }
+        { row_id: rowId },
+        { omitWebSocketId: true }
       )
     },
   }
