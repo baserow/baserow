@@ -4,6 +4,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
 from baserow.api.workflow_actions.serializers import WorkflowActionSerializer
 from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
 from baserow.contrib.database.workflow_actions.registries import (
@@ -86,3 +87,19 @@ class DispatchResultSerializer(serializers.Serializer):
 
 class DispatchWorkflowActionsResponseSerializer(serializers.Serializer):
     results = DispatchResultSerializer(many=True)
+    client_actions = serializers.SerializerMethodField(
+        help_text=(
+            "Actions the browser runs itself, in order, after the server "
+            "actions have completed."
+        )
+    )
+
+    @extend_schema_field(
+        DiscriminatorCustomFieldsMappingSerializer(
+            database_workflow_action_type_registry,
+            DatabaseWorkflowActionSerializer,
+            many=True,
+        )
+    )
+    def get_client_actions(self, instance):
+        return instance.get("client_actions")

@@ -11,6 +11,7 @@ from baserow.contrib.database.workflow_actions.exceptions import (
 from baserow.contrib.database.workflow_actions.models import (
     CreateRowWorkflowAction,
     DeleteRowWorkflowAction,
+    OpenUrlWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
@@ -321,11 +322,12 @@ def test_a_button_with_no_actions_dispatches_nothing(data_fixture):
     button_field = data_fixture.create_button_field(table=table, label="Go")
     row = table.get_model().objects.create()
 
-    results = DatabaseWorkflowActionService().dispatch_workflow_actions(
+    results, client_actions = DatabaseWorkflowActionService().dispatch_workflow_actions(
         user, button_field, row
     )
 
     assert results == []
+    assert client_actions == []
     assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None
 
 
@@ -420,3 +422,81 @@ def test_every_action_sees_the_row_as_it_was_at_click_time(data_fixture):
         "The second action must see the row as it was at click time, not as the "
         "first action left it (ADR 006 section 4)."
     )
+
+
+@pytest.mark.django_db
+def test_open_url_between_row_actions_is_skipped_and_returned(data_fixture):
+    """`open_url` is frontend-only: the server must skip it and hand it back
+    rather than dispatch it, without disturbing the row actions around it."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    delete = data_fixture.create_database_workflow_action(
+        DeleteRowWorkflowAction, field=button_field
+    )
+    service = delete.service.specific
+    service.table = table
+    service.row_id = "get('row.id')"
+    service.save()
+
+    results, client_actions = DatabaseWorkflowActionService().dispatch_workflow_actions(
+        user, button_field, row
+    )
+
+    assert [a.get_type().type for a, _ in results] == ["create_row", "delete_row"]
+    assert [a.get_type().type for a in client_actions] == ["open_url"]
+
+
+@pytest.mark.django_db
+def test_a_failing_row_action_means_no_client_actions(data_fixture):
+    """A server-side failure re-raises before the client actions are ever
+    handed back, so the browser never runs an `open_url` whose preceding
+    server action failed."""
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    # A delete-row action with no table configured fails at dispatch.
+    data_fixture.create_database_workflow_action(
+        DeleteRowWorkflowAction, field=button_field
+    )
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    with pytest.raises(WorkflowActionDispatchError):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+
+@pytest.mark.django_db
+def test_a_button_with_only_an_open_url_does_not_take_the_lock(data_fixture):
+    """No server actions means nothing to serialise a click against, so the
+    lock is never taken. Otherwise a second click on a button that only opens
+    a URL, which has no state to protect, would be rejected."""
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    results, client_actions = DatabaseWorkflowActionService().dispatch_workflow_actions(
+        user, button_field, row
+    )
+
+    assert results == []
+    assert len(client_actions) == 1
+    assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None

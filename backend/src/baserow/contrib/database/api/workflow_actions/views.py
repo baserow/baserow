@@ -412,9 +412,13 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         row = RowHandler().get_row(request.user, field.table, data["row_id"])
 
         # The service pairs each result with the action that produced it, so
-        # there's no separate fetch here to re-align by position.
-        dispatch_results = DatabaseWorkflowActionService().dispatch_workflow_actions(
-            request.user, field, row
+        # there's no separate fetch here to re-align by position. It also
+        # hands back any frontend-only actions, such as `open_url`, that it
+        # skipped rather than dispatched.
+        dispatch_results, client_actions = (
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                request.user, field, row
+            )
         )
 
         results = [
@@ -430,4 +434,14 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             for workflow_action, dispatch_result in dispatch_results
         ]
 
-        return Response({"results": results})
+        return Response(
+            {
+                "results": results,
+                "client_actions": [
+                    database_workflow_action_type_registry.get_serializer(
+                        workflow_action, DatabaseWorkflowActionSerializer
+                    ).data
+                    for workflow_action in client_actions
+                ],
+            }
+        )

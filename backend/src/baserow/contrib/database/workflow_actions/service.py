@@ -191,9 +191,15 @@ class DatabaseWorkflowActionService:
 
     def dispatch_workflow_actions(
         self, user: AbstractUser, field: ButtonField, row: Any
-    ) -> List[Tuple[DatabaseWorkflowAction, DispatchResult]]:
+    ) -> Tuple[
+        List[Tuple[DatabaseWorkflowAction, DispatchResult]],
+        List[DatabaseWorkflowAction],
+    ]:
         """
-        Runs a button field's actions in order, as the given user.
+        Runs a button field's server-side actions in order, as the given user,
+        and hands back its frontend-only actions, such as `open_url`, for the
+        caller to run instead. `DatabaseWorkflowActionType.dispatch` raises for
+        a frontend-only action, so the loop below must never reach one.
 
         Deliberately not wrapped in a transaction: ADR 006 section 3 requires
         completed actions to stay when a later one fails, because a sequence can
@@ -217,7 +223,9 @@ class DatabaseWorkflowActionService:
             meant for the clicker. Any other failure is re-raised as it is, so
             its message stays server side. Either way the actions before it have
             already run and are not rolled back.
-        :return: One (action, result) pair per action, in order.
+        :return: A pair of: one (action, result) per server-side action, in
+            order; and the frontend-only actions, in order, for the caller to
+            run itself.
         """
 
         # Clicking is at least reading the field, and this check is field
@@ -237,13 +245,15 @@ class DatabaseWorkflowActionService:
         # A button with nothing configured has nothing to run and nothing to
         # lock, so it returns before both.
         if not workflow_actions:
-            return []
+            return [], []
 
         # The dispatch operation is scoped to the action rather than the field,
         # so every action in the sequence is checked. A role granted on the
         # field covers all of them, which is how "who can click this button"
         # is expressed today (ADR 006 section 7). Deliberately checked before
-        # the lock is taken, so a refused user never holds it at all.
+        # the lock is taken, so a refused user never holds it at all. Checked
+        # over every action, frontend-only included, so clicking is refused as
+        # a whole rather than only for the actions the server would run.
         CoreHandler().check_multiple_permissions(
             [
                 PermissionCheck(
@@ -256,6 +266,22 @@ class DatabaseWorkflowActionService:
             workspace=field.table.database.workspace,
             raise_exception=True,
         )
+
+        # `DatabaseWorkflowActionType.dispatch` raises for a frontend-only
+        # action, so those never reach the loop below; the caller runs them in
+        # the browser instead.
+        client_actions = [
+            wa for wa in workflow_actions if wa.get_type().is_frontend_only
+        ]
+        server_actions = [
+            wa for wa in workflow_actions if not wa.get_type().is_frontend_only
+        ]
+
+        # Nothing to run server side means nothing to serialise a click
+        # against: taking the lock would reject a second click on a button
+        # that only opens a URL, which has no state to protect.
+        if not server_actions:
+            return [], client_actions
 
         # `cache.add` is atomic on the Redis-backed cache and only succeeds when
         # the key is absent, so a double click cannot run the sequence twice.
@@ -277,7 +303,7 @@ class DatabaseWorkflowActionService:
             # The clicker's own actions must not land in their undo stack
             # (ADR 006 section 8), while still firing `action_done`.
             with without_undo_redo_registration(user):
-                for workflow_action in workflow_actions:
+                for workflow_action in server_actions:
                     try:
                         result = self.handler.dispatch_workflow_action(
                             workflow_action, dispatch_context
@@ -299,7 +325,7 @@ class DatabaseWorkflowActionService:
                         raise
                     results.append((workflow_action, result))
 
-            return results
+            return results, client_actions
         finally:
             # Release only this click's own lock. Once the TTL has expired the
             # key can belong to a later click, and deleting that one would let a
