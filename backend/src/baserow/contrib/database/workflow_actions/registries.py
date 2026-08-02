@@ -7,6 +7,7 @@ from baserow.api.services.serializers import (
     PolymorphicServiceRequestSerializer,
     PolymorphicServiceSerializer,
 )
+from baserow.contrib.database.formula_importer import import_formula
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
 from baserow.core.db import specific_queryset
 from baserow.core.registry import (
@@ -180,16 +181,43 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         values["service"] = service
         return super().prepare_values(values, user, instance)
 
-    # TODO: nothing consumes this generator yet, so service formulas are not
-    # remapped on import. Wiring it needs an `import_serialized` override on
-    # this class that calls `self.import_formulas(created_instance, id_mapping,
-    # import_formula)` with a database-side `import_formula`, the way
-    # `BuilderWorkflowActionType.import_serialized` does. That `import_formula`
-    # does not exist yet: the database module registers no data providers, so a
-    # stored formula cannot reference anything importable and there is nothing
-    # to remap against. Wire both together when dispatch data providers land.
-    # FK-shaped references are unaffected; `LocalBaserowUpsertRowServiceType`
-    # already remaps `field_mappings[].field_id` in `deserialize_property`.
+    def import_serialized(
+        self,
+        parent,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        Imports the action, then remaps the references inside the formulas its
+        service stores, such as a field mapping value of `get('row.field_25')`.
+
+        `deserialize_property` only reaches the FK-shaped references, so without
+        this second step a duplicated table keeps a formula naming the original
+        table's field and silently reads the wrong one (ADR 006 section 6).
+        """
+
+        created_instance = super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
+            files_zip,
+            storage,
+            cache,
+            **kwargs,
+        )
+
+        updated_models = self.import_formulas(
+            created_instance, id_mapping, import_formula, **kwargs
+        )
+        for updated_model in updated_models:
+            updated_model.save()
+
+        return created_instance
+
     def formula_generator(
         self, workflow_action: WorkflowAction
     ) -> Generator[str | Instance, str, None]:

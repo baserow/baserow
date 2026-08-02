@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING, Any, List, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
+from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
 )
@@ -92,3 +93,33 @@ class RowDataProviderType(DataProviderType):
             return None
 
         return getattr(row, field_name, None)
+
+    def import_path(
+        self, path: List[str], id_mapping: Dict[str, Any], **kwargs
+    ) -> List[str]:
+        """
+        Points a `get('row.field_25')` at the imported field, so a duplicated
+        table or an imported database writes the field of the copy rather than
+        the one the formula was written against.
+        """
+
+        if len(path) != 1 or "database_fields" not in id_mapping:
+            return path
+
+        field_dbname = path[0]
+
+        # `row.id` is the only other path this provider serves, and it is not a
+        # field reference. Anything else isn't ours to remap either.
+        if not str(field_dbname).startswith("field_"):
+            return path
+
+        field_id = get_field_id_from_field_key(field_dbname)
+        new_field_id = id_mapping["database_fields"].get(field_id)
+
+        # A field missing from the mapping was trashed or never exported. The
+        # reference is kept as it is, the same as the `open_url` action's url:
+        # the import must not fail, and the broken state surfaces at dispatch.
+        if not new_field_id:
+            return path
+
+        return [f"field_{new_field_id}"]

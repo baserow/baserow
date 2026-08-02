@@ -208,3 +208,164 @@ def test_actions_survive_an_application_export_import(data_fixture):
     assert [a.specific.get_type().type for a in actions] == ["create_row", "delete_row"]
     assert actions[0].specific.service.specific.table_id == imported_table.id
     assert actions[0].specific.service.specific.table_id != table.id
+
+
+@pytest.mark.django_db
+def test_duplicate_table_remaps_a_field_mapping_formula(data_fixture):
+    """The `field_id` of a mapping is remapped by the service, its `value` is
+    not, so a formula in it needs the import pass of ADR 006 section 6."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    copy_field = data_fixture.create_text_field(table=table, name="Copy")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table
+    )
+    service.field_mappings.create(
+        field=copy_field, value=f"get('row.field_{name_field.id}')", enabled=True
+    )
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field, service=service
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_name_field = duplicated_table.field_set.get(name="Name")
+    duplicated_copy_field = duplicated_table.field_set.get(name="Copy")
+    duplicated_button = duplicated_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_button)
+    (mapping,) = LocalBaserowTableServiceFieldMapping.objects.filter(
+        service_id=action.specific.service_id
+    )
+
+    assert duplicated_name_field.id != name_field.id
+    assert mapping.field_id == duplicated_copy_field.id
+    # Left pointing at the original field, the copy would silently read the
+    # source table's value instead of its own row's.
+    assert mapping.value["formula"] == f"get('row.field_{duplicated_name_field.id}')"
+
+
+@pytest.mark.django_db
+def test_duplicate_table_remaps_a_row_id_formula(data_fixture):
+    """`row_id` is a formula on the service itself rather than on a mapping."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    number_field = data_fixture.create_number_field(table=table, name="Target")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_delete_row_service(
+        integration=None, table=table, row_id=f"get('row.field_{number_field.id}')"
+    )
+    data_fixture.create_database_workflow_action(
+        DeleteRowWorkflowAction, field=button_field, service=service
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_number_field = duplicated_table.field_set.get(name="Target")
+    duplicated_button = duplicated_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_button)
+
+    assert duplicated_number_field.id != number_field.id
+    assert (
+        action.specific.service.specific.row_id["formula"]
+        == f"get('row.field_{duplicated_number_field.id}')"
+    )
+
+
+@pytest.mark.django_db
+def test_duplicate_table_keeps_an_unimportable_field_mapping_formula(data_fixture):
+    """Nothing to remap must leave the formula exactly as it was, rather than
+    fail the duplication or rewrite it into something else."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    copy_field = data_fixture.create_text_field(table=table, name="Copy")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table
+    )
+    # A trashed field, which is never exported, so the mapping has no entry.
+    service.field_mappings.create(
+        field=copy_field, value="concat('x:',get('row.field_0'))", enabled=True
+    )
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field, service=service
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_button = duplicated_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_button)
+    (mapping,) = LocalBaserowTableServiceFieldMapping.objects.filter(
+        service_id=action.specific.service_id
+    )
+
+    assert mapping.value["formula"] == "concat('x:',get('row.field_0'))"
+
+
+@pytest.mark.django_db
+def test_duplicate_table_keeps_a_formula_naming_an_unknown_data_provider(data_fixture):
+    """An export written by a version that has a provider this one doesn't must
+    still import; the reference is left alone rather than blowing up."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    copy_field = data_fixture.create_text_field(table=table, name="Copy")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table
+    )
+    service.field_mappings.create(
+        field=copy_field, value="get('previous_action.1.value')", enabled=True
+    )
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field, service=service
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_button = duplicated_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_button)
+    (mapping,) = LocalBaserowTableServiceFieldMapping.objects.filter(
+        service_id=action.specific.service_id
+    )
+
+    assert mapping.value["formula"] == "get('previous_action.1.value')"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_field_mapping_formula_survives_an_application_export_import(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    copy_field = data_fixture.create_text_field(table=table, name="Copy")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table
+    )
+    service.field_mappings.create(
+        field=copy_field, value=f"get('row.field_{name_field.id}')", enabled=True
+    )
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field, service=service
+    )
+
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    imported_table = imported[0].table_set.get(name=table.name)
+    imported_name_field = imported_table.field_set.get(name="Name")
+    imported_button = imported_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=imported_button)
+    (mapping,) = LocalBaserowTableServiceFieldMapping.objects.filter(
+        service_id=action.specific.service_id
+    )
+
+    assert imported_name_field.id != name_field.id
+    assert mapping.value["formula"] == f"get('row.field_{imported_name_field.id}')"
