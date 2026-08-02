@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import RowEditFieldButtonField from '@baserow/modules/database/components/row/RowEditFieldButtonField'
 
@@ -102,5 +103,64 @@ describe('RowEditFieldButtonField', () => {
       workflowAction: action,
       applicationContext: { row: { id: 11 }, fields: [field] },
     })
+  })
+
+  test('a failed dispatch raises a toast of its own', async () => {
+    // Anything the client handler did not turn into a message, such as a
+    // network failure, would otherwise be thrown out of an unawaited click
+    // handler and the click would look like it did nothing.
+    client.post.mockRejectedValue(new Error('boom'))
+    const dispatch = vi.spyOn(testApp.store, 'dispatch')
+    const wrapper = await mountField()
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    // The test app has no translations loaded, so `$t` hands back the keys.
+    expect(dispatch).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.dispatchErrorTitle',
+      message: 'buttonField.dispatchErrorMessage',
+    })
+  })
+
+  test('a handled API error is reported through the error handler', async () => {
+    // A handled error already carries the message the backend sent, such as
+    // the name of the action that failed, so the generic toast above must not
+    // replace it or be raised alongside it.
+    const notifyIf = vi.fn()
+    client.post.mockRejectedValue(
+      Object.assign(new Error('boom'), { handler: { notifyIf } })
+    )
+    const dispatch = vi.spyOn(testApp.store, 'dispatch')
+    const wrapper = await mountField()
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(notifyIf).toHaveBeenCalledWith('workflowAction')
+    expect(dispatch).not.toHaveBeenCalledWith('toast/error', expect.anything())
+  })
+
+  test('a failed dispatch leaves the button clickable', async () => {
+    client.post.mockRejectedValue(new Error('boom'))
+    const wrapper = await mountField()
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(client.post).toHaveBeenCalledTimes(2)
+  })
+
+  test('no client action runs when the dispatch failed', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    client.post.mockRejectedValue(new Error('boom'))
+    const wrapper = await mountField()
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(execute).not.toHaveBeenCalled()
   })
 })

@@ -13,6 +13,7 @@ from rest_framework.status import (
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
     CreateRowWorkflowAction,
+    DeleteRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
 
@@ -274,3 +275,69 @@ def test_a_database_token_cannot_dispatch(api_client, data_fixture):
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert table.get_model().objects.exclude(id=row.id).count() == 0
+
+
+@pytest.mark.django_db
+def test_a_failed_action_returns_the_dispatch_error(api_client, data_fixture):
+    """The minimum error floor of ADR 006 section 3: the clicker is told which
+    action failed and why, rather than getting an opaque 500."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, action = _button_with_create_action(
+        data_fixture, user
+    )
+    # A delete-row action with no table configured fails at dispatch.
+    broken = data_fixture.create_database_workflow_action(
+        DeleteRowWorkflowAction, field=button_field
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
+    assert str(broken.id) in response.json()["detail"], (
+        "The response must name the action that failed, otherwise a button with "
+        "several actions gives the clicker nothing to go on."
+    )
+    # The action before the broken one already ran, and stays (ADR 006 section 3).
+    created = table.get_model().objects.exclude(id=row.id).get()
+    assert getattr(created, f"field_{name_field.id}") == "Ada"
+
+
+@pytest.mark.django_db
+def test_a_failed_action_stops_the_client_actions(api_client, data_fixture):
+    """`client_actions` never reaches the browser when an action failed, so a
+    failed click leaves the user on the error rather than navigating away."""
+
+    user, token = data_fixture.create_user_and_token()
+    _, _, button_field, row, _ = _button_with_create_action(data_fixture, user)
+    data_fixture.create_database_workflow_action(
+        DeleteRowWorkflowAction, field=button_field
+    )
+    open_url = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    open_url.url = "'https://example.com'"
+    open_url.save()
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
+    assert "client_actions" not in response.json()
