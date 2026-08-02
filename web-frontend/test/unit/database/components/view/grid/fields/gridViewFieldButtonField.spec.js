@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import GridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButtonField'
 
@@ -106,11 +107,43 @@ describe('GridViewFieldButtonField', () => {
     )
 
     await wrapper.find('button').trigger('click')
-    await wrapper.vm.$nextTick()
+    await flushPromises()
 
     expect(execute.mock.calls.map((call) => call[0].workflowAction.id)).toEqual(
       [1, 2]
     )
+  })
+
+  test('waits for a client action to settle before running the next one', async () => {
+    // `open_url` with target `self` navigates the document away. Firing the
+    // next action at a navigating page is exactly what awaiting each one
+    // prevents, so an unawaited loop has to fail here.
+    let release
+    const firstSettles = new Promise((resolve) => {
+      release = resolve
+    })
+    const execute = vi
+      .spyOn(openUrlType, 'execute')
+      .mockImplementationOnce(() => firstSettles)
+      .mockResolvedValue()
+    const second = { ...openUrlAction, id: 2, target: 'self' }
+    const wrapper = await mountCell(
+      {},
+      { client_actions: [openUrlAction, second] }
+    )
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(wrapper.vm.dispatching).toBe(true)
+
+    release()
+    await flushPromises()
+
+    expect(execute).toHaveBeenCalledTimes(2)
+    expect(execute.mock.calls[1][0].workflowAction.id).toBe(2)
+    expect(wrapper.vm.dispatching).toBe(false)
   })
 
   test('a failed dispatch runs no client action and leaves the cell clickable', async () => {
