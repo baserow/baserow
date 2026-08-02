@@ -20,7 +20,6 @@ from baserow.core.trash.handler import TrashHandler
 def test_create_button_field_via_api(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
-    text_field = data_fixture.create_text_field(table=table, name="Name")
 
     response = api_client.post(
         reverse("api:database:fields:list", kwargs={"table_id": table.id}),
@@ -28,12 +27,6 @@ def test_create_button_field_via_api(api_client, data_fixture):
             "name": "Open profile",
             "type": "button",
             "label": "Open",
-            "url_formula": {
-                "formula": (
-                    f"concat('https://example.com/', get('fields.field_{text_field.id}'))"
-                ),
-                "mode": "simple",
-            },
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -44,8 +37,10 @@ def test_create_button_field_via_api(api_client, data_fixture):
     assert data["type"] == "button"
     assert data["label"] == "Open"
     assert data["read_only"] is True
-    assert data["error"] is None
-    assert f"field_{text_field.id}" in data["url_formula"]["formula"]
+    assert data["has_workflow_actions"] is False
+    # A button carries no URL of its own any more; it is an `open_url` action.
+    assert "url_formula" not in data
+    assert "error" not in data
 
 
 @pytest.mark.django_db
@@ -95,26 +90,6 @@ def test_existing_button_field_keeps_working_with_flag_disabled(
 
 
 @pytest.mark.django_db
-def test_create_button_field_with_invalid_formula_via_api(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-
-    response = api_client.post(
-        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
-        {
-            "name": "Broken",
-            "type": "button",
-            "url_formula": {"formula": "concat(broken", "mode": "simple"},
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-
-
-@pytest.mark.django_db
 def test_button_field_cell_is_read_only(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -154,164 +129,6 @@ def test_button_field_row_value_is_null(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert response.json()[f"field_{button_field.id}"] is None
-
-
-@pytest.mark.django_db
-def test_button_field_error_when_referenced_field_trashed(data_fixture):
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    text_field = data_fixture.create_text_field(table=table)
-    button_field = data_fixture.create_button_field(
-        table=table,
-        url_formula={
-            "formula": f"get('fields.field_{text_field.id}')",
-            "mode": "simple",
-        },
-    )
-
-    assert button_field.error is None
-    FieldHandler().delete_field(user, text_field)
-    button_field.refresh_from_db()
-    assert button_field.error == (
-        "The formula references a field that no longer exists."
-    )
-
-
-@pytest.mark.django_db
-@patch("baserow.contrib.database.fields.signals.field_restored.send")
-def test_restoring_referenced_field_clears_button_field_error(
-    field_restored_mock, data_fixture
-):
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    text_field = data_fixture.create_text_field(table=table)
-    button_field = FieldHandler().create_field(
-        user,
-        table,
-        "button",
-        name="btn",
-        label="Open",
-        url_formula={
-            "formula": f"get('fields.field_{text_field.id}')",
-            "mode": "simple",
-        },
-    )
-
-    FieldHandler().delete_field(user, text_field)
-    button_field.refresh_from_db()
-    assert button_field.error is not None
-
-    # Restoring the referenced field must report the button field as updated so
-    # the client re-fetches it and sees the error is gone. This is what
-    # `field_dependency_updated` is for.
-    TrashHandler.restore_item(user, "field", text_field.id)
-    related = field_restored_mock.call_args[1]["related_fields"]
-    assert button_field.id in [f.id for f in related]
-
-    button_field.refresh_from_db()
-    assert button_field.error is None
-
-
-@pytest.mark.django_db
-def test_duplicate_table_remaps_button_url_formula_references(data_fixture):
-    from baserow.contrib.database.table.handler import TableHandler
-
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    text_field = data_fixture.create_text_field(table=table)
-    data_fixture.create_button_field(
-        table=table,
-        name="btn",
-        url_formula={
-            "formula": f"get('fields.field_{text_field.id}')",
-            "mode": "simple",
-        },
-    )
-
-    duplicated_table = TableHandler().duplicate_table(user, table)
-    new_button = ButtonField.objects.get(table=duplicated_table)
-    new_text_field_id = duplicated_table.field_set.exclude(id=new_button.id).get().id
-
-    assert new_button.url_formula["formula"] == (
-        f"get('fields.field_{new_text_field_id}')"
-    )
-    assert new_button.url_formula["mode"] == "simple"
-    assert new_button.error is None
-
-
-@pytest.mark.django_db
-def test_duplicate_table_keeps_button_url_formula_mode(data_fixture):
-    from baserow.contrib.database.table.handler import TableHandler
-
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    text_field = data_fixture.create_text_field(table=table)
-    data_fixture.create_button_field(
-        table=table,
-        name="btn",
-        url_formula={
-            "formula": f"get('fields.field_{text_field.id}')",
-            "mode": "advanced",
-        },
-    )
-
-    duplicated_table = TableHandler().duplicate_table(user, table)
-    new_button = ButtonField.objects.get(table=duplicated_table)
-    new_text_field_id = duplicated_table.field_set.exclude(id=new_button.id).get().id
-
-    # Remapping must not reset the mode, otherwise the copy opens in the wrong
-    # editor and, for raw formulas, stops resolving entirely.
-    assert new_button.url_formula["mode"] == "advanced"
-    assert new_button.url_formula["formula"] == (
-        f"get('fields.field_{new_text_field_id}')"
-    )
-
-
-@pytest.mark.django_db
-def test_duplicate_table_keeps_raw_button_url_formula_working(data_fixture):
-    from baserow.contrib.database.table.handler import TableHandler
-
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    data_fixture.create_button_field(
-        table=table,
-        name="btn",
-        url_formula={"formula": "https://example.com?x=(1", "mode": "raw"},
-    )
-
-    duplicated_table = TableHandler().duplicate_table(user, table)
-    new_button = ButtonField.objects.get(table=duplicated_table)
-
-    # A raw formula is literal text that is never parsed. Downgrading it to
-    # `simple` would make this unparseable and break the duplicated button.
-    assert new_button.url_formula["mode"] == "raw"
-    assert new_button.url_formula["formula"] == "https://example.com?x=(1"
-    assert new_button.error is None
-
-
-@pytest.mark.django_db
-def test_duplicate_table_with_button_field_broken_references(data_fixture):
-    from baserow.contrib.database.table.handler import TableHandler
-
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    data_fixture.create_button_field(
-        table=table,
-        name="btn",
-        url_formula={
-            "formula": "concat('test:',get('fields.field_0'))",
-            "mode": "simple",
-        },
-    )
-
-    # A reference to a field missing from the id mapping must not fail the
-    # duplication; the formula is kept as-is.
-    duplicated_table = TableHandler().duplicate_table(user, table)
-    new_button = ButtonField.objects.get(table=duplicated_table)
-
-    assert new_button.url_formula["formula"] == (
-        "concat('test:',get('fields.field_0'))"
-    )
 
 
 @pytest.mark.django_db
@@ -430,7 +247,6 @@ def test_create_button_field_without_a_label_via_api(api_client, data_fixture):
         {
             "name": "Open profile",
             "type": "button",
-            "url_formula": {"formula": "'https://example.com'", "mode": "simple"},
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -489,12 +305,13 @@ def test_updating_a_button_field_without_a_label_keeps_the_existing_one(
     # An update that doesn't mention the label isn't a request to empty it.
     response = api_client.patch(
         reverse("api:database:fields:item", kwargs={"field_id": button_field.id}),
-        {"url_formula": {"formula": "'https://example.com'", "mode": "simple"}},
+        {"name": "Renamed"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["name"] == "Renamed"
     assert response.json()["label"] == "Open"
 
 

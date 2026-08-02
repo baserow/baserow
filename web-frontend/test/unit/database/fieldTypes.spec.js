@@ -367,7 +367,6 @@ const mockedFields = {
     table_id: 42,
     type: 'button',
     label: 'Open',
-    url_formula: { formula: '', mode: 'simple' },
   },
 }
 

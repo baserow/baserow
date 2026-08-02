@@ -164,8 +164,6 @@ from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
-from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
@@ -230,10 +228,6 @@ from .fields import (
     SyncedUserForeignKeyField,
 )
 from .fields import DurationField as DurationModelField
-from .formula_visitors import (
-    extract_field_id_dependencies,
-    replace_field_id_references,
-)
 from .handler import FieldHandler
 from .models import (
     AbstractSelectOption,
@@ -7923,18 +7917,16 @@ class UnchangedIdMapping(dict[int, int]):
 
 class ButtonFieldType(ReadOnlyFieldType):
     """
-    Read-only field whose cells render a button opening a URL resolved
-    client-side from the row's values. Stores configuration only; there is no
-    cell data and no database column.
+    Read-only field whose cells render a button running the field's ordered
+    list of workflow actions. Stores configuration only; there is no cell data
+    and no database column.
     """
 
     type = "button"
     model_class = ButtonField
-    allowed_fields = ["label", "url_formula"]
+    allowed_fields = ["label"]
     serializer_field_names = [
         "label",
-        "url_formula",
-        "error",
         "has_workflow_actions",
     ]
     serializer_field_overrides = {
@@ -7945,40 +7937,27 @@ class ButtonFieldType(ReadOnlyFieldType):
             help_text="The text shown on the button. Must be provided when the "
             "field is created, and can't be set to an empty value afterwards.",
         ),
-        "url_formula": FormulaSerializerField(
-            required=False,
-            help_text="Formula resolved per row in the client to build the URL "
-            "the button opens. Can reference the row's fields via "
-            "get('fields.field_<id>').",
-        ),
-        "error": serializers.CharField(
-            required=False,
-            read_only=True,
-            allow_null=True,
-            help_text="The error message if the field's URL formula is broken, "
-            "else null.",
-        ),
         "has_workflow_actions": serializers.BooleanField(
             required=False,
             read_only=True,
             help_text="Whether the field has any configured actions. The client "
             "uses this to decide whether a cell renders a button that dispatches "
-            "actions or the plain URL link.",
+            "actions or an inert one.",
         ),
     }
     api_exceptions_map = {
         ButtonFieldLabelNotProvided: ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED,
     }
     can_be_in_form_view = False
-    # The label and the URL formula are only meaningful to someone configuring
-    # the field, and they'd be handed to anonymous visitors as-is.
+    # The label is only meaningful to someone configuring the field, and it'd
+    # be handed to anonymous visitors as-is.
     can_be_in_public_view = False
     _can_order_by_types = []
     _can_be_primary_field = False
     can_get_unique_values = False
     keep_data_on_duplication = False
     # The cell column is always null, so there is nothing worth backing up when
-    # converting to another type; the label and formula are enough to restore.
+    # converting to another type; the label is enough to restore.
     field_data_is_derived_from_attrs = True
 
     def before_create(
@@ -8039,112 +8018,8 @@ class ButtonFieldType(ReadOnlyFieldType):
         return None
 
     def get_export_value(self, value, field_object, rich_value=False):
-        # The URL only exists client-side; exports stay empty.
+        # A button holds no cell data, so exports stay empty.
         return None if rich_value else ""
-
-    def get_field_dependencies(
-        self, field_instance: ButtonField, field_cache: "FieldCache"
-    ) -> FieldDependencies:
-        try:
-            field_ids = extract_field_id_dependencies(field_instance.url_formula)
-        except BaserowFormulaException:
-            # Unparseable formulas surface via `error` and have no deps.
-            return []
-
-        if not field_ids:
-            return []
-
-        # The table model is generated once and cached for the whole request or
-        # task, so reading the referenced fields off it costs no extra query
-        # even when many fields are rebuilt at once.
-        model = field_cache.get_model(field_instance.table)
-        existing_field_ids = field_ids & model._field_objects.keys()
-        # A trashed referenced field is declared as a broken reference (by name,
-        # like formula fields) so the edge survives and restoring the field
-        # re-links it and re-reports this field's error to the client.
-        trashed_names = [
-            field_object["field"].name
-            for field_id, field_object in model._trashed_field_objects.items()
-            if field_id in field_ids
-        ]
-        return [
-            FieldDependency(dependency_id=field_id, dependant=field_instance, via=None)
-            for field_id in existing_field_ids
-        ] + [
-            FieldDependency(
-                broken_reference_field_name=name, dependant=field_instance, via=None
-            )
-            for name in trashed_names
-        ]
-
-    def _broadcast_error_change(
-        self, field: ButtonField, update_collector, via_path_to_starting_table
-    ):
-        # Push a re-serialization without touching cell values (None statement)
-        # so the client picks up the new `error`.
-        update_collector.add_field_with_pending_update_statement(
-            field, None, via_path_to_starting_table
-        )
-
-    def field_dependency_created(
-        self,
-        field: ButtonField,
-        created_field: Field,
-        update_collector,
-        field_cache: "FieldCache",
-        via_path_to_starting_table=None,
-    ):
-        self._broadcast_error_change(
-            field, update_collector, via_path_to_starting_table
-        )
-        super().field_dependency_created(
-            field,
-            created_field,
-            update_collector,
-            field_cache,
-            via_path_to_starting_table,
-        )
-
-    def field_dependency_deleted(
-        self,
-        field: ButtonField,
-        deleted_field: Field,
-        update_collector,
-        field_cache: "FieldCache",
-        via_path_to_starting_table=None,
-    ):
-        self._broadcast_error_change(
-            field, update_collector, via_path_to_starting_table
-        )
-        super().field_dependency_deleted(
-            field,
-            deleted_field,
-            update_collector,
-            field_cache,
-            via_path_to_starting_table,
-        )
-
-    def field_dependency_updated(
-        self,
-        field: ButtonField,
-        updated_field: Field,
-        updated_old_field: Field,
-        update_collector,
-        field_cache: "FieldCache",
-        via_path_to_starting_table=None,
-    ):
-        # Nothing to broadcast here: the formula references fields by id, so
-        # renaming or retyping a referenced field can't change the button's
-        # `error`. Only creating and deleting one can, and those have their own
-        # hooks above.
-        super().field_dependency_updated(
-            field,
-            updated_field,
-            updated_old_field,
-            update_collector,
-            field_cache,
-            via_path_to_starting_table,
-        )
 
     def export_serialized(
         self, field: ButtonField, include_allowed_fields: bool = True
@@ -8186,24 +8061,6 @@ class ButtonFieldType(ReadOnlyFieldType):
     def after_import_serialized(
         self, field: ButtonField, field_cache: "FieldCache", id_mapping: Dict[str, Any]
     ):
-        if field.url_formula:
-            try:
-                # Assign the whole object, not just the formula string: saving a
-                # bare string makes `to_python` re-wrap it as `simple` mode,
-                # which turns a raw literal URL into an unparseable formula.
-                url_formula = BaserowFormulaObject.to_formula(field.url_formula)
-                field.url_formula = {
-                    **url_formula,
-                    "formula": replace_field_id_references(
-                        url_formula, id_mapping["database_fields"]
-                    ),
-                }
-                field.save()
-            except (KeyError, BaserowFormulaException):
-                # Missing mapping / unparseable formula: keep as-is so the
-                # import succeeds; broken state surfaces via `error`.
-                pass
-
         serialized_actions = getattr(field, "_serialized_workflow_actions", None) or []
         for serialized_action in serialized_actions:
             action_type = database_workflow_action_type_registry.get(

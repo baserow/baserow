@@ -6,6 +6,10 @@ import baserow.core.mixins
 import django.db.models.deletion
 from django.db import migrations, models
 
+from baserow.contrib.database.migrations.helpers.migrate_button_url_formula_to_open_url_action import (  # noqa: E501
+    migrate_button_url_formulas_to_open_url_actions,
+)
+
 
 class Migration(migrations.Migration):
 
@@ -75,5 +79,9 @@ class Migration(migrations.Migration):
                 'abstract': False,
             },
             bases=('database.databaseworkflowaction',),
+        ),
+        migrations.RunPython(
+            migrate_button_url_formulas_to_open_url_actions,
+            reverse_code=migrations.RunPython.noop,
         ),
     ]

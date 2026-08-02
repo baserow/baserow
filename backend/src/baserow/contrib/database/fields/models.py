@@ -993,25 +993,20 @@ class FormViewEditRowField(Field):
 
 class ButtonField(Field):
     """
-    Read-only field rendering a per-row button that opens a URL resolved
-    client-side from the row's values. Stores configuration only, no cell data.
+    Read-only field rendering a per-row button that runs its ordered list of
+    workflow actions when clicked. Stores configuration only, no cell data.
     """
 
     label = models.CharField(max_length=255, blank=True, default="", db_default="")
-    url_formula = CoreFormulaModelField(default="", db_default="")
-
-    @property
-    def error(self):
-        # Computed (not stored) so broken references surface after imports or
-        # referenced-field deletion without a migration.
-        if not self.table_id:
-            return None
-
-        from baserow.contrib.database.fields.formula_visitors import (
-            get_formula_field_error,
-        )
-
-        return get_formula_field_error(self.url_formula, self.table_id)
+    # TODO ZDM: remove this field in the next version
+    url_formula = CoreFormulaModelField(
+        default="",
+        db_default="",
+        help_text=(
+            "Deprecated legacy field retained for compatibility. A button's "
+            "URL is an `open_url` workflow action."
+        ),
+    )
 
     @property
     def has_workflow_actions(self):

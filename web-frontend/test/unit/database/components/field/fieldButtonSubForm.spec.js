@@ -28,46 +28,15 @@ describe('FieldButtonSubForm', () => {
       },
     })
 
-  test('valid stored formula produces a valid form', async () => {
-    const wrapper = await mountForm({
-      type: 'button',
-      label: 'Open',
-      url_formula: { formula: "get('fields.field_1')", mode: 'advanced' },
-    })
+  test('a stored label produces a valid form', async () => {
+    const wrapper = await mountForm({ type: 'button', label: 'Open' })
     expect(wrapper.vm.isFormValid()).toBe(true)
-    expect(wrapper.vm.getFormValues().url_formula.formula).toBe(
-      "get('fields.field_1')"
-    )
+    expect(wrapper.vm.getFormValues().label).toBe('Open')
   })
 
   test('a missing label blocks submission', async () => {
-    const wrapper = await mountForm({
-      type: 'button',
-      url_formula: { formula: "get('fields.field_1')", mode: 'advanced' },
-    })
+    const wrapper = await mountForm({ type: 'button' })
     wrapper.vm.v$.$touch()
-    expect(wrapper.vm.isFormValid()).toBe(false)
-  })
-
-  test('empty formula blocks submission', async () => {
-    const wrapper = await mountForm({
-      type: 'button',
-      label: 'Open',
-      url_formula: { formula: '', mode: 'simple' },
-    })
-    wrapper.vm.v$.$touch()
-    expect(wrapper.vm.isFormValid()).toBe(false)
-  })
-
-  test('an invalid formula blocks submission', async () => {
-    const wrapper = await mountForm({
-      type: 'button',
-      label: 'Open',
-      url_formula: { formula: "get('fields.field_1')", mode: 'advanced' },
-    })
-    expect(wrapper.vm.isFormValid()).toBe(true)
-    // The formula input only reports parse errors through update:invalid.
-    wrapper.vm.urlInvalid = true
     expect(wrapper.vm.isFormValid()).toBe(false)
   })
 
@@ -501,10 +470,7 @@ describe('FieldButtonSubForm', () => {
 
       // The nested form really did register, or this asserts nothing.
       expect(wrapper.vm.registeredChildForms.length).toBeGreaterThan(0)
-      expect(Object.keys(wrapper.vm.getFormValues()).sort()).toEqual([
-        'label',
-        'url_formula',
-      ])
+      expect(Object.keys(wrapper.vm.getFormValues()).sort()).toEqual(['label'])
     })
 
     test('mounting on a non-button field does not fetch workflow actions', async () => {

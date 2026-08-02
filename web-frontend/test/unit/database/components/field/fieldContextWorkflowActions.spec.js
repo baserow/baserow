@@ -59,7 +59,6 @@ describe('field contexts keep has_workflow_actions in sync', () => {
     name: 'Go',
     type: 'button',
     label: 'Go',
-    url_formula: { formula: "''", mode: 'simple' },
     has_workflow_actions: false,
     primary: false,
     read_only: false,

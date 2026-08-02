@@ -14,30 +14,6 @@
         {{ $t('error.requiredField') }}
       </template>
     </FormGroup>
-    <FormGroup
-      small-label
-      required
-      :label="$t('fieldButtonSubForm.url')"
-      :error="v$.values.url_formula?.formula.$error || urlInvalid"
-    >
-      <FormulaInputField
-        :value="formulaStr"
-        :mode="localMode"
-        :nodes-hierarchy="nodesHierarchy"
-        :placeholder="$t('fieldButtonSubForm.urlPlaceholder')"
-        :validation-context="{ dataProviderRegistry: dataProviders }"
-        @input="updatedFormulaStr"
-        @update:mode="updateMode"
-        @update:invalid="urlInvalid = $event"
-      />
-      <template #error>
-        {{
-          urlInvalid
-            ? $t('fieldButtonSubForm.invalidUrl')
-            : $t('error.requiredField')
-        }}
-      </template>
-    </FormGroup>
     <ButtonFieldActionList
       :value="localActions"
       :database="database"
@@ -53,7 +29,6 @@ import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
-import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
 import DatabaseFormulaInput from '@baserow/modules/database/components/field/DatabaseFormulaInput'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
@@ -63,12 +38,10 @@ import {
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
-import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
 
 export default {
   name: 'FieldButtonSubForm',
-  components: { FormulaInputField, ButtonFieldActionList },
+  components: { ButtonFieldActionList },
   mixins: [form, fieldSubForm],
   provide() {
     return {
@@ -94,13 +67,10 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['label', 'url_formula'],
+      allowedValues: ['label'],
       values: {
         label: '',
-        url_formula: { formula: '', mode: 'simple' },
       },
-      localMode: 'simple',
-      urlInvalid: false,
       // The list as last fetched from the server, and the editable copy the
       // user works on. Kept apart so cancelling the field form discards
       // `localActions` without ever having called the API.
@@ -109,9 +79,6 @@ export default {
     }
   },
   computed: {
-    formulaStr() {
-      return this.values.url_formula.formula
-    },
     applicationContext() {
       const context = {}
       Object.defineProperty(context, 'fields', {
@@ -120,36 +87,6 @@ export default {
           this.allFieldsInTable.filter((f) => f.id !== this.defaultValues.id),
       })
       return context
-    },
-    dataProviders() {
-      return [this.$registry.get('databaseDataProvider', 'fields')]
-    },
-    nodesHierarchy() {
-      const hierarchy = []
-      const filteredDataNodes = getDataNodesFromDataProvider(
-        this.dataProviders,
-        this.applicationContext
-      )
-      if (filteredDataNodes.length > 0) {
-        hierarchy.push({
-          name: this.$t('runtimeFormulaTypes.formulaTypeData'),
-          type: 'data',
-          icon: 'iconoir-database',
-          nodes: filteredDataNodes,
-        })
-      }
-      hierarchy.push(...buildFormulaFunctionNodes(this))
-      return hierarchy
-    },
-  },
-  watch: {
-    'values.url_formula.mode': {
-      handler(newMode) {
-        if (newMode && newMode !== this.localMode) {
-          this.localMode = newMode
-        }
-      },
-      immediate: true,
     },
   },
   async mounted() {
@@ -171,13 +108,6 @@ export default {
   },
   methods: {
     /**
-     * The formula input only emits parseable formulas, so block submission
-     * while the editor content is invalid instead of saving a stale formula.
-     */
-    isFormValid(deep = false) {
-      return !this.urlInvalid && form.methods.isFormValid.call(this, deep)
-    },
-    /**
      * Only the field's own values, never the child forms'. The action editor's
      * service forms register up this chain (`ButtonFieldActionList` is not a
      * form, so it is transparent), and the default implementation would fold
@@ -187,9 +117,6 @@ export default {
      */
     getFormValues() {
       return { ...this.values }
-    },
-    updatedFormulaStr(newFormulaStr) {
-      this.v$.values.url_formula.formula.$model = newFormulaStr
     },
     /**
      * `UpdateFieldContext` keeps one instance of this sub-form per field
@@ -363,16 +290,11 @@ export default {
     hasWorkflowActions() {
       return this.serverActions.length > 0
     },
-    updateMode(newMode) {
-      this.localMode = newMode
-      this.values.url_formula = { ...this.values.url_formula, mode: newMode }
-    },
   },
   validations() {
     return {
       values: {
         label: { required },
-        url_formula: { formula: { required } },
       },
     }
   },

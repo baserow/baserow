@@ -151,6 +151,29 @@ def test_duplicate_table_keeps_raw_open_url_action_formula_working(data_fixture)
     assert action.url["formula"] == "https://example.com?x=(1"
 
 
+@pytest.mark.django_db
+def test_duplicate_table_keeps_open_url_action_broken_references(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={
+            "formula": "concat('test:',get('fields.field_0'))",
+            "mode": "simple",
+        },
+    )
+
+    # A reference to a field missing from the id mapping must not fail the
+    # duplication; the formula is kept as-is.
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (action,) = OpenUrlWorkflowAction.objects.filter(field=duplicated_field)
+
+    assert action.url["formula"] == "concat('test:',get('fields.field_0'))"
+
+
 @pytest.mark.django_db(transaction=True)
 def test_actions_survive_an_application_export_import(data_fixture):
     user = data_fixture.create_user()

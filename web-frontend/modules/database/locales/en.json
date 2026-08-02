@@ -1268,10 +1268,7 @@
   },
   "fieldButtonSubForm": {
     "label": "Label",
-    "labelPlaceholder": "Open",
-    "url": "URL",
-    "urlPlaceholder": "e.g. concat('https://example.com/', get('fields.field_1'))",
-    "invalidUrl": "The URL formula is invalid."
+    "labelPlaceholder": "Open"
   },
   "databaseWorkflowActionType": {
     "openUrl": "Open URL"
