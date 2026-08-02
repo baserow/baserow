@@ -221,30 +221,44 @@ export default {
       this.localActions = clone(data)
     },
     /**
+     * Makes a payload's `service` one the API can type, given the action as
+     * the server currently knows it.
+     *
+     * A buffered service carries no `type` of its own: the editor resets the
+     * config whenever a row's type is picked, and the form that re-seeds it
+     * knows nothing about the service the server made. The API's polymorphic
+     * service serializer refuses a payload it cannot type — with an
+     * `AssertionError`, so a 500 rather than a 400.
+     *
+     * An empty service says nothing anyway, so it is dropped rather than sent
+     * untyped. A configured one takes its type from the server's own copy,
+     * letting the buffer win if it ever has one. A payload with no service
+     * (`open_url`) passes straight through.
+     */
+    withTypedService(payload, serverSide) {
+      if (!payload.service) {
+        return payload
+      }
+      if (Object.keys(payload.service).length === 0) {
+        return _.omit(payload, 'service')
+      }
+      return {
+        ...payload,
+        // Optional all the way down, like the `data?.id` guards on the same
+        // responses in `saveWorkflowActions`: an untyped service is what this
+        // method exists to avoid, so it must not itself throw on one.
+        service: { type: serverSide?.service?.type, ...payload.service },
+      }
+    },
+    /**
      * The payload that applies a buffered config to an action the server has
      * just made, either by a create or by the recreate a type change does.
      * Both only carry the type, so everything the user configured follows in
-     * an update.
-     *
-     * A service backed action needs one fixup: a buffered service carries no
-     * `type` until the server has made one, and the API's polymorphic service
-     * serializer refuses a payload it cannot type — with an `AssertionError`,
-     * so a 500 rather than a 400. Take it from the service the server just
-     * returned, letting the buffer win if it ever has its own. An action with
-     * no service (`open_url`) is sent as it stands.
+     * an update. Dropping `type` here also means the follow-up can never
+     * trigger a second recreate and invalidate the id it is aimed at.
      */
     configPayload(action, created) {
-      const config = workflowActionConfig(action)
-      if (!config.service) {
-        return config
-      }
-      if (Object.keys(config.service).length === 0) {
-        return _.omit(config, 'service')
-      }
-      return {
-        ...config,
-        service: { type: created.service?.type, ...config.service },
-      }
+      return this.withTypedService(workflowActionConfig(action), created)
     },
     /**
      * Reconciles the buffered action list against the server and issues the
@@ -260,6 +274,8 @@ export default {
       const service = WorkflowActionService(this.$client)
       const createdIds = []
       const replacedIds = new Map()
+      // Captured before the `finally` below re-fetches and replaces the list.
+      const serverById = new Map(this.serverActions.map((a) => [a.id, a]))
 
       try {
         for (const action of toCreate) {
@@ -278,11 +294,24 @@ export default {
           // response to take one from yet, so the type change goes on its own
           // and the config follows against the recreated action, exactly as
           // it does for a create.
+          //
+          // Without a type change there is nothing to defer, but the service
+          // can still be untyped: swapping a row's type and swapping it
+          // straight back leaves the type matching the server's while the
+          // config has been reset and re-seeded. Type that one from the
+          // action the server already has.
           const defersConfig = values.type !== undefined && 'service' in values
-          const { data } = await service.update(
-            id,
-            defersConfig ? _.omit(values, 'service') : values
-          )
+          const payload = defersConfig
+            ? _.omit(values, 'service')
+            : this.withTypedService(values, serverById.get(id))
+          // A round trip that re-seeded nothing leaves an empty payload. It
+          // carries no type, so nothing is recreated and no id changes;
+          // skipping it just avoids an empty PATCH, as the create and
+          // follow-up paths already do.
+          if (Object.keys(payload).length === 0) {
+            continue
+          }
+          const { data } = await service.update(id, payload)
           // The recreate hands back a brand new id. The order below still
           // holds the old one, so remember the swap.
           if (data?.id != null && data.id !== id) {

@@ -311,6 +311,70 @@ describe('FieldButtonSubForm', () => {
       )
     })
 
+    test('a type round trip sends no untyped service back', async () => {
+      // Swapping a row's type and swapping it straight back leaves the type
+      // matching the server's, so nothing is a type change any more and the
+      // payload carries no top-level `type`. Its service is still brand new
+      // though: `onActionTypeChanged` reset the config and the remounted form
+      // re-seeded it, so it has never been round-tripped through the API and
+      // carries no nested `type` either. Sent as it stands that is the same
+      // untyped service the polymorphic serializer answers with a 500.
+      // Driven through the list editor rather than assigned, so the test
+      // proves the buffer really does end up untyped.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      const saved = {
+        id: 1,
+        type: 'create_row',
+        service: { id: 9, type: 'local_baserow_upsert_row', table_id: 3 },
+      }
+      wrapper.vm.serverActions = [saved]
+      wrapper.vm.localActions = [{ ...saved, service: { ...saved.service } }]
+      await wrapper.vm.$nextTick()
+
+      const list = wrapper.findComponent(ButtonFieldActionList).vm
+      list.onActionTypeChanged(0, 'update_row')
+      await wrapper.vm.$nextTick()
+      list.onActionTypeChanged(0, 'create_row')
+      await wrapper.vm.$nextTick()
+
+      // Back on the server's type, but with the config reset: an untyped
+      // service where the server has a typed, configured one.
+      expect(wrapper.vm.localActions).toEqual([
+        { id: 1, type: 'create_row', service: {} },
+      ])
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      // An empty service says nothing, so it is dropped and the update has
+      // nothing left to send. The server keeps its config and the re-fetch
+      // puts it back in the buffer, which beats a 500.
+      expect(wrapper.vm.$client.patch.mock.calls).toEqual([])
+    })
+
+    test('a config edit after a type round trip types its service', async () => {
+      // The same round trip, but the user configures the re-seeded form before
+      // saving, so the service is untyped and non-empty. It has to reach the
+      // wire typed from the action the server already has.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [
+        {
+          id: 1,
+          type: 'create_row',
+          service: { id: 9, type: 'local_baserow_upsert_row', table_id: 3 },
+        },
+      ]
+      wrapper.vm.localActions = [
+        { id: 1, type: 'create_row', service: { table_id: 5 } },
+      ]
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
+        'database/workflow_action/1/',
+        { service: { type: 'local_baserow_upsert_row', table_id: 5 } }
+      )
+    })
+
     test('a row with no type chosen makes no api calls at all', async () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
 
