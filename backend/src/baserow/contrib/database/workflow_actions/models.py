@@ -2,6 +2,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
 from baserow.contrib.database.fields.models import ButtonField
+from baserow.core.formula.field import FormulaField as CoreFormulaModelField
 from baserow.core.mixins import OrderableMixin
 from baserow.core.registry import ModelRegistryMixin
 from baserow.core.services.models import Service
@@ -65,6 +66,23 @@ class DatabaseWorkflowServiceAction(DatabaseWorkflowAction):
 
     class Meta:
         abstract = True
+
+
+class OpenUrlWorkflowAction(DatabaseWorkflowAction):
+    """
+    Opens a URL in the browser. Frontend-only: it is never dispatched server
+    side, so it subclasses the base rather than `DatabaseWorkflowServiceAction`
+    and carries no `Service` (ADR 006 section 2).
+    """
+
+    url = CoreFormulaModelField(default="", db_default="")
+    target = models.CharField(
+        max_length=10,
+        choices=[("self", "Same tab"), ("blank", "New tab")],
+        default="self",
+        db_default="self",
+        help_text="Whether the URL opens in the same tab or a new one.",
+    )
 
 
 class CreateRowWorkflowAction(DatabaseWorkflowServiceAction): ...

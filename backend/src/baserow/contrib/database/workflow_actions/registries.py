@@ -35,6 +35,10 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     parent_property_name = "field"
     id_mapping_name = "database_workflow_actions"
 
+    # Frontend-only types are never dispatched server side. The dispatch
+    # service skips them and returns them to the browser to execute.
+    is_frontend_only = False
+
     class SerializedDict(DatabaseWorkflowActionDict):
         pass
 

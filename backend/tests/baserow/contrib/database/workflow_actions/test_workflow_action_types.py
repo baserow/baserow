@@ -1,5 +1,8 @@
 import pytest
 
+from baserow.contrib.database.workflow_actions.handler import (
+    DatabaseWorkflowActionHandler,
+)
 from baserow.contrib.database.workflow_actions.models import (
     CreateRowWorkflowAction,
     DeleteRowWorkflowAction,
@@ -10,10 +13,10 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 
 
-def test_the_three_types_are_registered():
+def test_the_four_types_are_registered():
     types = {t.type for t in database_workflow_action_type_registry.get_all()}
 
-    assert types == {"create_row", "update_row", "delete_row"}
+    assert types == {"create_row", "update_row", "delete_row", "open_url"}
 
 
 def test_types_map_to_their_models_and_services():
@@ -49,3 +52,18 @@ def test_preparing_values_updates_an_existing_service(data_fixture):
     action.service.refresh_from_db()
 
     assert action.service.specific.table_id == table.id
+
+
+@pytest.mark.django_db
+def test_open_url_action_is_frontend_only_and_has_no_service(data_fixture):
+    field = data_fixture.create_button_field()
+    action = DatabaseWorkflowActionHandler().create_workflow_action(
+        database_workflow_action_type_registry.get("open_url"),
+        field=field,
+        url={"formula": "'https://example.com'", "mode": "simple"},
+    )
+
+    assert action.get_type().is_frontend_only is True
+    assert action.url["formula"] == "'https://example.com'"
+    assert action.target == "self"
+    assert not hasattr(action, "service")

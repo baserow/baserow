@@ -267,12 +267,14 @@ class DatabaseConfig(AppConfig):
         from .workflow_actions.workflow_action_types import (
             CreateRowWorkflowActionType,
             DeleteRowWorkflowActionType,
+            OpenUrlWorkflowActionType,
             UpdateRowWorkflowActionType,
         )
 
         database_workflow_action_type_registry.register(CreateRowWorkflowActionType())
         database_workflow_action_type_registry.register(UpdateRowWorkflowActionType())
         database_workflow_action_type_registry.register(DeleteRowWorkflowActionType())
+        database_workflow_action_type_registry.register(OpenUrlWorkflowActionType())
 
         from .fields.field_aggregations import (
             AverageFieldAggregationType,
