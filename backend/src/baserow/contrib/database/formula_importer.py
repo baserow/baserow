@@ -1,5 +1,7 @@
 from typing import Dict, Union
 
+from loguru import logger
+
 from baserow.contrib.database.data_providers.registries import (
     database_data_provider_type_registry,
 )
@@ -45,9 +47,16 @@ def import_formula(
     try:
         tree = get_parse_tree_for_formula(formula["formula"])
         new_formula = DatabaseFormulaImporter(id_mapping, **kwargs).visit(tree)
-    except (BaserowFormulaException, InstanceTypeDoesNotExist):
+    except (BaserowFormulaException, InstanceTypeDoesNotExist) as exc:
         # Unparseable, or naming a data provider this module doesn't have: keep
         # it as it is so the import succeeds, the same as the `open_url` url.
+        # Deliberate, but not free: the visit is abandoned at the first bad
+        # `get()`, so any reference before it stays unremapped too, which is why
+        # this is logged rather than passed over in silence.
+        logger.warning(
+            f"Could not remap the formula {formula['formula']}, keeping it as "
+            f"it is. Reason: {type(exc).__name__}: {exc}"
+        )
         return formula
 
     if new_formula != formula["formula"]:

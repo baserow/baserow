@@ -166,7 +166,8 @@ def test_duplicate_table_keeps_open_url_action_broken_references(data_fixture):
     )
 
     # A reference to a field missing from the id mapping must not fail the
-    # duplication; the formula is kept as-is.
+    # duplication; the reference is left pointing where it was. The formula is
+    # re-rendered from its parse tree, so casing and spacing may be normalised.
     duplicated_table = TableHandler().duplicate_table(user, table)
     duplicated_field = duplicated_table.field_set.get(name="btn").specific
     (action,) = OpenUrlWorkflowAction.objects.filter(field=duplicated_field)
@@ -275,8 +276,9 @@ def test_duplicate_table_remaps_a_row_id_formula(data_fixture):
 
 @pytest.mark.django_db
 def test_duplicate_table_keeps_an_unimportable_field_mapping_formula(data_fixture):
-    """Nothing to remap must leave the formula exactly as it was, rather than
-    fail the duplication or rewrite it into something else."""
+    """Nothing to remap must leave the formula's meaning and its references
+    alone, rather than fail the duplication. The formula is re-rendered from
+    its parse tree, so casing and spacing may be normalised."""
 
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

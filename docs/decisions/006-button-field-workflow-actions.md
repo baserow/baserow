@@ -181,8 +181,9 @@ sequenceDiagram
         H-->>API: error for the failed action
         API-->>Cell: error toast naming the failed action
         Note over H: remaining actions are skipped,<br/>completed actions stay
+    else the sequence succeeds
+        API-->>Cell: results, plus the frontend-only actions to run
     end
-    API-->>Cell: results, plus the frontend-only actions to run
 ```
 
 An earlier draft of this section broadcast that loading state to every open view over the
