@@ -80,6 +80,12 @@ class Migration(migrations.Migration):
             },
             bases=('database.databaseworkflowaction',),
         ),
+        # Only reconciles migration state: `help_text` emits no DDL.
+        migrations.AlterField(
+            model_name='buttonfield',
+            name='url_formula',
+            field=baserow.core.formula.field.FormulaField(blank=True, db_default='', default='', help_text="Deprecated legacy field retained for compatibility. A button's URL is an `open_url` workflow action.", null=True),
+        ),
         migrations.RunPython(
             migrate_button_url_formulas_to_open_url_actions,
             reverse_code=migrations.RunPython.noop,

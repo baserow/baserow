@@ -23,6 +23,11 @@ def migrate_button_url_formulas_to_open_url_actions(apps, schema_editor):
         if not url_formula.get("formula"):
             continue
 
+        # Migrations never run this twice, but callers might, so never stack a
+        # second action onto a field that already has one.
+        if OpenUrlWorkflowAction.objects.filter(field_id=field.pk).exists():
+            continue
+
         # Multi-table inheritance rules out `bulk_create`, so one row each.
         OpenUrlWorkflowAction.objects.create(
             content_type=content_type,

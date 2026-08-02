@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('field_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='database.field')),
                 ('label', models.CharField(blank=True, db_default='', default='', max_length=255)),
-                ('url_formula', baserow.core.formula.field.FormulaField(blank=True, db_default='', default='', help_text="Deprecated legacy field retained for compatibility. A button's URL is an `open_url` workflow action.", null=True)),
+                ('url_formula', baserow.core.formula.field.FormulaField(blank=True, db_default='', default='', null=True)),
             ],
             options={
                 'abstract': False,
