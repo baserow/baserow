@@ -13,6 +13,7 @@ from rest_framework.status import (
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import ButtonField
+from baserow.contrib.database.workflow_actions.models import OpenUrlWorkflowAction
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -68,6 +69,10 @@ def test_existing_button_field_keeps_working_with_flag_disabled(
     table = data_fixture.create_database_table(user=user)
     data_fixture.create_text_field(table=table)
     button_field = data_fixture.create_button_field(table=table, name="btn")
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    row = table.get_model().objects.create()
 
     # The type stays registered when the flag is off, so tables containing an
     # existing button field must keep listing fields and rows normally.
@@ -78,7 +83,11 @@ def test_existing_button_field_keeps_working_with_flag_disabled(
         )
         assert response.status_code == HTTP_200_OK
         assert any(
-            field["id"] == button_field.id and field["type"] == "button"
+            field["id"] == button_field.id
+            and field["type"] == "button"
+            # Serialized whatever the flag says, which is what makes the cell
+            # render an enabled button below.
+            and field["has_workflow_actions"] is True
             for field in response.json()
         )
 
@@ -87,6 +96,22 @@ def test_existing_button_field_keeps_working_with_flag_disabled(
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
         assert response.status_code == HTTP_200_OK
+
+        # Reading is all the flag-off path covers. `has_workflow_actions` is
+        # serialized either way, so the cell still renders an enabled button,
+        # but dispatch is gated and the click is refused. Recorded here as the
+        # known boundary: turning the flag back on restores clicking.
+        response = api_client.post(
+            reverse(
+                "api:database:workflow_actions:dispatch",
+                kwargs={"field_id": button_field.id},
+            ),
+            {"row_id": row.id},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_403_FORBIDDEN
+        assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
 @pytest.mark.django_db
