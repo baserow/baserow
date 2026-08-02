@@ -1,9 +1,18 @@
+import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import DatabaseWorkflowActionWithService from '@baserow/modules/database/components/field/DatabaseWorkflowActionWithService'
 
 const WORKSPACE = { id: 1 }
 const OWN_DATABASE_ID = 100
 const OTHER_DATABASE_ID = 101
+
+// What `GET /database/fields/table/{id}/` returns, which is the same shape the
+// service schema carries as each property's `metadata`.
+const TABLE_FIELDS = [
+  { id: 10, name: 'Name', type: 'text', read_only: false },
+  { id: 11, name: 'Created on', type: 'created_on', read_only: true },
+  { id: 12, name: 'Notes', type: 'long_text', read_only: false },
+]
 
 describe('DatabaseWorkflowActionWithService', () => {
   let testApp = null
@@ -52,12 +61,12 @@ describe('DatabaseWorkflowActionWithService', () => {
     })
   }
 
-  const mountAction = async (type = 'create_row') =>
+  const mountAction = async (type = 'create_row', service = {}) =>
     testApp.mount(DatabaseWorkflowActionWithService, {
       props: {
-        workflowAction: { id: 1, type, service: {} },
+        workflowAction: { id: 1, type, service },
         database: { id: OWN_DATABASE_ID, workspace: WORKSPACE },
-        defaultValues: { service: {} },
+        defaultValues: { service },
       },
       global: {
         provide: { workspace: WORKSPACE },
@@ -109,6 +118,99 @@ describe('DatabaseWorkflowActionWithService', () => {
     expect(
       wrapper.findComponent({ name: 'IntegrationDropdown' }).exists()
     ).toBe(false)
+  })
+
+  test('an unsaved action still offers the target table field mappings', async () => {
+    await seedApplications()
+    testApp.mock.onGet('/database/fields/table/2/').reply(200, TABLE_FIELDS)
+
+    // No schema, because nothing has been saved: the state a newly added
+    // action is in. It used to make the form claim the table had no writable
+    // fields, so no mapping could ever be configured before a save.
+    const wrapper = await mountAction('create_row', { table_id: 2 })
+    await flushPromises()
+
+    const serviceForm = wrapper.findComponent({
+      name: 'LocalBaserowUpsertRowServiceForm',
+    })
+    expect(serviceForm.props('mappableFields').map((f) => f.name)).toEqual([
+      'Name',
+      'Notes',
+    ])
+    expect(serviceForm.vm.writableSchemaFields.map((f) => f.name)).toEqual([
+      'Name',
+      'Notes',
+    ])
+    expect(wrapper.findComponent({ name: 'Alert' }).exists()).toBe(false)
+  })
+
+  test('update row gets its mappings too, through its wrapper form', async () => {
+    await seedApplications()
+    testApp.mock.onGet('/database/fields/table/2/').reply(200, TABLE_FIELDS)
+
+    // Update row's form is a thin wrapper that forwards $attrs, so anything
+    // deciding this from the form component itself gets it wrong here.
+    const wrapper = await mountAction('update_row', { table_id: 2 })
+    await flushPromises()
+
+    expect(wrapper.vm.supportsFieldMappings).toBe(true)
+    expect(
+      wrapper
+        .findComponent({ name: 'LocalBaserowUpsertRowServiceForm' })
+        .props('mappableFields')
+        .map((field) => field.name)
+    ).toEqual(['Name', 'Notes'])
+  })
+
+  test('a read only field is not offered as a mapping', async () => {
+    await seedApplications()
+    testApp.mock.onGet('/database/fields/table/2/').reply(200, TABLE_FIELDS)
+
+    const wrapper = await mountAction('create_row', { table_id: 2 })
+    await flushPromises()
+
+    const names = wrapper
+      .findComponent({ name: 'LocalBaserowUpsertRowServiceForm' })
+      .props('mappableFields')
+      .map((field) => field.name)
+    expect(names).not.toContain('Created on')
+  })
+
+  test('picking a different table replaces the mappings', async () => {
+    await seedApplications()
+    testApp.mock.onGet('/database/fields/table/1/').reply(200, TABLE_FIELDS)
+    testApp.mock
+      .onGet('/database/fields/table/2/')
+      .reply(200, [{ id: 20, name: 'Company', type: 'text', read_only: false }])
+
+    const wrapper = await mountAction('create_row', { table_id: 1 })
+    await flushPromises()
+
+    // A saved schema would still describe table 1 here, so the fetched list is
+    // the only one that tells the truth about the newly picked table.
+    await wrapper.setProps({ defaultValues: { service: { table_id: 2 } } })
+    wrapper.vm.values.service = { table_id: 2 }
+    await flushPromises()
+
+    expect(
+      wrapper
+        .findComponent({ name: 'LocalBaserowUpsertRowServiceForm' })
+        .props('mappableFields')
+        .map((field) => field.name)
+    ).toEqual(['Company'])
+  })
+
+  test('the delete row action asks for no fields and takes neither prop', async () => {
+    await seedApplications()
+
+    const wrapper = await mountAction('delete_row', { table_id: 2 })
+    await flushPromises()
+
+    // Delete row has no field mappings, so fetching them would be a wasted
+    // request and the props would land as stray attributes on its form.
+    expect(testApp.mock.history.get).toHaveLength(0)
+    expect(wrapper.vm.supportsFieldMappings).toBe(false)
+    expect(wrapper.vm.mappableFields).toBeNull()
   })
 
   test('the delete row action also gets the databases', async () => {

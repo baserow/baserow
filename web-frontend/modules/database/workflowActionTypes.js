@@ -37,6 +37,14 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     throw new Error('Must be set on the type.')
   }
 
+  /**
+   * Whether the form offers field mappings, and so needs the target table's
+   * fields fetched for it.
+   */
+  get mapsFields() {
+    return false
+  }
+
   getFormProps({ workflowAction, database }) {
     return { workflowAction, database }
   }
@@ -166,6 +174,10 @@ export class CreateRowWorkflowActionType extends DatabaseWorkflowActionServiceTy
     return 10
   }
 
+  get mapsFields() {
+    return true
+  }
+
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -181,6 +193,10 @@ export class UpdateRowWorkflowActionType extends DatabaseWorkflowActionServiceTy
 
   getOrder() {
     return 20
+  }
+
+  get mapsFields() {
+    return true
   }
 
   get serviceType() {

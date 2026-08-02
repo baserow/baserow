@@ -90,15 +90,25 @@ export default {
       default: null,
     },
     /**
-     * Whether the parent saves the service when the table changes, and so
-     * toggles `loading` around that round trip. True (the default) keeps
-     * today's behaviour. A caller that buffers its changes instead of saving
-     * them must pass false, or the spinner it raises is never lowered.
+     * Whether the parent makes a round trip when the table changes, and so
+     * toggles `loading` around it. True (the default) keeps today's behaviour
+     * of saving the service. A caller that makes no round trip at all must
+     * pass false, or the spinner it raises is never lowered.
      */
     savesOnTableChange: {
       type: Boolean,
       required: false,
       default: true,
+    },
+    /**
+     * The fields to offer as mappings. Only for a caller whose service is not
+     * saved, and so carries no schema to derive them from. Null, the default,
+     * keeps deriving them from the service schema.
+     */
+    mappableFields: {
+      type: Array,
+      required: false,
+      default: null,
     },
   },
   emits: ['values-changed'],
@@ -119,6 +129,9 @@ export default {
      * `FieldMappingForm` can use to display the field mapping options.
      */
     writableSchemaFields() {
+      if (this.mappableFields !== null) {
+        return this.mappableFields
+      }
       if (
         this.service == null ||
         this.service.schema == null // have service, no table
