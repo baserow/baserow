@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Stringify field_options dict keys in view serializer to prevent msgpack rejection on WebSocket broadcast",
+    "issue_origin": "github",
+    "issue_number": 5827,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-03"
+}

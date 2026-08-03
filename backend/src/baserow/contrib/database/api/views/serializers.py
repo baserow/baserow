@@ -137,7 +137,7 @@ class FieldOptionsField(serializers.Field):
                     fo for fo in field_options if fo.field_id in allowed_field_ids
                 ]
             return {
-                field_options.field_id: self.serializer_class(field_options).data
+                str(field_options.field_id): self.serializer_class(field_options).data
                 for field_options in field_options
             }
         else:
