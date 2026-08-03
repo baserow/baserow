@@ -398,7 +398,9 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             for data_sync_property in data_sync.synced_properties.all():
                 key_field_id = get_field_id_from_field_key(data_sync_property.key)
                 if key_field_id:
-                    new_field_id = id_mapping["database_fields"][key_field_id]
+                    new_field_id = id_mapping["database_fields"].get(key_field_id)
+                    if new_field_id is None:
+                        continue
                     data_sync_property.key = f"field_{new_field_id}"
                     properties_to_update.append(data_sync_property)
             DataSyncSyncedProperty.objects.bulk_update(properties_to_update, ["key"])

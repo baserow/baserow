@@ -238,7 +238,7 @@ class DataSyncType(
         format.
         """
 
-        properties = instance.synced_properties.all()
+        properties = instance.synced_properties.filter(field__trashed=False)
         type_specific = {
             field: getattr(instance, field)
             for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields
@@ -290,10 +290,13 @@ class DataSyncType(
 
         properties_to_be_created = []
         for property in properties:
+            mapped_field_id = id_mapping["database_fields"].get(property["field_id"])
+            if mapped_field_id is None:
+                continue
             properties_to_be_created.append(
                 DataSyncSyncedProperty(
                     data_sync=data_sync,
-                    field_id=id_mapping["database_fields"][property["field_id"]],
+                    field_id=mapped_field_id,
                     key=property["key"],
                 )
             )
