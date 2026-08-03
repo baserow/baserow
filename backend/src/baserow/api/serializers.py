@@ -125,7 +125,10 @@ class CommaSeparatedIntegerValuesField(serializers.Field):
         return ",".join(value)
 
     def to_internal_value(self, data):
-        record_ids = split_comma_separated_string(data)
+        try:
+            record_ids = split_comma_separated_string(data)
+        except ValueError as e:
+            raise serializers.ValidationError(str(e), code="invalid") from e
         if not all([record.isdigit() for record in record_ids]):
             raise serializers.ValidationError("The provided record ids are not valid.")
 

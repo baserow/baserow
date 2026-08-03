@@ -264,7 +264,10 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         :rtype: QuerySet
         """
 
-        order_by_fields = split_comma_separated_string(order_string)
+        try:
+            order_by_fields = split_comma_separated_string(order_string)
+        except ValueError:
+            raise OrderByFieldNotFound(order_string)
 
         if user_field_names:
             field_object_dict = {

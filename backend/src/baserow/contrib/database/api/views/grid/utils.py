@@ -83,7 +83,11 @@ def parse_adhoc_view_group_bys(
 
     field_objects = model._field_objects
     group_bys = []
-    for raw_entry in split_comma_separated_string(raw_group_by):
+    try:
+        raw_entries = split_comma_separated_string(raw_group_by)
+    except ValueError:
+        raise OrderByFieldNotFound(raw_group_by)
+    for raw_entry in raw_entries:
         field_id = get_field_id_from_field_key(raw_entry, strict=False)
         if (
             field_id is None

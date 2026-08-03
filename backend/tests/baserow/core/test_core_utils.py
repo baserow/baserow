@@ -137,6 +137,11 @@ def test_split_comma_separated_string():
     assert split_comma_separated_string('A,\\"B,C\\,D') == ["A", '"B', "C,D"]
 
 
+def test_split_comma_separated_string_with_unquoted_newline_raises_value_error():
+    with pytest.raises(ValueError):
+        split_comma_separated_string('[\n  {\n    "name": ""\n  }\n]')
+
+
 def test_remove_invalid_surrogate_characters():
     assert remove_invalid_surrogate_characters(b"test\uD83Dtest") == "testtest"
 

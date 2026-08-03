@@ -338,7 +338,10 @@ class FileFieldRequestSerializer(serializers.ListField):
             return []
 
         if isinstance(data, str):
-            data = split_comma_separated_string(data)
+            try:
+                data = split_comma_separated_string(data)
+            except ValueError as e:
+                raise serializers.ValidationError(str(e), code="invalid") from e
 
         if any([not isinstance(i, type(data[0])) for i in data]):
             raise serializers.ValidationError(
@@ -412,7 +415,10 @@ class LinkRowRequestSerializer(serializers.ListField):
                 )
 
         elif isinstance(data, str):
-            data = split_comma_separated_string(data)
+            try:
+                data = split_comma_separated_string(data)
+            except ValueError as e:
+                raise serializers.ValidationError(str(e), code="invalid") from e
 
         elif isinstance(data, int):
             data = [data]
@@ -537,7 +543,10 @@ class ListOrStringField(serializers.ListField):
 
     def to_internal_value(self, data):
         if isinstance(data, str):
-            data = split_comma_separated_string(data)
+            try:
+                data = split_comma_separated_string(data)
+            except ValueError as e:
+                raise serializers.ValidationError(str(e), code="invalid") from e
 
         return super().to_internal_value(data)
 

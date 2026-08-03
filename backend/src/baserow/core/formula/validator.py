@@ -202,7 +202,12 @@ def ensure_array(value: Any, allow_empty: bool = True) -> List[Any]:
         return value
 
     if isinstance(value, str):
-        return [item.strip() for item in split_comma_separated_string(value)]
+        try:
+            return [item.strip() for item in split_comma_separated_string(value)]
+        except ValueError:
+            raise ValidationError(
+                "The provided value is not a valid comma separated string."
+            )
 
     return [value]
 
