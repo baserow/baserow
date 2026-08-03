@@ -927,11 +927,13 @@ class GridViewFieldAggregationView(APIView):
         )
 
         result = {
-            "value": aggregations[field_instance.db_column],
+            "value": json_safe_aggregation_value(
+                aggregations[field_instance.db_column]
+            ),
         }
 
         if total:
-            result["total"] = aggregations["total"]
+            result["total"] = json_safe_aggregation_value(aggregations["total"])
 
         return Response(result)
 
