@@ -622,12 +622,15 @@ export class FieldType extends Registerable {
 
   /**
    * Returns the sort function used when ordering group-by nodes. By default
-   * this delegates to `getSort`, so groups sort the same way rows do. Field
-   * types that need set-based ordering for group-by (e.g. multi-select,
-   * multiple collaborators) override this independently.
+   * this dispatches through `getSortTypes` so the group-by type (e.g.
+   * "First → Last" for single select) is respected. Field types that need
+   * set-based ordering for group-by (e.g. multi-select, multiple
+   * collaborators) override this independently.
    */
-  getGroupBySort(name, order) {
-    return this.getSort(name, order)
+  getGroupBySort(name, order, field, sortType) {
+    const types = this.getSortTypes(field)
+    const resolved = types[sortType] || types[DEFAULT_SORT_TYPE_KEY]
+    return resolved.function(name, order, field)
   }
 
   /**
@@ -4116,12 +4119,18 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     }
   }
 
-  getGroupBySort(name, order) {
+  getGroupBySort(name, order, field) {
     const sortKey = (values) => {
       if (!values || values.length === 0) {
         return ''
       }
       return [...values]
+        .map((obj) => {
+          const option = (field.select_options || []).find(
+            (o) => o.id === obj.id
+          )
+          return { ...obj, value: option?.value ?? '' }
+        })
         .sort(
           (left, right) =>
             collatedStringCompare(left.value, right.value, 'ASC') ||
@@ -4933,9 +4942,9 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     }
   }
 
-  getGroupBySort(name, order) {
+  getGroupBySort(name, order, field) {
     const sortKey = (values) => {
-      if (values.length === 0) {
+      if (!values || values.length === 0) {
         return ''
       }
       const workspaces = this.app.$store.getters['workspace/getAll']

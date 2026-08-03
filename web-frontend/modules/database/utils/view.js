@@ -57,7 +57,8 @@ export function getGroupByRowSortFunction($registry, fields, groupBys) {
       const fieldSortFunction = fieldType.getGroupBySort(
         fieldName,
         sort.order,
-        field
+        field,
+        sort.type
       )
       sortFunction = sortFunction.thenBy(fieldSortFunction)
     }

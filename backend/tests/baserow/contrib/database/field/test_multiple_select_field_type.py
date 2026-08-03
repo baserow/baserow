@@ -3277,9 +3277,7 @@ def test_multiple_select_field_type_group_by_sort_order_ignores_selection_order(
         qs = qs.annotate(**order.annotation)
     rows = list(qs.order_by(order.order))
 
-    row_ids = [row.id for row in rows]
     # Rows 1 and 3 share the same set {A, C} so they must be adjacent.
-    assert row_ids[0] != rows[1].id or row_ids[1] != rows[2].id  # not all same
     ac_indices = [
         i
         for i, r in enumerate(rows)
