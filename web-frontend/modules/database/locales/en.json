@@ -1053,7 +1053,7 @@
   },
   "dataProviderTypes": {
     "fieldsName": "Fields",
-    "rowName": "Row",
+    "rowName": "Clicked row",
     "rowId": "Row ID"
   },
   "userMentionInRichTextFieldNotification": {

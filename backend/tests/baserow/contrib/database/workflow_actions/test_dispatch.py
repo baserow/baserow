@@ -455,6 +455,39 @@ def test_open_url_between_row_actions_is_skipped_and_returned(data_fixture):
 
 
 @pytest.mark.django_db
+def test_a_click_can_delete_several_rows_at_once(data_fixture):
+    """The delete row action accepts an array of ids. The service's own tests
+    cover that with an integration behind it; this pins the same behaviour on
+    the click path, which runs as the actor with no integration at all."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    model = table.get_model()
+    clicked = model.objects.create()
+    first = model.objects.create(**{f"field_{name_field.id}": "first"})
+    second = model.objects.create(**{f"field_{name_field.id}": "second"})
+    survivor = model.objects.create(**{f"field_{name_field.id}": "survivor"})
+
+    delete = data_fixture.create_database_workflow_action(
+        DeleteRowWorkflowAction, field=button_field
+    )
+    service = delete.service.specific
+    service.table = table
+    service.row_id = f"'[{first.id}, {second.id}]'"
+    service.save()
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(
+        user, button_field, clicked
+    )
+
+    assert model.objects.filter(id__in=[first.id, second.id]).exists() is False
+    # Neither the untargeted row nor the clicked row itself is touched.
+    assert model.objects.filter(id=survivor.id).exists() is True
+    assert model.objects.filter(id=clicked.id).exists() is True
+
+
+@pytest.mark.django_db
 def test_a_failing_row_action_means_no_client_actions(data_fixture):
     """A server-side failure re-raises before the client actions are ever
     handed back, so the browser never runs an `open_url` whose preceding
