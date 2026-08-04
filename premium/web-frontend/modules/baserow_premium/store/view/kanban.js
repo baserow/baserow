@@ -1120,7 +1120,7 @@ export const actions = {
       await dispatch(
         'field/forceUpdate',
         {
-          singleSelectField,
+          field: singleSelectField,
           oldField: clone(singleSelectField),
           data,
           relatedFields: data.related_fields,

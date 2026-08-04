@@ -1,4 +1,5 @@
 import kanbanStore from '@baserow_premium/store/view/kanban'
+import fieldStore from '@baserow/modules/database/store/field'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { UNDO_REDO_ACTION_GROUP_HEADER } from '@baserow/modules/database/utils/action'
 
@@ -23,6 +24,7 @@ describe('Kanban view store', () => {
     store = testApp.createStore({
       modules: {
         kanban: kanbanStore,
+        field: fieldStore,
       },
     })
   })
@@ -508,5 +510,55 @@ describe('Kanban view store', () => {
     expect(JSON.parse(JSON.stringify(store.state.kanban.stacks))).toStrictEqual(
       before
     )
+  })
+
+  test('deleteStack updates the field in the store instead of throwing', async () => {
+    const singleSelectField = {
+      id: 1,
+      table_id: 99,
+      name: 'Status',
+      type: 'single_select',
+      select_options: [
+        { id: 1, value: 'A', color: 'blue' },
+        { id: 2, value: 'B', color: 'red' },
+      ],
+    }
+
+    const fieldState = Object.assign(fieldStore.state(), {
+      items: [singleSelectField],
+    })
+    store.replaceState({ ...store.state, field: fieldState })
+
+    const state = Object.assign(kanbanStore.state(), {
+      singleSelectFieldId: 1,
+      stacks: {},
+    })
+    store.replaceState({ ...store.state, kanban: state })
+
+    const updatedField = {
+      id: 1,
+      table_id: 99,
+      name: 'Status',
+      type: 'single_select',
+      select_options: [{ id: 1, value: 'A', color: 'blue' }],
+      related_fields: [],
+    }
+    testApp.mock.onPatch('/database/fields/1/').reply(200, updatedField)
+
+    const originalGetAll = store.$registry.getAll.bind(store.$registry)
+    vi.spyOn(store.$registry, 'getAll').mockImplementation((namespace) =>
+      namespace === 'view' ? {} : originalGetAll(namespace)
+    )
+
+    const doFieldUpdate = await store.dispatch('kanban/deleteStack', {
+      singleSelectField,
+      optionId: 2,
+      deferredFieldUpdate: true,
+    })
+
+    await doFieldUpdate()
+
+    expect(store.state.field.items[0].id).toBe(1)
+    expect(store.state.field.items[0].select_options).toHaveLength(1)
   })
 })
