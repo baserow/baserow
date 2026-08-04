@@ -90,7 +90,7 @@ def test_row_created_with_metadata(mock_broadcast_to_channel_group, data_fixture
     assert args[0][1]["rows"][0]["id"] == row.id
     assert args[0][1]["before_row_id"] is None
     assert args[0][1]["rows"][0][f"field_{field.id}"] == "Test"
-    assert args[0][1]["metadata"] == {1: {"row_id": row.id}}
+    assert args[0][1]["metadata"] == {"1": {"row_id": row.id}}
 
 
 def test_populates_with_row_id_metadata():
@@ -199,7 +199,7 @@ def test_row_updated_with_metadata(mock_broadcast_to_channel_group, data_fixture
     assert args[0][1]["rows"][0]["id"] == row.id
     assert args[0][1]["rows"][0][f"field_{field.id}"] == "Test"
     assert args[0][1]["rows"][0][f"field_{field_2.id}"] is None
-    assert args[0][1]["metadata"] == {1: {"row_id": row.id}}
+    assert args[0][1]["metadata"] == {"1": {"row_id": row.id}}
 
 
 @pytest.mark.django_db(transaction=True)

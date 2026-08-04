@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Stringify field_options dict keys in view serializer to prevent msgpack rejection on WebSocket broadcast",
+    "message": "Fixed a bug where column resizes and other field option changes weren't shown to other users in real time",
     "issue_origin": "github",
     "issue_number": 5827,
     "domain": "database",
