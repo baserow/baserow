@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix markdown parsing in Text element to prevent code execution",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-04"
+}
