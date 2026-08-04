@@ -214,13 +214,14 @@ const toTimestampFilter = ref(null)
 const filters = ref(initFilters(workspaceId))
 const dateTimeFormat = 'YYYY-MM-DDTHH:mm:ss.SSSZ'
 
-// Build columns
+// Build columns. Only the timestamp is sortable: the audit log is far too large to
+// order by anything the backend can't serve straight from an index.
 const columns = [
   new CrudTableColumn(
     'user',
     () => $t('auditLog.user'),
     SimpleField,
-    true,
+    false,
     false,
     false,
     {},
@@ -234,7 +235,7 @@ if (!workspaceId) {
       'workspace',
       () => $t('auditLog.workspace'),
       SimpleField,
-      true,
+      false,
       false,
       false,
       {},
@@ -248,7 +249,7 @@ columns.push(
     'type',
     () => $t('auditLog.actionType'),
     SimpleField,
-    true,
+    false,
     false,
     false,
     {},
@@ -278,7 +279,7 @@ columns.push(
     'ip_address',
     () => $t('auditLog.ip_address'),
     SimpleField,
-    true,
+    false,
     false,
     false,
     {},

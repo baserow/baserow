@@ -491,6 +491,35 @@ def test_audit_log_entries_return_400_for_invalid_values(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_audit_log_entries_can_only_be_sorted_by_timestamp(
+    api_client, enterprise_data_fixture
+):
+    (
+        admin_user,
+        admin_token,
+    ) = enterprise_data_fixture.create_enterprise_admin_user_and_token()
+
+    # `%2B` rather than a literal `+`, which a query string decodes as a space.
+    for direction in ["%2B", "-"]:
+        response = api_client.get(
+            reverse("api:enterprise:audit_log:list") + f"?sorts={direction}timestamp",
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {admin_token}",
+        )
+        assert response.status_code == HTTP_200_OK
+
+    for removed_sort in ["user", "workspace", "type", "ip_address"]:
+        response = api_client.get(
+            reverse("api:enterprise:audit_log:list") + f"?sorts=-{removed_sort}",
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {admin_token}",
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_INVALID_SORT_ATTRIBUTE"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_audit_log_can_export_to_csv_all_entries(
     api_client,
     enterprise_data_fixture,

@@ -1,0 +1,9 @@
+{
+    "type": "breaking_change",
+    "message": "The audit log can now only be sorted by timestamp, and can no longer be filtered by IP address.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-04"
+}
