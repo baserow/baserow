@@ -20,6 +20,16 @@ export const registerRealtimeEvents = (realtime) => {
       store.dispatch('dashboardApplication/handleWidgetDeleted', data.widget.id)
     }
   })
+  realtime.registerEvent('widgets_layout_updated', ({ store }, data) => {
+    if (
+      data.dashboard_id === store.getters['dashboardApplication/getDashboardId']
+    ) {
+      store.dispatch(
+        'dashboardApplication/handleWidgetsLayoutUpdated',
+        data.widgets
+      )
+    }
+  })
   realtime.registerEvent('data_source_updated', ({ store }, data) => {
     if (
       data.dashboard_id === store.getters['dashboardApplication/getDashboardId']

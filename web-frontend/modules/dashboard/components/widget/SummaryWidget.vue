@@ -5,31 +5,30 @@
       'dashboard-summary-widget--with-header-description': widget.description,
     }"
   >
-    <template v-if="!loading">
-      <div class="widget__header widget__header--no-border">
-        <div class="widget__header-main">
-          <div class="widget__header-title-wrapper">
-            <div class="widget__header-title">{{ widget.title }}</div>
+    <div
+      class="widget__header widget__header--no-border"
+      :class="{ 'widget__header--edit-mode': isEditMode }"
+    >
+      <div class="widget__header-main">
+        <div class="widget__header-title-wrapper">
+          <div class="widget__header-title">{{ widget.title }}</div>
 
-            <Badge
-              v-if="dataSourceMisconfigured"
-              color="red"
-              indicator
-              rounded
-              >{{ $t('widget.fixConfiguration') }}</Badge
-            >
-          </div>
-          <div v-if="widget.description" class="widget__header-description">
-            {{ widget.description }}
-          </div>
+          <Badge v-if="dataSourceMisconfigured" color="red" indicator rounded>{{
+            $t('widget.fixConfiguration')
+          }}</Badge>
         </div>
-        <WidgetContextMenu
-          v-if="isEditMode"
-          :widget="widget"
-          :dashboard="dashboard"
-          @delete-widget="$emit('delete-widget', $event)"
-        ></WidgetContextMenu>
+        <div v-if="widget.description" class="widget__header-description">
+          {{ widget.description }}
+        </div>
       </div>
+      <WidgetContextMenu
+        v-if="isEditMode"
+        :widget="widget"
+        :dashboard="dashboard"
+        @delete-widget="$emit('delete-widget', $event)"
+      ></WidgetContextMenu>
+    </div>
+    <template v-if="!loading">
       <div
         class="widget__content dashboard-summary-widget__summary"
         :class="{
