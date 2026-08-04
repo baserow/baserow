@@ -153,6 +153,10 @@ def test_dashboard_export_serialized_with_widgets(data_fixture):
                 "order": "1.00000000000000000000",
                 "title": "Widget 1",
                 "type": "summary",
+                "grid_x": 0,
+                "grid_y": 0,
+                "grid_width": 2,
+                "grid_height": 4,
             },
             {
                 "data_source_id": dashboard_widget_2.data_source.id,
@@ -161,6 +165,10 @@ def test_dashboard_export_serialized_with_widgets(data_fixture):
                 "order": "2.00000000000000000000",
                 "title": "Widget 2",
                 "type": "summary",
+                "grid_x": 0,
+                "grid_y": 4,
+                "grid_width": 2,
+                "grid_height": 4,
             },
         ],
     }
@@ -350,6 +358,8 @@ def test_dashboard_import_serialized_with_widgets(data_fixture):
     assert widget1.description == "Description 1"
     assert widget1.order == Decimal("1.0")
     assert widget1.data_source.id == ds1.id
+    assert (widget1.grid_x, widget1.grid_y) == (0, 0)
+    assert (widget1.grid_width, widget1.grid_height) == (2, 4)
 
     widget2 = widgets[1].specific
     assert widget1.content_type == ContentType.objects.get_for_model(SummaryWidget)
@@ -357,6 +367,8 @@ def test_dashboard_import_serialized_with_widgets(data_fixture):
     assert widget2.description == "Description 2"
     assert widget2.order == Decimal("2.0")
     assert widget2.data_source.id == ds2.id
+    assert (widget2.grid_x, widget2.grid_y) == (0, 4)
+    assert (widget2.grid_width, widget2.grid_height) == (2, 4)
 
     assert progress.progress == 100
 

@@ -10,7 +10,17 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.dashboard.widgets.models import Widget
+from baserow.contrib.dashboard.widgets.service import WidgetService
 from baserow.test_utils.helpers import AnyInt
+
+SUMMARY_GRID_LAYOUT = {
+    "default_width": 2,
+    "default_height": 4,
+    "min_width": 1,
+    "min_height": 4,
+    "max_width": 6,
+    "max_height": 6,
+}
 
 
 @pytest.mark.django_db
@@ -58,6 +68,11 @@ def test_get_widgets(api_client, data_fixture):
             "dashboard_id": dashboard.id,
             "data_source_id": data_source.id,
             "order": "1.00000000000000000000",
+            "grid_x": 0,
+            "grid_y": 0,
+            "grid_width": 6,
+            "grid_height": 9,
+            "grid_layout": SUMMARY_GRID_LAYOUT,
             "type": "summary",
         },
         {
@@ -67,6 +82,11 @@ def test_get_widgets(api_client, data_fixture):
             "dashboard_id": dashboard.id,
             "data_source_id": data_source_2.id,
             "order": "1.00000000000000000000",
+            "grid_x": 0,
+            "grid_y": 0,
+            "grid_width": 6,
+            "grid_height": 9,
+            "grid_layout": SUMMARY_GRID_LAYOUT,
             "type": "summary",
         },
     ]
@@ -132,6 +152,11 @@ def test_create_widget(api_client, data_fixture):
         "data_source_id": AnyInt(),
         "dashboard_id": dashboard.id,
         "order": "1.00000000000000000000",
+        "grid_x": 0,
+        "grid_y": 0,
+        "grid_width": 2,
+        "grid_height": 4,
+        "grid_layout": SUMMARY_GRID_LAYOUT,
         "type": "summary",
     }
 
@@ -290,6 +315,11 @@ def test_update_widget(api_client, data_fixture):
         "dashboard_id": widget.dashboard.id,
         "data_source_id": data_source.id,
         "order": "1.00000000000000000000",
+        "grid_x": 0,
+        "grid_y": 0,
+        "grid_width": 6,
+        "grid_height": 9,
+        "grid_layout": SUMMARY_GRID_LAYOUT,
         "type": "summary",
     }
     widget.refresh_from_db()
@@ -462,3 +492,132 @@ def test_delete_widget_not_found(api_client, data_fixture):
 
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_WIDGET_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_update_widget_layout(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    first_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="First"
+    )
+    second_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Second"
+    )
+
+    url = reverse("api:dashboard:widgets:layout", kwargs={"dashboard_id": dashboard.id})
+    response = api_client.patch(
+        url,
+        {
+            "widgets": [
+                {
+                    "id": first_widget.id,
+                    "grid_x": 0,
+                    "grid_y": 0,
+                    "grid_width": 2,
+                    "grid_height": 4,
+                },
+                {
+                    "id": second_widget.id,
+                    "grid_x": 2,
+                    "grid_y": 0,
+                    "grid_width": 2,
+                    "grid_height": 4,
+                },
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert {
+        widget["id"]: (widget["grid_x"], widget["grid_y"]) for widget in response.json()
+    } == {
+        first_widget.id: (0, 0),
+        second_widget.id: (2, 0),
+    }
+
+    first_widget.refresh_from_db()
+    second_widget.refresh_from_db()
+    assert (first_widget.grid_x, first_widget.grid_y) == (0, 0)
+    assert (second_widget.grid_x, second_widget.grid_y) == (2, 0)
+
+
+@pytest.mark.django_db
+def test_update_widget_layout_rejects_collisions(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    first_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="First"
+    )
+    second_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Second"
+    )
+
+    url = reverse("api:dashboard:widgets:layout", kwargs={"dashboard_id": dashboard.id})
+    response = api_client.patch(
+        url,
+        {
+            "widgets": [
+                {
+                    "id": first_widget.id,
+                    "grid_x": 0,
+                    "grid_y": 0,
+                    "grid_width": 2,
+                    "grid_height": 4,
+                },
+                {
+                    "id": second_widget.id,
+                    "grid_x": 0,
+                    "grid_y": 0,
+                    "grid_width": 2,
+                    "grid_height": 4,
+                },
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_WIDGET_LAYOUT_INVALID"
+
+
+@pytest.mark.django_db
+def test_delete_widget_with_layout(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    first_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="First"
+    )
+    second_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Second"
+    )
+
+    url = reverse(
+        "api:dashboard:widgets:layout-delete", kwargs={"dashboard_id": dashboard.id}
+    )
+    response = api_client.post(
+        url,
+        {
+            "widget_id": first_widget.id,
+            "widgets": [
+                {
+                    "id": second_widget.id,
+                    "grid_x": 0,
+                    "grid_y": 0,
+                    "grid_width": 2,
+                    "grid_height": 4,
+                }
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert [widget["id"] for widget in response.json()] == [second_widget.id]
+    assert not Widget.objects.filter(id=first_widget.id).exists()
+    second_widget.refresh_from_db()
+    assert (second_widget.grid_x, second_widget.grid_y) == (0, 0)

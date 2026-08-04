@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -148,6 +148,72 @@ class UpdateWidgetActionType(UndoableActionType):
         )
 
 
+class UpdateWidgetLayoutActionType(UndoableActionType):
+    type = "update_widget_layout"
+    description = ActionTypeDescription(
+        _("Update widget layout"),
+        _("Dashboard widget layout updated"),
+        DASHBOARD_ACTION_CONTEXT,
+    )
+    analytics_params = ["dashboard_id"]
+
+    @dataclass
+    class Params:
+        dashboard_id: int
+        dashboard_name: str
+        original_layout: list[dict[str, int]]
+        new_layout: list[dict[str, int]]
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        dashboard_id: int,
+        new_layout: list[dict[str, int]],
+    ) -> list[Widget]:
+        updated_layout = WidgetService().update_widget_layout(
+            user, dashboard_id, new_layout
+        )
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                updated_layout.dashboard.id,
+                updated_layout.dashboard.name,
+                updated_layout.original_layout,
+                updated_layout.new_layout,
+            ),
+            scope=cls.scope(updated_layout.dashboard.id),
+            workspace=updated_layout.dashboard.workspace,
+        )
+        return updated_layout.widgets
+
+    @classmethod
+    def scope(cls, dashboard_id):
+        return ApplicationActionScopeType.value(dashboard_id)
+
+    @classmethod
+    def undo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_undo: Action,
+    ):
+        WidgetService().update_widget_layout(
+            user, params.dashboard_id, params.original_layout
+        )
+
+    @classmethod
+    def redo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_redo: Action,
+    ):
+        WidgetService().update_widget_layout(
+            user, params.dashboard_id, params.new_layout
+        )
+
+
 class DeleteWidgetActionType(UndoableActionType):
     type = "delete_widget"
     description = ActionTypeDescription(
@@ -163,20 +229,28 @@ class DeleteWidgetActionType(UndoableActionType):
         dashboard_name: str
         widget_id: int
         widget_title: str
+        original_layout: list[dict[str, int]] = field(default_factory=list)
+        new_layout: list[dict[str, int]] = field(default_factory=list)
 
     @classmethod
     def do(cls, user: AbstractUser, widget_id: int) -> None:
-        widget = WidgetService().delete_widget(user, widget_id)
+        updated_layout = WidgetService().delete_widget_and_compact_layout(
+            user, widget_id
+        )
+        deleted_widget = updated_layout.deleted_widget
+        assert deleted_widget is not None
         cls.register_action(
             user=user,
             params=cls.Params(
-                widget.dashboard.id,
-                widget.dashboard.name,
-                widget.id,
-                widget.title,
+                updated_layout.dashboard.id,
+                updated_layout.dashboard.name,
+                deleted_widget.id,
+                deleted_widget.title,
+                updated_layout.original_layout,
+                updated_layout.new_layout,
             ),
-            scope=cls.scope(widget.dashboard.id),
-            workspace=widget.dashboard.workspace,
+            scope=cls.scope(updated_layout.dashboard.id),
+            workspace=updated_layout.dashboard.workspace,
         )
 
     @classmethod
@@ -195,6 +269,10 @@ class DeleteWidgetActionType(UndoableActionType):
             WidgetTrashableItemType.type,
             params.widget_id,
         )
+        if params.original_layout:
+            WidgetService().update_widget_layout(
+                user, params.dashboard_id, params.original_layout
+            )
 
     @classmethod
     def redo(
@@ -204,3 +282,84 @@ class DeleteWidgetActionType(UndoableActionType):
         action_to_redo: Action,
     ):
         WidgetService().delete_widget(user, params.widget_id)
+
+
+class DeleteWidgetWithLayoutActionType(UndoableActionType):
+    type = "delete_widget_with_layout"
+    description = ActionTypeDescription(
+        _("Delete widget"),
+        _('Widget "%(widget_title)s" (%(widget_id)s) deleted'),
+        DASHBOARD_ACTION_CONTEXT,
+    )
+    analytics_params = ["dashboard_id", "widget_id"]
+
+    @dataclass
+    class Params:
+        dashboard_id: int
+        dashboard_name: str
+        widget_id: int
+        widget_title: str
+        original_layout: list[dict[str, int]]
+        new_layout: list[dict[str, int]]
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        dashboard_id: int,
+        widget_id: int,
+        new_layout: list[dict[str, int]],
+    ) -> list[Widget]:
+        updated_layout = WidgetService().delete_widget_with_layout(
+            user, dashboard_id, widget_id, new_layout
+        )
+        deleted_widget = updated_layout.deleted_widget
+        assert deleted_widget is not None
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                updated_layout.dashboard.id,
+                updated_layout.dashboard.name,
+                deleted_widget.id,
+                deleted_widget.title,
+                updated_layout.original_layout,
+                updated_layout.new_layout,
+            ),
+            scope=cls.scope(updated_layout.dashboard.id),
+            workspace=updated_layout.dashboard.workspace,
+        )
+        return updated_layout.widgets
+
+    @classmethod
+    def scope(cls, dashboard_id):
+        return ApplicationActionScopeType.value(dashboard_id)
+
+    @classmethod
+    def undo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_undo: Action,
+    ):
+        TrashHandler.restore_item(
+            user,
+            WidgetTrashableItemType.type,
+            params.widget_id,
+        )
+        WidgetService().update_widget_layout(
+            user, params.dashboard_id, params.original_layout
+        )
+
+    @classmethod
+    def redo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_redo: Action,
+    ):
+        WidgetService().delete_widget_with_layout(
+            user,
+            params.dashboard_id,
+            params.widget_id,
+            params.new_layout,
+        )
