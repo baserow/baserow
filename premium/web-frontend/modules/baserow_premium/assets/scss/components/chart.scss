@@ -1,8 +1,13 @@
 .chart {
-  max-height: 320px;
+  flex: 1 1 auto;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0;
+  max-height: none;
 }
 
 .chart__no-data {
+  flex: 1 1 auto;
   display: flex;
   justify-content: center;
   align-items: center;
