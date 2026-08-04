@@ -1,10 +1,19 @@
 <template>
   <div class="button-field-action-list">
+    <div class="button-field-action-list__divider"></div>
+    <div class="button-field-action-list__heading">
+      <div class="button-field-action-list__title">
+        {{ $t('buttonFieldActionList.actions') }}
+      </div>
+      <ButtonText type="secondary" icon="iconoir-plus" @click="addAction()">
+        {{ $t('buttonFieldActionList.addAction') }}
+      </ButtonText>
+    </div>
+
     <!--
       The sortable items need a parent of their own. The directive reads the
       new order off every element child of the dragged item's parent, so a
-      sibling that is not an action — the add button below — would enter that
-      order with no sortable id.
+      sibling that is not an action would enter that order with no sortable id.
     -->
     <div class="button-field-action-list__items">
       <div
@@ -18,14 +27,15 @@
         class="button-field-action-list__item margin-bottom-2"
       >
         <div class="button-field-action-list__header">
-          <i
-            class="iconoir-drag button-field-action-list__handle"
+          <div
+            class="button-field-action-list__handle"
             data-sortable-handle
-          ></i>
+          ></div>
           <Dropdown
             class="button-field-action-list__type"
             :value="action.type ?? null"
             :placeholder="$t('buttonFieldActionList.chooseAction')"
+            :search-text="$t('buttonFieldActionList.searchActions')"
             :fixed-items="true"
             @input="onActionTypeChanged(index, $event)"
           >
@@ -68,14 +78,6 @@
         </template>
       </div>
     </div>
-
-    <p v-if="value.length === 0" class="margin-bottom-2">
-      {{ $t('buttonFieldActionList.empty') }}
-    </p>
-
-    <ButtonText type="secondary" icon="iconoir-plus" @click="addAction()">
-      {{ $t('buttonFieldActionList.addAction') }}
-    </ButtonText>
   </div>
 </template>
 

@@ -1285,9 +1285,10 @@
     "invalidUrlMessage": "The URL could not be resolved for this row, or it uses a protocol that is not allowed."
   },
   "buttonFieldActionList": {
+    "actions": "Actions",
     "addAction": "Add action",
     "chooseAction": "Choose action...",
-    "empty": "No actions yet. Add one to define what happens when the button is clicked."
+    "searchActions": "Search actions"
   },
   "buttonField": {
     "dispatchErrorTitle": "Could not run the actions",
