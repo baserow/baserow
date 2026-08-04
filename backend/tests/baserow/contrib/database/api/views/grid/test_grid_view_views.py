@@ -1949,10 +1949,45 @@ def test_can_get_singular_field_aggregation_if_result_is_float_nan(
     assert response.json() == {"value": "NaN"}
 
 
+@pytest.mark.django_db
+def test_can_get_decile_aggregation_if_result_is_float_nan(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+
+    formula_field = data_fixture.create_formula_field(table=table, formula="1 / 0")
+
+    RowHandler().create_row(user, table)
+
+    ViewHandler().update_field_options(
+        view=grid_view,
+        field_options={
+            formula_field.id: {
+                "aggregation_type": "decile",
+                "aggregation_raw_type": "decile",
+            }
+        },
+    )
+
+    url = reverse(
+        "api:database:views:grid:field-aggregations",
+        kwargs={"view_id": grid_view.id},
+    )
+
+    response = api_client.get(
+        url,
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {f"field_{formula_field.id}": ["NaN"] * 9}
+
+
 @pytest.mark.parametrize(
     "value,expected",
     [
         (Decimal("NaN"), "NaN"),
+        (Decimal("sNaN"), "NaN"),
         (float("nan"), "NaN"),
         (Decimal("Infinity"), "Infinity"),
         (Decimal("-Infinity"), "-Infinity"),
@@ -1962,6 +1997,8 @@ def test_can_get_singular_field_aggregation_if_result_is_float_nan(
         (3.14, 3.14),
         (None, None),
         ("text", "text"),
+        ([float("nan"), 1.0, float("inf")], ["NaN", 1.0, "Infinity"]),
+        ([Decimal("NaN"), Decimal("-Infinity")], ["NaN", "-Infinity"]),
     ],
 )
 def test_json_safe_aggregation_value(value, expected):
