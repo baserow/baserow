@@ -375,3 +375,12 @@ def test_admin_list_workspaces_as_options_filter_by_invalid_ids(
             "error": "'-2' is not a valid ID. Only positive integers are accepted.",
         }
     ]
+
+    # Newline in ids should return 400, not 500.
+    response = api_client.get(
+        reverse("api:admin:workspaces:options") + "?ids=1%0A2",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"

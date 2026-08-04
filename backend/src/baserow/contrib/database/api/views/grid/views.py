@@ -1221,10 +1221,6 @@ class PublicGridViewRowsView(APIView):
             response.data.update(**public_view_field_options)
 
         if group_by_metadata and group_by:
-            try:
-                group_by_field_strings = split_comma_separated_string(group_by)
-            except ValueError:
-                group_by_field_strings = []
             group_by_fields = [
                 # We can safely do this without having to check whether the
                 # `group_by` input is valid because this has already been validated
@@ -1232,7 +1228,7 @@ class PublicGridViewRowsView(APIView):
                 model._field_objects[get_field_id_from_field_key(field_string, False)][
                     "field"
                 ]
-                for field_string in group_by_field_strings
+                for field_string in split_comma_separated_string(group_by)
             ]
             serialized_group_by_metadata = serialize_group_by_fields_metadata(
                 queryset, group_by_fields, page

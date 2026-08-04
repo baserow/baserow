@@ -118,7 +118,10 @@ def extract_field_names_from_string(value):
     if not value:
         return []
 
-    return split_comma_separated_string(value)
+    try:
+        return split_comma_separated_string(value)
+    except ValueError:
+        return []
 
 
 def extract_field_ids_from_list(
