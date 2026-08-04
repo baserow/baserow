@@ -50,6 +50,12 @@ export default {
     },
   },
   computed: {
+    targetOwnershipType() {
+      return this.view.ownership_type ===
+        PersonalViewOwnershipType.getType()
+        ? CollaborativeViewOwnershipType.getType()
+        : PersonalViewOwnershipType.getType()
+    },
     isVisible() {
       if (
         ![
@@ -65,7 +71,7 @@ export default {
       if (
         !this.$hasPermission(
           'database.table.view.update',
-          this.view,
+          { ...this.view, ownership_type: this.targetOwnershipType },
           workspaceId
         )
       ) {

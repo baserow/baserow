@@ -22,12 +22,12 @@ describe('ViewOwnershipMenuLink permission gating', () => {
     owned_by_id: 256,
   }
 
-  const mountComponent = (view, granted) =>
+  const mountComponent = (view, hasPermission) =>
     mountSuspended(ViewOwnershipMenuLink, {
       props: { view, database },
       global: {
         mocks: {
-          $hasPermission: (operation) => granted.includes(operation),
+          $hasPermission: hasPermission,
           $hasFeature: () => true,
           $registry: {
             get(type, name) {
@@ -45,26 +45,57 @@ describe('ViewOwnershipMenuLink permission gating', () => {
     })
 
   test('shows button on collaborative view when user has view update permission', async () => {
-    const wrapper = await mountComponent(collaborativeView, [
-      'database.table.view.update',
-    ])
+    const wrapper = await mountComponent(
+      collaborativeView,
+      () => true
+    )
     expect(wrapper.find('.context__menu-item').exists()).toBe(true)
   })
 
   test('hides button on collaborative view when user lacks view update permission', async () => {
-    const wrapper = await mountComponent(collaborativeView, [])
+    const wrapper = await mountComponent(
+      collaborativeView,
+      () => false
+    )
     expect(wrapper.find('.context__menu-item').exists()).toBe(false)
   })
 
-  test('shows button on personal view when user has view update permission', async () => {
-    const wrapper = await mountComponent(personalView, [
-      'database.table.view.update',
-    ])
+  test('shows button on personal view when user has view update permission on collaborative target', async () => {
+    const wrapper = await mountComponent(
+      personalView,
+      () => true
+    )
     expect(wrapper.find('.context__menu-item').exists()).toBe(true)
   })
 
   test('hides button on personal view when user lacks view update permission', async () => {
-    const wrapper = await mountComponent(personalView, [])
+    const wrapper = await mountComponent(
+      personalView,
+      () => false
+    )
     expect(wrapper.find('.context__menu-item').exists()).toBe(false)
+  })
+
+  test('hides button on personal view when user can update personal but not collaborative', async () => {
+    const wrapper = await mountComponent(
+      personalView,
+      (_operation, context) => context.ownership_type === 'personal'
+    )
+    expect(wrapper.find('.context__menu-item').exists()).toBe(false)
+  })
+
+  test('checks permission against target ownership type, not current', async () => {
+    const calls = []
+    await mountComponent(
+      personalView,
+      (operation, context) => {
+        calls.push({ operation, ownershipType: context.ownership_type })
+        return true
+      }
+    )
+    expect(calls).toContainEqual({
+      operation: 'database.table.view.update',
+      ownershipType: 'collaborative',
+    })
   })
 })
