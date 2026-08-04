@@ -41,6 +41,10 @@ class Widget(
         editable=False,
         default=Decimal("1"),
     )
+    grid_x = models.PositiveIntegerField(default=0, db_default=0)
+    grid_y = models.PositiveIntegerField(default=0, db_default=0)
+    grid_width = models.PositiveIntegerField(default=6, db_default=6)
+    grid_height = models.PositiveIntegerField(default=9, db_default=9)
     content_type = models.ForeignKey(
         ContentType,
         verbose_name="content type",
@@ -49,7 +53,7 @@ class Widget(
     )
 
     class Meta:
-        ordering = ("order", "id")
+        ordering = ("grid_y", "grid_x", "id")
 
     @staticmethod
     def get_type_registry():
