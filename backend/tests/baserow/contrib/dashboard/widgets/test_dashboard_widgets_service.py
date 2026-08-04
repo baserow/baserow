@@ -275,6 +275,22 @@ def test_delete_widget(data_fixture):
 
 
 @pytest.mark.django_db
+def test_delete_widget_compacts_legacy_widget_layout(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    remaining_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    deleted_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    Widget.objects.filter(id=remaining_widget.id).update(grid_height=9)
+    Widget.objects.filter(id=deleted_widget.id).update(grid_y=12, grid_height=9)
+
+    WidgetService().delete_widget(user, deleted_widget.id)
+
+    remaining_widget.refresh_from_db()
+    assert remaining_widget.grid_y == 0
+    assert remaining_widget.grid_height == 9
+
+
+@pytest.mark.django_db
 def test_delete_widget_permission_denied(data_fixture):
     user_without_perms = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application()

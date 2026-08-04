@@ -92,6 +92,37 @@ def widget_deleted(
     transaction.on_commit(send_ws_message)
 
 
+@receiver(widget_signals.widgets_layout_updated)
+def widgets_layout_updated(
+    sender,
+    dashboard,
+    widgets,
+    user=None,
+    **kwargs,
+):
+    """Broadcast a complete widget set after an atomic grid-layout mutation."""
+
+    def send_ws_message():
+        page_type = page_registry.get("dashboard")
+        payload = {
+            "type": "widgets_layout_updated",
+            "dashboard_id": dashboard.id,
+            "widgets": [
+                widget_type_registry.get_serializer(widget, WidgetSerializer).data
+                for widget in widgets
+            ],
+        }
+        page_type.broadcast(
+            payload,
+            dashboard_id=dashboard.id,
+            ignore_web_socket_id=getattr(user, "web_socket_id", None)
+            if user is not None
+            else None,
+        )
+
+    transaction.on_commit(send_ws_message)
+
+
 @receiver(data_source_signals.dashboard_data_source_updated)
 def dashboard_data_source_updated(sender, user, data_source, **kwargs):
     def send_ws_message():
