@@ -1,6 +1,9 @@
 import { useRuntimeConfig, useAppConfig, useRouter } from '#imports'
 import { makeFakeTransport } from './modules/core/utils/sentryFakeTransport'
-import { SILENCED_API_ERRORS } from './modules/core/utils/sentryErrors'
+import {
+  SILENCED_API_ERRORS,
+  isSilencedErrorMessage,
+} from './modules/core/utils/sentryErrors'
 import * as Sentry from '@sentry/nuxt'
 
 const config = useRuntimeConfig()
@@ -51,6 +54,17 @@ if (dsn && dsn !== '') {
       const status = err?.response?.status || err?.statusCode
       const errorCode = err?.response?.data?.error || err?.data?.error
       if (SILENCED_API_ERRORS[status]?.includes(errorCode)) {
+        return null
+      }
+
+      // Filter browser-extension RPC artifacts (e.g. LastPass) that reach
+      // window.onunhandledrejection as non-Error promise rejections.
+      const message =
+        err?.message ||
+        (typeof err === 'string' ? err : null) ||
+        event.message ||
+        event.exception?.values?.[0]?.value
+      if (isSilencedErrorMessage(message)) {
         return null
       }
 
