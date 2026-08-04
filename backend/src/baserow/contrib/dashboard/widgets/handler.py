@@ -108,6 +108,100 @@ class WidgetHandler:
 
         return widgets
 
+    def get_widgets_for_update(self, dashboard: Dashboard) -> list[Widget]:
+        """Returns all active dashboard widgets locked for a layout mutation."""
+
+        return list(
+            Widget.objects.select_related(
+                "dashboard", "dashboard__workspace", "content_type"
+            )
+            .filter(dashboard=dashboard)
+            .select_for_update(of=("self",))
+            .order_by("id")
+        )
+
+    @staticmethod
+    def get_widget_layout(widget: Widget) -> dict[str, int]:
+        return {
+            "id": widget.id,
+            "grid_x": widget.grid_x,
+            "grid_y": widget.grid_y,
+            "grid_width": widget.grid_width,
+            "grid_height": widget.grid_height,
+        }
+
+    @staticmethod
+    def _layouts_overlap(first: dict[str, int], second: dict[str, int]) -> bool:
+        return (
+            first["grid_x"] < second["grid_x"] + second["grid_width"]
+            and second["grid_x"] < first["grid_x"] + first["grid_width"]
+            and first["grid_y"] < second["grid_y"] + second["grid_height"]
+            and second["grid_y"] < first["grid_y"] + first["grid_height"]
+        )
+
+    def get_compacted_widget_layout(
+        self, widgets: Iterable[Widget]
+    ) -> list[dict[str, int]]:
+        """Returns a deterministic vertically compacted layout.
+
+        Widgets retain their horizontal position and dimensions. They are processed
+        top-to-bottom, then left-to-right, so a deletion produces the same result on
+        every client without relying on the browser grid implementation.
+        """
+
+        compacted_layout = []
+        for widget in sorted(
+            widgets,
+            key=lambda widget: (widget.grid_y, widget.grid_x, widget.id),
+        ):
+            layout = self.get_widget_layout(widget)
+            layout["grid_y"] = 0
+
+            while any(
+                self._layouts_overlap(layout, other) for other in compacted_layout
+            ):
+                layout["grid_y"] += 1
+
+            compacted_layout.append(layout)
+
+        return compacted_layout
+
+    def get_last_grid_y(self, dashboard: Dashboard) -> int:
+        """Returns the first free row after every active widget in a dashboard."""
+
+        return max(
+            (
+                grid_y + grid_height
+                for grid_y, grid_height in Widget.objects.filter(
+                    dashboard=dashboard
+                ).values_list("grid_y", "grid_height")
+            ),
+            default=0,
+        )
+
+    def place_restored_widget_at_bottom(self, widget: Widget) -> None:
+        """Places a restored widget after the active dashboard layout.
+
+        A widget can have been deleted while the remaining layout compacted. Restoring
+        it at its old coordinates could therefore overlap an active widget. Generic
+        trash restores preserve the current dashboard and append the widget instead;
+        undo actions subsequently restore their recorded complete layout.
+        """
+
+        grid_y = max(
+            (
+                other_grid_y + other_grid_height
+                for other_grid_y, other_grid_height in Widget.objects.filter(
+                    dashboard=widget.dashboard
+                )
+                .exclude(id=widget.id)
+                .values_list("grid_y", "grid_height")
+            ),
+            default=0,
+        )
+        widget.grid_y = grid_y
+        widget.save(update_fields=["grid_y", "updated_on"])
+
     def create_widget(
         self,
         widget_type: WidgetType,
@@ -125,12 +219,20 @@ class WidgetHandler:
 
         order = Widget.get_last_order(dashboard)
         allowed_values = extract_allowed(kwargs, widget_type.allowed_fields)
+        grid_layout = widget_type.get_grid_layout()
 
         allowed_values["dashboard"] = dashboard
         allowed_values = widget_type.prepare_value_for_db(allowed_values)
 
         model_class = cast(Widget, widget_type.model_class)
-        widget = model_class(order=order, **allowed_values)
+        widget = model_class(
+            order=order,
+            grid_x=0,
+            grid_y=self.get_last_grid_y(dashboard),
+            grid_width=grid_layout.default_width,
+            grid_height=grid_layout.default_height,
+            **allowed_values,
+        )
         widget._ensure_content_type_is_set()
         widget.full_clean()
         widget.save()
@@ -162,6 +264,29 @@ class WidgetHandler:
         new_widget_values = widget.get_type().export_prepared_values(instance=widget)
 
         return UpdatedWidget(widget, original_widget_values, new_widget_values)
+
+    def update_widget_layout(
+        self,
+        widgets: list[Widget],
+        layout_by_widget_id: dict[int, dict[str, int]],
+    ) -> None:
+        """Persists an already validated complete dashboard layout."""
+
+        for widget in widgets:
+            layout = layout_by_widget_id[widget.id]
+            widget.grid_x = layout["grid_x"]
+            widget.grid_y = layout["grid_y"]
+            widget.grid_width = layout["grid_width"]
+            widget.grid_height = layout["grid_height"]
+            widget.save(
+                update_fields=[
+                    "grid_x",
+                    "grid_y",
+                    "grid_width",
+                    "grid_height",
+                    "updated_on",
+                ]
+            )
 
     def delete_widget(self, widget: Widget):
         """
@@ -222,6 +347,22 @@ class WidgetHandler:
         """
 
         widget_type = widget_type_registry.get(serialized_widget["type"])
+        grid_fields = ("grid_x", "grid_y", "grid_width", "grid_height")
+
+        # Exports created before the grid layout was introduced do not carry
+        # geometry. Place those widgets one below another using the defaults of
+        # their type, instead of relying on the model defaults and overlapping
+        # every imported widget at (0, 0).
+        if not all(field in serialized_widget for field in grid_fields):
+            grid_layout = widget_type.get_grid_layout()
+            serialized_widget = {
+                **serialized_widget,
+                "grid_x": 0,
+                "grid_y": self.get_last_grid_y(dashboard),
+                "grid_width": grid_layout.default_width,
+                "grid_height": grid_layout.default_height,
+            }
+
         widget = widget_type.import_serialized(
             dashboard,
             serialized_widget,

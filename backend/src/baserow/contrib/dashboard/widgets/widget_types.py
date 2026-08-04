@@ -13,11 +13,20 @@ from baserow.core.services.registries import service_type_registry
 
 from .models import SummaryWidget
 from .registries import WidgetType
+from .types import WidgetGridLayout
 
 
 class SummaryWidgetType(WidgetType):
     type = "summary"
     model_class = SummaryWidget
+    grid_layout = WidgetGridLayout(
+        default_width=2,
+        default_height=4,
+        min_width=1,
+        min_height=4,
+        max_width=6,
+        max_height=6,
+    )
     serializer_field_names = ["data_source_id"]
     serializer_field_overrides = {
         "data_source_id": serializers.PrimaryKeyRelatedField(

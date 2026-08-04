@@ -196,6 +196,8 @@ def test_create_widget(data_fixture):
     assert widget.title == "New widget title"
     assert widget.description == "My desc"
     assert widget.content_type == ContentType.objects.get_for_model(SummaryWidget)
+    assert (widget.grid_x, widget.grid_y) == (0, 0)
+    assert (widget.grid_width, widget.grid_height) == (2, 4)
     assert Widget.objects.count() == 1
 
 
@@ -226,3 +228,56 @@ def test_delete_widget(data_fixture):
     assert Widget.objects.count() == 0
 
     assert DashboardDataSource.objects.filter(id=data_source_id).count() == 0
+
+
+@pytest.mark.django_db
+def test_get_compacted_widget_layout_preserves_columns_and_fills_vertical_gaps(
+    data_fixture,
+):
+    dashboard = data_fixture.create_dashboard_application()
+    first_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    second_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    third_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+
+    first_widget.grid_x = 0
+    first_widget.grid_y = 0
+    first_widget.grid_width = 2
+    first_widget.grid_height = 4
+    second_widget.grid_x = 2
+    second_widget.grid_y = 4
+    second_widget.grid_width = 4
+    second_widget.grid_height = 4
+    third_widget.grid_x = 0
+    third_widget.grid_y = 8
+    third_widget.grid_width = 2
+    third_widget.grid_height = 4
+    for widget in (first_widget, second_widget, third_widget):
+        widget.save(update_fields=["grid_x", "grid_y", "grid_width", "grid_height"])
+
+    layout = WidgetHandler().get_compacted_widget_layout(
+        [first_widget, second_widget, third_widget]
+    )
+
+    assert layout == [
+        {
+            "id": first_widget.id,
+            "grid_x": 0,
+            "grid_y": 0,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+        {
+            "id": second_widget.id,
+            "grid_x": 2,
+            "grid_y": 0,
+            "grid_width": 4,
+            "grid_height": 4,
+        },
+        {
+            "id": third_widget.id,
+            "grid_x": 0,
+            "grid_y": 4,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+    ]

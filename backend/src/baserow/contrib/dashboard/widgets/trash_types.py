@@ -27,6 +27,7 @@ class WidgetTrashableItemType(TrashableItemType):
         widget_type = widget_type_registry.get_by_model(trashed_item.specific)
         widget_type.before_restore(trashed_item.specific)
         super().restore(trashed_item, trash_entry)
+        WidgetHandler().place_restored_widget_at_bottom(trashed_item)
         widget_created.send(self, widget=trashed_item)
 
     def permanently_delete_item(
