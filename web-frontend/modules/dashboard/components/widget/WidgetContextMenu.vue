@@ -1,6 +1,7 @@
 <template>
   <div ref="contextButton" class="widget__header-context-menu">
     <ButtonIcon
+      :data-testid="`dashboard-widget-context-${widget.id}`"
       icon="iconoir-more-vert"
       type="secondary"
       size="regular"

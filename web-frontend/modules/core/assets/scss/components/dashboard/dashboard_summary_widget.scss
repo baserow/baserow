@@ -1,8 +1,13 @@
 .dashboard-summary-widget {
-  // nothing
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 .dashboard-summary-widget__summary {
+  flex: 1 1 auto;
+  min-height: 0;
   color: $palette-neutral-1200;
   font-size: 40px;
   font-weight: 600;

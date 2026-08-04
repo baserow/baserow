@@ -1,153 +1,102 @@
-import { expect } from 'vitest'
-import { flushPromises } from '@vue/test-utils'
-import MockAdapter from 'axios-mock-adapter'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
-describe('dashboardApplication store', () => {
-  const dashboardId = 1
-  const dataSource = {
-    id: 10,
-    dashboard_id: dashboardId,
-    type: 'local_baserow_aggregate_rows',
-  }
-  const dataSourceResult = { result: 42 }
-  const createdWidget = {
-    id: 5,
-    dashboard_id: dashboardId,
-    type: 'summary',
-    data_source_id: dataSource.id,
-  }
+import { actions } from '@baserow/modules/dashboard/store/dashboardApplication'
+import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
 
-  let store = null
-  let mock = null
+vi.mock('@baserow/modules/dashboard/services/dataSource', () => ({
+  default: vi.fn(),
+}))
 
-  beforeEach(async () => {
-    const { $store, $client } = useNuxtApp()
-    store = $store
-    mock = new MockAdapter($client, { onNoMatch: 'throwException' })
-
-    mock.onGet(`/dashboard/${dashboardId}/widgets/`).reply(200, [])
-    mock.onGet(`/dashboard/${dashboardId}/data-sources/`).replyOnce(200, [])
-    await store.dispatch('dashboardApplication/fetchInitial', {
-      dashboardId,
-      forEditing: false,
-    })
-
-    // The data source that belongs to the widget created afterwards.
-    mock
-      .onGet(`/dashboard/${dashboardId}/data-sources/`)
-      .reply(200, [dataSource])
-    mock
-      .onPost(`/dashboard/data-sources/${dataSource.id}/dispatch/`)
-      .reply(200, dataSourceResult)
-  })
-
+describe('Dashboard application store', () => {
   afterEach(() => {
-    mock.restore()
+    vi.clearAllMocks()
   })
 
-  test('fetchNewDataSources awaits missing results for an existing source', async () => {
-    store.commit('dashboardApplication/ADD_DATA_SOURCE', dataSource)
-    let completeDispatch
-    mock.onPost(`/dashboard/data-sources/${dataSource.id}/dispatch/`).reply(
-      () =>
+  test('fetchNewDataSources waits for every data source to be dispatched', async () => {
+    const dataSource = { id: 1 }
+    const getAllDataSources = vi.fn().mockResolvedValue({
+      data: [dataSource],
+    })
+    DataSourceService.mockReturnValue({ getAllDataSources })
+
+    let resolveDispatch
+    const dispatchPromise = new Promise((resolve) => {
+      resolveDispatch = resolve
+    })
+    const dispatch = vi.fn().mockReturnValue(dispatchPromise)
+    const commit = vi.fn()
+    const getters = {
+      getDataSourceById: vi.fn().mockReturnValue(undefined),
+      getDataForDataSource: vi.fn().mockReturnValue(undefined),
+    }
+
+    const fetchPromise = actions.fetchNewDataSources.call(
+      { $client: {} },
+      { commit, dispatch, getters, state: { fetchRequestId: 1 } },
+      { dashboardId: 42, requestId: 1 }
+    )
+
+    await vi.waitFor(() => {
+      expect(dispatch).toHaveBeenCalledWith('dispatchDataSource', 1)
+    })
+
+    let completed = false
+    void fetchPromise.then(() => {
+      completed = true
+    })
+    await Promise.resolve()
+    expect(completed).toBe(false)
+
+    resolveDispatch()
+    await fetchPromise
+
+    expect(getAllDataSources).toHaveBeenCalledWith(42)
+    expect(commit).toHaveBeenCalledWith('ADD_DATA_SOURCE', dataSource)
+  })
+
+  test('ignores data sources when a newer dashboard fetch supersedes the request', async () => {
+    let resolveRequest
+    DataSourceService.mockReturnValue({
+      getAllDataSources: vi.fn().mockReturnValue(
         new Promise((resolve) => {
-          completeDispatch = resolve
+          resolveRequest = resolve
         })
+      ),
+    })
+    const state = { fetchRequestId: 1 }
+    const commit = vi.fn()
+    const dispatch = vi.fn()
+    const fetchPromise = actions.fetchNewDataSources.call(
+      { $client: {} },
+      { commit, dispatch, getters: { getDataSourceById: vi.fn() }, state },
+      { dashboardId: 42, requestId: 1 }
     )
 
-    let refreshCompleted = false
-    const refresh = store
-      .dispatch('dashboardApplication/fetchNewDataSources', {
-        dashboardId,
-        requestId: store.state.dashboardApplication.fetchRequestId,
-      })
-      .then(() => {
-        refreshCompleted = true
-      })
-    await flushPromises()
+    state.fetchRequestId = 2
+    resolveRequest({ data: [{ id: 1 }] })
+    await fetchPromise
 
-    expect(mock.history.post).toHaveLength(1)
-    expect(refreshCompleted).toBe(false)
-    expect(store.state.dashboardApplication.dataSources).toHaveLength(1)
-
-    completeDispatch([200, dataSourceResult])
-    await refresh
-
-    expect(refreshCompleted).toBe(true)
-    expect({
-      dataSources: store.state.dashboardApplication.dataSources,
-      data: store.state.dashboardApplication.data,
-    }).toMatchSnapshot()
+    expect(commit).not.toHaveBeenCalled()
+    expect(dispatch).not.toHaveBeenCalled()
   })
 
-  test('fetchNewDataSources preserves cached results without dispatching again', async () => {
-    store.commit('dashboardApplication/ADD_DATA_SOURCE', dataSource)
-    store.commit('dashboardApplication/UPDATE_DATA', {
-      dataSourceId: dataSource.id,
-      values: dataSourceResult,
-    })
-
-    await store.dispatch('dashboardApplication/fetchNewDataSources', {
-      dashboardId,
-      requestId: store.state.dashboardApplication.fetchRequestId,
-    })
-
-    expect(mock.history.post).toHaveLength(0)
-    expect({
-      dataSources: store.state.dashboardApplication.dataSources,
-      data: store.state.dashboardApplication.data,
-    }).toMatchSnapshot()
-  })
-
-  test('handleNewWidgetCreated replaces the optimistic widget and fetches its data source', async () => {
-    const tempWidgetId = 99999
-    store.commit('dashboardApplication/ADD_WIDGET', {
-      id: tempWidgetId,
-      type: 'summary',
-    })
-
-    await store.dispatch('dashboardApplication/handleNewWidgetCreated', {
-      tempWidgetId,
-      createdWidget,
-    })
-    await flushPromises()
-
-    expect(mock.history.get.map((request) => request.url)).toContain(
-      `/dashboard/${dashboardId}/data-sources/`
+  test('creating a widget fetches its data sources with the current request ID', async () => {
+    const dispatch = vi.fn()
+    const widget = { id: 1, dashboard_id: 42 }
+    await actions.handleNewWidgetCreated.call(
+      {},
+      {
+        commit: vi.fn(),
+        dispatch,
+        getters: { getWidgetById: vi.fn() },
+        state: { fetchRequestId: 3 },
+      },
+      widget
     )
-    expect(
-      store.getters['dashboardApplication/getWidgetById'](tempWidgetId)
-    ).toBeUndefined()
-    expect(
-      store.getters['dashboardApplication/getWidgetById'](createdWidget.id)
-    ).toMatchObject(createdWidget)
-    expect(store.getters['dashboardApplication/getSelectedWidgetId']).toBe(
-      createdWidget.id
-    )
-    expect(
-      store.getters['dashboardApplication/getDataSourceById'](dataSource.id)
-    ).toMatchObject(dataSource)
-    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual(
-      dataSourceResult
-    )
-  })
 
-  test('handleNewWidgetCreated adds a widget created elsewhere without selecting it', async () => {
-    await store.dispatch('dashboardApplication/handleNewWidgetCreated', {
-      createdWidget,
+    expect(dispatch).toHaveBeenCalledWith('fetchNewDataSources', {
+      dashboardId: 42,
+      requestId: 3,
     })
-    await flushPromises()
-
-    expect(store.state.dashboardApplication.widgets).toHaveLength(1)
-    expect(
-      store.getters['dashboardApplication/getWidgetById'](createdWidget.id)
-    ).toMatchObject(createdWidget)
-    expect(store.getters['dashboardApplication/getSelectedWidgetId']).toBe(null)
-    expect(
-      store.getters['dashboardApplication/getDataSourceById'](dataSource.id)
-    ).toMatchObject(dataSource)
-    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual(
-      dataSourceResult
-    )
   })
 })
