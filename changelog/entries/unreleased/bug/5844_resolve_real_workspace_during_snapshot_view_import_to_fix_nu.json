@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolve real workspace during snapshot view import to fix null workspace_id on role assignments.",
+    "issue_origin": "github",
+    "issue_number": 5844,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-04"
+}

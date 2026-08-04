@@ -4,8 +4,10 @@ import pytest
 
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.utils import Progress
 from baserow_enterprise.role.handler import RoleAssignmentHandler
-from baserow_enterprise.role.models import Role
+from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.structure_types import RoleAssignmentSerializationProcessorType
 
 
@@ -77,6 +79,37 @@ def test_import_serialized_structure_on_database(enterprise_data_fixture):
     assert (
         role_assignment.subject_type.id == serialized_role_assignment["subject_type_id"]
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_snapshot_creation_with_view_scoped_role_assignment(enterprise_data_fixture):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(user=user, database=database)
+    grid_view = enterprise_data_fixture.create_grid_view(user=user, table=table)
+    team = enterprise_data_fixture.create_team(workspace=workspace)
+
+    role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(team, workspace, role, grid_view.view_ptr)
+
+    snapshot = enterprise_data_fixture.create_snapshot(
+        user=user,
+        snapshot_from_application=database.application_ptr,
+        snapshot_to_application=None,
+        created_by=user,
+    )
+
+    SnapshotHandler().perform_create(snapshot, Progress(total=100))
+
+    snapshot_role_assignments = RoleAssignment.objects.exclude(
+        scope_id=grid_view.view_ptr.id
+    ).filter(
+        role=role,
+        workspace=workspace,
+    )
+    assert snapshot_role_assignments.exists()
+    assert snapshot_role_assignments.first().workspace_id == workspace.id
 
 
 @pytest.mark.django_db(transaction=True)
