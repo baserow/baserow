@@ -4,9 +4,19 @@
     :class="{
       'dashboard-widget--selected': isSelected,
       'dashboard-widget--selectable': isSelectable,
+      'dashboard-widget--layout-editable': isLayoutEditable,
     }"
     @click="selectWidgetIfAllowed(widget.id)"
   >
+    <span
+      v-if="isLayoutEditable"
+      class="dashboard-widget__drag-handle"
+      :data-testid="`dashboard-widget-drag-handle-${widget.id}`"
+      :aria-label="$t('widget.dragWidget')"
+      :title="$t('widget.dragWidget')"
+    >
+      <i class="iconoir-drag" aria-hidden="true"></i>
+    </span>
     <div v-if="isSelected && isEditMode" class="dashboard-widget__name">
       {{ widgetType.name }}
     </div>
@@ -17,6 +27,7 @@
       :store-prefix="storePrefix"
       :loading="isLoading"
       :edit-mode="isEditMode"
+      @delete-widget="$emit('delete-widget', $event)"
     />
   </div>
 </template>
@@ -38,7 +49,13 @@ export default {
       required: false,
       default: '',
     },
+    isLayoutEditable: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
+  emits: ['delete-widget'],
   computed: {
     isSelected() {
       return this.selectedWidgetId === this.widget.id && this.isEditMode

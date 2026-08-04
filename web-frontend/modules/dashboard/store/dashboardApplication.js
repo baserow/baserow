@@ -37,7 +37,20 @@ export const mutations = {
     state.editMode = !state.editMode
   },
   ADD_WIDGET(state, widget) {
-    state.widgets.push(widget)
+    const existingWidget = state.widgets.find(
+      (existingWidget) => existingWidget.id === widget.id
+    )
+    if (existingWidget) {
+      Object.assign(existingWidget, widget)
+    } else {
+      state.widgets.push(widget)
+    }
+  },
+  SET_WIDGETS(state, widgets) {
+    state.widgets = widgets
+    if (!widgets.some((widget) => widget.id === state.selectedWidgetId)) {
+      state.selectedWidgetId = null
+    }
   },
   ADD_DATA_SOURCE(state, dataSource) {
     state.dataSources.push(dataSource)
@@ -65,6 +78,10 @@ export const mutations = {
   },
   UPDATE_WIDGET(state, { widgetId, values }) {
     const widget = state.widgets.find((widget) => widget.id === widgetId)
+    if (!widget) {
+      state.widgets.push(values)
+      return
+    }
     // In Vue 3, direct assignment works thanks to Proxy-based reactivity
     if (Array.isArray(values.series_config)) {
       widget.series_config = [...values.series_config]
@@ -73,7 +90,12 @@ export const mutations = {
   },
   DELETE_WIDGET(state, widgetId) {
     const index = state.widgets.findIndex((widget) => widget.id === widgetId)
-    state.widgets.splice(index, 1)
+    if (index !== -1) {
+      state.widgets.splice(index, 1)
+    }
+    if (state.selectedWidgetId === widgetId) {
+      state.selectedWidgetId = null
+    }
   },
   SET_LOADING(state, value) {
     state.loading = value
@@ -161,9 +183,7 @@ export const actions = {
     commit('RESET')
     commit('SET_DASHBOARD_ID', dashboardId)
     const { data } = await WidgetService($client).getAllWidgets(dashboardId)
-    data.forEach((widget) => {
-      commit('ADD_WIDGET', widget)
-    })
+    commit('SET_WIDGETS', data)
     await dispatch('setLoading', false)
     await dispatch('fetchNewDataSources', dashboardId)
 
@@ -179,12 +199,15 @@ export const actions = {
     const { $client } = this
     const { data: dataSourcesData } =
       await DataSourceService($client).getAllDataSources(dashboardId)
-    dataSourcesData.forEach(async (dataSource) => {
-      if (!getters.getDataSourceById(dataSource.id)) {
-        commit('ADD_DATA_SOURCE', dataSource)
-        await dispatch('dispatchDataSource', dataSource.id)
-      }
-    })
+
+    await Promise.all(
+      dataSourcesData
+        .filter((dataSource) => !getters.getDataSourceById(dataSource.id))
+        .map(async (dataSource) => {
+          commit('ADD_DATA_SOURCE', dataSource)
+          await dispatch('dispatchDataSource', dataSource.id)
+        })
+    )
   },
   async createWidget({ commit, dispatch }, { dashboard, widget }) {
     const { $client } = this
@@ -205,13 +228,16 @@ export const actions = {
     await dispatch('application/refreshPermissions', dashboard, { root: true })
     return createdWidget
   },
-  async handleNewWidgetCreated(
-    { commit, dispatch },
-    { tempWidgetId, createdWidget }
-  ) {
-    commit('UPDATE_WIDGET', { widgetId: tempWidgetId, values: createdWidget })
+  async handleNewWidgetCreated({ commit, dispatch }, payload) {
+    const { tempWidgetId, createdWidget = payload } = payload
+    if (tempWidgetId) {
+      commit('UPDATE_WIDGET', { widgetId: tempWidgetId, values: createdWidget })
+    } else {
+      commit('ADD_WIDGET', createdWidget)
+    }
     dispatch('selectWidget', createdWidget.id)
     await dispatch('fetchNewDataSources', createdWidget.dashboard_id)
+    return createdWidget
   },
   async dispatchDataSource({ commit }, dataSourceId) {
     const { $client } = this
@@ -230,6 +256,28 @@ export const actions = {
   },
   handleWidgetDeleted({ commit }, widgetId) {
     commit('DELETE_WIDGET', widgetId)
+  },
+  async updateWidgetLayout({ commit }, { dashboardId, layout }) {
+    const { $client } = this
+    const { data } = await WidgetService($client).updateLayout(
+      dashboardId,
+      layout
+    )
+    commit('SET_WIDGETS', data)
+    return data
+  },
+  async deleteWidgetWithLayout({ commit }, { dashboardId, widgetId, layout }) {
+    const { $client } = this
+    const { data } = await WidgetService($client).deleteWithLayout(
+      dashboardId,
+      widgetId,
+      layout
+    )
+    commit('SET_WIDGETS', data)
+    return data
+  },
+  handleWidgetsLayoutUpdated({ commit }, widgets) {
+    commit('SET_WIDGETS', widgets)
   },
 }
 
@@ -250,7 +298,19 @@ export const getters = {
     return state.widgets.find((widget) => widget.id === widgetId)
   },
   getWidgets(state) {
-    return state.widgets.toSorted((a, b) => a.order - b.order)
+    return state.widgets.toSorted((first, second) => {
+      const byY = (first.grid_y ?? 0) - (second.grid_y ?? 0)
+      if (byY !== 0) {
+        return byY
+      }
+
+      const byX = (first.grid_x ?? 0) - (second.grid_x ?? 0)
+      if (byX !== 0) {
+        return byX
+      }
+
+      return first.id - second.id
+    })
   },
   getSelectedWidgetId(state) {
     return state.selectedWidgetId

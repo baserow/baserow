@@ -18,6 +18,10 @@
   }
 }
 
+.dashboard-widget--layout-editable .widget__header--edit-mode {
+  padding-left: 48px;
+}
+
 .widget__header-main {
   display: flex;
   flex-direction: column;
