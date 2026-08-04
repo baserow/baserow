@@ -906,6 +906,11 @@ class IFrameElement(Element):
         help_text="Height in pixels of the iframe",
         default=300,
     )
+    allow_same_origin = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether a trusted external URL can access its own origin.",
+    )
 
 
 class RepeatElement(CollectionElement, ContainerElement):

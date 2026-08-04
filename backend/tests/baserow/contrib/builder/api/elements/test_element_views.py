@@ -275,6 +275,16 @@ def test_create_element(api_client, data_fixture):
     url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
     response = api_client.post(
         url,
+        {"type": "iframe"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["allow_same_origin"] is False
+
+    response = api_client.post(
+        url,
         {
             "type": "heading",
             "place_in_container": "",
@@ -306,6 +316,41 @@ def test_create_element(api_client, data_fixture):
         "version": "0.1",
         "mode": "simple",
     }
+
+
+@pytest.mark.django_db
+def test_create_and_update_iframe_element_same_origin_permission(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "iframe",
+            "allow_same_origin": True,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["allow_same_origin"] is True
+
+    element_url = reverse(
+        "api:builder:element:item", kwargs={"element_id": response.json()["id"]}
+    )
+    response = api_client.patch(
+        element_url,
+        {"allow_same_origin": False},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["allow_same_origin"] is False
 
 
 @pytest.mark.django_db

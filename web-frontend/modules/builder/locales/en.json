@@ -338,6 +338,8 @@
     "urlLabel": "URL",
     "urlPlaceholder": "Link to the external resource to be embedded",
     "urlHelp": "Note: please make sure that you have control over, or trust the url entered.",
+    "allowSameOriginLabel": "Allow the iframe to access its own site data",
+    "allowSameOriginHelp": "Only enable this for a trusted external URL. It allows the iframe to use cookies, storage, and other same-origin features in previews and published applications.",
     "embedLabel": "Embed",
     "embedPlaceholder": "Raw HTML content to be embedded",
     "warningTitle": "Only use trusted content",

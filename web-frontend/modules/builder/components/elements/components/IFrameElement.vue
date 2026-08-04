@@ -78,9 +78,39 @@ export default {
           ? 'allow-scripts'
           : ''
       }
-      return this.element.source_type === IFRAME_SOURCE_TYPES.URL
-        ? 'allow-scripts allow-forms allow-popups'
-        : null
+      if (this.element.source_type !== IFRAME_SOURCE_TYPES.URL) {
+        return null
+      }
+
+      const permissions = ['allow-scripts', 'allow-forms', 'allow-popups']
+
+      if (
+        this.element.allow_same_origin &&
+        this.isPreviewOrPublicMode &&
+        this.isExternalURL
+      ) {
+        permissions.push('allow-same-origin')
+      }
+
+      return permissions.join(' ')
+    },
+    isExternalURL() {
+      if (typeof window === 'undefined') {
+        return false
+      }
+
+      try {
+        const url = new URL(this.resolvedURL)
+        return (
+          ['http:', 'https:'].includes(url.protocol) &&
+          url.origin !== window.location.origin
+        )
+      } catch {
+        return false
+      }
+    },
+    isPreviewOrPublicMode() {
+      return ['preview', 'public'].includes(this.applicationContext.mode)
     },
     IFRAME_SOURCE_TYPES() {
       return IFRAME_SOURCE_TYPES
