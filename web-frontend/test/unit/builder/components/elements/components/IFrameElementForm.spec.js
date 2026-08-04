@@ -43,7 +43,7 @@ describe('IFrameElementForm', () => {
           Alert: true,
           InjectedFormulaInput: true,
           FormInput: true,
-          Checkbox: true,
+          Checkbox: { template: '<label><slot /></label>' },
         },
       },
     })
