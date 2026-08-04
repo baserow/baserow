@@ -246,6 +246,42 @@ describe('ButtonFieldActionList', () => {
     expect(reordered[1].id).toBe(1)
   })
 
+  test('the sortable items have no non-sortable siblings', async () => {
+    // The directive builds the new order from every element child of the
+    // dragged item's parent. A sibling that is not an action — the "Add
+    // action" button — carries no sortable id, so it arrives as undefined.
+    const wrapper = await mountList([
+      { id: 1, type: 'open_url' },
+      { id: 2, type: 'open_url' },
+    ])
+
+    const items = wrapper.findAll('.button-field-action-list__item')
+    expect(items).toHaveLength(2)
+
+    const siblings = [...items[0].element.parentElement.children]
+    expect(siblings).toHaveLength(2)
+    expect(
+      siblings.every((el) =>
+        el.classList.contains('button-field-action-list__item')
+      )
+    ).toBe(true)
+  })
+
+  test('an unrecognised sortable id never puts undefined into the list', async () => {
+    // Exactly what the directive passed when the add button was a sibling.
+    const wrapper = await mountList([
+      { id: 1, type: 'open_url' },
+      { id: 2, type: 'open_url' },
+    ])
+
+    await wrapper.vm.onSortableUpdate([2, undefined, 1])
+
+    const emitted = wrapper.emitted('input')
+    const [reordered] = emitted[emitted.length - 1]
+    expect(reordered.every((action) => action !== undefined)).toBe(true)
+    expect(reordered.map((action) => action.id)).toEqual([2, 1])
+  })
+
   test('it renders one form per action', async () => {
     const wrapper = await mountList([
       { id: 1, type: 'create_row', service: {} },

@@ -1,64 +1,72 @@
 <template>
   <div class="button-field-action-list">
-    <div
-      v-for="(action, index) in value"
-      :key="`${action.id ?? 'new'}-${index}`"
-      v-sortable="{
-        id: action.id ?? `new-${index}`,
-        handle: '[data-sortable-handle]',
-        update: onSortableUpdate,
-      }"
-      class="button-field-action-list__item margin-bottom-2"
-    >
-      <div class="button-field-action-list__header">
-        <i
-          class="iconoir-drag button-field-action-list__handle"
-          data-sortable-handle
-        ></i>
-        <Dropdown
-          class="button-field-action-list__type"
-          :value="action.type ?? null"
-          :placeholder="$t('buttonFieldActionList.chooseAction')"
-          :fixed-items="true"
-          @input="onActionTypeChanged(index, $event)"
-        >
-          <DropdownItem
-            v-for="actionType in availableActionTypes"
-            :key="actionType.getType()"
-            :icon="actionType.icon"
-            :name="actionType.label"
-            :value="actionType.getType()"
-          ></DropdownItem>
-        </Dropdown>
-        <ButtonIcon
-          icon="iconoir-bin"
-          @click="removeAction(index)"
-        ></ButtonIcon>
-      </div>
-      <template v-if="action.type">
-        <div class="button-field-action-list__separator"></div>
-        <div class="button-field-action-list__form">
-          <!--
-            Keyed by type, not by the row: `create_row` and `update_row`
-            resolve to the same form component and the same service form, and
-            the row's own key does not change on a type swap, so Vue would
-            reuse the instance and carry the old type's seeded values into a
-            config that has just been reset.
-          -->
-          <component
-            :is="actionTypeOf(action).form"
-            :key="action.type"
-            v-bind="
-              actionTypeOf(action).getFormProps({
-                workflowAction: action,
-                database,
-              })
-            "
-            :default-values="action"
-            @values-changed="onActionValuesChanged(index, $event)"
-          />
+    <!--
+      The sortable items need a parent of their own. The directive reads the
+      new order off every element child of the dragged item's parent, so a
+      sibling that is not an action — the add button below — would enter that
+      order with no sortable id.
+    -->
+    <div class="button-field-action-list__items">
+      <div
+        v-for="(action, index) in value"
+        :key="`${action.id ?? 'new'}-${index}`"
+        v-sortable="{
+          id: action.id ?? `new-${index}`,
+          handle: '[data-sortable-handle]',
+          update: onSortableUpdate,
+        }"
+        class="button-field-action-list__item margin-bottom-2"
+      >
+        <div class="button-field-action-list__header">
+          <i
+            class="iconoir-drag button-field-action-list__handle"
+            data-sortable-handle
+          ></i>
+          <Dropdown
+            class="button-field-action-list__type"
+            :value="action.type ?? null"
+            :placeholder="$t('buttonFieldActionList.chooseAction')"
+            :fixed-items="true"
+            @input="onActionTypeChanged(index, $event)"
+          >
+            <DropdownItem
+              v-for="actionType in availableActionTypes"
+              :key="actionType.getType()"
+              :icon="actionType.icon"
+              :name="actionType.label"
+              :value="actionType.getType()"
+            ></DropdownItem>
+          </Dropdown>
+          <ButtonIcon
+            icon="iconoir-bin"
+            @click="removeAction(index)"
+          ></ButtonIcon>
         </div>
-      </template>
+        <template v-if="action.type">
+          <div class="button-field-action-list__separator"></div>
+          <div class="button-field-action-list__form">
+            <!--
+              Keyed by type, not by the row: `create_row` and `update_row`
+              resolve to the same form component and the same service form, and
+              the row's own key does not change on a type swap, so Vue would
+              reuse the instance and carry the old type's seeded values into a
+              config that has just been reset.
+            -->
+            <component
+              :is="actionTypeOf(action).form"
+              :key="action.type"
+              v-bind="
+                actionTypeOf(action).getFormProps({
+                  workflowAction: action,
+                  database,
+                })
+              "
+              :default-values="action"
+              @values-changed="onActionValuesChanged(index, $event)"
+            />
+          </div>
+        </template>
+      </div>
     </div>
 
     <p v-if="value.length === 0" class="margin-bottom-2">
@@ -182,7 +190,15 @@ export default {
       const bySortId = new Map(
         this.value.map((action, index) => [action.id ?? `new-${index}`, action])
       )
-      this.orderActions(newOrder.map((id) => bySortId.get(id)))
+      // An id with no action behind it would otherwise land in the list as
+      // undefined and break the next render, taking the whole editor with it.
+      const reordered = newOrder
+        .map((id) => bySortId.get(id))
+        .filter((action) => action !== undefined)
+      if (reordered.length !== this.value.length) {
+        return
+      }
+      this.orderActions(reordered)
     },
   },
 }
