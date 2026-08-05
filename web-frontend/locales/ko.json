@@ -187,7 +187,8 @@
         "overflowDuration": "값이 범위를 벗어났습니다.",
         "maxChars": "최대 {max}자.",
         "minChars": "최소 {min}자.",
-        "higherThan": "값이 {max}보다 높습니다."
+        "higherThan": "값이 {max}보다 높습니다.",
+        "maxCharsExceeded": "최대 문자 수 {max}개(-{over})."
     },
     "fieldDocs": {
         "readOnly": "이 필드는 읽기 전용 필드입니다.",
@@ -223,7 +224,8 @@
         "uuid": "읽기 전용의 고유하고 영구적인 UUID입니다.",
         "autonumber": "각 새 행에 대해 자동으로 번호를 증가시키는 읽기 전용 필드입니다.",
         "password": "해시된 비밀번호를 보유하는 쓰기 전용 필드입니다. 설정되지 않은 경우 값은 `null`이며, 설정된 경우 `true`입니다. 문자열을 받아서 설정합니다.",
-        "formViewEditRow": "읽기 전용 필드로, 연결된 양식 보기를 통해 행을 편집할 수 있도록 고유하고 서명된 URL을 생성합니다."
+        "formViewEditRow": "읽기 전용 필드로, 연결된 양식 보기를 통해 행을 편집할 수 있도록 고유하고 서명된 URL을 생성합니다.",
+        "button": "버튼 필드입니다. 버튼을 클릭하면 해당 행의 값으로 구성된 URL이 열립니다. 셀에는 데이터가 저장되지 않으며 쓰기 작업은 허용되지 않습니다."
     },
     "viewFilter": {
         "hasEmptyValue": "값이 비어 있음",
@@ -724,7 +726,9 @@
         "toDatetimeDescription": "문자열을 날짜/시간 객체로 파싱합니다. 선택적 두 번째 인수는 형식을 지정합니다(예: 'DD/MM/YYYY'). 생략하면 ISO 8601 형식이 사용됩니다.",
         "toDurationDescription": "제공된 인수에 해당하는 지속 시간을 반환합니다.",
         "durationFormatDescription": "'d'(일), 'h'(시간), 'm'(분), 's'(초) 토큰을 사용하는 형식 문자열을 이용하여 기간을 텍스트 형식으로 지정합니다. 예: 'h:mm', 'd h:mm:ss'.",
-        "categoryUtility": "유틸리티"
+        "categoryUtility": "유틸리티",
+        "encodeUriDescription": "퍼센트(%)는 URL에서 허용되지 않는 문자를 인코딩하여 URL 구조는 그대로 유지합니다",
+        "encodeUriComponentDescription": "퍼센트 부호는 인수를 URL의 한 부분(예: 경로 세그먼트 또는 쿼리 매개변수)으로 안전하게 사용할 수 있도록 인코딩합니다"
     },
     "formulaInputContext": {
         "useRegularInput": "일반적인 입력을 사용",
