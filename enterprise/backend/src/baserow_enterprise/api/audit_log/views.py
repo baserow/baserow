@@ -59,6 +59,7 @@ class AuditLogView(APIListingView):
     sort_field_mapping = {
         "timestamp": "action_timestamp",
     }
+    search_fields = []
     default_order_by = "-action_timestamp"
 
     def get_queryset(self, request):

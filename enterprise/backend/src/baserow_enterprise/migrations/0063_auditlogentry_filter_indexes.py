@@ -12,12 +12,49 @@ OLD_INDEX_DB_NAME = "baserow_ent_action__8db5d6_idx"
 OLD_INDEX_STATE_NAME = "baserow_ent_action__ca13aa_idx"
 
 
+def is_unusable(cursor, name):
+    """
+    Whether an index exists but was left half-built, which is what an interrupted
+    `CREATE INDEX CONCURRENTLY` produces.
+    """
+
+    cursor.execute(
+        """
+        SELECT 1
+        FROM pg_index i
+        JOIN pg_class c ON c.oid = i.indexrelid
+        JOIN pg_class t ON t.oid = i.indrelid
+        WHERE c.relname = %s AND t.relname = %s
+          AND NOT (i.indisvalid AND i.indisready)
+        """,
+        [name, TABLE],
+    )
+    return cursor.fetchone() is not None
+
+
 def add_index(name, fields, columns):
-    return migrations.RunSQL(
-        sql=(
-            f'CREATE INDEX CONCURRENTLY IF NOT EXISTS "{name}" ON "{TABLE}" ({columns})'
-        ),
-        reverse_sql=f'DROP INDEX CONCURRENTLY IF EXISTS "{name}"',
+    def forwards(apps, schema_editor):
+        with schema_editor.connection.cursor() as cursor:
+            # An interrupted build leaves an unusable index behind that
+            # `IF NOT EXISTS` would silently skip on the next attempt, leaving the
+            # table paying to maintain an index no query can use. Clear it first so
+            # a retried migration rebuilds it instead of stepping over it.
+            if is_unusable(cursor, name):
+                cursor.execute(f'DROP INDEX CONCURRENTLY "{name}"')
+
+            cursor.execute(
+                f'CREATE INDEX CONCURRENTLY IF NOT EXISTS "{name}" '
+                f'ON "{TABLE}" ({columns})'
+            )
+
+    def backwards(apps, schema_editor):
+        with schema_editor.connection.cursor() as cursor:
+            cursor.execute(f'DROP INDEX CONCURRENTLY IF EXISTS "{name}"')
+
+    return migrations.SeparateDatabaseAndState(
+        database_operations=[
+            migrations.RunPython(forwards, backwards, atomic=False),
+        ],
         state_operations=[
             migrations.AddIndex(
                 model_name="auditlogentry",
@@ -59,6 +96,7 @@ class Migration(migrations.Migration):
             '"action_type", "action_timestamp" DESC',
         ),
         # Dropped last so the listing is never left without an index to order by.
+        # `IF EXISTS` also removes a half-dropped index, so this is safe to retry.
         migrations.RunSQL(
             sql=f'DROP INDEX CONCURRENTLY IF EXISTS "{OLD_INDEX_DB_NAME}"',
             reverse_sql=(
