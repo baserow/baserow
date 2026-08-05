@@ -298,6 +298,13 @@ class DatabaseWorkflowActionService:
         ):
             raise WorkflowActionDispatchInProgress()
 
+        # Positions come from the whole list, frontend-only actions included, so
+        # they match what the clicker counts in the editor.
+        positions = {
+            workflow_action.id: index
+            for index, workflow_action in enumerate(workflow_actions, start=1)
+        }
+
         try:
             dispatch_context = DatabaseDispatchContext(user, field, row)
             results = []
@@ -322,7 +329,9 @@ class DatabaseWorkflowActionService:
                         # server and becomes a plain 500.
                         if isinstance(exc, USER_FACING_DISPATCH_EXCEPTIONS):
                             raise WorkflowActionDispatchError(
-                                workflow_action.id, str(exc)
+                                workflow_action.id,
+                                str(exc),
+                                positions[workflow_action.id],
                             ) from exc
                         raise
                     results.append((workflow_action, result))

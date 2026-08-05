@@ -79,6 +79,8 @@ def test_a_failure_keeps_the_completed_actions_and_skips_the_rest(data_fixture):
         )
 
     assert exc.value.workflow_action_id == broken.id
+    # Second of the three, counted the way the editor lists them.
+    assert exc.value.position == 2
 
     created = [
         getattr(r, f"field_{name_field.id}")

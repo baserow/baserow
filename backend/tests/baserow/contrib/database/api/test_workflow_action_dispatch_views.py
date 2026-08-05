@@ -303,10 +303,9 @@ def test_a_failed_action_returns_the_dispatch_error(api_client, data_fixture):
 
     assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
-    assert str(broken.id) in response.json()["detail"], (
-        "The response must name the action that failed, otherwise a button with "
-        "several actions gives the clicker nothing to go on."
-    )
+    # Named by its place in the list, which the clicker can count in the editor.
+    # The id would technically identify it while telling the user nothing.
+    assert response.json()["detail"] == "Action 2 failed: No table selected"
     # The action before the broken one already ran, and stays (ADR 006 section 3).
     created = table.get_model().objects.exclude(id=row.id).get()
     assert getattr(created, f"field_{name_field.id}") == "Ada"
