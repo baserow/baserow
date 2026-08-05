@@ -170,12 +170,20 @@ class LocalBaserowServiceType(ServiceType):
         :param service: The service being dispatched.
         :param dispatch_context: The context this dispatch runs in.
         :raises ServiceImproperlyConfiguredDispatchException: When neither an
-            integration nor an actor is available.
+            integration nor an actor supplies a user.
         :return: The acting user.
         """
 
         if service.integration_id:
-            return service.integration.specific.authorized_user
+            authorized_user = service.integration.specific.authorized_user
+            # `authorized_user` is nullable, and an import leaves it null when
+            # the exported username is not in the target workspace. Refuse here
+            # rather than let a `None` reach a permission check as anonymous.
+            if authorized_user is None:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The integration has no authorized user"
+                )
+            return authorized_user
 
         if dispatch_context.actor is None:
             raise ServiceImproperlyConfiguredDispatchException(

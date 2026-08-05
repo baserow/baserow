@@ -55,6 +55,34 @@ def test_get_acting_user_raises_without_an_integration_or_an_actor(data_fixture)
 
 
 @pytest.mark.django_db
+def test_get_acting_user_raises_when_the_integration_has_no_authorized_user(
+    data_fixture,
+):
+    """
+    An import leaves `authorized_user` null when the exported username is not in
+    the target workspace. The actor must not stand in for it, and a `None` must
+    not reach a permission check as an anonymous user.
+    """
+
+    clicker = data_fixture.create_user()
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    integration.authorized_user = None
+    integration.save()
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration
+    )
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+        LocalBaserowUpsertRowServiceType().get_acting_user(
+            service, FakeDispatchContext(actor=clicker)
+        )
+
+
+@pytest.mark.django_db
 def test_get_permission_workspace_uses_the_integration_application(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
