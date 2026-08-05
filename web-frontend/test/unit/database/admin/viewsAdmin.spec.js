@@ -12,6 +12,11 @@ describe('ViewsAdminTable component', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
+    // The workspace filter dropdown fetches its options as soon as it is rendered,
+    // so every test needs this whether or not it filters on a workspace.
+    testApp.mock
+      .onGet('/admin/workspaces/options/')
+      .reply(200, { count: 1, results: [{ id: 30, value: 'Workspace' }] })
   })
 
   afterEach(async () => await testApp.afterEach())
@@ -114,30 +119,33 @@ describe('ViewsAdminTable component', () => {
     expect(viewsAdmin.find('tbody .iconoir-globe').exists()).toBe(false)
   })
 
-  test('search workspace id turns the filter off and searches on the workspace id', async () => {
+  test('filter by workspace applies the workspace filter', async () => {
     thereAreViews([aView()], { page: 1, only_public: 'true' })
-    thereAreViews([aView()], { page: 1 })
-    thereAreViews(
-      [aView(), aView({ id: 2, name: 'Private view', public: false })],
-      { page: 1, search: '30' }
-    )
+    thereAreViews([aView(), aView({ id: 2, name: 'Second view' })], {
+      page: 1,
+      only_public: 'true',
+      workspace_id: '30',
+    })
 
     const viewsAdmin = await testApp.mount(ViewsAdminTable, {})
     await flushPromises()
 
     await viewsAdmin.find('.data-table__more').trigger('click')
     const context = viewsAdmin.findComponent(ViewsAdminContext)
-    const searchWorkspaceIdLink = context
+    await context
       .findAll('.context__menu-item-link')
-      .find((link) =>
-        link.text().includes('viewsAdminContext.searchWorkspaceId')
-      )
-    await searchWorkspaceIdLink.trigger('click')
+      .find((link) => link.text().includes('viewsAdminContext.filterWorkspace'))
+      .trigger('click')
     await flushPromises()
 
-    expect(viewsAdmin.find('.switch--active').exists()).toBe(false)
-    expect(viewsAdmin.find('input').element.value).toBe('30')
+    // The only public filter is left alone, it narrows the workspace further.
+    expect(viewsAdmin.find('.switch--active').exists()).toBe(true)
+    expect(viewsAdmin.find('input').element.value).toBe('')
     expect(viewsAdmin.findAll('tbody tr').length).toBe(2)
-    expect(viewsAdmin.find('tbody').text()).toContain('Private view')
+    expect(viewsAdmin.find('tbody').text()).toContain('Second view')
+
+    // The dropdown names the workspace the filter came from, so it is visible that
+    // one is applied and which.
+    expect(viewsAdmin.find('.dropdown__selected-text').text()).toBe('Workspace')
   })
 })
