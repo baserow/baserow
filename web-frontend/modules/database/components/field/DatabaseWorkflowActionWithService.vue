@@ -35,6 +35,9 @@ export default {
       // mappings from a saved service's schema in the meantime.
       mappableFields: null,
       fieldsLoading: false,
+      // Bumped per fetch, so a response overtaken by a newer one is dropped
+      // rather than left describing a table that is no longer selected.
+      fetchToken: 0,
     }
   },
   computed: {
@@ -105,20 +108,35 @@ export default {
       if (!this.supportsFieldMappings) {
         return
       }
+      // Taken before the await, so anything already in flight is superseded.
+      const token = ++this.fetchToken
       if (tableId === null) {
         this.mappableFields = null
+        // Nothing worth waiting for is left, and the fetch this replaced will
+        // not lower the spinner itself now that its token is stale.
+        this.fieldsLoading = false
         return
       }
       this.fieldsLoading = true
       try {
         const { data } = await FieldService(this.$client).fetchAll(tableId)
+        if (token !== this.fetchToken) {
+          return
+        }
         // The same filter the schema applies.
         this.mappableFields = data.filter((field) => !field.read_only)
       } catch (error) {
+        if (token !== this.fetchToken) {
+          return
+        }
         this.mappableFields = []
         notifyIf(error, 'field')
       } finally {
-        this.fieldsLoading = false
+        // Only the newest fetch owns the spinner: an overtaken one lowering it
+        // would uncover the previous table's mappings mid flight.
+        if (token === this.fetchToken) {
+          this.fieldsLoading = false
+        }
       }
     },
   },

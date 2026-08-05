@@ -268,6 +268,74 @@ describe('DatabaseWorkflowActionWithService', () => {
     )
   })
 
+  test('a slow fetch overtaken by a newer one does not win', async () => {
+    await seedApplications()
+    // Table 1's response is held open so table 2's can overtake it, which is
+    // what happens when the user picks two tables in quick succession.
+    let releaseTableOne
+    testApp.mock.onGet('/database/fields/table/1/').reply(
+      () =>
+        new Promise((resolve) => {
+          releaseTableOne = () =>
+            resolve([
+              200,
+              [{ id: 10, name: 'Stale', type: 'text', read_only: false }],
+            ])
+        })
+    )
+    testApp.mock
+      .onGet('/database/fields/table/2/')
+      .reply(200, [{ id: 20, name: 'Fresh', type: 'text', read_only: false }])
+
+    const wrapper = await mountAction('create_row', {})
+
+    wrapper.vm.values.service = { table_id: 1 }
+    await wrapper.vm.$nextTick()
+    wrapper.vm.values.service = { table_id: 2 }
+    await flushPromises()
+
+    expect(wrapper.vm.mappableFields.map((f) => f.name)).toEqual(['Fresh'])
+
+    // Table 1 answers last. Its response describes a table nobody has
+    // selected any more, so it must be discarded rather than applied.
+    releaseTableOne()
+    await flushPromises()
+
+    expect(wrapper.vm.mappableFields.map((f) => f.name)).toEqual(['Fresh'])
+    expect(wrapper.vm.fieldsLoading).toBe(false)
+  })
+
+  test('clearing the table lowers a spinner an in flight fetch raised', async () => {
+    await seedApplications()
+    let releaseTableOne
+    testApp.mock.onGet('/database/fields/table/1/').reply(
+      () =>
+        new Promise((resolve) => {
+          releaseTableOne = () => resolve([200, TABLE_FIELDS])
+        })
+    )
+
+    const wrapper = await mountAction('create_row', {})
+
+    wrapper.vm.values.service = { table_id: 1 }
+    await flushPromises()
+    expect(wrapper.vm.fieldsLoading).toBe(true)
+
+    // Changing database clears the table while the fetch is still running.
+    wrapper.vm.values.service = { table_id: null }
+    await flushPromises()
+
+    expect(wrapper.vm.fieldsLoading).toBe(false)
+    expect(wrapper.vm.mappableFields).toBeNull()
+
+    // The abandoned fetch answering must not re-raise or re-populate anything.
+    releaseTableOne()
+    await flushPromises()
+
+    expect(wrapper.vm.fieldsLoading).toBe(false)
+    expect(wrapper.vm.mappableFields).toBeNull()
+  })
+
   test('the delete row action asks for no fields and takes neither prop', async () => {
     await seedApplications()
 
