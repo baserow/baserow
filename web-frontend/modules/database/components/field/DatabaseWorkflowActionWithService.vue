@@ -63,6 +63,10 @@ export default {
       if (this.supportsFieldMappings) {
         props.mappableFields = this.mappableFields
         props.loading = this.fieldsLoading
+        // Nothing is saved when the table changes, so the form must not raise
+        // a spinner of its own: only `loading` above can lower one, and it
+        // never moves when the table is re-picked rather than changed.
+        props.savesOnTableChange = false
       }
       return props
     },

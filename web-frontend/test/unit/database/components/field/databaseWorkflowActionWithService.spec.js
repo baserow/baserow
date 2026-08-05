@@ -200,6 +200,74 @@ describe('DatabaseWorkflowActionWithService', () => {
     ).toEqual(['Company'])
   })
 
+  test('re-picking the table already selected keeps the mappings visible', async () => {
+    await seedApplications()
+    testApp.mock.onGet('/database/fields/table/2/').reply(200, TABLE_FIELDS)
+
+    const wrapper = await mountAction('create_row', { table_id: 2 })
+    await flushPromises()
+
+    const serviceForm = wrapper.findComponent({
+      name: 'LocalBaserowUpsertRowServiceForm',
+    })
+    expect(wrapper.findComponent({ name: 'FieldMappingsForm' }).exists()).toBe(
+      true
+    )
+
+    // The table dropdown is not clearable, so choosing the table that is
+    // already selected re-emits the same id. `table_id` never changes, so
+    // nothing refetches and nothing toggles the `loading` prop.
+    wrapper
+      .findComponent({ name: 'LocalBaserowServiceForm' })
+      .vm.$emit('table-changed', 2)
+    await flushPromises()
+
+    // The editor makes no round trip on a table change, so it must never raise
+    // a spinner it has no way of lowering: that hides the mappings for good.
+    expect(serviceForm.vm.tableLoading).toBe(false)
+    expect(wrapper.findComponent({ name: 'FieldMappingsForm' }).exists()).toBe(
+      true
+    )
+  })
+
+  test('the spinner covers the fetch a real table change starts', async () => {
+    await seedApplications()
+    testApp.mock.onGet('/database/fields/table/1/').reply(200, TABLE_FIELDS)
+    let releaseSecondFetch
+    testApp.mock.onGet('/database/fields/table/2/').reply(
+      () =>
+        new Promise((resolve) => {
+          releaseSecondFetch = () => resolve([200, TABLE_FIELDS])
+        })
+    )
+
+    const wrapper = await mountAction('create_row', { table_id: 1 })
+    await flushPromises()
+
+    const serviceForm = wrapper.findComponent({
+      name: 'LocalBaserowUpsertRowServiceForm',
+    })
+    expect(serviceForm.vm.tableLoading).toBe(false)
+
+    wrapper.vm.values.service = { table_id: 2 }
+    await flushPromises()
+
+    // Held open: the old table's mappings must not sit there looking current
+    // while the new table's are still in flight.
+    expect(serviceForm.vm.tableLoading).toBe(true)
+    expect(wrapper.findComponent({ name: 'FieldMappingsForm' }).exists()).toBe(
+      false
+    )
+
+    releaseSecondFetch()
+    await flushPromises()
+
+    expect(serviceForm.vm.tableLoading).toBe(false)
+    expect(wrapper.findComponent({ name: 'FieldMappingsForm' }).exists()).toBe(
+      true
+    )
+  })
+
   test('the delete row action asks for no fields and takes neither prop', async () => {
     await seedApplications()
 

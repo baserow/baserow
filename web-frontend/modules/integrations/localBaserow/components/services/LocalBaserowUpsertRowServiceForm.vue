@@ -151,6 +151,10 @@ export default {
       handler(value) {
         if (!value) {
           this.tableLoading = false
+        } else if (!this.savesOnTableChange) {
+          // A caller that saves nothing on a table change raises no spinner of
+          // its own, so `loading` is the only thing that can stand for one.
+          this.tableLoading = true
         }
       },
     },
