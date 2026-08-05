@@ -107,7 +107,8 @@
         "errorShowDetails": "세부정보 보기",
         "runNumber": "실행 {n}",
         "runCount": "{n} 실행",
-        "showResult": "결과 표시"
+        "showResult": "결과 표시",
+        "statusSkippedBadge": "건너뛰기됨"
     },
     "nodeType": {
         "triggerDeletionError": "트리거는 삭제할 수 없고, 교체만 가능합니다.",
@@ -140,7 +141,11 @@
         "localBaserowCreateRowsLabel": "{tableName} 테이블에 일괄적으로 행을 생성합니다",
         "localBaserowUpdateRowsLabel": "{tableName} 테이블의 행들을 일괄 업데이트합니다",
         "csvFileReaderLabel": "CSV 파일을 읽습니다",
-        "startWorkflowLabel": "{workflowName} 시작"
+        "startWorkflowLabel": "{workflowName} 시작",
+        "routerHistoryLabel": "{label} ({edge})",
+        "gotoNodeLabel": "노드로 이동",
+        "gotoNodeLabelWithDestination": "노드로 이동 → {destination}",
+        "gotoHistoryLabel": "{label} → {destination}"
     },
     "workflowNode": {
         "actionDelete": "삭제",
@@ -156,7 +161,9 @@
         "moreReplace": "교체",
         "nodeOptions": "노드 옵션",
         "displayLabelDebug": "ID: {id} | 이전: {previousNodeId} | {outputUid}",
-        "moreDuplicate": "복제"
+        "moreDuplicate": "복제",
+        "gotoMarkerSource": "마커 {marker}로 이동합니다",
+        "gotoMarkerDestination": "마커 {marker}의 목적지"
     },
     "workflowAddNode": {
         "displayTitle": "자동화 노드 생성"
