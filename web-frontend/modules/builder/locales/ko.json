@@ -185,7 +185,9 @@
     "pagePreview": {
         "emptyMessage": "첫 번째 요소를 생성하려면 클릭하세요",
         "footer": "푸터",
-        "header": "헤더"
+        "header": "헤더",
+        "fixedHeader": "고정 헤더",
+        "fixedFooter": "고정 푸터"
     },
     "elementForms": {
         "textInputPlaceholder": "텍스트 입력...",
@@ -266,7 +268,8 @@
         "embedLabel": "임베드",
         "embedPlaceholder": "삽입할 원시 HTML 콘텐츠",
         "heightLabel": "높이 (px)",
-        "heightPlaceholder": "최대 높이 입력"
+        "heightPlaceholder": "최대 높이 입력",
+        "warningTitle": "신뢰할 수 있는 콘텐츠만 사용하세요"
     },
     "columnElementForm": {
         "columnAmountTitle": "레이아웃",
