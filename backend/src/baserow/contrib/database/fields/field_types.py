@@ -151,6 +151,7 @@ from baserow.contrib.database.views.models import (
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
+from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
@@ -7997,6 +7998,17 @@ class ButtonFieldType(ReadOnlyFieldType):
             raise ButtonFieldLabelNotProvided(
                 "The label of a button field can't be empty."
             )
+
+    def enhance_field_queryset(self, queryset, field):
+        # `has_workflow_actions` is serialized for every button field, so
+        # without this a table's field list costs one query per button.
+        return queryset.annotate(
+            **{
+                ButtonField.HAS_WORKFLOW_ACTIONS_ANNOTATION: Exists(
+                    DatabaseWorkflowAction.objects.filter(field_id=OuterRef("pk"))
+                )
+            }
+        )
 
     def get_serializer_field(self, instance, **kwargs):
         # The cell holds nothing, so don't advertise the type of a placeholder

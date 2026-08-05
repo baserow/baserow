@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from django.db import connection
-from django.test.utils import override_settings
+from django.test.utils import CaptureQueriesContext, override_settings
 from django.urls import reverse
 
 import pytest
@@ -463,3 +463,47 @@ def test_button_field_reports_whether_it_has_actions(api_client, data_fixture):
     )
 
     assert get_payload()["has_workflow_actions"] is True
+
+
+@pytest.mark.django_db
+def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture):
+    """
+    `has_workflow_actions` is serialized for every button field, so it is
+    annotated in bulk rather than asked per field. Counting queries instead of
+    pinning a number, so the test says only what it means to.
+    """
+
+    from baserow.contrib.database.workflow_actions.models import (
+        CreateRowWorkflowAction,
+    )
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    url = reverse("api:database:fields:list", kwargs={"table_id": table.id})
+
+    def list_fields():
+        with CaptureQueriesContext(connection) as captured:
+            response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+            assert response.status_code == HTTP_200_OK, response.json()
+        return response.json(), len(captured)
+
+    first = data_fixture.create_button_field(table=table, label="One")
+    data_fixture.create_database_workflow_action(CreateRowWorkflowAction, field=first)
+
+    # The first request of the test warms content types and the generated
+    # model, which would otherwise show up as a saving rather than a cost.
+    list_fields()
+    _, one_button_queries = list_fields()
+
+    for label in ["Two", "Three", "Four"]:
+        extra = data_fixture.create_button_field(table=table, label=label)
+        data_fixture.create_database_workflow_action(
+            CreateRowWorkflowAction, field=extra
+        )
+
+    payload, four_button_queries = list_fields()
+
+    buttons = [field for field in payload if field["type"] == "button"]
+    assert len(buttons) == 4
+    assert all(field["has_workflow_actions"] is True for field in buttons)
+    assert four_button_queries == one_button_queries

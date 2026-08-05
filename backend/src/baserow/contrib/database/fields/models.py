@@ -1008,10 +1008,19 @@ class ButtonField(Field):
         ),
     )
 
+    # Set by `ButtonFieldType.enhance_field_queryset` when fields are fetched in
+    # bulk, so `has_workflow_actions` costs no query of its own there.
+    HAS_WORKFLOW_ACTIONS_ANNOTATION = "has_workflow_actions_annotated"
+
     @property
     def has_workflow_actions(self):
         # Derived, not stored: the cell only needs to know whether actions
-        # exist, not what they are.
+        # exist, not what they are. Falls back to its own query for a field
+        # fetched on its own, which carries no annotation.
+        annotated = getattr(self, self.HAS_WORKFLOW_ACTIONS_ANNOTATION, None)
+        if annotated is not None:
+            return annotated
+
         return self.workflow_actions.exists()
 
 
