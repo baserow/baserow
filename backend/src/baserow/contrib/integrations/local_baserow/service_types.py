@@ -192,24 +192,17 @@ class LocalBaserowServiceType(ServiceType):
 
         return dispatch_context.actor
 
-    def requires_integration(
-        self,
-        service: ServiceSubClass,
-        dispatch_context: Optional[DispatchContext] = None,
-    ) -> bool:
+    def requires_integration(self, service: ServiceSubClass) -> bool:
         """
-        A Local Baserow service needs an integration only to supply a user. When the
-        dispatch context already carries an actor, no integration is needed.
+        A Local Baserow service needs an integration only to supply a user, and a
+        dispatch source can supply one itself. `get_acting_user` refuses the
+        dispatch when neither is there.
 
         :param service: The service in question.
-        :param dispatch_context: The context the dispatch will run in, if any.
         :return: Whether an integration is required.
         """
 
-        if dispatch_context is not None and dispatch_context.actor is not None:
-            return False
-
-        return super().requires_integration(service, dispatch_context)
+        return False
 
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]
@@ -2173,13 +2166,13 @@ class LocalBaserowUpsertRowServiceType(
             else:
                 unwritable_fields.append(check.context)
 
-        # The builder, automation and dashboards skip the fields their
-        # integration's user cannot write and go on, which is what those
-        # products document. A dispatch source that runs as the person in front
-        # of the screen asks for the opposite, so a click never half writes a
-        # row without saying so (ADR 006 section 5). Raised before anything is
-        # written, so nothing lands.
-        if unwritable_fields and dispatch_context.requires_writable_fields:
+        # Without an integration the service runs as the person in front of the
+        # screen, so a field they cannot write fails the dispatch rather than
+        # being skipped (ADR 006 section 5). With one it runs as the
+        # integration's user on someone else's behalf, which is where the
+        # builder, automation and dashboards skip and go on. Raised before
+        # anything is written, so nothing lands.
+        if unwritable_fields and service.integration_id is None:
             names = ", ".join(sorted(field.name for field in unwritable_fields))
             raise PermissionDeniedDispatchException(
                 f"You don't have permission to write the following fields: {names}."

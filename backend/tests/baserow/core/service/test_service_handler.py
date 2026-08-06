@@ -245,17 +245,14 @@ def test_dispatch_local_baserow_get_row_service_missing_integration(data_fixture
 
 
 @pytest.mark.django_db
-def test_requires_integration_is_relaxed_when_the_context_has_an_actor(data_fixture):
+def test_a_local_baserow_service_never_requires_an_integration(data_fixture):
+    """An integration only supplies a user, and a dispatch source can supply one
+    itself, so the dispatch is refused by `get_acting_user` instead."""
+
     from baserow.contrib.integrations.local_baserow.service_types import (
         LocalBaserowUpsertRowServiceType,
     )
 
-    actor = data_fixture.create_user()
     service = data_fixture.create_local_baserow_upsert_row_service(integration=None)
-    service_type = LocalBaserowUpsertRowServiceType()
 
-    assert service_type.requires_integration(service, FakeDispatchContext()) is True
-    assert (
-        service_type.requires_integration(service, FakeDispatchContext(actor=actor))
-        is False
-    )
+    assert LocalBaserowUpsertRowServiceType().requires_integration(service) is False

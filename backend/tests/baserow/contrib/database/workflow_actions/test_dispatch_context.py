@@ -6,7 +6,6 @@ from baserow.contrib.database.data_providers.registries import (
 from baserow.contrib.database.workflow_actions.dispatch_context import (
     DatabaseDispatchContext,
 )
-from baserow.core.services.dispatch_context import DispatchContext
 
 
 @pytest.mark.django_db
@@ -89,25 +88,6 @@ def test_the_guard_does_not_break_clone(data_fixture):
 
     assert cloned.field == button_field
     assert cloned.row == row
-
-
-@pytest.mark.django_db
-def test_it_demands_every_mapped_field_be_writable(data_fixture):
-    """ADR 006 section 5. The flag is off on the base context, so the builder,
-    automation and dashboards keep skipping fields they cannot write."""
-
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    button_field = data_fixture.create_button_field(table=table, label="Go")
-    row = table.get_model().objects.create()
-
-    dispatch_context = DatabaseDispatchContext(user, button_field, row)
-
-    assert dispatch_context.requires_writable_fields is True
-    assert DispatchContext.requires_writable_fields is False
-    # A class attribute, so it must survive `clone()` without being listed in
-    # `own_properties`.
-    assert dispatch_context.clone().requires_writable_fields is True
 
 
 @pytest.mark.django_db

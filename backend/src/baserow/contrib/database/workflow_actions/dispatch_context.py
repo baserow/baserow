@@ -22,12 +22,6 @@ class DatabaseDispatchContext(DispatchContext):
 
     own_properties = ["field", "row"]
 
-    # A click runs as the clicker, so an action that would write a field they
-    # cannot write fails the click rather than quietly dropping that field the
-    # way the builder's upsert does (ADR 006 section 5). This is the only
-    # dispatch context that asks for it.
-    requires_writable_fields = True
-
     def __init__(
         self,
         actor: Optional[AbstractUser] = None,
