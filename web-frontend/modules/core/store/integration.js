@@ -117,7 +117,14 @@ const actions = {
     })
 
     try {
-      await IntegrationService($client).update(integration.id, values)
+      const { data: updatedIntegration } = await IntegrationService(
+        $client
+      ).update(integration.id, values)
+      await dispatch('forceUpdate', {
+        application,
+        integration,
+        values: updatedIntegration,
+      })
     } catch (error) {
       await dispatch('forceUpdate', {
         application,

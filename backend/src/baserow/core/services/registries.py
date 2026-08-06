@@ -377,6 +377,13 @@ class ServiceType(
         :return: The service `dispatch_data` result if any.
         """
 
+    def before_dispatch(
+        self,
+        service: ServiceSubClass,
+        dispatch_context: DispatchContext,
+    ) -> None:
+        """Hook called immediately before a service executes."""
+
     def dispatch(
         self,
         service: ServiceSubClass,
@@ -402,6 +409,8 @@ class ServiceType(
             is not None
         ):
             return DispatchResult(**sample_data)
+
+        self.before_dispatch(service, dispatch_context)
 
         try:
             # Wrap the dispatch in a savepoint so that, if any of these

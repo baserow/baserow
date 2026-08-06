@@ -1197,20 +1197,71 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     can execute an operation.
     """
 
-    def is_in_workspace(self, subject: Subject, workspace: "Workspace") -> bool:
+    # Interactive users can persist undoable actions and emit product analytics.
+    is_interactive_user = False
+    display_name_field: Optional[str] = None
+
+    def get_display_name(self, subject: Subject) -> str:
+        """Return the snapshot-friendly name used to identify a subject."""
+
+        return str(subject)
+
+    def get_type_display_name(self) -> str:
+        """Return the human-readable name of this subject type."""
+
+        return self.type
+
+    def get_queryset(self, workspace_id: Optional[int] = None) -> Optional[QuerySet]:
+        """Return subjects matching the workspace scope, if listable."""
+
+        return None
+
+    def get_label(self, subject: Subject) -> str:
+        """Return the label shown when this subject is presented as an option."""
+
+        return self.get_display_name(subject)
+
+    def get_workspace_role_uids(
+        self,
+        subjects: List[Subject],
+        workspace: "Workspace",
+        include_trash: bool = False,
+    ) -> Optional[Dict[int, str]]:
+        """Return direct workspace role UIDs, or `None` when unsupported."""
+
+        return None
+
+    def is_workspace_role_fallback(self, role_uid: str) -> bool:
+        """Return whether a direct workspace role should defer to inherited roles."""
+
+        return False
+
+    def is_in_workspace(
+        self,
+        subject: Subject,
+        workspace: "Workspace",
+        include_trash: bool = False,
+    ) -> bool:
         """
         This function checks if a subject belongs to a workspace
+        :param include_trash: Whether trashed workspace memberships should count.
         :return: If the subject belongs to the workspace
         """
 
-        return self.are_in_workspace([subject], workspace)[0]
+        return self.are_in_workspace([subject], workspace, include_trash=include_trash)[
+            0
+        ]
 
     @abc.abstractmethod
     def are_in_workspace(
-        self, subjects: List[Subject], workspace: "Workspace"
+        self,
+        subjects: List[Subject],
+        workspace: "Workspace",
+        include_trash: bool = False,
     ) -> List[bool]:
         """
         This function checks if the subjects belongs to a workspace
+        :param include_trash: Whether trashed workspace memberships should count.
         :return: a list of bool. For each index whether the user at the same index
             belongs to the workspace or not
         """

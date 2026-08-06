@@ -72,8 +72,9 @@
     "nameTitle": "Name",
     "roleTitle": "Default role",
     "inviteMembers": "Add members",
+    "agentLabel": "Agent",
     "membersTitle": "Members",
-    "noSubjectsSelected": "Click '{buttonLabel}' to optionally add team users.",
+    "noSubjectsSelected": "Click '{buttonLabel}' to optionally add team members.",
     "roleHelpText": "User specific roles will always override Team roles."
   },
   "editTeamContext": {
@@ -91,6 +92,10 @@
   },
   "subjectSampleField": {
     "titleAttr": "{subjectCount} members in this team."
+  },
+  "enterpriseAgents": {
+    "teams": "Teams",
+    "noTeams": "No teams"
   },
   "teamsSettings": {
     "teamsTabTitle": "Teams"
@@ -191,13 +196,15 @@
     "adminTitle": "Audit log",
     "workspaceTitle": "Audit log - {workspaceName}",
     "filterUserTitle": "User",
+    "filterActorTitle": "Actor",
     "filterWorkspaceTitle": "Workspace",
     "filterActionTypeTitle": "Event Type",
     "filterFromTimestampTitle": "From Date",
     "filterFromTimestamp": "From Date",
     "filterToTimestampTitle": "To Date",
     "filterToTimestamp": "To Date",
-    "user": "User",
+    "user": "Actor",
+    "actorType": "Actor type",
     "workspace": "Workspace",
     "actionType": "Event Type",
     "description": "Description",
@@ -207,8 +214,12 @@
     "exportModalTitle": "Export to CSV",
     "clearFilters": "Clear",
     "allUsers": "All Users",
+    "allActors": "All Actors",
+    "usersSection": "Users",
+    "agentsSection": "Agents",
     "allWorkspaces": "All Workspaces",
-    "allActionTypes": "All Event Types"
+    "allActionTypes": "All Event Types",
+    "actorDisplay": "{name} ({id})"
   },
   "auditLogExportModal": {
     "title": "Export to CSV",
@@ -356,6 +367,7 @@
   },
   "roleAssignmentModal": {
     "membersTab": "Members",
+    "agentsTab": "Agents",
     "teamsTab": "Teams",
     "subjectTypeNameMembers": "members",
     "subjectTypeNameTeams": "teams"
@@ -368,13 +380,22 @@
     "searchPlaceholder": "Find teams...",
     "selectedAmountLabel": "{count} teams selected"
   },
+  "selectAgentsList": {
+    "searchPlaceholder": "Find agents...",
+    "selectedAmountLabel": "{count} agents selected"
+  },
+  "subjectType": {
+    "team": "Team",
+    "teams": "Teams"
+  },
   "selectSubjectsListFooter": {
     "invite": "Invite {count} {type}",
     "types": {
       "members": "members",
+      "agents": "agents",
       "teams": "teams"
     },
-    "helpTooltip": "Member role assignments override team role assignments."
+    "helpTooltip": "Member and Agent role assignments override team role assignments."
   },
   "membersRoleField": {
     "noAccessHelpText": "This user requires explicit access to resources.",

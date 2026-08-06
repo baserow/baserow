@@ -527,11 +527,11 @@ def test_cancel_user_deletion(data_fixture, mailoutbox):
 def test_delete_expired_users_and_related_workspaces_if_last_admin(
     data_fixture, mailoutbox, django_capture_on_commit_callbacks
 ):
-    user1 = data_fixture.create_user(email="test1@localhost", to_be_deleted=True)
-    user2 = data_fixture.create_user(email="test2@localhost", to_be_deleted=True)
+    user1 = data_fixture.create_user(email="test1@localhost")
+    user2 = data_fixture.create_user(email="test2@localhost")
     user3 = data_fixture.create_user(email="test3@localhost")
     user4 = data_fixture.create_user(email="test4@localhost")
-    user5 = data_fixture.create_user(email="test5@localhost", to_be_deleted=True)
+    user5 = data_fixture.create_user(email="test5@localhost")
     user6 = data_fixture.create_user(email="test6@localhost", is_active=False)
 
     connection = connections["default"]
@@ -605,6 +605,12 @@ def test_delete_expired_users_and_related_workspaces_if_last_admin(
     workspaceuser7 = data_fixture.create_user_workspace(
         user=user7, permissions="MEMBER"
     )
+
+    # Scheduled-for-deletion users cannot perform permission-checked setup actions.
+    # Build their existing resources first, then schedule their deletion.
+    for user in (user1, user2, user5):
+        user.profile.to_be_deleted = True
+        user.profile.save(update_fields=("to_be_deleted",))
 
     handler = UserHandler()
 

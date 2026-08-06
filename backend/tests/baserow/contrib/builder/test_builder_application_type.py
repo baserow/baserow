@@ -630,6 +630,7 @@ def test_builder_application_export(data_fixture):
         ],
         "integrations": [
             {
+                "authorized_agent": None,
                 "authorized_user": None,
                 "id": integration.id,
                 "name": "test",

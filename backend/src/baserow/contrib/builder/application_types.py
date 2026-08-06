@@ -298,6 +298,7 @@ class BuilderApplicationType(ApplicationType):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> List[Integration]:
         """
         Import integrations to builder. This method has to be compatible with the output
@@ -323,6 +324,7 @@ class BuilderApplicationType(ApplicationType):
                 builder,
                 serialized_integration,
                 id_mapping,
+                import_export_config=import_export_config,
                 cache=self.cache,
                 files_zip=files_zip,
                 storage=storage,
@@ -444,6 +446,7 @@ class BuilderApplicationType(ApplicationType):
                 files_zip,
                 storage,
                 progress.create_child_builder(represents_progress=integration_progress),
+                import_export_config=import_export_config,
             )
 
         if not serialized_user_sources:

@@ -1,0 +1,53 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EditRoleContext > can hide all commercial role information 1`] = `
+"<div overflow-scroll="" max-height-if-outside-viewport="">
+  <div class="context__menu-title">
+    <div class="edit-role-context__header">
+      <div>membersSettings.membersTable.columns.role</div>
+      <!--v-if-->
+    </div>
+  </div>
+  <ul class="context__menu context__menu--can-be-active">
+    <li class="context__menu-item"><a class="context__menu-item-link context__menu-item-link--with-desc active"><span class="context__menu-item-title">Member <!--v-if--><!--v-if--></span>
+        <!--v-if--><i class="context__menu-active-icon iconoir-check"></i>
+      </a>
+      <!--v-if-->
+    </li>
+    <li class="context__menu-item"><a class="context__menu-item-link context__menu-item-link--with-desc"><span class="context__menu-item-title">Admin <!--v-if--><!--v-if--></span>
+        <!--v-if-->
+        <!--v-if-->
+      </a>
+      <!--v-if-->
+    </li>
+    <!--v-if-->
+  </ul>
+</div>"
+`;
+
+exports[`EditRoleContext > shows commercial role information by default 1`] = `
+"<div overflow-scroll="" max-height-if-outside-viewport="">
+  <div class="context__menu-title">
+    <div class="edit-role-context__header">
+      <div>membersSettings.membersTable.columns.role</div>
+      <div class="edit-role-context__header-link"><i class="iconoir-book"></i><a href="https://baserow.io/user-docs/subscriptions-overview#who-is-considered-a-user-for-billing-purposes" target="_blank">editRoleContext.billableRolesLink</a></div>
+    </div>
+  </div>
+  <ul class="context__menu context__menu--can-be-active">
+    <li class="context__menu-item"><a class="context__menu-item-link context__menu-item-link--with-desc active"><span class="context__menu-item-title">Member <span class="badge" color="yellow" size="small" bold="">common.free</span>
+        <!--v-if--></span>
+        <!--v-if--><i class="context__menu-active-icon iconoir-check"></i>
+      </a>
+      <!--v-if-->
+    </li>
+    <li class="context__menu-item"><a class="context__menu-item-link context__menu-item-link--with-desc"><span class="context__menu-item-title">Admin <span class="badge" color="cyan" size="small" bold="">common.billable</span>
+        <!--v-if--></span>
+        <!--v-if-->
+        <!--v-if-->
+      </a>
+      <!--v-if-->
+    </li>
+    <!--v-if-->
+  </ul>
+</div>"
+`;

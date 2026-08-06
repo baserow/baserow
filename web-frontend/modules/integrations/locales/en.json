@@ -11,6 +11,7 @@
   },
   "localBaserowIntegrationType": {
     "localBaserowSummary": "Local Baserow - {name}, {username}",
+    "localBaserowAgentSummary": "Local Baserow - Agent: {name}",
     "localBaserowNoUser": "Local Baserow - Not configured",
     "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It's possible to create a second user, give the right permissions and use that one."
   },
@@ -105,8 +106,9 @@
     "localBaserow": "Baserow table authentication"
   },
   "localBaserowForm": {
-    "user": "User",
-    "userMessage": "By creating this connection, you're authorizing the application to use your account to make changes in your local Baserow workspace."
+    "subject": "Authenticate as",
+    "currentUser": "My user account",
+    "subjectMessage": "Actions use the permissions of the selected user or agent. Agent actions are identified as such in the audit log."
   },
   "aiForm": {
     "description": "Configure AI provider settings for this integration. By default, workspace AI settings are inherited.",

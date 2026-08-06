@@ -14,8 +14,10 @@
           :scope="applicationScope"
           :role-assignments="databaseRoleAssignments"
           :teams="teams"
+          :agents="agents"
           scope-type="application"
           @invite-members="inviteDatabaseMembers"
+          @invite-agents="inviteDatabaseAgents"
           @invite-teams="inviteDatabaseTeams"
           @role-updated="
             (ra, role) => updateRole(databaseRoleAssignments, ra, role)
@@ -32,8 +34,10 @@
           :scope="table"
           :role-assignments="tableRoleAssignments"
           :teams="teams"
+          :agents="agents"
           scope-type="database_table"
           @invite-members="inviteTableMembers"
+          @invite-agents="inviteTableAgents"
           @invite-teams="inviteTableTeams"
           @role-updated="
             (ra, role) => updateRole(tableRoleAssignments, ra, role)
@@ -50,8 +54,10 @@
           :scope="view"
           :role-assignments="viewRoleAssignments"
           :teams="teams"
+          :agents="agents"
           scope-type="database_view"
           @invite-members="inviteViewMembers"
+          @invite-agents="inviteViewAgents"
           @invite-teams="inviteViewTeams"
           @role-updated="
             (ra, role) => updateRole(viewRoleAssignments, ra, role)
@@ -66,6 +72,7 @@
 import error from '@baserow/modules/core/mixins/error'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
 import TeamService from '@baserow_enterprise/services/team'
+import AgentService from '@baserow/modules/core/services/agent'
 import Modal from '@baserow/modules/core/mixins/modal'
 import MemberRolesTab from '@baserow_enterprise/components/member-roles/MemberRolesTab'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -104,6 +111,7 @@ export default {
       viewRoleAssignments: [],
       selectedTabIndex: 0,
       teams: [],
+      agents: [],
       loading: false,
     }
   },
@@ -163,7 +171,11 @@ export default {
 
       this.loading = true
       try {
-        await Promise.all([this.fetchMembers(), this.fetchTeams()])
+        await Promise.all([
+          this.fetchMembers(),
+          this.fetchTeams(),
+          this.fetchAgents(),
+        ])
       } finally {
         this.loading = false
       }
@@ -221,6 +233,20 @@ export default {
         )
       }
     },
+    async fetchAgents() {
+      try {
+        const { data } = await AgentService(this.$client).list(
+          this.workspace.id
+        )
+        this.agents = data.results || data
+      } catch (error) {
+        this.agents = []
+        this.showError(
+          this.$t('memberRolesModal.error.title'),
+          this.$t('memberRolesModal.error.description')
+        )
+      }
+    },
     async inviteDatabaseMembers(members, role) {
       const roleAssignments = await this.invite(
         members,
@@ -236,6 +262,17 @@ export default {
       const roleAssignments = await this.invite(
         teams,
         'baserow_enterprise.Team',
+        role,
+        'application',
+        this.applicationScope.id
+      )
+      this.databaseRoleAssignments =
+        this.databaseRoleAssignments.concat(roleAssignments)
+    },
+    async inviteDatabaseAgents(agents, role) {
+      const roleAssignments = await this.invite(
+        agents,
+        'core.Agent',
         role,
         'application',
         this.applicationScope.id
@@ -265,6 +302,17 @@ export default {
       this.tableRoleAssignments =
         this.tableRoleAssignments.concat(roleAssignments)
     },
+    async inviteTableAgents(agents, role) {
+      const roleAssignments = await this.invite(
+        agents,
+        'core.Agent',
+        role,
+        'database_table',
+        this.table.id
+      )
+      this.tableRoleAssignments =
+        this.tableRoleAssignments.concat(roleAssignments)
+    },
     async inviteViewMembers(members, role) {
       const roleAssignments = await this.invite(
         members,
@@ -287,17 +335,23 @@ export default {
       this.viewRoleAssignments =
         this.viewRoleAssignments.concat(roleAssignments)
     },
+    async inviteViewAgents(agents, role) {
+      const roleAssignments = await this.invite(
+        agents,
+        'core.Agent',
+        role,
+        'database_view',
+        this.view.id
+      )
+      this.viewRoleAssignments =
+        this.viewRoleAssignments.concat(roleAssignments)
+    },
     async invite(subjects, subjectType, role, scopeType, scopeId) {
       this.loading = true
 
-      // Different subject types store their id in different fields
-      const subjectTypeToIdKeyMap = {
-        'auth.User': 'user_id',
-        'baserow_enterprise.Team': 'id',
-      }
-      const subjectTypeIdKey = subjectTypeToIdKeyMap[subjectType]
+      const registeredSubjectType = this.$registry.get('subject', subjectType)
       const items = subjects.map((subject) => ({
-        subject_id: subject[subjectTypeIdKey],
+        subject_id: registeredSubjectType.getId(subject),
         subject_type: subjectType,
         scope_id: scopeId,
         scope_type: scopeType,

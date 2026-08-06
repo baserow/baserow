@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -41,7 +42,10 @@ class IntegrationType(
         return queryset
 
     def prepare_values(
-        self, values: Dict[str, Any], user: AbstractUser
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        application: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         The prepare_values hook gives the possibility to change the provided values
@@ -80,11 +84,13 @@ class IntegrationType(
         files_zip=None,
         storage=None,
         cache=None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> IntegrationSubClass:
         return super().import_serialized(
             parent,
             serialized_values,
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

@@ -3,7 +3,7 @@ from django.urls import re_path
 from .views import (
     AsyncAuditLogExportView,
     AuditLogActionTypeFilterView,
-    AuditLogUserFilterView,
+    AuditLogActorFilterView,
     AuditLogView,
 )
 
@@ -11,7 +11,7 @@ app_name = "baserow_enterprise.api.audit_log"
 
 urlpatterns = [
     re_path(r"^$", AuditLogView.as_view(), name="list"),
-    re_path(r"users/$", AuditLogUserFilterView.as_view(), name="users"),
+    re_path(r"actors/$", AuditLogActorFilterView.as_view(), name="actors"),
     re_path(
         r"action-types/$", AuditLogActionTypeFilterView.as_view(), name="action_types"
     ),

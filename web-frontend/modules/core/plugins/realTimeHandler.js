@@ -636,6 +636,19 @@ export class RealTimeHandler {
       })
     })
 
+    this.registerEvent('agent_created', ({ store }, data) => {
+      store.dispatch('agent/forceCreate', data.agent)
+    })
+    this.registerEvent('agent_updated', ({ store }, data) => {
+      store.dispatch('agent/forceUpdate', data.agent)
+    })
+    this.registerEvent('agent_deleted', ({ store }, data) => {
+      store.dispatch('agent/forceDelete', {
+        workspaceId: data.workspace_id,
+        agentId: data.agent_id,
+      })
+    })
+
     this.registerEvent('application_created', ({ store }, data) => {
       store.dispatch('application/forceCreate', data.application)
     })

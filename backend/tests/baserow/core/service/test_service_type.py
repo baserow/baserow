@@ -260,6 +260,24 @@ def test_dispatch_returns_sample_data_when_simulated():
 
 
 @pytest.mark.django_db
+def test_dispatch_calls_before_dispatch_hook():
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+    service_type.resolve_service_formulas = MagicMock(return_value={})
+    service_type.dispatch_data = MagicMock()
+    service_type.dispatch_transform = MagicMock()
+    service_type.before_dispatch = MagicMock()
+
+    service = MagicMock()
+    dispatch_context = FakeDispatchContext(use_sample_data=False)
+
+    service_type.dispatch(service, dispatch_context)
+
+    service_type.before_dispatch.assert_called_once_with(service, dispatch_context)
+
+
+@pytest.mark.django_db
 def test_dispatch_even_if_simulated_when_updated():
     """
     Ensure that when dispatch_context.is_simulated is True, the cached sample

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
+from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
@@ -34,7 +35,7 @@ class OperationPermissionContent(TypedDict):
 
 class RolePermissionManagerType(PermissionManagerType):
     type = "role"
-    supported_actor_types = [UserSubjectType.type]
+    supported_actor_types = [UserSubjectType.type, AgentSubjectType.type]
 
     def is_enabled(self, workspace: Workspace):
         """

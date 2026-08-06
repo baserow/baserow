@@ -20,10 +20,12 @@ from baserow.contrib.integrations.local_baserow.models import (
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.action.models import Action
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Agent
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
@@ -34,12 +36,17 @@ from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
 @pytest.mark.django_db
-def test_local_baserow_create_rows_service_dispatch_data(data_fixture):
+def test_local_baserow_create_rows_service_dispatch_data(
+    data_fixture, django_capture_on_commit_callbacks
+):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
+    agent = Agent.objects.create(workspace=page.builder.workspace, name="Row writer")
+    integration.authorized_agent = agent
+    integration.save(update_fields=["authorized_agent"])
     database = data_fixture.create_database_application(
         workspace=page.builder.workspace
     )
@@ -66,9 +73,14 @@ def test_local_baserow_create_rows_service_dispatch_data(data_fixture):
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    dispatch_data = service_type.dispatch_data(
-        service, dispatch_values, dispatch_context
-    )
+    with (
+        patch("baserow.ws.registries.PageType.broadcast"),
+        patch("baserow.ws.registries.PageType.broadcast_many"),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        dispatch_data = service_type.dispatch_data(
+            service, dispatch_values, dispatch_context
+        )
 
     assert [getattr(row, ingredient.db_column) for row in dispatch_data["data"]] == [
         "Bread",
@@ -79,6 +91,7 @@ def test_local_baserow_create_rows_service_dispatch_data(data_fixture):
 
     assert dispatch_result.data["results"][0]["Ingredient"] == "Bread"
     assert dispatch_result.data["results"][1]["Ingredient"] == "Butter"
+    assert not Action.objects.filter(type="create_rows").exists()
 
 
 @pytest.mark.django_db
@@ -644,13 +657,14 @@ def test_local_baserow_update_rows_service_dispatch_data_rejects_duplicate_ids(
 
 
 @pytest.mark.django_db
-def test_local_baserow_upsert_row_service_dispatch_data_without_row_id(
+def test_local_baserow_upsert_row_service_dispatch_data_with_published_agent(
     data_fixture,
 ):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
+    agent = Agent.objects.create(workspace=page.builder.workspace, name="Row writer")
     integration = data_fixture.create_local_baserow_integration(
-        application=page.builder, user=user
+        application=page.builder, user=user, authorized_agent=agent
     )
     database = data_fixture.create_database_application(
         workspace=page.builder.workspace
@@ -669,6 +683,10 @@ def test_local_baserow_upsert_row_service_dispatch_data_without_row_id(
         integration=integration,
         table=table,
     )
+    page.builder.workspace = None
+    page.builder.save(update_fields=["workspace"])
+    service.refresh_from_db()
+    assert service.integration.application.workspace is None
     service_type = service.get_type()
     service.field_mappings.create(field=ingredient, value='get("page_parameter.id")')
 
@@ -676,9 +694,10 @@ def test_local_baserow_upsert_row_service_dispatch_data_without_row_id(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    dispatch_data = service_type.dispatch_data(
-        service, dispatch_values, dispatch_context
-    )
+    with override_settings(PERMISSION_MANAGERS=["write_field_values", "basic"]):
+        dispatch_data = service_type.dispatch_data(
+            service, dispatch_values, dispatch_context
+        )
 
     assert getattr(dispatch_data["data"], ingredient.db_column) == str(
         formula_context["page_parameter"]["id"]
