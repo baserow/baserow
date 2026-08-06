@@ -144,7 +144,7 @@ Get the password for the postgresql user
 {{- define "baserow.global.postgresql.password" -}}
   {{- if .Values.postgresql.enabled -}}
   {{- if .Values.postgresql.auth.existingSecret -}}
-    {{- include "getValueFromSecret" (dict "Namespace" (include "common.names.namespace" .Subcharts.postgresq) "Name" (include "postgresql.v1.secretName" .Subcharts.postgresq) "Length" 10 "Key" (include "postgresql.v1.userPasswordKey" .Subcharts.postgresq))  -}}
+    {{- include "getValueFromSecret" (dict "Namespace" (include "common.names.namespace" .Subcharts.postgresql) "Name" (include "postgresql.v1.secretName" .Subcharts.postgresql) "Length" 10 "Key" (include "postgresql.v1.userPasswordKey" .Subcharts.postgresql))  -}}
   {{- else if .Values.postgresql.auth.password -}}
     {{ .Values.postgresql.auth.password }}
   {{- end -}}

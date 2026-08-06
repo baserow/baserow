@@ -480,11 +480,12 @@ caddy:
 
 ### Ingress Configuration
 
-| Name                                              | Description                                | Value                                     |
-| ------------------------------------------------- | ------------------------------------------ | ----------------------------------------- |
-| `ingress.enabled`                                 | Enable the Ingress resource                | `true`                                    |
-| `ingress.annotations.kubernetes.io/ingress.class` | Ingress class annotation                   | `{"kubernetes.io/ingress.class":"caddy"}` |
-| `ingress.tls`                                     | TLS configuration for the Ingress resource | `[]`                                      |
+| Name                                              | Description                                                                    | Value                                     |
+| ------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------- |
+| `ingress.enabled`                                 | Enable the Ingress resource                                                    | `true`                                    |
+| `ingress.className`                               | IngressClass to handle the Ingress resource, omitted from the manifest when empty | `""`                                   |
+| `ingress.annotations.kubernetes.io/ingress.class` | Ingress class annotation                                                       | `{"kubernetes.io/ingress.class":"caddy"}` |
+| `ingress.tls`                                     | TLS configuration for the Ingress resource                                     | `[]`                                      |
 
 ### Redis Configuration
 
