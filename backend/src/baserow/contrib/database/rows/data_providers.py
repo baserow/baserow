@@ -12,6 +12,35 @@ if TYPE_CHECKING:
     )
 
 
+def _import_field_path(path: List[str], id_mapping: Dict[str, Any]) -> List[str]:
+    """
+    Points a `field_25` path segment at the imported field, so a duplicated table
+    or an imported database reads the field of the copy rather than the one the
+    formula was written against.
+    """
+
+    if len(path) != 1 or "database_fields" not in id_mapping:
+        return path
+
+    field_dbname = path[0]
+
+    # Paths that are not field references are not ours to remap.
+    if not str(field_dbname).startswith("field_"):
+        return path
+
+    new_field_id = id_mapping["database_fields"].get(
+        get_field_id_from_field_key(field_dbname)
+    )
+
+    # A field missing from the mapping was trashed or never exported. The
+    # reference is kept as it is: the import must not fail, and the broken state
+    # surfaces at dispatch.
+    if not new_field_id:
+        return path
+
+    return [f"field_{new_field_id}"]
+
+
 class HumanReadableFieldsDataProviderType(DataProviderType):
     """
     This data provider type is used to read the human-readable values for the row
@@ -45,6 +74,11 @@ class HumanReadableFieldsDataProviderType(DataProviderType):
             return None
 
         return row_values.get(first_part, "")
+
+    def import_path(
+        self, path: List[str], id_mapping: Dict[str, Any], **kwargs
+    ) -> List[str]:
+        return _import_field_path(path, id_mapping)
 
 
 class RowDataProviderType(DataProviderType):
@@ -97,29 +131,6 @@ class RowDataProviderType(DataProviderType):
     def import_path(
         self, path: List[str], id_mapping: Dict[str, Any], **kwargs
     ) -> List[str]:
-        """
-        Points a `get('row.field_25')` at the imported field, so a duplicated
-        table or an imported database writes the field of the copy rather than
-        the one the formula was written against.
-        """
-
-        if len(path) != 1 or "database_fields" not in id_mapping:
-            return path
-
-        field_dbname = path[0]
-
-        # `row.id` is the only other path this provider serves, and it is not a
-        # field reference. Anything else isn't ours to remap either.
-        if not str(field_dbname).startswith("field_"):
-            return path
-
-        field_id = get_field_id_from_field_key(field_dbname)
-        new_field_id = id_mapping["database_fields"].get(field_id)
-
-        # A field missing from the mapping was trashed or never exported. The
-        # reference is kept as it is, the same as the `open_url` action's url:
-        # the import must not fail, and the broken state surfaces at dispatch.
-        if not new_field_id:
-            return path
-
-        return [f"field_{new_field_id}"]
+        # `row.id` is the only other path this provider serves, and the helper
+        # leaves it alone since it is not a field reference.
+        return _import_field_path(path, id_mapping)

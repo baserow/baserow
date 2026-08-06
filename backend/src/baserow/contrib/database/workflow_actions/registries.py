@@ -52,6 +52,52 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
             "This workflow action type cannot be dispatched."
         )
 
+    def import_serialized(
+        self,
+        parent,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        Imports the action, and defers remapping the references inside its
+        formulas, such as an `open_url` url of `get('fields.field_25')` or a
+        field mapping value of `get('row.field_25')`.
+
+        `deserialize_property` only reaches the FK-shaped references, so without
+        this second step a duplicated table keeps a formula naming the original
+        table's field and silently reads the wrong one (ADR 006 section 6).
+
+        Deferred because a formula can name a field of an application that is
+        not imported yet, so `id_mapping` does not know it.
+        """
+
+        created_instance = super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
+            files_zip,
+            storage,
+            cache,
+            **kwargs,
+        )
+
+        def import_action_formulas():
+            # `id_mapping` is the same dict throughout an import, so by now it
+            # holds every application's ids.
+            updated_models = self.import_formulas(
+                created_instance, id_mapping, import_formula, **kwargs
+            )
+            for updated_model in updated_models:
+                updated_model.save()
+
+        register_deferred_callback(import_action_formulas)
+
+        return created_instance
+
 
 class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     service_type = None  # Must be implemented by subclasses.
@@ -181,52 +227,6 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
         values["service"] = service
         return super().prepare_values(values, user, instance)
-
-    def import_serialized(
-        self,
-        parent,
-        serialized_values,
-        id_mapping,
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ):
-        """
-        Imports the action, and defers remapping the references inside the
-        formulas its service stores, such as a field mapping value of
-        `get('row.field_25')`.
-
-        `deserialize_property` only reaches the FK-shaped references, so without
-        this second step a duplicated table keeps a formula naming the original
-        table's field and silently reads the wrong one (ADR 006 section 6).
-
-        Deferred because a formula can name a field of an application that is
-        not imported yet, so `id_mapping` does not know it.
-        """
-
-        created_instance = super().import_serialized(
-            parent,
-            serialized_values,
-            id_mapping,
-            files_zip,
-            storage,
-            cache,
-            **kwargs,
-        )
-
-        def import_action_formulas():
-            # `id_mapping` is the same dict throughout an import, so by now it
-            # holds every application's ids.
-            updated_models = self.import_formulas(
-                created_instance, id_mapping, import_formula, **kwargs
-            )
-            for updated_model in updated_models:
-                updated_model.save()
-
-        register_deferred_callback(import_action_formulas)
-
-        return created_instance
 
     def formula_generator(
         self, workflow_action: WorkflowAction
