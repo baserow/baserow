@@ -607,10 +607,18 @@ baserow-embeddings:
 ## @section Ingress Configuration
 ## Configuration for the Ingress resource
 ## @param ingress.enabled Enable the Ingress resource
+## @param ingress.className IngressClass to handle the Ingress resource, omitted from the manifest when empty
 ## @param ingress.annotations.kubernetes.io/ingress.class Ingress class annotation
 ## @param ingress.tls TLS configuration for the Ingress resource
+## Example:
+## tls:
+##   - hosts:
+##       - baserow.mydomain.com
+##     secretName: baserow-tls
+##
 ingress:
   enabled: true
+  className: ""
   annotations:
     kubernetes.io/ingress.class: caddy
   tls: []

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix the Helm chart ingress backend service names, the postgresql existing-secret lookup, the serviceAccount annotations, the liveness and readiness probe toggles and the pod OTEL attributes",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-06"
+}
