@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix the Helm chart failing to render when ingress.tls is set",
+    "issue_origin": "github",
+    "issue_number": 4404,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-06"
+}
