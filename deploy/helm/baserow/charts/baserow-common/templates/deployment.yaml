@@ -53,17 +53,11 @@ spec:
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
           {{- end }}
-          {{- if .Values.readinessProbe.enabled }}
-          {{- with .Values.livenessProbe }}
-          livenessProbe:
-            {{ toYaml . | nindent 12 }}
-          {{- end }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe: {{- omit .Values.livenessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
           {{- if .Values.readinessProbe.enabled }}
-          {{- with .Values.readinessProbe }}
-          readinessProbe:
-            {{ toYaml . | nindent 12 }}
-          {{- end }}
+          readinessProbe: {{- omit .Values.readinessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
           {{- if or .Values.global.baserow.containerSecurityContext.enabled .Values.containerSecurityContext.enabled }}
           securityContext: {{- include "baserow.containerSecurityContext" . | nindent 12 }}
@@ -89,13 +83,13 @@ spec:
             - name: K8S_POD_UID
               valueFrom:
                 fieldRef:
-                  fieldPath: metadata.name
+                  fieldPath: metadata.uid
             - name: K8S_POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "k8s.container.name=$(K8S_POD_NAME),k8s.node.name=$(K8S_NODE_NAME),k8s.pod.name=$(K8S_POD_NAME),k8s.pod.uid=$(K8S_POD_UID),k8s.namespace.name=$(K8S_POD_NAMESPACE),k8s.resource.type=container"
+              value: "k8s.container.name={{ include "baserow.fullname" . }},k8s.node.name=$(K8S_NODE_NAME),k8s.pod.name=$(K8S_POD_NAME),k8s.pod.uid=$(K8S_POD_UID),k8s.namespace.name=$(K8S_POD_NAMESPACE),k8s.resource.type=container"
             - name: HOST_IP
               valueFrom:
                 fieldRef:
