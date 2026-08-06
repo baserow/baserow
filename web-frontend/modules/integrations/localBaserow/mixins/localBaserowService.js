@@ -33,14 +33,15 @@ export default {
       default: false,
     },
     /**
-     * Determines whether the integration picker is enabled in this service form.
-     * If enabled, the user can select an integration to use for this service.
-     * By default, it is disabled.
+     * The databases to choose a table from. Supplied by the wrapper of the
+     * application type the form is rendered in, which knows where they come
+     * from: an integration for the builder and automation, the workspace for a
+     * button field.
      */
-    enableIntegrationPicker: {
-      type: Boolean,
+    databases: {
+      type: Array,
       required: false,
-      default: false,
+      default: () => [],
     },
   },
   methods: {

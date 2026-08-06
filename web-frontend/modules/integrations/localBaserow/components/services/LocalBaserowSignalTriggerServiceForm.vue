@@ -6,6 +6,7 @@
       :service-type="serviceType"
       :default-values="defaultValues"
       :enable-view-picker="false"
+      :databases="databases"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
   </form>
@@ -30,6 +31,14 @@ export default defineComponent({
     serviceType: {
       type: Object,
       required: true,
+    },
+    /**
+     * The databases to choose a table from, forwarded to the service form.
+     */
+    databases: {
+      type: Array,
+      required: false,
+      default: () => [],
     },
   },
   emits: ['values-changed'],

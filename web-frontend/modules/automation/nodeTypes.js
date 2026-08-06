@@ -19,6 +19,7 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import LocalBaserowNodeServiceForm from '@baserow/modules/automation/components/workflow/LocalBaserowNodeServiceForm'
 import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 import {
@@ -363,6 +364,15 @@ export class NodeType extends Registerable {
 }
 
 export class LocalBaserowNodeType extends NodeType {
+  /**
+   * An automation node picks its own integration, so the service form is
+   * wrapped in one that offers the dropdown and hands it the databases that
+   * integration reaches.
+   */
+  get formComponent() {
+    return LocalBaserowNodeServiceForm
+  }
+
   /**
    * Responsible for returning contextual data for a node label template.
    * At the moment we only refer to the table name.

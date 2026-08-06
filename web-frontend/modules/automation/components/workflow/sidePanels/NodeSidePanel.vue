@@ -26,7 +26,6 @@
       :service="node.service"
       :service-type="nodeType.serviceType"
       :application="automation"
-      enable-integration-picker
       :default-values="node.service"
       :edge-in-use-fn="nodeEdgeInUseFn"
       :destinations="gotoDestinations"

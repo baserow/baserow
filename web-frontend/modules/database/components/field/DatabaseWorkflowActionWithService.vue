@@ -59,7 +59,6 @@ export default {
         application: this.database,
         service: this.defaultValues.service,
         serviceType: this.serviceType,
-        enableIntegrationPicker: false,
         databases: this.workspaceDatabases,
         defaultValues: this.defaultValues.service,
       }

@@ -73,7 +73,7 @@ describe('DatabaseWorkflowActionWithService', () => {
       },
     })
 
-  test('the service form gets the workspace databases and no integration picker', async () => {
+  test('the service form gets the workspace databases', async () => {
     await seedApplications()
 
     const wrapper = await mountAction('create_row')
@@ -82,7 +82,6 @@ describe('DatabaseWorkflowActionWithService', () => {
       name: 'LocalBaserowUpsertRowServiceForm',
     })
     expect(serviceForm.exists()).toBe(true)
-    expect(serviceForm.props('enableIntegrationPicker')).toBe(false)
 
     const databases = serviceForm.props('databases')
     expect(databases.length).toBeGreaterThan(0)
@@ -363,7 +362,6 @@ describe('DatabaseWorkflowActionWithService', () => {
         .map((d) => d.id)
         .sort()
     ).toEqual([OWN_DATABASE_ID, OTHER_DATABASE_ID])
-    expect(serviceForm.props('enableIntegrationPicker')).toBe(false)
     expect(
       wrapper.findComponent({ name: 'LocalBaserowTableSelector' }).exists()
     ).toBe(true)

@@ -5,14 +5,13 @@
       :enable-row-id="enableRowId"
       :application="application"
       :enable-view-picker="false"
-      :enable-integration-picker="enableIntegrationPicker"
       :databases="databases"
       :default-values="defaultValues"
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
     <div v-if="tableLoading" class="loading-spinner margin-bottom-1"></div>
-    <p v-if="(values.integration_id || databases) && !service?.table_id">
+    <p v-if="!service?.table_id">
       {{ $t('localBaserowUpsertRowServiceForm.noTableSelectedMessage') }}
     </p>
     <FieldMappingsForm
@@ -72,22 +71,12 @@ export default {
       default: false,
     },
     /**
-     * Whether the wrapped service form shows the integration picker.
-     * Forwarded as-is, so the default matches the child's default.
-     */
-    enableIntegrationPicker: {
-      type: Boolean,
-      required: false,
-      default: true,
-    },
-    /**
-     * An explicit list of databases for callers without an integration.
-     * Forwarded to the wrapped service form; null keeps today's behaviour.
+     * The databases to choose a table from, forwarded to the service form.
      */
     databases: {
       type: Array,
       required: false,
-      default: null,
+      default: () => [],
     },
     /**
      * Whether the parent makes a round trip when the table changes, and so

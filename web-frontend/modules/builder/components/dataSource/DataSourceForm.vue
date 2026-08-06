@@ -71,6 +71,7 @@
         :service-type="serviceType"
         :default-values="defaultValues"
         :context-data="integration.context_data"
+        :databases="integration.context_data?.databases || []"
         @values-changed="emitChange($event)"
       />
     </template>

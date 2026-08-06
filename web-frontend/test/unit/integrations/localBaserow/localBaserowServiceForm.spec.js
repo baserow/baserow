@@ -26,15 +26,27 @@ describe('LocalBaserowServiceForm', () => {
       },
     })
 
-  test('without a databases prop and no integration there is no table selector', async () => {
+  test('it picks a table and leaves the integration to its wrapper', async () => {
     const wrapper = await mountForm()
 
-    // The guard for the builder, automation and dashboard callers: nothing
-    // about the new `databases` prop may make the table selector appear
-    // before an integration has been chosen.
+    // Choosing the integration belongs to the wrapper of the application type
+    // this form is rendered in, so the form itself never offers one.
+    expect(
+      wrapper.findComponent({ name: 'IntegrationDropdown' }).exists()
+    ).toBe(false)
     expect(
       wrapper.findComponent({ name: 'LocalBaserowTableSelector' }).exists()
-    ).toBe(false)
+    ).toBe(true)
+  })
+
+  test('with no databases the table selector has nothing to offer', async () => {
+    const wrapper = await mountForm()
+
+    expect(
+      wrapper
+        .findComponent({ name: 'LocalBaserowTableSelector' })
+        .props('databases')
+    ).toEqual([])
   })
 
   test('an explicit databases prop renders the table selector', async () => {

@@ -18,7 +18,9 @@ describe('LocalBaserowFieldsUpdatedTriggerServiceForm', () => {
     return await testApp.mount(LocalBaserowFieldsUpdatedTriggerServiceForm, {
       props: {
         application: { id: 1 },
-        serviceType: {},
+        // The table selector always renders now that the form takes its
+        // databases from its wrapper, so the type has to answer for real.
+        serviceType: { supportedTables: (tables) => tables },
         defaultValues: { table_id: 1, integration_id: 1 },
         ...props,
       },
@@ -100,7 +102,11 @@ describe('LocalBaserowFieldsUpdatedTriggerServiceForm', () => {
     const wrapper = await mountComponent()
     await flushPromises()
 
-    const dropdown = wrapper.findComponent({ name: 'Dropdown' })
+    // The table selector renders its own dropdowns first, so the field one is
+    // found by the only thing that distinguishes it: it takes several values.
+    const dropdown = wrapper
+      .findAllComponents({ name: 'Dropdown' })
+      .find((candidate) => candidate.props('multiple'))
     dropdown.vm.$emit('update:modelValue', [fields[0].id, fields[1].id])
     await flushPromises()
 
