@@ -22,6 +22,7 @@
 ## @param global.baserow.domain Configure the domain for the frontend application.
 ## @param global.baserow.backendDomain Configure the domain for the backend application.
 ## @param global.baserow.objectsDomain Configure the domain for the external facing minio api.
+## @param global.baserow.applicationBuilderDomains Extra domains routed to the frontend, for Application Builder apps served on their own domain.
 ## @param global.baserow.containerSecurityContext.enabled Enabled containers' Security Context
 ## @param global.baserow.containerSecurityContext.seLinuxOptions [object,nullable] Set SELinux options in container
 ## @param global.baserow.containerSecurityContext.runAsUser Set containers' Security Context runAsUser
@@ -59,6 +60,12 @@ global:
     domain: cluster.local
     backendDomain: api.cluster.local
     objectsDomain: objects.cluster.local
+    ## Example:
+    ## applicationBuilderDomains:
+    ##   - app.mydomain.com
+    ##   - shop.mydomain.com
+    ##
+    applicationBuilderDomains: []
     assistantLLMModel: ""
 
     securityContext:
@@ -167,6 +174,16 @@ backendConfigMap:
 ## @param migration.containerSecurityContext.capabilities.drop List of capabilities to be dropped
 ## @param migration.containerSecurityContext.capabilities.add List of capabilities to be added
 ## @param migration.containerSecurityContext.seccompProfile.type Set container's Security Context seccomp profile
+## @param migration.resources Set container requests and limits for different resources like CPU or memory (essential for production workloads)
+## Example:
+## resources:
+##   requests:
+##     cpu: 2
+##     memory: 512Mi
+##   limits:
+##     cpu: 3
+##     memory: 1024Mi
+##
 
 migration:
   enabled: true
@@ -200,6 +217,7 @@ migration:
       drop: []
     seccompProfile:
       type: ""
+  resources: {}
 
 ## @section Baserow Backend ASGI Configuration
 ## Configuration for the ASGI server that serves the Baserow backend application.

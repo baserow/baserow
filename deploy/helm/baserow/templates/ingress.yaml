@@ -54,6 +54,18 @@ spec:
                 name: {{ include "baserow.fullname" (index .Subcharts "baserow-frontend") }}
                 port:
                   number: 80
+    {{- range .Values.global.baserow.applicationBuilderDomains }}
+    - host: {{ . }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "baserow.fullname" (index $.Subcharts "baserow-frontend") }}
+                port:
+                  number: 80
+    {{- end }}
     {{- if .Values.minio.enabled }}
     - host: {{ .Values.global.baserow.objectsDomain }}
       http:
@@ -66,15 +78,6 @@ spec:
                 port:
                   number: 9000
     {{- end }}
-    - http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "baserow.fullname" (index .Subcharts "baserow-frontend") }}
-                port:
-                  number: 80
   {{- with .Values.ingress.tls }}
   tls:
     {{- toYaml . | nindent 4 }}

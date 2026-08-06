@@ -246,6 +246,7 @@ caddy:
 | `global.baserow.domain`                                            | Configure the domain for the frontend application.                                      | `cluster.local`         |
 | `global.baserow.backendDomain`                                     | Configure the domain for the backend application.                                       | `api.cluster.local`     |
 | `global.baserow.objectsDomain`                                     | Configure the domain for the external facing minio api.                                 | `objects.cluster.local` |
+| `global.baserow.applicationBuilderDomains`                         | Extra domains routed to the frontend, for Application Builder apps served on their own domain. | `[]`             |
 | `global.baserow.containerSecurityContext.enabled`                  | Enabled containers' Security Context                                                    | `false`                 |
 | `global.baserow.containerSecurityContext.seLinuxOptions`           | Set SELinux options in container                                                        | `{}`                    |
 | `global.baserow.containerSecurityContext.runAsUser`                | Set containers' Security Context runAsUser                                              | `""`                    |
@@ -326,6 +327,7 @@ caddy:
 | `migration.containerSecurityContext.capabilities.drop`        | List of capabilities to be dropped                        | `[]`      |
 | `migration.containerSecurityContext.capabilities.add`         | List of capabilities to be added                          | `[]`      |
 | `migration.containerSecurityContext.seccompProfile.type`      | Set container's Security Context seccomp profile          | `""`      |
+| `migration.resources`                                         | Set container requests and limits for different resources like CPU or memory (essential for production workloads) | `{}` |
 
 ### Baserow Backend ASGI Configuration
 

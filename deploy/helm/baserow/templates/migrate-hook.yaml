@@ -18,6 +18,9 @@ spec:
           image: {{ include "baserow.global.migration.image" . }}
           args: ["setup"]
           imagePullPolicy: Always
+          {{- with .Values.migration.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- if .Values.migration.extraEnv }}
           env:
             {{- range .Values.migration.extraEnv }}
