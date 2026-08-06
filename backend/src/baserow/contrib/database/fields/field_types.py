@@ -160,6 +160,10 @@ from baserow.core.db import (
     collate_expression,
     specific_queryset,
 )
+from baserow.core.deferred_callbacks import (
+    deferred_callback_context,
+    register_deferred_callback,
+)
 from baserow.core.expressions import DateTrunc
 from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.fields import SyncedDateTimeField
@@ -8074,11 +8078,20 @@ class ButtonFieldType(ReadOnlyFieldType):
         self, field: ButtonField, field_cache: "FieldCache", id_mapping: Dict[str, Any]
     ):
         serialized_actions = getattr(field, "_serialized_workflow_actions", None) or []
-        for serialized_action in serialized_actions:
-            action_type = database_workflow_action_type_registry.get(
-                serialized_action["type"]
-            )
-            action_type.import_serialized(field, serialized_action, id_mapping)
+
+        def import_workflow_actions():
+            # Deferred because an action can target a table, and name fields, of
+            # another database. This hook runs at the end of one database's
+            # import, so a reference into another one would be read as trashed
+            # and nulled.
+            for serialized_action in serialized_actions:
+                action_type = database_workflow_action_type_registry.get(
+                    serialized_action["type"]
+                )
+                action_type.import_serialized(field, serialized_action, id_mapping)
+
+        if serialized_actions:
+            register_deferred_callback(import_workflow_actions)
 
         FieldDependencyHandler.rebuild_dependencies([field], field_cache)
 
@@ -8110,8 +8123,11 @@ class ButtonFieldType(ReadOnlyFieldType):
             "database_fields": UnchangedIdMapping(),
         }
 
-        for serialized_action in serialized_actions:
-            action_type = database_workflow_action_type_registry.get(
-                serialized_action["type"]
-            )
-            action_type.import_serialized(new_field, serialized_action, id_mapping)
+        # Nothing to wait for, the copy lands beside the original. The context
+        # is only opened because the action import refuses to defer without one.
+        with deferred_callback_context():
+            for serialized_action in serialized_actions:
+                action_type = database_workflow_action_type_registry.get(
+                    serialized_action["type"]
+                )
+                action_type.import_serialized(new_field, serialized_action, id_mapping)

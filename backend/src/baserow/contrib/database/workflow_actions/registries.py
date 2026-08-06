@@ -10,6 +10,7 @@ from baserow.api.services.serializers import (
 from baserow.contrib.database.formula_importer import import_formula
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
 from baserow.core.db import specific_queryset
+from baserow.core.deferred_callbacks import register_deferred_callback
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -192,12 +193,16 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         **kwargs,
     ):
         """
-        Imports the action, then remaps the references inside the formulas its
-        service stores, such as a field mapping value of `get('row.field_25')`.
+        Imports the action, and defers remapping the references inside the
+        formulas its service stores, such as a field mapping value of
+        `get('row.field_25')`.
 
         `deserialize_property` only reaches the FK-shaped references, so without
         this second step a duplicated table keeps a formula naming the original
         table's field and silently reads the wrong one (ADR 006 section 6).
+
+        Deferred because a formula can name a field of an application that is
+        not imported yet, so `id_mapping` does not know it.
         """
 
         created_instance = super().import_serialized(
@@ -210,11 +215,16 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             **kwargs,
         )
 
-        updated_models = self.import_formulas(
-            created_instance, id_mapping, import_formula, **kwargs
-        )
-        for updated_model in updated_models:
-            updated_model.save()
+        def import_action_formulas():
+            # `id_mapping` is the same dict throughout an import, so by now it
+            # holds every application's ids.
+            updated_models = self.import_formulas(
+                created_instance, id_mapping, import_formula, **kwargs
+            )
+            for updated_model in updated_models:
+                updated_model.save()
+
+        register_deferred_callback(import_action_formulas)
 
         return created_instance
 

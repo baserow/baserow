@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
 
@@ -1627,15 +1628,16 @@ class CoreHandler:
 
         # import it back as a new application
         id_mapping: Dict[str, Any] = {}
-        new_application_clone = application_type.import_serialized(
-            workspace,
-            serialized,
-            duplicate_import_export_config,
-            id_mapping,
-            progress_builder=progress.create_child_builder(
-                represents_progress=import_progress
-            ),
-        )
+        with deferred_callback_context():
+            new_application_clone = application_type.import_serialized(
+                workspace,
+                serialized,
+                duplicate_import_export_config,
+                id_mapping,
+                progress_builder=progress.create_child_builder(
+                    represents_progress=import_progress
+                ),
+            )
 
         # broadcast the application_created signal
         application_created.send(
@@ -1832,26 +1834,31 @@ class CoreHandler:
         else:
             files_zip = files_buffer
         try:
-            id_mapping: Dict[str, Any] = {}
-            imported_applications = []
-            next_application_order_value = Application.get_last_order(workspace)
-            for application in prioritized_applications:
-                application_type = application_type_registry.get(application["type"])
-                imported_application = application_type.import_serialized(
-                    workspace,
-                    application,
-                    import_export_config,
-                    id_mapping,
-                    files_zip,
-                    storage,
-                    progress_builder=progress.create_child_builder(
-                        represents_progress=1000
-                    ),
-                )
-                imported_application.order = next_application_order_value
-                next_application_order_value += 1
-                imported_applications.append(imported_application)
-            Application.objects.bulk_update(imported_applications, ["order"])
+            # Work registered during the loop that can only be done once every
+            # application exists runs when this context exits.
+            with deferred_callback_context():
+                id_mapping: Dict[str, Any] = {}
+                imported_applications = []
+                next_application_order_value = Application.get_last_order(workspace)
+                for application in prioritized_applications:
+                    application_type = application_type_registry.get(
+                        application["type"]
+                    )
+                    imported_application = application_type.import_serialized(
+                        workspace,
+                        application,
+                        import_export_config,
+                        id_mapping,
+                        files_zip,
+                        storage,
+                        progress_builder=progress.create_child_builder(
+                            represents_progress=1000
+                        ),
+                    )
+                    imported_application.order = next_application_order_value
+                    next_application_order_value += 1
+                    imported_applications.append(imported_application)
+                Application.objects.bulk_update(imported_applications, ["order"])
         finally:
             files_zip.close()
 

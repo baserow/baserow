@@ -16,6 +16,8 @@ from baserow.contrib.integrations.local_baserow.models import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.utils import Progress
 
 
 @pytest.mark.django_db
@@ -209,6 +211,133 @@ def test_actions_survive_an_application_export_import(data_fixture):
     assert [a.specific.get_type().type for a in actions] == ["create_row", "delete_row"]
     assert actions[0].specific.service.specific.table_id == imported_table.id
     assert actions[0].specific.service.specific.table_id != table.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_action_targeting_another_database_survives_the_import(data_fixture):
+    """Applications are imported one at a time, so when the button's database is
+    imported the other one does not exist yet. Without deferring the action
+    import, the target table is nulled and the field mappings are dropped."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    # `order` decides the import order, so the button's database goes first.
+    database_a = data_fixture.create_database_application(
+        workspace=workspace, name="A", order=1
+    )
+    database_b = data_fixture.create_database_application(
+        workspace=workspace, name="B", order=2
+    )
+    table_a = data_fixture.create_database_table(database=database_a, name="TA")
+    table_b = data_fixture.create_database_table(database=database_b, name="TB")
+    source_field = data_fixture.create_text_field(table=table_a, name="Source")
+    target_field = data_fixture.create_text_field(table=table_b, name="Target")
+    button_field = data_fixture.create_button_field(table=table_a, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table_b
+    )
+    service.field_mappings.create(
+        field=target_field, value=f"get('row.field_{source_field.id}')", enabled=True
+    )
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field, service=service
+    )
+
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    imported_by_name = {application.name: application for application in imported}
+    imported_a = imported_by_name["A"].table_set.get(name="TA")
+    imported_b = imported_by_name["B"].table_set.get(name="TB")
+    imported_source = imported_a.field_set.get(name="Source")
+    imported_target = imported_b.field_set.get(name="Target")
+    imported_button = imported_a.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=imported_button)
+    imported_service = action.specific.service.specific
+    (mapping,) = LocalBaserowTableServiceFieldMapping.objects.filter(
+        service_id=imported_service.id
+    )
+
+    assert imported_b.id != table_b.id
+    assert imported_service.table_id == imported_b.id
+    assert mapping.field_id == imported_target.id
+    # The formula names the clicked row, which is in the button's own database.
+    assert mapping.value["formula"] == f"get('row.field_{imported_source.id}')"
+
+
+@pytest.mark.django_db
+def test_actions_survive_a_duplicated_application(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user, name="db")
+    table = data_fixture.create_database_table(database=database, name="T")
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table
+    )
+    service.field_mappings.create(
+        field=name_field, value=f"get('row.field_{name_field.id}')", enabled=True
+    )
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field, service=service
+    )
+
+    duplicated = CoreHandler().duplicate_application(user, database)
+
+    duplicated_table = duplicated.table_set.get(name="T")
+    duplicated_name_field = duplicated_table.field_set.get(name="Name")
+    duplicated_button = duplicated_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_button)
+    (mapping,) = LocalBaserowTableServiceFieldMapping.objects.filter(
+        service_id=action.specific.service_id
+    )
+
+    assert action.specific.service.specific.table_id == duplicated_table.id
+    assert mapping.field_id == duplicated_name_field.id
+    assert mapping.value["formula"] == f"get('row.field_{duplicated_name_field.id}')"
+
+
+@pytest.mark.django_db
+def test_actions_survive_a_snapshot_and_its_restore(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace, order=1)
+    table = data_fixture.create_database_table(database=database, name="T")
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table
+    )
+    service.field_mappings.create(
+        field=name_field, value=f"get('row.field_{name_field.id}')", enabled=True
+    )
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field, service=service
+    )
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=database, name="snap", created_by=user
+    )
+
+    SnapshotHandler().perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+    restored = SnapshotHandler().perform_restore(snapshot, Progress(total=100))
+
+    restored_table = restored.table_set.get(name="T")
+    restored_name_field = restored_table.field_set.get(name="Name")
+    restored_button = restored_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=restored_button)
+    (mapping,) = LocalBaserowTableServiceFieldMapping.objects.filter(
+        service_id=action.specific.service_id
+    )
+
+    assert action.specific.service.specific.table_id == restored_table.id
+    assert mapping.field_id == restored_name_field.id
+    assert mapping.value["formula"] == f"get('row.field_{restored_name_field.id}')"
 
 
 @pytest.mark.django_db
