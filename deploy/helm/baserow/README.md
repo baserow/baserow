@@ -228,41 +228,42 @@ caddy:
 
 ### Global parameters
 
-| Name                                                               | Description                                                                             | Value                   |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------- |
-| `global.baserow.imageRegistry`                                     | Global Docker image registry                                                            | `baserow`               |
-| `global.baserow.imagePullSecrets`                                  | Global Docker registry secret names as an array                                         | `[]`                    |
-| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.3.4`                |
-| `global.baserow.serviceAccount.shared`                             | Set to true to share the service account between all application components.            | `true`                  |
-| `global.baserow.serviceAccount.create`                             | Set to true to create a service account to share between all application components.    | `true`                  |
-| `global.baserow.serviceAccount.name`                               | Configure a name for service account to share between all application components.       | `baserow`               |
-| `global.baserow.serviceAccount.annotations`                        | Configure annotations for the shared service account.                                   | `{}`                    |
-| `global.baserow.serviceAccount.automountServiceAccountToken`       | Automount the service account token to the pods.                                        | `false`                 |
-| `global.baserow.backendConfigMap`                                  | Configure a name for the backend configmap.                                             | `backend-config`        |
-| `global.baserow.backendSecret`                                     | Configure a name for the backend secret.                                                | `backend-secret`        |
-| `global.baserow.frontendConfigMap`                                 | Configure a name for the frontend configmap.                                            | `frontend-config`       |
-| `global.baserow.sharedConfigMap`                                   | Configure a name for the shared configmap.                                              | `shared-config`         |
-| `global.baserow.envFrom`                                           | Configure secrets or configMaps to be used as environment variables for all components. | `[]`                    |
-| `global.baserow.domain`                                            | Configure the domain for the frontend application.                                      | `cluster.local`         |
-| `global.baserow.backendDomain`                                     | Configure the domain for the backend application.                                       | `api.cluster.local`     |
-| `global.baserow.objectsDomain`                                     | Configure the domain for the external facing minio api.                                 | `objects.cluster.local` |
-| `global.baserow.assistantLLMModel`                                 | Configure the environment-based model for the AI assistant. When database-backed AI providers are enabled, it is the fallback. | `""`                    |
-| `global.baserow.containerSecurityContext.enabled`                  | Enabled containers' Security Context                                                    | `false`                 |
-| `global.baserow.containerSecurityContext.seLinuxOptions`           | Set SELinux options in container                                                        | `{}`                    |
-| `global.baserow.containerSecurityContext.runAsUser`                | Set containers' Security Context runAsUser                                              | `""`                    |
-| `global.baserow.containerSecurityContext.runAsGroup`               | Set containers' Security Context runAsGroup                                             | `""`                    |
-| `global.baserow.containerSecurityContext.runAsNonRoot`             | Set container's Security Context runAsNonRoot                                           | `""`                    |
-| `global.baserow.containerSecurityContext.privileged`               | Set container's Security Context privileged                                             | `false`                 |
-| `global.baserow.containerSecurityContext.readOnlyRootFilesystem`   | Set container's Security Context readOnlyRootFilesystem                                 | `false`                 |
-| `global.baserow.containerSecurityContext.allowPrivilegeEscalation` | Set container's Security Context allowPrivilegeEscalation                               | `false`                 |
-| `global.baserow.containerSecurityContext.capabilities.drop`        | List of capabilities to be dropped                                                      | `[]`                    |
-| `global.baserow.containerSecurityContext.capabilities.add`         | List of capabilities to be added                                                        | `[]`                    |
-| `global.baserow.containerSecurityContext.seccompProfile.type`      | Set container's Security Context seccomp profile                                        | `""`                    |
-| `global.baserow.securityContext.enabled`                           | Enable security context                                                                 | `false`                 |
-| `global.baserow.securityContext.fsGroupChangePolicy`               | Set filesystem group change policy                                                      | `Always`                |
-| `global.baserow.securityContext.sysctls`                           | Set kernel settings using the sysctl interface                                          | `[]`                    |
-| `global.baserow.securityContext.supplementalGroups`                | Set filesystem extra groups                                                             | `[]`                    |
-| `global.baserow.securityContext.fsGroup`                           | Group ID for the pod                                                                    | `""`                    |
+| Name                                                               | Description                                                                             | Value                      |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |----------------------------|
+| `global.baserow.imageRegistry`                                     | Global Docker image registry                                                            | `baserow`                  |
+| `global.baserow.imagePullSecrets`                                  | Global Docker registry secret names as an array                                         | `[]`                       |
+| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.3.4`                    |
+| `global.baserow.serviceAccount.shared`                             | Set to true to share the service account between all application components.            | `true`                     |
+| `global.baserow.serviceAccount.create`                             | Set to true to create a service account to share between all application components.    | `true`                     |
+| `global.baserow.serviceAccount.name`                               | Configure a name for service account to share between all application components.       | `baserow`                  |
+| `global.baserow.serviceAccount.annotations`                        | Configure annotations for the shared service account.                                   | `{}`                       |
+| `global.baserow.serviceAccount.automountServiceAccountToken`       | Automount the service account token to the pods.                                        | `false`                    |
+| `global.baserow.backendConfigMap`                                  | Configure a name for the backend configmap.                                             | `backend-config`           |
+| `global.baserow.backendSecret`                                     | Configure a name for the backend secret.                                                | `backend-secret`           |
+| `global.baserow.frontendConfigMap`                                 | Configure a name for the frontend configmap.                                            | `frontend-config`          |
+| `global.baserow.sharedConfigMap`                                   | Configure a name for the shared configmap.                                              | `shared-config`            |
+| `global.baserow.envFrom`                                           | Configure secrets or configMaps to be used as environment variables for all components. | `[]`                       |
+| `global.baserow.domain`                                            | Configure the domain for the frontend application.                                      | `cluster.local`            |
+| `global.baserow.backendDomain`                                     | Configure the domain for the backend application.                                       | `api.cluster.local`        |
+| `global.baserow.objectsDomain`                                     | Configure the domain for the external facing minio api.                                 | `objects.cluster.local`    |
+| `global.baserow.assistantLLMModel`                                 | Configure the environment-based model for the AI assistant. When database-backed AI providers are enabled, it is the fallback. | `""`                       |
+| `global.baserow.applicationBuilderDomains`                         | Extra domains routed to the frontend, for Application Builder apps served on their own domain. | `[]`                       |
+| `global.baserow.containerSecurityContext.enabled`                  | Enabled containers' Security Context                                                    | `false`                    |
+| `global.baserow.containerSecurityContext.seLinuxOptions`           | Set SELinux options in container                                                        | `{}`                       |
+| `global.baserow.containerSecurityContext.runAsUser`                | Set containers' Security Context runAsUser                                              | `""`                       |
+| `global.baserow.containerSecurityContext.runAsGroup`               | Set containers' Security Context runAsGroup                                             | `""`                       |
+| `global.baserow.containerSecurityContext.runAsNonRoot`             | Set container's Security Context runAsNonRoot                                           | `""`                       |
+| `global.baserow.containerSecurityContext.privileged`               | Set container's Security Context privileged                                             | `false`                    |
+| `global.baserow.containerSecurityContext.readOnlyRootFilesystem`   | Set container's Security Context readOnlyRootFilesystem                                 | `false`                    |
+| `global.baserow.containerSecurityContext.allowPrivilegeEscalation` | Set container's Security Context allowPrivilegeEscalation                               | `false`                    |
+| `global.baserow.containerSecurityContext.capabilities.drop`        | List of capabilities to be dropped                                                      | `[]`                       |
+| `global.baserow.containerSecurityContext.capabilities.add`         | List of capabilities to be added                                                        | `[]`                       |
+| `global.baserow.containerSecurityContext.seccompProfile.type`      | Set container's Security Context seccomp profile                                        | `""`                       |
+| `global.baserow.securityContext.enabled`                           | Enable security context                                                                 | `false`                    |
+| `global.baserow.securityContext.fsGroupChangePolicy`               | Set filesystem group change policy                                                      | `Always`                   |
+| `global.baserow.securityContext.sysctls`                           | Set kernel settings using the sysctl interface                                          | `[]`                       |
+| `global.baserow.securityContext.supplementalGroups`                | Set filesystem extra groups                                                             | `[]`                       |
+| `global.baserow.securityContext.fsGroup`                           | Group ID for the pod                                                                    | `""`                       |
 
 ### Baserow Configuration
 
@@ -327,6 +328,7 @@ caddy:
 | `migration.containerSecurityContext.capabilities.drop`        | List of capabilities to be dropped                        | `[]`      |
 | `migration.containerSecurityContext.capabilities.add`         | List of capabilities to be added                          | `[]`      |
 | `migration.containerSecurityContext.seccompProfile.type`      | Set container's Security Context seccomp profile          | `""`      |
+| `migration.resources`                                         | Set container requests and limits for different resources like CPU or memory (essential for production workloads) | `{}` |
 
 ### Baserow Backend ASGI Configuration
 
