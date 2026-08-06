@@ -27,6 +27,7 @@
           class="margin-left-1"
           rounded
           size="medium"
+          :color="getSubjectAvatarColor(item)"
           :initials="$filters.nameAbbreviation(item.name)"
         ></Avatar>
 
@@ -114,6 +115,9 @@ export default {
     this.$priorityBus.$off('start-search', this.searchStarted)
   },
   methods: {
+    getSubjectAvatarColor(subject) {
+      return this.$registry.get('subject', subject.subject_type).avatarColor
+    },
     toggleSelectAll() {
       // If all filtered members are selected...
       if (this.allFilteredMembersSelected) {

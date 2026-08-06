@@ -1,7 +1,7 @@
-from typing import Iterable, List
+from collections import defaultdict
+from typing import List
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.database.field_rules.operations import ReadFieldRuleOperationType
 from baserow.core.cache import local_cache
@@ -9,7 +9,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
 )
-from baserow.core.models import Template, Workspace, WorkspaceUser
+from baserow.core.models import Template, Workspace
 from baserow.core.notifications.operations import (
     ClearNotificationsOperationType,
     ListNotificationsOperationType,
@@ -20,6 +20,12 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
 )
 
+from .agents.operations import (
+    CreateAgentOperationType,
+    DeleteAgentOperationType,
+    UpdateAgentOperationType,
+)
+from .agents.subjects import AgentSubjectType
 from .ai_provider.operations import ManageAIProvidersOperationType
 from .exceptions import (
     IsNotAdminError,
@@ -44,7 +50,7 @@ from .operations import (
     UpdateWorkspaceOperationType,
     UpdateWorkspaceUserOperationType,
 )
-from .registries import PermissionManagerType
+from .registries import PermissionManagerType, subject_type_registry
 from .subjects import AnonymousUserSubjectType, UserSubjectType
 
 User = get_user_model()
@@ -165,7 +171,7 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
     """
 
     type = "member"
-    supported_actor_types = [UserSubjectType.type]
+    supported_actor_types = [UserSubjectType.type, AgentSubjectType.type]
     actor_cache_key = "_in_workspace_cache"
 
     ALWAYS_ALLOWED_OPERATION_FOR_WORKSPACE_MEMBERS: List[str] = [
@@ -174,7 +180,9 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
         MarkNotificationAsReadOperationType.type,
     ]
 
-    def is_actor_in_workspace(self, actor, workspace, callback=None):
+    def is_actor_in_workspace(
+        self, actor, workspace, callback=None, include_trash=False
+    ):
         """
         Check is an actor is in a workspace. This method cache the result on the actor
         to prevent extra queries when used multiple times in a row. This is the case
@@ -184,79 +192,74 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
         :param workspace: the workspace to check the actor belongs to.
         :param callback: an optional callback to check whether the actor belongs to the
           workspace. By default a query is made if not provided.
+        :param include_trash: Whether trashed workspace memberships should count.
         """
 
         # Add cache to prevent another query during the filtering if any
         if not hasattr(actor, self.actor_cache_key):
             setattr(actor, self.actor_cache_key, {})
 
-        if workspace.id not in getattr(actor, self.actor_cache_key):
+        actor_cache = getattr(actor, self.actor_cache_key)
+        cache_key = (workspace.id, include_trash)
+        if cache_key not in actor_cache:
             if callback is not None:
                 in_workspace = callback()
             else:
-
-                def _in_workspace():
-                    user_iterator = (
-                        wu.user_id
-                        for wu in workspace.workspaceuser_set.all()
-                        if wu.user_id == actor.id
-                    )
-                    return next(user_iterator, None) is not None
-
+                subject_type = subject_type_registry.get_by_model(actor)
                 in_workspace = local_cache.get(
-                    f"user_{actor.id}_in_workspace_{workspace.id}", _in_workspace
+                    f"{subject_type.type}_{actor.id}_in_workspace_{workspace.id}_"
+                    f"{include_trash}",
+                    lambda: subject_type.is_in_workspace(
+                        actor, workspace, include_trash=include_trash
+                    ),
                 )
 
-            getattr(actor, self.actor_cache_key)[workspace.id] = in_workspace
+            actor_cache[cache_key] = in_workspace
 
-        return getattr(actor, self.actor_cache_key, {}).get(workspace.id, False)
+        return actor_cache.get(cache_key, False)
 
-    def get_user_ids_map_actually_in_workspace(
+    def get_actors_in_workspace_map(
         self,
         workspace: Workspace,
-        users_to_query: Iterable[AbstractUser],
+        actors,
         include_trash: bool = False,
     ):
         """
-        Return a `user_id -> is in the workspace` map. This version is cached for
-        a few seconds to prevent queries.
+        Return an `actor -> is in the workspace` map, batching each subject type.
         """
 
-        cached = local_cache.get(f"workspace_user_{workspace.id}", dict)
+        actors_by_subject_type = defaultdict(set)
+        for actor in actors:
+            actors_by_subject_type[subject_type_registry.get_by_model(actor)].add(actor)
 
-        missing = []
-        for user in users_to_query:
-            if user.id not in cached:
-                missing.append(user)
-
-        if missing:
-            user_ids_in_workspace = set(
-                CoreHandler()
-                .get_workspace_users(workspace, missing, include_trash=include_trash)
-                .values_list("user_id", flat=True)
+        actors_in_workspace = {}
+        for subject_type, actors_of_type in actors_by_subject_type.items():
+            actors_of_type = list(actors_of_type)
+            membership = subject_type.are_in_workspace(
+                actors_of_type, workspace, include_trash=include_trash
             )
+            actors_in_workspace.update(zip(actors_of_type, membership, strict=True))
 
-            for missing_user in missing:
-                cached[missing_user.id] = missing_user.id in user_ids_in_workspace
-
-        return cached
+        return actors_in_workspace
 
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
         if workspace is None:
             return {}
 
-        user_id_map_in_workspace = self.get_user_ids_map_actually_in_workspace(
-            workspace, {c.actor for c in checks}, include_trash=include_trash
+        permission_by_check = {}
+        actors_in_workspace = self.get_actors_in_workspace_map(
+            workspace, {check.actor for check in checks}, include_trash=include_trash
         )
 
-        permission_by_check = {}
-
         def check_workspace(actor):
-            return lambda: user_id_map_in_workspace[actor.id]
+            return lambda: actors_in_workspace[actor]
 
         for check in checks:
             if self.is_actor_in_workspace(
-                check.actor, workspace, check_workspace(check.actor)
+                check.actor,
+                workspace,
+                check_workspace(check.actor),
+                include_trash=include_trash,
             ):
                 if (
                     check.operation_name
@@ -294,7 +297,7 @@ class BasicPermissionManagerType(PermissionManagerType):
     """
 
     type = "basic"
-    supported_actor_types = [UserSubjectType.type]
+    supported_actor_types = [UserSubjectType.type, AgentSubjectType.type]
 
     ADMIN_ONLY_OPERATIONS = [
         ListInvitationsWorkspaceOperationType.type,
@@ -307,7 +310,36 @@ class BasicPermissionManagerType(PermissionManagerType):
         DeleteWorkspaceOperationType.type,
         UpdateWorkspaceUserOperationType.type,
         DeleteWorkspaceUserOperationType.type,
+        CreateAgentOperationType.type,
+        UpdateAgentOperationType.type,
+        DeleteAgentOperationType.type,
     ]
+
+    def get_workspace_role_uids_by_actor(
+        self, actors, workspace: Workspace, include_trash: bool = False
+    ):
+        """Return workspace role UIDs while batching actors by subject type."""
+
+        actors_by_subject_type = defaultdict(list)
+        for actor in actors:
+            actors_by_subject_type[subject_type_registry.get_by_model(actor)].append(
+                actor
+            )
+
+        role_uids_by_actor = {}
+        for subject_type, subjects in actors_by_subject_type.items():
+            role_uids_by_subject_id = subject_type.get_workspace_role_uids(
+                subjects, workspace, include_trash=include_trash
+            )
+            if role_uids_by_subject_id is not None:
+                role_uids_by_actor.update(
+                    {
+                        subject: role_uids_by_subject_id[subject.id]
+                        for subject in subjects
+                        if subject.id in role_uids_by_subject_id
+                    }
+                )
+        return role_uids_by_actor
 
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
         if workspace is None:
@@ -321,15 +353,14 @@ class BasicPermissionManagerType(PermissionManagerType):
             else:
                 permission_by_check[check] = True
 
-        user_permissions_by_id = dict(
-            CoreHandler()
-            .get_workspace_users(workspace, users_to_query, include_trash=include_trash)
-            .values_list("user_id", "permissions")
+        role_uids_by_actor = self.get_workspace_role_uids_by_actor(
+            users_to_query, workspace, include_trash=include_trash
         )
 
         for check in checks:
             if check.operation_name in self.ADMIN_ONLY_OPERATIONS:
-                if user_permissions_by_id.get(check.actor.id, "MEMBER") == "ADMIN":
+                permissions = role_uids_by_actor.get(check.actor, "MEMBER")
+                if permissions == "ADMIN":
                     permission_by_check[check] = True
                 else:
                     permission_by_check[check] = UserInvalidWorkspacePermissionsError(
@@ -342,22 +373,15 @@ class BasicPermissionManagerType(PermissionManagerType):
         if workspace is None:
             return None
 
-        if include_trash:
-            manager = WorkspaceUser.objects_and_trash
-        else:
-            manager = WorkspaceUser.objects
-
-        queryset = manager.filter(user_id=actor.id, workspace_id=workspace.id)
-
-        try:
-            # Check if the user is a member of this workspace
-            workspace_user = queryset.get()
-        except WorkspaceUser.DoesNotExist:
+        role_uid = self.get_workspace_role_uids_by_actor(
+            [actor], workspace, include_trash=include_trash
+        ).get(actor)
+        if role_uid is None:
             return None
 
         return {
             "admin_only_operations": self.ADMIN_ONLY_OPERATIONS,
-            "is_admin": "ADMIN" in workspace_user.permissions,
+            "is_admin": role_uid == "ADMIN",
         }
 
 

@@ -21,6 +21,7 @@ from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
     UpdateIntegrationOperationType,
 )
+from baserow.core.models import Agent
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
@@ -41,6 +42,7 @@ from baserow.core.registries import (
     object_scope_type_registry,
     operation_type_registry,
     permission_manager_type_registry,
+    subject_type_registry,
 )
 from baserow.core.types import PermissionCheck
 from baserow.core.user_sources.models import UserSource
@@ -256,6 +258,99 @@ def test_workspace_member_permission_manager(data_fixture, django_assert_num_que
 
     assert isinstance(filtered, tuple)
     assert len(filtered[0]) == 0
+
+
+@pytest.mark.django_db
+def test_basic_permission_manager_batches_workspace_roles_by_subject_type(
+    data_fixture, mocker
+):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(member, "MEMBER")]
+    )
+    admin_agent = Agent.objects.create(
+        workspace=workspace, name="Admin agent", role_uid="ADMIN"
+    )
+    member_agent = Agent.objects.create(
+        workspace=workspace, name="Member agent", role_uid="MEMBER"
+    )
+    user_subject_type = subject_type_registry.get_by_model(admin)
+    agent_subject_type = subject_type_registry.get_by_model(admin_agent)
+    get_user_roles = mocker.spy(user_subject_type, "get_workspace_role_uids")
+    get_agent_roles = mocker.spy(agent_subject_type, "get_workspace_role_uids")
+    checks = [
+        PermissionCheck(actor, UpdateWorkspaceOperationType.type, workspace)
+        for actor in [admin, member, admin_agent, member_agent]
+    ]
+
+    result = BasicPermissionManagerType().check_multiple_permissions(checks, workspace)
+
+    assert result[checks[0]] is True
+    assert isinstance(result[checks[1]], UserInvalidWorkspacePermissionsError)
+    assert result[checks[2]] is True
+    assert isinstance(result[checks[3]], UserInvalidWorkspacePermissionsError)
+    get_user_roles.assert_called_once()
+    assert set(get_user_roles.call_args.args[0]) == {admin, member}
+    get_agent_roles.assert_called_once()
+    assert set(get_agent_roles.call_args.args[0]) == {admin_agent, member_agent}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("role_uid", "is_admin"),
+    [("ADMIN", True), ("MEMBER", False), ("NO_ACCESS", False)],
+)
+def test_basic_permission_manager_get_permissions_object_for_agent(
+    data_fixture, role_uid, is_admin
+):
+    workspace = data_fixture.create_workspace()
+    agent = Agent.objects.create(
+        workspace=workspace, name=f"{role_uid} agent", role_uid=role_uid
+    )
+
+    permissions = BasicPermissionManagerType().get_permissions_object(agent, workspace)
+
+    assert permissions["is_admin"] is is_admin
+
+
+@pytest.mark.django_db
+def test_basic_permission_manager_rejects_agent_from_another_workspace(data_fixture):
+    workspace = data_fixture.create_workspace()
+    agent = Agent.objects.create(
+        workspace=data_fixture.create_workspace(),
+        name="Other admin",
+        role_uid="ADMIN",
+    )
+    check = PermissionCheck(agent, UpdateWorkspaceOperationType.type, workspace)
+    permission_manager = BasicPermissionManagerType()
+
+    result = permission_manager.check_multiple_permissions([check], workspace)
+
+    assert isinstance(result[check], UserInvalidWorkspacePermissionsError)
+    assert permission_manager.get_permissions_object(agent, workspace) is None
+
+
+@pytest.mark.django_db
+def test_basic_permission_manager_can_include_trashed_agent(data_fixture):
+    workspace = data_fixture.create_workspace()
+    agent = Agent.objects.create(
+        workspace=workspace, name="Trashed admin", role_uid="ADMIN", trashed=True
+    )
+    check = PermissionCheck(agent, UpdateWorkspaceOperationType.type, workspace)
+    permission_manager = BasicPermissionManagerType()
+
+    without_trash = permission_manager.check_multiple_permissions([check], workspace)
+    with_trash = permission_manager.check_multiple_permissions(
+        [check], workspace, include_trash=True
+    )
+
+    assert isinstance(without_trash[check], UserInvalidWorkspacePermissionsError)
+    assert with_trash[check] is True
+    assert permission_manager.get_permissions_object(agent, workspace) is None
+    assert permission_manager.get_permissions_object(
+        agent, workspace, include_trash=True
+    )["is_admin"]
 
 
 @pytest.mark.django_db
@@ -603,6 +698,9 @@ def test_get_permissions(data_fixture):
                     "workspace.delete",
                     "workspace_user.update",
                     "workspace_user.delete",
+                    "agent.create",
+                    "agent.update",
+                    "agent.delete",
                 ],
                 "is_admin": True,
             },
@@ -742,6 +840,9 @@ def test_get_permissions(data_fixture):
                     "workspace.delete",
                     "workspace_user.update",
                     "workspace_user.delete",
+                    "agent.create",
+                    "agent.update",
+                    "agent.delete",
                 ],
                 "is_admin": True,
             },
@@ -881,6 +982,9 @@ def test_get_permissions(data_fixture):
                     "workspace.delete",
                     "workspace_user.update",
                     "workspace_user.delete",
+                    "agent.create",
+                    "agent.update",
+                    "agent.delete",
                 ],
                 "is_admin": False,
             },

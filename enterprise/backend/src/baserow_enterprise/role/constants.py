@@ -49,5 +49,5 @@ ROLE_ASSIGNABLE_OBJECT_MAP = getattr(
 ALLOWED_SUBJECT_TYPE_BY_PRIORITY = getattr(
     settings,
     "ALLOWED_SUBJECT_TYPE_BY_PRIORITY",
-    ["auth.User", "baserow_enterprise.Team"],
+    ["auth.User", "core.Agent", "baserow_enterprise.Team"],
 )

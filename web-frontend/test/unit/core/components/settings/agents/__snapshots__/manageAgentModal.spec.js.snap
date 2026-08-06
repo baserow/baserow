@@ -1,0 +1,43 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ManageAgentModal > hides commercial information in its role selector 1`] = `
+"<div left-sidebar-scrollable="false" content-padding="true">
+  <!--v-if-->
+  <main>
+    <h2 class="box__title">agents.createTitle</h2>
+    <error-stub error="[object Object]"></error-stub>
+    <form>
+      <div label="agents.name" required="" class="margin-bottom-2">
+        <form-input-stub model-value="" required="" maxlength="160"></form-input-stub>
+      </div>
+      <div label="agents.workspaceRole" required="">
+        <div class="workspace-role-selector" workspace="[object Object]" roles="">
+          <!--v-if-->
+        </div>
+      </div>
+      <div class="actions"><button type="secondary">action.cancel</button><button type="primary" loading="false" disabled="">agents.create</button></div>
+    </form>
+  </main>
+</div>"
+`;
+
+exports[`ManageAgentModal > shows registered settings in a sidebar when editing 1`] = `
+"<div left-sidebar-scrollable="true" content-padding="true">
+  <aside>
+    <div class="modal-sidebar__title">agents.updateTitle</div>
+    <ul class="modal-sidebar__nav">
+      <li><a class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-settings"></i> General</a></li>
+      <li><a class="modal-sidebar__nav-link active"><i class="modal-sidebar__nav-icon iconoir-community"></i> Teams</a></li>
+      <li><a class="modal-sidebar__nav-link"><i class="modal-sidebar__nav-icon iconoir-magic-wand"></i> MCP server</a></li>
+    </ul>
+  </aside>
+  <main>
+    <h2 class="box__title">Teams</h2>
+    <error-stub error="[object Object]"></error-stub>
+    <form>
+      <div class="teams-settings" modelvalue="[object Object]" workspace="[object Object]" agent="[object Object]" roles=""></div>
+      <div class="actions"><button type="secondary">action.cancel</button><button type="primary" loading="false" disabled="">agents.save</button></div>
+    </form>
+  </main>
+</div>"
+`;

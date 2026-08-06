@@ -1333,5 +1333,29 @@
   },
   "adminWorkspaces": {
     "title": "Workspaces"
+  },
+  "subjectType": {
+    "user": "User",
+    "users": "Users",
+    "anonymousUser": "Anonymous user",
+    "agent": "Agent",
+    "agents": "Agents"
+  },
+  "agents": {
+    "tabTitle": "Agents",
+    "title": "{count} agents in {workspace}",
+    "emptyTitle": "You have not created any agents yet",
+    "emptyDescription": "Agents are virtual users for AI. They cannot sign in, but they can hold roles and join teams.",
+    "create": "Create agent",
+    "createTitle": "Create agent",
+    "updateTitle": "Edit agent",
+    "save": "Save agent",
+    "edit": "Edit agent",
+    "delete": "Delete agent",
+    "general": "General",
+    "mcpServerPlaceholder": "MCP server settings will be available here.",
+    "name": "Name",
+    "lastActive": "Last active",
+    "workspaceRole": "Workspace role"
   }
 }

@@ -53,24 +53,26 @@
           :name="emptyItemDisplayName"
           :value="null"
         ></DropdownItem>
-        <template v-if="resultItemComponent">
-          <component
-            :is="resultItemComponent"
-            v-for="result in results"
-            :key="result[idName]"
-            :name="getResultName(result)"
-            :value="result[idName]"
-            :result="result"
-          ></component>
-        </template>
-        <template v-else>
-          <DropdownItem
-            v-for="result in results"
-            :key="result[idName]"
-            :name="getResultName(result)"
-            :value="result[idName]"
-          ></DropdownItem>
-        </template>
+        <slot name="items" :results="results">
+          <template v-if="resultItemComponent">
+            <component
+              :is="resultItemComponent"
+              v-for="result in results"
+              :key="result[idName]"
+              :name="getResultName(result)"
+              :value="result[idName]"
+              :result="result"
+            ></component>
+          </template>
+          <template v-else>
+            <DropdownItem
+              v-for="result in results"
+              :key="result[idName]"
+              :name="getResultName(result)"
+              :value="result[idName]"
+            ></DropdownItem>
+          </template>
+        </slot>
         <div v-if="loading" class="select__items-loading"></div>
       </ul>
     </div>

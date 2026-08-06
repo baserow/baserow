@@ -12,6 +12,7 @@ from rest_framework.status import (
 )
 
 from baserow.core.integrations.models import Integration
+from baserow.core.models import Agent
 
 
 @pytest.mark.django_db
@@ -90,6 +91,79 @@ def test_create_integration(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert response_json["authorized_user"]["username"] == user.username
+
+
+@pytest.mark.django_db
+def test_create_and_update_local_baserow_integration_with_agent(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    agent = Agent.objects.create(workspace=workspace, name="Row writer")
+    url = reverse("api:integrations:list", kwargs={"application_id": application.id})
+
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow",
+            "name": "Agent connection",
+            "authorized_agent_id": agent.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["authorized_user"]["id"] == user.id
+    assert response.json()["authorized_agent"] == {
+        "id": agent.id,
+        "name": "Row writer",
+    }
+
+    integration = Integration.objects.get(id=response.json()["id"]).specific
+    assert integration.authorized_subject == agent
+
+    item_url = reverse(
+        "api:integrations:item", kwargs={"integration_id": integration.id}
+    )
+    response = api_client.patch(
+        item_url,
+        {"authorized_agent_id": None},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["authorized_agent"] is None
+    integration.refresh_from_db()
+    assert integration.authorized_subject == user
+
+
+@pytest.mark.django_db
+def test_local_baserow_integration_rejects_agent_from_another_workspace(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_builder_application(user=user)
+    other_agent = Agent.objects.create(
+        workspace=data_fixture.create_workspace(), name="Other agent"
+    )
+    url = reverse("api:integrations:list", kwargs={"application_id": application.id})
+
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow",
+            "name": "Invalid connection",
+            "authorized_agent_id": other_agent.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["authorized_agent_id"] == "The agent does not exist."
 
 
 @pytest.mark.django_db

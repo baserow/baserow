@@ -1,0 +1,68 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`teamSubjects > shows agents in the member selector with purple initials 1`] = `
+"<div class="select-members-list">
+  <div>
+    <div class="form-input">
+      <!--v-if-->
+      <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="memberSelectionList.searchPlaceholder" autocomplete="">
+        <!--v-if-->
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+    <div class="margin-top-2">memberSelectionList.selectedAmountLabel - 0</div>
+  </div>
+  <ul class="list margin-top-2 select-members-list__items">
+    <li class="list__item">
+      <div class="list__left-side"><label class="checkbox"><input id="checkboxv-0-0-0" class="checkbox__native" type="checkbox">
+          <div class="checkbox__button"><svg class="checkbox__tick" xmlns="http://www.w3.org/2000/svg" width="9" height="8" viewBox="0 0 9 8" fill="none" style="display: none;">
+              <g clip-path="url(#clipv-0-0-0)">
+                <path d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+              </g>
+              <defs>
+                <clipPath id="clipv-0-0-0">
+                  <rect width="8" height="8" fill="white" transform="translate(0.5)"></rect>
+                </clipPath>
+              </defs>
+            </svg><svg class="checkbox__tick-indeterminate" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" fill="none" style="display: none;">
+              <path d="M1.5 4L6.5 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg></div>
+          <!--v-if-->
+        </label>
+        <div class="avatar avatar--rounded avatar--medium avatar--purple margin-left-1">
+          <!--v-if-->
+          <!--v-if--><span class="avatar__initials">W</span>
+        </div><span class="margin-left-1">Writer</span>
+      </div>
+      <div>Agent</div>
+      <!--v-if-->
+    </li>
+  </ul>
+  <div class="row">
+    <div class="col col-6"><button class="button button--regular button--secondary">
+        <!--v-if--><span class="button__label">memberAssignmentModalFooter.selectAll</span>
+        <!--v-if-->
+      </button></div>
+    <div class="col col-6 align-right"><button class="button button--regular" disabled="">
+        <!--v-if--><span class="button__label">memberAssignmentModalFooter.invite</span>
+        <!--v-if-->
+      </button></div>
+  </div>
+</div>"
+`;
+
+exports[`teamSubjects > shows users and agents at the same size in the teams table 1`] = `
+"<div title="subjectSampleField.titleAttr">
+  <!--v-if-->
+  <div class="avatar avatar--rounded avatar--large avatar--blue subject-sample-field-list__avatar">
+    <!--v-if-->
+    <!--v-if--><span class="avatar__initials">A</span>
+  </div>
+  <div class="avatar avatar--rounded avatar--large avatar--purple subject-sample-field-list__avatar">
+    <!--v-if-->
+    <!--v-if--><span class="avatar__initials">W</span>
+  </div>
+  <!--v-if-->
+</div>"
+`;

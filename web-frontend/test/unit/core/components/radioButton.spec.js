@@ -35,4 +35,20 @@ describe('RadioButton.vue', () => {
 
     expect(onClick).toHaveBeenCalled()
   })
+
+  it('can emit a deselected value when the active button is clicked', async () => {
+    const wrapper = await mountSuspended(RadioButton, {
+      props: {
+        modelValue: true,
+        value: true,
+        allowDeselect: true,
+        deselectedValue: false,
+      },
+    })
+
+    await wrapper.findComponent({ name: 'Button' }).trigger('click')
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
+    expect(wrapper.emitted('input')).toEqual([[false]])
+  })
 })

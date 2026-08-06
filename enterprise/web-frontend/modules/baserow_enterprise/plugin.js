@@ -26,6 +26,9 @@ import {
   SamlAuthProviderType,
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
+import { EnterpriseTeamsAgentExtensionType } from '@baserow_enterprise/agentExtensionTypes'
+import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
+import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
 import {
   AdvancedLicenseType,
@@ -165,6 +168,15 @@ export default defineNuxtPlugin({
       'workspaceSettingsPage',
       new TeamsWorkspaceSettingsPageType(context)
     )
+    $registry.register(
+      'agentExtension',
+      new EnterpriseTeamsAgentExtensionType(context)
+    )
+    $registry.register(
+      'agentSettings',
+      new EnterpriseTeamsAgentSettingsType(context)
+    )
+    $registry.register('subject', new TeamSubjectType(context))
 
     $registry.register('job', new AuditLogExportJobType(context))
     $registry.register('job', new DataScanResultExportJobType(context))
