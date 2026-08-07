@@ -61,7 +61,6 @@ import {
   WorkspaceInvitationRejectedNotificationType,
   BaserowVersionUpgradeNotificationType,
   AbuseReportCreatedNotificationType,
-  ApplicationUserLimitNotificationType,
 } from '@baserow/modules/core/notificationTypes'
 import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
@@ -395,10 +394,6 @@ export default defineNuxtPlugin({
     registry.register(
       'notification',
       new AbuseReportCreatedNotificationType(context)
-    )
-    registry.register(
-      'notification',
-      new ApplicationUserLimitNotificationType(context)
     )
 
     registry.register('twoFactorAuth', new TOTPAuthType(context))
