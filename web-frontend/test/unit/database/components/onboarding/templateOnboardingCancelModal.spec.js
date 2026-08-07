@@ -109,13 +109,4 @@ describe('TemplateOnboardingCancelModal', () => {
     expect(names[0]).toBe('Curated')
     expect(names).not.toContain('Unrelated')
   })
-
-  test('emits cancel when skipping', async () => {
-    const wrapper = await mount()
-
-    await wrapper.findComponent({ name: 'ButtonText' }).trigger('click')
-
-    expect(wrapper.emitted().cancel).toHaveLength(1)
-    expect(wrapper.emitted().selected).toBeUndefined()
-  })
 })

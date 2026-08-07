@@ -23,19 +23,6 @@
         >{{ $t('templateOnboardingCancelModal.continue') }}</Button
       >
     </div>
-    <div class="template-onboarding-cancel-modal__skip">
-      <ButtonText
-        ph-autocapture="onboarding-cancel-template-skip"
-        tag="a"
-        type="secondary"
-        :loading="skipping"
-        @click="skip()"
-        >{{ $t('templateOnboardingCancelModal.skip') }}</ButtonText
-      >
-      <div class="template-onboarding-cancel-modal__skip-description">
-        {{ $t('templateOnboardingCancelModal.skipDescription') }}
-      </div>
-    </div>
   </Modal>
 </template>
 
@@ -58,12 +45,11 @@ export default {
       required: true,
     },
   },
-  emits: ['selected', 'cancel', 'hidden'],
+  emits: ['selected', 'hidden'],
   data() {
     return {
       selectedTemplate: null,
       installing: false,
-      skipping: false,
     }
   },
   mounted() {
@@ -84,10 +70,6 @@ export default {
         type: this.stepType,
         template: this.selectedTemplate,
       })
-    },
-    skip() {
-      this.skipping = true
-      this.$emit('cancel')
     },
   },
 }

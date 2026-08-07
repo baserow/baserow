@@ -314,9 +314,10 @@ export default {
       await this.complete()
     },
     /**
-     * Stops the onboarding, creates an initial workspace, and marks it as completed.
-     * The modal offering an alternative shows its own loading state, so in that case
-     * it's left mounted and the cancel button of the page must not show one.
+     * Stops the onboarding, creates an initial workspace, and marks it as completed. A
+     * modal offering an alternative can cancel with `showLoading = false` if it shows
+     * a loading state of its own, because it stays mounted until the user is
+     * redirected.
      */
     async forceCancel(showLoading = true) {
       this.cancelling = showLoading
