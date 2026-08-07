@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Namespace the Helm chart internal template helpers so they no longer override the identically named helpers in the Redis and MinIO subcharts",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-07"
+}
