@@ -19,6 +19,8 @@ const MAX_TOKEN_REFRESH_RETRIES = 1
 export class RealTimeHandler {
   constructor(context) {
     this.context = context
+    // Reconnect callbacks can run without an active Nuxt context.
+    this.config = useRuntimeConfig()
     this.socket = null
     this.connected = false
     this.reconnect = false
@@ -151,8 +153,7 @@ export class RealTimeHandler {
 
     // The web socket url is the same as the PUBLIC_BACKEND_URL apart from the
     // protocol.
-    const config = useRuntimeConfig()
-    const rawUrl = config.public.publicBackendUrl
+    const rawUrl = this.config.public.publicBackendUrl
     const url = new URL(rawUrl)
     url.protocol = isSecureURL(rawUrl) ? 'wss:' : 'ws:'
     url.pathname = '/ws/core/'

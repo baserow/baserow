@@ -76,12 +76,35 @@ class BatchBaggageSpanProcessor(BatchSpanProcessor):
             span.set_attribute(name, value)
 
 
+def _django_server_span(request) -> typing.Optional[Span]:
+    """
+    Return the Django server span the OpenTelemetry middleware stored on this request.
+
+    Authentication runs inside the `DRF.initial` span, so the current span during
+    authentication is an internal child, not the server span. Attributes set only on
+    that child are invisible to anything selecting on `SpanKind.SERVER`, such as the
+    Collector's per-user request metric connector.
+    """
+
+    # Imported lazily: this module is loaded by setup_telemetry() before django.setup(),
+    # and otel_middleware imports django.http at module scope.
+    from opentelemetry.instrumentation.django.middleware.otel_middleware import (
+        _DjangoMiddleware,
+    )
+
+    key = getattr(_DjangoMiddleware, "_environ_span_key", None)
+    meta = getattr(request, "META", None)
+    if not key or not meta:
+        return None
+    return meta.get(key)
+
+
 @contextmanager
 def setup_user_in_baggage_and_spans(user, request=None):
     """
-    Context manager that sets user-related attributes in the current span and adds
-    selected attributes as OpenTelemetry baggage. Automatically handles context
-    attach/detach safely for ASGI.
+    Context manager that sets user-related attributes on the request's server span,
+    falling back to the current span, and adds selected attributes as OpenTelemetry
+    baggage. Automatically handles context attach/detach safely for ASGI.
     """
 
     if not otel_is_enabled():
@@ -89,6 +112,10 @@ def setup_user_in_baggage_and_spans(user, request=None):
         return
 
     span = get_current_span()
+    if request is not None:
+        server_span = _django_server_span(request)
+        if server_span is not None:
+            span = server_span
     ctx = context.get_current()
 
     def _set(name, attr, source, set_baggage=False):

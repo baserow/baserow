@@ -5,7 +5,11 @@
     </h2>
     <Error :error="error"></Error>
     <div>
-      <i18n-t keypath="deleteWorkspaceModal.confirmation" tag="p">
+      <i18n-t
+        scope="global"
+        keypath="deleteWorkspaceModal.confirmation"
+        tag="p"
+      >
         <template #name>
           <strong>{{ workspace.name }}</strong>
         </template>

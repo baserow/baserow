@@ -15,6 +15,10 @@ export class SlackBotIntegrationType extends IntegrationType {
     return slackIntegration
   }
 
+  get iconColor() {
+    return 'darker-pink'
+  }
+
   getSummary(integration) {
     if (!integration.token) {
       return this.app.$i18n.t('slackBotIntegrationType.slackBotNoToken')

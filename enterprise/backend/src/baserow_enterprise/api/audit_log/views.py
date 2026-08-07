@@ -47,21 +47,19 @@ class AuditLogView(APIListingView):
     permission_classes = (IsAuthenticated,)
     pagination_class = PageNumberPaginationWithApproximateCount
     serializer_class = AuditLogSerializer
+    # Every filter here is backed by an index leading with that column, so that a
+    # filtered page stays a seek instead of a scan of the whole table.
     filters_field_mapping = {
         "user_id": "user_id",
         "workspace_id": "workspace_id",
         "action_type": "action_type",
         "from_timestamp": "action_timestamp__gte",
         "to_timestamp": "action_timestamp__lte",
-        "ip_address": "ip_address",
     }
     sort_field_mapping = {
-        "user": "user_email",
-        "workspace": "workspace_name",
-        "type": "action_type",
         "timestamp": "action_timestamp",
-        "ip_address": "ip_address",
     }
+    search_fields = []
     default_order_by = "-action_timestamp"
 
     def get_queryset(self, request):

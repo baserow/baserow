@@ -46,6 +46,10 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
     return this.app.$i18n.t('workflowActionTypes.notificationLabel')
   }
 
+  get description() {
+    return this.app.$i18n.t('workflowActionTypes.notificationDescription')
+  }
+
   execute({ workflowAction: { title, description }, resolveFormula }) {
     return this.app.$store.dispatch('builderToast/info', {
       title: ensureString(resolveFormula(title)),
@@ -77,6 +81,10 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
 
   get label() {
     return this.app.$i18n.t('workflowActionTypes.openPageLabel')
+  }
+
+  get description() {
+    return this.app.$i18n.t('workflowActionTypes.openPageDescription')
   }
 
   /**
@@ -171,6 +179,10 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
     return this.app.$i18n.t('workflowActionTypes.logoutLabel')
   }
 
+  get description() {
+    return this.app.$i18n.t('workflowActionTypes.logoutDescription')
+  }
+
   execute({ applicationContext }) {
     return this.app.$store.dispatch('userSourceUser/logoff', {
       application: applicationContext.builder,
@@ -201,6 +213,10 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
 
   get label() {
     return this.app.$i18n.t('workflowActionTypes.refreshDataSourceLabel')
+  }
+
+  get description() {
+    return this.app.$i18n.t('workflowActionTypes.refreshDataSourceDescription')
   }
 
   getErrorMessage(workflowAction, applicationContext) {
@@ -270,12 +286,20 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return this.serviceType.name
   }
 
+  get description() {
+    return this.serviceType.description
+  }
+
   get icon() {
     return this.serviceType.icon
   }
 
   get image() {
     return this.serviceType.image
+  }
+
+  get group() {
+    return this.serviceType.group
   }
 
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {

@@ -5,7 +5,7 @@
     @click="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n-t :keypath="titleKey" tag="span">
+      <i18n-t scope="global" :keypath="titleKey" tag="span">
         <template #count>
           <strong>{{ notification.data.new_results_count }}</strong>
         </template>

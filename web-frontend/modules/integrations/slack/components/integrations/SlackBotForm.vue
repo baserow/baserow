@@ -41,7 +41,7 @@
           </p>
           <ol class="slack-bot-form__instructions">
             <li>
-              <i18n-t keypath="slackBotForm.supportSetupStep1">
+              <i18n-t scope="global" keypath="slackBotForm.supportSetupStep1">
                 <template #link>
                   <a href="https://api.slack.com/apps" target="_blank">{{
                     $t('slackBotForm.supportSetupStep1Link')
@@ -52,7 +52,7 @@
             <li>{{ $t('slackBotForm.supportSetupStep2') }}</li>
             <li>{{ $t('slackBotForm.supportSetupStep3') }}</li>
             <li>
-              <i18n-t keypath="slackBotForm.supportSetupStep4">
+              <i18n-t scope="global" keypath="slackBotForm.supportSetupStep4">
                 <template #scope>
                   <pre>chat:write</pre>
                 </template>
@@ -82,7 +82,7 @@
             <li>{{ $t('slackBotForm.supportPairingStep1') }}</li>
             <li>{{ $t('slackBotForm.supportPairingStep2') }}</li>
             <li>
-              <i18n-t keypath="slackBotForm.supportPairingStep3">
+              <i18n-t scope="global" keypath="slackBotForm.supportPairingStep3">
                 <template #command>
                   <pre>/invite @yourAppName yourChannel</pre>
                 </template>

@@ -8,29 +8,15 @@
           required
           :error-message="getFirstErrorMessage('type')"
         >
-          <Dropdown
+          <GroupedDropdown
             v-model="computedType"
-            fixed-items
             class="data-source-form__type-dropdown"
+            :items="serviceTypeOptions"
             :placeholder="$t('dataSourceForm.servicePlaceholder')"
-          >
-            <template
-              v-for="[, serviceTypesForDrop] in serviceTypesPerIntegration"
-            >
-              <DropdownItem
-                v-for="serviceTypeForDrop in serviceTypesForDrop"
-                :key="serviceTypeForDrop.getType()"
-                :name="serviceTypeForDrop.name"
-                :value="serviceTypeForDrop.getType()"
-                :image="serviceTypeForDrop.integrationType.image"
-                :disabled="isServiceTypeDeactivated(serviceTypeForDrop)"
-                :description="
-                  getServiceTypeDeactivatedReason(serviceTypeForDrop)
-                "
-              >
-              </DropdownItem>
-            </template>
-          </Dropdown>
+            :search-placeholder="$t('dataSourceForm.searchActionPlaceholder')"
+            :empty-text="$t('dataSourceForm.noActionsFound')"
+            panel-height="240px"
+          />
         </FormGroup>
         <FormGroup
           :label="$t('dataSourceForm.integrationLabel')"
@@ -42,9 +28,10 @@
             v-model="v$.values.integration_id.$model"
             class="data-source-form__integration-dropdown"
             :application="builder"
-            :integrations="integrations"
+            :integrations="availableIntegrations"
             :disabled="!v$.values.type.$model"
             :integration-type="serviceType?.integrationType"
+            :placeholder="$t('dataSourceForm.integrationPlaceholder')"
           />
         </FormGroup>
         <FormGroup
@@ -80,6 +67,7 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
+import GroupedDropdown from '@baserow/modules/core/components/GroupedDropdown'
 import form from '@baserow/modules/core/mixins/form'
 import applicationContext from '@baserow/modules/builder/mixins/applicationContext'
 import { required, maxLength, helpers } from '@vuelidate/validators'
@@ -88,7 +76,7 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 
 export default {
   name: 'DataSourceForm',
-  components: { IntegrationDropdown },
+  components: { GroupedDropdown, IntegrationDropdown },
   mixins: [form, applicationContext],
   provide() {
     return { dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_DATA_SOURCES }
@@ -134,6 +122,12 @@ export default {
       set(newValue) {
         this.v$.values.type.$model = newValue
         this.v$.values.name.$model = this.suggestedName
+        const selectedIntegrationIsAvailable = this.availableIntegrations.some(
+          ({ id }) => id === this.v$.values.integration_id.$model
+        )
+        if (!selectedIntegrationIsAvailable) {
+          this.v$.values.integration_id.$model = null
+        }
         if (this.availableIntegrations.length === 1) {
           this.v$.values.integration_id.$model =
             this.availableIntegrations[0].id
@@ -175,7 +169,7 @@ export default {
       )
     },
     availableIntegrations() {
-      return this.serviceType
+      return this.serviceType?.integrationType
         ? this.integrations.filter(
             ({ type }) => type === this.serviceType.integrationType.getType()
           )
@@ -190,6 +184,27 @@ export default {
             (serviceType) => serviceType.integrationType === integrationType
           ),
         ])
+    },
+    serviceTypeOptions() {
+      return this.serviceTypesPerIntegration
+        .map(([integrationType, serviceTypes]) => ({
+          id: `integration-${integrationType.getType()}`,
+          label: integrationType.name,
+          image: integrationType.image,
+          icon: integrationType.iconClass,
+          iconColor: integrationType.iconColor,
+          children: serviceTypes.map((serviceType) => ({
+            id: `service-${serviceType.getType()}`,
+            label: serviceType.name,
+            value: serviceType.getType(),
+            icon: serviceType.icon,
+            iconColor: serviceType.iconColor,
+            description: serviceType.description,
+            disabled: this.isServiceTypeDeactivated(serviceType),
+            disabledReason: this.getServiceTypeDeactivatedReason(serviceType),
+          })),
+        }))
+        .filter(({ children }) => children.length > 0)
     },
   },
   methods: {

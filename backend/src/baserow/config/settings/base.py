@@ -420,6 +420,20 @@ BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS = int(
 )
 BASEROW_THROTTLE_IP_ENABLED = str_to_bool(os.getenv("BASEROW_THROTTLE_IP_ENABLED", ""))
 
+try:
+    BASEROW_WORKSPACE_INVITATION_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in os.getenv("BASEROW_WORKSPACE_INVITATION_RATE_LIMITS", "").split(
+            ","
+        )
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_WORKSPACE_INVITATION_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '30/m,100/h'. {exc}"
+    ) from exc
+
 if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
         "baserow.throttling.handler.ConcurrentUserRequestsThrottle",
@@ -800,6 +814,8 @@ else:
 BASEROW_EMBEDDED_SHARE_URL = os.getenv("BASEROW_EMBEDDED_SHARE_URL")
 if not BASEROW_EMBEDDED_SHARE_URL:
     BASEROW_EMBEDDED_SHARE_URL = PUBLIC_WEB_FRONTEND_URL
+
+FRONTEND_COOKIE_PREFIX = os.getenv("BASEROW_FRONTEND_COOKIE_PREFIX", "")
 
 MEDIA_URL_PATH = "/media/"
 MEDIA_URL = os.getenv("MEDIA_URL", urljoin(PUBLIC_BACKEND_URL, MEDIA_URL_PATH))

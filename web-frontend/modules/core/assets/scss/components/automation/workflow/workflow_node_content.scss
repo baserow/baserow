@@ -93,7 +93,6 @@
 
 .workflow-node-content__icon {
   display: flex;
-  height: 40px;
   padding: 12px;
   justify-content: center;
   gap: 8px;
@@ -102,6 +101,11 @@
 
   @include elevation($elevation-low);
   @include rounded($rounded-md);
+
+  i {
+    color: var(--workflow-node-icon-color, $palette-neutral-900);
+    font-size: 20px;
+  }
 
   &:has(img) {
     padding: 8px;

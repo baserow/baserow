@@ -136,8 +136,10 @@ class FieldOptionsField(serializers.Field):
                 field_options = [
                     fo for fo in field_options if fo.field_id in allowed_field_ids
                 ]
+            # Keys must be strings: channels_redis unpacks msgpack with
+            # strict_map_key=True and rejects integer map keys.
             return {
-                field_options.field_id: self.serializer_class(field_options).data
+                str(field_options.field_id): self.serializer_class(field_options).data
                 for field_options in field_options
             }
         else:

@@ -13,7 +13,11 @@ const config: StorybookConfig = {
   ],
   framework: {
     name: '@storybook-vue/nuxt',
-    options: {},
+    options: {
+      // vue-docgen-api tries to read Nuxt's virtual page modules from disk.
+      // vue-component-meta skips those virtual modules and still documents real components.
+      docgen: 'vue-component-meta',
+    },
   },
   docs: {
     autodocs: 'tag',

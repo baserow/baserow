@@ -14,6 +14,10 @@ export class SMTPIntegrationType extends IntegrationType {
     return 'iconoir-send-mail'
   }
 
+  get iconColor() {
+    return 'muted-red'
+  }
+
   getSummary(integration) {
     return this.app.$i18n.t('smtpIntegrationType.smtpSummary', {
       host: integration.host,

@@ -176,7 +176,11 @@
               </div>
               {{ $t('license.disconnectLicense') }}
             </div>
-            <i18n-t keypath="license.disconnectDescription" tag="p">
+            <i18n-t
+              scope="global"
+              keypath="license.disconnectDescription"
+              tag="p"
+            >
               <template #subscriptions>
                 <a
                   href="https://baserow.io/subscriptions"

@@ -796,6 +796,10 @@
         "userAlreadyInWorkspace": {
           "title": "User is already in the workspace.",
           "text": "It is not possible to send an invitation when the user is already a member of the workspace."
+        },
+        "tooManyInvitations": {
+          "title": "Too many invitations sent.",
+          "text": "You have sent too many invitations. Please try again later."
         }
       }
     }
@@ -837,7 +841,14 @@
     "integrationPlaceholder": "Select an integration"
   },
   "dropdown": {
-    "empty": "No items available"
+    "empty": "No items available",
+    "clearSearch": "Clear search"
+  },
+  "groupedMenu": {
+    "core": "Core",
+    "files": "Files",
+    "http": "HTTP",
+    "workflow": "Workflow"
   },
   "richTextEditorMentionsList": {
     "notFound": "No users found"

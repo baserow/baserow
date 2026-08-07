@@ -1,0 +1,9 @@
+{
+  "type": "refactor",
+  "message": "Upgraded and refactored to Nuxt 4.5 with Vite 8.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2026-08-05"
+}

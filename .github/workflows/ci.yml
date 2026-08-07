@@ -39,6 +39,8 @@ jobs:
     steps:
       - id: setflag
         shell: bash
+        env:
+          SAAS_REPO_TOKEN: ${{ secrets.SAAS_REPO_TOKEN }}
         run: |
           if [[ -n "${{ secrets.RELEASE_DOCKER_REPOSITORY }}" && \
                 -n "${{ secrets.RELEASE_DOCKER_REGISTRY }}" && \
@@ -49,7 +51,7 @@ jobs:
             echo "should_build_and_publish=false" >> "$GITHUB_OUTPUT"
           fi
 
-          if [[ -n "${{ secrets.GITLAB_SAAS_PAT }}" ]]; then
+          if [[ -n "$SAAS_REPO_TOKEN" ]]; then
             echo "should_trigger_saas=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_trigger_saas=false" >> "$GITHUB_OUTPUT"
@@ -1329,7 +1331,7 @@ jobs:
           fi
 
   trigger-saas-build:
-    name: Trigger SaaS GitLab Pipeline
+    name: Trigger baserow/baserow-saas pipeline
     runs-on: ubuntu-latest
     needs:
       - build-final-backend
@@ -1337,19 +1339,17 @@ jobs:
       - build-final-all-in-one
       - check-build-and-publish
     if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && needs.check-build-and-publish.outputs.should_trigger_saas == 'true' && github.ref_name == 'develop'
+    permissions:
+      contents: read
     env:
-      GITLAB_SAAS_PAT: ${{ secrets.GITLAB_SAAS_PAT }}
+      SAAS_REPO_TOKEN: ${{ secrets.SAAS_REPO_TOKEN }}
       GIT_USER_NAME: "Baserow CI"
       GIT_USER_EMAIL: "ci@baserow.io"
     steps:
-      - name: Checkout core repo
-        uses: actions/checkout@v4
-
-      - name: Clone SaaS repository from GitLab
+      - name: Clone SaaS repository
         run: |
           echo "🔄 Cloning baserow-saas..."
-          git clone -b develop https://oauth2:${GITLAB_SAAS_PAT}@gitlab.com/baserow/baserow-saas.git saas
-          cd saas
+          git clone -b develop "https://x-access-token:${SAAS_REPO_TOKEN}@github.com/baserow/baserow-saas.git" saas
 
       - name: Update baserow submodule to current commit
         working-directory: saas
@@ -1392,10 +1392,10 @@ jobs:
           UV_NO_SYNC=true just sync-deps
           yarn install --ignore-scripts --no-bin-links
 
-      - name: Commit and push changes to GitLab
+      - name: Commit and push changes
         working-directory: saas
         run: |
-          echo "📝 Committing and pushing changes to GitLab..."
+          echo "📝 Committing and pushing changes to baserow-saas..."
 
           git config user.name "${GIT_USER_NAME}"
           git config user.email "${GIT_USER_EMAIL}"
