@@ -2,7 +2,6 @@ from collections import defaultdict
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils.timezone import now
@@ -15,6 +14,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.cache import global_cache
 from baserow.core.registries import plugin_registry
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
 from baserow.core.user_sources.handler import UserSourceHandler
@@ -352,9 +352,9 @@ def test_local_baserow_token_auth_over_application_user_limit(
     data = populate_local_baserow_test_data(data_fixture)
     user_source = data["user_source"]
     workspace = user_source.application.specific.get_workspace()
-    cache.set(
+    global_cache.update(
         get_over_limit_cache_key(workspace.id),
-        (now() - timedelta(hours=2)).isoformat(),
+        lambda _: (now() - timedelta(hours=2)).isoformat(),
     )
 
     # Force the self-hosted license plugin so the limit resolves from the licenses

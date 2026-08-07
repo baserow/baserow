@@ -2,7 +2,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, Mock, patch
 
-from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils.timezone import now
@@ -37,6 +36,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.app_auth_providers.models import AppAuthProvider
+from baserow.core.cache import global_cache
 from baserow.core.registries import plugin_registry
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
@@ -2604,7 +2604,9 @@ def self_hosted_license_plugin():
 
 def mark_over_limit_since(user_source, since):
     workspace = user_source.application.specific.get_workspace()
-    cache.set(get_over_limit_cache_key(workspace.id), since.isoformat())
+    global_cache.update(
+        get_over_limit_cache_key(workspace.id), lambda _: since.isoformat()
+    )
 
 
 @pytest.mark.django_db

@@ -3,10 +3,10 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
 from django.conf import settings
-from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
+from baserow.core.cache import global_cache
 from baserow.core.models import Workspace
 from baserow.core.registries import plugin_registry
 from baserow.core.user_sources.models import UserSource
@@ -91,7 +91,11 @@ def get_application_user_over_limit_since(
     :return: The over limit moment, or `None`.
     """
 
-    since = cache.get(get_over_limit_cache_key(workspace.id))
+    since = global_cache.get(
+        get_over_limit_cache_key(workspace.id),
+        default=None,
+        timeout=OVER_LIMIT_CACHE_TIMEOUT,
+    )
     return parse_datetime(since) if since else None
 
 
@@ -120,15 +124,14 @@ def update_application_user_over_limit_state(
     cache_key = get_over_limit_cache_key(workspace.id)
 
     if limit is None or usage <= limit:
-        cache.delete(cache_key)
+        global_cache.invalidate(cache_key)
         return
 
-    # Read and write instead of `cache.add`, because `add` leaves the timeout of an
-    # already existing key alone, which would expire the over limit moment of a
-    # workspace that never gets back within its limit.
-    since = cache.get(cache_key)
-    if since is None:
-        since = now().isoformat()
+    def stamp_over_limit_moment(since: Optional[str]) -> str:
+        # Keep the original moment on repeated calls, so a workspace that stays over
+        # its limit doesn't get its grace period restarted every run.
+        if since is not None:
+            return since
         # Logged because the stamp is otherwise invisible, and it's what a support
         # request about a refused login needs to be answered.
         logger.info(
@@ -137,7 +140,16 @@ def update_application_user_over_limit_state(
             usage,
             limit,
         )
-    cache.set(cache_key, since, timeout=OVER_LIMIT_CACHE_TIMEOUT)
+        return now().isoformat()
+
+    # `update` does the read-modify-write under a lock, so overlapping runs can't each
+    # stamp a different moment.
+    global_cache.update(
+        cache_key,
+        stamp_over_limit_moment,
+        default_value=None,
+        timeout=OVER_LIMIT_CACHE_TIMEOUT,
+    )
 
 
 def notify_workspaces_approaching_application_user_limit() -> None:
@@ -188,7 +200,7 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     # The periodic application user limit check stamps the moment a workspace goes
     # over its limit. Only refuse logins when that happened longer than the grace period
     # ago, so the workspace has time to upgrade or reduce its usage first. This is
-    # a single cheap cache read on the login path.
+    # a cheap cache read on the login path.
     over_limit_since = get_application_user_over_limit_since(workspace)
     if over_limit_since is None:
         return

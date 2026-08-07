@@ -1,14 +1,13 @@
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.core.cache import cache
 from django.test.utils import override_settings
 from django.utils.timezone import now
 
 import pytest
 from baserow_premium_tests.fixtures import VALID_PREMIUM_5_SEAT_10_APP_USER_LICENSE
 
-from baserow.core.cache import local_cache
+from baserow.core.cache import global_cache, local_cache
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import plugin_registry
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
@@ -52,7 +51,9 @@ def self_hosted_license_plugin():
 
 def mark_over_limit_since(user_source, since):
     workspace = user_source.application.specific.get_workspace()
-    cache.set(get_over_limit_cache_key(workspace.id), since.isoformat())
+    global_cache.update(
+        get_over_limit_cache_key(workspace.id), lambda _: since.isoformat()
+    )
 
 
 def is_marked_over_limit(workspace):
