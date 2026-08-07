@@ -7,6 +7,7 @@ from django.http import StreamingHttpResponse
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from loguru import logger
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
@@ -36,6 +37,9 @@ from baserow_enterprise.assistant.exceptions import (
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.model_profiles import check_lm_ready_or_raise
 from baserow_enterprise.assistant.models import AssistantChatPrediction
+from baserow_enterprise.assistant.onboarding import (
+    generate_onboarding_prompt_suggestions,
+)
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.assistant.types import (
     AiCancelledMessage,
@@ -57,6 +61,8 @@ from .serializers import (
     AssistantMessageRequestSerializer,
     AssistantMessageSerializer,
     AssistantRateChatMessageSerializer,
+    OnboardingPromptSuggestionsRequestSerializer,
+    OnboardingPromptSuggestionsSerializer,
 )
 
 
@@ -326,3 +332,39 @@ class AssistantChatMessageFeedbackView(APIView):
             update_fields=["human_sentiment", "human_feedback", "updated_on"]
         )
         return Response(status=HTTP_204_NO_CONTENT)
+
+
+class AssistantOnboardingPromptSuggestionsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["AI Assistant"],
+        operation_id="get_assistant_onboarding_prompt_suggestions",
+        description=(
+            "Suggests databases the user could create during the onboarding, based "
+            "on the industry and team they provided. The first suggestion is the "
+            "most relevant one.\n\n"
+        ),
+        request=OnboardingPromptSuggestionsRequestSerializer,
+        responses={
+            200: OnboardingPromptSuggestionsSerializer,
+            400: get_error_schema(["ERROR_ASSISTANT_MODEL_NOT_SUPPORTED"]),
+        },
+    )
+    @validate_body(OnboardingPromptSuggestionsRequestSerializer, return_validated=True)
+    @map_exceptions(
+        {AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED}
+    )
+    def post(self, request: Request, data) -> Response:
+        check_lm_ready_or_raise()
+
+        suggestions = generate_onboarding_prompt_suggestions(
+            industry=data["industry"],
+            team=data["team"],
+            language=data["language"] or request.user.profile.language,
+        )
+
+        serializer = OnboardingPromptSuggestionsSerializer(
+            {"suggestions": [s.model_dump() for s in suggestions]}
+        )
+        return Response(serializer.data)

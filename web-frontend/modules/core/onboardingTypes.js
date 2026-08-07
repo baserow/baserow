@@ -19,6 +19,18 @@ export class OnboardingType extends Registerable {
    * where the user must make a choice. It must contain a method called `isValid`.
    * If `true` is returned, then the user can click on the continue button. It can
    * $emit the `update-data` event to
+   *
+   * It can optionally implement `beforeNext`, which is called when the user clicks
+   * on the continue button. Returning `true` means the component handled the click
+   * itself, and the onboarding must stay on this step. It can also $emit the
+   * `next-step` event to move on without the user clicking continue.
+   *
+   * A component that asks several questions in a row can implement `canGoBack` and
+   * `goBack` to make the back button move between its own questions instead of
+   * going to the previous step.
+   *
+   * Note that the components are kept alive, so `mounted` is only called once. Use
+   * the `activated` hook to react to becoming visible again.
    */
   getFormComponent() {
     throw new Error('getFormComponent is not implemented')

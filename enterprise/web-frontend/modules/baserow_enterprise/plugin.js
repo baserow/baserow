@@ -95,6 +95,7 @@ import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSetting
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
+import { AIPromptOnboardingType } from '@baserow_enterprise/onboardingTypes'
 import {
   CoreCodeServiceType,
   CoreXLSFileReaderServiceType,
@@ -285,6 +286,7 @@ export default defineNuxtPlugin({
       'databaseOnboardingStep',
       new AIDatabaseOnboardingStepType(context)
     )
+    $registry.register('onboarding', new AIPromptOnboardingType(context))
 
     $registry.register(
       'fieldContextItem',

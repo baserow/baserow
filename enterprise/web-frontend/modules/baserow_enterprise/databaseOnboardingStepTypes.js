@@ -1,14 +1,10 @@
 import { DatabaseOnboardingStepType } from '@baserow/modules/database/databaseOnboardingStepTypes'
 import AIDatabaseOnboardingForm from '@baserow_enterprise/components/onboarding/AIDatabaseOnboardingForm'
-import { nextTick } from 'vue'
-import { pageFinished } from '@baserow/modules/core/utils/routing.js'
-import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes.js'
-import { waitFor } from '@baserow/modules/core/utils/queue.js'
-import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
 
 /**
  * AI-assisted database onboarding step type. Only visible when an LLM model is
- * configured in the enterprise settings.
+ * configured in the enterprise settings. Asks a few questions about the user, after
+ * which the AIPromptOnboardingType step asks for the actual prompt.
  */
 export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
   static getType() {
@@ -38,53 +34,9 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
   }
 
   isValid(data, vuelidate, refs) {
-    const component = refs.stepComponent
-    return (
-      !!component &&
-      !!component.v$ &&
-      !component.v$.$invalid &&
-      component.v$.$dirty
-    )
-  }
-
-  async completeAfterWorkspace(workspace, stepData, callback) {
-    await this.app.$store.dispatch('workspace/select', workspace)
-    const message = this.app.$i18n.t('aiDatabaseOnboardingStepType.prompt', {
-      prompt: stepData.prompt,
-    })
-    callback(null, AssistantOnboardingMessage)
-    await this.app.$store.dispatch('assistant/sendMessage', {
-      message,
-      workspace,
-    })
-    const chat = this.app.$store.getters['assistant/currentChat']
-    await waitFor(() => {
-      const currentChat = this.app.$store.getters['assistant/currentChat']
-      return !currentChat?.running
-    }, 50)
-    const tableLocation = this.app.$store.getters[
-      'assistant/uiLocationHistory'
-    ].filter((location) => location.type === 'database-table')[0]
-    if (!tableLocation) {
-      throw new Error('The assistant did not create a table.')
-    }
-    return { tableLocation, chat }
-  }
-
-  getCompletedRoute(data, responses) {
-    const response = responses[DatabaseOnboardingType.getType()]
-    nextTick(async () => {
-      await pageFinished(this.app)
-      await nextTick()
-      await this.app.$bus.$emit('toggle-right-sidebar', true)
-      await this.app.$store.dispatch('assistant/selectChat', response.chat)
-    })
-    return {
-      name: 'database-table',
-      params: {
-        databaseId: response.tableLocation.database_id,
-        tableId: response.tableLocation.table_id,
-      },
-    }
+    // Right after switching tabs the ref still points at the component of the
+    // previously selected type, which has no `isValid`. The next render, once the
+    // ref has caught up, gets the real answer.
+    return refs.stepComponent?.isValid?.() === true
   }
 }

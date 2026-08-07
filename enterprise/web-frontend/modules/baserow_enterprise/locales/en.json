@@ -833,9 +833,14 @@
     "ai": "Kuma AI"
   },
   "aiDatabaseOnboardingForm": {
-    "label": "Describe your database",
-    "placeholder": "e.g. Create project management solution",
-    "description": "Describe what you want to track. Kuma will create the tables and fields.",
+    "progress": "Question {current} of {total}",
+    "explanation": "Kuma builds your workspace for you. Answering a couple of questions lets it suggest what to build first, so you start with something that matches the work you actually do.",
+    "industryLabel": "What industry are you in?",
+    "industryDescription": "A few words are enough, like \"Manufacturing\", \"Aerospace\" or \"Digital marketing\".",
+    "industryPlaceholder": "e.g. Digital marketing",
+    "teamLabel": "Which team are you on?",
+    "teamDescription": "For example \"Client services\", \"Finance\" or \"Operations\".",
+    "teamPlaceholder": "e.g. Client services",
     "exampleProjectTrackerName": "Project Tracker",
     "exampleProjectTrackerPrompt": "Create a project tracker with Projects, Tasks, Assignees, Status, Priority, Due dates, and dependencies.",
     "exampleProductRoadmapName": "Product Roadmap",
@@ -843,12 +848,25 @@
     "exampleCompanyAssetTrackerName": "Company Asset Tracker",
     "exampleCompanyAssetTrackerPrompt": "Create an asset tracker with Assets, Categories, Serial numbers, Purchase date, Assigned to, Location, and warranty expiry.",
     "exampleTeamCheckInsName": "Team Check-ins",
-    "exampleTeamCheckInsPrompt": "Create a weekly team check-in tracker with Team members, Date, Wins, Blockers, Mood, Priorities, and follow-ups.",
-    "exampleBugTrackerName": "Bug Tracker",
-    "exampleBugTrackerPrompt": "Create a bug tracker with Bugs, Severity, Status, Steps to reproduce, Environment, Reporter, Assignee, and fix version."
+    "exampleTeamCheckInsPrompt": "Create a weekly team check-in tracker with Team members, Date, Wins, Blockers, Mood, Priorities, and follow-ups."
   },
-  "aiDatabaseOnboardingStepType": {
-    "prompt": "Create a database including tables, fields, example rows, and example views matching this description: {prompt}"
+  "aiPromptStep": {
+    "title": "What should Kuma build for you?",
+    "description": "We've written a first suggestion based on your answers. Change it, or pick another one below.",
+    "label": "Describe your database",
+    "placeholder": "e.g. Track client projects with deadlines, owners and status.",
+    "generating": "Kuma is writing a suggestion for you…",
+    "suggestionsTitle": "Or start with one of these",
+    "editDetails": "Edit details"
+  },
+  "aiOnboardingDetailsModal": {
+    "title": "Edit your details",
+    "submit": "Update suggestions"
+  },
+  "aiPromptOnboardingType": {
+    "prompt": "Create a database including tables, fields, example rows, and example views matching this description: {prompt}",
+    "context": "The person asking works in {industry}, on the {team} team. Use that to pick realistic tables, fields and example rows.",
+    "language": "Write everything you create in the language with ISO 639-1 code \"{language}\"."
   },
   "assistantOnboardingMessage": {
     "instructing": "Instructing Kuma to create your database."

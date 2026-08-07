@@ -40,6 +40,7 @@
         :placeholder="placeholder"
         :required="required"
         :autocomplete="autocomplete"
+        :maxlength="maxlength"
         @blur="onBlur"
         @click="$emit('click', $event)"
         @focus="$emit('focus', $event)"
@@ -101,6 +102,7 @@ const props = defineProps({
   required: Boolean,
   removeNumberInputControls: Boolean,
   autocomplete: { type: String, default: '' },
+  maxlength: { type: Number, default: null },
   min: { type: Number, default: -1 },
   max: { type: Number, default: -1 },
   step: { type: Number, default: -1 },

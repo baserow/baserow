@@ -1,0 +1,193 @@
+<template>
+  <div>
+    <h1>{{ $t('aiPromptStep.title') }}</h1>
+    <p>{{ $t('aiPromptStep.description') }}</p>
+
+    <div v-if="loading" class="ai-prompt-loading">
+      <div class="loading"></div>
+      <div class="ai-prompt-loading__text">
+        {{ $t('aiPromptStep.generating') }}
+      </div>
+    </div>
+    <FormGroup
+      v-else
+      :label="$t('aiPromptStep.label')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <FormTextarea
+        ref="promptInput"
+        v-model="prompt"
+        :placeholder="$t('aiPromptStep.placeholder')"
+        :rows="5"
+        @input="promptEdited = true"
+      />
+    </FormGroup>
+
+    <div class="ai-prompt-suggestions__head">
+      <div class="ai-prompt-suggestions__title">
+        {{ $t('aiPromptStep.suggestionsTitle') }}
+      </div>
+      <ButtonText tag="a" icon="iconoir-edit-pencil" @click="editDetails()">{{
+        $t('aiPromptStep.editDetails')
+      }}</ButtonText>
+    </div>
+
+    <div class="ai-prompt-suggestions">
+      <template v-if="loading">
+        <div
+          v-for="index in 4"
+          :key="index"
+          class="ai-prompt-suggestion ai-prompt-suggestion--skeleton"
+        >
+          <div class="ai-prompt-suggestion__preview">
+            <div class="ai-prompt-suggestion__preview-text"></div>
+          </div>
+          <div class="ai-prompt-suggestion__name"></div>
+        </div>
+      </template>
+      <a
+        v-for="suggestion in suggestions"
+        v-else
+        :key="suggestion.name"
+        class="ai-prompt-suggestion"
+        :class="{
+          'ai-prompt-suggestion--active': suggestion.prompt === prompt,
+        }"
+        @click="selectSuggestion(suggestion)"
+      >
+        <div class="ai-prompt-suggestion__preview">
+          <div class="ai-prompt-suggestion__preview-text">
+            {{ suggestion.prompt }}
+          </div>
+        </div>
+        <div class="ai-prompt-suggestion__name">{{ suggestion.name }}</div>
+      </a>
+    </div>
+
+    <AIOnboardingDetailsModal
+      ref="detailsModal"
+      :industry="details.industry"
+      :team="details.team"
+      @updated="detailsUpdated"
+    />
+  </div>
+</template>
+
+<script>
+import AIOnboardingDetailsModal from '@baserow_enterprise/components/onboarding/AIOnboardingDetailsModal'
+import AssistantService from '@baserow_enterprise/services/assistant'
+import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+
+export default {
+  name: 'AIPromptStep',
+  components: { AIOnboardingDetailsModal },
+  props: {
+    data: {
+      type: Object,
+      required: true,
+    },
+  },
+  emits: ['update-data'],
+  data() {
+    return {
+      loading: false,
+      prompt: '',
+      promptEdited: false,
+      suggestions: [],
+      details: this.answers(),
+    }
+  },
+  computed: {
+    examples() {
+      return [
+        'ProjectTracker',
+        'ProductRoadmap',
+        'CompanyAssetTracker',
+        'TeamCheckIns',
+      ].map((example) => ({
+        name: this.$t(`aiDatabaseOnboardingForm.example${example}Name`),
+        prompt: this.$t(`aiDatabaseOnboardingForm.example${example}Prompt`),
+      }))
+    },
+  },
+  watch: {
+    prompt() {
+      this.emitData()
+    },
+  },
+  mounted() {
+    this.emitData()
+    this.fetchSuggestions()
+  },
+  activated() {
+    // The onboarding keeps this step alive, so the user can go back, change their
+    // answers and end up here again with suggestions that no longer match.
+    const answers = this.answers()
+    if (
+      answers.industry !== this.details.industry ||
+      answers.team !== this.details.team
+    ) {
+      this.details = answers
+      this.fetchSuggestions()
+    }
+  },
+  methods: {
+    emitData() {
+      this.$emit('update-data', {
+        prompt: this.prompt,
+        language: this.$i18n.locale,
+      })
+    },
+    answers() {
+      const database = this.data[DatabaseOnboardingType.getType()] || {}
+      return {
+        industry: database.industry || '',
+        team: database.team || '',
+      }
+    },
+    async fetchSuggestions() {
+      const requested = this.details
+      this.loading = true
+      try {
+        const suggestions = await AssistantService(
+          this.$client
+        ).fetchOnboardingPromptSuggestions({
+          ...requested,
+          language: this.$i18n.locale,
+        })
+        if (requested !== this.details) {
+          return
+        }
+        this.suggestions = suggestions
+        if (!this.promptEdited && suggestions.length > 0) {
+          this.prompt = suggestions[0].prompt
+        }
+      } catch (error) {
+        if (requested !== this.details) {
+          return
+        }
+        this.suggestions = this.examples
+        notifyIf(error)
+      }
+      this.loading = false
+    },
+    selectSuggestion(suggestion) {
+      this.prompt = suggestion.prompt
+      this.promptEdited = false
+    },
+    editDetails() {
+      this.$refs.detailsModal.show()
+    },
+    detailsUpdated(details) {
+      this.details = details
+      this.fetchSuggestions()
+    },
+    isValid() {
+      return this.prompt.trim() !== ''
+    },
+  },
+}
+</script>

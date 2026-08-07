@@ -147,6 +147,21 @@ export default (client) => {
       return data
     },
 
+    async fetchOnboardingPromptSuggestions({ industry, team, language }) {
+      const { data } = await client.post(
+        '/assistant/onboarding/prompt-suggestions/',
+        {
+          industry,
+          team,
+          language,
+        },
+        {
+          baseURL: getAssistantBaseURL(client),
+        }
+      )
+      return data.suggestions
+    },
+
     async cancelMessage(chatUuid) {
       await client.delete(`/assistant/chat/${chatUuid}/cancel/`, {
         baseURL: getAssistantBaseURL(client),

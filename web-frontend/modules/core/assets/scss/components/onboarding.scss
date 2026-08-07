@@ -78,12 +78,16 @@
 
 .onboarding__body {
   height: 100%;
-  margin: 40px auto 0;
+  margin: 0 auto;
   max-width: 542px;
   padding: 0 40px;
   width: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.onboarding__back {
+  margin-bottom: 16px;
 }
 
 .onboarding__actions {
