@@ -84,6 +84,20 @@ export class OnboardingType extends Registerable {
   canSkip() {
     return false
   }
+
+  /**
+   * Called when the user clicks on the cancel button while this step is active, before
+   * the onboarding is actually cancelled. It gives the step the opportunity to offer an
+   * alternative to cancelling, like choosing a template. Must resolve with `null` if
+   * the onboarding must be cancelled as normal, or with an object containing the
+   * `component` of the modal that must be shown, and optionally the `props` that are
+   * passed into it. The modal must emit `selected` with the data of this step if the
+   * onboarding must be completed with it, `cancel` if the onboarding must be cancelled
+   * after all, and `hidden` if the user dismissed it.
+   */
+  async getCancelModal() {
+    return null
+  }
 }
 
 export class MoreOnboardingType extends OnboardingType {

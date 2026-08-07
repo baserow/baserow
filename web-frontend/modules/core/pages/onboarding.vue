@@ -21,7 +21,7 @@
           type="danger"
           size="large"
           :loading="cancelling"
-          @click="cancel"
+          @click="forceCancel()"
           >{{ $t('onboarding.failedSkip') }}</Button
         >
       </div>
@@ -98,6 +98,14 @@
         ></component>
       </div>
     </template>
+    <component
+      :is="cancelModal.component"
+      v-if="cancelModal"
+      v-bind="cancelModal.props"
+      @selected="cancelSelected"
+      @cancel="forceCancel(false)"
+      @hidden="cancelModal = null"
+    ></component>
   </div>
 </template>
 
@@ -134,6 +142,7 @@ export default {
       reloading: false,
       message: null,
       component: null,
+      cancelModal: null,
     }
   },
   computed: {
@@ -265,11 +274,52 @@ export default {
       }
     },
     /**
-     * Called when the user clicks on the cancel button. This will stop the onboarding,
-     * create an initial workspace, and mark it as completed.
+     * Called when the user clicks on the cancel button. Before actually cancelling, the
+     * step gets the opportunity to offer the user an alternative, like choosing a
+     * template. If it doesn't, the onboarding is cancelled immediately.
      */
     async cancel() {
       this.cancelling = true
+
+      let modal = null
+      try {
+        modal = await this.step.getCancelModal()
+      } catch (error) {
+        // Failing to offer an alternative must never block the user from leaving the
+        // onboarding, so we're falling back on cancelling it.
+        console.error(error)
+      }
+
+      if (modal) {
+        this.cancelModal = {
+          stepType: this.step.getType(),
+          component: markRaw(modal.component),
+          props: modal.props || {},
+        }
+        this.cancelling = false
+        return
+      }
+
+      await this.forceCancel()
+    },
+    /**
+     * Called when the user chose an alternative to cancelling the onboarding. The data
+     * belongs to the step that offered the alternative, so that the onboarding can be
+     * completed as if the user filled out that step.
+     */
+    async cancelSelected(data) {
+      const { stepType } = this.cancelModal
+      this.cancelModal = null
+      this.data = { ...this.data, [stepType]: data }
+      await this.complete()
+    },
+    /**
+     * Stops the onboarding, creates an initial workspace, and marks it as completed.
+     * The modal offering an alternative shows its own loading state, so in that case
+     * it's left mounted and the cancel button of the page must not show one.
+     */
+    async forceCancel(showLoading = true) {
+      this.cancelling = showLoading
       try {
         const { data: workspace } = await WorkspaceService(
           this.$client
