@@ -88,7 +88,7 @@ Create image url to use
 Returns the available value for certain key in an existing secret (if it exists),
 otherwise it generates a random value.
 */}}
-{{- define "getValueFromSecret" }}
+{{- define "baserow.global.getValueFromSecret" }}
 {{- $len := (default 16 .Length) | int -}}
 {{- $obj := (lookup "v1" "Secret" .Namespace .Name).data -}}
 {{- if $obj }}
@@ -109,7 +109,7 @@ Get jwt secret name
 Get jwt secret key
 */}}
 {{- define "baserow.global.jwt.secret_key" -}}
-{{- include "getValueFromSecret" (dict "Namespace" .Release.Namespace "Name" .Values.global.baserow.backendSecret "Length" 10 "Key" "SECRET_KEY")  -}}
+{{- include "baserow.global.getValueFromSecret" (dict "Namespace" .Release.Namespace "Name" .Values.global.baserow.backendSecret "Length" 10 "Key" "SECRET_KEY")  -}}
 {{- end }}
 
 
@@ -117,7 +117,7 @@ Get jwt secret key
 Get jwt secret key
 */}}
 {{- define "baserow.global.jwt.signing_key" -}}
-{{- include "getValueFromSecret" (dict "Namespace" .Release.Namespace "Name" .Values.global.baserow.backendSecret "Length" 10 "Key" "BASEROW_JWT_SIGNING_KEY")  -}}
+{{- include "baserow.global.getValueFromSecret" (dict "Namespace" .Release.Namespace "Name" .Values.global.baserow.backendSecret "Length" 10 "Key" "BASEROW_JWT_SIGNING_KEY")  -}}
 {{- end }}
 
 {{/*
@@ -144,7 +144,7 @@ Get the password for the postgresql user
 {{- define "baserow.global.postgresql.password" -}}
   {{- if .Values.postgresql.enabled -}}
   {{- if .Values.postgresql.auth.existingSecret -}}
-    {{- include "getValueFromSecret" (dict "Namespace" (include "common.names.namespace" .Subcharts.postgresql) "Name" (include "postgresql.v1.secretName" .Subcharts.postgresql) "Length" 10 "Key" (include "postgresql.v1.userPasswordKey" .Subcharts.postgresql))  -}}
+    {{- include "baserow.global.getValueFromSecret" (dict "Namespace" (include "common.names.namespace" .Subcharts.postgresql) "Name" (include "postgresql.v1.secretName" .Subcharts.postgresql) "Length" 10 "Key" (include "postgresql.v1.userPasswordKey" .Subcharts.postgresql))  -}}
   {{- else if .Values.postgresql.auth.password -}}
     {{ .Values.postgresql.auth.password }}
   {{- end -}}
@@ -163,7 +163,7 @@ Return the username for the postgres user
 {{/*
 PodSecurityContext combine the global and local PodSecurityContexts
 */}}
-{{- define "podSecurityContext" -}}
+{{- define "baserow.global.migration.podSecurityContext" -}}
 {{- if .Values.migration.securityContext.enabled }}
 {{- omit .Values.migration.securityContext "enabled" | toYaml  }}
 {{- else if .Values.global.baserow.securityContext.enabled }}
@@ -174,7 +174,7 @@ PodSecurityContext combine the global and local PodSecurityContexts
 {{/*
 ContainerSecurityContext combine the global and local ContainerSecurityContexts
 */}}
-{{- define "containerSecurityContext" -}}
+{{- define "baserow.global.migration.containerSecurityContext" -}}
 {{- if .Values.migration.containerSecurityContext.enabled }}
 {{- omit .Values.migration.containerSecurityContext "enabled" | toYaml  }}
 {{- else if .Values.global.baserow.containerSecurityContext.enabled }}
