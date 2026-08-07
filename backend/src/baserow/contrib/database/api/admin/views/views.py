@@ -29,6 +29,7 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.core.action.registries import action_type_registry
+from baserow.core.db import parse_int_field_value
 from baserow.core.models import Application, Template
 
 from .serializers import AdminViewSerializer, AdminViewUpdateSerializer
@@ -86,11 +87,10 @@ class AdminViewsView(AdminListingView):
     def apply_filters(self, query_params, queryset):
         queryset = super().apply_filters(query_params, queryset)
 
-        workspace_id = query_params.get("workspace_id")
-        if workspace_id is None or not workspace_id.isdigit():
+        workspace_id = parse_int_field_value(query_params.get("workspace_id"))
+        if workspace_id is None:
             return queryset
 
-        workspace_id = int(workspace_id)
         # Resolved through the applications of the workspace so that the outer query
         # only has to match `database_table.database_id`. Following the relationship
         # instead joins in the multi table inheritance parent of `Database`, which
@@ -113,8 +113,8 @@ class AdminViewsView(AdminListingView):
             owned_by_id__in=User.objects.filter(username=search).values("id")
         )
 
-        if search.isdigit():
-            value = int(search)
+        value = parse_int_field_value(search)
+        if value is not None:
             q |= (
                 Q(id=value)
                 | Q(table_id=value)

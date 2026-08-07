@@ -1,6 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import ViewsAdminTable from '@baserow/modules/database/components/admin/views/ViewsAdminTable'
 import ViewsAdminContext from '@baserow/modules/database/components/admin/views/contexts/ViewsAdminContext'
+import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import flushPromises from 'flush-promises'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the search
@@ -147,5 +148,28 @@ describe('ViewsAdminTable component', () => {
     // The dropdown names the workspace the filter came from, so it is visible that
     // one is applied and which.
     expect(viewsAdmin.find('.dropdown__selected-text').text()).toBe('Workspace')
+  })
+
+  test('selecting a workspace in the dropdown keeps its name visible', async () => {
+    thereAreViews([aView()], { page: 1, only_public: 'true' })
+    thereAreViews([aView()], {
+      page: 1,
+      only_public: 'true',
+      workspace_id: '30',
+    })
+
+    const viewsAdmin = await testApp.mount(ViewsAdminTable, {})
+    await flushPromises()
+
+    const dropdown = viewsAdmin.findComponent(PaginatedDropdown)
+    await dropdown.find('.dropdown__selected').trigger('click')
+    await flushPromises()
+    await dropdown
+      .findAll('.select__item-link')
+      .find((link) => link.text() === 'Workspace')
+      .trigger('click')
+    await flushPromises()
+
+    expect(viewsAdmin.find('.dropdown__selected').text()).toBe('Workspace')
   })
 })

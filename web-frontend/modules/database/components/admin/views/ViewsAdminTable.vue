@@ -17,13 +17,13 @@
           {{ $t('viewsAdminTable.onlyPublic') }}
         </SwitchInput>
         <PaginatedDropdown
-          :key="`workspace-filter-${workspaceId}`"
+          ref="workspaceFilter"
           :value="workspaceId"
           :initial-display-name="workspaceName"
           :fetch-page="fetchWorkspaces"
           :empty-item-display-name="$t('viewsAdminTable.allWorkspaces')"
           :not-selected-text="$t('viewsAdminTable.allWorkspaces')"
-          @input="selectWorkspace"
+          @input="workspaceId = $event"
         ></PaginatedDropdown>
       </div>
     </template>
@@ -186,16 +186,11 @@ export default {
     fetchWorkspaces(page, search) {
       return fetchWorkspaceOptions(this.$client, page, search)
     },
-    selectWorkspace(workspaceId) {
-      // The dropdown keeps its own display name once something is picked from its
-      // list, so nothing has to be resolved here.
-      this.workspaceId = workspaceId
-      this.workspaceName = null
-    },
     async filterWorkspace({ id, name }) {
       this.workspaceId = id
       this.workspaceName = name
       await this.$nextTick()
+      this.$refs.workspaceFilter.clear()
       this.$refs.crudTable.setSearch('')
     },
   },

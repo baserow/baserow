@@ -46,6 +46,30 @@ ModelInstance = TypeVar("ModelInstance", bound=object)
 APPROXIMATE_COUNT_THRESHOLD = 50_000
 EXACT_COUNT_MAX_COST = 200_000
 
+# Where the Postgres `integer` behind Django's `AutoField` and `IntegerField` stops.
+MAX_INT_FIELD_VALUE = 2**31 - 1
+
+
+def parse_int_field_value(value: Optional[str]) -> Optional[int]:
+    """
+    Parses a string into a value that can be matched against an integer column,
+    returning None when it cannot be one.
+
+    Anything that does not fit in such a column is rejected rather than matched
+    against it: no row can hold that value, and comparing against it makes Postgres
+    widen the comparison to numeric, which costs a scan of the table instead of a
+    seek on the index over the column.
+
+    :param value: The string to parse, typically an untrusted query parameter.
+    :return: The value, or None if it is not a usable one.
+    """
+
+    if value is None or not value.isdigit():
+        return None
+
+    parsed = int(value)
+    return parsed if parsed <= MAX_INT_FIELD_VALUE else None
+
 
 def get_approximate_row_count(queryset: QuerySet) -> int:
     """
