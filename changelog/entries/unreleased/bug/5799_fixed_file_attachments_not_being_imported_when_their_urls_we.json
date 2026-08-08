@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed file attachments not being imported when their URLs were not included in the external system's signed URL mapping",
+    "issue_origin": "github",
+    "issue_number": 5799,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-30"
+}

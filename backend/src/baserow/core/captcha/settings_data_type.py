@@ -19,7 +19,7 @@ class CaptchaSettingsDataType(SettingsDataType):
 
         enabled_contexts = [
             ctx
-            for ctx in ["signup", "abuse_report"]
+            for ctx in ["signup", "abuse_report", "workspace_invitation"]
             if CaptchaHandler.is_captcha_enabled_for(ctx)
         ]
 

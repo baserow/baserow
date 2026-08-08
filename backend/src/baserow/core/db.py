@@ -44,24 +44,30 @@ ModelInstance = TypeVar("ModelInstance", bound=object)
 
 
 APPROXIMATE_COUNT_THRESHOLD = 50_000
+EXACT_COUNT_MAX_COST = 200_000
 
 
 def get_approximate_row_count(queryset: QuerySet) -> int:
     """
-    Uses Postgres EXPLAIN to estimate the row count for the given queryset.
-    If the estimate is below APPROXIMATE_COUNT_THRESHOLD, falls back to an
-    exact COUNT(*) since the cost is negligible for small result sets and
-    the planner estimate is unreliable at that scale.
+    Uses Postgres EXPLAIN to estimate the row count for the given queryset, falling
+    back to an exact COUNT(*) when the planner reports both a small result set,
+    because the estimate is unreliable at that scale, and a cheap plan to produce it.
 
     :param queryset: The queryset to estimate the row count for.
     :return: An estimate of the row count for the queryset.
     """
 
     queryset = queryset.order_by()
-    plan = json.loads(queryset.explain(format="json"))
-    estimate = int(plan[0]["Plan"]["Plan Rows"])
+    plan = json.loads(queryset.explain(format="json"))[0]["Plan"]
+    estimate = int(plan["Plan Rows"])
 
-    if estimate < APPROXIMATE_COUNT_THRESHOLD:
+    # A low row estimate does not mean the count is cheap. A selective filter with
+    # no index to support it still has to scan the whole table to prove how few rows
+    # match, so the cost has to be checked as well as the number of rows.
+    if (
+        estimate < APPROXIMATE_COUNT_THRESHOLD
+        and plan["Total Cost"] < EXACT_COUNT_MAX_COST
+    ):
         return queryset.count()
 
     return estimate

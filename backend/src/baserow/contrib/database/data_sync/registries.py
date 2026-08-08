@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
 from celery.app.task import Context
+from loguru import logger
 
 from baserow.contrib.database.data_sync.constants import (
     BASE_DATA_SYNC_ALLOWED_FIELDS,
@@ -238,7 +239,7 @@ class DataSyncType(
         format.
         """
 
-        properties = instance.synced_properties.all()
+        properties = instance.synced_properties.filter(field__trashed=False)
         type_specific = {
             field: getattr(instance, field)
             for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields
@@ -290,10 +291,19 @@ class DataSyncType(
 
         properties_to_be_created = []
         for property in properties:
+            mapped_field_id = id_mapping["database_fields"].get(property["field_id"])
+            if mapped_field_id is None:
+                logger.warning(
+                    "Skipping data sync property with key {key} for unmapped "
+                    "field {field_id} during import.",
+                    key=property["key"],
+                    field_id=property["field_id"],
+                )
+                continue
             properties_to_be_created.append(
                 DataSyncSyncedProperty(
                     data_sync=data_sync,
-                    field_id=id_mapping["database_fields"][property["field_id"]],
+                    field_id=mapped_field_id,
                     key=property["key"],
                 )
             )

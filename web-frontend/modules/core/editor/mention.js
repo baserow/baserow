@@ -1,6 +1,5 @@
 import { mergeAttributes } from '@tiptap/core'
 import { Mention as TiptapMention } from '@tiptap/extension-mention'
-import regexp from 'markdown-it-regexp'
 
 import { escapeHtml } from '@baserow/modules/core/utils/string'
 
@@ -23,22 +22,48 @@ const findMentionStart = (source) => {
   return prefixIndex
 }
 
-export const parseMention = (users, loggedUserId = null) =>
-  regexp(USER_ID_REGEXP, (match, utils) => {
-    const user = users.find((user) => user.user_id === parseInt(match[1]))
-    if (user) {
-      let className = 'rich-text-editor__mention'
-      if (user.user_id === loggedUserId) {
-        className += ' rich-text-editor__mention--current-user'
+export const parseMention =
+  (users, loggedUserId = null) =>
+  (markdownIt) => {
+    const ruleName = 'baserow-mention'
+
+    markdownIt.inline.ruler.push(ruleName, (state, silent) => {
+      if (state.src.charCodeAt(state.pos) !== 0x40) {
+        return false
       }
-      const name = escapeHtml(user.name)
-      // NOTE: Keep this in sync with the @tiptap/extension-mention
-      // https://github.com/ueberdosis/tiptap/blob/main/packages/extension-mention/src/mention.ts
-      return `<span class="${className}" data-id="${user.user_id}" data-label="${name}" data-type="mention">@${name}</span>`
-    } else {
-      return `@${match[1]}`
+
+      const match = state.src.slice(state.pos).match(/^@(\d+)/)
+      if (!match) {
+        return false
+      }
+
+      state.pos += match[0].length
+      if (silent) {
+        return true
+      }
+
+      const token = state.push(ruleName, '', 0)
+      token.meta = { match }
+      return true
+    })
+
+    markdownIt.renderer.rules[ruleName] = (tokens, index) => {
+      const { match } = tokens[index].meta
+      const user = users.find((user) => user.user_id === parseInt(match[1]))
+      if (user) {
+        let className = 'rich-text-editor__mention'
+        if (user.user_id === loggedUserId) {
+          className += ' rich-text-editor__mention--current-user'
+        }
+        const name = escapeHtml(user.name)
+        // NOTE: Keep this in sync with the @tiptap/extension-mention
+        // https://github.com/ueberdosis/tiptap/blob/main/packages/extension-mention/src/mention.ts
+        return `<span class="${className}" data-id="${user.user_id}" data-label="${name}" data-type="mention">@${name}</span>`
+      } else {
+        return `@${match[1]}`
+      }
     }
-  })
+  }
 
 export const createMention = ({
   users = [],

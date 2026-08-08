@@ -192,12 +192,14 @@ class ExcelQuerysetSerializer(QuerysetSerializer):
         """
 
         from openpyxl import Workbook
-        from openpyxl.cell.cell import WriteOnlyCell
+        from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE, WriteOnlyCell
 
         workbook = Workbook(write_only=True)
         worksheet = workbook.create_sheet()
 
         def text_cell(value):
+            # Strip XML-illegal control chars that crash openpyxl's check_string.
+            value = ILLEGAL_CHARACTERS_RE.sub("", value)
             # openpyxl types a string that starts with "=" as a live formula
             # cell, so a user defined field name or cell value could carry a
             # formula injection (CWE-1236). Force those to an explicit string

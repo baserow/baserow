@@ -148,7 +148,7 @@ export const onClickOutside = (el, callback, options) => {
       mousedownInsideIgnored = false
     }
   }
-  document.body.addEventListener('mousedown', clickOutsideMouseDownEvent)
+  document.body.addEventListener('mousedown', clickOutsideMouseDownEvent, true)
 
   const clickOutsideEvent = (event) => {
     const target = downElement || event.target
@@ -164,8 +164,8 @@ export const onClickOutside = (el, callback, options) => {
     const elements = resolveIgnoreElements(options)
     const insideIgnoredElement =
       mousedownInsideIgnored ||
-      (elements.length > 0 &&
-        isTargetInsideAnyElement(elements, downElement || event.target))
+      (elements.length > 0 && isTargetInsideAnyElement(elements, target))
+    downElement = null
     mousedownInsideIgnored = false
 
     // If the click was outside the context element because we want to ignore
@@ -178,7 +178,11 @@ export const onClickOutside = (el, callback, options) => {
 
   return () => {
     el.removeEventListener('click', clickOutsideClickEvent)
-    document.body.removeEventListener('mousedown', clickOutsideMouseDownEvent)
+    document.body.removeEventListener(
+      'mousedown',
+      clickOutsideMouseDownEvent,
+      true
+    )
     document.body.removeEventListener('click', clickOutsideEvent)
   }
 }

@@ -1,5 +1,6 @@
 import {
   DataSourceServiceTypeMixin,
+  getFilesGroup,
   ServiceType,
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
@@ -112,6 +113,10 @@ export class CoreXLSFileReaderServiceType extends DataSourceServiceTypeMixin(
 
   get icon() {
     return 'iconoir-page'
+  }
+
+  get group() {
+    return getFilesGroup(this.app)
   }
 
   get returnsList() {

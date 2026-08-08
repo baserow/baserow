@@ -33,6 +33,7 @@ export default {
     } else if (!el.autoOverflowScrollHeightObserverBinded && value) {
       binding.dir.addListeners(el)
     }
+    el.autoOverflowScrollHeightObserverFunction?.()
   },
   addListeners(el) {
     el.autoOverflowScrollHeightObserverFunction = () => {

@@ -1,5 +1,33 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
+export const getCoreGroup = (app) => ({
+  id: 'core',
+  label: app.$i18n.t('groupedMenu.core'),
+  icon: 'iconoir-package',
+  iconColor: 'muted-green',
+})
+
+export const getFilesGroup = (app) => ({
+  id: 'files',
+  label: app.$i18n.t('groupedMenu.files'),
+  icon: 'iconoir-page',
+  iconColor: 'muted-yellow',
+})
+
+export const getHTTPGroup = (app) => ({
+  id: 'http',
+  label: app.$i18n.t('groupedMenu.http'),
+  icon: 'iconoir-globe',
+  iconColor: 'muted-cyan',
+})
+
+export const getWorkflowGroup = (app) => ({
+  id: 'workflow',
+  label: app.$i18n.t('groupedMenu.workflow'),
+  icon: 'iconoir-git-fork',
+  iconColor: 'muted-purple',
+})
+
 export class ServiceType extends Registerable {
   get name() {
     throw new Error('Must be set on the type.')
@@ -12,6 +40,21 @@ export class ServiceType extends Registerable {
     return null
   }
 
+  get group() {
+    const integrationType = this.integrationType
+    if (!integrationType) {
+      return getCoreGroup(this.app)
+    }
+
+    return {
+      id: `integration-${integrationType.getType()}`,
+      label: integrationType.name,
+      image: integrationType.image,
+      icon: integrationType.iconClass,
+      iconColor: integrationType.iconColor,
+    }
+  }
+
   /**
    * The form component to edit this service.
    */
@@ -21,6 +64,10 @@ export class ServiceType extends Registerable {
 
   get icon() {
     return 'iconoir-question-mark'
+  }
+
+  get iconColor() {
+    return this.group.iconColor
   }
 
   /**

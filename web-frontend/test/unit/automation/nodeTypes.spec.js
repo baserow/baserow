@@ -108,4 +108,58 @@ describe('Automation node types', () => {
       'slack_write_message',
     ])
   })
+
+  test('groups HTTP trigger and request nodes under HTTP', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['http_trigger', 'http_request'].map(
+        (type) => registry.get('node', type).group.id
+      )
+    ).toEqual(['http', 'http'])
+  })
+
+  test('groups file reader nodes under Files', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['csv_file_reader', 'xls_file_reader'].map(
+        (type) => registry.get('node', type).group.id
+      )
+    ).toEqual(['files', 'files'])
+  })
+
+  test('groups workflow nodes under Workflow', () => {
+    const registry = testApp.getRegistry()
+
+    expect(
+      ['start_workflow', 'iterator', 'router'].map(
+        (type) => registry.get('node', type).group.id
+      )
+    ).toEqual(['workflow', 'workflow', 'workflow'])
+  })
+
+  test('uses service-specific icons and images for workflow action nodes', () => {
+    const registry = testApp.getRegistry()
+    const createRow = registry.get('node', 'local_baserow_create_row')
+    const updateRow = registry.get('node', 'local_baserow_update_row')
+    const aiAgent = registry.get('node', 'ai_agent')
+    const smtp = registry.get('node', 'smtp_email')
+    const slack = registry.get('node', 'slack_write_message')
+
+    expect([createRow.iconClass, updateRow.iconClass]).toEqual([
+      'iconoir-plus',
+      'iconoir-edit-pencil',
+    ])
+    expect([createRow.iconColor, updateRow.iconColor]).toEqual([
+      'darker-blue',
+      'darker-blue',
+    ])
+    expect([createRow.image, updateRow.image]).toEqual([undefined, undefined])
+    expect(aiAgent.iconColor).toBe('muted-blue')
+    expect(smtp.iconColor).toBe('muted-red')
+    expect(slack.iconClass).toBe('iconoir-message-text')
+    expect(slack.iconColor).toBe('darker-pink')
+    expect(slack.image).toBeUndefined()
+  })
 })

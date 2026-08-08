@@ -73,17 +73,42 @@ setup_additional_modules(){
   export ADDITIONAL_MODULES
 }
 
+sync_node_modules(){
+  # The node_modules volume outlives lockfile changes; reinstall when yarn.lock changed.
+  local node_modules_dir=/baserow/web-frontend/node_modules
+  local marker="$node_modules_dir/.yarn-lock-hash"
+  local yarn_lock=/baserow/web-frontend/yarn.lock
+  local lock_hash
+
+  lock_hash=$(md5sum "$yarn_lock" | cut -d' ' -f1)
+  mkdir -p "$node_modules_dir"
+
+  # The frontend and Storybook containers can start together. Lock yarn.lock itself
+  # because Yarn can prune unknown files from node_modules during installation.
+  # Recheck the marker after taking the lock so only one container runs yarn install.
+  (
+    flock 9
+    if [[ ! -f "$marker" || "$(cat "$marker")" != "$lock_hash" ]]; then
+      echo "yarn.lock changed since node_modules were installed, running yarn install..."
+      yarn --cwd /baserow/web-frontend install
+      echo "$lock_hash" > "$marker"
+    fi
+  ) 9< "$yarn_lock"
+}
+
 
 case "$1" in
     nuxt-dev)
       startup_plugin_setup
       setup_additional_modules
+      sync_node_modules
       # Retry the command over and over to work around heap crash.
       attachable_exec_retry yarn dev
     ;;
     nuxt-dev-no-attach)
       startup_plugin_setup
       setup_additional_modules
+      sync_node_modules
       exec yarn dev
     ;;
     nuxt-prod)
@@ -100,6 +125,7 @@ case "$1" in
     nuxt-dev-with-storybook)
       startup_plugin_setup
       setup_additional_modules
+      sync_node_modules
       # Start Storybook in background and Nuxt in foreground
       yarn storybook &
       attachable_exec_retry yarn dev
@@ -107,6 +133,7 @@ case "$1" in
     storybook-dev)
       startup_plugin_setup
       setup_additional_modules
+      sync_node_modules
       # Retry the command over and over to work around heap crash.
       attachable_exec_retry yarn storybook
     ;;

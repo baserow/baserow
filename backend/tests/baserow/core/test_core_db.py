@@ -837,3 +837,20 @@ def test_get_approximate_row_count_works_with_filtered_queryset(data_fixture):
     queryset = Workspace.objects.filter(name__startswith="test_ws_")
     count = get_approximate_row_count(queryset)
     assert count == 2
+
+
+@pytest.mark.django_db
+def test_get_approximate_row_count_skips_exact_count_for_expensive_plans():
+    """
+    A filter matching few rows can still be expensive to count when no index
+    supports it, so a low row estimate alone must not trigger the exact count.
+    """
+
+    queryset = Workspace.objects.all()
+
+    with patch("baserow.core.db.EXACT_COUNT_MAX_COST", 0):
+        with patch.object(type(queryset), "count") as mock_count:
+            count = get_approximate_row_count(queryset)
+
+    mock_count.assert_not_called()
+    assert isinstance(count, int)

@@ -20,8 +20,6 @@ import {
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import LocalBaserowNodeServiceForm from '@baserow/modules/automation/components/workflow/LocalBaserowNodeServiceForm'
-import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
-import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 import {
   CoreCSVFileReaderServiceType,
   CoreHTTPRequestServiceType,
@@ -158,6 +156,10 @@ export class NodeType extends Registerable {
     throw new Error('This method must be implemented')
   }
 
+  get group() {
+    return this.serviceType.group
+  }
+
   /**
    * The icon which is shown inside the editor's node.
    * @returns {string} - The node's icon class.
@@ -167,12 +169,16 @@ export class NodeType extends Registerable {
     return this.serviceType.icon
   }
 
+  get iconColor() {
+    return this.group.iconColor
+  }
+
   /**
    * The node type's image, which will be displayed in dropdowns.
    * @returns - The node's image.
    */
   get image() {
-    return null
+    return this.serviceType.image
   }
 
   /**
@@ -406,10 +412,6 @@ export class LocalBaserowNodeType extends NodeType {
     return tableName
       ? this.app.$i18n.t(this.labelTemplateName, { tableName })
       : this.name
-  }
-
-  get image() {
-    return localBaserowIntegration
   }
 }
 
@@ -1403,14 +1405,6 @@ export class SlackWriteMessageNodeType extends ActionNodeTypeMixin(NodeType) {
 
   getOrder() {
     return 90
-  }
-
-  get iconClass() {
-    return ''
-  }
-
-  get image() {
-    return slackIntegration
   }
 
   get name() {

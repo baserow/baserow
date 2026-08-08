@@ -1,13 +1,14 @@
 import { match } from 'path-to-regexp'
 
 export const resolveApplicationRoute = (pages, fullPath) => {
-  if (fullPath === undefined || fullPath === null) {
-    return undefined
-  }
+  // Vue Router 5 omits an optional catch-all parameter when it matches the
+  // root path. Treat the omitted value as the empty path so the homepage can
+  // still be resolved.
+  const path = fullPath ?? ''
 
   for (const page of pages) {
     const matcher = match(page.path.slice(1))
-    const matched = matcher(fullPath)
+    const matched = matcher(path)
 
     if (matched) {
       // matched = { path, params, index? }

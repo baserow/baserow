@@ -6,7 +6,7 @@
   "integrationType": {
     "localBaserow": "Local Baserow",
     "smtp": "SMTP Email",
-    "slackBot": "Slack Bot",
+    "slackBot": "Slack",
     "ai": "AI"
   },
   "localBaserowIntegrationType": {

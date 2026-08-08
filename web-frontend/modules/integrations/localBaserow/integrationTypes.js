@@ -15,6 +15,10 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     return localBaserowIntegration
   }
 
+  get iconColor() {
+    return 'darker-blue'
+  }
+
   getSummary(integration) {
     if (!integration.authorized_user) {
       return this.app.$i18n.t('localBaserowIntegrationType.localBaserowNoUser')

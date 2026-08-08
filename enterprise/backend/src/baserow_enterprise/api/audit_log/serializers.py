@@ -28,7 +28,6 @@ def render_action_type(action_type):
 
 class AuditLogQueryParamsSerializer(serializers.Serializer):
     page = serializers.IntegerField(required=False, default=1)
-    search = serializers.CharField(required=False, default=None)
     sorts = serializers.CharField(required=False, default=None)
     user_id = serializers.IntegerField(min_value=1, required=False, default=None)
     workspace_id = serializers.IntegerField(min_value=1, required=False, default=None)

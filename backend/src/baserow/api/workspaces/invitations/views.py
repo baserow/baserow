@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from baserow.api.captcha.errors import ERROR_CAPTCHA_VERIFICATION_FAILED
 from baserow.api.decorators import (
     map_exceptions,
     validate_body,
@@ -37,6 +38,8 @@ from baserow.core.actions import (
     RejectWorkspaceInvitationActionType,
     UpdateWorkspaceInvitationActionType,
 )
+from baserow.core.captcha.exceptions import CaptchaVerificationFailed
+from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.exceptions import (
     BaseURLHostnameNotAllowed,
     UserInvalidWorkspacePermissionsError,
@@ -52,6 +55,8 @@ from baserow.core.operations import (
     ListInvitationsWorkspaceOperationType,
     ReadInvitationWorkspaceOperationType,
 )
+from baserow.core.utils import get_user_remote_ip_address_from_request
+from baserow.throttling.handler import WorkspaceInvitationRateThrottle
 
 from .serializers import (
     CreateWorkspaceInvitationSerializer,
@@ -70,6 +75,24 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
     sort_field_mapping = {
         "email": "email",
     }
+
+    def get_throttles(self):
+        throttles = super().get_throttles()
+
+        if self.request.method == "POST":
+            self.invitation_throttle = WorkspaceInvitationRateThrottle()
+            throttles.append(self.invitation_throttle)
+
+        return throttles
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        # The throttle reserves a slot before this view runs, so that parallel
+        # requests can't all pass the check. If no invitation was sent after all,
+        # the slot is given back and the request costs the user nothing.
+        if response.status_code >= 400 and hasattr(self, "invitation_throttle"):
+            self.invitation_throttle.release()
+
+        return super().finalize_response(request, response, *args, **kwargs)
 
     @extend_schema(
         parameters=[
@@ -154,12 +177,13 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_USER_INVALID_GROUP_PERMISSIONS",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_CAPTCHA_VERIFICATION_FAILED",
                 ]
             ),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
+            429: None,
         },
     )
-    @transaction.atomic
     @validate_body(CreateWorkspaceInvitationSerializer)
     @map_exceptions(
         {
@@ -168,21 +192,29 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
             UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
             WorkspaceUserAlreadyExists: ERROR_GROUP_USER_ALREADY_EXISTS,
             BaseURLHostnameNotAllowed: ERROR_HOSTNAME_IS_NOT_ALLOWED,
+            CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
         }
     )
     def post(self, request, data, workspace_id):
         """Creates a new workspace invitation and sends it the provided email."""
 
-        workspace = CoreHandler().get_workspace(workspace_id)
-        workspace_invitation = action_type_registry.get(
-            CreateWorkspaceInvitationActionType.type
-        ).do(
-            request.user,
-            workspace,
-            data["email"],
-            data["permissions"],
-            data["base_url"],
+        CaptchaHandler.validate_if_required(
+            "workspace_invitation",
+            data.get("captcha_token"),
+            get_user_remote_ip_address_from_request(request),
         )
+
+        with transaction.atomic():
+            workspace = CoreHandler().get_workspace(workspace_id)
+            workspace_invitation = action_type_registry.get(
+                CreateWorkspaceInvitationActionType.type
+            ).do(
+                request.user,
+                workspace,
+                data["email"],
+                data["permissions"],
+                data["base_url"],
+            )
 
         return Response(WorkspaceInvitationSerializer(workspace_invitation).data)
 

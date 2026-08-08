@@ -1,4 +1,5 @@
 from django.shortcuts import reverse
+from django.test import override_settings
 
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
@@ -151,6 +152,34 @@ def test_get_enterprise_builder_custom_code_preview(
         url,
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
+    assert response.status_code == HTTP_200_OK
+    assert response.content == b"testCss"
+
+
+@pytest.mark.django_db
+@override_settings(FRONTEND_COOKIE_PREFIX="baserow_3010_")
+def test_get_enterprise_builder_custom_code_preview_with_prefixed_session_cookie(
+    enable_enterprise, api_client, data_fixture
+):
+    user = data_fixture.create_user(password="password")
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    builder.custom_code.css = "testCss"
+    builder.custom_code.save()
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        data={"email": user.email, "password": "password"},
+        format="json",
+    )
+    cookie = response.json()["user_session"]
+
+    url = reverse("api:enterprise:custom_code:css", kwargs={"builder_id": builder.id})
+    response = api_client.get(
+        url,
+        HTTP_COOKIE=f"baserow_3010_user_session={cookie}",
+    )
+
     assert response.status_code == HTTP_200_OK
     assert response.content == b"testCss"
 

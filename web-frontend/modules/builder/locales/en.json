@@ -530,9 +530,11 @@
     "namePlaceholder": "Source name",
     "nameLabel": "Name",
     "actionLabel": "Action",
-    "integrationLabel": "Integration",
-    "servicePlaceholder": "Select a service",
-    "integrationPlaceholder": "Select an integration",
+    "integrationLabel": "Connection",
+    "servicePlaceholder": "Choose action...",
+    "integrationPlaceholder": "Choose connection...",
+    "searchActionPlaceholder": "Search actions",
+    "noActionsFound": "No actions found",
     "errorUniqueName": "Data source name must be unique."
   },
   "dataSourceContext": {
@@ -835,9 +837,13 @@
   },
   "workflowActionTypes": {
     "notificationLabel": "Show Notification",
+    "notificationDescription": "Show a notification message to the user.",
     "openPageLabel": "Open Page",
+    "openPageDescription": "Navigate the user to another page or URL.",
     "logoutLabel": "Logout",
+    "logoutDescription": "Log the current user out.",
     "refreshDataSourceLabel": "Refresh data source",
+    "refreshDataSourceDescription": "Reload a data source and update the elements that use it.",
     "httpRequest": "Send HTTP request",
     "errorNavigateToPageMissing": "Missing Navigate to property",
     "errorPageParameterInError": "At least one page parameter is misconfigured",
@@ -851,7 +857,9 @@
     "descriptionPlaceholder": "Enter text..."
   },
   "event": {
-    "addAction": "add action"
+    "addAction": "add action",
+    "searchActions": "Search actions",
+    "noActionsFound": "No actions found"
   },
   "collectionFieldType": {
     "boolean": "Boolean",

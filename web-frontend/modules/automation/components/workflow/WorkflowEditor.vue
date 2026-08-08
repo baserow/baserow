@@ -34,9 +34,6 @@
       </div>
       <template v-else>
         <div class="workflow-editor__trigger-selector" @scroll.stop>
-          <h2 class="workflow-editor__trigger-selector-title">
-            {{ $t('workflowEditor.chooseEvent') }}
-          </h2>
           <WorkflowAddNodeMenu
             :only-trigger="true"
             @change="emit('add-node', { type: $event })"

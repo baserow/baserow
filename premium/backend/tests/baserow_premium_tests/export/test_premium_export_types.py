@@ -1484,3 +1484,42 @@ def test_excel_export_does_not_write_formula_cells(
     assert value_cell.data_type == "s"
     assert header_cell.value == "=2+5+cmd"
     assert value_cell.value == "=3+4+cmd"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_excel_export_strips_xml_illegal_control_characters(
+    get_storage_mock, premium_data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_text_field(
+        table=table, name="Notes\x1f", primary=True
+    )
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+    RowHandler().create_row(user, table, {f"field_{field.id}": "Hong Kong\x1f"})
+    RowHandler().create_row(user, table, {f"field_{field.id}": "keep\tme\nplease"})
+    RowHandler().create_row(user, table, {f"field_{field.id}": "=SUM\x1f(A1)"})
+
+    _, wb_bytes = run_export_job_with_mock_storage(
+        table,
+        grid_view,
+        storage_mock,
+        user,
+        {
+            "exporter_type": "excel",
+            "export_charset": None,
+            "excel_include_header": True,
+            "include_row_id": False,
+        },
+    )
+
+    worksheet = load_workbook(filename=BytesIO(wb_bytes)).active
+    assert worksheet.cell(row=1, column=1).value == "Notes"
+    assert worksheet.cell(row=2, column=1).value == "Hong Kong"
+    assert worksheet.cell(row=3, column=1).value == "keep\tme\nplease"
+    assert worksheet.cell(row=4, column=1).value == "=SUM(A1)"
+    assert worksheet.cell(row=4, column=1).data_type == "s"

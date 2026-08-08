@@ -32,6 +32,9 @@
 </template>
 
 <script>
+import { useHead } from '#app'
+import { useI18n } from 'vue-i18n'
+
 export default {
   props: {
     error: {
@@ -39,14 +42,15 @@ export default {
       required: true,
     },
   },
+  setup(props) {
+    const { t } = useI18n()
+    useHead(() => ({
+      title: props.error.message || t('errorLayout.wrong'),
+    }))
+  },
   data() {
     return {
       redirecting: false,
-    }
-  },
-  head() {
-    return {
-      title: this.message,
     }
   },
   computed: {

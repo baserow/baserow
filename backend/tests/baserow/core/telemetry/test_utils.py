@@ -4,6 +4,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from opentelemetry import baggage
+from opentelemetry.instrumentation.django.middleware.otel_middleware import (
+    _DjangoMiddleware,
+)
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
@@ -14,9 +17,11 @@ from baserow.core.telemetry.sampling import OTEL_FORCE_FULL_TRACE_ATTRIBUTE
 from baserow.core.telemetry.utils import (
     BaserowTraceMeta,
     BatchBaggageSpanProcessor,
+    _django_server_span,
     baserow_trace,
     baserow_trace_entrypoint,
     baserow_trace_handler,
+    setup_user_in_baggage_and_spans,
 )
 
 
@@ -380,3 +385,51 @@ def test_baserow_trace_meta_rejects_non_method_override_of_traced_contract():
             operation = property(lambda self: "implementation")
 
     provider.shutdown()
+
+
+def test_user_attributes_land_on_the_django_server_span_not_the_current_span():
+    server_span = MagicMock()
+    current_span = MagicMock()
+    request = MagicMock()
+    request.META = {_DjangoMiddleware._environ_span_key: server_span}
+    request.user_token = None
+    user = MagicMock(id=42, untrusted_client_session_id=None)
+
+    with (
+        patch("baserow.core.telemetry.utils.otel_is_enabled", return_value=True),
+        patch(
+            "baserow.core.telemetry.utils.get_current_span", return_value=current_span
+        ),
+        setup_user_in_baggage_and_spans(user, request),
+    ):
+        assert baggage.get_baggage("user.id") == "42"
+
+    server_span.set_attribute.assert_any_call("user.id", 42)
+    current_span.set_attribute.assert_not_called()
+
+
+def test_user_attributes_fall_back_to_current_span_without_a_request():
+    current_span = MagicMock()
+    user = MagicMock(id=7, untrusted_client_session_id=None)
+
+    with (
+        patch("baserow.core.telemetry.utils.otel_is_enabled", return_value=True),
+        patch(
+            "baserow.core.telemetry.utils.get_current_span", return_value=current_span
+        ),
+        setup_user_in_baggage_and_spans(user),
+    ):
+        pass
+
+    current_span.set_attribute.assert_any_call("user.id", 7)
+
+
+def test_django_server_span_returns_none_when_request_has_no_span():
+    assert _django_server_span(MagicMock(META={})) is None
+    assert _django_server_span(object()) is None
+
+
+def test_upstream_still_exposes_the_environ_span_key_contract():
+    """Guards the private upstream attribute `_django_server_span` depends on."""
+
+    assert isinstance(_DjangoMiddleware._environ_span_key, str)

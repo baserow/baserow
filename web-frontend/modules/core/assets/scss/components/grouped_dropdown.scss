@@ -1,0 +1,16 @@
+.grouped-dropdown__trigger {
+  background-color: $white;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.grouped-dropdown__context {
+  display: flex;
+  overflow: hidden;
+  max-width: calc(100vw - 20px);
+}

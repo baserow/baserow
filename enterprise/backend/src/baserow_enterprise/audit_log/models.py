@@ -91,13 +91,31 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
 
     class Meta:
         ordering = ["-action_timestamp"]
-        # Note: the index name will be `baserow_ent_action__8db5d6_idx`
-        # (when `workspace_id` used to be called `group_id`), but its true name
-        # is `baserow_ent_action__ca13aa_idx`. See enterprise migration 0016.
+        # The audit log is only ever ordered by `action_timestamp`, so every index
+        # below leads with the column that can be filtered on and is followed by the
+        # timestamp. That way the filter is a seek instead of a scan, and the rows it
+        # finds are already in the requested order, which lets `LIMIT` stop early.
+        #
+        # A single leading equality column is enough to bound a query that combines
+        # several filters: the scan can never be larger than the number of entries
+        # for that user, workspace or action type.
         indexes = [
             models.Index(
-                fields=["-action_timestamp", "user_id", "workspace_id", "action_type"]
-            )
+                fields=["-action_timestamp"],
+                name="auditlogentry_ts_idx",
+            ),
+            models.Index(
+                fields=["user_id", "-action_timestamp"],
+                name="auditlogentry_user_ts_idx",
+            ),
+            models.Index(
+                fields=["workspace_id", "-action_timestamp"],
+                name="auditlogentry_ws_ts_idx",
+            ),
+            models.Index(
+                fields=["action_type", "-action_timestamp"],
+                name="auditlogentry_type_ts_idx",
+            ),
         ]
 
 
