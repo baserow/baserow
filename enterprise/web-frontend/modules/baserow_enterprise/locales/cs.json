@@ -207,5 +207,8 @@
     },
     "createSettingsAuthProviderModal": {
         "title": "Vlož nový {type}"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} zdroj | {count} zdroje"
     }
 }
