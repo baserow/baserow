@@ -19,9 +19,7 @@ class DatabaseWorkflowActionSerializer(WorkflowActionSerializer):
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
-        return database_workflow_action_type_registry.get_by_model(
-            instance.specific_class
-        ).type
+        return instance.get_type().type
 
     class Meta:
         model = DatabaseWorkflowAction
