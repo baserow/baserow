@@ -138,9 +138,8 @@ def test_base_action_type_dispatch_refuses():
     )
     from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 
-    # A frontend-only action type, e.g. a future success toast, extends the
-    # base type directly rather than the service-backed subclass and must
-    # never be dispatchable server side.
+    # A frontend-only type extends the base directly rather than the
+    # service-backed subclass, and must never be dispatchable server side.
     class FrontendOnlyWorkflowActionType(DatabaseWorkflowActionType):
         type = "frontend_only_test"
         model_class = DatabaseWorkflowAction

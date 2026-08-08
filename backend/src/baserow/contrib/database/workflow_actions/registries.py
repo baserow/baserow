@@ -37,8 +37,7 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     parent_property_name = "field"
     id_mapping_name = "database_workflow_actions"
 
-    # Frontend-only types are never dispatched server side. The dispatch
-    # service skips them and returns them to the browser to execute.
+    # Never dispatched server side; returned to the browser to execute.
     is_frontend_only = False
 
     class SerializedDict(DatabaseWorkflowActionDict):
@@ -63,16 +62,13 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
         **kwargs,
     ):
         """
-        Imports the action, and defers remapping the references inside its
-        formulas, such as an `open_url` url of `get('fields.field_25')` or a
-        field mapping value of `get('row.field_25')`.
+        Imports the action, then defers remapping the field references inside
+        its formulas, such as `get('fields.field_25')` or `get('row.field_25')`.
 
         `deserialize_property` only reaches the FK-shaped references, so without
-        this second step a duplicated table keeps a formula naming the original
-        table's field and silently reads the wrong one (ADR 006 section 6).
-
-        Deferred because a formula can name a field of an application that is
-        not imported yet, so `id_mapping` does not know it.
+        this a duplicated table keeps formulas naming the original table's
+        fields and silently reads the wrong ones (ADR 006 section 6). Deferred
+        because a formula can name a field of an application not imported yet.
         """
 
         created_instance = super().import_serialized(
@@ -168,8 +164,8 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
         if prop_name == "service" and value:
             return ServiceHandler().import_service(
-                # Database services are never tied to an integration, see the
-                # integration-less dispatch path added in phase 2a.
+                # Database services carry no integration; the acting user comes
+                # from the dispatch context instead.
                 None,
                 value,
                 id_mapping,
@@ -208,15 +204,10 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             service = instance.service.specific
 
         service_values = values.pop("service", None) or {}
-        # Security rule, not tidiness. `integration_id` is writable on the
-        # request serializer and `IntegrationHandler.get_integration` is a
-        # global id lookup with no permission check, so a caller could point
-        # this service at any integration in the instance. At dispatch,
-        # `LocalBaserowServiceType.get_acting_user` prefers that integration's
-        # `authorized_user` over the dispatch context's actor, which would make
-        # every click run as the impersonated user. Database services are never
-        # tied to an integration; the clicker is the acting user (ADR 006
-        # section 5). Mirrors the hardcoded `None` in `deserialize_property`.
+        # Security, not tidiness: `integration_id` is writable and looked up
+        # without a permission check, and an integration's `authorized_user`
+        # outranks the actor, so a caller could make every click run as someone
+        # else. Database services carry no integration (ADR 006 section 5).
         service_values.pop("integration_id", None)
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None

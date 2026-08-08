@@ -64,9 +64,9 @@ def test_dispatch_runs_the_actions(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_dispatch_returns_client_actions_for_open_url(api_client, data_fixture):
-    """`client_actions` is the wire contract a later, frontend task reads to
-    run frontend-only actions itself: the key name, that it is a list, and
-    that each entry carries `type`, `url` and `target`."""
+    """`client_actions` is the contract the frontend reads to run frontend-only
+    actions itself: the key name, that it is a list, and that each entry carries
+    `type`, `url` and `target`."""
 
     user, token = data_fixture.create_user_and_token()
     table, name_field, button_field, row, action = _button_with_create_action(
@@ -279,8 +279,8 @@ def test_a_database_token_cannot_dispatch(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_a_failed_action_returns_the_dispatch_error(api_client, data_fixture):
-    """The minimum error floor of ADR 006 section 3: the clicker is told which
-    action failed and why, rather than getting an opaque 500."""
+    """ADR 006 section 3: the clicker is told which action failed and why,
+    rather than getting an opaque 500."""
 
     user, token = data_fixture.create_user_and_token()
     table, name_field, button_field, row, action = _button_with_create_action(
@@ -304,7 +304,6 @@ def test_a_failed_action_returns_the_dispatch_error(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
     # Named by its place in the list, which the clicker can count in the editor.
-    # The id would technically identify it while telling the user nothing.
     assert response.json()["detail"] == "Action 2 failed: No table selected"
     # The action before the broken one already ran, and stays (ADR 006 section 3).
     created = table.get_model().objects.exclude(id=row.id).get()

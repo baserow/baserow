@@ -33,10 +33,9 @@ export default {
       default: false,
     },
     /**
-     * The databases to choose a table from. Supplied by the wrapper of the
-     * application type the form is rendered in, which knows where they come
-     * from: an integration for the builder and automation, the workspace for a
-     * button field.
+     * The databases to choose a table from, supplied by the wrapper: an
+     * integration for the builder and automation, the workspace for a button
+     * field.
      */
     databases: {
       type: Array,

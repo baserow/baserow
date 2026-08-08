@@ -18,8 +18,8 @@ describe('LocalBaserowFieldsUpdatedTriggerServiceForm', () => {
     return await testApp.mount(LocalBaserowFieldsUpdatedTriggerServiceForm, {
       props: {
         application: { id: 1 },
-        // The table selector always renders now that the form takes its
-        // databases from its wrapper, so the type has to answer for real.
+        // The table selector always renders, so the service type has to
+        // return real tables rather than a stub.
         serviceType: { supportedTables: (tables) => tables },
         defaultValues: { table_id: 1, integration_id: 1 },
         ...props,

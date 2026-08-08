@@ -49,10 +49,8 @@ def import_formula(
         new_formula = DatabaseFormulaImporter(id_mapping, **kwargs).visit(tree)
     except (BaserowFormulaException, InstanceTypeDoesNotExist) as exc:
         # Unparseable, or naming a data provider this module doesn't have: keep
-        # it as it is so the import succeeds, the same as the `open_url` url.
-        # Deliberate, but not free: the visit is abandoned at the first bad
-        # `get()`, so any reference before it stays unremapped too, which is why
-        # this is logged rather than passed over in silence.
+        # the formula as it is so the import succeeds. Logged because the visit
+        # stops at the first bad `get()`, leaving earlier references unremapped.
         logger.warning(
             f"Could not remap the formula {formula['formula']}, keeping it as "
             f"it is. Reason: {type(exc).__name__}: {exc}"
@@ -60,7 +58,7 @@ def import_formula(
         return formula
 
     if new_formula != formula["formula"]:
-        # A new instance, to show it's a different formula.
+        # Copied so the caller's formula object isn't mutated.
         formula = dict(formula)
         formula["formula"] = new_formula
 

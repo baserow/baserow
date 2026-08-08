@@ -1862,10 +1862,9 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
 def test_dispatching_a_button_field_needs_at_least_the_editor_role(
     data_fixture, enterprise_data_fixture
 ):
-    """Asserting the operation appears in `default_roles` is a config check that
-    passes even when RBAC cannot resolve the scope. The dispatch operation's
-    parent chain runs workspace -> database -> table -> field -> workflow
-    action, so it is worth resolving for real."""
+    """Checking `default_roles` alone passes even when RBAC cannot resolve the
+    scope, and this operation's parent chain is a long one: workspace ->
+    database -> table -> field -> workflow action."""
 
     from baserow.contrib.database.table.handler import TableHandler
     from baserow.contrib.database.workflow_actions.models import CreateRowWorkflowAction
@@ -1977,8 +1976,8 @@ def test_the_dispatch_operation_reaches_the_roles_of_an_existing_instance(
         admin, workspace, role=Role.objects.get(uid="ADMIN")
     )
 
-    # An instance whose operations were last synced before the button field
-    # work landed. Deleting the row also drops every role's grant of it.
+    # Stands in for an instance that hasn't synced this operation yet. Deleting
+    # the row also drops every role's grant of it.
     Operation.objects.filter(
         name=DispatchDatabaseWorkflowActionOperationType.type
     ).delete()
@@ -1994,7 +1993,7 @@ def test_the_dispatch_operation_reaches_the_roles_of_an_existing_instance(
 
     assert table.get_model().objects.exclude(id=row.id).count() == 0
 
-    # What `manage.py migrate` fires, and what an upgrade therefore does.
+    # What `manage.py migrate` fires, and so what an upgrade does.
     sync_operations_after_migrate(None, apps=django_apps)
     sync_default_roles_after_migrate(None, apps=django_apps)
     RoleAssignmentHandler._init = False

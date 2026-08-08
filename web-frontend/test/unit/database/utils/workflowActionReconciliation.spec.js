@@ -101,9 +101,8 @@ describe('reconcileWorkflowActions', () => {
   })
 
   test('a type change between two service types sends the new config', () => {
-    // The editor resets the config when the type changes, so the service it
-    // hands over is empty. Carrying the old type's `table_id` across would
-    // not just be wrong, it is something the editor cannot produce.
+    // The editor resets the config on a type change, so the service it hands
+    // over is empty and the old type's `table_id` must not carry across.
     const server = [{ id: 1, type: 'create_row', service: { table_id: 3 } }]
     const local = [{ id: 1, type: 'update_row', service: {} }]
 
@@ -115,10 +114,8 @@ describe('reconcileWorkflowActions', () => {
   })
 
   test('the keys the api owns are never diffed or sent', () => {
-    // `order` and `field_id` come back on every action but belong to the
-    // server, not to the editor: the order is applied by its own endpoint and
-    // the field never changes. Diffing them would make a pure reorder look
-    // like a config change and send them straight back.
+    // `order` and `field_id` belong to the server, not the editor. Diffing
+    // them would make a pure reorder look like a config change.
     const server = [
       { id: 1, type: 'create_row', order: 1, field_id: 7, service: {} },
     ]
@@ -132,9 +129,8 @@ describe('reconcileWorkflowActions', () => {
   })
 
   test('a row whose type has not been chosen yet is not an action', () => {
-    // The picker adds an empty row first and the user chooses its type
-    // afterwards. Saving before that must produce no work at all, and no
-    // slot in the order.
+    // A row added but not yet given a type must produce no calls at all, and
+    // take no slot in the order.
     const server = [{ id: 1, type: 'create_row', service: {} }]
     const local = [{ id: 1, type: 'create_row', service: {} }, { type: null }]
 

@@ -1,6 +1,5 @@
-// The 12px inset the Figma gives this form comes from the action card that
-// wraps it (`.button-field-action-list__form`), so every action type's form
-// is inset the same way.
+// No padding of its own: the action card that wraps this form supplies the
+// inset, so every action type's form is inset the same way.
 .open-url-workflow-action-form {
   display: flex;
   flex-direction: column;
@@ -23,8 +22,7 @@
   @extend %ellipsis;
 }
 
-// The control column is a fixed width so the two rows line up, leaving the
-// label column to take whatever the card has left.
+// Fixed width so the two rows' controls line up; the label takes the rest.
 .open-url-workflow-action-form__control {
   flex: 0 0 272px;
   max-width: 272px;

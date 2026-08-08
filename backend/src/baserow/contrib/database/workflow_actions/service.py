@@ -49,12 +49,8 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.types import DispatchResult
 from baserow.core.types import PermissionCheck
 
-# Dispatch failures whose message is written for the person who clicked, and so
-# is safe to hand back in the API response. Anything else, such as a
-# `DatabaseError`, a `PermissionException` or an internal `ValueError`, keeps
-# its message server side and reaches the generic 500 handler untouched.
-# `UnexpectedDispatchException` is deliberately left out: by definition it wraps
-# an error nobody anticipated, and its message is that error's own text.
+# Failures whose message is written for the clicker, and so is safe to return.
+# Anything else keeps its message server side.
 USER_FACING_DISPATCH_EXCEPTIONS = (
     ServiceImproperlyConfiguredDispatchException,
     InvalidContextDispatchException,
@@ -128,11 +124,8 @@ class DatabaseWorkflowActionService:
         )
 
         if has_type_changed:
-            # Polymorphism makes a type change a delete plus a create. The old
-            # action is removed first so its `pre_delete` receiver disposes of
-            # the old service, and `prepare_values` runs without an instance so
-            # a fresh service of the new type is built. `field` and `order` are
-            # not in the payload, so they are carried over from the old action.
+            # Polymorphism makes a type change a delete plus a create. Deleting
+            # first lets the `pre_delete` receiver dispose of the old service.
             workflow_action_type = database_workflow_action_type_registry.get(
                 kwargs["type"]
             )
@@ -198,23 +191,12 @@ class DatabaseWorkflowActionService:
         List[DatabaseWorkflowAction],
     ]:
         """
-        Runs a button field's server-side actions in order, as the given user,
-        and hands back its frontend-only actions, such as `open_url`, for the
-        caller to run instead. `DatabaseWorkflowActionType.dispatch` raises for
-        a frontend-only action, so the loop below must never reach one.
+        Runs the server-side actions in order as the given user, and hands the
+        frontend-only ones back for the caller to run.
 
-        Deliberately not wrapped in a transaction: ADR 006 section 3 requires
-        completed actions to stay when a later one fails, because a sequence can
-        contain irreversible effects, such as a sent email, that no rollback can
-        take back. Undoing the rows while leaving the irreversible effects
-        standing would leave the sequence half applied in a way the user cannot
-        see. Each action keeps whatever atomicity its own handler already has.
-
-        Each result is paired with the action that produced it, in the same
-        step, rather than left for a caller to re-fetch and re-align. A
-        caller re-fetching the actions afterwards would run against a
-        separate, unsynchronised query, which can drift from this one if the
-        field's actions change between the two reads.
+        Not wrapped in a transaction: completed actions must stay when a later
+        one fails, since a sequence can have irreversible effects that no
+        rollback undoes (ADR 006 section 3).
 
         :param user: The user who clicked.
         :param field: The clicked button field.
@@ -225,16 +207,12 @@ class DatabaseWorkflowActionService:
             meant for the clicker. Any other failure is re-raised as it is, so
             its message stays server side. Either way the actions before it have
             already run and are not rolled back.
-        :return: A pair of: one (action, result) per server-side action, in
-            order; and the frontend-only actions, in order, for the caller to
-            run itself.
+        :return: The (action, result) pairs for the server-side actions, and the
+            frontend-only actions for the caller to run itself, both in order.
         """
 
-        # Clicking is at least reading the field, and this check is field
-        # scoped, so it also covers the case below where there are no actions
-        # to check individually. Without it an outsider would get an empty
-        # result rather than a refusal, which tells them the field and row
-        # exist.
+        # Field scoped, so it also covers a button with no actions: without it
+        # an outsider would get an empty result rather than a refusal.
         CoreHandler().check_permissions(
             user,
             ReadFieldOperationType.type,
@@ -244,18 +222,12 @@ class DatabaseWorkflowActionService:
 
         workflow_actions = list(self.handler.get_workflow_actions(field))
 
-        # A button with nothing configured has nothing to run and nothing to
-        # lock, so it returns before both.
         if not workflow_actions:
             return [], []
 
-        # The dispatch operation is scoped to the action rather than the field,
-        # so every action in the sequence is checked. A role granted on the
-        # field covers all of them, which is how "who can click this button"
-        # is expressed today (ADR 006 section 7). Deliberately checked before
-        # the lock is taken, so a refused user never holds it at all. Checked
-        # over every action, frontend-only included, so clicking is refused as
-        # a whole rather than only for the actions the server would run.
+        # Checked over every action, frontend-only included, so a click is
+        # refused as a whole (ADR 006 section 7), and before the lock is taken,
+        # so a refused user never holds it.
         CoreHandler().check_multiple_permissions(
             [
                 PermissionCheck(
@@ -269,9 +241,8 @@ class DatabaseWorkflowActionService:
             raise_exception=True,
         )
 
-        # `DatabaseWorkflowActionType.dispatch` raises for a frontend-only
-        # action, so those never reach the loop below; the caller runs them in
-        # the browser instead.
+        # Frontend-only actions can't be dispatched here; the caller runs them
+        # in the browser.
         client_actions = [
             wa for wa in workflow_actions if wa.get_type().is_frontend_only
         ]
@@ -279,19 +250,16 @@ class DatabaseWorkflowActionService:
             wa for wa in workflow_actions if not wa.get_type().is_frontend_only
         ]
 
-        # Nothing to run server side means nothing to serialise a click
-        # against: taking the lock would reject a second click on a button
-        # that only opens a URL, which has no state to protect.
+        # Nothing server side means no state to protect, so no lock: a button
+        # that only opens a URL must not reject a second click.
         if not server_actions:
             return [], client_actions
 
-        # `cache.add` is atomic on the Redis-backed cache and only succeeds when
-        # the key is absent, so a double click cannot run the sequence twice.
-        # Keyed on the field and row together, so two button fields on one row
-        # do not block each other (ADR 006 section 3).
+        # `cache.add` is atomic and only succeeds when the key is absent, so a
+        # double click cannot run the sequence twice. Keyed on field and row
+        # together, so two buttons on one row do not block each other.
         lock_key = f"button_dispatch_{field.id}_{row.id}"
-        # The value identifies this click, so the release below can tell its own
-        # lock from one a later click took after this one's TTL expired.
+        # Identifies this click, so the release below knows its own lock.
         lock_token = uuid4().hex
         if not cache.add(
             lock_key, lock_token, timeout=settings.BUTTON_DISPATCH_LOCK_TTL_SECONDS
@@ -324,9 +292,6 @@ class DatabaseWorkflowActionService:
                             action_id=workflow_action.id,
                             field_id=field.id,
                         )
-                        # Only a message meant for the clicker travels back in
-                        # the response. Everything else keeps its message on the
-                        # server and becomes a plain 500.
                         if isinstance(exc, USER_FACING_DISPATCH_EXCEPTIONS):
                             raise WorkflowActionDispatchError(
                                 workflow_action.id,
@@ -338,11 +303,8 @@ class DatabaseWorkflowActionService:
 
             return results, client_actions
         finally:
-            # Release only this click's own lock. Once the TTL has expired the
-            # key can belong to a later click, and deleting that one would let a
-            # third click start while the second is still running. The read and
-            # the delete are not atomic together, so a lock expiring in the
-            # sliver between them can still be deleted by its previous holder;
-            # that is a strictly smaller window than deleting unconditionally.
+            # Only delete this click's own lock: once the TTL expires the key
+            # can belong to a later click. Not atomic, but a much smaller
+            # window than deleting unconditionally.
             if cache.get(lock_key) == lock_token:
                 cache.delete(lock_key)

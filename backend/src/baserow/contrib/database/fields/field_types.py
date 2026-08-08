@@ -7903,14 +7903,12 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
 
 class UnchangedIdMapping(dict[int, int]):
     """
-    An import id mapping that maps every id to itself, for a copy created next
-    to its original, which therefore keeps referencing the very objects the
-    original referenced.
+    An import id mapping that maps every id to itself, for a copy that keeps
+    referencing the same objects as its original.
 
-    An empty mapping can't say that: importers look an id up with
-    `.get(value, None)` and read a miss as "the object is gone", so they null
-    the reference instead of leaving it alone. Both lookup forms are covered,
-    since importers use `mapping[id]` as well as `mapping.get(id)`.
+    An empty mapping can't say that: importers read a missing id as "the object
+    is gone" and null the reference. Both `mapping[id]` and `mapping.get(id)`
+    are covered, since importers use either.
     """
 
     def __missing__(self, key: int) -> int:
@@ -8055,13 +8053,9 @@ class ButtonFieldType(ReadOnlyFieldType):
         id_mapping: Dict[str, Any],
         deferred_fk_update_collector: DeferredForeignKeyUpdater,
     ) -> ButtonField:
-        # The actions target tables that may not exist yet, so they are stashed
-        # on the instance here and imported in `after_import_serialized`, which
-        # runs once every table and field of the database exists. The copy keeps
-        # the caller's dict intact so it stays reusable for another import.
-        # This relies on the invariant that the `after_import_serialized` loop
-        # iterates over the very field instances `import_serialized` returned,
-        # since the stash lives only on those in-memory objects.
+        # The actions are stashed on the returned instance and imported in
+        # `after_import_serialized`, once every table and field exists. The
+        # input dict is copied so the caller can reuse it for another import.
         serialized_values = {**serialized_values}
         serialized_actions = serialized_values.pop("workflow_actions", [])
         field = super().import_serialized(
@@ -8080,10 +8074,9 @@ class ButtonFieldType(ReadOnlyFieldType):
         serialized_actions = getattr(field, "_serialized_workflow_actions", None) or []
 
         def import_workflow_actions():
-            # Deferred because an action can target a table, and name fields, of
-            # another database. This hook runs at the end of one database's
-            # import, so a reference into another one would be read as trashed
-            # and nulled.
+            # Deferred: an action can target another database, and this hook
+            # runs at the end of one database's import, so such a reference
+            # would be read as trashed and nulled.
             for serialized_action in serialized_actions:
                 action_type = database_workflow_action_type_registry.get(
                     serialized_action["type"]
@@ -8101,30 +8094,21 @@ class ButtonFieldType(ReadOnlyFieldType):
         new_field: ButtonField,
         serialized_field: Dict[str, Any],
     ):
-        # Duplicating a single field doesn't go through the serialization import
-        # path, so without this the actions promised by ADR 006 section 8 would
-        # be dropped: `create_field` only keeps the type's `allowed_fields`.
+        # Field duplication skips the serialization import path, so without
+        # this the actions would be dropped (ADR 006 section 8).
         serialized_actions = serialized_field.get("workflow_actions") or []
         if not serialized_actions:
             return
 
-        # The copy lands in the same table, so every table and field the actions
-        # reference still exists under its own id and must be kept as it is. The
-        # mapping has to say that explicitly instead of being left empty: the
-        # backing services resolve their target table with
-        # `id_mapping["database_tables"].get(value, None)`, so an id the mapping
-        # doesn't know about is read as "trashed" and nulled, which yields a
-        # button that looks configured and dispatches nothing.
+        # The copy lands beside the original, so every table and field its
+        # actions reference still exists under its own id and must be kept.
         id_mapping = {
-            # Read by `LocalBaserowTableServiceType` for the target `table_id`.
             "database_tables": UnchangedIdMapping(),
-            # Read by `LocalBaserowUpsertRowServiceType` for the
-            # `field_mappings[].field_id` of the create and update actions.
             "database_fields": UnchangedIdMapping(),
         }
 
-        # Nothing to wait for, the copy lands beside the original. The context
-        # is only opened because the action import refuses to defer without one.
+        # Opened only because the action import registers a deferred callback,
+        # which raises when no context is active.
         with deferred_callback_context():
             for serialized_action in serialized_actions:
                 action_type = database_workflow_action_type_registry.get(

@@ -411,10 +411,6 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
         row = RowHandler().get_row(request.user, field.table, data["row_id"])
 
-        # The service pairs each result with the action that produced it, so
-        # there's no separate fetch here to re-align by position. It also
-        # hands back any frontend-only actions, such as `open_url`, that it
-        # skipped rather than dispatched.
         dispatch_results, client_actions = (
             DatabaseWorkflowActionService().dispatch_workflow_actions(
                 request.user, field, row
@@ -424,10 +420,8 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         results = [
             {
                 "workflow_action_id": workflow_action.id,
-                # Always "completed" for now: every action in this phase runs
-                # synchronously inside the request. The field exists so a
-                # later phase can return "dispatched" for an action still
-                # running in Celery, without changing the response shape.
+                # Every action runs synchronously inside the request. The field
+                # is here so an async one can report "dispatched" later.
                 "status": "completed",
                 "data": dispatch_result.data,
             }

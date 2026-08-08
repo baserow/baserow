@@ -2,11 +2,9 @@ import WorkflowActionService from '@baserow/modules/database/services/workflowAc
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 /**
- * Dispatches a button field cell's configured actions when clicked, and runs
- * the ones the backend hands back for the browser. Uses the allFieldsInTable
- * prop where the render context provides it (selected grid cell, row edit
- * modal) and falls back to the field store for contexts that only pass
- * row + field (functional grid cells, cards).
+ * Dispatches a cell's actions on click and runs the ones the backend hands
+ * back. Falls back to the field store where the render context provides no
+ * `allFieldsInTable` (functional grid cells, cards).
  */
 export default {
   data() {
@@ -21,9 +19,9 @@ export default {
   },
   methods: {
     /**
-     * Runs the field's configured actions against this row. The backend
-     * rejects a concurrent click for the same field and row, so the local
-     * guard only avoids an obvious double fire.
+     * Runs the field's actions against this row. The backend rejects a
+     * concurrent click for the same field and row, so the local guard only
+     * avoids an obvious double fire.
      */
     async dispatchWorkflowActions() {
       if (this.dispatching) {
@@ -37,9 +35,8 @@ export default {
         )
         await this.runClientActions(data?.client_actions || [])
       } catch (error) {
-        // A handled API error already carries its own message. Anything
-        // else (e.g. a network failure) still needs its own toast rather
-        // than being thrown from an unawaited click handler.
+        // A handled error already carries its own message. Anything else, a
+        // network failure for instance, still needs a toast of its own.
         if (error.handler) {
           notifyIf(error, 'workflowAction')
         } else {
@@ -53,9 +50,9 @@ export default {
       }
     },
     /**
-     * Runs the actions the backend does not run itself, in the order it
-     * returned them. The response only carries them when the server side
-     * actions all succeeded, so a failed row action never navigates away.
+     * Runs the actions the backend hands back for the browser, in the order it
+     * returned them. It only sends them when every server side action
+     * succeeded, so a failed row action never navigates away.
      */
     async runClientActions(clientActions) {
       const fields =

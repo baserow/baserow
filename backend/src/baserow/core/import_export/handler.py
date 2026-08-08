@@ -921,8 +921,8 @@ class ImportExportHandler:
             progress_builder, child_total=application_count
         )
 
-        # Work registered during the loop that can only be done once every
-        # application exists runs when this context exits.
+        # Callbacks registered during the loop run when this context exits, by
+        # which point every application exists.
         with deferred_callback_context():
             for application_type in prioritized_applications:
                 for application_manifest in manifest["applications"][application_type][

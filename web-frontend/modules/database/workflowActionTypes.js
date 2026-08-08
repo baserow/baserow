@@ -14,11 +14,8 @@ import {
 } from '@baserow/modules/database/utils/buttonField'
 
 /**
- * Base for a database workflow action backed by a service.
- *
- * Unlike the builder's equivalent it has no `execute`: a button click
- * dispatches the whole sequence server side, so nothing runs in the browser.
- * The type only supplies what the editor needs to render the action.
+ * Base for a database workflow action backed by a service. No `execute`: a
+ * click dispatches the sequence server side, so nothing runs in the browser.
  */
 export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
   get form() {
@@ -55,9 +52,8 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
 }
 
 /**
- * Opens a URL in the browser. Backed by no service: the backend never
- * dispatches it, it just hands the action back to the client to run, so this
- * extends the core type rather than the service based one above.
+ * Opens a URL in the browser. No service: the backend hands it back to the
+ * client to run, so this extends the core type rather than the one above.
  */
 export class OpenUrlWorkflowActionType extends WorkflowActionType {
   static getType() {
@@ -81,8 +77,7 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
   }
 
   /**
-   * The form edits the action's own fields, so it needs no context beyond the
-   * default values the list already passes it.
+   * The form needs no context beyond the default values it already gets.
    */
   getFormProps() {
     return {}
@@ -98,14 +93,9 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
   /**
    * Resolves the action's URL formula for the clicked row.
    *
-   * Only the `fields` data provider is offered: a button URL references
-   * `fields.field_<id>` and that provider stringifies every value, which is
-   * what a URL needs. The `row` provider returns raw types and exists for
-   * action arguments instead (ADR 006 section 4).
-   *
-   * `resolveFormula` swallows a resolution failure and returns null, so a URL
-   * pointing at a trashed field ends up here as an empty string rather than a
-   * throw.
+   * Only the `fields` provider is offered: it stringifies every value, which
+   * is what a URL needs. `row` returns raw types and is for action arguments
+   * (ADR 006 section 4). A resolution failure comes back as an empty string.
    */
   resolveUrl(workflowAction, { row, fields }) {
     const formulaObject = workflowAction.url
@@ -146,9 +136,8 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
       url = ''
     }
 
-    // An empty URL means the formula could not be resolved for this row, or
-    // it built a protocol we refuse to navigate to. Say so instead of
-    // navigating nowhere.
+    // Empty means the formula did not resolve for this row, or it built a
+    // protocol we refuse to open. Say so instead of going nowhere.
     if (!url) {
       await this.app.$store.dispatch('toast/error', {
         title: this.app.$i18n.t('openUrlWorkflowAction.invalidUrlTitle'),

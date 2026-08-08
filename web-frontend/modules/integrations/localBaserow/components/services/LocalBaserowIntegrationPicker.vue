@@ -21,8 +21,8 @@ import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/local
 
 /**
  * Chooses the Local Baserow integration a service reaches its tables through.
- * Rendered by the wrapper of each application type that works that way, which
- * is the builder and automation. A button field has no integration to pick.
+ * Only the builder and automation wrappers render it, a button field has no
+ * integration to pick.
  */
 export default {
   name: 'LocalBaserowIntegrationPicker',

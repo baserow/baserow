@@ -1,18 +1,15 @@
 /**
  * Percent-encodes the whitespace in a resolved URL. Row values often contain
- * spaces and browsers accept them by encoding, but our URL validation does
- * not. Only whitespace is touched: anything more would mangle the URL
- * structure the formula builds, and would double-encode a value the user
- * already escaped with `encode_uri_component()`.
+ * spaces, which our URL validation rejects. Only whitespace is touched, or we
+ * would mangle or double-encode the rest.
  */
 export function encodeUrlWhitespace(url) {
   return url.replace(/\s/g, (character) => encodeURIComponent(character))
 }
 
 /**
- * The protocols a button is allowed to navigate to. Mirrors the builder's
- * `ALLOWED_LINK_PROTOCOLS`, kept here so the database module does not depend
- * on the builder module.
+ * Mirrors the builder's `ALLOWED_LINK_PROTOCOLS`, duplicated so this module
+ * does not depend on the builder module.
  */
 export const ALLOWED_BUTTON_URL_PROTOCOLS = [
   'ftp:',
@@ -33,18 +30,16 @@ export const ALLOWED_BUTTON_URL_PROTOCOLS = [
 const RELATIVE_URL_BASE = 'http://baserow.invalid'
 
 /**
- * Returns the URL when its protocol is allowed, and an empty string when it is
- * not. A URL without a protocol is relative and passes through. This is what
- * keeps a `javascript:` URL built by a formula from being navigated to.
+ * Returns the URL when its protocol is allowed and an empty string when it is
+ * not, which is what keeps a formula-built `javascript:` URL from being
+ * navigated to. A URL without a protocol is relative and passes through.
  *
- * The protocol comes from `new URL()`, the same WHATWG parse the browser runs
- * when the URL reaches `window.location`. A regex over the raw string decides
- * differently from that parser: the parser first strips leading C0 control
- * characters, so `\x01javascript:alert(1)` looks relative to a regex while the
- * browser still runs it as `javascript:`.
+ * The protocol comes from `new URL()`, the same parse the browser runs, rather
+ * than a regex: the parser strips leading C0 controls first, so a regex would
+ * read `\x01javascript:` as relative while the browser still runs it.
  *
- * The original string is returned rather than the parsed one, because parsing
- * normalises and re-encodes a URL the formula deliberately built.
+ * The original string is returned, since parsing re-encodes what the formula
+ * deliberately built.
  */
 export function urlWithAllowedProtocol(url) {
   let protocol

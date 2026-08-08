@@ -1014,9 +1014,8 @@ class ButtonField(Field):
 
     @property
     def has_workflow_actions(self):
-        # Derived, not stored: the cell only needs to know whether actions
-        # exist, not what they are. Falls back to its own query for a field
-        # fetched on its own, which carries no annotation.
+        # Falls back to its own query when the field wasn't fetched through
+        # `enhance_field_queryset` and so carries no annotation.
         annotated = getattr(self, self.HAS_WORKFLOW_ACTIONS_ANNOTATION, None)
         if annotated is not None:
             return annotated

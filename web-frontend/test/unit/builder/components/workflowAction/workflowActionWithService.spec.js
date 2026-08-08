@@ -40,8 +40,8 @@ describe('WorkflowActionWithService', () => {
   }
 
   test('a local baserow action offers an integration to pick', async () => {
-    // The regression this guards: the shared service form used to carry the
-    // dropdown, so removing it left the action with no way to choose one.
+    // The service form used to carry the dropdown, so removing it left the
+    // action with no way to choose an integration.
     await seedIntegration()
 
     const wrapper = await mountAction('create_row', {

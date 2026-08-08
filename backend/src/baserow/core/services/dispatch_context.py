@@ -45,9 +45,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         :param use_sample_data: Whether to use or update the sample_data.
         :param force_outputs: Mapping of service IDs and previous service
             outputs. Can be used to force a specific service to be dispatched.
-        :param actor: The user this dispatch acts as, for contexts where no
-            integration supplies one. Services that need an acting user fall back
-            to it when their service has no integration attached.
+        :param actor: The user this dispatch acts as, for services that have no
+            integration to supply one.
         """
 
         self.cache = {}  # can be used by data providers to save queries
@@ -75,9 +74,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         Return a new DispatchContext instance cloned from the current context, without
         losing the original cached data and call stack but updating some properties.
 
-        The actor is carried over explicitly instead of via `own_properties` so that
-        it survives for subclasses which replace that list, and so that subclass
-        constructors never receive an unexpected `actor` keyword argument.
+        The actor is carried over explicitly rather than via `own_properties`, so
+        it survives subclasses that replace that list.
         """
 
         new_values = {}

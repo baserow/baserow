@@ -129,18 +129,15 @@ export default {
           forceUpdate: false,
         })
 
-        // The field update succeeded, so a button field's actions can be
-        // saved against its (already known) id. A failure here must not
-        // undo the field update: surface the error and leave whatever
-        // actions did save in place.
+        // The field is saved, so its actions can be saved too. A failure here
+        // must not undo the field update, so it is only surfaced.
         const fieldId = this.field.id
         try {
           await this.$refs.form.saveWorkflowActions(fieldId)
         } catch (error) {
           notifyIf(error, 'field')
         }
-        // Read after the save (and after its re-sync, which also runs when the
-        // save partially failed) so it describes what really exists.
+        // Read after the save, so it reflects what actually persisted.
         const hasWorkflowActions = this.$refs.form.hasWorkflowActions()
 
         // The callback must be called as soon the parent page has refreshed the rows.
@@ -149,8 +146,8 @@ export default {
         // callback must still be called.
         const callback = async () => {
           await forceUpdateCallback()
-          // Only after the response has been committed: it overwrites the
-          // stored field wholesale, including the stale flag it carried.
+          // Only once the response is committed, since it overwrites the
+          // stored field wholesale, stale flag included.
           if (hasWorkflowActions !== null) {
             await this.$store.dispatch('field/setItemHasWorkflowActions', {
               id: fieldId,

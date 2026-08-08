@@ -1,11 +1,9 @@
-// The rule the Figma draws between the label field and the actions section.
 .button-field-action-list__divider {
   height: 1px;
   margin-bottom: 20px;
   background: $palette-neutral-200;
 }
 
-// "Actions" on the left, "Add action" on the right, above the cards.
 .button-field-action-list__heading {
   display: flex;
   align-items: center;
@@ -17,8 +15,7 @@
   font-weight: 600;
 }
 
-// One card per action: a header holding the drag handle, the type dropdown
-// and the delete button, a full width separator, then the type's own form.
+// One card per action.
 .button-field-action-list__item {
   background: $palette-neutral-50;
   overflow: hidden;
@@ -26,18 +23,14 @@
   @include rounded($rounded-md);
 }
 
-// At the Figma's 400 wide card this leaves the dropdown at exactly 304: the
-// 16px insets, the 16px handle and its 4px gap, then the 8px gap and the 36px
-// delete button. On a narrower card the dropdown shrinks and the rest holds.
+// Holds the drag handle, the type dropdown and the delete button.
 .button-field-action-list__header {
   display: flex;
   align-items: center;
   padding: 12px 16px;
 }
 
-// The Figma's two by three dot grid, drawn the way the builder draws its own
-// handles rather than with an icon glyph. 10px plus its 10px gap keeps the
-// same 20px slot the icon occupied, so the dropdown width above still holds.
+// A dot grid drawn with a gradient, the way the builder draws its handles.
 .button-field-action-list__handle {
   flex: 0 0 10px;
   height: 16px;
@@ -66,18 +59,14 @@
   background: $palette-neutral-200;
 }
 
-// The 12px the Figma insets the config form by. It lives here rather than in
-// each type's form so a service backed form, which brings no padding of its
-// own, does not run into the card's edges.
+// The inset lives on the card so a service backed form, which brings no
+// padding of its own, does not run into the card's edges.
 .button-field-action-list__form {
   padding: 12px;
 }
 
-// The card and the shared segment control's inactive fill are both
-// $palette-neutral-50, so an `open_url` action's Same tab / New tab control
-// would vanish into the card it sits on. The Figma darkens the control's own
-// container to $palette-neutral-200 instead. Scoped to this card on purpose:
-// SegmentControl is shared with the builder, automation and dashboards.
+// Without this the control's inactive fill disappears into the card behind it.
+// Scoped to the card, since SegmentControl is shared with other modules.
 .button-field-action-list__item .segment-control {
   background: $palette-neutral-200;
 }

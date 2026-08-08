@@ -60,8 +60,7 @@ describe('FieldButtonSubForm', () => {
     test('adding an action buffers it without calling the api', async () => {
       // Nothing is persisted until the field form is submitted, which is what
       // makes "add an action, press Cancel" discard it. Driven through the
-      // list editor rather than by assigning `localActions`, or the test would
-      // still pass if `addAction` called the API itself.
+      // list editor, or the test would pass even if `addAction` hit the API.
       const wrapper = await mountForm({ type: 'button', label: 'Go' })
 
       wrapper.findComponent(ButtonFieldActionList).vm.addAction('create_row')
@@ -76,12 +75,9 @@ describe('FieldButtonSubForm', () => {
     })
 
     test('cancelling drops the discarded action from the reopened editor', async () => {
-      // Regression test: UpdateFieldContext keeps this sub-form mounted per
-      // field, so reopening the editor after a cancel shows whatever is still
-      // buffered. Cancel goes through FieldForm.reset(), which the form mixin
-      // forwards to child forms, so the buffer has to be rebuilt there. If it
-      // is not, the discarded action is still listed and a later save creates
-      // it for real.
+      // UpdateFieldContext keeps this sub-form mounted per field, so a cancel
+      // has to rebuild the buffer through FieldForm.reset(). Otherwise the
+      // discarded action is still listed and a later save creates it for real.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [{ id: 1, type: 'create_row', service: {} }]
       wrapper.vm.localActions = [{ id: 1, type: 'create_row', service: {} }]
@@ -131,10 +127,8 @@ describe('FieldButtonSubForm', () => {
 
     test('a created action is configured with the service type the server assigned', async () => {
       // A buffered service carries no `type` until the server has made one,
-      // and the API's polymorphic service serializer refuses a payload it
-      // cannot type (it 500s). The follow-up update therefore has to take the
-      // type from the service the create just returned, or a brand new
-      // action's configuration is never persisted.
+      // and the polymorphic serializer 500s on a payload it cannot type. The
+      // follow-up has to take the type from the service the create returned.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = []
       wrapper.vm.localActions = [
@@ -214,12 +208,10 @@ describe('FieldButtonSubForm', () => {
     })
 
     test('a type change into a service type sends no untyped service', async () => {
-      // Changing the type resets the config, so the buffered service is `{}`.
-      // It has never been round-tripped through the API, so it carries no
-      // nested `type`, and `BasePolymorphicSerializer.get_type_from_mapping`
-      // answers a payload it cannot type with `self.fail(...)` — which DRF
-      // turns into an AssertionError, an HTTP 500 rather than a 400. Nothing
-      // untyped may reach the wire.
+      // Changing the type resets the config, so the buffered service is `{}`
+      // and, never having been round-tripped, carries no nested `type`. The
+      // polymorphic serializer answers an untyped payload with a 500, so
+      // nothing untyped may reach the wire.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
         { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
@@ -244,10 +236,9 @@ describe('FieldButtonSubForm', () => {
     })
 
     test('a type change into a service type types the service it then sends', async () => {
-      // The user can change the type and configure the new form before
-      // saving. The type change goes on its own, then the service config
-      // follows against the recreated action, typed from what it answered —
-      // exactly as a create does.
+      // The user can change the type and configure the new form before saving.
+      // The type change goes on its own, then the config follows against the
+      // recreated action, typed from what it answered, just like a create.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
         { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
@@ -281,15 +272,11 @@ describe('FieldButtonSubForm', () => {
     })
 
     test('a type round trip sends no untyped service back', async () => {
-      // Swapping a row's type and swapping it straight back leaves the type
-      // matching the server's, so nothing is a type change any more and the
-      // payload carries no top-level `type`. Its service is still brand new
-      // though: `onActionTypeChanged` reset the config and the remounted form
-      // re-seeded it, so it has never been round-tripped through the API and
-      // carries no nested `type` either. Sent as it stands that is the same
-      // untyped service the polymorphic serializer answers with a 500.
-      // Driven through the list editor rather than assigned, so the test
-      // proves the buffer really does end up untyped.
+      // Swapping a row's type and back leaves the type matching the server's,
+      // so nothing is a type change. The service is still brand new though:
+      // the config was reset and re-seeded, so it is untyped, which is what
+      // the serializer answers with a 500. Driven through the list editor, so
+      // the buffer really does end up that way.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       const saved = {
         id: 1,
@@ -381,15 +368,13 @@ describe('FieldButtonSubForm', () => {
     })
 
     test('editing an already-edited action accumulates both edits', async () => {
-      // Pins the defaultValues staleness concern: DatabaseWorkflowActionWithService
-      // merges the nested service form's payload against `defaultValues.service`
-      // (see DatabaseWorkflowActionWithService.vue), so ButtonFieldActionList
-      // must keep that prop live as localActions changes, or a second, partial
-      // edit would merge against the pre-first-edit snapshot and lose it.
+      // DatabaseWorkflowActionWithService merges the nested form's payload
+      // against `defaultValues.service`, so ButtonFieldActionList has to keep
+      // that prop live as localActions changes, or a second partial edit
+      // merges against a stale snapshot and loses the first.
       //
-      // This drives the real ButtonFieldActionList -> DatabaseWorkflowActionWithService
-      // chain, including its merge line. Only the innermost create_row form is
-      // stubbed, so each `values-changed` below goes through the actual merge.
+      // Only the innermost form is stubbed, so each `values-changed` below
+      // goes through the real merge.
       const StubServiceForm = {
         name: 'StubServiceForm',
         props: ['application', 'service', 'serviceType', 'defaultValues'],
@@ -416,9 +401,8 @@ describe('FieldButtonSubForm', () => {
 
       expect(wrapper.vm.localActions[0].service).toEqual({ table_id: 3 })
 
-      // Second edit: only the new field, nothing else. This only survives if
-      // DatabaseWorkflowActionWithService merged against a live
-      // `defaultValues.service`, not the pre-first-edit `{}` snapshot.
+      // Second edit sends only the new field. It survives only if the merge
+      // ran against a live `defaultValues.service`, not the `{}` snapshot.
       stubForm.vm.$emit('values-changed', { row_id: 9 })
       await wrapper.vm.$nextTick()
 
@@ -430,9 +414,8 @@ describe('FieldButtonSubForm', () => {
 
     test('hasWorkflowActions follows what the save left on the server', async () => {
       // The field create/update response computes `has_workflow_actions`
-      // before these calls are made, so the contexts patch the store from
-      // this instead. It has to answer for what really persisted, in both
-      // directions.
+      // before these calls, so the contexts patch the store from this instead.
+      // It has to answer for what really persisted, in both directions.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       expect(wrapper.vm.hasWorkflowActions()).toBe(false)
 
@@ -459,9 +442,8 @@ describe('FieldButtonSubForm', () => {
 
     test('the action editor stays out of the field payload', async () => {
       // The nested action forms register up the form chain, so without an
-      // override the field create/update body would also carry `service` and
-      // whatever the service form put in it. DRF ignores unknown keys today,
-      // but the field payload must not be coupled to the action editor.
+      // override the field payload would also carry `service` and whatever the
+      // service form put in it.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.localActions = [
         { type: 'create_row', service: { table_id: 3 } },
@@ -497,11 +479,9 @@ describe('FieldButtonSubForm', () => {
     })
 
     test('a second save does not recreate an action the first save already created', async () => {
-      // Regression test: UpdateFieldContext mounts this component once per
-      // field and keeps it mounted across open/edit/save cycles (Context.vue
-      // uses v-if="openedOnce"), so serverActions/localActions must reflect
-      // what really exists server-side after each save, or reconciliation on
-      // the next save treats an already-created action as new again.
+      // UpdateFieldContext mounts this component once per field and keeps it
+      // mounted across save cycles, so the buffers have to reflect what exists
+      // server side after each save, or the next one re-creates it.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [{ id: 1, type: 'create_row', service: {} }]
       wrapper.vm.localActions = [
@@ -559,11 +539,10 @@ describe('FieldButtonSubForm', () => {
   })
 
   describe('formula injection', () => {
-    // A "create a row" action's field mappings render their formula input
-    // through the shared `InjectedFormulaInput`, which resolves the component
-    // to render from an injected `formulaComponent`. Nothing in the database
-    // module provided one, so the injection was undefined and Vue rendered a
-    // bare comment node: the mapping showed an empty area instead of an input.
+    // A field mapping's formula input renders through `InjectedFormulaInput`,
+    // which resolves the component from an injected `formulaComponent`. With
+    // nothing providing one the injection is undefined and Vue renders a bare
+    // comment node, so the mapping showed an empty area instead of an input.
     const mountInjectedInput = async (formWrapper, attrs = {}) =>
       testApp.mount(InjectedFormulaInput, {
         attrs,
@@ -586,8 +565,8 @@ describe('FieldButtonSubForm', () => {
         modelValue: { formula: "'hi'", mode: 'simple' },
       })
 
-      // The defect: without a provided component this rendered nothing but a
-      // comment node, so both of these were false/empty.
+      // Without a provided component this rendered a bare comment node, so
+      // both of these were false or empty.
       expect(input.findComponent({ name: 'FormulaInputField' }).exists()).toBe(
         true
       )

@@ -371,9 +371,8 @@ export class NodeType extends Registerable {
 
 export class LocalBaserowNodeType extends NodeType {
   /**
-   * An automation node picks its own integration, so the service form is
-   * wrapped in one that offers the dropdown and hands it the databases that
-   * integration reaches.
+   * A wrapper around the service form, so the node can pick its integration
+   * first and hand the form the databases it reaches.
    */
   get formComponent() {
     return LocalBaserowNodeServiceForm

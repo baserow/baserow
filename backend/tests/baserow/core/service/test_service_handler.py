@@ -247,7 +247,7 @@ def test_dispatch_local_baserow_get_row_service_missing_integration(data_fixture
 @pytest.mark.django_db
 def test_a_local_baserow_service_never_requires_an_integration(data_fixture):
     """An integration only supplies a user, and a dispatch source can supply one
-    itself, so the dispatch is refused by `get_acting_user` instead."""
+    itself. `get_acting_user` is what refuses when neither does."""
 
     from baserow.contrib.integrations.local_baserow.service_types import (
         LocalBaserowUpsertRowServiceType,

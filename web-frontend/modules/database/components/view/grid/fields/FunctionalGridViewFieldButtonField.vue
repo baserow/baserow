@@ -10,7 +10,6 @@
       >
         {{ field.label }}
       </Button>
-      <!-- A button with no actions has nothing to run. -->
       <Button v-else type="secondary" size="tiny" disabled>
         {{ field.label }}
       </Button>

@@ -23,10 +23,8 @@ ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS = (
 )
 
 # `{e.message}` is rendered verbatim, so only messages written for the clicker
-# may reach it. `DatabaseWorkflowActionService` guarantees that by wrapping only
-# the exceptions in `USER_FACING_DISPATCH_EXCEPTIONS`.
-# Named by position, not id: the clicker sees an ordered list in the editor and
-# can count to it, whereas the id is an internal number they never see.
+# may reach it. `DatabaseWorkflowActionService` is what guarantees that.
+# The position rather than the id, since that is what the clicker can count.
 ERROR_WORKFLOW_ACTION_DISPATCH_FAILED = (
     "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED",
     HTTP_400_BAD_REQUEST,

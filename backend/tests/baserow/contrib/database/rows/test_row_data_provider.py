@@ -36,9 +36,8 @@ def test_values_keep_their_real_types(data_fixture):
     created = model.objects.create(
         **{f"field_{name_field.id}": "Ada", f"field_{age_field.id}": 36}
     )
-    # Refetch: a freshly `.create()`d instance keeps the raw Python values it
-    # was given, unconverted. The dispatch context carries a genuinely queried
-    # row, so a real fetch is what exercises the type conversion under test.
+    # Refetch: a `.create()`d instance keeps the raw Python values it was given,
+    # so only a queried row exercises the type conversion under test.
     row = model.objects.get(pk=created.pk)
     dispatch_context = _dispatch_context(data_fixture, user, table, row)
 
@@ -54,7 +53,7 @@ def test_values_keep_their_real_types(data_fixture):
 
 @pytest.mark.django_db
 def test_it_differs_from_the_human_readable_provider(data_fixture):
-    """The difference IS the reason this provider exists (ADR 006 section 4)."""
+    """The difference is why this provider exists (ADR 006 section 4)."""
 
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
@@ -71,11 +70,8 @@ def test_it_differs_from_the_human_readable_provider(data_fixture):
     # field is normalized to Decimal by Django.
     row = model.objects.get(pk=created.pk)
 
-    # Each provider is exercised through the context it is actually built
-    # for: `HumanReadableFieldsDataProviderType` reads
-    # `human_readable_row_values` off `HumanReadableRowContext`, while
-    # `RowDataProviderType` reads `row` off `DatabaseDispatchContext`. Same
-    # underlying row, same field, deliberately different context types.
+    # Same row and same field, each read through the context its own provider
+    # is built for.
     human_readable_context = HumanReadableRowContext(row)
     human_readable = HumanReadableFieldsDataProviderType().get_data_chunk(
         human_readable_context, [f"field_{age_field.id}"]

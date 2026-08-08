@@ -35,8 +35,8 @@ def test_url_formula_becomes_an_open_url_action(data_fixture):
 
     action = OpenUrlWorkflowAction.objects.get(field_id=button_field.id)
     assert action.order == 1
-    # The retired attribute always opened a new tab, so the action it becomes
-    # keeps doing that rather than taking the new "self" default.
+    # `url_formula` always opened a new tab, so the action keeps doing that
+    # rather than taking the "self" default.
     assert action.target == "blank"
     assert action.url["formula"] == "'https://example.com'"
     # The mode has to survive too: a raw formula downgraded to simple stops
@@ -63,10 +63,8 @@ def test_a_legacy_bare_string_url_formula_becomes_an_open_url_action(data_fixtur
 @pytest.mark.parametrize(
     "raw_value",
     [
-        # A NULL column, which `exclude(url_formula="")` would have kept rather
-        # than skipped, and both serialisations of an empty formula: the key
-        # order differs depending on whether the value was stored from a string
-        # or from a dict, so no single text comparison matches them all.
+        # A NULL column, plus both key orderings of an empty formula: the order
+        # differs depending on whether it was stored from a string or a dict.
         None,
         "",
         '{"f": "", "m": "simple", "v": "0.1"}',

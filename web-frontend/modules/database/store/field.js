@@ -87,10 +87,9 @@ export const actions = {
     commit('SET_ITEM_ERROR', { field, value })
   },
   /**
-   * Updates a field's `has_workflow_actions` flag locally. The flag is derived
-   * server side, so the create/update response is already stale by the time
-   * the field's workflow actions are saved right after it. Without this the
-   * cell keeps the rendering the response described until the page reloads.
+   * Patches a field's `has_workflow_actions` locally. The create/update
+   * response computes the flag before the actions are saved, so without this
+   * the cell keeps rendering the stale value until the page reloads.
    */
   setItemHasWorkflowActions({ commit }, { id, value }) {
     commit('SET_ITEM_HAS_WORKFLOW_ACTIONS', { id, value })

@@ -103,8 +103,8 @@ describe('DatabaseWorkflowActionWithService', () => {
 
     const wrapper = await mountAction('create_row')
 
-    // The symptom browser verification caught: with no integration the table
-    // selector was never rendered, so the action could not be configured.
+    // With no integration the table selector was never rendered at all, so
+    // the action could not be configured.
     const selector = wrapper.findComponent({
       name: 'LocalBaserowTableSelector',
     })
@@ -123,9 +123,8 @@ describe('DatabaseWorkflowActionWithService', () => {
     await seedApplications()
     testApp.mock.onGet('/database/fields/table/2/').reply(200, TABLE_FIELDS)
 
-    // No schema, because nothing has been saved: the state a newly added
-    // action is in. It used to make the form claim the table had no writable
-    // fields, so no mapping could ever be configured before a save.
+    // A newly added action has nothing saved and so no schema, which used to
+    // make the form claim the table had no writable fields.
     const wrapper = await mountAction('create_row', { table_id: 2 })
     await flushPromises()
 
@@ -147,8 +146,8 @@ describe('DatabaseWorkflowActionWithService', () => {
     await seedApplications()
     testApp.mock.onGet('/database/fields/table/2/').reply(200, TABLE_FIELDS)
 
-    // Update row's form is a thin wrapper that forwards $attrs, so anything
-    // deciding this from the form component itself gets it wrong here.
+    // Update row's form is a thin wrapper that forwards $attrs, so the props
+    // have to be decided from the action type, not from the form component.
     const wrapper = await mountAction('update_row', { table_id: 2 })
     await flushPromises()
 
@@ -213,9 +212,8 @@ describe('DatabaseWorkflowActionWithService', () => {
       true
     )
 
-    // The table dropdown is not clearable, so choosing the table that is
-    // already selected re-emits the same id. `table_id` never changes, so
-    // nothing refetches and nothing toggles the `loading` prop.
+    // The table dropdown is not clearable, so re-picking the selected table
+    // re-emits the same id, and nothing should refetch.
     wrapper
       .findComponent({ name: 'LocalBaserowServiceForm' })
       .vm.$emit('table-changed', 2)

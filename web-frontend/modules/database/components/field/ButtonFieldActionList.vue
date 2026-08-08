@@ -11,9 +11,8 @@
     </div>
 
     <!--
-      The sortable items need a parent of their own. The directive reads the
-      new order off every element child of the dragged item's parent, so a
-      sibling that is not an action would enter that order with no sortable id.
+      The sortable directive reads the new order off every element child of
+      this wrapper, so anything that is not an action stays outside it.
     -->
     <div class="button-field-action-list__items">
       <div
@@ -56,11 +55,9 @@
           <div class="button-field-action-list__separator"></div>
           <div class="button-field-action-list__form">
             <!--
-              Keyed by type, not by the row: `create_row` and `update_row`
-              resolve to the same form component and the same service form, and
-              the row's own key does not change on a type swap, so Vue would
-              reuse the instance and carry the old type's seeded values into a
-              config that has just been reset.
+              Keyed by type because `create_row` and `update_row` share a form
+              component, so otherwise Vue reuses the instance on a type swap
+              and keeps the old type's values.
             -->
             <component
               :is="actionTypeOf(action).form"
@@ -85,15 +82,9 @@
 import _ from 'lodash'
 
 /**
- * Controlled editor for a button field's ordered action list. It owns no
- * state of its own beyond the `value` prop: every mutation emits a brand new
- * array via `input` and makes no API calls, so a field sub-form can discard
- * changes simply by not saving.
- *
- * Each row picks its own type from a dropdown, so an existing action's type
- * can be changed in place. The reconciliation that turns this list into API
- * calls diffs `type` as well as the config, and the server implements a type
- * change as a delete plus a create that keeps the action's position.
+ * Controlled editor for a button field's ordered action list. Owns no state
+ * beyond `value`: every mutation emits a new array and makes no API calls, so
+ * the sub-form can discard changes by not saving.
  */
 export default {
   name: 'ButtonFieldActionList',
@@ -118,9 +109,7 @@ export default {
       return this.$registry.get('databaseWorkflowActionType', action.type)
     },
     /**
-     * Adds a new action. It carries no type until the user picks one from the
-     * row's dropdown, and never carries an `id`: that is only assigned once
-     * the field is saved and the backend creates the action.
+     * No type until the user picks one, and no `id` until the field is saved.
      */
     addAction(type = null) {
       this.$emit('input', [...this.value, this.newAction(type)])
@@ -137,11 +126,8 @@ export default {
       }
     },
     /**
-     * Swaps a row's type. The old type's config is dropped rather than merged:
-     * it means nothing to the new type, and the server deletes and recreates
-     * the action rather than converting it. The `id` is kept so the change is
-     * reconciled as an update of the existing action, which is what preserves
-     * its position.
+     * The old config is dropped, since it means nothing to the new type. The
+     * `id` is kept so the change reconciles as an update and keeps its place.
      */
     onActionTypeChanged(index, type) {
       const action = this.value[index]
@@ -167,12 +153,8 @@ export default {
       this.$emit('input', newList)
     },
     /**
-     * The per-action form mounts its own default values on creation, which
-     * emits `values-changed` once even when nothing actually changed. Only
-     * emit `input` when the keys the form sent have genuinely changed, to
-     * avoid spurious updates. Which keys those are depends on the type: a
-     * service backed action sends `service`, `open_url` sends `url` and
-     * `target`.
+     * The per-action form emits `values-changed` once on mount even when
+     * nothing changed, so only emit `input` when a key genuinely differs.
      */
     onActionValuesChanged(index, values) {
       const action = this.value[index]
@@ -185,15 +167,11 @@ export default {
       this.$emit('input', newList)
     },
     onSortableUpdate(newOrder) {
-      // Unsaved actions have no id, so they fall back to an index-based key.
-      // That fallback must be namespaced (`new-${index}`) so it can never
-      // collide with a real id — otherwise a saved action and an unsaved one
-      // could resolve to the same sortable id.
+      // Namespaced so an unsaved action can never collide with a real id.
       const bySortId = new Map(
         this.value.map((action, index) => [action.id ?? `new-${index}`, action])
       )
-      // An id with no action behind it would otherwise land in the list as
-      // undefined and break the next render, taking the whole editor with it.
+      // An id with no action behind it would render as undefined and crash.
       const reordered = newOrder
         .map((id) => bySortId.get(id))
         .filter((action) => action !== undefined)

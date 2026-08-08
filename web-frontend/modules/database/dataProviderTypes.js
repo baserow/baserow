@@ -35,10 +35,8 @@ export class FieldsDataProviderType extends DataProviderType {
   getDataChunk(applicationContext, path) {
     const [fieldRef] = path
     const { row, fields } = applicationContext
-    // A missing field must fail the resolution so the button renders
-    // disabled, instead of silently building a wrong URL. This happens in
-    // contexts that can't provide the field, like the link-row picker or a
-    // public view where the referenced field is hidden.
+    // A field this context cannot provide, a hidden one for instance, must
+    // fail the resolution rather than silently build a wrong URL.
     if (!row || !fields) {
       throw new Error(`No row context to resolve ${fieldRef}.`)
     }
@@ -58,12 +56,9 @@ export class FieldsDataProviderType extends DataProviderType {
 }
 
 /**
- * Mirrors the backend `RowDataProviderType`: exposes the clicked row's values
- * with their real types, for a button field's workflow action arguments.
- *
- * Deliberately separate from `FieldsDataProviderType`, which stringifies every
- * value. That is right for a prompt or a URL and wrong for writing a number,
- * date or link into a row (ADR 006 section 4).
+ * Mirrors the backend `RowDataProviderType`: the clicked row's values with
+ * their real types. Separate from `FieldsDataProviderType`, which stringifies
+ * everything, right for a URL and wrong for writing (ADR 006 section 4).
  */
 export class RowDataProviderType extends DataProviderType {
   static getType() {
@@ -83,8 +78,7 @@ export class RowDataProviderType extends DataProviderType {
     return {
       type: 'object',
       properties: {
-        // The row's own id, so an update or delete action can target the row
-        // that was clicked.
+        // So an update or delete action can target the clicked row.
         id: {
           title: this.app.$i18n.t('dataProviderTypes.rowId'),
           type: 'number',

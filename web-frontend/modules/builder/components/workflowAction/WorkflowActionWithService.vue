@@ -60,8 +60,8 @@ export default {
       return this.workflowActionType.serviceType
     },
     /**
-     * The action picks its own integration, so it is held on the service
-     * alongside everything else the form emits.
+     * The integration is stored on the service, alongside everything else the
+     * form emits.
      */
     integrationId: {
       get() {
@@ -79,9 +79,6 @@ export default {
         }
       },
     },
-    /**
-     * The tables to choose from are the ones the chosen integration reaches.
-     */
     databases() {
       return databasesOfIntegration(
         this.$store,

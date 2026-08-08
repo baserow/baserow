@@ -45,20 +45,13 @@ export default {
   mixins: [form, fieldSubForm],
   provide() {
     return {
-      // The nested action forms (via FieldMappingsForm) need the workspace to
-      // check field permissions.
       workspace: this.database.workspace,
-      // A field mapping renders its formula input through the shared
-      // `InjectedFormulaInput`, which resolves the component to render from
-      // this injection. Without it the injection is undefined and the input
-      // renders as an empty area. The builder and automation editors provide
-      // their own component the same way.
+      // `InjectedFormulaInput` resolves what to render from this injection.
       formulaComponent: markRaw(DatabaseFormulaInput),
-      // Only the clicked row resolves in a button action's arguments: a
-      // `DatabaseDispatchContext` carries no human readable values, so
-      // `get('fields.…')` would resolve to nothing (ADR 006 section 4).
+      // An action's arguments can only resolve the clicked row; the dispatch
+      // context carries no human readable values (ADR 006 section 4).
       dataProvidersAllowed: ['row'],
-      // Lazily read, so the explorer picks up the table's fields as they load.
+      // Lazy, so the explorer picks up the table's fields as they load.
       databaseFormulaContext: computed(() => this.applicationContext),
     }
   },
@@ -71,9 +64,8 @@ export default {
       values: {
         label: '',
       },
-      // The list as last fetched from the server, and the editable copy the
-      // user works on. Kept apart so cancelling the field form discards
-      // `localActions` without ever having called the API.
+      // The last server response and the editable copy, kept apart so
+      // cancelling discards the edits without ever calling the API.
       serverActions: [],
       localActions: [],
     }
@@ -90,77 +82,51 @@ export default {
     },
   },
   async mounted() {
-    // A new field has no id yet, so there is nothing to fetch: the server
-    // list stays empty and every local action is new. Also guard on the
-    // field actually being a button field: FieldForm swaps this sub-form in
-    // live as the user browses the type dropdown, so `defaultValues` can
-    // still be the persisted field of a different type (with a real id)
-    // while this component is only being previewed.
+    // FieldForm swaps this sub-form in while the user browses the type
+    // dropdown, when `defaultValues` is still a saved field of another type.
     if (this.defaultValues.id && this.defaultValues.type === 'button') {
       try {
         await this.fetchWorkflowActions(this.defaultValues.id)
       } catch (error) {
-        // Degrade to an empty list instead of an unhandled rejection; the
-        // user can still add actions from scratch.
         notifyIf(error, 'field')
       }
     }
   },
   methods: {
     /**
-     * Only the field's own values, never the child forms'. The action editor's
-     * service forms register up this chain (`ButtonFieldActionList` is not a
-     * form, so it is transparent), and the default implementation would fold
-     * their `service`, `table_id`, `field_mappings` and so on into the field
-     * create/update payload. Their values are persisted by
-     * `saveWorkflowActions` instead, against the workflow action endpoints.
+     * Only the field's own values. The nested service forms register up this
+     * chain, and their values go to the workflow action endpoints instead.
      */
     getFormValues() {
       return { ...this.values }
     },
     /**
-     * `UpdateFieldContext` keeps one instance of this sub-form per field
-     * alive across opens (Context.vue renders on `openedOnce`), so nothing
-     * remounts when the editor is reopened. Cancelling only calls `reset()`,
-     * which the form mixin applies to `values` alone, leaving the buffered
-     * action list untouched. Rebuild it from the last server response here,
-     * or a discarded action stays listed on the next open and gets created
-     * for real if the user then saves.
+     * The sub-form survives across opens, and `reset()` only clears `values`,
+     * so the buffered list has to be rebuilt here or a discarded action would
+     * still be listed on the next open.
      */
     async reset(deep = false) {
       await form.methods.reset.call(this, deep)
       this.localActions = clone(this.serverActions)
     },
     /**
-     * Fetches the field's actions from the server and resets both
-     * `serverActions` and the editable `localActions` copy from the
-     * response. Used both on mount and to re-sync after a save, so a
-     * second save in the same mounted instance reconciles against real
-     * ids instead of re-creating actions the first save already made.
+     * Fetches the field's actions and resets both the server list and the
+     * editable copy. Also called after a save, so a second save reconciles
+     * against real ids rather than re-creating what the first one made.
      */
     async fetchWorkflowActions(fieldId) {
       const { data } = await WorkflowActionService(this.$client).fetchAll(
         fieldId
       )
       this.serverActions = data
-      // A deep copy: editing localActions must never mutate serverActions,
-      // or the reconciliation below would diff a list against itself.
+      // Deep copy, or the reconciliation would diff a list against itself.
       this.localActions = clone(data)
     },
     /**
-     * Makes a payload's `service` one the API can type, given the action as
-     * the server currently knows it.
-     *
-     * A buffered service carries no `type` of its own: the editor resets the
-     * config whenever a row's type is picked, and the form that re-seeds it
-     * knows nothing about the service the server made. The API's polymorphic
-     * service serializer refuses a payload it cannot type — with an
-     * `AssertionError`, so a 500 rather than a 400.
-     *
-     * An empty service says nothing anyway, so it is dropped rather than sent
-     * untyped. A configured one takes its type from the server's own copy,
-     * letting the buffer win if it ever has one. A payload with no service
-     * (`open_url`) passes straight through.
+     * Adds the `type` the API needs to a payload's `service`, taken from the
+     * action as the server knows it. A buffered service carries no type of its
+     * own, and the polymorphic serializer 500s on one it cannot type. An empty
+     * service says nothing anyway, so it is dropped rather than sent untyped.
      */
     withTypedService(payload, serverSide) {
       if (!payload.service) {
@@ -171,27 +137,21 @@ export default {
       }
       return {
         ...payload,
-        // Optional all the way down, like the `data?.id` guards on the same
-        // responses in `saveWorkflowActions`: an untyped service is what this
-        // method exists to avoid, so it must not itself throw on one.
         service: { type: serverSide?.service?.type, ...payload.service },
       }
     },
     /**
-     * The payload that applies a buffered config to an action the server has
-     * just made, either by a create or by the recreate a type change does.
-     * Both only carry the type, so everything the user configured follows in
-     * an update. Dropping `type` here also means the follow-up can never
-     * trigger a second recreate and invalidate the id it is aimed at.
+     * The follow-up payload that applies a buffered config to an action the
+     * server has just created. `type` is dropped so the follow-up cannot
+     * trigger a second recreate.
      */
     configPayload(action, created) {
       return this.withTypedService(workflowActionConfig(action), created)
     },
     /**
-     * Reconciles the buffered action list against the server and issues the
-     * calls to match: creates, updates, deletes, then order. Called by the
-     * field form once the field itself has been saved, because a new field
-     * has no id until then.
+     * Diffs the buffered list against the server and issues the calls to
+     * match: creates, updates, deletes, then order. Called by the field form
+     * once the field is saved, since a new field has no id until then.
      */
     async saveWorkflowActions(fieldId) {
       const { toCreate, toUpdate, toDelete, order } = reconcileWorkflowActions(
@@ -215,32 +175,19 @@ export default {
         }
 
         for (const { id, values } of toUpdate) {
-          // A type change is a delete plus a create server side, so whatever
-          // service it brings is brand new and the buffered one carries no
-          // `type` for the polymorphic serializer to key on. There is no
-          // response to take one from yet, so the type change goes on its own
-          // and the config follows against the recreated action, exactly as
-          // it does for a create.
-          //
-          // Without a type change there is nothing to defer, but the service
-          // can still be untyped: swapping a row's type and swapping it
-          // straight back leaves the type matching the server's while the
-          // config has been reset and re-seeded. Type that one from the
-          // action the server already has.
+          // A type change recreates the action server side, so it goes on its
+          // own and the config follows against the new id. Otherwise the
+          // service may still be untyped, so type it from the server's copy.
           const defersConfig = values.type !== undefined && 'service' in values
           const payload = defersConfig
             ? _.omit(values, 'service')
             : this.withTypedService(values, serverById.get(id))
-          // A round trip that re-seeded nothing leaves an empty payload. It
-          // carries no type, so nothing is recreated and no id changes;
-          // skipping it just avoids an empty PATCH, as the create and
-          // follow-up paths already do.
+          // Skip rather than send an empty PATCH.
           if (Object.keys(payload).length === 0) {
             continue
           }
           const { data } = await service.update(id, payload)
-          // The recreate hands back a brand new id. The order below still
-          // holds the old one, so remember the swap.
+          // The recreate hands back a new id; the order below holds the old.
           if (data?.id != null && data.id !== id) {
             replacedIds.set(id, data.id)
           }
@@ -256,8 +203,7 @@ export default {
           await service.delete(id)
         }
 
-        // `order` carries null where a created action's id was unknown;
-        // fill them in from the creates, in the order they were made.
+        // `order` holds null for creates; fill them in as they were made.
         const created = [...createdIds]
         const finalOrder = order.map((id) =>
           id === null ? created.shift() : (replacedIds.get(id) ?? id)
@@ -267,13 +213,8 @@ export default {
           await service.order(fieldId, finalOrder)
         }
       } finally {
-        // Re-sync from the server whether the above succeeded or partially
-        // failed. On success this captures the real ids the server
-        // assigned, so a later save in the same mounted instance never
-        // treats an already-created action as new again. On a partial
-        // failure it shows the user what actually persisted instead of the
-        // stale local buffer. A failure here must not mask the original
-        // error, which is left to keep propagating to the caller.
+        // Re-sync either way: on success for the real ids, on a partial
+        // failure to show what persisted. Must not mask the original error.
         try {
           await this.fetchWorkflowActions(fieldId)
         } catch (refreshError) {
@@ -282,10 +223,9 @@ export default {
       }
     },
     /**
-     * Whether the field has actions server side, as of the last sync. Read by
-     * the field create/update contexts to patch the store, because the
-     * `has_workflow_actions` the field response carried was computed before
-     * `saveWorkflowActions` ran.
+     * Whether the field has actions server side, as of the last sync. The
+     * field contexts patch the store with it, because the field response's
+     * `has_workflow_actions` predates `saveWorkflowActions`.
      */
     hasWorkflowActions() {
       return this.serverActions.length > 0

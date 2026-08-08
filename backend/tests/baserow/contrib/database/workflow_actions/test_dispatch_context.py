@@ -82,8 +82,8 @@ def test_the_guard_does_not_break_clone(data_fixture):
     button_field = data_fixture.create_button_field(table=table, label="Go")
     row = table.get_model().objects.create()
 
-    # clone() reconstructs via own_properties, which always supplies field
-    # and row, so the guard above must not reject that reconstruction.
+    # `clone()` rebuilds via `own_properties`, which always supplies field and
+    # row, so the constructor's guard must not reject it.
     cloned = DatabaseDispatchContext(user, button_field, row).clone()
 
     assert cloned.field == button_field

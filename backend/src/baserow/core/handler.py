@@ -1834,8 +1834,8 @@ class CoreHandler:
         else:
             files_zip = files_buffer
         try:
-            # Work registered during the loop that can only be done once every
-            # application exists runs when this context exits.
+            # Callbacks registered during the loop run when this context exits,
+            # by which point every application exists.
             with deferred_callback_context():
                 id_mapping: Dict[str, Any] = {}
                 imported_applications = []

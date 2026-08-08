@@ -16,21 +16,16 @@ import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
 import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
 
 /**
- * The database module's counterpart to `ApplicationBuilderFormulaInput`: the
- * component a database field form provides as `formulaComponent`, so the
- * shared `InjectedFormulaInput` has something to render.
- *
- * `InjectedFormulaInput` renders `<component :is="formulaComponent">` and
- * injects nothing else, so without a host providing this the injection is
- * undefined and Vue renders a bare comment node where the input should be.
+ * The database counterpart to `ApplicationBuilderFormulaInput`, provided as
+ * `formulaComponent` so `InjectedFormulaInput` has something to render.
+ * Without a host providing it, the injection is undefined and nothing renders.
  */
 export default {
   name: 'DatabaseFormulaInput',
   components: { FormulaInputField },
   inject: {
-    // The context the data providers read to build the explorer tree, e.g.
-    // `{ fields }` for the row the button was clicked on. Optional: without it
-    // the explorer just shows no data nodes.
+    // What the data providers read to build the explorer tree. Without it the
+    // explorer simply shows no data nodes.
     databaseFormulaContext: { from: 'databaseFormulaContext', default: null },
   },
   inheritAttrs: false,
@@ -100,8 +95,7 @@ export default {
   },
   methods: {
     /**
-     * `FormulaInputField` emits the expression string only, so put it back on
-     * the value object the caller v-models.
+     * The field emits the expression only; put it back on the value object.
      */
     onFormulaChanged(newFormulaStr) {
       const newValue = {

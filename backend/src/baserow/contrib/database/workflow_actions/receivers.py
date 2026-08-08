@@ -21,8 +21,7 @@ def before_permanently_deleted(sender, instance, **kwargs):
             try:
                 ServiceHandler().delete_service(service.get_type(), service)
             except Service.DoesNotExist:
-                # Cascade deletion usually handles this, but it can occasionally
-                # raise DoesNotExist. Nothing to delete in that case.
+                # Cascade deletion may already have removed it.
                 pass
 
         transaction.on_commit(delete_service_after_commit)

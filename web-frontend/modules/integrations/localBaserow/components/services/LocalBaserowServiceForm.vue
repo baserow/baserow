@@ -35,9 +35,8 @@ import form from '@baserow/modules/core/mixins/form'
  * and Delete need to be able to manage the table and optional row ID.
  * Rather than duplicate the form a few times, this component keeps things tidier.
  *
- * The databases to pick a table from are given to it. Where they come from is
- * the business of the application type's wrapper: an integration for the
- * builder and automation, the workspace for a button field.
+ * The databases to pick a table from are passed in: an integration's for the
+ * builder and automation, the workspace's for a button field.
  */
 export default {
   name: 'LocalBaserowServiceForm',

@@ -17,9 +17,8 @@ describe('prepareRequestHeaders', () => {
   })
 
   test('omits the web socket id when the request opts out', () => {
-    // The realtime layer leaves the sending session out of the broadcast its
-    // request triggers. A request whose changes are made server side applies
-    // nothing itself, so it needs the broadcast.
+    // The realtime layer leaves the sender out of the broadcast, so a request
+    // whose changes are made server side has to opt out of that.
     const config = prepareRequestHeaders(makeStore('abc'))({
       headers: {},
       omitWebSocketId: true,

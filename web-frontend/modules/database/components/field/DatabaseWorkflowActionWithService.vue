@@ -31,12 +31,10 @@ export default {
       values: {
         service: {},
       },
-      // Null until the first fetch resolves, so the form keeps deriving its
-      // mappings from a saved service's schema in the meantime.
+      // Null until the first fetch, so the form keeps using the saved schema.
       mappableFields: null,
       fieldsLoading: false,
-      // Bumped per fetch, so a response overtaken by a newer one is dropped
-      // rather than left describing a table that is no longer selected.
+      // Bumped per fetch, so an overtaken response is dropped.
       fetchToken: 0,
     }
   },
@@ -65,9 +63,8 @@ export default {
       if (this.supportsFieldMappings) {
         props.mappableFields = this.mappableFields
         props.loading = this.fieldsLoading
-        // Nothing is saved when the table changes, so the form must not raise
-        // a spinner of its own: only `loading` above can lower one, and it
-        // never moves when the table is re-picked rather than changed.
+        // Nothing is saved on a table change here, so the form must not raise
+        // a spinner that only its `loading` prop can lower.
         props.savesOnTableChange = false
       }
       return props
@@ -76,10 +73,8 @@ export default {
       return this.values.service?.table_id || null
     },
     /**
-     * A button field has no integration to source a table list from, so the
-     * choice is every database in the field's own workspace. The field's own
-     * database is included on purpose: a button acting on its own table is
-     * legitimate.
+     * A button field has no integration to source a table list from, so every
+     * database in the field's workspace is offered, its own included.
      */
     workspaceDatabases() {
       return this.$store.getters['application/getAllOfWorkspace'](
@@ -99,9 +94,9 @@ export default {
   },
   methods: {
     /**
-     * The form derives its mappings from the service schema, which only a
-     * saved service carries. This editor buffers its changes, so a new action
-     * has none and the form would wrongly report no writable fields.
+     * The form normally derives its mappings from the service schema, which
+     * only a saved service carries. This editor buffers its changes, so a new
+     * action has no schema and needs the fields fetched for it.
      */
     async fetchMappableFields(tableId) {
       if (!this.supportsFieldMappings) {
@@ -111,8 +106,8 @@ export default {
       const token = ++this.fetchToken
       if (tableId === null) {
         this.mappableFields = null
-        // Nothing worth waiting for is left, and the fetch this replaced will
-        // not lower the spinner itself now that its token is stale.
+        // The superseded fetch will not lower the spinner now that its token
+        // is stale.
         this.fieldsLoading = false
         return
       }
@@ -131,8 +126,8 @@ export default {
         this.mappableFields = []
         notifyIf(error, 'field')
       } finally {
-        // Only the newest fetch owns the spinner: an overtaken one lowering it
-        // would uncover the previous table's mappings mid flight.
+        // Only the newest fetch owns the spinner, or an overtaken one
+        // uncovers the previous table's mappings mid flight.
         if (token === this.fetchToken) {
           this.fieldsLoading = false
         }

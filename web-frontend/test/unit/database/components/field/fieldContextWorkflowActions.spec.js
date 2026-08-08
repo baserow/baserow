@@ -4,12 +4,10 @@ import UpdateFieldContext from '@baserow/modules/database/components/field/Updat
 import CreateFieldContext from '@baserow/modules/database/components/field/CreateFieldContext'
 
 /**
- * `has_workflow_actions` is derived server side and returned by the field
- * create/update response, which the store commits verbatim. That response is
- * built before `saveWorkflowActions` runs, so the flag describes the field as
- * it was one request earlier and every cell renders the wrong branch until the
- * page is reloaded. These tests pin that the contexts correct the flag once
- * the actions have been saved, in both directions.
+ * The field create/update response carries a `has_workflow_actions` computed
+ * before `saveWorkflowActions` runs, and the store commits it verbatim, so
+ * every cell renders the wrong branch until a reload. These tests pin that the
+ * contexts correct the flag after the actions are saved, in both directions.
  */
 describe('field contexts keep has_workflow_actions in sync', () => {
   let testApp = null
@@ -23,9 +21,8 @@ describe('field contexts keep has_workflow_actions in sync', () => {
   const database = { id: 1, workspace: { id: 1 } }
   const allFieldsInTable = [{ id: 1, type: 'text', name: 'Name' }]
 
-  // The action editor itself is exercised by fieldButtonSubForm.spec.js. Only
-  // what the context does with the form's answer matters here, and stubbing
-  // the form also keeps this test off the sub-form's own request traffic.
+  // Only what the context does with the form's answer matters here. The
+  // editor itself is covered by fieldButtonSubForm.spec.js.
   const FieldFormStub = {
     name: 'FieldForm',
     props: [

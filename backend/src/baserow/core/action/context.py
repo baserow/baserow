@@ -15,11 +15,10 @@ def without_undo_redo_registration(user: AbstractUser):
     """
     Runs undoable actions without them entering the user's undo stack.
 
-    Actions are still registered and still send `action_done`, so row history, the
-    audit log, webhooks and realtime updates behave normally. Only the session id
-    is cleared, and `ActionHandler.undo`/`redo` select on it, so the resulting
-    actions can never be selected: the undo endpoint rejects a request without a
-    session id header before it gets that far.
+    Actions are still registered and still send `action_done`, so row history,
+    the audit log, webhooks and realtime updates behave normally. Only the
+    session id is cleared, and `ActionHandler.undo`/`redo` select on it, so
+    these actions can never be picked up.
 
     :param user: The user whose session id should be suppressed for the block.
     """

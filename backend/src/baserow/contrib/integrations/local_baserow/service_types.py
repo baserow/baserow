@@ -162,10 +162,10 @@ class LocalBaserowServiceType(ServiceType):
         """
         Returns the user whose permissions and identity this dispatch runs under.
 
-        When the service has an integration, that integration's `authorized_user`
-        acts, which is how the builder, automation and dashboard have always
-        behaved. When it has none, the dispatch context's actor acts instead. This
-        is the only place a Local Baserow service type may resolve its user.
+        With an integration, that integration's `authorized_user` acts, as in the
+        builder, automation and dashboard. Without one, the dispatch context's
+        actor acts instead. This is the only place a Local Baserow service type
+        may resolve its user.
 
         :param service: The service being dispatched.
         :param dispatch_context: The context this dispatch runs in.
@@ -176,9 +176,9 @@ class LocalBaserowServiceType(ServiceType):
 
         if service.integration_id:
             authorized_user = service.integration.specific.authorized_user
-            # `authorized_user` is nullable, and an import leaves it null when
-            # the exported username is not in the target workspace. Refuse here
-            # rather than let a `None` reach a permission check as anonymous.
+            # Nullable, and an import leaves it null when the exported username
+            # is not in the target workspace. Refuse rather than let a `None`
+            # reach a permission check as anonymous.
             if authorized_user is None:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The integration has no authorized user"
@@ -271,9 +271,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         """
         Returns the workspace that permission checks for this service run against.
 
-        With an integration this is the integration's application workspace, which
-        is what every existing consumer uses. Without one there is no application,
-        so the target table's workspace is used instead.
+        With an integration this is the integration's application workspace.
+        Without one there is no application, so the target table's workspace is
+        used instead.
 
         :param service: The service being dispatched.
         :return: The workspace to check permissions in.
@@ -2153,7 +2153,6 @@ class LocalBaserowUpsertRowServiceType(
             workspace=self.get_permission_workspace(service),
         )
 
-        # Split the mappings by whether the acting user may write their field.
         # Writable doesn't refer to the field type being writable, but rather if
         # the acting user has the correct permission.
         authorized_user_writable_field_mappings = []
@@ -2166,12 +2165,9 @@ class LocalBaserowUpsertRowServiceType(
             else:
                 unwritable_fields.append(check.context)
 
-        # Without an integration the service runs as the person in front of the
-        # screen, so a field they cannot write fails the dispatch rather than
-        # being skipped (ADR 006 section 5). With one it runs as the
-        # integration's user on someone else's behalf, which is where the
-        # builder, automation and dashboards skip and go on. Raised before
-        # anything is written, so nothing lands.
+        # Without an integration the service acts as the person in front of the
+        # screen, so an unwritable field fails the dispatch instead of being
+        # skipped (ADR 006 section 5). Raised before anything is written.
         if unwritable_fields and service.integration_id is None:
             names = ", ".join(sorted(field.name for field in unwritable_fields))
             raise PermissionDeniedDispatchException(

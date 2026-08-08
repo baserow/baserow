@@ -39,7 +39,7 @@ def test_create_button_field_via_api(api_client, data_fixture):
     assert data["label"] == "Open"
     assert data["read_only"] is True
     assert data["has_workflow_actions"] is False
-    # A button carries no URL of its own any more; it is an `open_url` action.
+    # A button's URL lives on its `open_url` action, not on the field.
     assert "url_formula" not in data
     assert "error" not in data
 
@@ -85,8 +85,8 @@ def test_existing_button_field_keeps_working_with_flag_disabled(
         assert any(
             field["id"] == button_field.id
             and field["type"] == "button"
-            # Serialized whatever the flag says, which is what makes the cell
-            # render an enabled button below.
+            # Serialized regardless of the flag, so the cell still renders an
+            # enabled button.
             and field["has_workflow_actions"] is True
             for field in response.json()
         )
@@ -97,10 +97,8 @@ def test_existing_button_field_keeps_working_with_flag_disabled(
         )
         assert response.status_code == HTTP_200_OK
 
-        # Reading is all the flag-off path covers. `has_workflow_actions` is
-        # serialized either way, so the cell still renders an enabled button,
-        # but dispatch is gated and the click is refused. Recorded here as the
-        # known boundary: turning the flag back on restores clicking.
+        # Only reading keeps working with the flag off. The cell still renders
+        # an enabled button, but the click itself is refused.
         response = api_client.post(
             reverse(
                 "api:database:workflow_actions:dispatch",

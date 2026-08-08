@@ -24,17 +24,15 @@ import { databasesOfIntegration } from '@baserow/modules/integrations/localBaser
 import form from '@baserow/modules/core/mixins/form'
 
 /**
- * Wraps a Local Baserow service form for an automation node, which is where the
- * integration is chosen. The service form itself only picks a table, out of the
- * databases the chosen integration reaches, so it waits for one to be chosen
- * the same way the builder's data source form does.
+ * An automation node chooses its own integration; the wrapped form only picks a
+ * table, so it waits for one, like the builder's data source form.
  */
 export default {
   name: 'LocalBaserowNodeServiceForm',
   components: { LocalBaserowIntegrationPicker },
   mixins: [form],
-  // Everything the side panel passes is meant for the wrapped form, not for
-  // the element this one renders.
+  // What the side panel passes is for the wrapped form, not for the element
+  // this one renders.
   inheritAttrs: false,
   props: {
     application: {

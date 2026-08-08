@@ -283,8 +283,8 @@ export class WorkflowActionServiceType extends WorkflowActionType {
   }
 
   /**
-   * Whether the action chooses its own integration, which the form then offers
-   * a dropdown for. False for services that offer one inside their own form.
+   * Whether the form should offer an integration dropdown. False for services
+   * that offer one themselves.
    */
   get picksIntegration() {
     return false

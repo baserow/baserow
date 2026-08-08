@@ -107,9 +107,8 @@ describe('RowEditFieldButtonField', () => {
   })
 
   test('a failed dispatch raises a toast of its own', async () => {
-    // Anything the client handler did not turn into a message, such as a
-    // network failure, would otherwise be thrown out of an unawaited click
-    // handler and the click would look like it did nothing.
+    // A network failure would otherwise be thrown out of an unawaited click
+    // handler, and the click would look like it did nothing.
     client.post.mockRejectedValue(new Error('boom'))
     const dispatch = vi.spyOn(testApp.store, 'dispatch')
     const wrapper = await mountField()
@@ -125,9 +124,8 @@ describe('RowEditFieldButtonField', () => {
   })
 
   test('a handled API error is reported through the error handler', async () => {
-    // A handled error already carries the message the backend sent, such as
-    // the name of the action that failed, so the generic toast above must not
-    // replace it or be raised alongside it.
+    // A handled error already carries the backend's message, so the generic
+    // toast must not replace it or be raised alongside it.
     const notifyIf = vi.fn()
     client.post.mockRejectedValue(
       Object.assign(new Error('boom'), { handler: { notifyIf } })

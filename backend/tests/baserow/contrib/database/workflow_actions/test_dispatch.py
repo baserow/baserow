@@ -146,11 +146,9 @@ def test_a_concurrent_click_is_rejected(data_fixture):
 
 @pytest.mark.django_db
 def test_a_click_landing_mid_sequence_is_rejected(data_fixture):
-    """The lock's actual point: mutual exclusion. Every other lock test here
-    passes against an implementation that never writes the key, because they
-    either seed it themselves or assert its absence. This one clicks again from
-    inside a running sequence, so it can only pass if `cache.add` really wrote
-    the key before the loop started."""
+    """Mutual exclusion, the point of the lock. The other lock tests seed the
+    key themselves, so only this one proves `cache.add` really wrote it before
+    the loop started."""
 
     user = data_fixture.create_user()
     table, name_field = _table_with_name(data_fixture, user)
@@ -161,9 +159,8 @@ def test_a_click_landing_mid_sequence_is_rejected(data_fixture):
     attempts = []
 
     def click_again(sender, **kwargs):
-        # Guarded so that an unlocked implementation, whose re-entrant click
-        # succeeds and fires this signal again, fails the assertions below
-        # rather than recursing forever.
+        # Without the guard, an implementation that took no lock would
+        # recurse forever here instead of failing the assertions below.
         if attempts:
             return
         attempts.append(None)
@@ -516,16 +513,12 @@ def test_a_failing_row_action_means_no_client_actions(data_fixture):
 
 @pytest.mark.django_db
 def test_a_button_with_only_an_open_url_does_not_take_the_lock(data_fixture):
-    """No server actions means nothing to serialise a click against, so the
-    lock is never taken. Otherwise a second click on a button that only opens
-    a URL, which has no state to protect, would be rejected.
+    """No server actions means nothing to serialise, so the lock is never
+    taken and a second click on a URL-only button is not rejected.
 
-    Asserting the key is absent afterwards, as the other lock tests do,
-    would not catch a regression here: the lock is released in a `finally`
-    (`service.py`), so the key reads `None` whether it was never taken or
-    was taken and released. Seeding the key first, the way
-    `test_a_concurrent_click_is_rejected` does, and asserting dispatch still
-    succeeds is the only way to prove the lock was never taken at all."""
+    Asserting the key is absent afterwards would not prove that, since it is
+    released in a `finally` either way. Hence seeding the key first and
+    asserting the dispatch still succeeds."""
 
     user = data_fixture.create_user()
     table, _ = _table_with_name(data_fixture, user)

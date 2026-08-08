@@ -14,9 +14,9 @@ if TYPE_CHECKING:
 
 def _import_field_path(path: List[str], id_mapping: Dict[str, Any]) -> List[str]:
     """
-    Points a `field_25` path segment at the imported field, so a duplicated table
-    or an imported database reads the field of the copy rather than the one the
-    formula was written against.
+    Rewrites a `field_25` path segment to the id that field got on import, so a
+    duplicated table or an imported database reads its own field rather than the
+    one the formula was written against.
     """
 
     if len(path) != 1 or "database_fields" not in id_mapping:
@@ -64,11 +64,8 @@ class HumanReadableFieldsDataProviderType(DataProviderType):
 
         first_part = path[0]
 
-        # Both providers live in the same registry, so a `get('fields.…')`
-        # written in a button action argument resolves here against a
-        # `DatabaseDispatchContext`, which has no human readable values. Return
-        # nothing rather than raising an `AttributeError` the caller sees as a
-        # 500.
+        # Both providers share a registry, so a button action's `get('fields.…')`
+        # lands here against a context with no human readable values.
         row_values = getattr(dispatch_context, "human_readable_row_values", None)
         if row_values is None:
             return None
@@ -86,10 +83,9 @@ class RowDataProviderType(DataProviderType):
     Exposes the clicked row's values with their real types, for button field
     workflow actions.
 
-    Deliberately separate from `HumanReadableFieldsDataProviderType`, which
-    stringifies every value. That is correct for prompt text and for building a
-    URL client side, and wrong for writing a number, date or link into a row
-    (ADR 006 section 4). Action arguments must resolve through this provider.
+    Separate from `HumanReadableFieldsDataProviderType`, which stringifies every
+    value. That suits prompt text and client-side URLs, but not writing a
+    number, date or link back into a row (ADR 006 section 4).
 
     The row is a snapshot taken when the click was dispatched: every action in a
     sequence sees the row as it was at click time, even if an earlier action
@@ -106,16 +102,14 @@ class RowDataProviderType(DataProviderType):
 
         field_name = path[0]
 
-        # The mirror of the guard in `HumanReadableFieldsDataProviderType`: a
-        # `get('row.…')` written in an AI field's prompt resolves here against a
-        # `HumanReadableRowContext`, which carries no row.
+        # The mirror of the guard above: an AI prompt's `get('row.…')` lands
+        # here against a context that carries no row.
         row = getattr(dispatch_context, "row", None)
         if row is None:
             return None
 
-        # The row's own id, so an update or delete action can target the row
-        # that was clicked. `row_id` on those services is a formula, so
-        # `get('row.id')` is the only way to express it.
+        # Lets an update or delete target the clicked row: `row_id` is a
+        # formula, so `get('row.id')` is the only way to express it.
         if field_name == "id":
             return row.id
 
@@ -131,6 +125,5 @@ class RowDataProviderType(DataProviderType):
     def import_path(
         self, path: List[str], id_mapping: Dict[str, Any], **kwargs
     ) -> List[str]:
-        # `row.id` is the only other path this provider serves, and the helper
-        # leaves it alone since it is not a field reference.
+        # `row.id` is left alone: it is not a field reference.
         return _import_field_path(path, id_mapping)

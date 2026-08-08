@@ -38,9 +38,8 @@ describe('OpenUrlWorkflowActionForm', () => {
     expect(wrapper.findComponent(SegmentControl).vm.activeIndex).toBe(0)
   })
 
-  // The design puts the control at 36px, which only the `small` size gives:
-  // the default one is 44px (6px of container padding either side of a 32px
-  // button), while `small` zeroes that padding and makes the buttons 36.
+  // The design puts the control at 36px, which only the `small` size gives.
+  // The default one is 44px.
   test('the segmented control is the 36px small size', async () => {
     const wrapper = await mountForm({
       url: { formula: "'https://x.test'", mode: 'simple' },

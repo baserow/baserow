@@ -36,8 +36,7 @@ import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 import DatabaseFormulaInput from '@baserow/modules/database/components/field/DatabaseFormulaInput'
 
 /**
- * The config form of an `open_url` workflow action: the URL formula and the
- * tab it opens in. Unlike the row actions it is backed by no service, so it
+ * Config form for an `open_url` action. It is backed by no service, so it
  * edits the action's own fields directly.
  */
 export default {
@@ -64,9 +63,8 @@ export default {
   },
   methods: {
     /**
-     * The formula input only emits `input` for parseable formulas, so block
-     * submission while the editor content is invalid instead of saving the
-     * last parseable formula the user has since edited away.
+     * The input only emits for parseable formulas, so block submission rather
+     * than save the last parseable one the user has edited away.
      */
     isFormValid(deep = false) {
       return !this.urlInvalid && form.methods.isFormValid.call(this, deep)

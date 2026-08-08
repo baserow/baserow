@@ -41,9 +41,8 @@ describe('LocalBaserowUpsertRowServiceForm', () => {
 
   describe('the table loading spinner', () => {
     test('a table change raises it by default, as the builder expects', async () => {
-      // The builder, automation and dashboard callers save the service on a
-      // table change and toggle `loading` around that round trip, which is
-      // what lowers the spinner again. Nothing here may change for them.
+      // The builder, automation and dashboard callers save on a table change
+      // and toggle `loading` around it, which is what lowers the spinner.
       const wrapper = await mountForm({ databases: DATABASES })
 
       await chooseTable(wrapper, 1)
@@ -56,10 +55,8 @@ describe('LocalBaserowUpsertRowServiceForm', () => {
     })
 
     test('a caller that does not save on a table change opts out', async () => {
-      // The button field's action editor buffers its changes until the field
-      // form is submitted, so no round trip happens and `loading` is never
-      // passed. Raising the spinner there would leave it spinning forever and
-      // keep the field mappings form permanently unmounted.
+      // The button field's action editor buffers its changes, so no round
+      // trip happens and a raised spinner would never be lowered again.
       const wrapper = await mountForm({
         databases: DATABASES,
         savesOnTableChange: false,
@@ -84,9 +81,8 @@ describe('LocalBaserowUpsertRowServiceForm', () => {
 
     test('it is hidden once the service has a table', async () => {
       // The message used to test `values.table_id`, which this form never
-      // populates: `allowedValues` is `['field_mappings']`, so the form mixin
-      // copies nothing else out of `defaultValues`. The condition has to test
-      // the service, which is the object that actually carries the table.
+      // populates: `allowedValues` holds `field_mappings` alone. It has to
+      // test the service, which is what actually carries the table.
       const wrapper = await mountForm({
         databases: DATABASES,
         service: { table_id: 1 },
@@ -98,9 +94,8 @@ describe('LocalBaserowUpsertRowServiceForm', () => {
     })
 
     test('it stays hidden for a caller with no databases and no integration', async () => {
-      // The regression guard for the builder, automation and dashboard: with
-      // no `databases` prop the message must remain unreachable, exactly as
-      // it was before the prop existed.
+      // With no `databases` prop the message must stay unreachable, exactly
+      // as it was before the prop existed.
       const wrapper = await mountForm({ service: { table_id: 1 } })
 
       expect(wrapper.text()).not.toContain('noTableSelectedMessage')

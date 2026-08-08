@@ -102,8 +102,8 @@ describe('ButtonFieldActionList', () => {
   })
 
   test('each row renders the form of its own type', async () => {
-    // Regression test: the list used to render the service backed form for
-    // every row, which threw on `open_url` because that type has no service.
+    // The list used to render the service backed form for every row, which
+    // threw on `open_url` because that type has no service.
     const wrapper = await mountList([
       { id: 1, type: 'create_row', service: {} },
       { id: 2, type: 'open_url', url: { formula: '', mode: 'simple' } },
@@ -118,11 +118,8 @@ describe('ButtonFieldActionList', () => {
   })
 
   test('changing between two service types remounts the form', async () => {
-    // `create_row` and `update_row` resolve to the same form component and
-    // the same `serviceType.formComponent`, and the row's own key does not
-    // change on a type swap. Without a type derived key Vue reuses the
-    // instance, so the inner form keeps the values it seeded from the old
-    // config and the user still sees the old table selected.
+    // `create_row` and `update_row` share a form component, so without a type
+    // derived key Vue reuses the instance and keeps the old table selected.
     const wrapper = await mountList([
       { id: 1, type: 'create_row', service: { table_id: 3 } },
     ])
@@ -225,10 +222,8 @@ describe('ButtonFieldActionList', () => {
   })
 
   test('onSortableUpdate resolves ids correctly when a saved action id collides with an unsaved action index', async () => {
-    // The saved action's real id (1) is numerically identical to the unsaved
-    // action's fallback index (1). The sortable id namespacing must keep
-    // these two apart, or the id-to-action lookup collides and drops one
-    // action as undefined.
+    // The saved action's real id (1) collides with the unsaved action's
+    // fallback index (1) unless the sortable ids are namespaced.
     const wrapper = await mountList([
       { id: 1, type: 'create_row', service: {} },
       { type: 'delete_row', service: {} },
@@ -248,8 +243,7 @@ describe('ButtonFieldActionList', () => {
 
   test('the sortable items have no non-sortable siblings', async () => {
     // The directive builds the new order from every element child of the
-    // dragged item's parent. A sibling that is not an action — the "Add
-    // action" button — carries no sortable id, so it arrives as undefined.
+    // dragged item's parent, so a non-action sibling arrives with no id.
     const wrapper = await mountList([
       { id: 1, type: 'open_url' },
       { id: 2, type: 'open_url' },
@@ -268,7 +262,8 @@ describe('ButtonFieldActionList', () => {
   })
 
   test('an unrecognised sortable id never puts undefined into the list', async () => {
-    // Exactly what the directive passed when the add button was a sibling.
+    // An `undefined` id is exactly what the directive passes for a sibling
+    // that carries no sortable id.
     const wrapper = await mountList([
       { id: 1, type: 'open_url' },
       { id: 2, type: 'open_url' },

@@ -6,8 +6,7 @@
         rowIsCreated ? null : $t('rowEditFieldButtonField.createRowBefore')
       "
     >
-      <!-- The row create modal renders every field, but there is no row to
-           run the actions against yet. -->
+      <!-- The row create modal renders every field before the row exists. -->
       <Button
         size="tiny"
         type="secondary"
@@ -18,7 +17,6 @@
         {{ field.label }}
       </Button>
     </span>
-    <!-- A button with no actions has nothing to run. -->
     <Button v-else size="tiny" type="secondary" disabled>
       {{ field.label }}
     </Button>

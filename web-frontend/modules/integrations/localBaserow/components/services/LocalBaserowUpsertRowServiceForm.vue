@@ -79,10 +79,8 @@ export default {
       default: () => [],
     },
     /**
-     * Whether the parent makes a round trip when the table changes, and so
-     * toggles `loading` around it. True (the default) keeps today's behaviour
-     * of saving the service. A caller that makes no round trip at all must
-     * pass false, or the spinner it raises is never lowered.
+     * Whether the parent saves on a table change. A caller that makes no round
+     * trip must pass false, or the spinner it raises is never lowered.
      */
     savesOnTableChange: {
       type: Boolean,
@@ -90,9 +88,8 @@ export default {
       default: true,
     },
     /**
-     * The fields to offer as mappings. Only for a caller whose service is not
-     * saved, and so carries no schema to derive them from. Null, the default,
-     * keeps deriving them from the service schema.
+     * The fields to offer as mappings, for a caller whose service is unsaved
+     * and so carries no schema. Null derives them from the schema instead.
      */
     mappableFields: {
       type: Array,
@@ -141,8 +138,8 @@ export default {
         if (!value) {
           this.tableLoading = false
         } else if (!this.savesOnTableChange) {
-          // A caller that saves nothing on a table change raises no spinner of
-          // its own, so `loading` is the only thing that can stand for one.
+          // A caller that saves nothing raises no spinner of its own, so
+          // `loading` is the only thing that can stand for one.
           this.tableLoading = true
         }
       },

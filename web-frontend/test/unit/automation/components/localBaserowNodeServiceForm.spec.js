@@ -75,8 +75,7 @@ describe('LocalBaserowNodeServiceForm', () => {
 
     const wrapper = await mountForm()
 
-    // The same wait the builder's data source form applies: a table cannot be
-    // chosen before the integration that reaches it.
+    // A table cannot be chosen before the integration that reaches it.
     expect(
       wrapper.findComponent({ name: 'LocalBaserowServiceForm' }).exists()
     ).toBe(false)

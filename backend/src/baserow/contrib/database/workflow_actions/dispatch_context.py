@@ -30,30 +30,23 @@ class DatabaseDispatchContext(DispatchContext):
         **kwargs,
     ):
         """
-        :param actor: The user who clicked. Nothing in the dispatch path reads a
-            request, so the context takes the user directly. Defaults to None
-            because the base `clone()` reconstructs the context without
-            `actor` and assigns it onto the new instance afterwards; `field`
-            and `row` follow suit purely so this stays valid Python (a
-            defaulted parameter can't precede a required one), since `clone()`
-            always supplies them through `own_properties`.
+        :param actor: The user who clicked. Nothing in the dispatch path reads
+            a request, so the context takes the user directly.
         :param field: The clicked button field.
         :param row: The clicked row, as a generated table model instance.
         """
 
-        # The defaults above exist only so `clone()` can reconstruct this
-        # class without passing `actor`. `field` and `row` are never
-        # optional for a real button dispatch, so a caller that forgets one
-        # must fail here rather than surface a confusing error later inside
-        # a data provider.
+        # Everything defaults to None only so `clone()` can rebuild this class
+        # without passing `actor`. Neither `field` nor `row` is optional for a
+        # real dispatch, so fail here rather than inside a data provider later.
         if field is None or row is None:
             raise TypeError("DatabaseDispatchContext requires field and row")
 
         self.field = field
         self.row = row
 
-        # `actor` is carried through `clone()` explicitly rather than through
-        # `own_properties`, so it is deliberately absent from the list above.
+        # `clone()` carries `actor` over itself, hence its absence from
+        # `own_properties`.
         super().__init__(actor=actor, **kwargs)
 
     @property
@@ -66,8 +59,8 @@ class DatabaseDispatchContext(DispatchContext):
 
     @property
     def is_publicly_searchable(self) -> bool:
-        # Button fields are not exposed in public views at all, so no anonymous
-        # caller can reach this context. The same holds for every hook below.
+        # Button fields are absent from public views, so no anonymous caller
+        # reaches this context. Same for every hook below.
         return False
 
     def search_query(self) -> Optional[str]:

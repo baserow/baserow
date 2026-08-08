@@ -19,8 +19,8 @@ class WorkflowActionDispatchError(Exception):
 
     def __init__(self, workflow_action_id, message, position, *args, **kwargs):
         self.workflow_action_id = workflow_action_id
-        # 1-based place in the field's action list, which is what the clicker
-        # can actually count in the editor. The id means nothing to them.
+        # 1-based place in the field's action list, which the clicker can count
+        # in the editor. The id means nothing to them.
         self.position = position
         self.message = message
         super().__init__(

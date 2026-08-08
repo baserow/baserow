@@ -552,8 +552,8 @@ export const prepareRequestHeaders = (store) => (config) => {
       config.headers.Authorization = `JWT ${userSourceToken}`
     }
   }
-  // This header leaves the sending session out of the broadcast its own
-  // request triggers. A request that applies nothing itself opts out.
+  // This header keeps the sender out of the realtime broadcast its own request
+  // triggers, so a request that applies nothing locally opts out to receive it.
   if (store.getters['auth/webSocketId'] !== null && !config.omitWebSocketId) {
     const webSocketId = store.getters['auth/webSocketId']
     config.headers.WebSocketId = webSocketId
