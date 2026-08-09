@@ -18,12 +18,12 @@
     "sidebar": {
         "createWorkspace": "Vytvořit pracovní prostor",
         "inviteOthers": "Pozvat ostatní",
-        "logoff": "Odhlásit",
+        "logoff": "Odhlásit se",
         "errorNoWorkspace": "Nemáte žádné pracovní prostory.",
         "admin": "Administrace",
         "dashboard": "Nástěnka",
         "trash": "Koš",
-        "settings": "Nastavení",
+        "settings": "Moje nastavení",
         "notifications": "Oznámení",
         "members": "Členové",
         "addNewWorkspace": "Přidat nový pracovní prostor",
@@ -45,7 +45,7 @@
         "submitButton": "Aktualizovat účet"
     },
     "settingsModal": {
-        "title": "Nastavení"
+        "title": "Moje nastavení"
     },
     "passwordSettings": {
         "title": "Změnit heslo",
@@ -152,7 +152,7 @@
         "workspaces": "Pracovní prostory"
     },
     "trashContents": {
-        "message": "Obnovte odstraněné položky z posledních {duration}.",
+        "message": "Obnovte odstraněné položky z posledních {duration}",
         "empty": "Za poslední tři dny nebylo nic odstraněno.",
         "emptyButtonTrashed": "Trvale odstranit {type}",
         "emptyButtonNotTrashed": "Vyprázdnit koš tohoto objektu {type}",
@@ -326,7 +326,7 @@
         "enabled": "povoleno",
         "settingUserDeletionGraceDelay": "Lhůta před odstraněním",
         "settingUserDeletionGraceDelayDescription": "Je to počet dnů bez přihlášení, po kterých je účet naplánovaný k odstranění trvale odstraněn.",
-        "invalidAccountDeletionGraceDelay": "Tato hodnota je povinná a musí být kladné celé číslo menší než 32000.",
+        "invalidAccountDeletionGraceDelay": "Tato hodnota je povinná a musí být kladné celé číslo menší než 32000",
         "maintenance": "Údržba",
         "settingAllowNonStaffCreateWorkspaceOperation": "Povolit všem vytvářet nové pracovní prostory",
         "settingAllowNonStaffCreateWorkspaceOperationDescription": "Ve výchozím nastavení může každý vytvářet nové pracovní prostory. Tuto možnost zakažte, pokud chcete vytváření nových pracovních prostorů povolit jen zaměstnancům.",
@@ -369,7 +369,7 @@
             },
             "example": {
                 "title": "Příklad",
-                "description": "V níže uvedeném příkladu chceme předvyplnit pole s názvem `Name` hodnotou `Mike`.",
+                "description": "V níže uvedeném příkladu chceme předvyplnit pole s názvem `Name` hodnotou `Mike`",
                 "codeSnippet": "?prefill_Name=Mike"
             },
             "spaces": {
@@ -465,7 +465,7 @@
         "errorJobAlreadyRunningTitle": "Již běží",
         "errorJobAlreadyRunningDescription": "Jiná importní úloha již běží. Před spuštěním další počkejte, až skončí.",
         "errorJobCannotBeCancelledTitle": "Úlohu nelze zrušit",
-        "errorJobCannotBeCancelledDescription": "Úlohu nelze zrušit, protože už byla dokončena. Chcete-li ji odstranit, odstraňte první snímek ze seznamu níže.",
+        "errorJobCannotBeCancelledDescription": "Úlohu nelze zrušit, protože už byla dokončena.\nChcete-li ji odstranit, odstraňte první snímek ze seznamu níže.",
         "stateCanceled": "Zrušeno"
     },
     "crudTableSearch": {
@@ -511,6 +511,10 @@
                 "userAlreadyInWorkspace": {
                     "title": "Uživatel už je v pracovním prostoru.",
                     "text": "Pokud je uživatel již členem pracovního prostoru, nelze mu odeslat pozvánku."
+                },
+                "tooManyInvitations": {
+                    "title": "Bylo odesláno příliš mnoho pozvánek.",
+                    "text": "Odeslali jste příliš mnoho pozvánek. Zkuste to prosím později."
                 }
             }
         }
@@ -550,9 +554,9 @@
         "drop": "Přetáhněte sem",
         "clickOrDrop": "Klikněte sem nebo sem přetáhněte soubory",
         "errorTooManyFilesTitle": "Příliš mnoho souborů",
-        "errorTooManyFilesMessage": "Můžete nahrát pouze jeden soubor.",
+        "errorTooManyFilesMessage": "Můžete nahrát pouze jeden soubor",
         "errorWrongFileTypeTitle": "Nesprávný typ souboru",
-        "errorWrongFileTypeMessage": "Nelze nahrát soubor typu {type}."
+        "errorWrongFileTypeMessage": "Nelze nahrát soubor typu {type}"
     },
     "connectingToast": {
         "title": "Opětovné připojování",
@@ -617,7 +621,8 @@
         "namePlaceholder": "Zadejte název integrace…"
     },
     "dropdown": {
-        "empty": "Nejsou k dispozici žádné položky"
+        "empty": "Nejsou k dispozici žádné položky",
+        "clearSearch": "Vymazat vyhledávání"
     },
     "richTextEditorMentionsList": {
         "notFound": "Nebyli nalezeni žádní uživatelé"
@@ -1001,7 +1006,7 @@
     },
     "welcomeGuidedTourStep": {
         "title": "Vítejte v Baserow",
-        "content": "Pojďme na krátkou prohlídku, která vás seznámí se základy. Během několika kliknutí se snadno naučíte organizovat a vizualizovat svá data.",
+        "content": "Pojďme na krátkou prohlídku, která vás seznámí se základy. Během několika kliknutí se snadno naučíte organizovat a vizualizovat svá data",
         "buttonText": "Spustit prohlídku"
     },
     "controlCenterGuidedTourStep": {
@@ -1298,5 +1303,11 @@
         "saveError": "Poskytovatele AI se nepodařilo uložit.",
         "saveModelError": "Model poskytovatele AI se nepodařilo uložit.",
         "actionError": "Změnu poskytovatele AI se nepodařilo dokončit."
+    },
+    "groupedMenu": {
+        "core": "Základní",
+        "files": "Soubory",
+        "http": "HTTP",
+        "workflow": "Pracovní postup"
     }
 }
