@@ -25,7 +25,14 @@
         "trash": "Koš",
         "settings": "Nastavení",
         "notifications": "Oznámení",
-        "members": "Členové"
+        "members": "Členové",
+        "addNewWorkspace": "Přidat nový pracovní prostor",
+        "adminTools": "Nástroje správce",
+        "home": "Domů",
+        "adminSettings": "Nastavení správce",
+        "general": "Obecné",
+        "people": "Uživatelé",
+        "licenses": "Licence"
     },
     "accountForm": {
         "nameLabel": "Vaše jméno",
@@ -62,7 +69,11 @@
         "disabledAccountMessage": "Tento uživatelský účet byl zakázán.",
         "incorrectCredentialTitle": "Nesprávné přihlašovací údaje",
         "incorrectCredentialMessage": "Zadaná e-mailová adresa nebo heslo je nesprávné.",
-        "inputRequired": "Vstup je povinný."
+        "inputRequired": "Vstup je povinný.",
+        "disabledPasswordProviderTitle": "Ověřování heslem je zakázáno.",
+        "disabledPasswordProviderMessage": "Použijte jiného poskytovatele ověřování.",
+        "captchaVerificationFailedTitle": "Ověření captchy selhalo",
+        "captchaVerificationFailedMessage": "Ověření captchy selhalo. Zkuste to prosím znovu."
     },
     "field": {
         "language": "Jazyk",
@@ -74,22 +85,22 @@
     "invitationTitle": "Pozvánka",
     "invitationMessage": "{invitedBy} vás pozval(a) do pracovního prostoru {workspace}.",
     "workspaceForm": {
-        "nameLabel": ""
+        "nameLabel": "Název"
     },
     "leaveWorkspaceModal": {
-        "title": "",
-        "message": "",
-        "leave": ""
+        "title": "Opustit pracovní prostor {workspace}",
+        "message": "Opravdu chcete opustit pracovní prostor {workspace}? Nebudete už mít přístup k souvisejícím aplikacím a pro jeho opětovné získání vás musí znovu pozvat některý správce. Opustíte-li pracovní prostor, nebude odstraněn. Všichni ostatní členové k němu budou mít nadále přístup. Pracovní prostor nelze opustit, jste-li posledním správcem, protože by zůstal bez správy.",
+        "leave": "Opustit pracovní prostor"
     },
     "dashboardWorkspace": {
         "showMembers": "",
-        "createApplication": ""
+        "createApplication": "Vytvořit novou"
     },
     "workspaceInvitation": {
-        "title": "",
-        "message": "",
-        "reject": "",
-        "accept": ""
+        "title": "Pozvánka",
+        "message": "{by} vás pozval(a) do pracovního prostoru {workspace}.",
+        "reject": "Odmítnout",
+        "accept": "Přijmout"
     },
     "workspaceMemberModal": {
         "membersModalTitle": "",
@@ -100,9 +111,10 @@
         "userAlreadyInWorkspaceText": ""
     },
     "workspaceInviteForm": {
-        "invitationFormTitle": "",
+        "invitationFormTitle": "Pozvat e-mailem",
         "optionalMessagePlaceholder": "",
-        "errorInvalidEmail": ""
+        "errorInvalidEmail": "Zadejte platnou e-mailovou adresu.",
+        "additionalRoles": "Další role"
     },
     "workspacesContext": {
         "search": "",
@@ -110,15 +122,22 @@
         "createWorkspace": ""
     },
     "workspaceContext": {
-        "renameWorkspace": "",
-        "members": "",
-        "viewTrash": "",
-        "leaveWorkspace": "",
-        "deleteWorkspace": ""
+        "renameWorkspace": "Přejmenovat pracovní prostor",
+        "members": "Členové",
+        "viewTrash": "Zobrazit koš",
+        "leaveWorkspace": "Opustit pracovní prostor",
+        "deleteWorkspace": "Odstranit pracovní prostor",
+        "auditLog": "Protokol auditu",
+        "settings": "Nastavení",
+        "exportWorkspace": "Exportovat data",
+        "importWorkspace": "Importovat data"
     },
     "createWorkspaceModal": {
-        "createNew": "",
-        "add": ""
+        "createNew": "Vytvořit nový pracovní prostor",
+        "add": "Přidat pracovní prostor",
+        "defaultName": "Pracovní prostor bez názvu",
+        "permissionDeniedTitle": "Oprávnění odepřeno",
+        "permissionDeniedBody": "Nemáte požadované oprávnění k vytvoření nového pracovního prostoru."
     },
     "templateCategories": {
         "search": "Hledat šablony",
@@ -129,7 +148,8 @@
     },
     "trashSidebar": {
         "title": "",
-        "unnamedWorkspace": ""
+        "unnamedWorkspace": "Pracovní prostor bez názvu {id}",
+        "workspaces": "Pracovní prostory"
     },
     "trashContents": {
         "message": "Obnovte odstraněné položky z posledních {duration}.",
@@ -156,7 +176,8 @@
     },
     "trashModal": {
         "emptyTitle": "Nebyly nalezeny žádné pracovní prostory",
-        "emptyMessage": "Nejste členem žádného pracovního prostoru. Aplikace jako databáze patří do pracovního prostoru, proto pro jejich vytvoření musíte pracovní prostor vytvořit."
+        "emptyMessage": "Nejste členem žádného pracovního prostoru. Aplikace jako databáze patří do pracovního prostoru, proto pro jejich vytvoření musíte pracovní prostor vytvořit.",
+        "emptyMessageWithoutCreatePermission": "Nejste členem žádného pracovního prostoru. Aplikace jako databáze patří do pracovního prostoru, proto vás do pracovního prostoru musí nejprve pozvat správce."
     },
     "uploadViaURLUserFileUpload": {
         "title": "Nahrát z adresy URL",
@@ -173,10 +194,16 @@
         "retry": "Zkusit znovu"
     },
     "createApplicationContext": {
-        "fromTemplate": "Ze šablony"
+        "fromTemplate": "Ze šablony",
+        "fromTemplateDesc": "Začněte rychle s jednou z našich doporučených šablon",
+        "table": "Tabulka",
+        "tableDesc": "Vytvořte nové místo pro správu dat v databázi.",
+        "importWorkspace": "Importovat data",
+        "importWorkspaceDesc": "Přidat existující data z instance Baserow."
     },
     "applicationForm": {
-        "nameLabel": "Název"
+        "nameLabel": "Název",
+        "namePlaceholder": "Zadejte název..."
     },
     "connectingNotification": {
         "title": "",
@@ -216,7 +243,21 @@
         "shareOnTwitter": "Napsat o Baserow na Twitter",
         "shareOnReddit": "Sdílet na Redditu",
         "shareOnFacebook": "Sdílet na Facebooku",
-        "shareOnLinkedIn": "Sdílet na LinkedInu"
+        "shareOnLinkedIn": "Sdílet na LinkedInu",
+        "suggestedTemplates": "Doporučené šablony",
+        "resources": "Zdroje",
+        "knowledgeBase": "Znalostní báze",
+        "knowledgeBaseMessage": "Najděte odpovědi na všechny své otázky",
+        "tutorials": "Návody",
+        "tutorialsMessage": "Objevte možnosti Baserow",
+        "apiDocumentation": "Dokumentace API",
+        "apiDocumentationMessage": "Zjistěte více o našem kódu",
+        "emptyWorkspace": "Tento pracovní prostor je prázdný",
+        "emptyWorkspaceMessage": "Začněte vytvořením nové databáze nebo aplikace.",
+        "addNew": "Přidat nové...",
+        "noWorkspace": "Žádný pracovní prostor",
+        "noWorkspaceDescription": "Začněte vytvořením nového pracovního prostoru",
+        "starOnGitHub": "Označte nás hvězdičkou na GitHubu"
     },
     "login": {
         "title": "Vítejte zpět",
@@ -224,7 +265,9 @@
         "emailPlaceholder": "Zadejte e-mailovou adresu…",
         "passwordPlaceholder": "Zadejte heslo…",
         "signUpText": "Jste v Baserow noví?",
-        "signUp": "Zaregistrovat se"
+        "signUp": "Zaregistrovat se",
+        "displayPasswordLogin": "Přihlásit se e-mailem a heslem",
+        "redirecting": "Přesměrování k poskytovateli ověřování…"
     },
     "resetPassword": {
         "title": "Obnovit heslo",
@@ -237,7 +280,11 @@
         "errorLinkExpiredTitle": "Platnost odkazu vypršela",
         "errorLinkExpiredMessage": "Platnost odkazu pro obnovení hesla vypršela. Vyžádejte si nový.",
         "disabled": "Obnovení hesla je zakázáno",
-        "disabledMessage": "Heslo nelze obnovit, protože je tato možnost zakázána."
+        "disabledMessage": "Heslo nelze obnovit, protože je tato možnost zakázána.",
+        "message": "Nyní se můžete do Baserow přihlásit pomocí nového hesla.",
+        "repeatPasswordPlaceholder": "Zopakujte nové heslo",
+        "errorLinkAlreadyUsedTitle": "Odkaz již byl použit",
+        "errorLinkAlreadyUsedMessage": "Tento odkaz pro obnovení hesla už byl použit. Požádejte o nový."
     },
     "signup": {
         "headTitle": "Vytvořit účet",
@@ -260,7 +307,9 @@
         "confirmation": "Odeslali jsme e-mail na adresu {email}, který obsahuje odkaz pro obnovení hesla Baserow.",
         "disabled": "Obnovení hesla je zakázáno",
         "disabledMessage": "Heslo nelze obnovit, protože je tato možnost zakázána.",
-        "loginText": "Už máte účet a heslo?"
+        "loginText": "Už máte účet a heslo?",
+        "confirmationTitle": "Zkontrolujte svůj e-mail",
+        "goBack": "Zpět"
     },
     "settings": {
         "settingsTitle": "Nastavení správce",
@@ -272,12 +321,30 @@
         "settingAllowResetPasswordWarning": "Upozorňujeme, že se můžete zablokovat mimo systém a přístup nelze obnovit, pokud heslo zapomenete.",
         "settingAllowNewAccountsName": "Povolit vytváření nových účtů",
         "settingAllowNewAccountsDescription": "Ve výchozím nastavení se každý uživatel, který navštíví doménu Baserow, může zaregistrovat k novému účtu.",
-        "settingAllowSignupsViaWorkspaceInvitationsName": "",
-        "settingAllowSignupsViaWorkspaceInvitationDescription": "",
+        "settingAllowSignupsViaWorkspaceInvitationsName": "Povolit registraci prostřednictvím pozvánek do pracovního prostoru",
+        "settingAllowSignupsViaWorkspaceInvitationDescription": "I když je vytváření nových účtů zakázáno, tato volba umožní přímo pozvaným uživatelům účet stále vytvořit.",
         "enabled": "povoleno",
         "settingUserDeletionGraceDelay": "Lhůta před odstraněním",
         "settingUserDeletionGraceDelayDescription": "Je to počet dnů bez přihlášení, po kterých je účet naplánovaný k odstranění trvale odstraněn.",
-        "invalidAccountDeletionGraceDelay": "Tato hodnota je povinná a musí být kladné celé číslo menší než 32000."
+        "invalidAccountDeletionGraceDelay": "Tato hodnota je povinná a musí být kladné celé číslo menší než 32000.",
+        "maintenance": "Údržba",
+        "settingAllowNonStaffCreateWorkspaceOperation": "Povolit všem vytvářet nové pracovní prostory",
+        "settingAllowNonStaffCreateWorkspaceOperationDescription": "Ve výchozím nastavení může každý vytvářet nové pracovní prostory. Tuto možnost zakažte, pokud chcete vytváření nových pracovních prostorů povolit jen zaměstnancům.",
+        "settingAllowNonStaffCreateWorkspaceOperationWarning": "Novým uživatelům se automaticky vytvoří pracovní prostor, v němž budou správci.",
+        "settingTrackWorkspaceUsage": "Sledovat využití pracovního prostoru",
+        "settingTrackWorkspaceUsageDescription": "Zapne noční úlohu, která počítá využití řádků a souborů pro každý pracovní prostor a zobrazuje jej na prémiové stránce správce pracovního prostoru.",
+        "userSettings": "Uživatel",
+        "emailVerification": "Ověření e-mailu",
+        "emailVerificationDescription": "Určuje, zda musí být e-mailové adresy ověřeny.",
+        "emailVerificationNoVerification": "Bez ověření",
+        "emailVerificationRecommended": "Doporučeno",
+        "emailVerificationEnforced": "Vynuceno",
+        "baserowVersion": "Verze Baserow",
+        "baserowVersionDescription": "Číslo verze této instance.",
+        "settingsVerifyImportSignature": "Ověřovat podpis importu",
+        "settingsVerifyImportSignatureDescription": "Je-li tato možnost povolena, podpis importovaných dat se ověří, aby bylo zajištěno, že s daty nebylo manipulováno.",
+        "settingAllowReportingAbuseName": "Povolit hlášení zneužití",
+        "settingAllowReportingAbuseDescription": "Je-li tato možnost povolena, návštěvníci veřejně sdílených zobrazení a formulářů je mohou nahlásit jako zneužité a všichni správci instance budou o hlášení informováni."
     },
     "formSidebar": {
         "actions": {
@@ -298,48 +365,57 @@
             "format": {
                 "title": "Formát",
                 "description": "Formát parametrů dotazu je následující:",
-                "codeSnippet": ""
+                "codeSnippet": "?prefill_&#60;field_name&#62;=&#60;value&#62;"
             },
             "example": {
                 "title": "Příklad",
                 "description": "V níže uvedeném příkladu chceme předvyplnit pole s názvem `Name` hodnotou `Mike`.",
-                "codeSnippet": ""
+                "codeSnippet": "?prefill_Name=Mike"
             },
             "spaces": {
                 "title": "Mezery",
-                "description": "",
-                "codeSnippet": ""
+                "description": "Mezery v názvu pole se nahradí znakem `+`, aby nedošlo k problémům s parametrem dotazu.",
+                "codeSnippet": "?prefill_my+field=Mike"
             },
             "multipleValues": {
-                "title": "",
-                "description": "",
-                "codeSnippet": ""
+                "title": "Více hodnot",
+                "description": "Chcete-li předvyplnit více polí, oddělte hodnoty znakem `,`.",
+                "codeSnippet": "?prefill_multi+select=Mike,John"
             },
             "specialFieldTypes": {
-                "title": "",
-                "description": "",
+                "title": "Speciální typy polí",
+                "description": "Hodnota předvyplnění je obecně stejná jako hodnota pole. V některých výjimkách se však převede na jinou hodnotu.",
                 "ratingField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
+                    "title": "Pole hodnocení",
+                    "description": "Pole hodnocení přijímá číslo určující počet vyplněných hvězd.",
+                    "codeSnippet": "?prefill_rating=3"
                 },
                 "linkRowField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
+                    "title": "Pole odkazu na řádek",
+                    "description": "Pole odkazu na řádek může přijímat hodnotu zobrazenou v rozevíracím seznamu.",
+                    "codeSnippet": "?prefill_link+row=Mike"
                 },
                 "selectField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
+                    "title": "Pole s jedním výběrem / více výběry",
+                    "description": "Pole s jedním výběrem může přijímat hodnotu zobrazenou v rozevíracím seznamu. Pole s více výběry ji také přijímá, ale může přijímat i více hodnot.",
+                    "codeSnippet": "?prefill_single+select=Mike"
                 },
                 "dateField": {
-                    "title": "",
-                    "description": "",
-                    "codeSnippet": ""
+                    "title": "Pole data",
+                    "description": "Pole data může přijmout datum v následujících formátech a k jeho parsování použije formát data pole.",
+                    "codeSnippet": "\n// Standards\nISO_8601\n\n// General formats\n'YYYY-MM-DD',\n'YYYY-MM-DD hh:mm A',\n'YYYY-MM-DD HH:mm',\n\n// EU\n'DD/MM/YYYY', \n'DD/MM/YYYY hh:mm A', \n'DD/MM/YYYY HH:mm'\n\n// US\n'MM/DD/YYYY', \n'MM/DD/YYYY hh:mm A', \n'MM/DD/YYYY HH:mm'"
                 }
+            },
+            "howToHide": {
+                "title": "Jak skrýt pole",
+                "description": "Chcete-li pole skrýt dynamicky, můžete tak učinit pomocí parametrů dotazu přidaných k veřejné adrese URL. Tyto parametry mají předponu `hide_`, aby nedošlo ke kolizi s případnými budoucími parametry dotazu."
             }
-        }
+        },
+        "prefillOrHideInfoLink": "Dynamicky předvyplnit nebo skrýt",
+        "notifyUserOnSubmit": "Dostávat oznámení při odeslání",
+        "fields": "Pole",
+        "rowEditableBy": "Aktualizovat řádky prostřednictvím polí",
+        "rowEditableByDescription": "Řádky v této tabulce lze pomocí tohoto formuláře aktualizovat prostřednictvím následujících polí pro úpravu řádků:"
     },
     "duplicateApplicationJobType": {
         "duplicating": "Probíhá duplikace",
@@ -370,7 +446,12 @@
         "errorUserIsLastAdminTitle": "Poslední správce",
         "errorUserIsLastAdminMessage": "Účet se nepodařilo odstranit, protože jste posledním správcem této instance Baserow.",
         "accountDeletedSuccessTitle": "Odstranění účtu naplánováno",
-        "accountDeletedSuccessMessage": "Odstranění vašeho účtu bylo naplánováno."
+        "accountDeletedSuccessMessage": "Odstranění vašeho účtu bylo naplánováno.",
+        "workspaceNoticeDescription": "Po trvalém odstranění účtu budou odstraněny také všechny pracovní prostory a související data, u nichž jste posledním aktivním uživatelem s oprávněním správce. Níže jsou uvedeny pracovní prostory, které budou odstraněny, protože jste jejich jediným správcem. Chcete-li jejich odstranění zabránit, nejprve před odstraněním účtu udělte jinému uživateli oprávnění správce.",
+        "orphanWorkspaces": "Budou také trvale odstraněny po uplynutí ochranné lhůty",
+        "orphanWorkspaceMemberCount": "sdíleno s nikým|sdíleno s jedním uživatelem|sdíleno s {count} uživateli",
+        "workspaceLoadingError": "Kontrola pracovních prostorů selhala",
+        "workspaceLoadingErrorDescription": "Kontrola pracovních prostorů určených k odstranění selhala. Obnovte stránku."
     },
     "clearAllNotificationsConfirmModal": {
         "title": "Jste si jisti, že chcete vymazat všechna oznámení?",
@@ -382,7 +463,10 @@
         "stateFinished": "Dokončeno",
         "stateFailed": "Selhalo",
         "errorJobAlreadyRunningTitle": "Již běží",
-        "errorJobAlreadyRunningDescription": "Jiná importní úloha již běží. Před spuštěním další počkejte, až skončí."
+        "errorJobAlreadyRunningDescription": "Jiná importní úloha již běží. Před spuštěním další počkejte, až skončí.",
+        "errorJobCannotBeCancelledTitle": "Úlohu nelze zrušit",
+        "errorJobCannotBeCancelledDescription": "Úlohu nelze zrušit, protože už byla dokončena. Chcete-li ji odstranit, odstraňte první snímek ze seznamu níže.",
+        "stateCanceled": "Zrušeno"
     },
     "crudTableSearch": {
         "search": "Hledat"
@@ -398,7 +482,10 @@
                 "email": "E-mail",
                 "role": "Výchozí role",
                 "highestRole": "Nejvyšší role",
-                "highestRoleHelpText": "Nejvyšší role přiřazená tomuto uživateli přímo nebo prostřednictvím týmu k čemukoli v tomto pracovním prostoru"
+                "highestRoleHelpText": "Nejvyšší role přiřazená tomuto uživateli přímo nebo prostřednictvím týmu k čemukoli v tomto pracovním prostoru",
+                "teams": "Týmy",
+                "highestRoleInstanceHelpText": "Nejvyšší role, kterou má tento uživatel v instanci",
+                "2fa": "2FA"
             },
             "actions": {
                 "copyEmail": "Kopírovat e-mail",
@@ -418,7 +505,14 @@
         },
         "membersInviteModal": {
             "title": "Pozvat členy pracovního prostoru",
-            "submit": "Odeslat pozvánku"
+            "submit": "Odeslat pozvánku",
+            "helpIconText": "Vybraná role bude výchozí rolí uživatele v tomto pracovním prostoru.",
+            "errors": {
+                "userAlreadyInWorkspace": {
+                    "title": "Uživatel už je v pracovním prostoru.",
+                    "text": "Pokud je uživatel již členem pracovního prostoru, nelze mu odeslat pozvánku."
+                }
+            }
         }
     },
     "datetime": {
@@ -427,6 +521,782 @@
         "yearsAgo": "před 0 lety | před 1 rokem | před {n} lety",
         "secondsAgo": "právě teď | před 1 sekundou | před {n} sekundami",
         "minutesAgo": "před 0 minutami | před 1 minutou | před {n} minutami",
-        "hoursAgo": "před 0 hodinami | před 1 hodinou | před {n} hodinami"
+        "hoursAgo": "před 0 hodinami | před 1 hodinou | před {n} hodinami",
+        "lessThanMinuteAgo": "před méně než minutou",
+        "justNow": "právě teď"
+    },
+    "memberSelectionList": {
+        "searchPlaceholder": "Hledat…",
+        "selectedAmountLabel": "Vybráno: {count}"
+    },
+    "memberAssignmentModalFooter": {
+        "invite": "Pozvat {count}",
+        "deselectAll": "Zrušit výběr všeho",
+        "selectAll": "Vybrat vše"
+    },
+    "editRoleContext": {
+        "billableRolesLink": "Dokumentace k účtovaným rolím",
+        "additionalRoles": "Další role"
+    },
+    "highestPaidRoleField": {
+        "billable": "Účtovaná"
+    },
+    "removeFromWorkspaceModal": {
+        "title": "Potvrdit odebrání z pracovního prostoru",
+        "confirmation": "Opravdu chcete odebrat {name} z pracovního prostoru {workspaceName}? Tuto akci nelze vrátit zpět.",
+        "remove": "Odebrat"
+    },
+    "uploadFileDropzone": {
+        "drop": "Přetáhněte sem",
+        "clickOrDrop": "Klikněte sem nebo sem přetáhněte soubory",
+        "errorTooManyFilesTitle": "Příliš mnoho souborů",
+        "errorTooManyFilesMessage": "Můžete nahrát pouze jeden soubor.",
+        "errorWrongFileTypeTitle": "Nesprávný typ souboru",
+        "errorWrongFileTypeMessage": "Nelze nahrát soubor typu {type}."
+    },
+    "connectingToast": {
+        "title": "Opětovné připojování",
+        "content": "Pokus o obnovení aktualizací v reálném čase."
+    },
+    "failedConnectingToast": {
+        "title": "Selhalo",
+        "content": "Aktualizace v reálném čase se nepodařilo obnovit. Pokračujte obnovením stránky.",
+        "action": "Obnovit stránku"
+    },
+    "authorizationErrorToast": {
+        "title": "Chyba oprávnění",
+        "content": "Zdá se, že nemáte oprávnění zobrazit tento zdroj.",
+        "action": "Obnovit stránku"
+    },
+    "userSessionExpiredToast": {
+        "title": "Relace vypršela",
+        "content": "Byli jste odhlášeni, protože platnost vašeho ověřovacího tokenu vypršela. Přihlaste se znovu."
+    },
+    "restoreToast": {
+        "restore": "Obnovit odstraněný objekt {type}"
+    },
+    "copyingToast": {
+        "title": "Kopírování…",
+        "content": "Příprava dat"
+    },
+    "PastingToast": {
+        "title": "Vkládání…",
+        "content": "Příprava dat"
+    },
+    "clearingToast": {
+        "title": "Vymazávání…",
+        "content": "Příprava dat"
+    },
+    "undoRedoToast": {
+        "undoingTitle": "Vrácení zpět…",
+        "undoingText": "Vrácení vaší akce zpět",
+        "undoneTitle": "Vráceno zpět",
+        "undoneText": "Akce byla vrácena zpět",
+        "noMoreUndo": "Žádné další akce k vrácení zpět",
+        "skippingUndoDueToError": "Vrácení zpět selhalo kvůli neznámé chybě, přeskakuje se.",
+        "redoingTitle": "Opakování…",
+        "redoingText": "Opakování vaší akce",
+        "redoneTitle": "Zopakováno",
+        "redoneText": "Akce byla zopakována",
+        "noMoreRedo": "Žádné další akce k zopakování",
+        "skippingRedoDueToError": "Zopakování selhalo kvůli neznámé chybě, přeskakuje se.",
+        "failed": "Selhalo"
+    },
+    "permissionsUpdatedToast": {
+        "title": "Oprávnění aktualizována",
+        "content": "To může ovlivnit, k čemu máte přístup. Znovu načtěte stránku.",
+        "action": "Načíst znovu"
+    },
+    "integrationCreateEditModal": {
+        "createTitle": "Nová integrace",
+        "editTitle": "Upravit integraci",
+        "warningTitle": "Upozornění"
+    },
+    "integrationEditForm": {
+        "name": "Název",
+        "namePlaceholder": "Zadejte název integrace…"
+    },
+    "dropdown": {
+        "empty": "Nejsou k dispozici žádné položky"
+    },
+    "richTextEditorMentionsList": {
+        "notFound": "Nebyli nalezeni žádní uživatelé"
+    },
+    "workspaceInvitationAcceptedNotification": {
+        "title": "{sender} přijal(a) vaši pozvánku do pracovního prostoru {workspaceName}",
+        "deletedUser": "Odstraněný uživatel"
+    },
+    "workspaceInvitationRejectedNotification": {
+        "title": "{sender} odmítl(a) vaši pozvánku do pracovního prostoru {workspaceName}",
+        "deletedUser": "Odstraněný uživatel"
+    },
+    "workspaceInvitationCreatedNotification": {
+        "title": "{sender} vás pozval(a) do pracovního prostoru {workspaceName}",
+        "deletedUser": "Odstraněný uživatel"
+    },
+    "versionUpgradeNotification": {
+        "title": "Je zde verze {version}! Podívejte se, co je nového."
+    },
+    "emailNotifications": {
+        "title": "E-mailová oznámení",
+        "label": "Zmínky, komentáře a další oznámení",
+        "description": "Nastavte četnost odesílání e-mailů do doručené pošty.",
+        "instant": "Okamžitě",
+        "daily": "Denně",
+        "weekly": "Týdně",
+        "never": "Nikdy",
+        "submitButton": "Frekvence aktualizace"
+    },
+    "formulaInputField": {
+        "errorInvalidFormula": "Vzorec není platný.",
+        "advancedFormulaMode": "Rozšířený režim vzorce",
+        "invalidFormulaTitle": "Neplatný vzorec",
+        "invalidSyntax": "Není platný vzorec pro expertní režim, zkontrolujte syntaxi."
+    },
+    "userPasswordChangedToast": {
+        "title": "Heslo změněno",
+        "content": "Vaše heslo bylo změněno. Přihlaste se prosím znovu."
+    },
+    "integrationDropdown": {
+        "addIntegration": "Přidat novou integraci",
+        "noIntegrations": "Nebyly nalezeny žádné integrace.",
+        "selectTypeFirst": "Nejprve zvolte typ",
+        "integrationPlaceholder": "Vyberte integraci"
+    },
+    "dataExplorer": {
+        "noMatchingNodesText": "Nebyly nalezeny žádné odpovídající výsledky.",
+        "noProvidersText": "Nebyli nalezeni žádní poskytovatelé dat. Můžete například přidat zdroj dat nebo parametr stránky."
+    },
+    "richTextEditorBubbleMenu": {
+        "bold": "Tučné",
+        "italic": "Kurzíva",
+        "underline": "Podtržení",
+        "strikethrough": "Přeškrtnutí",
+        "link": "Odkaz",
+        "linkEditPlaceholder": "Adresa URL odkazu...",
+        "linkEditDone": "Hotovo"
+    },
+    "richTextEditorFloatingMenu": {
+        "hierarchy": "Hierarchie",
+        "lists": "Seznamy",
+        "paragraph": "Odstavec",
+        "heading1": "Nadpis 1",
+        "heading2": "Nadpis 2",
+        "heading3": "Nadpis 3",
+        "orderedList": "Číslovaný seznam",
+        "unorderedList": "Odrážkový seznam",
+        "code": "Kód",
+        "taskList": "Seznam úkolů"
+    },
+    "workspaceSettingsModal": {
+        "title": "Nastavení pracovního prostoru"
+    },
+    "workspaceSettingType": {
+        "generativeAI": "Generativní AI"
+    },
+    "generativeAIModelType": {
+        "openai": "OpenAI",
+        "openaiApiKeyLabel": "Klíč API",
+        "openaiApiKeyDescription": "Zadejte klíč API OpenAI. [Pokyny k získání klíče API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+        "openaiOrganization": "Organizace (volitelné)",
+        "openaiModelsLabel": "Povolené modely",
+        "openaiModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů OpenAI](https://developers.openai.com/api/docs/models) použitelných v Baserow. Například: `gpt-5.6,gpt-5.6-terra,gpt-5.6-luna`.",
+        "ollama": "Ollama",
+        "ollamaHostLabel": "Hostitel",
+        "ollamaHostDescription": "Zadejte název hostitele svého [Ollama](https://ollama.com/) serveru. Obvykle běží místně na vašem zařízení.",
+        "ollamaModelsLabel": "Povolené modely",
+        "ollamaModelsDescription": "Zadejte čárkami oddělený seznam [modelů nainstalovaných v Ollama](https://ollama.com/library). Model musí být stažen a nainstalován, aby jej Baserow mohl používat. Například: `gemma3,qwen3,llama3.3`.",
+        "anthropic": "Anthropic",
+        "anthropicApiKeyLabel": "Klíč API",
+        "anthropicApiKeyDescription": "Zadejte klíč API Anthropic. [Pokyny k získání klíče API](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicModelsLabel": "Povolené modely",
+        "anthropicModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview) použitelných v Baserow. Například: `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`.",
+        "mistral": "Mistral",
+        "mistralApiKeyLabel": "Klíč API",
+        "mistralApiKeyDescription": "Zadejte klíč API Mistral. [Pokyny k získání klíče API](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsLabel": "Povolené modely",
+        "mistralModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů Mistral](https://docs.mistral.ai/models/) použitelných v Baserow. Například: `mistral-large-latest,mistral-medium-latest,mistral-small-latest`.",
+        "openRouter": "OpenRouter",
+        "openRouterApiKeyLabel": "Klíč API",
+        "openRouterApiKeyDescription": "Zadejte klíč API OpenRouter. [Získat klíč API](https://openrouter.ai/settings/keys).",
+        "openRouterOrganization": "Organizace (volitelné)",
+        "openRouterModelsLabel": "Povolené modely",
+        "openRouterModelsDescription": "Zadejte čárkami oddělený seznam [identifikátorů modelů OpenRouter](https://openrouter.ai/models) použitelných v Baserow. Například: `openai/gpt-5.6,anthropic/claude-sonnet-5`.",
+        "openaiBaseUrl": "Základní adresa URL",
+        "openaiBaseUrlDescription": "Pokud je pole prázdné, standardně se použije výchozí základní adresa URL OpenAI. Lze ji volitelně změnit na https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, nebo jiné API kompatibilní s OpenAI.",
+        "openaiModelIdentifierDescription": "Zadejte [identifikátor modelu OpenAI](https://developers.openai.com/api/docs/models). Například: `gpt-5.6`, `gpt-5.6-terra` nebo `gpt-5.6-luna`.",
+        "anthropicModelIdentifierDescription": "Zadejte [identifikátor modelu Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Například: `claude-sonnet-5`, `claude-opus-4-8` nebo `claude-haiku-4-5`.",
+        "mistralModelIdentifierDescription": "Zadejte [identifikátor modelu Mistral](https://docs.mistral.ai/models/). Například: `mistral-large-latest`, `mistral-medium-latest` nebo `mistral-small-latest`.",
+        "ollamaModelIdentifierDescription": "Zadejte identifikátor [modelu nainstalovaného v Ollama](https://ollama.com/library). Například: `gemma3`, `qwen3` nebo `llama3.3`.",
+        "openRouterModelIdentifierDescription": "Zadejte [identifikátor modelu OpenRouter](https://openrouter.ai/models). Například: `openai/gpt-5.6` nebo `anthropic/claude-sonnet-5`."
+    },
+    "generativeAIWorkspaceSettings": {
+        "title": "Nastavení generativní AI",
+        "description": "Tato nastavení lze volitelně použít ke konfiguraci generativní AI na úrovni pracovního prostoru. Funkce, jako je pole AI, mohou být zakázány, protože nemají klíč API pro některý z podporovaných modelů. Zadáním nastavení zde můžete tyto funkce povolit. Ponecháte-li hodnotu prázdnou, znovu se použije globální nastavení instance. Upozorňujeme, že všichni v pracovním prostoru budou tato nastavení sdílet.",
+        "changedTitle": "Nastavení bylo úspěšně aktualizováno",
+        "changedDescription": "Nastavení bylo aktualizováno a nyní se bude používat v tomto pracovním prostoru.",
+        "submitButton": "Aktualizovat nastavení",
+        "openSettings": "Otevřít nastavení",
+        "hideSettings": "Skrýt nastavení"
+    },
+    "dashboardVerifyEmail": {
+        "title": "Zkontrolujte svou e-mailovou schránku a kliknutím na odkaz ověřte svůj e-mail.",
+        "resendConfirmationEmail": "Znovu odeslat potvrzovací e-mail"
+    },
+    "resendEmailVerification": {
+        "confirmationEmailSentTitle": "Potvrzovací e-mail odeslán",
+        "confirmationEmailSentDescription": "Potvrzovací e-mail byl odeslán."
+    },
+    "verifyEmailAddress": {
+        "confirmation": "Vaše e-mailová adresa byla ověřena.",
+        "goToDashboard": "Přejít na nástěnku",
+        "invalidToken": "Neplatný potvrzovací token.",
+        "disabledPasswordProvider": "Poskytovatel ověřování heslem byl zakázán.",
+        "emailMismatchWarning": "Upozorňujeme, že ověřený e-mail nepatří k účtu, který právě používáte."
+    },
+    "emailNotVerified": {
+        "title": "Vyžadováno ověření e-mailu",
+        "description": "Zkontrolujte svou e-mailovou schránku a kliknutím na odkaz proveďte ověření. Po ověření bude váš účet aktivován.",
+        "resend": "Znovu odeslat potvrzovací e-mail"
+    },
+    "selectAIModelForm": {
+        "AIType": "Typ AI",
+        "AIModel": "Model AI",
+        "fileField": "Pole souboru",
+        "temperatureLabel": "Teplota",
+        "temperatureDescription": "Teplota LLM, parametr nastavený mezi 0 a {max}, upravuje náhodnost odpovědí – nižší hodnoty vedou k soustředěnějším odpovědím, zatímco vyšší hodnoty zvyšují kreativitu.",
+        "modelUnavailable": "Tento model je vypnutý nebo již není k dispozici."
+    },
+    "onboarding": {
+        "title": "Úvodní nastavení",
+        "creating": "Vytváření prvního pracovního prostoru",
+        "continue": "Pokračovat",
+        "skip": "Nyní přeskočit",
+        "cancel": "Nechci pomoc s nastavením",
+        "failedTitle": "Něco se pokazilo",
+        "failedDescription": "Úvodní nastavení se nedokončilo úplně, i když některé části mohly být dokončeny.",
+        "failedTryAgain": "Zkusit znovu",
+        "failedSkip": "Přeskočit úvodní nastavení"
+    },
+    "moreStep": {
+        "title": "Řekněte nám o sobě něco více",
+        "country": "Země",
+        "share": "Souhlasím se sdílením těchto údajů s týmem Baserow",
+        "how": "Jak jste se o nás dozvěděli?",
+        "howSearchEngine": "Vyhledávač (Google/Bing)",
+        "howSocialMedia": "Sociální sítě",
+        "howOnlineAds": "Online reklamy",
+        "howContent": "Obsah (blog/newsletter/video)",
+        "howReviewSite": "Web s recenzemi / tržiště",
+        "howFriend": "Od přítele",
+        "howColleague": "Od kolegy",
+        "howEvent": "Událost nebo webinář",
+        "howSales": "Oslovení prodejem",
+        "howOther": "Jiné"
+    },
+    "teamStep": {
+        "description": "Ve kterém týmu pracujete?",
+        "marketingTeam": "Marketing",
+        "productAndDesignTeam": "Produkt a design",
+        "engineeringTeam": "Vývoj",
+        "operationsTeam": "Provoz",
+        "itAndSupportTeam": "IT a podpora",
+        "hrAndLegalTeam": "Personalistika a právní oddělení",
+        "financeTeam": "Finance",
+        "creativeProductionTeam": "Kreativní produkce",
+        "salesAndAccountManagementTeam": "Prodej a péče o zákazníky",
+        "customerServiceTeam": "Zákaznický servis",
+        "manufacturingTeam": "Výroba",
+        "otherPersonalTeam": "Jiné / osobní"
+    },
+    "colorInput": {
+        "default": "Výchozí"
+    },
+    "imageInput": {
+        "labelDescription": "Vyberte obrázek k nahrání...",
+        "labelButton": "Nahrát"
+    },
+    "dashboardApplication": {
+        "createdAt": "vytvořeno"
+    },
+    "templateCard": {
+        "viewMore": "Zobrazit více"
+    },
+    "dataExplorerNode": {
+        "showMore": "Zobrazit další opakování",
+        "selectNode": "Vybrat"
+    },
+    "exportWorkspaceModal": {
+        "title": "Exportovat",
+        "description": "Vaše data budou exportována jako soubor ZIP, který lze importovat do jiné instance Baserow.",
+        "exportSettings": "Nastavení exportu",
+        "export": "Exportovat data",
+        "reset": "Začít znovu",
+        "cancel": "Zrušit",
+        "download": "Stáhnout",
+        "noExports": "Pro tento pracovní prostor dosud nejsou k dispozici žádné exporty.",
+        "created": "vytvořeno",
+        "exportingState": "Exportuji...",
+        "exportingTableState": "Exportuji: {table}",
+        "exportingCreateArchiveState": "Vytvářím archiv"
+    },
+    "exportWorkspaceForm": {
+        "exportSettingsLabel": "Nastavení exportu",
+        "onlyStructureLabel": "Exportovat pouze strukturu",
+        "onlyStructureDescription": "Je-li tato možnost povolena, exportuje se pouze struktura aplikací. Data nebudou zahrnuta.",
+        "selectDataToExport": "Vyberte data k exportu",
+        "selectAll": "Vybrat vše",
+        "deselectAll": "Zrušit výběr všeho"
+    },
+    "importWorkspaceModal": {
+        "title": "Importovat data Baserow",
+        "description": "Existující data Baserow můžete importovat nahráním souboru .zip z jiné instance Baserow.",
+        "import": "Importovat data",
+        "upload": "Nahrát",
+        "cancel": "Zrušit",
+        "done": "Hotovo",
+        "close": "Zavřít",
+        "retry": "Zkusit znovu",
+        "uploading": "nahrávání...",
+        "chooseFile": "Vybrat soubor",
+        "selectApplications": "Vyberte data k importu",
+        "deselectAll": "Zrušit výběr všeho",
+        "selectAll": "Vybrat vše",
+        "databases": "Databáze",
+        "applications": "Aplikace",
+        "successTitle": "Data Baserow byla úspěšně importována",
+        "successMessage": "Importováno aplikací: {count}",
+        "signatureVerificationNote": "Soubor ZIP z nedůvěryhodného zdroje nelze importovat.",
+        "invalidResourceTitle": "Neplatný zdroj",
+        "invalidResourceMessage": "Poskytnutý soubor není platný export Baserow.",
+        "untrustedPublicKeyTitle": "Nedůvěryhodný podpis",
+        "untrustedPublicKeyMessage": "Poskytnutý soubor je podepsán nedůvěryhodným veřejným klíčem. Požádejte správce, aby veřejný klíč přidal do seznamu důvěryhodných klíčů, nebo vypněte ověřování podpisu, abyste mohli data importovat.",
+        "importingState": "Importuji...",
+        "importingTableStructure": "Vytvářím: {table}",
+        "importingTableData": "Importuji data: {table}",
+        "uploadAndImport": "Nahrát a importovat"
+    },
+    "user": {
+        "isStaff": "Je zaměstnancem",
+        "isWorkspaceAdmin": "Je správcem pracovního prostoru",
+        "active": "Aktivní",
+        "deactivated": "Deaktivováno"
+    },
+    "adminType": {
+        "dashboard": "Nástěnka",
+        "users": "Uživatelé",
+        "workspaces": "Pracovní prostory",
+        "aiProviders": "Poskytovatelé AI"
+    },
+    "workspacesAdminTable": {
+        "allWorkspaces": "Všechny pracovní prostory",
+        "id": "ID",
+        "name": "Název",
+        "members": "Členové",
+        "applications": "Aplikace",
+        "created": "Vytvořeno",
+        "rowCount": "Počet řádků",
+        "freeUsers": "Uživatelé zdarma",
+        "seatsTaken": "Obsazená místa",
+        "storageUsage": "Využité úložiště (MB)",
+        "usageHelpText": "Vypočítává se každou noc, je-li povoleno sledování využití pracovního prostoru"
+    },
+    "editWorkspaceContext": {
+        "delete": "Trvale odstranit"
+    },
+    "deleteWorkspaceModal": {
+        "title": "Odstranit {name}",
+        "confirmation": "Opravdu chcete odstranit pracovní prostor {name}?",
+        "comment": "Pracovní prostor bude včetně souvisejících aplikací trvale odstraněn. Tuto akci nelze vrátit zpět.",
+        "delete": "Odstranit pracovní prostor {name}"
+    },
+    "activeUsers": {
+        "newUsers": "Noví uživatelé",
+        "activeUsers": "Aktivní uživatelé"
+    },
+    "usersAdminTable": {
+        "allUsers": "Všichni uživatelé",
+        "username": "Uživatelské jméno",
+        "name": "Název",
+        "workspaces": "Pracovní prostory",
+        "lastLogin": "Poslední přihlášení",
+        "dateJoined": "Zaregistrován(a)",
+        "active": "Aktivní",
+        "twoFactorAuth": "2FA"
+    },
+    "editUserContext": {
+        "changePassword": "Změnit heslo",
+        "delete": "Trvale odstranit",
+        "impersonate": "Přihlásit se jako uživatel"
+    },
+    "changePasswordForm": {
+        "newPassword": "Nové heslo",
+        "repeatPassword": "Zopakovat heslo",
+        "changePassword": "Změnit heslo",
+        "error": {
+            "doesntMatch": "Toto pole musí odpovídat poli s heslem."
+        }
+    },
+    "userForm": {
+        "fullName": "Celé jméno",
+        "email": "E-mail",
+        "isActive": "Je aktivní",
+        "warning": {
+            "changeEmail": "Změna e-mailové adresy tohoto uživatele znamená, že se při přihlášení musí přihlásit novou e-mailovou adresou. Tuto skutečnost je nutné uživateli sdělit.",
+            "inactiveUser": "Je-li uživatel označen jako neaktivní, nemůže se přihlásit.",
+            "userStaff": "Udělením statusu zaměstnance uživateli poskytnete přístup správce ke všem uživatelům, všem pracovním prostorům a možnost odebrat vlastní oprávnění zaměstnance."
+        },
+        "error": {
+            "invalidName": "Zadejte platné celé jméno; musí mít více než 2 a méně než 150 znaků.",
+            "invalidEmail": "Zadejte platnou e-mailovou adresu."
+        },
+        "twoFactorAuth": "Dvoufaktorové ověřování",
+        "removeTwoFactorAuth": "Odebrat dvoufaktorové ověřování"
+    },
+    "changeUserPasswordModal": {
+        "changePassword": "Změnit heslo uživatele {username}"
+    },
+    "deleteUserModal": {
+        "title": "Odstranit {username}",
+        "confirmation": "Opravdu chcete odstranit uživatele {name}?",
+        "comment1": "Uživatelský účet bude odstraněn, pracovní prostory, jejichž členem uživatel je, však zůstanou zachovány. Pracovní prostor uživatele nebude odstraněn, ani když je tento uživatel posledním uživatelem v pracovním prostoru. Odstranění posledního uživatele v pracovním prostoru znemožní komukoli přístup k tomuto pracovnímu prostoru.",
+        "comment2": "Po odstranění uživatele se může nový uživatel znovu zaregistrovat pomocí e-mailové adresy odstraněného uživatele. Chcete-li zajistit, aby se znovu nemohl zaregistrovat, uživatele místo odstranění deaktivujte.",
+        "delete": "Odstranit uživatele {username}"
+    },
+    "editUserModal": {
+        "delete": "Odstranit uživatele",
+        "edit": "Upravit { username }"
+    },
+    "adminDashboard": {
+        "title": "Nástěnka",
+        "totals": "Souhrny",
+        "totalUsers": "Celkem uživatelů",
+        "totalWorkspaces": "Celkem pracovních prostorů",
+        "totalApplications": "Celkem aplikací",
+        "newUsers": "Noví uživatelé",
+        "newUsers24h": "Noví uživatelé za posledních 24 hodin",
+        "newUsers7days": "Noví uživatelé za posledních 7 dní",
+        "newUsers30days": "Noví uživatelé za posledních 30 dní",
+        "activeUsers": "Aktivní uživatelé",
+        "activeUsers24h": "Aktivní uživatelé za posledních 24 hodin",
+        "activeUsers7days": "Aktivní uživatelé za posledních 7 dní",
+        "activeUsers30days": "Aktivní uživatelé za posledních 30 dní",
+        "viewAll": "Zobrazit vše"
+    },
+    "formGroup": {
+        "protectedField": "Toto pole je chráněné. Kliknutím je změníte.",
+        "cancelProtectedField": "Zrušit změnu"
+    },
+    "userSourceType": {
+        "userCountSummary": "{count} uživatelů ({lastUpdated})"
+    },
+    "colorPickerContext": {
+        "pickColorPlaceholder": "Nebo vyberte předdefinovanou barvu"
+    },
+    "guidedTourStep": {
+        "step": "{step} z {totalSteps}",
+        "gotIt": "Rozumím",
+        "next": "Další",
+        "back": "Zpět"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Vítejte v Baserow",
+        "content": "Pojďme na krátkou prohlídku, která vás seznámí se základy. Během několika kliknutí se snadno naučíte organizovat a vizualizovat svá data.",
+        "buttonText": "Spustit prohlídku"
+    },
+    "controlCenterGuidedTourStep": {
+        "title": "Vaše řídicí centrum Baserow",
+        "content": "Levá postranní lišta vám pomáhá spravovat pracovní prostor:\n\n- Domů – přístup k hlavní nástěnce.\n- Oznámení – mějte přehled o změnách a zmínkách.\n- Pozvat členy – spolupracujte přidáním členů týmu.\n- Koš – zobrazte a obnovte všechny odstraněné položky."
+    },
+    "createNewGuidedTourStep": {
+        "title": "Vytvořte novou databázi nebo aplikaci",
+        "content": "Kliknutím na „Přidat nové…“ nastavíte novou databázi, aplikaci nebo nástěnku pro projekt, oddělení nebo tým."
+    },
+    "mcpEndpointSettings": {
+        "title": "Server MCP",
+        "createEndpoint": "Vytvořit koncový bod",
+        "createNewTitle": "Vytvořit koncový bod serveru MCP",
+        "backToOverview": "Zpět na přehled",
+        "noEndpointsMessage": "Dosud nebyly přidány žádné koncové body serveru MCP (Model Context Protocol). Lze je použít k přímé integraci s LLM, jako je Claude, a umožnit LLM provádět akce přímo v Baserow. Chcete-li začít, vytvořte koncový bod serveru."
+    },
+    "mcpEndpointForm": {
+        "nameLabel": "Název",
+        "workspaceLabel": "Pracovní prostor"
+    },
+    "mcpEndpoint": {
+        "detailLabel": "Další podrobnosti",
+        "endpointURLIntro": "Adresu URL serveru MCP (Model Context Protocol) lze přidat do libovolného klienta, který podporuje servery MCP. Jde o jedinečný koncový bod, který LLM poskytuje přímý přístup k provádění akcí v pracovním prostoru vaším jménem.",
+        "reveal": "Zobrazit úplnou adresu URL",
+        "warning": "S adresou URL MCP zacházejte jako s heslem, protože umožňuje upravovat data v Baserow.",
+        "claudeInstructions": "Tři jednoduché kroky, jak začít s aplikací Claude Desktop a Baserow MCP.\n\n1. Otevřete nastavení Claude Desktop z navigační lišty. (⌘+,)\n1. Přejděte na kartu „Develop“ a klikněte na „Edit Config“.\n1. Zahrňte následující konfiguraci JSON do souboru `claude_desktop_config.json`.",
+        "cursorInstructions": "Tři jednoduché kroky, jak začít s aplikací Cursor a Baserow MCP.\n\n1. Otevřete nastavení Cursoru (⇧+⌘+J)\n1. Přejděte na kartu „MCP“ a klikněte na „Add MCP Server“\n1. Přidejte následující konfiguraci JSON.",
+        "windsurfInstructions": "Dva snadné kroky pro nastavení MCP s Cascase ve Windsurf.\n\n1. Přejděte do Windsurf – Settings -> Advanced Settings nebo Command Palette -> Open Windsurf settings page.\n1. Přejděte dolů do části Cascade; najdete zde možnost přidat nový server, zobrazit stávající servery a tlačítko k zobrazení nezpracovaného konfiguračního souboru JSON v `mcp_config.json`. Přidejte do něj následující:"
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "Vyberte aplikace k importu"
+    },
+    "workspaceSearch": {
+        "title": "Hledat",
+        "searchEverything": "Hledat...",
+        "searching": "Vyhledávání...",
+        "noResults": "Nenalezeny žádné výsledky",
+        "noResultsSubtitle": "Nenašli jsme nic, co odpovídá „{searchTerm}“",
+        "welcome": "Prohledávat vše v pracovním prostoru",
+        "welcomeSubtitle": "Pomocí vyhledávacího pole výše najdete aplikace, tabulky, pole a další položky",
+        "navigate": "Přejít",
+        "select": "Vybrat",
+        "close": "Zavřít",
+        "types": {
+            "applications": "Aplikace",
+            "tables": "Tabulky",
+            "fields": "Pole",
+            "rows": "Řádky"
+        },
+        "empty": "(prázdné)"
+    },
+    "action": {
+        "cancel": "Zrušit",
+        "submit": "Odeslat"
+    },
+    "coreHTTPTriggerServiceForm": {
+        "title": "Adresa URL webhooku",
+        "urlVersion": "Verze",
+        "urlVersionPublished": "Publikováno",
+        "urlVersionTest": "Test",
+        "copyUrl": "Kopírovat adresu URL webhooku",
+        "urlCopied": "Adresa URL webhooku zkopírována do schránky",
+        "description": "Tento webhook bude přijímat požadavky HTTP a spustí pracovní postup s daty požadavku jako datovou částí.",
+        "methodsOptionLabel": "Povolené metody HTTP",
+        "methodsOptionDescription": "Určuje, které metody HTTP jsou pro tento webhook povolené. Vyloučení metody GET snižuje pravděpodobnost nechtěného spuštění webhooku.",
+        "methodsOptionAll": "Všechny",
+        "methodsOptionExcludeGet": "Vyloučit GET"
+    },
+    "twoFactorAuthSettings": {
+        "title": "Dvoufaktorové ověřování",
+        "loadingError": "Konfiguraci dvoufaktorového ověřování se nepodařilo načíst."
+    },
+    "disableTwoFactorAuth": {
+        "title": "Opravdu chcete vypnout 2FA?",
+        "description": "Váš účet přijde o další vrstvu zabezpečení. Pokud někdo zjistí vaše heslo, mohl by se přihlásit k vašemu účtu.",
+        "cancel": "Nechat zapnuté",
+        "disable": "Vypnout",
+        "successTitle": "Dvoufaktorové ověřování bylo vypnuto",
+        "errorWrongPasswordTitle": "Nesprávné heslo",
+        "errorWrongPasswordMessage": "Zadané heslo neodpovídá vašemu heslu."
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "Zrušit",
+        "continue": "Pokračovat"
+    },
+    "saveBackupCode": {
+        "description": "Pokud ztratíte přístup k aplikaci autentizátoru nebo telefonu a nemůžete přijímat ani generovat ověřovací kódy, můžete použít tento záložní kód. Lze ho použít pouze jednou. Nezapomeňte si jej zapsat nebo zkopírovat na bezpečné místo, abyste k němu měli přístup bez přihlášení.",
+        "backupCodes": "Záložní kódy",
+        "copy": "Kopírovat",
+        "continue": "Pokračovat",
+        "backupCodesCopiedTitle": "Zkopírováno!",
+        "backupCodesCopiedMessage": "Záložní kódy zkopírovány do schránky."
+    },
+    "totpAuthType": {
+        "name": "Aplikace autentizátoru",
+        "description": "K získání kódů pro dvoufaktorové ověřování použijte aplikaci. Doporučujeme aplikace jako Google Authenticator, Authy a Microsoft Authenticator.",
+        "enabledDescription": "Ověřovací kódy budete dostávat prostřednictvím aplikace autentizátoru. Chcete-li nastavit jinou aplikaci nebo metodu, jednoduše vypněte 2FA a znovu ji nastavte.",
+        "sideLabel": "Doporučeno"
+    },
+    "twoFactorEnabled": {
+        "enabled": "Povoleno",
+        "disable": "Vypnout 2FA"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "Zadejte záložní kód",
+        "backupCodesDescription": "Přihlaste se pomocí jednorázového záložního kódu.",
+        "authenticate": "Ověřit",
+        "goBack": "Zpět",
+        "totpTitle": "Dvoufaktorové ověřování",
+        "totpDescription": "Zadejte kód z aplikace autentizátoru.",
+        "verify": "Ověřit",
+        "useBackupCode": "Použít záložní kód",
+        "verificationFailed": "Ověření selhalo",
+        "verificationFailedDescription": "Zadaný kód není správný.",
+        "loginExpired": "Platnost přihlášení vypršela",
+        "loginExpiredDescription": "Zadejte znovu heslo.",
+        "rateLimit": "Příliš mnoho pokusů."
+    },
+    "twoFactorAuthEmpty": {
+        "title": "Dosud jste nepovolili 2FA",
+        "description": "Přidejte ke svému účtu další vrstvu zabezpečení.",
+        "enable": "Povolit 2FA",
+        "notAllowedTitle": "2FA není povoleno",
+        "notAllowedDescription": "2FA lze přidat pouze k účtům založeným na hesle."
+    },
+    "enableWithQRCode": {
+        "scanQRCode": "Naskenovat kód QR",
+        "scanQRCodeDescription": "Naskenujte kód pomocí aplikace jako Google Authenticator, Authy nebo Microsoft Authenticator.",
+        "enterCode": "Zadejte zobrazený kód",
+        "enterCodeDescription": "Zadejte šestimístný kód zobrazený aplikací a potvrďte, že jste vše nastavili správně.",
+        "verificationFailed": "Ověření selhalo",
+        "provisioningFailed": "Zřízení selhalo",
+        "checkSuccess": "Dvoufaktorové ověřování bylo úspěšně povoleno",
+        "clickToCopy": "Případně klikněte sem a zkopírujte kód.",
+        "secretCopiedTitle": "Tajný klíč zkopírován",
+        "secretCopiedMessage": "Tajný klíč TOTP zkopírován do schránky.",
+        "verificationFailedDescription": "Zadaný kód není platný."
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "Příklad",
+        "result": "Výsledek: {result}"
+    },
+    "twoFactorAuthField": {
+        "enabled": "Povoleno",
+        "disabled": "Vypnuto"
+    },
+    "emailSettings": {
+        "title": "Změnit e-mailovou adresu",
+        "successTitle": "Potvrzovací e-mail odeslán",
+        "successDescription": "Odeslali jsme potvrzovací e-mail na vaši novou adresu. Zkontrolujte doručenou poštu a kliknutím na odkaz dokončete změnu e-mailu.",
+        "currentEmailLabel": "Aktuální e-mailová adresa",
+        "newEmailLabel": "Nová e-mailová adresa",
+        "passwordLabel": "Aktuální heslo",
+        "submitButton": "Odeslat potvrzovací e-mail",
+        "errorInvalidPasswordTitle": "Neplatné heslo",
+        "errorInvalidPasswordMessage": "O změnu e-mailu nebylo možné požádat, protože je vaše heslo nesprávné.",
+        "errorEmailExistsTitle": "E-mail již existuje",
+        "errorEmailExistsMessage": "O změnu e-mailu nebylo možné požádat, protože účet s touto e-mailovou adresou už existuje.",
+        "errorNotAllowedTitle": "Změna e-mailu není povolena",
+        "errorNotAllowedMessage": "E-mailovou adresu nemůžete změnit, protože váš účet používá ověřování jednotným přihlášením (SSO)."
+    },
+    "changeEmail": {
+        "title": "Potvrdit změnu e-mailu",
+        "submit": "Potvrdit změnu e-mailu",
+        "changed": "E-mailová adresa změněna",
+        "message": "Vaše e-mailová adresa byla úspěšně změněna. Nyní se můžete do Baserow přihlásit pomocí nové e-mailové adresy.",
+        "errorInvalidLinkTitle": "Neplatný odkaz",
+        "errorInvalidLinkMessage": "E-mailovou adresu nebylo možné změnit, protože odkaz je neplatný.",
+        "errorLinkExpiredTitle": "Platnost odkazu vypršela",
+        "errorLinkExpiredMessage": "Platnost odkazu pro změnu e-mailu vypršela. Požádejte o nový v nastavení účtu.",
+        "errorEmailExistsTitle": "E-mail již existuje",
+        "errorEmailExistsMessage": "E-mailovou adresu nebylo možné změnit, protože účet s touto e-mailovou adresou už existuje.",
+        "errorEmailAlreadyChangedTitle": "E-mail již byl změněn",
+        "errorEmailAlreadyChangedMessage": "E-mailová adresa už byla změněna na požadovanou adresu."
+    },
+    "adminUsers": {
+        "title": "Uživatelé"
+    },
+    "adminWorkspaces": {
+        "title": "Pracovní prostory"
+    },
+    "formulaInputErrorContext": {
+        "viewFullError": "Zobrazit úplnou chybu"
+    },
+    "formulaInputExplorerContext": {
+        "variables": "Proměnné",
+        "functions": "Funkce",
+        "operators": "Operátory",
+        "search": "Hledat",
+        "useRegularInputModalTitle": "Použít pro toto pole běžný vstup?",
+        "useSimpleInput": "Přepnout do základního režimu",
+        "useSimpleInputModalTitle": "Přepnout do základního režimu?",
+        "useAdvancedInput": "Přepnout do expertního režimu",
+        "useAdvancedInputModalTitle": "Přepnout do expertního režimu?",
+        "modalMessage": "Přepnutím do jiného režimu se vymaže aktuální vzorec. Opravdu chcete pokračovat?"
+    },
+    "formulaParserErrors": {
+        "invalidArgCountMin": "Funkce „{funcType}“ očekává nejméně {minArgs} argumentů.",
+        "invalidArgCountExact": "Funkce „{funcType}“ očekává přesně {minArgs} argumentů.",
+        "invalidArgCountRange": "Funkce „{funcType}“ očekává {minArgs} až {maxArgs} argumentů.",
+        "invalidArgumentType": "„{value}“ není platný argument funkce „{funcType}“."
+    },
+    "sampleDataViewer": {
+        "payloadLabel": "Výstup",
+        "errorLabel": "Došlo k chybě...",
+        "showPayloadLabel": "Zobrazit datovou část",
+        "showErrorLabel": "Zobrazit chybu",
+        "downloadFullPayload": "Stáhnout úplnou datovou část",
+        "truncatedLabel": "[Výstup zkrácen]",
+        "truncatedPayloadWarning": "Zobrazuje se pouze prvních {size} znaků. Stáhněte úplnou datovou část a prohlédněte si ji v počítači."
+    },
+    "workspaceOutdatedToast": {
+        "title": "Příliš mnoho změn",
+        "content": "Během vaší nepřítomnosti došlo k příliš mnoha změnám. Aktualizací zobrazíte nejnovější data.",
+        "action": "Aktualizovat data",
+        "dismiss": "Zavřít oznámení"
+    },
+    "disableTwoFactorAuthModal": {
+        "title": "Odebrat dvoufaktorové ověřování",
+        "confirmation": "Opravdu chcete uživateli {name} odebrat dvoufaktorové ověřování?",
+        "comment": "Poté se bude moci přihlásit pouze pomocí hesla a dvoufaktorové ověřování bude moci znovu nastavit.",
+        "remove": "Odebrat dvoufaktorové ověřování"
+    },
+    "editWorkspace": {
+        "invalidNameTitle": "Název pracovního prostoru není povolen"
+    },
+    "abuseReportCreatedNotification": {
+        "title": "Uživatel {reporterEmail} nahlásil {resourceName} jako zneužití",
+        "openResource": "Otevřít nahlášenou stránku",
+        "showMore": "Zobrazit více",
+        "detailsTitle": "Hlášení zneužití",
+        "reportedBy": "Nahlásil(a) {reporterName} ({reporterEmail})."
+    },
+    "reportAbuseModal": {
+        "title": "Nahlásit zneužití",
+        "description": "Domníváte se, že se tato stránka používá pro phishing, vydávání se za někoho, podvody nebo jiné závadné účely? Dejte správcům této instance Baserow vědět odesláním formuláře níže.",
+        "submit": "Odeslat hlášení",
+        "close": "Zavřít",
+        "successTitle": "Děkujeme za hlášení",
+        "successDescription": "Hlášení bylo odesláno a správci této instance Baserow byli informováni, aby mohli přijmout opatření.",
+        "reportingDisabledTitle": "Hlášení jsou vypnuta",
+        "reportingDisabledDescription": "Hlášení zneužití bylo správcem této instance Baserow vypnuto."
+    },
+    "reportAbuseForm": {
+        "nameLabel": "Vaše jméno",
+        "emailLabel": "Vaše e-mailová adresa",
+        "descriptionLabel": "Proč tuto stránku nahlašujete?",
+        "descriptionHelper": "Podrobně popište, proč se domníváte, že je tato stránka zneužívající.",
+        "descriptionPlaceholder": "Například: tato stránka se vydává za přihlašovací stránku jiné společnosti a žádá návštěvníky o heslo."
+    },
+    "aiProviderAdmin": {
+        "title": "Poskytovatelé AI",
+        "description": "Spravujte poskytovatele a modely na úrovni instance, které jsou k dispozici pracovním prostorům a automatizacím.",
+        "addProvider": "Přidat poskytovatele",
+        "editProvider": "Upravit poskytovatele",
+        "providerType": "Typ poskytovatele",
+        "apiKey": "Klíč API",
+        "changeApiKey": "Změnit klíč API",
+        "apiKeyUpdateHint": "Zadejte nový klíč API, který nahradí stávající klíč.",
+        "extraField_organization": "Organizace",
+        "extraField_base_url": "Základní adresa URL",
+        "extraField_host": "Hostitel",
+        "models": "Modely",
+        "addModel": "Přidat model",
+        "removeModel": "Odebrat model",
+        "editModel": "Upravit model",
+        "modelIdentifier": "Identifikátor modelu",
+        "modelDiscoveryHelp": "Vyberte model známý nástroji Pydantic AI nebo zadejte libovolný vlastní identifikátor.",
+        "modelDiscoveryUnavailable": "Návrhy známých modelů nejsou k dispozici. Zadejte identifikátor ručně.",
+        "modelDiscoveryEmpty": "Pydantic AI nemá pro tohoto poskytovatele žádné známé modely. Zadejte identifikátor ručně.",
+        "modelDiscoveryNoMatch": "Žádný známý model neodpovídá. Můžete použít zadaný identifikátor.",
+        "noProviders": "Nejsou nakonfigurováni žádní poskytovatelé AI pro instanci",
+        "noProvidersDescription": "Přidejte poskytovatele ručně nebo si před povolením funkce pro uživatele prohlédněte a spusťte příkaz pro import prostředí.",
+        "noModels": "Pro tohoto poskytovatele nejsou nakonfigurovány žádné modely.",
+        "active": "Aktivní",
+        "inactive": "Neaktivní",
+        "enable": "Povolit",
+        "disable": "Vypnout",
+        "modelDisabled": "Vypnuto",
+        "test": "Test",
+        "testAllModelsButtonTitle": "Otestovat všechny definované modely",
+        "testModelButtonTitle": "Otestovat tento model",
+        "testPassed": "Test proběhl úspěšně",
+        "testFailed": "Test selhal",
+        "notTested": "Netestováno",
+        "deleteProviderTitle": "Odstranit {name}?",
+        "deleteProviderDescription": "Tím se trvale odstraní poskytovatel a jeho modely.",
+        "deleteModelTitle": "Odstranit {name}?",
+        "deleteModelDescription": "Tím se trvale odstraní model.",
+        "loadError": "Nastavení poskytovatele AI se nepodařilo načíst.",
+        "loadErrorDescription": "Zkontrolujte připojení a zkuste to znovu.",
+        "retry": "Zkusit znovu",
+        "saveError": "Poskytovatele AI se nepodařilo uložit.",
+        "saveModelError": "Model poskytovatele AI se nepodařilo uložit.",
+        "actionError": "Změnu poskytovatele AI se nepodařilo dokončit."
     }
 }
