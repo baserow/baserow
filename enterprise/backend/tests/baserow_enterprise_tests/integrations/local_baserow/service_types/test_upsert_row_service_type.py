@@ -183,7 +183,12 @@ def test_a_click_writing_an_unwritable_field_fails(
             clicker, button_field, row
         )
 
-    assert protected_field.name in str(exc.value.message)
+    # The clicker may have no access to the target table at all, so the
+    # refusal says what happened without naming the fields.
+    assert exc.value.message == (
+        "You don't have permission to write to the fields this action changes."
+    )
+    assert protected_field.name not in exc.value.message
 
     # Not even the field the clicker could write is left behind.
     assert table.get_model().objects.exclude(id=row.id).count() == 0
