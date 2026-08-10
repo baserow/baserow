@@ -1,6 +1,13 @@
+import { reactive } from 'vue'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
+
+// Keyed by field and row rather than kept per component. The grid swaps an
+// unselected cell for its own component on the first click, and that remount
+// would drop a flag held in `data`, taking the loading state and the double
+// click guard with it.
+const dispatchesInFlight = reactive(new Set())
 
 /**
  * Dispatches a cell's actions on click and runs the ones the backend hands
@@ -8,14 +15,15 @@ import { clone } from '@baserow/modules/core/utils/object'
  * `allFieldsInTable` (functional grid cells, cards).
  */
 export default {
-  data() {
-    return {
-      dispatching: false,
-    }
-  },
   computed: {
     hasWorkflowActions() {
       return this.field.has_workflow_actions === true
+    },
+    dispatchKey() {
+      return `${this.field.id}:${this.row.id}`
+    },
+    dispatching() {
+      return dispatchesInFlight.has(this.dispatchKey)
     },
   },
   methods: {
@@ -28,7 +36,10 @@ export default {
       if (this.dispatching) {
         return
       }
-      this.dispatching = true
+      // Captured up front so the release below cannot miss it if the cell is
+      // handed a different row while the request is in flight.
+      const key = this.dispatchKey
+      dispatchesInFlight.add(key)
       try {
         // The dispatch takes its own broadcast, so `this.row` can change
         // mid-request. Client actions get the row as it was at click time.
@@ -50,7 +61,7 @@ export default {
           })
         }
       } finally {
-        this.dispatching = false
+        dispatchesInFlight.delete(key)
       }
     },
     /**

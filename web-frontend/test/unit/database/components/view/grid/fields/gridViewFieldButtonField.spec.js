@@ -178,6 +178,34 @@ describe('GridViewFieldButtonField', () => {
     expect(wrapper.vm.dispatching).toBe(false)
   })
 
+  test('a second cell for the same row shows the dispatch in flight', async () => {
+    // The grid swaps an unselected cell for its own component on the first
+    // click, so a flag held by the component that started the request would be
+    // thrown away by that remount.
+    let release
+    const held = new Promise((resolve) => {
+      release = resolve
+    })
+    const first = await mountCell()
+    const second = await mountCell()
+    // `$client` is shared by the test app, so the held mock has to go on after
+    // both mounts or the second one replaces it.
+    first.vm.$client.post = vi.fn().mockImplementation(async () => {
+      await held
+      return { data: { results: [], client_actions: [] } }
+    })
+
+    first.find('button').trigger('click')
+    await flushPromises()
+
+    expect(second.vm.dispatching).toBe(true)
+
+    release()
+    await flushPromises()
+
+    expect(second.vm.dispatching).toBe(false)
+  })
+
   test('a client action that throws leaves the cell clickable', async () => {
     vi.spyOn(openUrlType, 'execute').mockRejectedValue(new Error('nope'))
     const wrapper = await mountCell({}, { client_actions: [openUrlAction] })

@@ -249,12 +249,10 @@ test.describe("Button field", () => {
     }
   });
 
-  // Currently red, and correctly so. The first click on an unselected cell
-  // also promotes it from the functional component to the stateful one
-  // (`addKeepAlive` in GridViewRow), which remounts it and throws away the
-  // `dispatching` flag: no loading state, and a second click dispatches again.
-  // The backend lock still refuses the duplicate, so nothing is written twice.
-  test.fixme("the cell shows a loading state and refuses a second click", async ({
+  // The first click on an unselected cell also promotes it from the functional
+  // component to the stateful one, which remounts it. The in-flight flag is
+  // keyed by field and row for exactly that reason, so it survives the swap.
+  test("the cell shows a loading state and refuses a second click", async ({
     page,
   }) => {
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
