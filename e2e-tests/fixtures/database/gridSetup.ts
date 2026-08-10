@@ -29,7 +29,8 @@ export type FieldType =
   | "date"
   | "single_select"
   | "long_text"
-  | "formula";
+  | "formula"
+  | "button";
 
 export type SelectOptionSpec =
   | string
