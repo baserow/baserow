@@ -66,10 +66,16 @@ def setup(settings):
     # logins are refused when the limit is enforced. This gives the workspace time to
     # upgrade or reduce its usage instead of being blocked the moment it goes over.
     # Set it to 0 to refuse logins as soon as the periodic count detects the
-    # workspace is over its limit.
-    settings.BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS = int(
-        os.getenv("BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS", "")
-        or 24 * 7  # 7 days
+    # workspace is over its limit. It's capped at the default, so that a
+    # misconfiguration can't stretch the grace period far enough to effectively
+    # disable the enforcement.
+    max_application_user_limit_grace_period_hours = 24 * 7  # 7 days
+    settings.BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS = min(
+        int(
+            os.getenv("BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS", "")
+            or max_application_user_limit_grace_period_hours
+        ),
+        max_application_user_limit_grace_period_hours,
     )
 
     # Set this to True to enable users to login with auth providers different than
