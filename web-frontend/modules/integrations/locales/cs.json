@@ -1,1 +1,199 @@
-{}
+{
+    "dataProviderType": {
+        "pageParameter": "Parametr",
+        "dataSource": "Zdroj dat"
+    },
+    "integrationType": {
+        "localBaserow": "Místní Baserow",
+        "smtp": "E-mail SMTP"
+    },
+    "serviceType": {
+        "localBaserowGetRow": "Získat jeden řádek",
+        "localBaserowListRows": "Vypsat více řádků",
+        "localBaserowAggregateRows": "Shrnout pole",
+        "misconfigured": "Chybně nakonfigurováno",
+        "trashedField": "Pole v koši",
+        "localBaserowCreateRow": "Vytvořit řádek",
+        "localBaserowCreateRowDescription": "Vytvoří nový řádek v tabulce Baserow.",
+        "localBaserowUpdateRow": "Aktualizovat řádek",
+        "localBaserowDeleteRow": "Odstranit řádky",
+        "localBaserowRowsCreated": "Řádky jsou vytvořeny",
+        "localBaserowRowsCreatedDescription": "Spustí se při vytvoření řádků v tabulce Baserow.",
+        "coreHTTPRequest": "Odeslat požadavek HTTP",
+        "localBaserowUpdateRowDescription": "Aktualizuje existující řádek v tabulce Baserow.",
+        "localBaserowDeleteRowDescription": "Odstraní jeden nebo více řádků v tabulce Baserow.",
+        "localBaserowRowsUpdated": "Řádky jsou aktualizovány",
+        "localBaserowRowsUpdatedDescription": "Spustí se při aktualizaci řádků v libovolných polích tabulky Baserow.",
+        "localBaserowRowsDeleted": "Řádky jsou odstraněny",
+        "localBaserowRowsDeletedDescription": "Spustí se při odstranění řádků v tabulce Baserow.",
+        "coreHTTPRequestDescription": "Odešle požadavek HTTP na určený koncový bod.",
+        "errorUrlMissing": "Chybí vlastnost URL",
+        "errorNoTableSelected": "Není vybrána žádná tabulka",
+        "errorFilterInError": "Alespoň jeden filtr je chybně nakonfigurovaný",
+        "errorSortingInError": "Alespoň jedno řazení je chybně nakonfigurované",
+        "errorNoFieldSelected": "Nejsou vybrána žádná pole",
+        "errorNoAggregationTypeSelected": "Není vybrán žádný typ agregace",
+        "localBaserowGetRowDescription": "Načte jeden řádek z tabulky Baserow.",
+        "localBaserowListRowsDescription": "Načte více řádků z tabulky Baserow.",
+        "localBaserowAggregateRowsDescription": "Shrne pole v tabulce Baserow.",
+        "coreSMTPEmail": "Odeslat e-mail",
+        "coreSMTPEmailDescription": "Odešle e-mail pomocí konfigurace SMTP.",
+        "errorFromEmailMissing": "Chybí vlastnost e-mailu odesílatele",
+        "errorToEmailsMissing": "Chybí vlastnost e-mailů příjemců",
+        "coreRouter": "Směrovač",
+        "coreRouterEdgesRequired": "Je vyžadována alespoň jedna větev",
+        "coreRouterEdgeLabelRequired": "Popisek větve je povinný.",
+        "coreRouterEdgeConditionRequired": "Podmínka větve je povinná.",
+        "coreRouterDescription": "Směruje pracovní postup do další větve podle podmínky.",
+        "corePeriodic": "Pravidelný spouštěč",
+        "corePeriodicDescription": "Spouští pracovní postup pravidelně v zadaných intervalech",
+        "corePeriodicErrorIntervalMissing": "Interval je povinný."
+    },
+    "userSourceType": {
+        "localBaserow": "Ověřování pomocí tabulky Baserow"
+    },
+    "localBaserowForm": {
+        "userMessage": "Vytvořením tohoto připojení opravňujete aplikaci používat váš účet k provádění změn v místním pracovním prostoru Baserow."
+    },
+    "localBaserowGetRowForm": {
+        "rowFieldLabel": "ID řádku",
+        "rowFieldPlaceHolder": "Vyberte ID jednoho řádku",
+        "searchFieldPlaceHolder": "Zadejte hledaný výraz...",
+        "noTableChosenForFiltering": "Chcete-li začít používat filtry zdroje dat, vyberte tabulku.",
+        "noTableChosenForSorting": "Chcete-li začít používat řazení zdroje dat, vyberte tabulku.",
+        "rowFieldHelpText": "Ponecháním této hodnoty prázdné vrátíte první řádek."
+    },
+    "localBaserowListRowsForm": {
+        "searchFieldPlaceHolder": "Zadejte hledaný výraz...",
+        "noTableChosenForFiltering": "Chcete-li začít používat filtry zdroje dat, vyberte tabulku.",
+        "noTableChosenForSorting": "Chcete-li začít používat řazení zdroje dat, vyberte tabulku.",
+        "advancedConfig": "Pokročilé",
+        "defaultResultCount": "Výchozí počet výsledků",
+        "defaultResultCountHelp": "Výchozí počet záznamů, které tento zdroj dat načte na stránce. Nastavením hodnoty na 0 a použitím v elementu kolekce zlepšíte při načtení stránky výkon, protože se záznamy načtou pouze při stránkování elementu.",
+        "defaultResultCountPlaceholder": "Výchozí hodnota..."
+    },
+    "localBaserowTableServiceConditionalForm": {
+        "addFilter": "Přidat filtr",
+        "noFilterTitle": "Dosud jste nevytvořili filtr zdroje dat",
+        "noFilterText": "Filtry zdroje dat umožňují zobrazit řádky tabulky Baserow, které odpovídají vašim podmínkám.",
+        "relatedFieldNotFound": "Související pole nebylo nalezeno.",
+        "filterTypeNotFound": "Typ filtru není kompatibilní.",
+        "noCompatibleFilterTypesErrorTitle": "Žádné kompatibilní typy filtrů",
+        "noCompatibleFilterTypesErrorMessage": "Žádné z vašich polí nemá kompatibilní typ filtru",
+        "useDefaultForValue": "Použít výchozí filtr pro toto pole"
+    },
+    "localBaserowTableServiceSortForm": {
+        "noSortTitle": "Dosud jste nevytvořili řazení zdroje dat",
+        "noSortText": "Řazení umožňuje řadit řádky podle pole.",
+        "sortBy": "Řadit podle",
+        "thenBy": "Poté podle",
+        "addSort": "Přidat další řazení",
+        "noTableChosenForSorting": "Chcete-li začít používat řazení zdroje dat, vyberte tabulku.",
+        "sortMisconfigured": "Pole, se kterým je toto řazení spojeno, bylo přesunuto do koše."
+    },
+    "localBaserowTableSelector": {
+        "viewFieldLabel": "Zobrazení",
+        "tableFieldLabel": "Tabulka",
+        "chooseNoView": "Není vybráno",
+        "databaseFieldLabel": "Databáze"
+    },
+    "localBaserowIntegrationType": {
+        "localBaserowSummary": "Místní Baserow – {name}, {username}",
+        "localBaserowNoUser": "Místní Baserow – nenakonfigurováno",
+        "localBaserowWarning": "Oprávnění vašeho účtu poskytne všem s oprávněním k úpravám aplikace úplný přístup k datům, k nimž máte přístup. Je možné vytvořit druhého uživatele, udělit mu správná oprávnění a použít jej."
+    },
+    "integrationsCommon": {
+        "singleRow": "jeden řádek",
+        "multipleRows": "více řádků"
+    },
+    "localBaserowAggregateRowsForm": {
+        "aggregationFieldLabel": "Pole",
+        "aggregationTypeLabel": "Agregace",
+        "searchFieldPlaceHolder": "Zadejte hledaný výraz...",
+        "noTableChosenForFiltering": "Chcete-li začít používat filtry zdroje dat, vyberte tabulku."
+    },
+    "coreHTTPRequestServiceForm": {
+        "httpMethod": "Metoda HTTP",
+        "url": "Adresa URL koncového bodu",
+        "queryParams": "Parametry dotazu",
+        "name": "Název",
+        "value": "Hodnota",
+        "namePlaceholder": "Název...",
+        "valuePlaceholder": "Hodnota...",
+        "headers": "Hlavičky",
+        "addQueryParam": "přidat parametr dotazu",
+        "addHeader": "přidat hlavičku",
+        "formData": "Data formuláře",
+        "addFormData": "přidat data formuláře",
+        "bodyType": "Typ těla",
+        "bodyContent": "Obsah těla",
+        "urlPlaceholder": "Zadejte adresu URL koncového bodu...",
+        "bodyPlaceholder": "Přidejte tělo požadavku...",
+        "timeoutPlaceholder": "Zadejte časový limit...",
+        "nameFieldRequired": "Vlastnost názvu je povinná.",
+        "seconds": "sekundy",
+        "nameFieldInvalid": "Název může obsahovat pouze alfanumerické znaky, pomlčky nebo podtržítka a nesmí začínat pomlčkou ani podtržítkem.",
+        "timeout": "Časový limit"
+    },
+    "smtpIntegrationType": {
+        "smtpSummary": "SMTP – {host}:{port}"
+    },
+    "smtpForm": {
+        "host": "Hostitel SMTP",
+        "hostPlaceholder": "smtp.gmail.com",
+        "port": "Port SMTP",
+        "portPlaceholder": "587",
+        "useTls": "Použít TLS",
+        "username": "Uživatelské jméno",
+        "usernamePlaceholder": "vas-e-mail{'@'}example.com",
+        "password": "Heslo",
+        "passwordPlaceholder": "vase-heslo"
+    },
+    "smtpEmailForm": {
+        "fromEmail": "E-mail odesílatele",
+        "fromEmailPlaceholder": "odesilatel{'@'}example.com",
+        "fromName": "Jméno odesílatele",
+        "fromNamePlaceholder": "Vaše jméno",
+        "toEmails": "E-maily příjemců",
+        "toEmailsPlaceholder": "prijemce1{'@'}example.com,prijemce2{'@'}example.com",
+        "ccEmails": "E-maily v kopii",
+        "ccEmailsPlaceholder": "kopie1{'@'}example.com,kopie2{'@'}example.com",
+        "bccEmails": "E-maily ve skryté kopii",
+        "bccEmailsPlaceholder": "skrytadkopie1{'@'}example.com,skrytadkopie2{'@'}example.com",
+        "subject": "Předmět",
+        "subjectPlaceholder": "Předmět e-mailu",
+        "bodyType": "Typ těla",
+        "bodyTypePlain": "Prostý text",
+        "bodyTypeHtml": "HTML",
+        "body": "Tělo",
+        "bodyPlaceholder": "Obsah e-mailu..."
+    },
+    "serviceRefinementForms": {
+        "filterTabTitle": "Filtr | 1 filtr | {count} filtrů",
+        "sortTabTitle": "Řazení | 1 řazení | {count} řazení",
+        "searchTabTitle": "Hledání | 1 hledání | {count} hledání",
+        "searchFieldPlaceHolder": "Zadejte hledaný výraz...",
+        "noTableChosenForFiltering": "Chcete-li začít používat filtry zdroje dat, vyberte tabulku.",
+        "noTableChosenForSorting": "Chcete-li začít používat řazení zdroje dat, vyberte tabulku.",
+        "refinements": "Upřesnění"
+    },
+    "routerForm": {
+        "defaultEdgeLabelLabel": "Popisek výchozí větve",
+        "defaultEdgeLabelPlaceholder": "Výchozí",
+        "defaultEdgeLabelDescription": "Volitelně zvolte popisek, který se zobrazí u výchozí větve.",
+        "branchesHeading": "Větve",
+        "branchesDescription": "Větve umožňují spouštět uzly pouze po splnění podmínky. Větve se vyhodnocují zleva doprava, dokud není podmínka splněna; jinak se spustí výchozí větev. ",
+        "branchLabel": "Popisek",
+        "branchConditionLabel": "Podmínka",
+        "branchConditionPlaceholder": "Pokud je pravdivá, následujeme tuto větev.",
+        "addEdge": "Přidat větev",
+        "edgeDefaultName": "Větev",
+        "noLabel": "Bez popisku",
+        "edgeDeletionLastEdge": "Poslední větev nelze odstranit.",
+        "edgeDeletionHasOutput": "Větev nelze odstranit, pokud má výstup."
+    },
+    "periodicForm": {
+        "intervalLabel": "Interval",
+        "intervalHelper": "Zvolte, jak často chcete tento pracovní postup spouštět"
+    }
+}
