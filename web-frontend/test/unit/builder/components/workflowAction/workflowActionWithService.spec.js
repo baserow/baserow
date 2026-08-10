@@ -77,6 +77,28 @@ describe('WorkflowActionWithService', () => {
     ).toBe(false)
   })
 
+  test('a freshly picked integration survives the form emitting', async () => {
+    // The form only mounts once an integration is picked, and emits straight
+    // away, so rebuilding the service from the server's copy dropped it.
+    await seedIntegration()
+
+    const wrapper = await mountAction('create_row')
+
+    await wrapper
+      .findComponent({ name: 'LocalBaserowIntegrationPicker' })
+      .vm.$emit('update:modelValue', INTEGRATION_ID)
+    await wrapper.vm.$nextTick()
+
+    const serviceForm = wrapper.findComponent({
+      name: 'LocalBaserowServiceForm',
+    })
+    await serviceForm.vm.$emit('values-changed', { table_id: 1 })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.values.service.integration_id).toBe(INTEGRATION_ID)
+    expect(wrapper.vm.values.service.table_id).toBe(1)
+  })
+
   test('an action that picks no integration is left alone', async () => {
     // Core services offer their own dropdown, so this one must not add a second.
     await seedIntegration()

@@ -5,6 +5,8 @@
       v-model="integrationId"
       :application="builder"
     />
+    <!-- The buffered values are kept, or a freshly picked integration is lost:
+         the form below no longer emits `integration_id`. -->
     <component
       :is="serviceType.formComponent"
       v-if="!workflowActionType.picksIntegration || integrationId"
@@ -15,7 +17,11 @@
       :databases="databases"
       :default-values="defaultValues.service"
       @values-changed="
-        values.service = { ...workflowAction.service, ...$event }
+        values.service = {
+          ...workflowAction.service,
+          ...values.service,
+          ...$event,
+        }
       "
     >
     </component>
