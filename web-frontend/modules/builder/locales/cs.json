@@ -1,1 +1,1109 @@
-{}
+{
+    "builderForm": {
+        "submit": "Přidat aplikaci"
+    },
+    "sidebarComponentBuilder": {
+        "settings": "Nastavení",
+        "createPage": "Nová stránka"
+    },
+    "builderSettingsModal": {
+        "title": "Aplikace"
+    },
+    "builderSettingTypes": {
+        "integrationsName": "Integrace",
+        "themeName": "Téma",
+        "domainsName": "Domény",
+        "userSourcesName": "Uživatelé",
+        "generalName": "Obecné"
+    },
+    "createPageModal": {
+        "header": "Vytvořit stránku",
+        "submit": "Přidat stránku"
+    },
+    "pageForm": {
+        "defaultName": "Stránka",
+        "nameTitle": "Název",
+        "nameSubtitle": "Jedinečný název stránky",
+        "pathTitle": "Cesta",
+        "pathSubtitle": "Parametr lze přidat pomocí :parameter",
+        "pathParamsTitle": "Parametry cesty",
+        "pathParamsSubtitle": "Jsou v cestě určeny pomocí :parameter",
+        "pathParamsSubtitleTutorial": "Parametry cesty lze použít k dynamickému načítání dat podle zadaného parametru. Chcete-li jej přidat, přidejte do cesty :parameter.",
+        "namePlaceholder": "Zadejte název...",
+        "pathPlaceholder": "Zadejte cestu...",
+        "addAnotherParameter": "Přidat další parametr řetězce dotazu",
+        "addParameter": "Přidat parametr řetězce dotazu",
+        "queryParamsSubtitleTutorial": "Parametry dotazu lze použít k dynamickému načítání dat podle zadaného parametru.",
+        "queryParamsTitle": "Parametry řetězce dotazu"
+    },
+    "pageHeaderItemTypes": {
+        "labelElements": "Elementy",
+        "labelDataSource": "Data",
+        "labelVariables": "Proměnné",
+        "labelSettings": "Nastavení stránky"
+    },
+    "elementsContext": {
+        "searchPlaceholder": "Hledat elementy",
+        "noElements": "Nenalezeny žádné elementy",
+        "noPageElements": "Pro tuto stránku nebyly nalezeny žádné elementy"
+    },
+    "elementType": {
+        "heading": "Nadpis",
+        "headingDescription": "Název nadpisu stránky",
+        "link": "Odkaz",
+        "linkDescription": "Odkaz na stránku/adresu URL",
+        "image": "Obrázek",
+        "imageDescription": "Zobrazit obrázek",
+        "inputText": "Vstup dat",
+        "inputTextDescription": "Pole pro zadávání dat",
+        "column": "Sloupce",
+        "columnDescription": "Kontejner sloupců",
+        "button": "Tlačítko",
+        "buttonDescription": "Element tlačítka",
+        "table": "Tabulka",
+        "tableDescription": "Element tabulky",
+        "formContainer": "Formulář",
+        "formContainerDescription": "Element formuláře",
+        "checkbox": "Zaškrtávací políčko",
+        "checkboxDescription": "Element zaškrtávacího políčka",
+        "iframe": "IFrame",
+        "iframeDescription": "Vložený rámec",
+        "text": "Text",
+        "textDescription": "Víceřádkový text",
+        "authForm": "Přihlašovací formulář",
+        "authFormDescription": "Formulář pro přihlášení uživatele",
+        "repeat": "Opakování",
+        "repeatDescription": "Opakovatelná sada elementů",
+        "choice": "Volba",
+        "choiceDescription": "Pro výběr jedné/více hodnot",
+        "recordSelector": "Výběr záznamu",
+        "recordSelectorDescription": "Výběr souvisejícího záznamu",
+        "dateTimePicker": "Výběr data a času",
+        "dateTimePickerDescription": "Pole pro zadání data a času",
+        "header": "Vícestránkové záhlaví",
+        "headerDescription": "Kontejner sdílený napříč stránkami",
+        "footer": "Vícestránková patička",
+        "footerDescription": "Kontejner sdílený napříč stránkami",
+        "notAllowedUnlessTop": "Tento element je povolen pouze v horní části stránky",
+        "notAllowedUnlessBottom": "Tento element je povolen pouze v dolní části stránky",
+        "notAllowedUnlessHeader": "Tento element je povolen pouze uvnitř záhlaví stránky",
+        "notAllowedUnlessFooter": "Tento element je povolen pouze uvnitř patičky stránky",
+        "notAllowedInsideContainer": "Tento element není povolen uvnitř kontejneru",
+        "notAllowedInsideSameType": "Tento element není povolen v kontejneru stejného typu",
+        "notAllowedLocation": "Tento element není v tomto umístění povolen",
+        "menu": "Nabídka",
+        "menuDescription": "Element nabídky",
+        "simpleContainer": "Kontejner",
+        "simpleContainerDescription": "Kontejner pro další elementy",
+        "ratingInput": "Vstup hodnocení",
+        "ratingInputDescription": "Element vstupu hodnocení",
+        "rating": "Hodnocení",
+        "ratingDescription": "Element hodnocení",
+        "invalidElementValue": "Neplatná hodnota elementu: {value}",
+        "fileInput": "Vstup pro soubor",
+        "fileInputDescription": "Vstup pro nahrávání souborů",
+        "errorValueMissing": "Chybí vlastnost hodnoty",
+        "errorEmptyContainer": "Tento kontejner je prázdný",
+        "errorParentWithDataSourceMissing": "Na elementu ani nadřazeném kontejneru není vybraný zdroj dat",
+        "errorDataSourceMissing": "Není vybraný zdroj dat",
+        "errorSchemaPropertyMissing": "Není vybraná vlastnost schématu",
+        "errorWorkflowActionInError": "Alespoň jedna akce je chybně nakonfigurovaná",
+        "errorCollectionFieldInError": "Alespoň jedno pole je chybně nakonfigurované",
+        "errorNavigateToPageMissing": "Chybí vlastnost Přejít na",
+        "errorPageParameterInError": "Alespoň jeden parametr stránky je chybně nakonfigurovaný",
+        "errorNavigationUrlMissing": "Chybí vlastnost URL navigace",
+        "errorImageFileMissing": "Chybí soubor obrázku",
+        "errorImageUrlMissing": "Chybí vlastnost URL obrázku",
+        "errorNoWorkflowAction": "Není nakonfigurována žádná akce pracovního postupu",
+        "errorOptionsMissing": "Není nakonfigurována žádná volba",
+        "errorIframeUrlMissing": "Chybí vlastnost URL IFrame",
+        "errorIframeContentMissing": "Chybí obsah IFrame",
+        "errorNoMenuItem": "Není nakonfigurována žádná položka nabídky",
+        "errorMenuItemInError": "Alespoň jedna položka nabídky je chybně nakonfigurovaná",
+        "errorSubMenuItemInError": "Alespoň jedna podnabídka je chybně nakonfigurovaná"
+    },
+    "addElementButton": {
+        "label": "Element"
+    },
+    "addElementModal": {
+        "title": "Přidat nový element",
+        "searchPlaceholder": "Hledat elementy",
+        "elementInProgress": "Přidává se element..."
+    },
+    "elementMenu": {
+        "moveUp": "Přesunout nahoru",
+        "moveDown": "Přesunout dolů",
+        "moveLeft": "Přesunout doleva",
+        "moveRight": "Přesunout doprava",
+        "selectParent": "Vybrat nadřazený prvek",
+        "drag": "Přetažením změníte pořadí"
+    },
+    "duplicatePageJobType": {
+        "duplicatedTitle": "Stránka byla duplikována",
+        "duplicating": "Duplikování",
+        "name": "Duplikovat stránku"
+    },
+    "pageSidePanelType": {
+        "general": "Obecné",
+        "style": "Styl",
+        "visibility": "Viditelnost",
+        "events": "Události",
+        "eventsTabDeactivatedNoEvents": "Tento element nepodporuje žádné události",
+        "eventsTabInError": "Jedna nebo více akcí je chybně nakonfigurováno."
+    },
+    "emptySidePanelState": {
+        "message": "Kliknutím na jeden z elementů zobrazíte další podrobnosti"
+    },
+    "headingElementForm": {
+        "levelTitle": "Úroveň",
+        "textTitle": "Text",
+        "textPlaceholder": "Zadejte text...",
+        "headingName": "Nadpis {level} <h{level}>",
+        "textError": "Hodnota je neplatná."
+    },
+    "pageErrors": {
+        "errorPathNotUnique": "Cesta s tímto názvem již existuje",
+        "errorStartingSlash": "Cesta musí začínat znakem '/'",
+        "errorValidPathCharacters": "Cesta obsahuje neplatné znaky",
+        "errorUniquePathParams": "Parametry cesty musí být jedinečné.",
+        "errorUniqueValidQueryParams": "Názvy parametrů dotazu musí být jedinečné a platné."
+    },
+    "pageActionTypes": {
+        "preview": "Náhled",
+        "publish": "Publikovat"
+    },
+    "publishActionModal": {
+        "title": "Publikovat",
+        "description": "Zveřejněte aplikaci publikováním do jedné z domén. Aplikace může mít více domén, přičemž na každé může běžet jiná verze aplikace.",
+        "publish": "Publikovat",
+        "publishSucceedTitle": "Web byl zveřejněn",
+        "publishSucceedDescription": "Web byl úspěšně zveřejněn.",
+        "publishFailedTitle": "Zveřejnění webu se nezdařilo",
+        "publishFailedDescription": "Zveřejnění webu se nezdařilo. Zkuste to prosím později.",
+        "openInNewTab": "Otevřít na nové kartě",
+        "noDomain": "Chcete-li aplikaci publikovat, musíte mít alespoň jednu doménu.",
+        "importingState": "Importuje se",
+        "publishSucceedLink": "Zobrazit web",
+        "addDomain": "Přidat doménu"
+    },
+    "lastPublishedDomainDate": {
+        "neverPublished": "nikdy",
+        "lastPublished": "Naposledy publikováno:"
+    },
+    "elementForms": {
+        "textInputPlaceholder": "Zadejte text...",
+        "urlInputPlaceholder": "Zadejte adresu URL..."
+    },
+    "imageElementForm": {
+        "fileLabel": "Obrázek",
+        "invalidUrlError": "Adresa URL je neplatná",
+        "altTextTitle": "Alternativní text",
+        "altTextDescription": "Používají jej čtečky obrazovky a zobrazí se, pokud se obrázek nemůže načíst",
+        "fileSourceTypeUpload": "Nahrát",
+        "fileSourceTypeURL": "URL",
+        "urlWarning": "Poznámka: ujistěte se, že zadanou adresu URL ovládáte nebo jí důvěřujete.",
+        "uploadFileButton": "Nahrát soubor"
+    },
+    "domainSettings": {
+        "titleOverview": "Domény",
+        "titleAddDomain": "Přidat doménu",
+        "addDomain": "Přidat doménu",
+        "noDomainMessage": "K této aplikaci jste zatím nepřiřadili žádnou doménu. Abyste mohli aplikaci publikovat, musíte přidat doménu. Pro každou zde uvedenou doménu můžete publikovat jinou verzi aplikace."
+    },
+    "dnsStatus": {
+        "description": "Přejděte do nastavení DNS svých domén a proveďte následující změny",
+        "typeHeader": "Typ",
+        "hostHeader": "Hostitel",
+        "valueHeader": "Hodnota"
+    },
+    "customDomainForm": {
+        "domainNameLabel": "Název domény"
+    },
+    "domainCard": {
+        "refresh": "Obnovit nastavení",
+        "detailLabel": "Zobrazit podrobnosti",
+        "unpublishedDomainWarning": "Chcete-li aplikaci zpřístupnit na této doméně, publikujte ji."
+    },
+    "domainTypes": {
+        "customName": "Vlastní doména",
+        "subDomainName": "Subdoména",
+        "subDomain": "Subdoména domény {domain}"
+    },
+    "linkElementForm": {
+        "text": "Text",
+        "textPlaceholder": "Zadejte text...",
+        "variant": "Varianta",
+        "variantLink": "Odkaz",
+        "variantButton": "Tlačítko",
+        "buttonColor": "Barva tlačítka"
+    },
+    "pageSettingsTypes": {
+        "pageName": "Stránka"
+    },
+    "pageSettings": {
+        "title": "Stránka",
+        "pageUpdatedTitle": "Změněno",
+        "pageUpdatedDescription": "Nastavení stránky bylo aktualizováno."
+    },
+    "pathParamTypes": {
+        "textName": "Text",
+        "numericName": "Číselný"
+    },
+    "publicPage": {
+        "siteNotFound": "Web nebyl nalezen",
+        "pageNotFound": "Stránka nebyla nalezena",
+        "loginToastTitle": "Ověření bylo úspěšné",
+        "loginToastMessage": "Byli jste úspěšně přihlášeni.",
+        "authorizedToastTitle": "Vyžadováno přihlášení",
+        "authorizedToastMessage": "Abyste získali přístup k této stránce, musíte být přihlášeni. Pokračujte přihlášením."
+    },
+    "integrationSettings": {
+        "title": "Integrace",
+        "noIntegrationMessage": "Zatím jste nevytvořili žádné integrace. Lze je vytvořit přidáním zdroje dat, akce nebo ověřování uživatelů.",
+        "integrationMessage": "Nové integrace můžete vytvořit přidáním zdroje dat, akce nebo ověřování uživatelů."
+    },
+    "dataSourceForm": {
+        "namePlaceholder": "Název zdroje",
+        "servicePlaceholder": "Vyberte akci...",
+        "integrationPlaceholder": "Vyberte připojení...",
+        "errorUniqueName": "Název zdroje dat musí být jedinečný.",
+        "nameLabel": "Název",
+        "actionLabel": "Akce",
+        "integrationLabel": "Připojení",
+        "searchActionPlaceholder": "Hledat akce",
+        "noActionsFound": "Nebyly nalezeny žádné akce"
+    },
+    "dataSourceContext": {
+        "addDataSource": "Přidat nový zdroj dat",
+        "noDataSourceTitle": "Zatím jste nepřidali zdroj dat.",
+        "noDataSourceMessage": "Zdroje dat lze použít k načtení dat z interních nebo externích zdrojů a k jejich zobrazení na stránce.",
+        "sharedDataSourceTitle": "Sdíleno mezi stránkami",
+        "pageDataSourceTitle": "Pro tuto stránku",
+        "sharedDataSourceDescription": "Je přístupný na každé stránce a načte se jednou při prvním načtení stránky.",
+        "pageDataSourceDescription": "Načte se, když uživatel přejde na tuto stránku."
+    },
+    "columnElementForm": {
+        "columnAmountTitle": "Rozložení",
+        "columnAmountName": "žádné sloupce | 1 sloupec | {columnAmount} sloupců",
+        "columnGapTitle": "Mezera mezi sloupci",
+        "columnGapPlaceholder": "Zadejte mezeru mezi sloupci...",
+        "verticalAlignment": "Svislé zarovnání",
+        "customLayout": "Vlastní",
+        "customWeightsTitle": "Vlastní váhy sloupců",
+        "customWeightsHelper": "Použijte 0, pokud má být sloupec široký pouze podle svého obsahu. Ostatní sloupce si rozdělí zbývající prostor.",
+        "errorCustomWeightsMinimum": "Váhy sloupců musí být 0 nebo vyšší",
+        "columnStackingTitle": "Skládání sloupců podle typu zařízení",
+        "columnStackingHorizontal": "Vedle sebe",
+        "columnStackingStacked": "Skládané"
+    },
+    "horizontalAlignmentSelector": {
+        "alignmentLeft": "Vlevo",
+        "alignmentCenter": "Na střed",
+        "alignmentRight": "Vpravo"
+    },
+    "verticalAlignmentSelector": {
+        "alignmentTop": "Nahoře",
+        "alignmentCenter": "Uprostřed",
+        "alignmentBottom": "Dole"
+    },
+    "defaultStyleForm": {
+        "boxTop": "Nahoře",
+        "boxBottom": "Dole",
+        "backgroundLabel": "Pozadí",
+        "backgroundColor": "Barva pozadí",
+        "widthLabel": "Šířka",
+        "boxLeft": "Vlevo",
+        "boxRight": "Vpravo",
+        "backgroundImage": "Obrázek",
+        "backgroundImageMode": "Režim výplně",
+        "cssClasses": "Třídy CSS",
+        "cssClassesHelp": "Nastavte pro tento element seznam tříd oddělených mezerami, které se objeví ve vygenerovaném HTML.",
+        "cssClassesPlaceholder": "Zadejte třídy CSS..."
+    },
+    "dataProviderType": {
+        "dataSource": "Datové záznamy",
+        "pageParameter": "Parametr",
+        "currentRecord": "Zdroj dat",
+        "formData": "Data formuláře",
+        "user": "Uživatel",
+        "previousAction": "Předchozí akce",
+        "dataSourceContext": "Dostupné možnosti"
+    },
+    "domainForm": {
+        "invalidDomain": "Zadaný název domény je neplatný",
+        "notUniqueDomain": "Zadaná doména se již používá"
+    },
+    "subDomainForm": {
+        "domainNameLabel": "Název domény"
+    },
+    "subDomainDetails": {
+        "text": "Nastavení DNS domény již bylo nakonfigurováno a zkontrolováno. Funguje bez dalších změn."
+    },
+    "widthSelector": {
+        "width": "Šířka",
+        "widthAuto": "Automaticky",
+        "widthFull": "Plná šířka"
+    },
+    "buttonElementForm": {
+        "valueLabel": "Text tlačítka",
+        "valuePlaceholder": "Zadejte text..."
+    },
+    "eventTypes": {
+        "clickLabel": "Při kliknutí",
+        "submitLabel": "Při odeslání",
+        "afterLoginLabel": "Po přihlášení"
+    },
+    "fontSidePanelForm": {
+        "label": "Barva písma"
+    },
+    "tableElementForm": {
+        "dataSource": "Zdroj dat",
+        "fields": "Pole",
+        "fieldValueLabel": "Hodnota",
+        "addField": "přidat pole",
+        "fieldValuePlaceholder": "Zadejte hodnotu...",
+        "itemsPerPage": "Položek na stránku",
+        "itemsPerPagePlaceholder": "Zadejte hodnotu...",
+        "fieldDefaultName": "Sloupec",
+        "fieldType": "Typ",
+        "selectSourceFirst": "Chcete-li začít konfigurovat pole, vyberte zdroj dat a/nebo vlastnost.",
+        "buttonColor": "Barva tlačítka",
+        "refreshFieldsFromDataSource": "obnovit pole ze zdroje dat",
+        "name": "Název",
+        "buttonLoadMoreLabel": "Popisek Zobrazit více",
+        "propertySelectorMissingArrays": "Nebyly nalezeny žádné vícenásobné hodnoty polí, které lze použít jako řádky.",
+        "noName": "Bez názvu"
+    },
+    "tableElement": {
+        "showMore": "Zobrazit více"
+    },
+    "currentRecordDataProviderType": {
+        "index": "Index",
+        "firstPartName": "Zdroj dat: {name}",
+        "schemaProperty": "{prefixName}: {schemaProperty}"
+    },
+    "workflowActionTypes": {
+        "notificationLabel": "Zobrazit oznámení",
+        "openPageLabel": "Otevřít stránku",
+        "logoutLabel": "Odhlásit se",
+        "refreshDataSourceLabel": "Obnovit zdroj dat",
+        "httpRequest": "Odeslat požadavek HTTP",
+        "errorNavigateToPageMissing": "Chybí vlastnost Přejít na",
+        "errorPageParameterInError": "Alespoň jeden parametr stránky je chybně nakonfigurovaný",
+        "errorNavigationUrlMissing": "Chybí vlastnost URL navigace",
+        "errorDataSourceMissing": "Není vybraný zdroj dat",
+        "notificationDescription": "Zobrazit uživateli zprávu s oznámením.",
+        "openPageDescription": "Přejděte s uživatelem na jinou stránku nebo adresu URL.",
+        "logoutDescription": "Odhlaste aktuálního uživatele.",
+        "refreshDataSourceDescription": "Znovu načtěte zdroj dat a aktualizujte elementy, které jej používají."
+    },
+    "notificationWorkflowActionForm": {
+        "titleLabel": "Název",
+        "titlePlaceholder": "Zadejte text...",
+        "descriptionLabel": "Popis",
+        "descriptionPlaceholder": "Zadejte text..."
+    },
+    "event": {
+        "addAction": "přidat akci",
+        "searchActions": "Hledat akce",
+        "noActionsFound": "Nebyly nalezeny žádné akce"
+    },
+    "formDataProviderType": {
+        "nodeMissing": "Chybí"
+    },
+    "pagePreview": {
+        "emptyMessage": "Kliknutím vytvoříte element",
+        "header": "ZÁHLAVÍ",
+        "footer": "PATIČKA",
+        "fixedHeader": "PEVNÉ ZÁHLAVÍ",
+        "fixedFooter": "PEVNÁ PATIČKA"
+    },
+    "userSourceSettings": {
+        "titleAddUserSource": "Nový zdroj uživatelů",
+        "titleUpdateUserSource": "Upravit zdroj uživatelů",
+        "noUserSourceMessage": "Zatím jste k této aplikaci nepřidali zdroj uživatelů. Chcete-li uživatelům umožnit ověřovat se v aplikaci, musíte zdroj uživatelů přidat.",
+        "titleOverview": "Zdroje uživatelů",
+        "addUserSource": "Přidat zdroj uživatelů"
+    },
+    "backgroundTypes": {
+        "none": "Žádné",
+        "color": "Barva"
+    },
+    "widthTypes": {
+        "normal": "Normální",
+        "medium": "Střední",
+        "small": "Malá",
+        "fullBleed": "Přes celou šířku",
+        "fullWidth": "Plná šířka"
+    },
+    "styleBoxForm": {
+        "borderLabel": "Velikost",
+        "paddingLabel": "Vnitřní okraj",
+        "borderColor": "Barva okraje",
+        "marginLabel": "Vnější okraj"
+    },
+    "collectionFieldType": {
+        "text": "Text",
+        "link": "Odkaz",
+        "boolean": "Logická hodnota",
+        "tags": "Štítky",
+        "button": "Tlačítko",
+        "image": "Obrázek",
+        "rating": "Hodnocení",
+        "errorValueMissing": "Chybí vlastnost hodnoty"
+    },
+    "textFieldForm": {
+        "fieldValueLabel": "Hodnota",
+        "fieldValuePlaceholder": "Zadejte hodnotu..."
+    },
+    "linkFieldForm": {
+        "fieldValueLabel": "Adresa URL",
+        "fieldValuePlaceholder": "Zadejte hodnotu...",
+        "fieldLinkNameLabel": "Text odkazu",
+        "fieldLinkNamePlaceholder": "Zadejte hodnotu...",
+        "buttonColor": "Barva tlačítka"
+    },
+    "linkField": {
+        "details": "Podrobnosti"
+    },
+    "createUserSourceForm": {
+        "userSourceType": "Typ",
+        "userSourceIntegration": "Integrace",
+        "userSourceName": "Název"
+    },
+    "updateUserSourceForm": {
+        "nameFieldLabel": "Název",
+        "nameFieldPlaceholder": "Zadejte název...",
+        "integrationFieldLabel": "Integrace",
+        "authTitle": "Ověřování",
+        "addProvider": "Přidat poskytovatele"
+    },
+    "formContainerElementForm": {
+        "submitButtonLabel": "Tlačítko odeslání",
+        "submitButtonPlaceholder": "Zadejte hodnotu...",
+        "buttonColor": "Barva tlačítka",
+        "resetToInitialValuesTitle": "Po odeslání obnovit výchozí hodnoty",
+        "resetToInitialValuesDescription": "Je-li zaškrtnuto, po úspěšném odeslání se formulář obnoví pomocí výchozích hodnot. Není-li zaškrtnuto, hodnoty uživatele zůstanou zachovány."
+    },
+    "generalForm": {
+        "labelTitle": "Popisek",
+        "labelPlaceholder": "Zadejte popisek",
+        "valueTitle": "Hodnota",
+        "valuePlaceholder": "Zadejte hodnotu",
+        "placeholderTitle": "Zástupný text",
+        "placeholderPlaceholder": "Zadejte zástupný text",
+        "requiredTitle": "Povinné",
+        "validationTitle": "Ověření",
+        "defaultValueTitle": "Výchozí hodnota",
+        "defaultValuePlaceholder": "Zadejte výchozí hodnotu"
+    },
+    "inputTextElementForm": {
+        "multilineTitle": "Více řádků",
+        "rowsTitle": "Počet řádků",
+        "rowsPlaceholder": "Zadejte počet řádků tohoto vstupu",
+        "validationTypeAnyLabel": "Libovolné",
+        "validationTypeAnyDescription": "Umožnit nastavení libovolné hodnoty v tomto vstupu.",
+        "validationTypeIntegerLabel": "Číslo",
+        "validationTypeIntegerDescription": "Vynutit v tomto vstupu číselnou hodnotu (přijímá celá čísla i desetinná čísla).",
+        "validationTypeEmailLabel": "E-mail",
+        "validationTypeEmailDescription": "Vynutit v tomto vstupu hodnotu e-mailové adresy.",
+        "inputType": "Typ vstupu",
+        "inputTypeTextLabel": "Text",
+        "inputTypePasswordLabel": "Heslo",
+        "passwordTypeWarning": "Hesla jsou citlivá data. Dávejte pozor, jak s hesly v aplikaci nakládáte a jak je ukládáte."
+    },
+    "iframeElementForm": {
+        "sourceTypeLabel": "Typ zdroje",
+        "urlLabel": "URL",
+        "urlPlaceholder": "Odkaz na externí zdroj, který se má vložit",
+        "urlHelp": "Poznámka: ujistěte se, že zadanou adresu URL ovládáte nebo jí důvěřujete.",
+        "embedLabel": "Vložit",
+        "embedPlaceholder": "Nezpracovaný obsah HTML k vložení",
+        "heightLabel": "Výška (px)",
+        "heightPlaceholder": "Výška v pixelech",
+        "missingValue": "Chybí zdroj IFrame...",
+        "emptyValue": "Prázdný zdroj IFrame...",
+        "warningTitle": "Používejte pouze důvěryhodný obsah",
+        "warningMessage": "Obsah IFrame je v editoru izolován v sandboxu, kde může vložené HTML spouštět skripty odděleně. V náhledech a publikovaných aplikacích může vložené HTML spouštět skripty bez omezení, zatímco externí adresy URL mohou spouštět skripty, odesílat formuláře a otevírat vyskakovací okna."
+    },
+    "linkNavigationSelection": {
+        "navigateTo": "Přejít na",
+        "navigateToCustom": "Vlastní adresa URL",
+        "paramPlaceholder": "Zadejte hodnotu...",
+        "urlPlaceholder": "Zadejte adresu URL...",
+        "url": "Cílová adresa URL",
+        "paramsInErrorDescription": "Uložené parametry neodpovídají parametrům stránky. Stránka byla pravděpodobně odstraněna nebo aktualizována.",
+        "paramsInErrorButton": "Aktualizovat parametry",
+        "target": "Otevřít v...",
+        "targetSelf": "Stejná karta",
+        "targetNewTab": "Nová karta"
+    },
+    "checkboxElementForm": {
+        "labelTitle": "Název možnosti",
+        "valueTitle": "Výchozí hodnota",
+        "requiredTitle": "Povinné"
+    },
+    "textElementForm": {
+        "textTitle": "Text",
+        "textPlaceholder": "Zadejte text...",
+        "textError": "Hodnota je neplatná.",
+        "textFormatTypeLabel": "Formát",
+        "textFormatTypePlain": "Prostý text",
+        "textFormatTypeMarkdown": "Markdown"
+    },
+    "userSourceUsersContext": {
+        "searchPlaceholder": "Hledat uživatele",
+        "anonymous": "Anonymní",
+        "unnamed": "Bez názvu",
+        "noEmail": "Bez e-mailu"
+    },
+    "userSelector": {
+        "viewAs": "Zobrazit jako: {user}",
+        "anonymous": "Anonymní",
+        "member": "{prefix} člen"
+    },
+    "formContainerElement": {
+        "submitDeactivatedText": "Pro odeslání vyplňte všechna povinná pole",
+        "defaultSubmitButtonLabel": "Odeslat"
+    },
+    "visibilityForm": {
+        "allVisitors": "Všichni návštěvníci",
+        "loggedInVisitors": "Přihlášení návštěvníci",
+        "notLoggedInVisitors": "Odhlášení návštěvníci",
+        "warningTitle": "Jde o bezpečnostní funkci",
+        "warningMessage": "Podívejte se na {link}, kde najdete více informací o tom, jak zabezpečujeme data.",
+        "excludedRolesLabel": "všechny role kromě",
+        "switchAllowLabel": "Povolit",
+        "switchDisallowLabel": "Zakázat",
+        "rolesSelectAll": "Vybrat vše",
+        "rolesDeselectAll": "Zrušit výběr všeho",
+        "rolesSelectHint": "Vyberte jednu nebo více rolí",
+        "roleTypesHint": "Vyberte typ role",
+        "roleTypeAllowAllRoles": "Všechny role",
+        "roleTypeAllowAllRolesExcept": "Zakázat role...",
+        "roleTypeDisallowAllRolesExcept": "Povolit role...",
+        "rolesAllMembersOf": "Všichni členové {name}",
+        "noRole": "Žádná role",
+        "errorFetchingRolesTitle": "Role uživatelů se nepodařilo načíst",
+        "errorFetchingRolesMessage": "Při načítání rolí uživatelů došlo k problému.",
+        "visibilityCondition": "Podmínka viditelnosti",
+        "visibilityConditionHelper": "Pokud je výsledek tohoto výrazu pravdivý a volba návštěvníka výše je pravdivá, element bude viditelný. Tato podmínka ovlivňuje pouze viditelnost elementu. Chcete-li místo toho vyloučit data z odpovědi serveru, použijte výše uvedenou možnost filtrování podle uživatelské role.",
+        "visibilityConditionPlaceholder": "Podmínka...",
+        "documentationLink": "dokumentace"
+    },
+    "generalSettings": {
+        "titleOverview": "Obecné",
+        "labelForm": "Favicon",
+        "labelDescription": "Vyberte soubor ICO, PNG, GIF nebo JPEG o rozměrech 128 × 128 px.",
+        "labelButton": "Nahrát favicon",
+        "cantUploadFaviconTitle": "Soubor favicon se nepodařilo nahrát",
+        "cantUploadFaviconDescription": "Obrázek favicon se nepodařilo nahrát. Zajistěte, aby byl obrazový soubor jedinečný a měl podporovaný formát.",
+        "cantUpdateApplicationTitle": "Aplikaci se nepodařilo aktualizovat",
+        "cantUpdateApplicationDescription": "Aplikaci se nepodařilo aktualizovat."
+    },
+    "repeatElement": {
+        "empty": "Nebyly nalezeny žádné položky.",
+        "showMore": "Zobrazit více",
+        "missingDataSourceTooltip": "Chcete-li začít přidávat elementy, vyberte zdroj dat.",
+        "missingSchemaPropertyTooltip": "Chcete-li začít přidávat elementy, vyberte vlastnost.",
+        "emptyState": "Nebyly nalezeny žádné záznamy."
+    },
+    "repeatElementForm": {
+        "dataSource": "Zdroj dat",
+        "itemsPerPage": "Položek na stránku",
+        "itemsPerPagePlaceholder": "Zadejte hodnotu...",
+        "itemsPerRowLabel": "Položek na řádek",
+        "itemsPerRowDescription": "Počet sloupců na řádek a typ zařízení.",
+        "buttonLoadMoreLabel": "Popisek Zobrazit více",
+        "toggleEditorRepetitionsLabel": "Dočasně zakázat opakování",
+        "propertySelectorMissingArrays": "Nebyly nalezeny žádné vícenásobné hodnoty polí, podle kterých lze opakovat.",
+        "gapLabel": "Mezera mezi opakováními",
+        "gapVerticalLabel": "Svislá",
+        "gapHorizontalLabel": "Vodorovná"
+    },
+    "tagsFieldForm": {
+        "fieldValuesLabel": "Hodnoty",
+        "fieldValuesPlaceholder": "Zadejte hodnoty...",
+        "fieldColorsLabel": "Barvy",
+        "fieldColorsPlaceholder": "Zadejte barvy..."
+    },
+    "userDataProviderType": {
+        "isAuthenticated": "Je ověřen",
+        "id": "ID",
+        "email": "E-mail",
+        "username": "Uživatelské jméno",
+        "role": "Role"
+    },
+    "buttonFieldForm": {
+        "infoMessage": "Chcete-li nakonfigurovat akce tohoto tlačítka, otevřete kartu „Události“ aktuálního elementu.",
+        "labelPlaceholder": "Zadejte popisek..."
+    },
+    "buttonField": {
+        "noLabel": "Bez názvu..."
+    },
+    "themeConfigBlockType": {
+        "color": "Barvy",
+        "page": "Stránka",
+        "typography": "Typografie",
+        "button": "Tlačítko",
+        "link": "Odkaz",
+        "image": "Obrázek",
+        "input": "Vstup",
+        "table": "Tabulka"
+    },
+    "colorThemeConfigBlock": {
+        "primaryColor": "Primární",
+        "secondaryColor": "Sekundární",
+        "borderColor": "Okraj",
+        "successColor": "Úspěch",
+        "warningColor": "Upozornění",
+        "errorColor": "Chyba",
+        "transparent": "Průhledné",
+        "customColors": "Vlastní barvy",
+        "addCustomColor": "Přidat vlastní barvu",
+        "customColorPrefix": "Vlastní"
+    },
+    "pageThemeConfigBlock": {
+        "backgroundColor": "Barva pozadí",
+        "backgroundImage": "Obrázek pozadí",
+        "backgroundMode": "Režim pozadí"
+    },
+    "colorThemeConfigBlockType": {
+        "primary": "Primární",
+        "secondary": "Sekundární",
+        "border": "Okraj",
+        "success": "Úspěch",
+        "warning": "Upozornění",
+        "error": "Chyba",
+        "transparent": "Průhledné"
+    },
+    "typographyThemeConfigBlock": {
+        "headingLabel": "Nadpis {i} (h{i})",
+        "headingValue": "Nadpis <h{i}>",
+        "color": "Barva",
+        "size": "Velikost",
+        "textAlignment": "Zarovnání",
+        "bodyLabel": "Text těla",
+        "fontFamily": "Písmo",
+        "weight": "Tloušťka",
+        "decoration": "Dekorace textu"
+    },
+    "buttonThemeConfigBlock": {
+        "backgroundColor": "Barva pozadí",
+        "button": "Tlačítko",
+        "defaultState": "Výchozí stav",
+        "hoverState": "Stav po najetí",
+        "textAlignment": "Zarovnání textu",
+        "alignment": "Zarovnání",
+        "width": "Šířka",
+        "textColor": "Barva textu",
+        "borderColor": "Barva okraje",
+        "borderSize": "Velikost okraje",
+        "borderRadius": "Poloměr zaoblení",
+        "padding": "Vnitřní okraj",
+        "fontFamily": "Písmo",
+        "size": "Velikost písma",
+        "weight": "Tloušťka písma",
+        "activeState": "Aktivní stav"
+    },
+    "linkThemeConfigBlock": {
+        "color": "Barva",
+        "link": "Odkaz",
+        "defaultState": "Výchozí stav",
+        "hoverState": "Stav po najetí",
+        "alignment": "Zarovnání",
+        "fontFamily": "Písmo",
+        "size": "Velikost písma",
+        "weight": "Tloušťka písma",
+        "decoration": "Dekorace textu",
+        "activeState": "Aktivní stav"
+    },
+    "imageThemeConfigBlock": {
+        "alignment": "Zarovnání",
+        "maxWidthLabel": "Maximální šířka",
+        "maxHeightLabel": "Maximální výška",
+        "maxHeightPlaceholder": "Zadejte maximální výšku",
+        "maxWidthPlaceholder": "Zadejte maximální šířku",
+        "imageConstraintsLabel": "Omezení",
+        "imageConstraintFullWidth": "Roztáhnout na maximální šířku",
+        "imageConstraintCover": "Pokrýt",
+        "imageConstraintCoverDisabled": "Není dostupné bez maximální výšky.",
+        "imageConstraintContain": "Přizpůsobit",
+        "imageConstraintContainDisabled": "Není dostupné s maximální výškou.",
+        "imageBorderRadiusLabel": "Poloměr okraje",
+        "imageBorderRadiusPlaceholder": "Zadejte poloměr okraje obrázku."
+    },
+    "choiceElementForm": {
+        "multiple": "Povolit více hodnot",
+        "display": "Zobrazení",
+        "dropdown": "Rozbalovací nabídka",
+        "checkbox": "Zaškrtávací políčko",
+        "radio": "Přepínač"
+    },
+    "choiceOptionSelector": {
+        "label": "Možnosti",
+        "value": "Hodnoty možností",
+        "valuePlaceholder": "Zadejte hodnotu",
+        "name": "Názvy možností",
+        "namePlaceholder": "Zadejte název",
+        "addOption": "přidat možnost",
+        "optionType": "Typ možností",
+        "manual": "Ručně",
+        "dataSource": "Zdroj dat",
+        "addOptionDescription": "Kliknutím na „přidat možnost“ přidáte možnosti do rozbalovací nabídky",
+        "expressions": "Výrazy"
+    },
+    "choiceElement": {
+        "addOptions": "Chcete-li začít tento element používat, přidejte možnosti..."
+    },
+    "resetButton": {
+        "reset": "Obnovit výchozí hodnotu tématu"
+    },
+    "backgroundModes": {
+        "fill": "Vyplnit",
+        "tile": "Dlaždice",
+        "fit": "Přizpůsobit"
+    },
+    "inputThemeConfigBlock": {
+        "label": "Popisek",
+        "input": "Vstup",
+        "backgroundColor": "Barva pozadí",
+        "textColor": "Barva textu",
+        "borderColor": "Barva okraje",
+        "borderSize": "Velikost okraje",
+        "borderRadius": "Poloměr zaoblení",
+        "padding": "Vnitřní okraj",
+        "fontFamily": "Písmo",
+        "size": "Velikost písma",
+        "weight": "Tloušťka písma"
+    },
+    "tableThemeConfigBlock": {
+        "backgroundAlternateColor": "Barva sudých řádků",
+        "backgroundColor": "Barva pozadí",
+        "textColor": "Barva textu",
+        "borderSize": "Velikost okraje",
+        "borderRadius": "Poloměr zaoblení",
+        "padding": "Vnitřní okraj",
+        "fontFamily": "Písmo",
+        "size": "Velikost",
+        "fontSize": "Velikost písma",
+        "table": "Tabulka",
+        "header": "Záhlaví",
+        "alignment": "Zarovnání",
+        "cells": "Buňky",
+        "separators": "Oddělovače",
+        "verticalSeparatorColor": "Svislá barva",
+        "verticalSeparatorSize": "Svislá velikost",
+        "horizontalSeparatorColor": "Vodorovná barva",
+        "horizontalSeparatorSize": "Vodorovná velikost",
+        "borderColor": "Barva okraje",
+        "fontWeight": "Tloušťka písma"
+    },
+    "dropdown": {
+        "empty": "Nejsou k dispozici žádné možnosti"
+    },
+    "abTable": {
+        "empty": "Nebyly nalezeny žádné položky.",
+        "loading": "Načítá se..."
+    },
+    "fieldMappingContext": {
+        "enableField": "Povolit pole",
+        "disableField": "Zakázat pole"
+    },
+    "customStyle": {
+        "configureThemeOverrides": "Konfigurovat přepsání tématu pro tento element",
+        "backToElement": "Zpět ke konfiguraci elementu"
+    },
+    "collectionElementForm": {
+        "noDataSourceMessage": "Vyberte zdroj dat s více řádky pro výpis všech výsledků nebo zdroj dat s jedním řádkem pro výběr vlastnosti v tomto řádku.",
+        "noSchemaPropertyMessage": "Vyberte vlastnost uvnitř zdroje dat, kterou chcete použít jako data seznamu elementu.",
+        "propertyOptionLabel": "Akce uživatele"
+    },
+    "imageFieldForm": {
+        "fieldSrcLabel": "Zdroj obrázku",
+        "fieldSrcPlaceholder": "Zadejte hodnotu",
+        "fieldAltLabel": "Alternativní text",
+        "fieldAltPlaceholder": "Zadejte hodnotu...",
+        "fieldAltHelp": "Používají jej čtečky obrazovky a zobrazí se, pokud se obrázek nemůže načíst"
+    },
+    "serviceSchemaPropertySelector": {
+        "label": "Vlastnost",
+        "noProperties": "Nejsou k dispozici žádné vlastnosti"
+    },
+    "userSourceDropdown": {
+        "label": "Zdroj uživatelů",
+        "addUserSource": "Přidat nový zdroj uživatelů",
+        "noUserSources": "Nejsou k dispozici žádné zdroje uživatelů"
+    },
+    "dataSourceDropdown": {
+        "label": "Zdroj dat",
+        "noDataSources": "Nejsou k dispozici žádné zdroje dat",
+        "shared": "sdílený",
+        "pageOnly": "tato stránka",
+        "noSharedDataSources": "Nejsou k dispozici žádné sdílené zdroje dat",
+        "addNew": "Přidat nový zdroj dat"
+    },
+    "recordSelectorElementForm": {
+        "selectRecordsFrom": "Vybrat záznamy z",
+        "noDataSourceMessage": "Vyberte zdroj dat s více řádky pro výpis všech výsledků.",
+        "optionNameSuffix": "Přípona názvu možnosti",
+        "optionNameSuffixPlaceholder": "Zadejte příponu...",
+        "optionNameSuffixHelper": "Tato přípona se při otevření rozbalovací nabídky připojí ke každému názvu možnosti a pomáhá je rozlišit.",
+        "itemsPerPage": "Položek na stránku",
+        "itemsPerPagePlaceholder": "Zadejte hodnotu...",
+        "multipleLabel": "Povolit více hodnot",
+        "record": "Záznam {id}"
+    },
+    "headingElement": {
+        "missingValue": "Chybí název...",
+        "emptyValue": "Prázdný název..."
+    },
+    "textElement": {
+        "missingValue": "Chybí text...",
+        "emptyValue": "Prázdný text..."
+    },
+    "imageElement": {
+        "missingValue": "Chybí alternativní text...",
+        "emptyValue": "Prázdný alternativní text..."
+    },
+    "linkElement": {
+        "missingValue": "Chybí text odkazu...",
+        "emptyValue": "Prázdný text odkazu..."
+    },
+    "dataSourceItem": {
+        "notConfigured": "Není nakonfigurováno"
+    },
+    "dataSourceItemContext": {
+        "shareBetweenPages": "Sdílet mezi stránkami",
+        "unshareBetweenPages": "Zrušit sdílení s ostatními stránkami"
+    },
+    "dataSourceCreateEditModal": {
+        "editTitle": "Upravit zdroj dat",
+        "createTitle": "Vytvořit zdroj dat",
+        "sharedWarning": "Tento zdroj dat je sdílený, takže změny mohou ovlivnit více stránek."
+    },
+    "buttonElement": {
+        "missingValue": "Chybí text tlačítka...",
+        "emptyValue": "Prázdný text tlačítka..."
+    },
+    "propertyOptionForm": {
+        "fieldHeading": "Pole",
+        "filterHeading": "Filtr",
+        "sortHeading": "Řazení",
+        "searchHeading": "Vyhledávání",
+        "optionUnavailable": "Není dostupné",
+        "noPropertiesAvailable": "Nejsou k dispozici žádná pole.",
+        "formDescription": "Vyberte, podle kterých vlastností ve zdroji dat tohoto elementu mohou návštěvníci stránky filtrovat, řadit a vyhledávat."
+    },
+    "recordSelectorElement": {
+        "emptyAdhocState": "Nebyly nalezeny žádné záznamy odpovídající '{query}'.",
+        "emptyState": "Nebyly nalezeny žádné záznamy."
+    },
+    "common": {
+        "dateFormatTitle": "Formát data",
+        "dateFormatEU": "Evropský",
+        "dateFormatUS": "Americký",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "Formát času",
+        "timeFormat24Hour": "24 hodin",
+        "timeFormat12Hour": "12 hodin"
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "Zahrnout čas",
+        "invalidDateError": "Neplatné datum. Ujistěte se, že zadané datum odpovídá danému formátu."
+    },
+    "themeSettings": {
+        "titleOverview": "Téma"
+    },
+    "pageVisibilitySettingsTypes": {
+        "pageName": "Viditelnost",
+        "logInPageWarningTitle": "Přihlašovací stránka není nastavena",
+        "logInPagewarningMessage": "Když se anonymní uživatel pokusí o přístup na tuto stránku, bude přesměrován na přihlašovací stránku. Nastavte přihlašovací stránku v obecném nastavení aplikace.",
+        "logInPageInfoTitle": "Anonymní uživatelé budou přesměrováni",
+        "logInPageInfoMessage": "Anonymní uživatelé, kteří se pokusí o přístup na tuto stránku, budou přesměrováni na stránku {logInPageName}."
+    },
+    "pageVisibilitySettings": {
+        "title": "Viditelnost",
+        "allVisitors": "Všichni návštěvníci",
+        "loggedInVisitors": "Přihlášení návštěvníci",
+        "description": "Kdo může tuto stránku zobrazit"
+    },
+    "pageEditor": {
+        "pageNotFound": "Stránka nebyla nalezena",
+        "title": "Tvůrce aplikací"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownLabel": "Přihlašovací stránka",
+        "pageDropdownPlaceholder": "Vyberte stránku",
+        "pageDropdownDescription": "Vyberte přihlašovací stránku, na kterou mají být nepřihlášení uživatelé přesměrováni při pokusu o přístup na omezenou stránku."
+    },
+    "multiPageContainerElementForm": {
+        "pagePosition": "Pozice",
+        "behaviour": "Chování",
+        "display": "Zobrazení",
+        "selectAll": "Vybrat vše",
+        "deselectAll": "Zrušit výběr všeho"
+    },
+    "pageShareType": {
+        "all": "Na všech stránkách",
+        "only": "Pouze na vybraných stránkách",
+        "except": "Vyloučit vybrané stránky"
+    },
+    "queryParamTypes": {
+        "textName": "Text",
+        "numericName": "Číselný"
+    },
+    "radiusStyleForm": {
+        "cornerRadiusLabel": "Poloměr rohů",
+        "backgroundRadiusLabel": "Pozadí",
+        "borderRadiusLabel": "Okraj"
+    },
+    "fontWeightType": {
+        "thin": "Tenké",
+        "extraLight": "Extra světlé",
+        "light": "Světlé",
+        "regular": "Normální",
+        "medium": "Střední",
+        "semiBold": "Polotučné",
+        "bold": "Tučné",
+        "extraBold": "Extra tučné",
+        "black": "Černé",
+        "extraBlack": "Extra černé"
+    },
+    "authProviderWithModal": {
+        "authProviderInError": "Chcete-li chybu opravit, upravte tohoto poskytovatele.",
+        "title": "Upravit poskytovatele: {name}"
+    },
+    "addElementCategory": {
+        "suggestedElement": "Doporučené elementy",
+        "baseElement": "Základní elementy",
+        "layoutElement": "Elementy rozvržení",
+        "formElement": "Elementy formuláře"
+    },
+    "orientations": {
+        "label": "Orientace",
+        "horizontal": "Vodorovná",
+        "vertical": "Svislá"
+    },
+    "menuElement": {
+        "missingValue": "Chybí položka nabídky",
+        "separator": "Oddělovač",
+        "spacer": "Mezera",
+        "missingLinkValue": "Chybí název odkazu...",
+        "emptyLinkValue": "Prázdný název odkazu...",
+        "missingButtonValue": "Chybí název tlačítka...",
+        "emptyButtonValue": "Prázdný název tlačítka..."
+    },
+    "menuElementForm": {
+        "menuItemsLabel": "Položky nabídky",
+        "addMenuItemLink": "Přidat...",
+        "alignment": "Zarovnání",
+        "menuItemDefaultName": "Stránka",
+        "menuItemLabelLabel": "Popisek",
+        "menuItemTypeLabel": "Typ",
+        "menuItemTypeSeparator": "Oddělovač",
+        "menuItemVariantLabel": "Varianta",
+        "menuItemVariantLink": "Odkaz",
+        "menuItemVariantButton": "Tlačítko",
+        "namePlaceholder": "Stránka",
+        "addSubLink": "Přidat pododkaz",
+        "menuItemSubLinkDefaultName": "Pododkaz",
+        "menuItemAddLink": "Odkaz",
+        "menuItemAddButton": "Tlačítko",
+        "menuItemAddSeparator": "Oddělovač",
+        "menuItemAddSpacer": "Mezera",
+        "eventDescription": "Chcete-li nakonfigurovat akce pro toto tlačítko, otevřete kartu Události tohoto elementu.",
+        "noMenuItemsMessage": "Kliknutím na „Přidat“ přidáte první položku nabídky.",
+        "variant": "Varianta podle typu zařízení",
+        "expanded": "Rozbalená",
+        "compact": "Kompaktní",
+        "previewCompactMenuLabel": "Náhled kompaktní nabídky",
+        "previewCompactMenuHelper": "Zobrazit či skrýt náhled kompaktní nabídky.",
+        "openEditorCompactMenu": "Otevřít nabídku",
+        "closeEditorCompactMenu": "Zavřít nabídku"
+    },
+    "simpleContainerElementForm": {
+        "noConfigurationOptions": "Element kontejneru nemá žádné možnosti konfigurace."
+    },
+    "textDecorationSelector": {
+        "underline": "Podtržení",
+        "stroke": "Přeškrtnutí",
+        "italic": "Kurzíva",
+        "uppercase": "Velká písmena"
+    },
+    "ratingFieldForm": {
+        "maxValue": "Maximální hodnota",
+        "color": "Barva",
+        "style": "Styl",
+        "star": "Hvězda",
+        "heart": "Srdce",
+        "thumbsUp": "Palec nahoru",
+        "flag": "Vlajka",
+        "value": "Hodnota"
+    },
+    "ratingElementForm": {
+        "maxValue": "Maximum",
+        "color": "Barva",
+        "ratingStyle": "Styl",
+        "star": "Hvězda",
+        "heart": "Srdce",
+        "smile": "Úsměv",
+        "thumbsUp": "Palec nahoru",
+        "flag": "Vlajka"
+    },
+    "automationSettingsModal": {
+        "title": "Pracovní postup"
+    },
+    "abFileInput": {
+        "delete": "Odstranit"
+    },
+    "elementsGuidedTourStep": {
+        "title": "Přidejte na stránku elementy",
+        "content": "Každá aplikace potřebuje komponenty! Přidejte elementy jako tabulky, formuláře, tlačítka a další, které vaši aplikaci oživí."
+    },
+    "dataGuidedTourStep": {
+        "title": "Propojte svá data",
+        "content": "Propojte zde své tabulky Baserow, abyste mohli dynamicky zobrazovat, filtrovat a aktualizovat data v různých elementech."
+    },
+    "previewGuidedTourStep": {
+        "title": "Vaše řídicí centrum",
+        "content": "Zde konfigurujete stránky své aplikace. Přidávejte elementy, zobrazte si náhled výsledku a uspořádejte aplikaci přesně podle svých představ."
+    },
+    "devicesGuidedTourStep": {
+        "title": "Náhled na různých zařízeních",
+        "content": "Přepínejte mezi náhledy pro počítač, tablet a mobil a zjistěte, jak vaše aplikace vypadá při různých velikostech obrazovky. Zkontrolujte, že návrh funguje dokonale na všech zařízeních!"
+    },
+    "sidePanelGuidedTourStep": {
+        "title": "Boční panel: přizpůsobení elementů",
+        "content": "**Karta Obecné** – nakonfigurujte vybraný element.\n\n**Karta Styl** – přizpůsobte odsazení, okraje a další.\n\n**Karta Viditelnost** – určete, kdo může tento element vidět: přihlášení uživatelé, odhlášení uživatelé nebo konkrétní role.\n\n**Karta Události** – pokud element podporuje akce, nakonfigurujte je zde pro dynamickou interaktivitu."
+    },
+    "previewPublishGuidedTourStep": {
+        "title": "Náhled a publikace vaší aplikace",
+        "content": "Kliknutím na **Náhled** aplikaci soukromě otestujete. Až bude připravena, kliknutím na **Publikovat** ji pomocí domény zpřístupníte veřejnosti."
+    },
+    "builderToast": {
+        "details": "Podrobnosti",
+        "defaultTitle": "Neočekávaná chyba",
+        "defaultMessage": "Došlo k neočekávané chybě. Zkuste to prosím později.",
+        "invalidContextTitle": "Neplatný požadavek",
+        "invalidContextMessage": "Požadavek je neplatný.",
+        "InvalidContentTitle": "Neplatný formulář",
+        "invalidContentMessage": "Jedno nebo více polí obsahuje neplatné hodnoty.",
+        "serviceMisconfiguredTitle": "Neúplná konfigurace",
+        "serviceMisconfiguredMessage": "Zkontrolujte prosím konfiguraci.",
+        "errorWorkflowActionDispatch": "Akce \"{name}\" selhala: ",
+        "errorDataSourceDispatch": "Data „{name}“ se nepodařilo načíst: "
+    },
+    "workflowAction": {
+        "sampleDataModalTitle": "Datová část pro {actionLabel}",
+        "sampleDataModalSubTitle": "Datová část JSON",
+        "testActionDescription": "Spusťte tuto akci v náhledu, zachyťte její výstup a zpřístupněte jej následujícím akcím."
+    },
+    "pageElementBehaviour": {
+        "normal": "Normální",
+        "fixed": "Pevné"
+    },
+    "getExpressionComponent": {
+        "errorTooltip": "Neplatný odkaz"
+    }
+}
