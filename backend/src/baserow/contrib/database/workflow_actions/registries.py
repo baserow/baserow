@@ -37,7 +37,8 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     parent_property_name = "field"
     id_mapping_name = "database_workflow_actions"
 
-    # Never dispatched server side; returned to the browser to execute.
+    # Set to True by a type the browser runs itself, which the dispatch then
+    # hands back instead of running server side.
     is_frontend_only = False
 
     class SerializedDict(DatabaseWorkflowActionDict):
