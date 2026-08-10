@@ -169,9 +169,11 @@ const {
     }
 
     // An SSO login error (e.g. the application user limit being reached) is reported
-    // back through a query parameter and rendered inline by the auth form element,
-    // mirroring the email/password login flow. It is intentionally not handled here
-    // so it doesn't take over the whole page with a fatal error.
+    // back through a query parameter. It is intentionally not handled here so it
+    // doesn't take over the whole page with a fatal error: the auth form element
+    // renders it inline when the landing page has one, mirroring the email/password
+    // login flow, and `PublicPageContent` falls back to a toast for the flows that
+    // land on a page without an auth form, like an IdP deep link.
 
     const found = resolveApplicationRoute(
       store.getters['page/getVisiblePages'](builder),

@@ -26,6 +26,7 @@ import _ from 'lodash'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
 import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
 import { getCustomFaviconLinks } from '@baserow/modules/builder/utils/favicon'
+import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
 
 import {
   userSourceCookieTokenName,
@@ -306,6 +307,7 @@ watch(
 
 onMounted(async () => {
   await checkProviderAuthentication()
+  checkProviderLoginError()
   await maybeRedirectUserToLoginPage()
 })
 
@@ -411,6 +413,28 @@ const checkProviderAuthentication = async () => {
         throw error
       }
     }
+  }
+}
+
+/**
+ * When an SSO login fails, the provider redirects back with an error code
+ * in a query parameter. An auth form element reads and removes that
+ * parameter when it mounts and displays the message inline like the
+ * email/password flow.
+ *
+ * But an IdP can send the user straight to a deep page that the user
+ * isn't allowed to view, which isn't rendered at all. The elements of
+ * the page are mounted before this hook runs, so an error still present
+ * in the URL here means nothing displayed it, and we report it with a
+ * notification instead.
+ */
+const checkProviderLoginError = () => {
+  const message = consumeLoginError($registry, props.builder.user_sources)
+  if (message) {
+    store.dispatch('builderToast/error', {
+      title: $i18n.t('publicPage.loginErrorToastTitle'),
+      message,
+    })
   }
 }
 </script>

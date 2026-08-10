@@ -534,6 +534,7 @@
     "pageNotFound": "Page not found",
     "loginToastTitle": "Authentication Successful",
     "loginToastMessage": "You have been successfully signed in.",
+    "loginErrorToastTitle": "Authentication Failed",
     "authorizedToastTitle": "Authentication Required",
     "authorizedToastMessage": "You must be signed in to access this page. Please log in to continue."
   },

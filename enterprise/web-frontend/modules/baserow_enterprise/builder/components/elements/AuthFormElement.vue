@@ -30,6 +30,7 @@
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import element from '@baserow/modules/builder/mixins/element'
+import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { mapActions } from 'vuex'
 
@@ -148,31 +149,19 @@ export default {
     /**
      * When an SSO login fails, the provider redirects back here with an error code
      * in a query parameter. Surface it inline near the auth form (like the
-     * email/password flow) instead of letting it become a full page error.
-     *
-     * The query string is read from `window.location` rather than `this.$route`
-     * because, like the other builder auth components (e.g. `SamlAuthLink`),
-     * elements don't reliably have the router route in their render context.
+     * email/password flow) instead of letting it become a full page error. Consuming
+     * the parameter here also tells `PublicPageContent` that the error has been
+     * displayed, so it doesn't show its fallback toast on top of it.
      */
     showLoginErrorFromQueryParams() {
-      if (
-        this.isEditMode ||
-        !this.selectedUserSource ||
-        typeof window === 'undefined'
-      ) {
+      if (this.isEditMode || !this.selectedUserSource) {
         return
       }
-      const query = Object.fromEntries(
-        new URLSearchParams(window.location.search)
-      )
-      for (const authProvider of this.authProviders) {
-        const message = this.$registry
-          .get('appAuthProvider', authProvider.type)
-          .getLoginError(this.selectedUserSource, { query })
-        if (message) {
-          this.showError(this.$t('loginError.title'), message)
-          break
-        }
+      const message = consumeLoginError(this.$registry, [
+        this.selectedUserSource,
+      ])
+      if (message) {
+        this.showError(this.$t('loginError.title'), message)
       }
     },
     async beforeLogin() {
