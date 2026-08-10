@@ -103,6 +103,15 @@ export class GuidedTourStep {
   }
 
   /**
+   * Can optionally contain Baserow academy YouTube video ids related to this step. The
+   * first one is shown as a thumbnail in the step, and clicking it plays all of them in
+   * the given order.
+   */
+  get videos() {
+    return []
+  }
+
+  /**
    * Hook that is called before the step is shown. This can be used to open a context
    * menu, for example.
    */
@@ -162,6 +171,10 @@ class ControlCenterGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'right-top'
   }
+
+  get videos() {
+    return ['aXZzQRRTt9c']
+  }
 }
 
 class CreateNewGuidedTourStep extends GuidedTourStep {
@@ -181,6 +194,10 @@ class CreateNewGuidedTourStep extends GuidedTourStep {
 
   get position() {
     return 'right-bottom'
+  }
+
+  get videos() {
+    return ['KNK1rgK3bJY']
   }
 }
 

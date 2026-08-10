@@ -31,6 +31,7 @@ $z-index-toasts: 10 !default;
 $z-index-guided-tour-container: 99 !default;
 $z-index-highlight-overlay: 100 !default;
 $z-index-guided-tour-step: 101 !default;
+$z-index-guided-tour-video-modal: 102 !default;
 
 // normalize overrides
 $base-font-family: $text-font-stack !default;
@@ -61,6 +62,13 @@ $api-docs-breakpoint: 1100px !default;
 $file-field-modal-head-height: 62px !default;
 $file-field-modal-body-nav-width: 120px !default;
 $file-field-modal-foot-height: 108px !default;
+
+$guided-tour-video-nav-width: 100px !default;
+$guided-tour-video-head: 62px !default;
+$guided-tour-video-foot: 158px !default;
+
+// The vertical space that's not available to the video itself.
+$guided-tour-video-chrome: $guided-tour-video-head + $guided-tour-video-foot;
 
 $onboarding-breakpoint: 920px !default;
 

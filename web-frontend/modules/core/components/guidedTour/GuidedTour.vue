@@ -19,6 +19,7 @@
         :last="stepIndex >= allSteps.length - 1"
         :position="currentStep.position"
         :button-text="currentStep.buttonText"
+        :videos="currentStep.videos"
         @previous="goto(stepIndex - 1)"
         @next="next"
       ></GuidedTourStep>
