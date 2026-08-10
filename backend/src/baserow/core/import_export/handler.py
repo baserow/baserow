@@ -921,14 +921,14 @@ class ImportExportHandler:
             progress_builder, child_total=application_count
         )
 
-        # Callbacks registered during the loop run when this context exits, by
-        # which point every application exists.
-        with deferred_callback_context():
-            for application_type in prioritized_applications:
-                for application_manifest in manifest["applications"][application_type][
-                    "items"
-                ]:
-                    try:
+        try:
+            # Callbacks registered during the loop run when this context exits, by
+            # which point every application exists.
+            with deferred_callback_context():
+                for application_type in prioritized_applications:
+                    for application_manifest in manifest["applications"][
+                        application_type
+                    ]["items"]:
                         with transaction.atomic():
                             imported_application = self.import_application(
                                 workspace,
@@ -940,19 +940,17 @@ class ImportExportHandler:
                                 storage,
                                 progress.create_child_builder(represents_progress=1),
                             )
-                    except Exception as exc:  # noqa
-                        # Trash the already imported applications so the user won't see
-                        # a partial import, but he will be able to restore them if he
-                        # wants to until they are permanently deleted by the trash task.
-                        for application in imported_applications:
-                            TrashHandler.trash(
-                                user, workspace, application, application
-                            )
-                        raise exc
-                    else:
                         imported_application.order = next_application_order_value
                         next_application_order_value += 1
                         imported_applications.append(imported_application)
+        except Exception:  # noqa
+            # Trash the already imported applications so the user won't see
+            # a partial import, but he will be able to restore them if he
+            # wants to until they are permanently deleted by the trash task.
+            # Outside the loop, so a failing deferred callback lands here too.
+            for application in imported_applications:
+                TrashHandler.trash(user, workspace, application, application)
+            raise
 
         Application.objects.bulk_update(imported_applications, ["order"])
         return imported_applications
