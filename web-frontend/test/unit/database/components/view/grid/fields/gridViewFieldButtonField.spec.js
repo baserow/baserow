@@ -99,6 +99,25 @@ describe('GridViewFieldButtonField', () => {
     })
   })
 
+  test('a client action sees the row as it was at click time', async () => {
+    // The dispatch takes its own realtime broadcast, so a row action can
+    // update the cell's row while the request is still in flight.
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell({}, { client_actions: [openUrlAction] })
+    wrapper.vm.$client.post = vi.fn().mockImplementation(async () => {
+      wrapper.vm.row.field_1 = 'updated by an earlier action'
+      return { data: { results: [], client_actions: [openUrlAction] } }
+    })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(execute.mock.calls[0][0].applicationContext.row).toEqual({
+      id: 1,
+      field_1: 'ada',
+    })
+  })
+
   test('runs the client actions in the order the backend returned them', async () => {
     const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
     const second = { ...openUrlAction, id: 2, target: 'self' }

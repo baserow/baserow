@@ -1,5 +1,6 @@
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { clone } from '@baserow/modules/core/utils/object'
 
 /**
  * Dispatches a cell's actions on click and runs the ones the backend hands
@@ -29,11 +30,14 @@ export default {
       }
       this.dispatching = true
       try {
+        // The dispatch takes its own broadcast, so `this.row` can change
+        // mid-request. Client actions get the row as it was at click time.
+        const clickedRow = clone(this.row)
         const { data } = await WorkflowActionService(this.$client).dispatch(
           this.field.id,
           this.row.id
         )
-        await this.runClientActions(data?.client_actions || [])
+        await this.runClientActions(data?.client_actions || [], clickedRow)
       } catch (error) {
         // A handled error already carries its own message. Anything else, a
         // network failure for instance, still needs a toast of its own.
@@ -54,7 +58,7 @@ export default {
      * returned them. It only sends them when every server side action
      * succeeded, so a failed row action never navigates away.
      */
-    async runClientActions(clientActions) {
+    async runClientActions(clientActions, row) {
       const fields =
         this.allFieldsInTable?.length > 0
           ? this.allFieldsInTable
@@ -64,7 +68,7 @@ export default {
           .get('databaseWorkflowActionType', workflowAction.type)
           .execute({
             workflowAction,
-            applicationContext: { row: this.row, fields },
+            applicationContext: { row, fields },
           })
       }
     },
