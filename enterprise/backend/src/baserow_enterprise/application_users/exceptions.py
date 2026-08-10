@@ -21,8 +21,8 @@ class ApplicationUserLimitReached(APIException):
                 "error": "ERROR_APPLICATION_USER_LIMIT_REACHED",
                 "detail": detail
                 or (
-                    "The application user limit has been reached, please contact the "
-                    "application owner."
+                    "Login is temporarily unavailable. Please contact the website "
+                    "owner or try again later."
                 ),
             },
             code=code,

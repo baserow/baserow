@@ -216,6 +216,4 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     # the login.
     usage, limit = get_application_user_usage_and_limit(workspace)
     if limit is not None and usage > limit:
-        raise ApplicationUserLimitReached(
-            "The application user limit has been reached."
-        )
+        raise ApplicationUserLimitReached()
