@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import TemplateOnboardingCancelModal from '@baserow/modules/database/components/onboarding/TemplateOnboardingCancelModal'
 import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
+import { createTemplate } from '@baserow/test/unit/database/components/onboarding/helpers'
 
 describe('TemplateOnboardingCancelModal', () => {
   let testApp = null
@@ -15,34 +16,23 @@ describe('TemplateOnboardingCancelModal', () => {
     testApp.afterEach()
   })
 
-  const template = (id, name, extra = {}) => ({
-    id,
-    name,
-    slug: name.toLowerCase(),
-    icon: 'iconoir-table',
-    keywords: 'onboarding',
-    open_application: null,
-    is_default: false,
-    ...extra,
-  })
-
   const categories = [
     {
       id: 1,
       name: 'Category',
       templates: [
-        template(1, 'First'),
-        template(2, 'Second'),
+        createTemplate(1, 'First'),
+        createTemplate(2, 'Second'),
         // Just like the real default template, this one doesn't have the `onboarding`
         // keyword.
-        template(3, 'Default', { keywords: 'project', is_default: true }),
+        createTemplate(3, 'Default', { keywords: 'project', is_default: true }),
       ],
     },
   ]
 
   const mount = async (props = { categories }) => {
     const wrapper = await testApp.mount(TemplateOnboardingCancelModal, {
-      propsData: { stepType: 'template', ...props },
+      propsData: { databaseStepType: 'template', ...props },
       // The modal content is teleported into the body, and the globally stubbed
       // teleport doesn't keep the content interactive.
       global: { stubs: { Teleport: false } },
@@ -90,16 +80,16 @@ describe('TemplateOnboardingCancelModal', () => {
           id: 1,
           name: 'Related',
           templates: [
-            template(1, 'Curated'),
+            createTemplate(1, 'Curated'),
             ...[2, 3, 4, 5, 6, 7, 8, 9].map((id) =>
-              template(id, `Related ${id}`, { keywords: 'other' })
+              createTemplate(id, `Related ${id}`, { keywords: 'other' })
             ),
           ],
         },
         {
           id: 2,
           name: 'Unrelated',
-          templates: [template(10, 'Unrelated', { keywords: 'other' })],
+          templates: [createTemplate(10, 'Unrelated', { keywords: 'other' })],
         },
       ],
     })

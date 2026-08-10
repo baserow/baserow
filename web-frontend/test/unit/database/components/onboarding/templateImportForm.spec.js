@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
+import { createTemplate } from '@baserow/test/unit/database/components/onboarding/helpers'
 
 describe('TemplateImportForm', () => {
   let testApp = null
@@ -14,25 +15,19 @@ describe('TemplateImportForm', () => {
     testApp.afterEach()
   })
 
-  const template = (id, name, extra = {}) => ({
-    id,
-    name,
-    slug: name.toLowerCase(),
-    icon: 'iconoir-table',
-    keywords: 'onboarding',
-    open_application: null,
-    is_default: false,
-    ...extra,
-  })
-
   const categories = [
     {
       id: 1,
       name: 'Category',
       templates: [
-        ...[1, 2, 3, 4, 5, 6, 7].map((id) => template(id, `Suggested ${id}`)),
-        template(8, 'Default', { keywords: 'crm', is_default: true }),
-        template(9, 'Application', { keywords: 'crm', open_application: 12 }),
+        ...[1, 2, 3, 4, 5, 6, 7].map((id) =>
+          createTemplate(id, `Suggested ${id}`)
+        ),
+        createTemplate(8, 'Default', { keywords: 'crm', is_default: true }),
+        createTemplate(9, 'Application', {
+          keywords: 'crm',
+          open_application: 12,
+        }),
       ],
     },
   ]

@@ -39,8 +39,9 @@ export default {
       type: Array,
       required: true,
     },
-    // The database onboarding step type the emitted data belongs to.
-    stepType: {
+    // The `databaseOnboardingStep` type the emitted data belongs to. Note that this is
+    // not the same as the `onboarding` step type the data is stored under.
+    databaseStepType: {
       type: String,
       required: true,
     },
@@ -67,7 +68,7 @@ export default {
     install() {
       this.installing = true
       this.$emit('selected', {
-        type: this.stepType,
+        type: this.databaseStepType,
         template: this.selectedTemplate,
       })
     },

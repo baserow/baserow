@@ -114,8 +114,8 @@ export class DatabaseOnboardingStepType extends Registerable {
    * Called when the user cancels the onboarding, before it's actually cancelled. Can
    * return an object containing the `component` of a modal offering this step type as
    * an alternative to cancelling, and optionally the `props` passed into it. The modal
-   * must emit `selected` with the step data, `cancel` if the onboarding must be
-   * cancelled after all, and `hidden` if the user dismissed it.
+   * must emit `selected` with the step data, and `hidden` if the user dismissed it. It
+   * can emit `cancel` if it offers a way to cancel the onboarding after all.
    */
   async getCancelModal() {
     return null
@@ -292,7 +292,7 @@ export class TemplateDatabaseOnboardingStepType extends DatabaseOnboardingStepTy
 
     return {
       component: TemplateOnboardingCancelModal,
-      props: { categories, stepType: this.getType() },
+      props: { categories, databaseStepType: this.getType() },
     }
   }
 

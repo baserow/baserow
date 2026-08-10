@@ -92,8 +92,8 @@ export class OnboardingType extends Registerable {
    * the onboarding must be cancelled as normal, or with an object containing the
    * `component` of the modal that must be shown, and optionally the `props` that are
    * passed into it. The modal must emit `selected` with the data of this step if the
-   * onboarding must be completed with it, `cancel` if the onboarding must be cancelled
-   * after all, and `hidden` if the user dismissed it.
+   * onboarding must be completed with it, and `hidden` if the user dismissed it. It
+   * can emit `cancel` if it offers a way to cancel the onboarding after all.
    */
   async getCancelModal() {
     return null

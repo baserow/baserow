@@ -25,7 +25,7 @@ describe('TemplateDatabaseOnboardingStepType.getCancelModal', () => {
 
     expect(modal.component).toBe(TemplateOnboardingCancelModal)
     expect(modal.props.categories).toHaveLength(1)
-    expect(modal.props.stepType).toBe('template')
+    expect(modal.props.databaseStepType).toBe('template')
   })
 
   test('does not offer a modal when the instance has no templates', async () => {
