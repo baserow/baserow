@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed date copy-paste between US-format fields silently swapping month and day for ambiguous dates.",
+    "issue_origin": "github",
+    "issue_number": 5870,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-10"
+}

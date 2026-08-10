@@ -2559,6 +2559,12 @@ class BaseDateFieldType extends FieldType {
    * correct format for the field. If it can't be parsed null is returned.
    */
   prepareValueForPaste(field, clipboardData, richClipboardData) {
+    if (richClipboardData) {
+      const richDateValue = this.parseInputValue(field, richClipboardData)
+      if (richDateValue) {
+        return this.formatValue(field, richDateValue)
+      }
+    }
     const dateValue = this.parseInputValue(field, clipboardData || '')
     return this.formatValue(field, dateValue)
   }
@@ -2585,11 +2591,15 @@ class BaseDateFieldType extends FieldType {
     const s = containsDash ? '-' : '/'
 
     const usFieldFormats = getDateTimeFormatsFor(
+      `MM${s}DD${s}YYYY`,
       `M${s}D${s}YYYY`,
+      `YYYY${s}DD${s}MM`,
       `YYYY${s}D${s}M`
     )
     const euFieldFormats = getDateTimeFormatsFor(
+      `DD${s}MM${s}YYYY`,
       `D${s}M${s}YYYY`,
+      `YYYY${s}MM${s}DD`,
       `YYYY${s}M${s}D`
     )
     if (field.date_format === 'US') {

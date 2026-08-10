@@ -403,91 +403,172 @@ const datePrepareValueForCopy = [
 ]
 
 const datePrepareValueForPaste = [
-  // Date field with EU format
+  // --- EU format: text-only paste (external) ---
   {
     fieldValue: '04/12/2021',
-    field: {
-      date_format: 'EU',
-    },
+    field: { date_format: 'EU' },
     expectedValue: '2021-12-04',
   },
   {
     fieldValue: '04/12/2021 22:57',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '04/12/2021 10:57 PM',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '2021-12-04',
-    field: {
-      date_format: 'EU',
-    },
+    field: { date_format: 'EU' },
     expectedValue: '2021-12-04',
   },
   {
     fieldValue: '2021-12-04 22:57',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '2021-12-04 10:57 PM',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '2021-12-04T22:57:00Z',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
-    fieldValue: '04/16/2021', // Explicit US date in EU field
-    field: {
-      date_format: 'EU',
-    },
+    fieldValue: '04/16/2021', // Unambiguous US date in EU field (day > 12)
+    field: { date_format: 'EU' },
     expectedValue: '2021-04-16',
   },
-  // Date field with US format
+
+  // --- US format: text-only paste (external) ---
   {
     fieldValue: '12/04/2021',
-    field: {
-      date_format: 'US',
-    },
-    expectedValue: '2021-04-12',
+    field: { date_format: 'US' },
+    expectedValue: '2021-12-04',
   },
   {
     fieldValue: '12/04/2021 22:57',
-    field: {
-      date_format: 'US',
-      date_include_time: true,
-    },
-    expectedValue: '2021-04-12T22:57:00Z',
+    field: { date_format: 'US', date_include_time: true },
+    expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '12/04/2021 10:57 PM',
-    field: {
-      date_format: 'US',
-      date_include_time: true,
-    },
-    expectedValue: '2021-04-12T22:57:00Z',
+    field: { date_format: 'US', date_include_time: true },
+    expectedValue: '2021-12-04T22:57:00Z',
+  },
+
+  // --- US format: zero-padded ambiguous dates (the core bug) ---
+  {
+    fieldValue: '01/10/2026', // Ambiguous: US reads as Jan 10
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '03/05/2026', // Ambiguous: US reads as Mar 5
+    field: { date_format: 'US' },
+    expectedValue: '2026-03-05',
+  },
+  {
+    fieldValue: '09/12/2021', // Ambiguous: US reads as Sep 12
+    field: { date_format: 'US' },
+    expectedValue: '2021-09-12',
+  },
+
+  // --- EU format: zero-padded ambiguous dates ---
+  {
+    fieldValue: '10/01/2026', // Ambiguous: EU reads as Oct 1
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '05/03/2026', // Ambiguous: EU reads as May 3
+    field: { date_format: 'EU' },
+    expectedValue: '2026-03-05',
+  },
+
+  // --- Non-padded dates (external paste from typed input) ---
+  {
+    fieldValue: '1/5/2024', // Non-padded US
+    field: { date_format: 'US' },
+    expectedValue: '2024-01-05',
+  },
+  {
+    fieldValue: '5/1/2024', // Non-padded EU
+    field: { date_format: 'EU' },
+    expectedValue: '2024-01-05',
+  },
+
+  // --- Unambiguous dates (day > 12) ---
+  {
+    fieldValue: '01/15/2026', // Day > 12, must be US
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-15',
+  },
+  {
+    fieldValue: '15/01/2026', // Day > 12, must be EU
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-15',
+  },
+
+  // --- ISO format ---
+  {
+    fieldValue: '2026-01-10',
+    field: { date_format: 'ISO' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '2026-01-10',
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+
+  // --- Rich clipboard: internal paste uses ISO value ---
+  {
+    fieldValue: '10/01/2026', // Text says Oct 1 in EU
+    richValue: '2026-01-10', // ISO says Jan 10
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-10', // Rich value wins
+  },
+  {
+    fieldValue: '01/10/2026', // Text says Jan 10 in US
+    richValue: '2026-01-10', // ISO confirms Jan 10
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+
+  // --- Rich clipboard: cross-format internal paste ---
+  {
+    fieldValue: '01/10/2026', // US-formatted text
+    richValue: '2026-01-10', // ISO: Jan 10
+    field: { date_format: 'EU' }, // Target is EU
+    expectedValue: '2026-01-10', // Rich value preserves correct date
+  },
+  {
+    fieldValue: '10/01/2026', // EU-formatted text
+    richValue: '2026-01-10', // ISO: Jan 10
+    field: { date_format: 'US' }, // Target is US
+    expectedValue: '2026-01-10', // Rich value preserves correct date
+  },
+
+  // --- Rich clipboard: invalid rich value falls back to text ---
+  {
+    fieldValue: '03/15/2026', // Unambiguous US date
+    richValue: 'not-a-date',
+    field: { date_format: 'US' },
+    expectedValue: '2026-03-15', // Falls back to text parsing
+  },
+
+  // --- Rich clipboard: datetime with rich value ---
+  {
+    fieldValue: '01/10/2026 14:30',
+    richValue: '2026-01-10T14:30:00Z',
+    field: { date_format: 'US', date_include_time: true },
+    expectedValue: '2026-01-10T14:30:00Z',
   },
 ]
 
@@ -815,7 +896,8 @@ describe('FieldType tests', () => {
     (value) => {
       const result = new DateFieldType().prepareValueForPaste(
         value.field,
-        value.fieldValue
+        value.fieldValue,
+        value.richValue
       )
       expect(result).toBe(value.expectedValue)
     }
