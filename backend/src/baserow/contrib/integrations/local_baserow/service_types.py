@@ -2156,22 +2156,24 @@ class LocalBaserowUpsertRowServiceType(
         # Writable doesn't refer to the field type being writable, but rather if
         # the acting user has the correct permission.
         authorized_user_writable_field_mappings = []
-        unwritable_fields = []
+        has_unwritable_fields = False
         for check, check_result in permission_check_results.items():
             if check_result:
                 authorized_user_writable_field_mappings.append(
                     context_map[check.context]
                 )
             else:
-                unwritable_fields.append(check.context)
+                has_unwritable_fields = True
 
         # Without an integration the service acts as the person in front of the
         # screen, so an unwritable field fails the dispatch instead of being
         # skipped (ADR 006 section 5). Raised before anything is written.
-        if unwritable_fields and service.integration_id is None:
-            names = ", ".join(sorted(field.name for field in unwritable_fields))
+        if has_unwritable_fields and service.integration_id is None:
+            # The names are left out: this message reaches the clicker, who may
+            # have no access to the target table at all. Roles are not field
+            # scoped, so naming them would say nothing the table name doesn't.
             raise PermissionDeniedDispatchException(
-                f"You don't have permission to write the following fields: {names}."
+                "You don't have permission to write to the fields this action changes."
             )
 
         for field_mapping in authorized_user_writable_field_mappings:
