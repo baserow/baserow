@@ -390,7 +390,9 @@
         "tags": "Tag",
         "boolean": "Booleano",
         "button": "Pulsante",
-        "image": "Immagine"
+        "image": "Immagine",
+        "rating": "Votazione",
+        "errorValueMissing": "Proprietà di valore mancante"
     },
     "linkFieldForm": {
         "fieldValueLabel": "URL",
@@ -410,7 +412,8 @@
         "nameFieldLabel": "Nome",
         "nameFieldPlaceholder": "Inserisci un nome...",
         "authTitle": "Autenticazione",
-        "integrationFieldLabel": "Integrazione"
+        "integrationFieldLabel": "Integrazione",
+        "addProvider": "Aggiungi fornitore"
     },
     "createUserSourceForm": {
         "userSourceIntegration": "Integrazione",
@@ -551,7 +554,8 @@
         "nodeMissing": "Mancante"
     },
     "event": {
-        "addAction": "aggiungi azione"
+        "addAction": "aggiungi azione",
+        "noActionsFound": "Nessuna azione trovata"
     },
     "dispatchDataSourceError": {
         "defaultTitle": "Errore nel caricamento dati",
@@ -858,5 +862,16 @@
     },
     "sidePanelGuidedTourStep": {
         "content": "**Tab Generale** – Configura l'elemento selezionato.\n\n**Tab Stile** – Personalizza padding, margini, bordi e altro.\n\n**Tab Visibilità** – Controlla chi può vedere questo elemento: utenti connessi, utenti disconnessi o ruoli specifici.\n\n**Tab Eventi** – Se l'elemento supporta azioni, configurale qui per interattività dinamica."
+    },
+    "imageFieldForm": {
+        "fieldSrcLabel": "Sorgente immagine",
+        "fieldSrcPlaceholder": "Inserisci valore",
+        "fieldAltLabel": "Testo alternativo",
+        "fieldAltPlaceholder": "Inserisci valore...",
+        "fieldAltHelp": "Viene usato dai lettori di schermo e mostrato se l'immagine non riesce a caricarsi"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownLabel": "Pagina di login",
+        "pageDropdownPlaceholder": "Scegli una pagina"
     }
 }
