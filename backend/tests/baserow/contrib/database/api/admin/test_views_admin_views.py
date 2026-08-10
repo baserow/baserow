@@ -206,6 +206,35 @@ def test_admin_search_matches_a_slug_and_an_owner_exactly(api_client, data_fixtu
 
 
 @pytest.mark.django_db
+def test_admin_search_finds_every_view_of_a_database_with_many_tables(
+    api_client, data_fixture
+):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+    database = data_fixture.create_database_application()
+    views = [
+        data_fixture.create_grid_view(
+            table=data_fixture.create_database_table(database=database)
+        )
+        for _ in range(3)
+    ]
+
+    url = reverse("api:database:admin:views:list")
+    with patch(
+        "baserow.contrib.database.api.admin.views.views.MAX_INLINE_SEARCH_IDS", 1
+    ):
+        response = api_client.get(
+            url,
+            {"search": str(database.id)},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_200_OK
+    assert {result["id"] for result in response.json()["results"]} == {
+        view.id for view in views
+    }
+
+
+@pytest.mark.django_db
 def test_admin_search_matches_ids_exactly(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token(is_staff=True)
     # The ids are set explicitly so that one contains the other, which is what tells

@@ -36,6 +36,10 @@ from .serializers import AdminViewSerializer, AdminViewUpdateSerializer
 
 User = get_user_model()
 
+# How many table ids the search is willing to put in the query itself before falling
+# back to a subquery for them.
+MAX_INLINE_SEARCH_IDS = 1000
+
 
 class AdminViewsView(AdminListingView):
     serializer_class = AdminViewSerializer
@@ -105,31 +109,46 @@ class AdminViewsView(AdminListingView):
         if not search:
             return queryset
 
-        # Every branch is an exact match on an indexed column of `database_view`,
-        # which lets Postgres combine them into one bitmap of seeks. A single branch
-        # it cannot answer from an index, or one reading another table, would make it
-        # scan for all of them instead.
-        q = Q(slug=search) | Q(
-            owned_by_id__in=User.objects.filter(username=search).values("id")
+        q = Q(slug=search)
+
+        owner_id = (
+            User.objects.filter(username=search).values_list("id", flat=True).first()
         )
+        if owner_id is not None:
+            q |= Q(owned_by_id=owner_id)
 
         value = parse_int_field_value(search)
         if value is not None:
-            q |= (
-                Q(id=value)
-                | Q(table_id=value)
-                | Q(owned_by_id=value)
-                | Q(table_id__in=Table.objects.filter(database_id=value).values("id"))
-                | Q(
-                    table_id__in=Table.objects.filter(
-                        database_id__in=Application.objects.filter(
-                            workspace_id=value
-                        ).values("id")
-                    ).values("id")
-                )
-            )
+            q |= Q(id=value) | Q(table_id=value) | Q(owned_by_id=value)
+            q |= self.get_tables_of_database_or_workspace_filter(value)
 
         return queryset.filter(q)
+
+    @staticmethod
+    def get_tables_of_database_or_workspace_filter(value: int) -> Q:
+        """
+        Builds the condition matching the views of every table in the database or the
+        workspace with the given id.
+
+        :param value: The id to match a database or a workspace on.
+        :return: The condition, matching nothing when neither exists.
+        """
+
+        tables = Table.objects.filter(
+            database_id__in=Application.objects.filter(
+                Q(id=value) | Q(workspace_id=value)
+            ).values("id")
+        )
+        table_ids = list(
+            tables.values_list("id", flat=True)[: MAX_INLINE_SEARCH_IDS + 1]
+        )
+
+        if len(table_ids) > MAX_INLINE_SEARCH_IDS:
+            # Too many to list. This costs the plan its estimate again, but leaving
+            # tables out of a lookup that exists to answer abuse reports is worse.
+            return Q(table_id__in=tables.values("id"))
+
+        return Q(table_id__in=table_ids)
 
     @extend_schema(
         tags=["Admin"],
