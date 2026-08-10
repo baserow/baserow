@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('contenttypes', '0002_remove_content_type_name'),
         ('core', '0115_ai_provider'),
-        ('database', '0214_buttonfield'),
+        ('database', '0215_view_public_id_index'),
     ]
 
     operations = [

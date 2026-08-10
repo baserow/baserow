@@ -2,7 +2,11 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import IFrameElement from '@baserow/modules/builder/components/elements/components/IFrameElement.vue'
 
 describe('IFrameElement', () => {
-  const mountComponent = (mode, elementValues = {}) => {
+  const mountComponent = (
+    mode,
+    elementValues = {},
+    applicationContextMode = mode
+  ) => {
     const page = {}
     const builder = { id: 1, theme: {} }
     const element = {
@@ -26,7 +30,7 @@ describe('IFrameElement', () => {
           currentPage: page,
           elementPage: page,
           mode,
-          applicationContext: { builder, page, mode },
+          applicationContext: { builder, page, mode: applicationContextMode },
         },
       },
     })
@@ -60,6 +64,71 @@ describe('IFrameElement', () => {
     })
 
     expect(wrapper.find('iframe').element).toMatchSnapshot()
+  })
+
+  test.each(['preview', 'public'])(
+    'allows a trusted external URL to use its own origin in %s mode',
+    async (mode) => {
+      const wrapper = await mountComponent(mode, {
+        source_type: 'url',
+        url: { formula: '"https://example.com"' },
+        allow_same_origin: true,
+      })
+
+      expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+        'allow-scripts allow-forms allow-popups allow-same-origin'
+      )
+    }
+  )
+
+  test('keeps trusted URLs sandboxed in editing mode', async () => {
+    const wrapper = await mountComponent('editing', {
+      source_type: 'url',
+      url: { formula: '"https://example.com"' },
+      allow_same_origin: true,
+    })
+
+    expect(wrapper.find('iframe').attributes('sandbox')).toBe('')
+  })
+
+  test('keeps trusted URLs sandboxed when the editor force-renders them in public mode', async () => {
+    const wrapper = await mountComponent(
+      'public',
+      {
+        source_type: 'url',
+        url: { formula: '"https://example.com"' },
+        allow_same_origin: true,
+      },
+      'editing'
+    )
+
+    expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+      'allow-scripts allow-forms allow-popups'
+    )
+  })
+
+  test.each([
+    ['same-origin', window.location.origin],
+    ['relative', '/embedded-resource'],
+    ['invalid', 'not a valid URL'],
+  ])('keeps a trusted %s URL sandboxed', async (_description, url) => {
+    const wrapper = await mountComponent('preview', {
+      source_type: 'url',
+      url: { formula: JSON.stringify(url) },
+      allow_same_origin: true,
+    })
+
+    expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+      'allow-scripts allow-forms allow-popups'
+    )
+  })
+
+  test('does not change sandboxing for trusted embedded content', async () => {
+    const wrapper = await mountComponent('preview', {
+      allow_same_origin: true,
+    })
+
+    expect(wrapper.find('iframe').attributes('sandbox')).toBeUndefined()
   })
 
   test('allows restricted capabilities for external URLs in public mode', async () => {

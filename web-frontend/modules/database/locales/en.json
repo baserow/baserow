@@ -80,7 +80,8 @@
     "public": "Publicly shared",
     "passwordProtected": "Password",
     "ownedBy": "Owner",
-    "createdOn": "Created on"
+    "createdOn": "Created on",
+    "allWorkspaces": "All workspaces"
   },
   "viewsAdminRotateSlugModal": {
     "title": "Refresh URL",
@@ -90,7 +91,7 @@
   "viewsAdminContext": {
     "copyPublicUrl": "Copy public URL",
     "openPublicView": "Open public view in new tab",
-    "searchWorkspaceId": "Search this workspace ID",
+    "filterWorkspace": "Filter by workspace",
     "rotateSlug": "Rotate slug",
     "makePrivate": "Make private",
     "makePublic": "Make public",

@@ -24,11 +24,13 @@ from baserow.contrib.database.views.models import (
     ViewFilter,
 )
 from baserow.core.db import (
+    MAX_INT_FIELD_VALUE,
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
     LockedAtomicTransaction,
     MultiFieldPrefetchQuerysetMixin,
     QuerySet,
     get_approximate_row_count,
+    parse_int_field_value,
     specific_iterator,
     specific_queryset,
 )
@@ -854,3 +856,22 @@ def test_get_approximate_row_count_skips_exact_count_for_expensive_plans():
 
     mock_count.assert_not_called()
     assert isinstance(count, int)
+
+
+def test_parse_int_field_value():
+    assert parse_int_field_value("42") == 42
+    assert parse_int_field_value(str(MAX_INT_FIELD_VALUE)) == MAX_INT_FIELD_VALUE
+
+    for value in [
+        None,
+        "",
+        "abc",
+        "4.2",
+        "-1",
+        " 42",
+        # Beyond an integer column. Matching it against one makes Postgres widen the
+        # comparison and scan instead of using the index, to find nothing.
+        str(MAX_INT_FIELD_VALUE + 1),
+        "9" * 400,
+    ]:
+        assert parse_int_field_value(value) is None, value

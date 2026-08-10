@@ -222,6 +222,21 @@ class View(
 
     class Meta:
         ordering = ("order",)
+        indexes = [
+            # The admin views page lists the publicly shared views newest first. The
+            # index leads with `id` so that page is a seek that stops at the page
+            # size, and includes `table_id` so the count that accompanies it can be
+            # answered without reading the table. Without it both fall back to
+            # walking the primary key and discarding whatever is not public, which
+            # only stays cheap while public views are common enough to run into
+            # quickly.
+            models.Index(
+                fields=["-id"],
+                include=["table_id"],
+                condition=Q(public=True, trashed=False),
+                name="database_view_public_id_idx",
+            ),
+        ]
 
     def get_all_sorts(
         self, restrict_to_field_ids: Optional[Iterable[int]] = None
