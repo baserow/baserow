@@ -64,6 +64,13 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
         default="",
         help_text="A human readable error message indicating what went wrong.",
     )
+    error_code = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        db_default="",
+        help_text="A machine readable error code indicating why the job failed.",
+    )
 
     objects = JobQuerySet.as_manager()
 
@@ -118,7 +125,11 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
         cache.set(job_progress_key(self.id), progress, timeout=None)
 
     def set_state(
-        self, state: str, error: str | None = None, message: str | None = None
+        self,
+        state: str,
+        error: str | None = None,
+        message: str | None = None,
+        error_code: str | None = None,
     ):
         """
         Helper method to set a state on a job.
@@ -126,6 +137,7 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
         :param state: One of JOB_* states
         :param error: Short error message
         :param message: Longer, human readable error description
+        :param error_code: Machine readable code indicating why the job failed
         """
 
         self.state = state
@@ -133,6 +145,8 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
             self.error = error
         if message is not None:
             self.human_readable_error = message
+        if error_code is not None:
+            self.error_code = error_code
         self.set_cached_state()
 
     def set_state_cancelled(self):
@@ -142,15 +156,16 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
 
         self.set_state(JOB_CANCELLED)
 
-    def set_state_failed(self, error: str, message: str):
+    def set_state_failed(self, error: str, message: str, error_code: str = ""):
         """
         Mark job as failed with an error.
 
         :param error: Short error message.
         :param message: Longer, human readable error description.
+        :param error_code: Machine readable code indicating why the job failed.
         """
 
-        self.set_state(JOB_FAILED, error, message)
+        self.set_state(JOB_FAILED, error, message, error_code)
 
     def set_state_started(self):
         """

@@ -100,6 +100,15 @@ export class DatabaseOnboardingType extends OnboardingType {
     return null
   }
 
+  getJobErrorMessage(job, data, responses) {
+    const type = data[DatabaseOnboardingType.getType()]?.type
+    if (type) {
+      const stepType = this.app.$registry.get('databaseOnboardingStep', type)
+      return stepType.getJobErrorMessage(job, data, responses)
+    }
+    return null
+  }
+
   getCompletedRoute(data, responses) {
     const type = data[DatabaseOnboardingType.getType()]?.type
     if (type) {

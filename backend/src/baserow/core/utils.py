@@ -591,8 +591,10 @@ def remove_invalid_surrogate_characters(
     """
     Removes illegal unicode characters from the provided content. If you for example
     run something like `b"\\ud83d".encode("utf-8")`, it will result in a
-    UnicodeEncodeError. This function removed the illegal characters, it keeps the
-    valid emoji's.
+    UnicodeEncodeError. This function removes lone surrogate escape sequences, but
+    keeps valid surrogate pairs like emoji's. NUL characters are removed as well,
+    both as raw byte and as JSON escape sequence, because PostgreSQL can't store
+    them in text columns.
 
     :param content: The content where the illegal unicode characters must be removed
         from.
@@ -605,7 +607,26 @@ def remove_invalid_surrogate_characters(
     if encoding is None:
         encoding = guess_json_utf(content)
 
-    return re.sub(r"\\u(d|D)([a-z|A-Z|0-9]{3})", "", content.decode(encoding, "ignore"))
+    decoded_content = content.decode(encoding, "ignore")
+    decoded_content = decoded_content.replace("\x00", "")
+
+    # Matching is comparatively expensive, and the escape sequences are rare, so
+    # it's worth skipping the substitution completely if they can't occur.
+    if "\\u" not in decoded_content:
+        return decoded_content
+
+    # Escaped backslashes and valid surrogate pairs are consumed and kept first, so
+    # that a literal backslash followed by for example "u0000" is not mistaken for
+    # an escape sequence, and multi character codepoints like emoji's are not
+    # corrupted. Lone surrogates (U+D800-U+DFFF) and NUL escape sequences are
+    # removed.
+    return re.sub(
+        r"(\\\\|\\u[dD][89abAB][0-9a-fA-F]{2}\\u[dD][c-fC-F][0-9a-fA-F]{2})"
+        r"|\\u[dD][89a-fA-F][0-9a-fA-F]{2}"
+        r"|\\u0000",
+        r"\1",
+        decoded_content,
+    )
 
 
 def split_ending_number(name: str) -> Tuple[str, str]:

@@ -6,6 +6,7 @@ import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingType
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import AirtableService from '@baserow/modules/database/services/airtable'
 import TemplateService from '@baserow/modules/core/services/template'
+import { getAirtableJobErrorMessage } from '@baserow/modules/database/utils/airtableErrors'
 
 /**
  * Base class for database onboarding step types. Each type represents a different
@@ -95,6 +96,20 @@ export class DatabaseOnboardingStepType extends Registerable {
    * @returns {object|null} - Job object if async, null otherwise
    */
   getJobForPolling(data, responses) {
+    return null
+  }
+
+  /**
+   * Get a specific error explanation for the failed job returned by
+   * `getJobForPolling`.
+   * @param job - The failed job, including its `error_code` and
+   *  `human_readable_error`
+   * @param data - The data object containing all onboarding form data
+   * @param responses - The responses object from all completed steps
+   * @returns {object|null} - Object containing a `title` and `message`, or null to
+   *  show the generic failure message
+   */
+  getJobErrorMessage(job, data, responses) {
     return null
   }
 
@@ -205,6 +220,10 @@ export class AirtableDatabaseOnboardingStepType extends DatabaseOnboardingStepTy
 
   getJobForPolling(data, responses) {
     return responses[DatabaseOnboardingType.getType()]?.job
+  }
+
+  getJobErrorMessage(job, data, responses) {
+    return getAirtableJobErrorMessage((key) => this.app.$i18n.t(key), job)
   }
 
   getCompletedRoute(data, responses) {

@@ -24,8 +24,11 @@ from baserow.contrib.database.airtable.constants import (
     AIRTABLE_EXPORT_JOB_CONVERTING,
     AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE,
     AIRTABLE_EXPORT_JOB_DOWNLOADING_FILES,
+    AIRTABLE_SHARE_TYPE_BASE,
+    AIRTABLE_SHARE_TYPE_VIEW,
 )
 from baserow.contrib.database.airtable.registry import (
+    REMOVE_FIELD_OBJECT,
     AirtableColumnType,
     airtable_column_type_registry,
     airtable_view_type_registry,
@@ -224,18 +227,20 @@ class AirtableFileImport:
 
 class AirtableHandler:
     @staticmethod
-    def fetch_publicly_shared_base(
+    def fetch_publicly_shared_share(
         share_id: str, config: AirtableImportConfig
-    ) -> Tuple[str, dict, dict]:
+    ) -> Tuple[str, str, dict, dict]:
         """
         Fetches the initial page of the publicly shared page. It will parse the content
         and extract and return the initial data needed for future requests.
 
         :param share_id: The Airtable share id of the page that must be fetched. Note
-            that the base must be shared publicly. The id stars with `shr`.
+            that the base or view must be shared publicly. The id stars with `shr`.
         :param config: Additional configuration related to the import.
-        :raises AirtableShareIsNotABase: When the URL doesn't point to a shared base.
-        :return: The request ID, initial data and the cookies of the response.
+        :raises AirtableShareIsNotABase: When the URL doesn't point to a shared base
+            or view.
+        :return: The share type, request ID, initial data and the cookies of the
+            response.
         """
 
         url = f"{AIRTABLE_BASE_URL}/{share_id}"
@@ -268,7 +273,36 @@ class AirtableHandler:
         cookies = response.cookies.get_dict()
         cookies.update(**config.get_session_cookies())
 
-        if "sharedApplicationId" not in raw_init_data:
+        if init_data.get("sharedApplicationId"):
+            share_type = AIRTABLE_SHARE_TYPE_BASE
+        elif init_data.get("sharedViewId"):
+            share_type = AIRTABLE_SHARE_TYPE_VIEW
+        else:
+            raise AirtableShareIsNotABase("The `shared_id` is not a base or a view.")
+
+        return share_type, request_id, init_data, cookies
+
+    @staticmethod
+    def fetch_publicly_shared_base(
+        share_id: str, config: AirtableImportConfig
+    ) -> Tuple[str, dict, dict]:
+        """
+        Like `fetch_publicly_shared_share`, but only accepts shared bases.
+
+        :param share_id: The Airtable share id of the page that must be fetched.
+        :param config: Additional configuration related to the import.
+        :raises AirtableShareIsNotABase: When the URL doesn't point to a shared base.
+        :return: The request ID, initial data and the cookies of the response.
+        """
+
+        (
+            share_type,
+            request_id,
+            init_data,
+            cookies,
+        ) = AirtableHandler.fetch_publicly_shared_share(share_id, config)
+
+        if share_type != AIRTABLE_SHARE_TYPE_BASE:
             raise AirtableShareIsNotABase("The `shared_id` is not a base.")
 
         return request_id, init_data, cookies
@@ -410,6 +444,49 @@ class AirtableHandler:
         return response
 
     @staticmethod
+    def fetch_shared_view_data(
+        view_id: str,
+        init_data: dict,
+        request_id: str,
+        cookies: dict,
+        stream=True,
+    ) -> Response:
+        """
+        Fetches the schema, rows, and view data of a publicly shared Airtable view.
+
+        :param view_id: The publicly shared Airtable view id that must be fetched.
+            The id starts with `viw`.
+        :param init_data: The init_data returned by the initially requested shared
+            view.
+        :param request_id: The request_id returned by the initially requested shared
+            view.
+        :param cookies: The cookies dict returned by the initially requested shared
+            view.
+        :param stream: Indicates whether the request should be streamed. This could be
+            useful if we want to show a progress bar. It will directly be passed into
+            the `requests` request.
+        :return: The `requests` response containing the result.
+        """
+
+        stringified_object_params = {"shouldUseNestedResponseFormat": True}
+        url = f"{AIRTABLE_API_BASE_URL}/view/{view_id}/readSharedViewData"
+
+        response = AirtableHandler.make_airtable_request(
+            init_data,
+            request_id,
+            url=url,
+            stream=stream,
+            params={
+                "stringifiedObjectParams": json.dumps(stringified_object_params),
+                # The shared view endpoint expects the request id in camelCase,
+                # unlike the other endpoints.
+                "requestId": request_id,
+            },
+            cookies=cookies,
+        )
+        return response
+
+    @staticmethod
     def fetch_attachment(
         row_id: str,
         column_id: str,
@@ -482,6 +559,74 @@ class AirtableHandler:
 
         if schema is None:
             raise ValueError("None of the provided exports contains the schema.")
+
+        return schema, tables
+
+    @staticmethod
+    def extract_shared_view_schema(data: dict) -> Tuple[dict, dict]:
+        """
+        Converts the data of the `readSharedViewData` endpoint of a publicly shared
+        view into the same schema and tables structure that `extract_schema` returns
+        for a shared base, so that the rest of the import pipeline can be reused
+        unchanged.
+
+        :param data: The `data` object of the `readSharedViewData` response.
+        :return: The database schema and a dict containing the table data.
+        """
+
+        table = data["table"]
+        rows = table.pop("rows", [])
+        signed_user_content_urls = table.pop("signedUserContentUrls", None)
+        views = table.get("views", [])
+
+        for column in table.get("columns", []):
+            # The shared view payload contains explicit nulls, for example for
+            # `typeOptions` and `default`, while the base payload omits those keys,
+            # which is what the column types expect.
+            for key, value in list(column.items()):
+                if value is None:
+                    del column[key]
+            for key, value in list(column.get("typeOptions", {}).items()):
+                if value is None:
+                    del column["typeOptions"][key]
+
+        for view in views:
+            # Only the shared view is included in the payload, and it can be of any
+            # type. The row and cell data is identical for every type, so falling
+            # back to a grid view ensures the imported table always has a view. The
+            # original type is kept so that it can be added to the import report.
+            if view["type"] not in airtable_view_type_registry.get_types():
+                view["airtable_original_type"] = view["type"]
+                view["type"] = "grid"
+
+        # Personal or locked views can be excluded from the payload's own view
+        # order, but the order is needed to compute the Baserow view order.
+        view_order = table.setdefault("viewOrder", [])
+        view_order += [view["id"] for view in views if view["id"] not in view_order]
+        table.setdefault("viewSectionsById", {})
+
+        # The rows are ordered by creation date, but the shared view has its own
+        # order that the user is looking at, so that one is leading.
+        row_order = [
+            entry["rowId"] for view in views for entry in view.get("rowOrder", [])
+        ]
+        rows_by_id = {row["id"]: row for row in rows}
+        ordered_rows = [
+            rows_by_id.pop(row_id) for row_id in row_order if row_id in rows_by_id
+        ]
+        ordered_rows.extend(rows_by_id.values())
+
+        schema = {"tableSchemas": [table]}
+        tables = {
+            table["id"]: {
+                "id": table["id"],
+                "rows": ordered_rows,
+                # The single view entry already contains the `columnOrder` and
+                # `rowOrder`, matching what the `readData` endpoint returns per view.
+                "viewDatas": views,
+                "signedUserContentUrls": signed_user_content_urls,
+            }
+        }
 
         return schema, tables
 
@@ -745,7 +890,6 @@ class AirtableHandler:
 
             # Loop over all the columns in the table and try to convert them to Baserow
             # format.
-            primary = None
             for column in table["columns"]:
                 (
                     baserow_field,
@@ -782,79 +926,99 @@ class AirtableHandler:
                     "raw_airtable_column": column,
                     "airtable_column_type": airtable_column_type,
                 }
-                if baserow_field.primary:
-                    primary = baserow_field
 
-            # There is always a primary field, but it could be that it's not compatible
-            # with Baserow. In that case, we need to find an alternative field, or
-            # create a new one.
-            if primary is None:
-                # First check if another field can act as the primary field type.
-                found_existing_field = False
-                for value in field_mapping.values():
-                    if field_type_registry.get_by_model(
-                        value["baserow_field"]
-                    ).can_be_primary_field(value["baserow_field"]):
-                        value["baserow_field"].primary = True
-                        found_existing_field = True
-                        import_report.add_failed(
-                            value["baserow_field"].name,
-                            SCOPE_FIELD,
-                            table["name"],
-                            ERROR_TYPE_UNSUPPORTED_FEATURE,
-                            f"""Changed primary field to "{value["baserow_field"].name}" because the original primary field is incompatible.""",
-                        )
-                        break
-
-                # If none of the existing fields can be primary, we will add a new
-                # text field.
-                if not found_existing_field:
-                    airtable_column = {
-                        "id": "primary_field",
-                        "name": "Primary field (auto created)",
-                        "type": "text",
-                    }
-                    (
-                        baserow_field,
-                        baserow_field_type,
-                        airtable_column_type,
-                    ) = cls.to_baserow_field(
-                        table, airtable_column, config, import_report
-                    )
-                    baserow_field.primary = True
-                    baserow_field.content_type = ContentType.objects.get_for_model(
-                        baserow_field
-                    )
-                    field_mapping["primary_id"] = {
-                        "baserow_field": baserow_field,
-                        "baserow_field_type": baserow_field_type,
-                        "raw_airtable_column": airtable_column,
-                        "airtable_column_type": airtable_column_type,
-                    }
-                    import_report.add_failed(
-                        baserow_field.name,
-                        SCOPE_FIELD,
-                        table["name"],
-                        ERROR_TYPE_UNSUPPORTED_FEATURE,
-                        f"""Created new primary field "{baserow_field.name}" because none of the provided fields are compatible.""",
-                    )
-
+            cls._ensure_primary_field(table, field_mapping, config, import_report)
             field_mapping_per_table[table["id"]] = field_mapping
 
         # Loop over all created fields, and post process them if needed. This is for
-        # example needed for the link row field where the object must be enhanced with
-        # the primary field of the related tables.
-        for table_index, table in enumerate(schema["tableSchemas"]):
+        # example needed for the link row field where the object must be enhanced
+        # with the primary field of the related table, or must be downgraded if the
+        # related table is not part of the import.
+        for table in schema["tableSchemas"]:
             field_mapping = field_mapping_per_table[table["id"]]
 
-            for field_object in field_mapping.values():
-                field_object["airtable_column_type"].after_field_objects_prepared(
-                    field_mapping_per_table,
-                    field_object["baserow_field"],
-                    field_object["raw_airtable_column"],
+            for column_id, field_object in list(field_mapping.items()):
+                new_field_object = field_object[
+                    "airtable_column_type"
+                ].after_field_objects_prepared(
+                    field_mapping_per_table, table, field_object, import_report
                 )
+                if new_field_object is REMOVE_FIELD_OBJECT:
+                    del field_mapping[column_id]
+                elif new_field_object is not None:
+                    field_mapping[column_id] = new_field_object
+
+        # The post-processing could have removed the field that was acting as
+        # primary field, so it could be that a new one must be found or created.
+        for table in schema["tableSchemas"]:
+            cls._ensure_primary_field(
+                table, field_mapping_per_table[table["id"]], config, import_report
+            )
 
         return field_mapping_per_table
+
+    @classmethod
+    def _ensure_primary_field(
+        cls,
+        table: dict,
+        field_mapping: dict,
+        config: AirtableImportConfig,
+        import_report: AirtableImportReport,
+    ):
+        """
+        There is always a primary field, but it could be that it's not compatible
+        with Baserow. In that case, we need to find an alternative field, or create
+        a new one.
+        """
+
+        if any(
+            field_object["baserow_field"].primary
+            for field_object in field_mapping.values()
+        ):
+            return
+
+        # First check if another field can act as the primary field type.
+        for value in field_mapping.values():
+            if field_type_registry.get_by_model(
+                value["baserow_field"]
+            ).can_be_primary_field(value["baserow_field"]):
+                value["baserow_field"].primary = True
+                import_report.add_failed(
+                    value["baserow_field"].name,
+                    SCOPE_FIELD,
+                    table["name"],
+                    ERROR_TYPE_UNSUPPORTED_FEATURE,
+                    f"""Changed primary field to "{value["baserow_field"].name}" because the original primary field is incompatible.""",
+                )
+                return
+
+        # If none of the existing fields can be primary, we will add a new text
+        # field.
+        airtable_column = {
+            "id": "primary_field",
+            "name": "Primary field (auto created)",
+            "type": "text",
+        }
+        (
+            baserow_field,
+            baserow_field_type,
+            airtable_column_type,
+        ) = cls.to_baserow_field(table, airtable_column, config, import_report)
+        baserow_field.primary = True
+        baserow_field.content_type = ContentType.objects.get_for_model(baserow_field)
+        field_mapping["primary_id"] = {
+            "baserow_field": baserow_field,
+            "baserow_field_type": baserow_field_type,
+            "raw_airtable_column": airtable_column,
+            "airtable_column_type": airtable_column_type,
+        }
+        import_report.add_failed(
+            baserow_field.name,
+            SCOPE_FIELD,
+            table["name"],
+            ERROR_TYPE_UNSUPPORTED_FEATURE,
+            f"""Created new primary field "{baserow_field.name}" because none of the provided fields are compatible.""",
+        )
 
     @classmethod
     def _parse_rows_and_views(
@@ -912,6 +1076,17 @@ class AirtableHandler:
             # because the views are not yet supported.
             exported_views = []
             for view in table["views"]:
+                original_type = view.get("airtable_original_type")
+                if original_type:
+                    import_report.add_failed(
+                        view["name"],
+                        SCOPE_VIEW,
+                        table["name"],
+                        ERROR_TYPE_UNSUPPORTED_FEATURE,
+                        f'View "{view["name"]}" was imported as grid view because '
+                        f"{original_type} is not supported.",
+                    )
+
                 table_data = tables[table["id"]]
                 view_data = next(
                     (
@@ -978,6 +1153,19 @@ class AirtableHandler:
                 files_to_download[file_name] = download_file
 
         return exported_tables, files_to_download
+
+    @staticmethod
+    def get_database_name(init_data: dict) -> str:
+        """
+        :param init_data: The init_data, extracted from the initial page related to
+            the shared base or view.
+        :return: The name of the Airtable base that the imported database should get.
+        """
+
+        application_id = init_data.get("sharedApplicationId") or next(
+            iter(init_data["rawApplications"])
+        )
+        return init_data["rawApplications"][application_id]["name"]
 
     @classmethod
     def to_baserow_database_export(
@@ -1090,7 +1278,7 @@ class AirtableHandler:
 
         exported_database = CoreExportSerializedStructure.application(
             id=1,
-            name=init_data["rawApplications"][init_data["sharedApplicationId"]]["name"],
+            name=cls.get_database_name(init_data),
             order=1,
             type=DatabaseApplicationType.type,
         )
@@ -1130,7 +1318,7 @@ class AirtableHandler:
         share_id: str,
         config: AirtableImportConfig,
         progress_builder: Optional[ChildProgressBuilder] = None,
-    ) -> Union[dict, dict, list]:
+    ) -> Tuple[dict, str, dict, dict, dict]:
         """
         :param share_id: The shared Airtable ID of which the data must be fetched.
         :param config: Additional configuration related to the import.
@@ -1144,10 +1332,29 @@ class AirtableHandler:
 
         # Execute the initial request to obtain the initial data that's needed to
         # make the request.
-        request_id, init_data, cookies = cls.fetch_publicly_shared_base(
+        share_type, request_id, init_data, cookies = cls.fetch_publicly_shared_share(
             share_id, config
         )
         progress.increment(state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE)
+
+        # A shared view exposes the schema, rows, and view data of a single table in
+        # one request.
+        if share_type == AIRTABLE_SHARE_TYPE_VIEW:
+            response = cls.fetch_shared_view_data(
+                view_id=init_data["sharedViewId"],
+                init_data=init_data,
+                request_id=request_id,
+                cookies=cookies,
+                stream=False,
+            )
+            json_decoded_content = parse_json_and_remove_invalid_surrogate_characters(
+                response
+            )
+            schema, tables = cls.extract_shared_view_schema(
+                json_decoded_content["data"]
+            )
+            progress.increment(by=99, state=AIRTABLE_EXPORT_JOB_DOWNLOADING_BASE)
+            return init_data, request_id, cookies, schema, tables
 
         # Loop over all the tables and make a request for each table to obtain the raw
         # Airtable table data.

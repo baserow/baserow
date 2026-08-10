@@ -112,6 +112,7 @@ def test_run_task_with_exception(mock_get_by_model, data_fixture):
         job.human_readable_error
         == "Something went wrong during the custom_job_type job execution."
     )
+    assert job.error_code == ""
 
 
 @pytest.mark.django_db(transaction=True)
@@ -154,6 +155,7 @@ def test_run_task_failing_time_limit(mock_get_by_model, data_fixture):
         job.human_readable_error
         == "The custom_job_type job took too long and was timed out."
     )
+    assert job.error_code == "SoftTimeLimitExceeded"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -171,6 +173,7 @@ def test_run_task_with_exception_mapping(mock_get_by_model, data_fixture):
     assert job.state == JOB_FAILED
     assert job.error == "connection error"
     assert job.human_readable_error == "Error message"
+    assert job.error_code == "ConnectionError"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -308,6 +311,10 @@ def test_cleanup_file_import_job(storage_mock, data_fixture, settings):
     assert Job.objects.is_running().count() == 2
     assert Job.objects.is_ended().count() == 5
     assert Job.objects.is_pending_or_running().count() == 3
+
+    expired_jobs = Job.objects.filter(error="Timeout error")
+    assert expired_jobs.count() > 0
+    assert all(job.error_code == "SoftTimeLimitExceeded" for job in expired_jobs)
 
     # Should delete the job that has been automatically expired by the previous cleanup
     with freeze_time(now):

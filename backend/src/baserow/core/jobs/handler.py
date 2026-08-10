@@ -7,6 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q, QuerySet
 
+from celery.exceptions import SoftTimeLimitExceeded
+
 from baserow.core.utils import Progress
 
 from .exceptions import JobCancelled, JobDoesNotExist, JobNotCancellable
@@ -299,6 +301,7 @@ class JobHandler:
                 job.set_state_failed(
                     "Timeout error",
                     "Something went wrong during the job execution.",
+                    SoftTimeLimitExceeded.__name__,
                 )
                 # Set the updated_on manually because it won't be set by bulk_update
                 job.updated_on = now
@@ -306,7 +309,13 @@ class JobHandler:
         if jobs_to_update:
             Job.objects.bulk_update(
                 jobs_to_update,
-                fields=["updated_on", "state", "error", "human_readable_error"],
+                fields=[
+                    "updated_on",
+                    "state",
+                    "error",
+                    "human_readable_error",
+                    "error_code",
+                ],
             )
 
     @classmethod

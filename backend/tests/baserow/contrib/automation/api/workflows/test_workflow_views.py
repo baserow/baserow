@@ -431,6 +431,7 @@ def test_duplicate_workflow(api_client, data_fixture):
     assert response.json() == {
         "duplicated_automation_workflow": None,
         "human_readable_error": "",
+        "error_code": "",
         "id": AnyInt(),
         "original_automation_workflow": {
             "allow_test_run_until": None,
@@ -590,6 +591,7 @@ def test_publish_workflow(api_client, data_fixture):
     assert response.status_code == HTTP_202_ACCEPTED
     assert response.json() == {
         "human_readable_error": "",
+        "error_code": "",
         "id": AnyInt(),
         "progress_percentage": AnyInt(),
         "state": "pending",

@@ -112,6 +112,7 @@ def test_create_airtable_import_job(
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
+        "error_code": "",
         "database": None,
     }
     mock_run_import_from_airtable.delay.assert_called()
@@ -143,6 +144,7 @@ def test_create_airtable_import_job(
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
+        "error_code": "",
         "database": None,
     }
 
@@ -198,6 +200,7 @@ def test_create_airtable_import_job_long_share_id(
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
+        "error_code": "",
         "database": None,
     }
     mock_run_import_from_airtable.delay.assert_called()
@@ -320,6 +323,7 @@ def test_get_airtable_import_job(data_fixture, api_client):
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
+        "error_code": "",
         "database": None,
     }
 
@@ -350,6 +354,7 @@ def test_get_airtable_import_job(data_fixture, api_client):
         "progress_percentage": 50,
         "state": "failed",
         "human_readable_error": "Wrong",
+        "error_code": "",
         "database": {
             "id": airtable_job_1.database.id,
             "name": airtable_job_1.database.name,

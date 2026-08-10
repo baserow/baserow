@@ -601,6 +601,7 @@ def test_job_started(mock_broadcast_to_users, data_fixture):
             "progress_percentage": 0,
             "state": "started",
             "human_readable_error": "",
+            "error_code": "",
             "test_field": 42,
             "created_on": "2024-01-01T12:00:00Z",
             "updated_on": "2024-01-01T12:00:00Z",

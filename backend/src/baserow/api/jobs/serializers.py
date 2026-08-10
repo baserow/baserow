@@ -44,6 +44,7 @@ class JobSerializer(serializers.ModelSerializer):
             "progress_percentage",
             "state",
             "human_readable_error",
+            "error_code",
             "created_on",
             "updated_on",
         )
