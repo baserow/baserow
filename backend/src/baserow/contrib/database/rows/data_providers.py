@@ -1,5 +1,8 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
+from baserow.contrib.database.fields.exceptions import (
+    ReadOnlyFieldHasNoInternalDbValueError,
+)
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
@@ -113,14 +116,26 @@ class RowDataProviderType(DataProviderType):
         if field_name == "id":
             return row.id
 
-        field_names = {
-            field_object["name"]
-            for field_object in row._meta.model._field_objects.values()
-        }
-        if field_name not in field_names:
+        field_object = next(
+            (
+                candidate
+                for candidate in row._meta.model._field_objects.values()
+                if candidate["name"] == field_name
+            ),
+            None,
+        )
+        if field_object is None:
             return None
 
-        return getattr(row, field_name, None)
+        try:
+            # A link row, select or collaborator field holds a manager or a
+            # model instance, which no action can write. The field type turns
+            # those into the ids the row API takes, and leaves the rest alone.
+            return field_object["type"].get_internal_value_from_db(row, field_name)
+        except ReadOnlyFieldHasNoInternalDbValueError:
+            # A formula, count or rollup has nothing writable, but its computed
+            # value is still worth reading as an argument.
+            return getattr(row, field_name, None)
 
     def import_path(
         self, path: List[str], id_mapping: Dict[str, Any], **kwargs

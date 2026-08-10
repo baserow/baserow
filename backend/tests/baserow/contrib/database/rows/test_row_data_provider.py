@@ -2,10 +2,12 @@ from decimal import Decimal
 
 import pytest
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.data_providers import (
     HumanReadableFieldsDataProviderType,
     RowDataProviderType,
 )
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
 )
@@ -156,6 +158,108 @@ def test_the_human_readable_provider_against_a_dispatch_context(data_fixture):
             dispatch_context, [f"field_{name_field.id}"]
         )
         is None
+    )
+
+
+@pytest.mark.django_db
+def test_relational_values_come_back_as_ids(data_fixture):
+    """A link row or select field holds a manager or a model instance on the
+    row. Handing one to an action would reach the row API as something it
+    cannot write, so the field type's internal value is used instead."""
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    suppliers = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name="Suppliers",
+        fields=[("Name", "text", {})],
+    )
+    supplier_row = suppliers.get_model().objects.create(
+        **{f"field_{suppliers.field_set.get(name='Name').id}": "Bakery"}
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name="Orders",
+        fields=[
+            ("Name", "text", {}),
+            ("Supplier", "link_row", {"link_row_table": suppliers}),
+        ],
+    )
+    link_field = table.field_set.get(name="Supplier")
+    status_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Status",
+        type_name="single_select",
+        select_options=[{"value": "Open", "color": "red"}],
+    )
+    tags_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Tags",
+        type_name="multiple_select",
+        select_options=[{"value": "Urgent", "color": "blue"}],
+    )
+    open_option = status_field.select_options.get(value="Open")
+    urgent_option = tags_field.select_options.get(value="Urgent")
+
+    model = table.get_model()
+    created = model.objects.create(**{f"field_{status_field.id}_id": open_option.id})
+    getattr(created, f"field_{link_field.id}").set([supplier_row.id])
+    getattr(created, f"field_{tags_field.id}").set([urgent_option.id])
+    row = model.objects.get(pk=created.pk)
+    dispatch_context = _dispatch_context(data_fixture, user, table, row)
+
+    provider = RowDataProviderType()
+
+    assert provider.get_data_chunk(dispatch_context, [f"field_{link_field.id}"]) == [
+        supplier_row.id
+    ]
+    assert (
+        provider.get_data_chunk(dispatch_context, [f"field_{status_field.id}"])
+        == open_option.id
+    )
+    assert provider.get_data_chunk(dispatch_context, [f"field_{tags_field.id}"]) == [
+        urgent_option.id
+    ]
+
+
+@pytest.mark.django_db
+def test_a_read_only_field_falls_back_to_its_computed_value(data_fixture):
+    """A formula has no writable value of its own, but reading the result as an
+    action's argument is a fair thing to want."""
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name="People",
+        fields=[("Name", "text", {})],
+    )
+    name_field = table.field_set.get(name="Name")
+    greeting_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Greeting",
+        type_name="formula",
+        formula="concat('Hi ', field('Name'))",
+    )
+    # Through the handler, or the formula column is never computed.
+    created = RowHandler().create_rows(
+        user=user, table=table, rows_values=[{f"field_{name_field.id}": "Ada"}]
+    )
+    model = table.get_model()
+    row = model.objects.get(pk=created.created_rows[0].id)
+    dispatch_context = _dispatch_context(data_fixture, user, table, row)
+
+    assert (
+        RowDataProviderType().get_data_chunk(
+            dispatch_context, [f"field_{greeting_field.id}"]
+        )
+        == "Hi Ada"
     )
 
 
