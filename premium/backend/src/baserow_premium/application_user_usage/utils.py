@@ -1,11 +1,12 @@
-from baserow.core.cache import local_cache
+from baserow.core.cache import global_cache
 from baserow_premium.application_user_usage.handler import ApplicationUserUsageHandler
+
+INSTANCE_WIDE_APPLICATION_USER_COUNT_CACHE_KEY = "instance_wide_application_user_count"
 
 
 def get_instance_wide_application_user_count() -> int:
     """
-    Returns the instance wide application user count, memoized for the duration of
-    the current local cache context (a single request or celery task).
+    Returns the instance wide application user count, cached for 30 minutes.
 
     The periodic limit check resolves the same instance wide count once per
     workspace, so without this it would recount every published user source in the
@@ -14,7 +15,8 @@ def get_instance_wide_application_user_count() -> int:
     :return: The number of application users in the instance.
     """
 
-    return local_cache.get(
-        "instance_wide_application_user_count",
-        lambda: ApplicationUserUsageHandler().aggregate_user_source_counts(),
+    return global_cache.get(
+        INSTANCE_WIDE_APPLICATION_USER_COUNT_CACHE_KEY,
+        default=lambda: ApplicationUserUsageHandler().aggregate_user_source_counts(),
+        timeout=60 * 30,  # 30 minutes
     )

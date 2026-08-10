@@ -24,6 +24,9 @@ from baserow_enterprise.application_users.usage import (
 from baserow_premium.application_user_usage.constants import (
     DEFAULT_APPLICATION_USERS_LIMIT,
 )
+from baserow_premium.application_user_usage.utils import (
+    INSTANCE_WIDE_APPLICATION_USER_COUNT_CACHE_KEY,
+)
 from baserow_premium.license.plugin import LicensePlugin
 from baserow_premium.plugins import PremiumPlugin
 
@@ -58,6 +61,17 @@ def mark_over_limit_since(user_source, since):
 
 def is_marked_over_limit(workspace):
     return get_application_user_over_limit_since(workspace) is not None
+
+
+def expire_instance_wide_count_cache():
+    """
+    The instance wide application user count is cached for less than the interval of
+    the periodic check, so every run of it resolves the count anew. Tests that run the
+    check more than once with a changed usage have to expire that cache themselves,
+    because they don't wait for the timeout.
+    """
+
+    global_cache.invalidate(INSTANCE_WIDE_APPLICATION_USER_COUNT_CACHE_KEY)
 
 
 @pytest.fixture
@@ -430,6 +444,7 @@ def test_the_periodic_check_clears_notifications_when_the_usage_drops_again(
     # notifications and the over limit state again, and crossing the limit later
     # notifies anew.
     mock_aggregate_user_source_counts.return_value = 5
+    expire_instance_wide_count_cache()
     with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
         check_application_user_limits()
 
@@ -507,6 +522,7 @@ def test_the_periodic_check_only_clears_the_thresholds_the_usage_dropped_below(
     mock_aggregate_user_source_counts.return_value = int(
         DEFAULT_APPLICATION_USERS_LIMIT * 0.9
     )
+    expire_instance_wide_count_cache()
     with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
         check_application_user_limits()
 
@@ -519,6 +535,7 @@ def test_the_periodic_check_only_clears_the_thresholds_the_usage_dropped_below(
     # Crossing the limit again notifies anew for the cleared threshold, because
     # clearing it re-armed the dedup.
     mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
+    expire_instance_wide_count_cache()
     with local_cache.context(), django_capture_on_commit_callbacks(execute=True):
         check_application_user_limits()
 
