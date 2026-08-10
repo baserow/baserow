@@ -5,7 +5,6 @@ from datetime import timedelta
 from unittest.mock import patch
 from urllib.parse import parse_qsl, urlencode, urlparse
 
-from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils.timezone import now
@@ -17,6 +16,7 @@ from rest_framework.status import HTTP_302_FOUND, HTTP_400_BAD_REQUEST
 from saml2.xml.schema import validate as validate_saml_xml
 
 from baserow.contrib.builder.domains.handler import DomainHandler
+from baserow.core.cache import global_cache
 from baserow.core.registries import plugin_registry
 from baserow.core.user_sources.registries import user_source_type_registry
 from baserow_enterprise.application_users.usage import get_over_limit_cache_key
@@ -252,9 +252,9 @@ def test_builder_saml_acs_redirects_with_error_over_application_user_limit(
     )
 
     with freeze_time("2024-12-17T15:53:00.00Z"):
-        cache.set(
+        global_cache.update(
             get_over_limit_cache_key(workspace.id),
-            (now() - timedelta(hours=2)).isoformat(),
+            lambda _: (now() - timedelta(hours=2)).isoformat(),
         )
 
         response = api_client.post(
