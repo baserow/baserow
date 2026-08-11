@@ -108,7 +108,7 @@ test.describe("Button field", () => {
 
     // "Run" approves the row that was clicked.
     await createRowAction(g.user, g.fieldByName["Run"], {
-      type: "update_row",
+      type: "local_baserow_update_row",
       table: g.table,
       rowId: "get('row.id')",
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'done'" }],
@@ -122,7 +122,7 @@ test.describe("Button field", () => {
 
     // "Editable" starts with one action, which the editor test adds to.
     await createRowAction(g.user, g.fieldByName["Editable"], {
-      type: "update_row",
+      type: "local_baserow_update_row",
       table: g.table,
       rowId: "get('row.id')",
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'seeded'" }],
@@ -139,14 +139,14 @@ test.describe("Button field", () => {
 
     // "Failing" starts with one action that a half-failed save must not touch.
     await createRowAction(g.user, g.fieldByName["Failing"], {
-      type: "update_row",
+      type: "local_baserow_update_row",
       table: g.table,
       rowId: "get('row.id')",
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'kept'" }],
     });
 
     // "Broken" has an action with no table, so dispatching it fails.
-    await createWorkflowAction(g.user, g.fieldByName["Broken"], "create_row");
+    await createWorkflowAction(g.user, g.fieldByName["Broken"], "local_baserow_create_row");
 
     // "BadLink" points at a field that does not exist, so the URL never
     // resolves in the browser.
@@ -157,7 +157,7 @@ test.describe("Button field", () => {
     // "RunTwo" writes a different column to "Run", so two buttons on one row
     // can be checked without the two writes racing each other.
     await createRowAction(g.user, g.fieldByName["RunTwo"], {
-      type: "update_row",
+      type: "local_baserow_update_row",
       table: g.table,
       rowId: "get('row.id')",
       fieldMappings: [{ field: g.fieldByName["Note"], value: "'two'" }],
@@ -166,7 +166,7 @@ test.describe("Button field", () => {
     // "Deferred" runs server side and then hands a client action back, so the
     // browser still has work to do after the cell may be gone.
     await createRowAction(g.user, g.fieldByName["Deferred"], {
-      type: "update_row",
+      type: "local_baserow_update_row",
       table: g.table,
       rowId: "get('row.id')",
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'scrolled'" }],
@@ -182,7 +182,7 @@ test.describe("Button field", () => {
     await createField(g.user, "OtherOnly", "text", {}, otherTable);
 
     await createRowAction(g.user, g.fieldByName["Retarget"], {
-      type: "update_row",
+      type: "local_baserow_update_row",
       table: g.table,
       rowId: "get('row.id')",
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'x'" }],
@@ -192,13 +192,13 @@ test.describe("Button field", () => {
     // the server implements as a delete plus a create, has to keep the second
     // one behind it under a brand new id.
     await createRowAction(g.user, g.fieldByName["Retype"], {
-      type: "update_row",
+      type: "local_baserow_update_row",
       table: g.table,
       rowId: "get('row.id')",
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'first'" }],
     });
     await createRowAction(g.user, g.fieldByName["Retype"], {
-      type: "update_row",
+      type: "local_baserow_update_row",
       table: g.table,
       rowId: "get('row.id')",
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'second'" }],
@@ -287,7 +287,7 @@ test.describe("Button field", () => {
         g.fieldByName["Editable"],
       );
       expect(actions.map((action) => action.type)).toEqual([
-        "update_row",
+        "local_baserow_update_row",
         "open_url",
       ]);
       // The action that was already there keeps its configuration.
@@ -457,7 +457,7 @@ test.describe("Button field", () => {
         g.fieldByName["Failing"],
       );
       expect(actions.map((action) => action.type)).toEqual([
-        "update_row",
+        "local_baserow_update_row",
         "open_url",
       ]);
       // Nothing is rolled back, so the action that was already there stays.
@@ -706,7 +706,7 @@ test.describe("Button field", () => {
       const after = await listWorkflowActions(g.user, g.fieldByName["Retype"]);
       expect(after.map((action) => action.type)).toEqual([
         "open_url",
-        "update_row",
+        "local_baserow_update_row",
       ]);
       // The recreated action really is a new row, and the untouched one kept
       // both its position and its configuration.

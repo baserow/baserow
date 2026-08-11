@@ -61,7 +61,7 @@ describe('DatabaseWorkflowActionWithService', () => {
     })
   }
 
-  const mountAction = async (type = 'create_row', service = {}) =>
+  const mountAction = async (type = 'local_baserow_create_row', service = {}) =>
     testApp.mount(DatabaseWorkflowActionWithService, {
       props: {
         workflowAction: { id: 1, type, service },
@@ -76,7 +76,7 @@ describe('DatabaseWorkflowActionWithService', () => {
   test('the service form gets the workspace databases', async () => {
     await seedApplications()
 
-    const wrapper = await mountAction('create_row')
+    const wrapper = await mountAction('local_baserow_create_row')
 
     const serviceForm = wrapper.findComponent({
       name: 'LocalBaserowUpsertRowServiceForm',
@@ -101,7 +101,7 @@ describe('DatabaseWorkflowActionWithService', () => {
   test('the table selector renders without an integration', async () => {
     await seedApplications()
 
-    const wrapper = await mountAction('create_row')
+    const wrapper = await mountAction('local_baserow_create_row')
 
     // With no integration the table selector was never rendered at all, so
     // the action could not be configured.
@@ -125,7 +125,9 @@ describe('DatabaseWorkflowActionWithService', () => {
 
     // A newly added action has nothing saved and so no schema, which used to
     // make the form claim the table had no writable fields.
-    const wrapper = await mountAction('create_row', { table_id: 2 })
+    const wrapper = await mountAction('local_baserow_create_row', {
+      table_id: 2,
+    })
     await flushPromises()
 
     const serviceForm = wrapper.findComponent({
@@ -148,7 +150,9 @@ describe('DatabaseWorkflowActionWithService', () => {
 
     // Update row's form is a thin wrapper that forwards $attrs, so the props
     // have to be decided from the action type, not from the form component.
-    const wrapper = await mountAction('update_row', { table_id: 2 })
+    const wrapper = await mountAction('local_baserow_update_row', {
+      table_id: 2,
+    })
     await flushPromises()
 
     expect(wrapper.vm.supportsFieldMappings).toBe(true)
@@ -164,7 +168,9 @@ describe('DatabaseWorkflowActionWithService', () => {
     await seedApplications()
     testApp.mock.onGet('/database/fields/table/2/').reply(200, TABLE_FIELDS)
 
-    const wrapper = await mountAction('create_row', { table_id: 2 })
+    const wrapper = await mountAction('local_baserow_create_row', {
+      table_id: 2,
+    })
     await flushPromises()
 
     const names = wrapper
@@ -181,7 +187,9 @@ describe('DatabaseWorkflowActionWithService', () => {
       .onGet('/database/fields/table/2/')
       .reply(200, [{ id: 20, name: 'Company', type: 'text', read_only: false }])
 
-    const wrapper = await mountAction('create_row', { table_id: 1 })
+    const wrapper = await mountAction('local_baserow_create_row', {
+      table_id: 1,
+    })
     await flushPromises()
 
     // A saved schema would still describe table 1 here, so the fetched list is
@@ -202,7 +210,9 @@ describe('DatabaseWorkflowActionWithService', () => {
     await seedApplications()
     testApp.mock.onGet('/database/fields/table/2/').reply(200, TABLE_FIELDS)
 
-    const wrapper = await mountAction('create_row', { table_id: 2 })
+    const wrapper = await mountAction('local_baserow_create_row', {
+      table_id: 2,
+    })
     await flushPromises()
 
     const serviceForm = wrapper.findComponent({
@@ -238,7 +248,9 @@ describe('DatabaseWorkflowActionWithService', () => {
         })
     )
 
-    const wrapper = await mountAction('create_row', { table_id: 1 })
+    const wrapper = await mountAction('local_baserow_create_row', {
+      table_id: 1,
+    })
     await flushPromises()
 
     const serviceForm = wrapper.findComponent({
@@ -284,7 +296,7 @@ describe('DatabaseWorkflowActionWithService', () => {
       .onGet('/database/fields/table/2/')
       .reply(200, [{ id: 20, name: 'Fresh', type: 'text', read_only: false }])
 
-    const wrapper = await mountAction('create_row', {})
+    const wrapper = await mountAction('local_baserow_create_row', {})
 
     wrapper.vm.values.service = { table_id: 1 }
     await wrapper.vm.$nextTick()
@@ -312,7 +324,7 @@ describe('DatabaseWorkflowActionWithService', () => {
         })
     )
 
-    const wrapper = await mountAction('create_row', {})
+    const wrapper = await mountAction('local_baserow_create_row', {})
 
     wrapper.vm.values.service = { table_id: 1 }
     await flushPromises()
@@ -336,7 +348,9 @@ describe('DatabaseWorkflowActionWithService', () => {
   test('the delete row action asks for no fields and takes neither prop', async () => {
     await seedApplications()
 
-    const wrapper = await mountAction('delete_row', { table_id: 2 })
+    const wrapper = await mountAction('local_baserow_delete_row', {
+      table_id: 2,
+    })
     await flushPromises()
 
     // Delete row has no field mappings, so fetching them would be a wasted
@@ -349,7 +363,7 @@ describe('DatabaseWorkflowActionWithService', () => {
   test('the delete row action also gets the databases', async () => {
     await seedApplications()
 
-    const wrapper = await mountAction('delete_row')
+    const wrapper = await mountAction('local_baserow_delete_row')
 
     const serviceForm = wrapper.findComponent({
       name: 'LocalBaserowServiceForm',

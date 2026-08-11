@@ -1,10 +1,10 @@
 import pytest
 
 from baserow.contrib.database.workflow_actions.models import (
-    CreateRowWorkflowAction,
     DatabaseWorkflowAction,
-    DeleteRowWorkflowAction,
-    UpdateRowWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowWorkflowAction,
 )
 from baserow.core.services.models import Service
 
@@ -13,7 +13,7 @@ from baserow.core.services.models import Service
 def test_workflow_action_parent_is_the_field(data_fixture):
     button_field = data_fixture.create_button_field()
     service = data_fixture.create_local_baserow_upsert_row_service(integration=None)
-    action = CreateRowWorkflowAction.objects.create(
+    action = LocalBaserowCreateRowWorkflowAction.objects.create(
         field=button_field, order=1, service=service
     )
 
@@ -27,10 +27,10 @@ def test_workflow_action_parent_is_the_field(data_fixture):
 def test_actions_are_ordered(data_fixture):
     button_field = data_fixture.create_button_field()
     service = data_fixture.create_local_baserow_upsert_row_service(integration=None)
-    second = CreateRowWorkflowAction.objects.create(
+    second = LocalBaserowCreateRowWorkflowAction.objects.create(
         field=button_field, order=2, service=service
     )
-    first = DeleteRowWorkflowAction.objects.create(
+    first = LocalBaserowDeleteRowWorkflowAction.objects.create(
         field=button_field, order=1, service=service
     )
 
@@ -46,7 +46,9 @@ def test_get_last_order(data_fixture):
 
     assert DatabaseWorkflowAction.get_last_order(button_field) == 1
 
-    UpdateRowWorkflowAction.objects.create(field=button_field, order=1, service=service)
+    LocalBaserowUpdateRowWorkflowAction.objects.create(
+        field=button_field, order=1, service=service
+    )
 
     assert DatabaseWorkflowAction.get_last_order(button_field) == 2
 
@@ -63,7 +65,9 @@ def test_actions_are_deleted_when_the_field_stops_being_a_button(data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     service = data_fixture.create_local_baserow_upsert_row_service(integration=None)
-    CreateRowWorkflowAction.objects.create(field=button_field, order=1, service=service)
+    LocalBaserowCreateRowWorkflowAction.objects.create(
+        field=button_field, order=1, service=service
+    )
 
     FieldHandler().update_field(user, button_field, new_type_name="text")
 
@@ -73,7 +77,9 @@ def test_actions_are_deleted_when_the_field_stops_being_a_button(data_fixture):
 
 @pytest.mark.django_db
 def test_the_fixture_creates_an_action_with_its_service(data_fixture):
-    action = data_fixture.create_database_workflow_action(CreateRowWorkflowAction)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction
+    )
 
     assert action.field is not None
     assert action.service is not None

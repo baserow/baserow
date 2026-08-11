@@ -2,8 +2,8 @@ import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.workflow_actions.models import (
-    CreateRowWorkflowAction,
     DatabaseWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
 )
 from baserow.core.trash.handler import TrashHandler
 
@@ -14,7 +14,7 @@ def test_actions_survive_trashing_and_restoring_the_field(data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     FieldHandler().delete_field(user, button_field)

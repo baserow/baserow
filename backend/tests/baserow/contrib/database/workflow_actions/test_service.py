@@ -1,6 +1,8 @@
 import pytest
 
-from baserow.contrib.database.workflow_actions.models import CreateRowWorkflowAction
+from baserow.contrib.database.workflow_actions.models import (
+    LocalBaserowCreateRowWorkflowAction,
+)
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
@@ -18,7 +20,7 @@ def test_create_workflow_action(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
-    action_type = database_workflow_action_type_registry.get("create_row")
+    action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
     action = DatabaseWorkflowActionService().create_workflow_action(
         user, action_type, button_field
@@ -34,7 +36,7 @@ def test_create_is_refused_without_field_permission(data_fixture):
     owner = data_fixture.create_user()
     table = data_fixture.create_database_table(user=owner)
     button_field = data_fixture.create_button_field(table=table)
-    action_type = database_workflow_action_type_registry.get("create_row")
+    action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
     with pytest.raises(PermissionException):
         DatabaseWorkflowActionService().create_workflow_action(
@@ -49,7 +51,7 @@ def test_delete_is_refused_without_field_permission(data_fixture):
     table = data_fixture.create_database_table(user=owner)
     button_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     with pytest.raises(PermissionException):
@@ -62,7 +64,7 @@ def test_delete_sends_the_deleted_action_id(data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     action_id = action.id
     received = []
@@ -88,7 +90,7 @@ def test_deleting_an_action_deletes_its_service(data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     service_id = action.service_id
 
@@ -103,10 +105,10 @@ def test_order_workflow_actions(data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     first = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     second = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     DatabaseWorkflowActionService().order_workflow_actions(

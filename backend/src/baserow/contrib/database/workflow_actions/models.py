@@ -62,6 +62,9 @@ class DatabaseWorkflowServiceAction(DatabaseWorkflowAction):
         Service,
         help_text="The service which this action is associated with.",
         on_delete=models.CASCADE,
+        # The builder has models of these exact names pointing at `Service`, so
+        # the default reverse accessor would clash with theirs.
+        related_name="%(app_label)s_%(class)s_set",
     )
 
     class Meta:
@@ -85,10 +88,10 @@ class OpenUrlWorkflowAction(DatabaseWorkflowAction):
     )
 
 
-class CreateRowWorkflowAction(DatabaseWorkflowServiceAction): ...
+class LocalBaserowCreateRowWorkflowAction(DatabaseWorkflowServiceAction): ...
 
 
-class UpdateRowWorkflowAction(DatabaseWorkflowServiceAction): ...
+class LocalBaserowUpdateRowWorkflowAction(DatabaseWorkflowServiceAction): ...
 
 
-class DeleteRowWorkflowAction(DatabaseWorkflowServiceAction): ...
+class LocalBaserowDeleteRowWorkflowAction(DatabaseWorkflowServiceAction): ...

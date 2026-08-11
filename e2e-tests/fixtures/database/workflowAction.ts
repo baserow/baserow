@@ -79,7 +79,7 @@ export async function createRowAction(
   user: User,
   buttonField: Field,
   options: {
-    type?: "create_row" | "update_row";
+    type?: "local_baserow_create_row" | "local_baserow_update_row";
     table: Table;
     rowId?: string;
     fieldMappings: FieldMapping[];
@@ -88,7 +88,7 @@ export async function createRowAction(
   const action = await createWorkflowAction(
     user,
     buttonField,
-    options.type ?? "update_row",
+    options.type ?? "local_baserow_update_row",
   );
   return await updateWorkflowAction(user, action, {
     service: {
@@ -113,7 +113,7 @@ export async function createDeleteRowAction(
   buttonField: Field,
   options: { table: Table; rowId: string },
 ): Promise<WorkflowAction> {
-  const action = await createWorkflowAction(user, buttonField, "delete_row");
+  const action = await createWorkflowAction(user, buttonField, "local_baserow_delete_row");
   return await updateWorkflowAction(user, action, {
     service: {
       type: "local_baserow_delete_row",

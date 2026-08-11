@@ -42,12 +42,12 @@ describe('ButtonFieldActionList', () => {
   test('adding an action emits a longer list and calls no api', async () => {
     const wrapper = await mountList([])
 
-    await wrapper.vm.addAction('create_row')
+    await wrapper.vm.addAction('local_baserow_create_row')
 
     const emitted = wrapper.emitted('input')
     expect(emitted).toHaveLength(1)
     expect(emitted[0][0]).toHaveLength(1)
-    expect(emitted[0][0][0].type).toBe('create_row')
+    expect(emitted[0][0][0].type).toBe('local_baserow_create_row')
     expect(emitted[0][0][0].id).toBeUndefined()
   })
 
@@ -70,9 +70,9 @@ describe('ButtonFieldActionList', () => {
 
     expect(items.map((item) => item.props('value'))).toEqual([
       'open_url',
-      'create_row',
-      'update_row',
-      'delete_row',
+      'local_baserow_create_row',
+      'local_baserow_update_row',
+      'local_baserow_delete_row',
     ])
     // `$t` returns the key in the test env, so the name is checked against
     // the key the type uses and the copy itself is pinned separately.
@@ -105,7 +105,7 @@ describe('ButtonFieldActionList', () => {
     // The list used to render the service backed form for every row, which
     // threw on `open_url` because that type has no service.
     const wrapper = await mountList([
-      { id: 1, type: 'create_row', service: {} },
+      { id: 1, type: 'local_baserow_create_row', service: {} },
       { id: 2, type: 'open_url', url: { formula: '', mode: 'simple' } },
     ])
 
@@ -121,14 +121,14 @@ describe('ButtonFieldActionList', () => {
     // `create_row` and `update_row` share a form component, so without a type
     // derived key Vue reuses the instance and keeps the old table selected.
     const wrapper = await mountList([
-      { id: 1, type: 'create_row', service: { table_id: 3 } },
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
     ])
     const before = wrapper.findComponent({
       name: 'DatabaseWorkflowActionWithService',
     }).vm
 
     await wrapper.setProps({
-      value: [{ id: 1, type: 'update_row', service: {} }],
+      value: [{ id: 1, type: 'local_baserow_update_row', service: {} }],
     })
 
     const after = wrapper.findComponent({
@@ -141,35 +141,35 @@ describe('ButtonFieldActionList', () => {
     // The old type's config means nothing to the new one, and the server
     // deletes and recreates the action rather than converting it.
     const wrapper = await mountList([
-      { id: 1, type: 'create_row', service: { table_id: 3 } },
-      { id: 2, type: 'delete_row', service: {} },
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
+      { id: 2, type: 'local_baserow_delete_row', service: {} },
     ])
 
     await wrapper.vm.onActionTypeChanged(0, 'open_url')
 
     expect(lastEmitted(wrapper)).toEqual([
       { id: 1, type: 'open_url' },
-      { id: 2, type: 'delete_row', service: {} },
+      { id: 2, type: 'local_baserow_delete_row', service: {} },
     ])
   })
 
   test('choosing a type on a new row seeds that type defaults', async () => {
     const wrapper = await mountList([{ type: null }])
 
-    await wrapper.vm.onActionTypeChanged(0, 'create_row')
+    await wrapper.vm.onActionTypeChanged(0, 'local_baserow_create_row')
 
     expect(wrapper.emitted('input')[0][0]).toEqual([
-      { type: 'create_row', service: {} },
+      { type: 'local_baserow_create_row', service: {} },
     ])
   })
 
   test('an unchanged type emits nothing', async () => {
     const wrapper = await mountList([
-      { id: 1, type: 'create_row', service: { table_id: 3 } },
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
     ])
     const before = emittedCount(wrapper)
 
-    await wrapper.vm.onActionTypeChanged(0, 'create_row')
+    await wrapper.vm.onActionTypeChanged(0, 'local_baserow_create_row')
 
     expect(emittedCount(wrapper)).toBe(before)
   })
@@ -196,8 +196,8 @@ describe('ButtonFieldActionList', () => {
 
   test('removing an action emits a shorter list', async () => {
     const wrapper = await mountList([
-      { id: 1, type: 'create_row', service: {} },
-      { id: 2, type: 'delete_row', service: {} },
+      { id: 1, type: 'local_baserow_create_row', service: {} },
+      { id: 2, type: 'local_baserow_delete_row', service: {} },
     ])
 
     await wrapper.vm.removeAction(0)
@@ -208,13 +208,13 @@ describe('ButtonFieldActionList', () => {
 
   test('reordering emits the new order', async () => {
     const wrapper = await mountList([
-      { id: 1, type: 'create_row', service: {} },
-      { id: 2, type: 'delete_row', service: {} },
+      { id: 1, type: 'local_baserow_create_row', service: {} },
+      { id: 2, type: 'local_baserow_delete_row', service: {} },
     ])
 
     await wrapper.vm.orderActions([
-      { id: 2, type: 'delete_row', service: {} },
-      { id: 1, type: 'create_row', service: {} },
+      { id: 2, type: 'local_baserow_delete_row', service: {} },
+      { id: 1, type: 'local_baserow_create_row', service: {} },
     ])
 
     const emitted = wrapper.emitted('input')
@@ -225,8 +225,8 @@ describe('ButtonFieldActionList', () => {
     // The saved action's real id (1) collides with the unsaved action's
     // fallback index (1) unless the sortable ids are namespaced.
     const wrapper = await mountList([
-      { id: 1, type: 'create_row', service: {} },
-      { type: 'delete_row', service: {} },
+      { id: 1, type: 'local_baserow_create_row', service: {} },
+      { type: 'local_baserow_delete_row', service: {} },
     ])
 
     await wrapper.vm.onSortableUpdate(['new-1', 1])
@@ -235,9 +235,9 @@ describe('ButtonFieldActionList', () => {
     const [reordered] = emitted[emitted.length - 1]
     expect(reordered).toHaveLength(2)
     expect(reordered.every((a) => a !== undefined)).toBe(true)
-    expect(reordered[0].type).toBe('delete_row')
+    expect(reordered[0].type).toBe('local_baserow_delete_row')
     expect(reordered[0].id).toBeUndefined()
-    expect(reordered[1].type).toBe('create_row')
+    expect(reordered[1].type).toBe('local_baserow_create_row')
     expect(reordered[1].id).toBe(1)
   })
 
@@ -279,8 +279,8 @@ describe('ButtonFieldActionList', () => {
 
   test('it renders one form per action', async () => {
     const wrapper = await mountList([
-      { id: 1, type: 'create_row', service: {} },
-      { id: 2, type: 'delete_row', service: {} },
+      { id: 1, type: 'local_baserow_create_row', service: {} },
+      { id: 2, type: 'local_baserow_delete_row', service: {} },
     ])
 
     expect(

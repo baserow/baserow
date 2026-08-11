@@ -1,8 +1,8 @@
 from baserow.contrib.database.workflow_actions.models import (
-    CreateRowWorkflowAction,
-    DeleteRowWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowWorkflowAction,
     OpenUrlWorkflowAction,
-    UpdateRowWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
     DatabaseWorkflowActionType,
@@ -16,21 +16,21 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.formula.serializers import FormulaSerializerField
 
 
-class CreateRowWorkflowActionType(DatabaseWorkflowServiceActionType):
-    type = "create_row"
-    model_class = CreateRowWorkflowAction
+class LocalBaserowCreateRowWorkflowActionType(DatabaseWorkflowServiceActionType):
+    type = "local_baserow_create_row"
+    model_class = LocalBaserowCreateRowWorkflowAction
     service_type = LocalBaserowUpsertRowServiceType.type
 
 
-class UpdateRowWorkflowActionType(DatabaseWorkflowServiceActionType):
-    type = "update_row"
-    model_class = UpdateRowWorkflowAction
+class LocalBaserowUpdateRowWorkflowActionType(DatabaseWorkflowServiceActionType):
+    type = "local_baserow_update_row"
+    model_class = LocalBaserowUpdateRowWorkflowAction
     service_type = LocalBaserowUpsertRowServiceType.type
 
 
-class DeleteRowWorkflowActionType(DatabaseWorkflowServiceActionType):
-    type = "delete_row"
-    model_class = DeleteRowWorkflowAction
+class LocalBaserowDeleteRowWorkflowActionType(DatabaseWorkflowServiceActionType):
+    type = "local_baserow_delete_row"
+    model_class = LocalBaserowDeleteRowWorkflowAction
     service_type = LocalBaserowDeleteRowServiceType.type
 
 

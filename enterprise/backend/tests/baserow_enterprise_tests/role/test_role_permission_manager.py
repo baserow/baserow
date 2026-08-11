@@ -1867,7 +1867,9 @@ def test_dispatching_a_button_field_needs_at_least_the_editor_role(
     database -> table -> field -> workflow action."""
 
     from baserow.contrib.database.table.handler import TableHandler
-    from baserow.contrib.database.workflow_actions.models import CreateRowWorkflowAction
+    from baserow.contrib.database.workflow_actions.models import (
+        LocalBaserowCreateRowWorkflowAction,
+    )
     from baserow.contrib.database.workflow_actions.service import (
         DatabaseWorkflowActionService,
     )
@@ -1883,7 +1885,7 @@ def test_dispatching_a_button_field_needs_at_least_the_editor_role(
     button_field = data_fixture.create_button_field(table=table, label="Go")
     row = table.get_model().objects.create()
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     service = action.service.specific
     service.table = table
@@ -1944,7 +1946,9 @@ def test_the_dispatch_operation_reaches_the_roles_of_an_existing_instance(
     from django.apps import apps as django_apps
 
     from baserow.contrib.database.table.handler import TableHandler
-    from baserow.contrib.database.workflow_actions.models import CreateRowWorkflowAction
+    from baserow.contrib.database.workflow_actions.models import (
+        LocalBaserowCreateRowWorkflowAction,
+    )
     from baserow.contrib.database.workflow_actions.operations import (
         DispatchDatabaseWorkflowActionOperationType,
     )
@@ -1965,7 +1969,7 @@ def test_the_dispatch_operation_reaches_the_roles_of_an_existing_instance(
     button_field = data_fixture.create_button_field(table=table, label="Go")
     row = table.get_model().objects.create()
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     service = action.service.specific
     service.table = table

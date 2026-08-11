@@ -48,10 +48,10 @@ class Migration(migrations.Migration):
             bases=('database.databaseworkflowaction',),
         ),
         migrations.CreateModel(
-            name='CreateRowWorkflowAction',
+            name='LocalBaserowCreateRowWorkflowAction',
             fields=[
                 ('databaseworkflowaction_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='database.databaseworkflowaction')),
-                ('service', models.ForeignKey(help_text='The service which this action is associated with.', on_delete=django.db.models.deletion.CASCADE, to='core.service')),
+                ('service', models.ForeignKey(help_text='The service which this action is associated with.', on_delete=django.db.models.deletion.CASCADE, related_name='%(app_label)s_%(class)s_set', to='core.service')),
             ],
             options={
                 'abstract': False,
@@ -59,10 +59,10 @@ class Migration(migrations.Migration):
             bases=('database.databaseworkflowaction',),
         ),
         migrations.CreateModel(
-            name='DeleteRowWorkflowAction',
+            name='LocalBaserowDeleteRowWorkflowAction',
             fields=[
                 ('databaseworkflowaction_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='database.databaseworkflowaction')),
-                ('service', models.ForeignKey(help_text='The service which this action is associated with.', on_delete=django.db.models.deletion.CASCADE, to='core.service')),
+                ('service', models.ForeignKey(help_text='The service which this action is associated with.', on_delete=django.db.models.deletion.CASCADE, related_name='%(app_label)s_%(class)s_set', to='core.service')),
             ],
             options={
                 'abstract': False,
@@ -70,10 +70,10 @@ class Migration(migrations.Migration):
             bases=('database.databaseworkflowaction',),
         ),
         migrations.CreateModel(
-            name='UpdateRowWorkflowAction',
+            name='LocalBaserowUpdateRowWorkflowAction',
             fields=[
                 ('databaseworkflowaction_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='database.databaseworkflowaction')),
-                ('service', models.ForeignKey(help_text='The service which this action is associated with.', on_delete=django.db.models.deletion.CASCADE, to='core.service')),
+                ('service', models.ForeignKey(help_text='The service which this action is associated with.', on_delete=django.db.models.deletion.CASCADE, related_name='%(app_label)s_%(class)s_set', to='core.service')),
             ],
             options={
                 'abstract': False,

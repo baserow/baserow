@@ -4,8 +4,8 @@ from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
 from baserow.contrib.database.workflow_actions.models import (
-    CreateRowWorkflowAction,
-    DeleteRowWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
@@ -15,7 +15,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 @pytest.mark.django_db
 def test_create_assigns_the_next_order(data_fixture):
     button_field = data_fixture.create_button_field()
-    action_type = database_workflow_action_type_registry.get("create_row")
+    action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
     user = data_fixture.create_user()
 
     first = DatabaseWorkflowActionHandler().create_workflow_action(
@@ -33,10 +33,10 @@ def test_create_assigns_the_next_order(data_fixture):
 def test_get_workflow_actions_returns_them_in_order(data_fixture):
     button_field = data_fixture.create_button_field()
     first = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     second = data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
 
     actions = DatabaseWorkflowActionHandler().get_workflow_actions(button_field)
@@ -48,22 +48,22 @@ def test_get_workflow_actions_returns_them_in_order(data_fixture):
 def test_get_workflow_actions_returns_specific_instances(data_fixture):
     button_field = data_fixture.create_button_field()
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     (action,) = DatabaseWorkflowActionHandler().get_workflow_actions(button_field)
 
-    assert isinstance(action, CreateRowWorkflowAction)
+    assert isinstance(action, LocalBaserowCreateRowWorkflowAction)
 
 
 @pytest.mark.django_db
 def test_order_workflow_actions(data_fixture):
     button_field = data_fixture.create_button_field()
     first = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     second = data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
 
     DatabaseWorkflowActionHandler().order_workflow_actions(
@@ -84,10 +84,10 @@ def test_ordering_an_action_from_another_field_raises(data_fixture):
     button_field = data_fixture.create_button_field()
     other_field = data_fixture.create_button_field()
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     foreign = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=other_field
+        LocalBaserowCreateRowWorkflowAction, field=other_field
     )
 
     with pytest.raises(WorkflowActionNotInField):
@@ -113,7 +113,7 @@ def test_dispatch_a_create_row_action(data_fixture):
     row = table.get_model().objects.create()
 
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     action.service.specific.table = table
     action.service.specific.save()

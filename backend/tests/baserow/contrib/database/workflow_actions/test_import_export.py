@@ -6,9 +6,9 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
-    CreateRowWorkflowAction,
     DatabaseWorkflowAction,
-    DeleteRowWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
 from baserow.contrib.integrations.local_baserow.models import (
@@ -29,7 +29,7 @@ def test_export_includes_the_actions(data_fixture):
         integration=None, table=table
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     exported = field_type_registry.get_by_model(button_field).export_serialized(
@@ -37,7 +37,7 @@ def test_export_includes_the_actions(data_fixture):
     )
 
     assert len(exported["workflow_actions"]) == 1
-    assert exported["workflow_actions"][0]["type"] == "create_row"
+    assert exported["workflow_actions"][0]["type"] == "local_baserow_create_row"
     assert exported["workflow_actions"][0]["service"]["table_id"] == table.id
 
 
@@ -53,7 +53,7 @@ def test_duplicating_the_table_remaps_the_action_target(data_fixture):
         integration=None, table=table
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     duplicated_table = TableHandler().duplicate_table(user, table)
@@ -80,7 +80,7 @@ def test_duplicating_the_table_keeps_a_target_outside_it(data_fixture):
         integration=None, table=other_table
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     duplicated_table = TableHandler().duplicate_table(user, table)
@@ -103,13 +103,13 @@ def test_duplicating_a_single_field_copies_its_actions(data_fixture):
     )
     service.field_mappings.create(field=target_field, value="'hi'", enabled=True)
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     duplicated_field, _ = FieldHandler().duplicate_field(user, button_field)
 
     actions = list(DatabaseWorkflowAction.objects.filter(field=duplicated_field))
-    assert [a.specific.get_type().type for a in actions] == ["create_row"]
+    assert [a.specific.get_type().type for a in actions] == ["local_baserow_create_row"]
     assert actions[0].specific.service_id != service.id, (
         "The duplicate must own its own service, not share the original's."
     )
@@ -215,10 +215,10 @@ def test_actions_survive_an_application_export_import(data_fixture):
         integration=None, table=table
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
     data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
 
     config = ImportExportConfig(include_permission_data=False)
@@ -234,7 +234,10 @@ def test_actions_survive_an_application_export_import(data_fixture):
         DatabaseWorkflowAction.objects.filter(field=imported_field).order_by("order")
     )
 
-    assert [a.specific.get_type().type for a in actions] == ["create_row", "delete_row"]
+    assert [a.specific.get_type().type for a in actions] == [
+        "local_baserow_create_row",
+        "local_baserow_delete_row",
+    ]
     assert actions[0].specific.service.specific.table_id == imported_table.id
     assert actions[0].specific.service.specific.table_id != table.id
 
@@ -267,7 +270,7 @@ def test_an_action_targeting_another_database_survives_the_import(data_fixture):
         field=target_field, value=f"get('row.field_{source_field.id}')", enabled=True
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     config = ImportExportConfig(include_permission_data=False)
@@ -310,7 +313,7 @@ def test_actions_survive_a_duplicated_application(data_fixture):
         field=name_field, value=f"get('row.field_{name_field.id}')", enabled=True
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     duplicated = CoreHandler().duplicate_application(user, database)
@@ -343,7 +346,7 @@ def test_actions_survive_a_snapshot_and_its_restore(data_fixture):
         field=name_field, value=f"get('row.field_{name_field.id}')", enabled=True
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
     snapshot = data_fixture.create_snapshot(
         snapshot_from_application=database, name="snap", created_by=user
@@ -383,7 +386,7 @@ def test_duplicate_table_remaps_a_field_mapping_formula(data_fixture):
         field=copy_field, value=f"get('row.field_{name_field.id}')", enabled=True
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     duplicated_table = TableHandler().duplicate_table(user, table)
@@ -414,7 +417,7 @@ def test_duplicate_table_remaps_a_row_id_formula(data_fixture):
         integration=None, table=table, row_id=f"get('row.field_{number_field.id}')"
     )
     data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field, service=service
+        LocalBaserowDeleteRowWorkflowAction, field=button_field, service=service
     )
 
     duplicated_table = TableHandler().duplicate_table(user, table)
@@ -447,7 +450,7 @@ def test_duplicate_table_keeps_an_unimportable_field_mapping_formula(data_fixtur
         field=copy_field, value="concat('x:',get('row.field_0'))", enabled=True
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     duplicated_table = TableHandler().duplicate_table(user, table)
@@ -476,7 +479,7 @@ def test_duplicate_table_keeps_a_formula_naming_an_unknown_data_provider(data_fi
         field=copy_field, value="get('previous_action.1.value')", enabled=True
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     duplicated_table = TableHandler().duplicate_table(user, table)
@@ -506,7 +509,7 @@ def test_a_field_mapping_formula_survives_an_application_export_import(data_fixt
         field=copy_field, value=f"get('row.field_{name_field.id}')", enabled=True
     )
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field, service=service
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
     )
 
     config = ImportExportConfig(include_permission_data=False)

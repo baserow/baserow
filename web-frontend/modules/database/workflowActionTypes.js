@@ -154,9 +154,9 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
   }
 }
 
-export class CreateRowWorkflowActionType extends DatabaseWorkflowActionServiceType {
+export class LocalBaserowCreateRowWorkflowActionType extends DatabaseWorkflowActionServiceType {
   static getType() {
-    return 'create_row'
+    return 'local_baserow_create_row'
   }
 
   getOrder() {
@@ -175,9 +175,9 @@ export class CreateRowWorkflowActionType extends DatabaseWorkflowActionServiceTy
   }
 }
 
-export class UpdateRowWorkflowActionType extends DatabaseWorkflowActionServiceType {
+export class LocalBaserowUpdateRowWorkflowActionType extends DatabaseWorkflowActionServiceType {
   static getType() {
-    return 'update_row'
+    return 'local_baserow_update_row'
   }
 
   getOrder() {
@@ -196,9 +196,9 @@ export class UpdateRowWorkflowActionType extends DatabaseWorkflowActionServiceTy
   }
 }
 
-export class DeleteRowWorkflowActionType extends DatabaseWorkflowActionServiceType {
+export class LocalBaserowDeleteRowWorkflowActionType extends DatabaseWorkflowActionServiceType {
   static getType() {
-    return 'delete_row'
+    return 'local_baserow_delete_row'
   }
 
   getOrder() {

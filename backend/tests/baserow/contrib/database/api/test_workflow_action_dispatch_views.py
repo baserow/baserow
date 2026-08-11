@@ -12,8 +12,8 @@ from rest_framework.status import (
 
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
-    CreateRowWorkflowAction,
-    DeleteRowWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
 
@@ -27,7 +27,7 @@ def _button_with_create_action(data_fixture, user, value="Ada"):
     button_field = data_fixture.create_button_field(table=table, label="Go")
     row = table.get_model().objects.create()
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     service = action.service.specific
     service.table = table
@@ -126,7 +126,7 @@ def test_dispatch_acts_as_the_clicker_after_an_integration_was_offered(
             kwargs={"workflow_action_id": action.id},
         ),
         {
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "service": {
                 "type": "local_baserow_upsert_row",
                 "table_id": table.id,
@@ -288,7 +288,7 @@ def test_a_failed_action_returns_the_dispatch_error(api_client, data_fixture):
     )
     # A delete-row action with no table configured fails at dispatch.
     broken = data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
 
     response = api_client.post(
@@ -318,7 +318,7 @@ def test_a_failed_action_stops_the_client_actions(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     _, _, button_field, row, _ = _button_with_create_action(data_fixture, user)
     data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
     open_url = data_fixture.create_database_workflow_action(
         OpenUrlWorkflowAction, field=button_field

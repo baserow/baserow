@@ -375,9 +375,9 @@ import {
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import {
   OpenUrlWorkflowActionType,
-  CreateRowWorkflowActionType,
-  UpdateRowWorkflowActionType,
-  DeleteRowWorkflowActionType,
+  LocalBaserowCreateRowWorkflowActionType,
+  LocalBaserowUpdateRowWorkflowActionType,
+  LocalBaserowDeleteRowWorkflowActionType,
 } from '@baserow/modules/database/workflowActionTypes'
 
 export default defineNuxtPlugin({
@@ -1098,15 +1098,15 @@ export default defineNuxtPlugin({
     )
     $registry.register(
       'databaseWorkflowActionType',
-      new CreateRowWorkflowActionType(context)
+      new LocalBaserowCreateRowWorkflowActionType(context)
     )
     $registry.register(
       'databaseWorkflowActionType',
-      new UpdateRowWorkflowActionType(context)
+      new LocalBaserowUpdateRowWorkflowActionType(context)
     )
     $registry.register(
       'databaseWorkflowActionType',
-      new DeleteRowWorkflowActionType(context)
+      new LocalBaserowDeleteRowWorkflowActionType(context)
     )
 
     $registry.registerNamespace('fieldContextItem')

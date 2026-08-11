@@ -63,11 +63,13 @@ describe('FieldButtonSubForm', () => {
       // list editor, or the test would pass even if `addAction` hit the API.
       const wrapper = await mountForm({ type: 'button', label: 'Go' })
 
-      wrapper.findComponent(ButtonFieldActionList).vm.addAction('create_row')
+      wrapper
+        .findComponent(ButtonFieldActionList)
+        .vm.addAction('local_baserow_create_row')
       await wrapper.vm.$nextTick()
 
       expect(wrapper.vm.localActions).toEqual([
-        { type: 'create_row', service: {} },
+        { type: 'local_baserow_create_row', service: {} },
       ])
       expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
       expect(wrapper.vm.$client.patch).not.toHaveBeenCalled()
@@ -79,18 +81,22 @@ describe('FieldButtonSubForm', () => {
       // has to rebuild the buffer through FieldForm.reset(). Otherwise the
       // discarded action is still listed and a later save creates it for real.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
-      wrapper.vm.serverActions = [{ id: 1, type: 'create_row', service: {} }]
-      wrapper.vm.localActions = [{ id: 1, type: 'create_row', service: {} }]
+      wrapper.vm.serverActions = [
+        { id: 1, type: 'local_baserow_create_row', service: {} },
+      ]
+      wrapper.vm.localActions = [
+        { id: 1, type: 'local_baserow_create_row', service: {} },
+      ]
 
       wrapper.vm.localActions = [
         ...wrapper.vm.localActions,
-        { type: 'delete_row', service: {} },
+        { type: 'local_baserow_delete_row', service: {} },
       ]
 
       await wrapper.vm.reset()
 
       expect(wrapper.vm.localActions).toEqual([
-        { id: 1, type: 'create_row', service: {} },
+        { id: 1, type: 'local_baserow_create_row', service: {} },
       ])
 
       // The rebuilt buffer is a copy, so editing it cannot write through to
@@ -107,17 +113,17 @@ describe('FieldButtonSubForm', () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = []
       wrapper.vm.localActions = [
-        { type: 'create_row', service: { table_id: 3 } },
+        { type: 'local_baserow_create_row', service: { table_id: 3 } },
       ]
 
-      const created = { data: { id: 55, type: 'create_row' } }
+      const created = { data: { id: 55, type: 'local_baserow_create_row' } }
       wrapper.vm.$client.post.mockResolvedValueOnce(created)
 
       await wrapper.vm.saveWorkflowActions(7)
 
       expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
         'database/field/7/workflow_actions/',
-        { type: 'create_row' }
+        { type: 'local_baserow_create_row' }
       )
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
         'database/workflow_action/55/',
@@ -132,13 +138,13 @@ describe('FieldButtonSubForm', () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = []
       wrapper.vm.localActions = [
-        { type: 'create_row', service: { table_id: 3 } },
+        { type: 'local_baserow_create_row', service: { table_id: 3 } },
       ]
 
       wrapper.vm.$client.post.mockResolvedValueOnce({
         data: {
           id: 55,
-          type: 'create_row',
+          type: 'local_baserow_create_row',
           service: { id: 9, type: 'local_baserow_upsert_row', table_id: null },
         },
       })
@@ -183,12 +189,12 @@ describe('FieldButtonSubForm', () => {
       // The order call has to use that one, not the id the editor still holds.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
-        { id: 1, type: 'create_row', service: { table_id: 3 } },
-        { id: 2, type: 'delete_row', service: {} },
+        { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
+        { id: 2, type: 'local_baserow_delete_row', service: {} },
       ]
       wrapper.vm.localActions = [
         { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
-        { id: 2, type: 'delete_row', service: {} },
+        { id: 2, type: 'local_baserow_delete_row', service: {} },
       ]
 
       wrapper.vm.$client.patch.mockResolvedValueOnce({
@@ -216,12 +222,14 @@ describe('FieldButtonSubForm', () => {
       wrapper.vm.serverActions = [
         { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
       ]
-      wrapper.vm.localActions = [{ id: 1, type: 'delete_row', service: {} }]
+      wrapper.vm.localActions = [
+        { id: 1, type: 'local_baserow_delete_row', service: {} },
+      ]
 
       wrapper.vm.$client.patch.mockResolvedValueOnce({
         data: {
           id: 88,
-          type: 'delete_row',
+          type: 'local_baserow_delete_row',
           service: { id: 9, type: 'local_baserow_delete_row' },
         },
       })
@@ -231,7 +239,7 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.patch).toHaveBeenCalledTimes(1)
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
         'database/workflow_action/1/',
-        { type: 'delete_row' }
+        { type: 'local_baserow_delete_row' }
       )
     })
 
@@ -244,13 +252,13 @@ describe('FieldButtonSubForm', () => {
         { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
       ]
       wrapper.vm.localActions = [
-        { id: 1, type: 'create_row', service: { table_id: 3 } },
+        { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
       ]
 
       wrapper.vm.$client.patch.mockResolvedValueOnce({
         data: {
           id: 88,
-          type: 'create_row',
+          type: 'local_baserow_create_row',
           service: { id: 9, type: 'local_baserow_upsert_row', table_id: null },
         },
       })
@@ -258,7 +266,7 @@ describe('FieldButtonSubForm', () => {
       await wrapper.vm.saveWorkflowActions(7)
 
       expect(wrapper.vm.$client.patch.mock.calls).toEqual([
-        ['database/workflow_action/1/', { type: 'create_row' }],
+        ['database/workflow_action/1/', { type: 'local_baserow_create_row' }],
         [
           'database/workflow_action/88/',
           { service: { type: 'local_baserow_upsert_row', table_id: 3 } },
@@ -280,7 +288,7 @@ describe('FieldButtonSubForm', () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       const saved = {
         id: 1,
-        type: 'create_row',
+        type: 'local_baserow_create_row',
         service: { id: 9, type: 'local_baserow_upsert_row', table_id: 3 },
       }
       wrapper.vm.serverActions = [saved]
@@ -288,15 +296,15 @@ describe('FieldButtonSubForm', () => {
       await wrapper.vm.$nextTick()
 
       const list = wrapper.findComponent(ButtonFieldActionList).vm
-      list.onActionTypeChanged(0, 'update_row')
+      list.onActionTypeChanged(0, 'local_baserow_update_row')
       await wrapper.vm.$nextTick()
-      list.onActionTypeChanged(0, 'create_row')
+      list.onActionTypeChanged(0, 'local_baserow_create_row')
       await wrapper.vm.$nextTick()
 
       // Back on the server's type, but with the config reset: an untyped
       // service where the server has a typed, configured one.
       expect(wrapper.vm.localActions).toEqual([
-        { id: 1, type: 'create_row', service: {} },
+        { id: 1, type: 'local_baserow_create_row', service: {} },
       ])
 
       await wrapper.vm.saveWorkflowActions(7)
@@ -315,12 +323,12 @@ describe('FieldButtonSubForm', () => {
       wrapper.vm.serverActions = [
         {
           id: 1,
-          type: 'create_row',
+          type: 'local_baserow_create_row',
           service: { id: 9, type: 'local_baserow_upsert_row', table_id: 3 },
         },
       ]
       wrapper.vm.localActions = [
-        { id: 1, type: 'create_row', service: { table_id: 5 } },
+        { id: 1, type: 'local_baserow_create_row', service: { table_id: 5 } },
       ]
 
       await wrapper.vm.saveWorkflowActions(7)
@@ -351,10 +359,12 @@ describe('FieldButtonSubForm', () => {
     test('saving deletes a removed action and orders the rest', async () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
-        { id: 1, type: 'create_row', service: {} },
-        { id: 2, type: 'delete_row', service: {} },
+        { id: 1, type: 'local_baserow_create_row', service: {} },
+        { id: 2, type: 'local_baserow_delete_row', service: {} },
       ]
-      wrapper.vm.localActions = [{ id: 2, type: 'delete_row', service: {} }]
+      wrapper.vm.localActions = [
+        { id: 2, type: 'local_baserow_delete_row', service: {} },
+      ]
 
       await wrapper.vm.saveWorkflowActions(7)
 
@@ -389,8 +399,12 @@ describe('FieldButtonSubForm', () => {
       )
 
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
-      wrapper.vm.serverActions = [{ id: 1, type: 'create_row', service: {} }]
-      wrapper.vm.localActions = [{ id: 1, type: 'create_row', service: {} }]
+      wrapper.vm.serverActions = [
+        { id: 1, type: 'local_baserow_create_row', service: {} },
+      ]
+      wrapper.vm.localActions = [
+        { id: 1, type: 'local_baserow_create_row', service: {} },
+      ]
       await wrapper.vm.$nextTick()
 
       const stubForm = wrapper.findComponent({ name: 'StubServiceForm' })
@@ -420,12 +434,14 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.hasWorkflowActions()).toBe(false)
 
       wrapper.vm.serverActions = []
-      wrapper.vm.localActions = [{ type: 'create_row', service: {} }]
+      wrapper.vm.localActions = [
+        { type: 'local_baserow_create_row', service: {} },
+      ]
       wrapper.vm.$client.post.mockResolvedValueOnce({
-        data: { id: 55, type: 'create_row' },
+        data: { id: 55, type: 'local_baserow_create_row' },
       })
       wrapper.vm.$client.get.mockResolvedValueOnce({
-        data: [{ id: 55, type: 'create_row', service: {} }],
+        data: [{ id: 55, type: 'local_baserow_create_row', service: {} }],
       })
 
       await wrapper.vm.saveWorkflowActions(7)
@@ -446,7 +462,7 @@ describe('FieldButtonSubForm', () => {
       // service form put in it.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.localActions = [
-        { type: 'create_row', service: { table_id: 3 } },
+        { type: 'local_baserow_create_row', service: { table_id: 3 } },
       ]
       await wrapper.vm.$nextTick()
 
@@ -483,10 +499,12 @@ describe('FieldButtonSubForm', () => {
       // mounted across save cycles, so the buffers have to reflect what exists
       // server side after each save, or the next one re-creates it.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
-      wrapper.vm.serverActions = [{ id: 1, type: 'create_row', service: {} }]
+      wrapper.vm.serverActions = [
+        { id: 1, type: 'local_baserow_create_row', service: {} },
+      ]
       wrapper.vm.localActions = [
-        { id: 1, type: 'create_row', service: {} },
-        { type: 'delete_row', service: {} },
+        { id: 1, type: 'local_baserow_create_row', service: {} },
+        { type: 'local_baserow_delete_row', service: {} },
       ]
 
       let nextId = 99
@@ -498,8 +516,8 @@ describe('FieldButtonSubForm', () => {
       })
       wrapper.vm.$client.get.mockResolvedValueOnce({
         data: [
-          { id: 1, type: 'create_row', service: {} },
-          { id: 99, type: 'delete_row', service: {} },
+          { id: 1, type: 'local_baserow_create_row', service: {} },
+          { id: 99, type: 'local_baserow_delete_row', service: {} },
         ],
       })
 
@@ -513,9 +531,9 @@ describe('FieldButtonSubForm', () => {
       wrapper.vm.$client.post.mockClear()
       wrapper.vm.$client.get.mockResolvedValueOnce({
         data: [
-          { id: 1, type: 'create_row', service: {} },
-          { id: 99, type: 'delete_row', service: {} },
-          { id: 100, type: 'create_row', service: {} },
+          { id: 1, type: 'local_baserow_create_row', service: {} },
+          { id: 99, type: 'local_baserow_delete_row', service: {} },
+          { id: 100, type: 'local_baserow_create_row', service: {} },
         ],
       })
 
@@ -523,7 +541,7 @@ describe('FieldButtonSubForm', () => {
       // without a remount in between.
       wrapper.vm.localActions = [
         ...wrapper.vm.localActions,
-        { type: 'create_row', service: {} },
+        { type: 'local_baserow_create_row', service: {} },
       ]
 
       await wrapper.vm.saveWorkflowActions(7)
@@ -534,7 +552,7 @@ describe('FieldButtonSubForm', () => {
       // Only the new (third) action is created. A2 (id 99) must not be
       // recreated.
       expect(createCalls).toHaveLength(1)
-      expect(createCalls[0][1]).toEqual({ type: 'create_row' })
+      expect(createCalls[0][1]).toEqual({ type: 'local_baserow_create_row' })
     })
   })
 

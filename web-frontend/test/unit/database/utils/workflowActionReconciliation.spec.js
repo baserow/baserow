@@ -2,8 +2,12 @@ import { reconcileWorkflowActions } from '@baserow/modules/database/utils/workfl
 
 describe('reconcileWorkflowActions', () => {
   test('an unchanged list produces no work', () => {
-    const server = [{ id: 1, type: 'create_row', service: { table_id: 3 } }]
-    const local = [{ id: 1, type: 'create_row', service: { table_id: 3 } }]
+    const server = [
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
+    ]
+    const local = [
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
+    ]
 
     const result = reconcileWorkflowActions(server, local)
 
@@ -14,19 +18,25 @@ describe('reconcileWorkflowActions', () => {
   })
 
   test('a new action is created', () => {
-    const local = [{ type: 'delete_row', service: { table_id: 4 } }]
+    const local = [
+      { type: 'local_baserow_delete_row', service: { table_id: 4 } },
+    ]
 
     const result = reconcileWorkflowActions([], local)
 
     expect(result.toCreate).toEqual([
-      { type: 'delete_row', service: { table_id: 4 } },
+      { type: 'local_baserow_delete_row', service: { table_id: 4 } },
     ])
     expect(result.order).toEqual([null])
   })
 
   test('a changed service config is updated', () => {
-    const server = [{ id: 1, type: 'create_row', service: { table_id: 3 } }]
-    const local = [{ id: 1, type: 'create_row', service: { table_id: 9 } }]
+    const server = [
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
+    ]
+    const local = [
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 9 } },
+    ]
 
     const result = reconcileWorkflowActions(server, local)
 
@@ -39,10 +49,10 @@ describe('reconcileWorkflowActions', () => {
 
   test('a removed action is deleted', () => {
     const server = [
-      { id: 1, type: 'create_row', service: {} },
-      { id: 2, type: 'delete_row', service: {} },
+      { id: 1, type: 'local_baserow_create_row', service: {} },
+      { id: 2, type: 'local_baserow_delete_row', service: {} },
     ]
-    const local = [{ id: 2, type: 'delete_row', service: {} }]
+    const local = [{ id: 2, type: 'local_baserow_delete_row', service: {} }]
 
     const result = reconcileWorkflowActions(server, local)
 
@@ -52,8 +62,8 @@ describe('reconcileWorkflowActions', () => {
 
   test('reordering alone produces only an order', () => {
     const server = [
-      { id: 1, type: 'create_row', service: {} },
-      { id: 2, type: 'delete_row', service: {} },
+      { id: 1, type: 'local_baserow_create_row', service: {} },
+      { id: 2, type: 'local_baserow_delete_row', service: {} },
     ]
     const local = [server[1], server[0]]
 
@@ -67,13 +77,13 @@ describe('reconcileWorkflowActions', () => {
 
   test('a mixed edit produces every operation', () => {
     const server = [
-      { id: 1, type: 'create_row', service: { table_id: 3 } },
-      { id: 2, type: 'delete_row', service: { table_id: 4 } },
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
+      { id: 2, type: 'local_baserow_delete_row', service: { table_id: 4 } },
     ]
     const local = [
-      { id: 2, type: 'delete_row', service: { table_id: 4 } },
-      { id: 1, type: 'create_row', service: { table_id: 7 } },
-      { type: 'update_row', service: { table_id: 8 } },
+      { id: 2, type: 'local_baserow_delete_row', service: { table_id: 4 } },
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 7 } },
+      { type: 'local_baserow_update_row', service: { table_id: 8 } },
     ]
 
     const result = reconcileWorkflowActions(server, local)
@@ -83,13 +93,15 @@ describe('reconcileWorkflowActions', () => {
       { id: 1, values: { service: { table_id: 7 } } },
     ])
     expect(result.toCreate).toEqual([
-      { type: 'update_row', service: { table_id: 8 } },
+      { type: 'local_baserow_update_row', service: { table_id: 8 } },
     ])
     expect(result.order).toEqual([2, 1, null])
   })
 
   test('emits a type change and keeps the position', () => {
-    const server = [{ id: 1, type: 'create_row', service: { table_id: 5 } }]
+    const server = [
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 5 } },
+    ]
     const local = [{ id: 1, type: 'open_url', url: { formula: "'x'" } }]
 
     const { toUpdate, order } = reconcileWorkflowActions(server, local)
@@ -103,13 +115,15 @@ describe('reconcileWorkflowActions', () => {
   test('a type change between two service types sends the new config', () => {
     // The editor resets the config on a type change, so the service it hands
     // over is empty and the old type's `table_id` must not carry across.
-    const server = [{ id: 1, type: 'create_row', service: { table_id: 3 } }]
-    const local = [{ id: 1, type: 'update_row', service: {} }]
+    const server = [
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
+    ]
+    const local = [{ id: 1, type: 'local_baserow_update_row', service: {} }]
 
     const result = reconcileWorkflowActions(server, local)
 
     expect(result.toUpdate).toEqual([
-      { id: 1, values: { type: 'update_row', service: {} } },
+      { id: 1, values: { type: 'local_baserow_update_row', service: {} } },
     ])
   })
 
@@ -117,10 +131,22 @@ describe('reconcileWorkflowActions', () => {
     // `order` and `field_id` belong to the server, not the editor. Diffing
     // them would make a pure reorder look like a config change.
     const server = [
-      { id: 1, type: 'create_row', order: 1, field_id: 7, service: {} },
+      {
+        id: 1,
+        type: 'local_baserow_create_row',
+        order: 1,
+        field_id: 7,
+        service: {},
+      },
     ]
     const local = [
-      { id: 1, type: 'create_row', order: 9, field_id: 7, service: {} },
+      {
+        id: 1,
+        type: 'local_baserow_create_row',
+        order: 9,
+        field_id: 7,
+        service: {},
+      },
     ]
 
     const result = reconcileWorkflowActions(server, local)
@@ -131,8 +157,11 @@ describe('reconcileWorkflowActions', () => {
   test('a row whose type has not been chosen yet is not an action', () => {
     // A row added but not yet given a type must produce no calls at all, and
     // take no slot in the order.
-    const server = [{ id: 1, type: 'create_row', service: {} }]
-    const local = [{ id: 1, type: 'create_row', service: {} }, { type: null }]
+    const server = [{ id: 1, type: 'local_baserow_create_row', service: {} }]
+    const local = [
+      { id: 1, type: 'local_baserow_create_row', service: {} },
+      { type: null },
+    ]
 
     const result = reconcileWorkflowActions(server, local)
 
@@ -143,13 +172,15 @@ describe('reconcileWorkflowActions', () => {
   })
 
   test('an id the server does not know is treated as new', () => {
-    const local = [{ id: 99, type: 'delete_row', service: { table_id: 4 } }]
+    const local = [
+      { id: 99, type: 'local_baserow_delete_row', service: { table_id: 4 } },
+    ]
 
     const result = reconcileWorkflowActions([], local)
 
     expect(result.toUpdate).toEqual([])
     expect(result.toCreate).toEqual([
-      { type: 'delete_row', service: { table_id: 4 } },
+      { type: 'local_baserow_delete_row', service: { table_id: 4 } },
     ])
     expect(result.order).toEqual([null])
   })

@@ -6,7 +6,9 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
 )
-from baserow.contrib.database.workflow_actions.models import CreateRowWorkflowAction
+from baserow.contrib.database.workflow_actions.models import (
+    LocalBaserowCreateRowWorkflowAction,
+)
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
@@ -107,7 +109,7 @@ def _button_writing(enterprise_data_fixture, table, fields):
         table=table, label="Go", create_field=True
     )
     action = enterprise_data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     service = action.service.specific
     service.table = table

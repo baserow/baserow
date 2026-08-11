@@ -9,8 +9,8 @@ from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchInProgress,
 )
 from baserow.contrib.database.workflow_actions.models import (
-    CreateRowWorkflowAction,
-    DeleteRowWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.service import (
@@ -29,7 +29,7 @@ def _table_with_name(data_fixture, user, name="People"):
 
 def _create_row_action(data_fixture, button_field, table, name_field, value):
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     service = action.service.specific
     service.table = table
@@ -69,7 +69,7 @@ def test_a_failure_keeps_the_completed_actions_and_skips_the_rest(data_fixture):
     _create_row_action(data_fixture, button_field, table, name_field, "first")
     # A delete-row action with no table configured fails at dispatch.
     broken = data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
     _create_row_action(data_fixture, button_field, table, name_field, "third")
 
@@ -99,7 +99,7 @@ def test_an_action_can_target_the_clicked_row(data_fixture):
     only way to name the clicked row is through the row data provider."""
 
     from baserow.contrib.database.workflow_actions.models import (
-        UpdateRowWorkflowAction,
+        LocalBaserowUpdateRowWorkflowAction,
     )
 
     user = data_fixture.create_user()
@@ -110,7 +110,7 @@ def test_an_action_can_target_the_clicked_row(data_fixture):
     other_row = model.objects.create(**{f"field_{name_field.id}": "untouched"})
 
     action = data_fixture.create_database_workflow_action(
-        UpdateRowWorkflowAction, field=button_field
+        LocalBaserowUpdateRowWorkflowAction, field=button_field
     )
     service = action.service.specific
     service.table = table
@@ -207,7 +207,7 @@ def test_the_lock_is_released_after_a_failure(data_fixture):
     button_field = data_fixture.create_button_field(table=table, label="Go")
     row = table.get_model().objects.create()
     data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
 
     service = DatabaseWorkflowActionService()
@@ -379,7 +379,7 @@ def test_every_action_sees_the_row_as_it_was_at_click_time(data_fixture):
     """ADR 006 section 4: the row provider is a snapshot."""
 
     from baserow.contrib.database.workflow_actions.models import (
-        UpdateRowWorkflowAction,
+        LocalBaserowUpdateRowWorkflowAction,
     )
 
     user = data_fixture.create_user()
@@ -390,7 +390,7 @@ def test_every_action_sees_the_row_as_it_was_at_click_time(data_fixture):
 
     # First action overwrites the clicked row's Name.
     update = data_fixture.create_database_workflow_action(
-        UpdateRowWorkflowAction, field=button_field
+        LocalBaserowUpdateRowWorkflowAction, field=button_field
     )
     update_service = update.service.specific
     update_service.table = table
@@ -403,7 +403,7 @@ def test_every_action_sees_the_row_as_it_was_at_click_time(data_fixture):
     # Second action copies the clicked row's Name into a new row. If the
     # provider re-read the row it would copy 'after'.
     copy = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     copy_service = copy.service.specific
     copy_service.table = table
@@ -438,7 +438,7 @@ def test_open_url_between_row_actions_is_skipped_and_returned(data_fixture):
         OpenUrlWorkflowAction, field=button_field
     )
     delete = data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
     service = delete.service.specific
     service.table = table
@@ -449,7 +449,10 @@ def test_open_url_between_row_actions_is_skipped_and_returned(data_fixture):
         user, button_field, row
     )
 
-    assert [a.get_type().type for a, _ in results] == ["create_row", "delete_row"]
+    assert [a.get_type().type for a, _ in results] == [
+        "local_baserow_create_row",
+        "local_baserow_delete_row",
+    ]
     assert [a.get_type().type for a in client_actions] == ["open_url"]
 
 
@@ -469,7 +472,7 @@ def test_a_click_can_delete_several_rows_at_once(data_fixture):
     survivor = model.objects.create(**{f"field_{name_field.id}": "survivor"})
 
     delete = data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
     service = delete.service.specific
     service.table = table
@@ -499,7 +502,7 @@ def test_a_failing_row_action_means_no_client_actions(data_fixture):
 
     # A delete-row action with no table configured fails at dispatch.
     data_fixture.create_database_workflow_action(
-        DeleteRowWorkflowAction, field=button_field
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
     data_fixture.create_database_workflow_action(
         OpenUrlWorkflowAction, field=button_field

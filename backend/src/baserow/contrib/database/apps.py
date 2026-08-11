@@ -266,15 +266,21 @@ class DatabaseConfig(AppConfig):
 
         from .workflow_actions.registries import database_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
-            CreateRowWorkflowActionType,
-            DeleteRowWorkflowActionType,
+            LocalBaserowCreateRowWorkflowActionType,
+            LocalBaserowDeleteRowWorkflowActionType,
+            LocalBaserowUpdateRowWorkflowActionType,
             OpenUrlWorkflowActionType,
-            UpdateRowWorkflowActionType,
         )
 
-        database_workflow_action_type_registry.register(CreateRowWorkflowActionType())
-        database_workflow_action_type_registry.register(UpdateRowWorkflowActionType())
-        database_workflow_action_type_registry.register(DeleteRowWorkflowActionType())
+        database_workflow_action_type_registry.register(
+            LocalBaserowCreateRowWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            LocalBaserowUpdateRowWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            LocalBaserowDeleteRowWorkflowActionType()
+        )
         database_workflow_action_type_registry.register(OpenUrlWorkflowActionType())
 
         from .fields.field_aggregations import (

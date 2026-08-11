@@ -23,10 +23,10 @@ describe('workflowAction service', () => {
   })
 
   test('create sends only the type', () => {
-    service.create(11, 'create_row')
+    service.create(11, 'local_baserow_create_row')
     expect(client.post).toHaveBeenCalledWith(
       'database/field/11/workflow_actions/',
-      { type: 'create_row' }
+      { type: 'local_baserow_create_row' }
     )
   })
 

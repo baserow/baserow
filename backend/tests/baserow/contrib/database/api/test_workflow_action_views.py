@@ -9,9 +9,9 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.workflow_actions.models import (
-    CreateRowWorkflowAction,
     DatabaseWorkflowAction,
-    DeleteRowWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
 )
 from baserow.core.services.models import Service
 
@@ -27,14 +27,14 @@ def test_create_workflow_action(api_client, data_fixture):
             "api:database:workflow_actions:list",
             kwargs={"field_id": button_field.id},
         ),
-        {"type": "create_row"},
+        {"type": "local_baserow_create_row"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_200_OK, response.json()
     data = response.json()
-    assert data["type"] == "create_row"
+    assert data["type"] == "local_baserow_create_row"
     assert data["order"] == 1
     assert data["service"]["type"] == "local_baserow_upsert_row"
     assert DatabaseWorkflowAction.objects.count() == 1
@@ -60,7 +60,7 @@ def test_create_ignores_a_supplied_integration(api_client, data_fixture):
             kwargs={"field_id": button_field.id},
         ),
         {
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "service": {
                 "type": "local_baserow_upsert_row",
                 "integration_id": integration.id,
@@ -71,7 +71,7 @@ def test_create_ignores_a_supplied_integration(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_200_OK, response.json()
-    action = CreateRowWorkflowAction.objects.get(id=response.json()["id"])
+    action = LocalBaserowCreateRowWorkflowAction.objects.get(id=response.json()["id"])
     assert action.service.integration_id is None
 
 
@@ -81,7 +81,7 @@ def test_update_ignores_a_supplied_integration(api_client, data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     other_user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(
@@ -94,7 +94,7 @@ def test_update_ignores_a_supplied_integration(api_client, data_fixture):
             kwargs={"workflow_action_id": action.id},
         ),
         {
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "service": {
                 "type": "local_baserow_upsert_row",
                 "integration_id": integration.id,
@@ -134,10 +134,10 @@ def test_list_workflow_actions_in_order(api_client, data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     first = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     second = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     response = api_client.get(
@@ -180,7 +180,7 @@ def test_update_workflow_action_service(api_client, data_fixture):
     )
     button_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     response = api_client.patch(
@@ -189,7 +189,7 @@ def test_update_workflow_action_service(api_client, data_fixture):
             kwargs={"workflow_action_id": action.id},
         ),
         {
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "service": {
                 "type": "local_baserow_upsert_row",
                 "table_id": target_table.id,
@@ -211,10 +211,10 @@ def test_update_workflow_action_type(api_client, data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     first = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     old_service_id = action.service_id
 
@@ -223,20 +223,20 @@ def test_update_workflow_action_type(api_client, data_fixture):
             "api:database:workflow_actions:item",
             kwargs={"workflow_action_id": action.id},
         ),
-        {"type": "delete_row"},
+        {"type": "local_baserow_delete_row"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_200_OK, response.json()
-    assert response.json()["type"] == "delete_row"
+    assert response.json()["type"] == "local_baserow_delete_row"
 
     (updated,) = [
         a.specific
         for a in DatabaseWorkflowAction.objects.filter(field=button_field)
         if a.id != first.id
     ]
-    assert isinstance(updated, DeleteRowWorkflowAction)
+    assert isinstance(updated, LocalBaserowDeleteRowWorkflowAction)
     assert updated.service.specific.get_type().type == "local_baserow_delete_row"
     assert updated.field_id == button_field.id
     assert updated.order == action.order
@@ -251,7 +251,7 @@ def test_update_a_workflow_action_in_another_workspace(api_client, data_fixture)
     table = data_fixture.create_database_table(user=other_user)
     button_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     target_table = data_fixture.create_database_table(
         user=other_user, database=table.database
@@ -263,7 +263,7 @@ def test_update_a_workflow_action_in_another_workspace(api_client, data_fixture)
             kwargs={"workflow_action_id": action.id},
         ),
         {
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "service": {
                 "type": "local_baserow_upsert_row",
                 "table_id": target_table.id,
@@ -286,7 +286,7 @@ def test_delete_a_workflow_action_in_another_workspace(api_client, data_fixture)
     table = data_fixture.create_database_table(user=other_user)
     button_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     response = api_client.delete(
@@ -308,7 +308,7 @@ def test_delete_workflow_action(api_client, data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     response = api_client.delete(
@@ -345,10 +345,10 @@ def test_order_workflow_actions(api_client, data_fixture):
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
     first = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     second = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     response = api_client.post(
@@ -417,10 +417,10 @@ def test_order_with_an_action_from_another_field(api_client, data_fixture):
     button_field = data_fixture.create_button_field(table=table)
     other_field = data_fixture.create_button_field(table=table)
     action = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
     foreign = data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=other_field
+        LocalBaserowCreateRowWorkflowAction, field=other_field
     )
 
     response = api_client.post(

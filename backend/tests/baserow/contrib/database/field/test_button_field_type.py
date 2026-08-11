@@ -439,7 +439,7 @@ def test_button_field_changes_are_not_broadcast_to_public_views(
 @pytest.mark.django_db
 def test_button_field_reports_whether_it_has_actions(api_client, data_fixture):
     from baserow.contrib.database.workflow_actions.models import (
-        CreateRowWorkflowAction,
+        LocalBaserowCreateRowWorkflowAction,
     )
 
     user, token = data_fixture.create_user_and_token()
@@ -457,7 +457,7 @@ def test_button_field_reports_whether_it_has_actions(api_client, data_fixture):
     assert get_payload()["has_workflow_actions"] is False
 
     data_fixture.create_database_workflow_action(
-        CreateRowWorkflowAction, field=button_field
+        LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
     assert get_payload()["has_workflow_actions"] is True
@@ -472,7 +472,7 @@ def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture
     """
 
     from baserow.contrib.database.workflow_actions.models import (
-        CreateRowWorkflowAction,
+        LocalBaserowCreateRowWorkflowAction,
     )
 
     user, token = data_fixture.create_user_and_token()
@@ -486,7 +486,9 @@ def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture
         return response.json(), len(captured)
 
     first = data_fixture.create_button_field(table=table, label="One")
-    data_fixture.create_database_workflow_action(CreateRowWorkflowAction, field=first)
+    data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=first
+    )
 
     # The first request of the test warms content types and the generated
     # model, which would otherwise show up as a saving rather than a cost.
@@ -496,7 +498,7 @@ def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture
     for label in ["Two", "Three", "Four"]:
         extra = data_fixture.create_button_field(table=table, label=label)
         data_fixture.create_database_workflow_action(
-            CreateRowWorkflowAction, field=extra
+            LocalBaserowCreateRowWorkflowAction, field=extra
         )
 
     payload, four_button_queries = list_fields()

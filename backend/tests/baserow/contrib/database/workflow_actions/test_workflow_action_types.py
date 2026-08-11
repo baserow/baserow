@@ -4,9 +4,9 @@ from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
 from baserow.contrib.database.workflow_actions.models import (
-    CreateRowWorkflowAction,
-    DeleteRowWorkflowAction,
-    UpdateRowWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
@@ -19,24 +19,47 @@ from baserow.core.services.exceptions import (
 def test_the_four_types_are_registered():
     types = {t.type for t in database_workflow_action_type_registry.get_all()}
 
-    assert types == {"create_row", "update_row", "delete_row", "open_url"}
+    assert types == {
+        "local_baserow_create_row",
+        "local_baserow_update_row",
+        "local_baserow_delete_row",
+        "open_url",
+    }
 
 
 def test_types_map_to_their_models_and_services():
     registry = database_workflow_action_type_registry
 
-    assert registry.get("create_row").model_class is CreateRowWorkflowAction
-    assert registry.get("create_row").service_type == "local_baserow_upsert_row"
-    assert registry.get("update_row").model_class is UpdateRowWorkflowAction
-    assert registry.get("update_row").service_type == "local_baserow_upsert_row"
-    assert registry.get("delete_row").model_class is DeleteRowWorkflowAction
-    assert registry.get("delete_row").service_type == "local_baserow_delete_row"
+    assert (
+        registry.get("local_baserow_create_row").model_class
+        is LocalBaserowCreateRowWorkflowAction
+    )
+    assert (
+        registry.get("local_baserow_create_row").service_type
+        == "local_baserow_upsert_row"
+    )
+    assert (
+        registry.get("local_baserow_update_row").model_class
+        is LocalBaserowUpdateRowWorkflowAction
+    )
+    assert (
+        registry.get("local_baserow_update_row").service_type
+        == "local_baserow_upsert_row"
+    )
+    assert (
+        registry.get("local_baserow_delete_row").model_class
+        is LocalBaserowDeleteRowWorkflowAction
+    )
+    assert (
+        registry.get("local_baserow_delete_row").service_type
+        == "local_baserow_delete_row"
+    )
 
 
 @pytest.mark.django_db
 def test_preparing_values_creates_the_backing_service(data_fixture):
     user = data_fixture.create_user()
-    action_type = database_workflow_action_type_registry.get("create_row")
+    action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
     prepared = action_type.prepare_values({}, user)
 
@@ -48,8 +71,10 @@ def test_preparing_values_creates_the_backing_service(data_fixture):
 def test_preparing_values_updates_an_existing_service(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    action = data_fixture.create_database_workflow_action(CreateRowWorkflowAction)
-    action_type = database_workflow_action_type_registry.get("create_row")
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction
+    )
+    action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
     action_type.prepare_values({"service": {"table_id": table.id}}, user, action)
     action.service.refresh_from_db()
@@ -66,8 +91,10 @@ def test_preparing_values_never_attaches_an_integration(data_fixture):
     victim_integration = data_fixture.create_local_baserow_integration(
         user=victim, authorized_user=victim
     )
-    action = data_fixture.create_database_workflow_action(CreateRowWorkflowAction)
-    action_type = database_workflow_action_type_registry.get("create_row")
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction
+    )
+    action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
     action_type.prepare_values(
         {"service": {"integration_id": victim_integration.id}}, user, action
@@ -84,11 +111,13 @@ def test_dispatching_refuses_a_service_carrying_an_integration(data_fixture):
     victim_integration = data_fixture.create_local_baserow_integration(
         user=victim, authorized_user=victim
     )
-    action = data_fixture.create_database_workflow_action(CreateRowWorkflowAction)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction
+    )
     service = action.service.specific
     service.integration = victim_integration
     service.save()
-    action_type = database_workflow_action_type_registry.get("create_row")
+    action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         # The guard runs before the context is used.

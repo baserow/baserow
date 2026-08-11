@@ -34,10 +34,10 @@ from .webhooks.models import (
     TableWebhookHeader,
 )
 from .workflow_actions.models import (
-    CreateRowWorkflowAction,
     DatabaseWorkflowAction,
-    DeleteRowWorkflowAction,
-    UpdateRowWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowWorkflowAction,
 )
 
 __all__ = [
@@ -71,9 +71,9 @@ __all__ = [
     "FieldDependency",
     "FieldRule",
     "DatabaseWorkflowAction",
-    "CreateRowWorkflowAction",
-    "UpdateRowWorkflowAction",
-    "DeleteRowWorkflowAction",
+    "LocalBaserowCreateRowWorkflowAction",
+    "LocalBaserowUpdateRowWorkflowAction",
+    "LocalBaserowDeleteRowWorkflowAction",
 ]
 
 
