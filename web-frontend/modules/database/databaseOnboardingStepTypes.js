@@ -1,6 +1,7 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
 import TemplateImportForm from '@baserow/modules/database/components/onboarding/TemplateImportForm'
+import TemplateOnboardingCancelModal from '@baserow/modules/database/components/onboarding/TemplateOnboardingCancelModal'
 import DatabaseTemplatePreview from '@baserow/modules/database/components/onboarding/DatabaseTemplatePreview'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
@@ -121,6 +122,17 @@ export class DatabaseOnboardingStepType extends Registerable {
    * @returns {object|null} - Route object or null
    */
   getCompletedRoute(data, responses) {
+    return null
+  }
+
+  /**
+   * Called when the user cancels the onboarding, before it's actually cancelled. Can
+   * return an object containing the `component` of a modal offering this step type as
+   * an alternative to cancelling, and optionally the `props` passed into it. The modal
+   * must emit `selected` with the step data, and `hidden` if the user dismissed it. It
+   * can emit `cancel` if it offers a way to cancel the onboarding after all.
+   */
+  async getCancelModal() {
     return null
   }
 }
@@ -277,6 +289,30 @@ export class TemplateDatabaseOnboardingStepType extends DatabaseOnboardingStepTy
       return DatabaseTemplatePreview
     }
     return null
+  }
+
+  /**
+   * Cancelling the onboarding results in an empty workspace, which doesn't help the
+   * user to get started. Installing a template does, so it's offered as an alternative
+   * as long as the instance actually has templates.
+   */
+  async getCancelModal() {
+    if (!this.isVisible()) {
+      return null
+    }
+
+    const { data: categories } = await TemplateService(
+      this.app.$client
+    ).fetchAll()
+
+    if (categories.every((category) => category.templates.length === 0)) {
+      return null
+    }
+
+    return {
+      component: TemplateOnboardingCancelModal,
+      props: { categories, databaseStepType: this.getType() },
+    }
   }
 
   async completeAfterWorkspace(workspace, stepData) {

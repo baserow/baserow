@@ -1150,6 +1150,11 @@
     "template": "Template",
     "workspaceName": "{name}'s workspace"
   },
+  "templateOnboardingCancelModal": {
+    "title": "Select a template to get started",
+    "description": "To skip the onboarding, select one of the templates below. Starting with a template is the best way to get to know Baserow because it sets up tables, fields and example data for you. You can always change or delete it later.",
+    "continue": "Use this template"
+  },
   "ViewFilterTypeDateUpgradeToMultiStep": {
     "migrateButtonText": "Migrate to multi-step date filter",
     "migrateButtonTooltip": "New filter available. Click to upgrade. It works the same."

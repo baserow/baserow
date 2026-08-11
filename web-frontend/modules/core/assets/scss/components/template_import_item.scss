@@ -2,6 +2,10 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
+
+  &.template-import-items--wide {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .template-import-item {
