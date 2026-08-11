@@ -17,6 +17,7 @@ import {
 } from "../../fixtures/database/gridSetup";
 import {
   createRowAction,
+  createDeleteRowAction,
   createOpenUrlAction,
   createWorkflowAction,
   listWorkflowActions,
@@ -37,6 +38,7 @@ const DEFERRED_FIELD_INDEX = 4;
 const LINK_FIELD_INDEX = 6;
 const BROKEN_FIELD_INDEX = 10;
 const BAD_LINK_FIELD_INDEX = 11;
+const REMOVE_FIELD_INDEX = 13;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
@@ -50,6 +52,8 @@ const BUTTON_FIELD_NAMES = [
   "Failing",
   "Broken",
   "BadLink",
+  "Retype",
+  "Remove",
 ];
 
 let g: GridSetupResult;
@@ -78,7 +82,7 @@ async function openFieldEditor(page: Page, name: string) {
 test.describe("Button field", () => {
   // The grid only renders the columns that fit, and this suite needs one
   // button field per behaviour, so every column has to be on screen at once.
-  test.use({ viewport: { width: 3200, height: 900 } });
+  test.use({ viewport: { width: 3600, height: 900 } });
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -97,6 +101,8 @@ test.describe("Button field", () => {
         { name: "Failing", type: "button", settings: { label: "Failing" } },
         { name: "Broken", type: "button", settings: { label: "Broken" } },
         { name: "BadLink", type: "button", settings: { label: "BadLink" } },
+        { name: "Retype", type: "button", settings: { label: "Retype" } },
+        { name: "Remove", type: "button", settings: { label: "Remove" } },
       ],
     });
 
@@ -180,6 +186,28 @@ test.describe("Button field", () => {
       table: g.table,
       rowId: "get('row.id')",
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'x'" }],
+    });
+
+    // "Retype" has two actions so that changing the first one's type, which
+    // the server implements as a delete plus a create, has to keep the second
+    // one behind it under a brand new id.
+    await createRowAction(g.user, g.fieldByName["Retype"], {
+      type: "update_row",
+      table: g.table,
+      rowId: "get('row.id')",
+      fieldMappings: [{ field: g.fieldByName["Status"], value: "'first'" }],
+    });
+    await createRowAction(g.user, g.fieldByName["Retype"], {
+      type: "update_row",
+      table: g.table,
+      rowId: "get('row.id')",
+      fieldMappings: [{ field: g.fieldByName["Status"], value: "'second'" }],
+    });
+
+    // "Remove" deletes the very row it is clicked on.
+    await createDeleteRowAction(g.user, g.fieldByName["Remove"], {
+      table: g.table,
+      rowId: "get('row.id')",
     });
   });
 
@@ -649,5 +677,107 @@ test.describe("Button field", () => {
     await expect(actionForm.getByText("OtherOnly")).toHaveCount(0);
     await expect(actionForm.getByText("Status")).toBeVisible();
     await expect(actionForm.locator(".loading-spinner")).toHaveCount(0);
+  });
+
+  test("changing an action's type keeps the one after it in place", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await openFieldEditor(page, "Retype");
+    const actionList = page.locator(".button-field-action-list");
+    const items = actionList.locator(".button-field-action-list__item");
+    await expect(items).toHaveCount(2);
+
+    const before = await listWorkflowActions(g.user, g.fieldByName["Retype"]);
+
+    // A type change is a delete plus a create server side, so the action comes
+    // back with a new id that the order call has to be told about.
+    await items.first().locator(".button-field-action-list__type").click();
+    await page
+      .locator(".dropdown__items:visible")
+      .locator(".select__item-link", { hasText: "Open URL" })
+      .click();
+
+    await page.locator(".field-context button", { hasText: "Save" }).click();
+
+    await expect(async () => {
+      const after = await listWorkflowActions(g.user, g.fieldByName["Retype"]);
+      expect(after.map((action) => action.type)).toEqual([
+        "open_url",
+        "update_row",
+      ]);
+      // The recreated action really is a new row, and the untouched one kept
+      // both its position and its configuration.
+      expect(after[0].id).not.toBe(before[0].id);
+      expect(after[1].id).toBe(before[1].id);
+      expect(after[1].service.field_mappings[0].value.formula).toBe("'second'");
+    }).toPass({ timeout: 15_000 });
+
+    // Retyping alone cannot prove the new id reaches the order call, because
+    // the recreate keeps the old action's `order` server side anyway. Moving
+    // the retyped action at the same time is what makes the order call matter:
+    // sent with the dead id it is refused, and the move is silently lost.
+    const beforeMove = await listWorkflowActions(
+      g.user,
+      g.fieldByName["Retype"],
+    );
+    await openFieldEditor(page, "Retype");
+
+    await items.nth(1).locator(".button-field-action-list__type").click();
+    await page
+      .locator(".dropdown__items:visible")
+      .locator(".select__item-link", { hasText: "Open URL" })
+      .click();
+
+    const handles = actionList.locator("[data-sortable-handle]");
+    const top = await handles.nth(0).boundingBox();
+    const bottom = await handles.nth(1).boundingBox();
+    if (!top || !bottom) throw new Error("action handles are not rendered");
+    await page.mouse.move(
+      bottom.x + bottom.width / 2,
+      bottom.y + bottom.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(top.x + top.width / 2, top.y + top.height / 2 - 8, {
+      steps: 12,
+    });
+    await page.mouse.up();
+
+    await page.locator(".field-context button", { hasText: "Save" }).click();
+
+    await expect(async () => {
+      const moved = await listWorkflowActions(g.user, g.fieldByName["Retype"]);
+      expect(moved).toHaveLength(2);
+      // The retyped action moved to the front under an id that did not exist
+      // when the editor opened, and the other one dropped behind it.
+      expect(moved[0].id).not.toBe(beforeMove[0].id);
+      expect(moved[0].id).not.toBe(beforeMove[1].id);
+      expect(moved[1].id).toBe(beforeMove[0].id);
+    }).toPass({ timeout: 15_000 });
+  });
+
+  test("a delete action removes the clicked row from the grid", async ({
+    page,
+  }) => {
+    await resetRows(g, [
+      { Name: "Ada", Status: "todo" },
+      { Name: "Grace", Status: "todo" },
+      { Name: "Hedy", Status: "todo" },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await expect(grid.leftRows()).toHaveCount(3);
+
+    // The dispatch snapshots the row before running, so the action can delete
+    // the very row that was clicked.
+    await grid.fieldCellAt(0, REMOVE_FIELD_INDEX).locator("button").click();
+
+    await expect(grid.leftRows()).toHaveCount(2);
+    await expect(grid.primaryCellAt(0)).toHaveText("Grace");
+
+    const rows = await listRows(g.user, g.table);
+    expect(rows.map((row) => row.Name)).toEqual(["Grace", "Hedy"]);
   });
 });

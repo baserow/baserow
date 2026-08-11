@@ -104,6 +104,25 @@ export async function createRowAction(
   });
 }
 
+/**
+ * A delete row action. `rowId` is a formula, so `"get('row.id')"` targets the
+ * clicked row and an array formula deletes several.
+ */
+export async function createDeleteRowAction(
+  user: User,
+  buttonField: Field,
+  options: { table: Table; rowId: string },
+): Promise<WorkflowAction> {
+  const action = await createWorkflowAction(user, buttonField, "delete_row");
+  return await updateWorkflowAction(user, action, {
+    service: {
+      type: "local_baserow_delete_row",
+      table_id: options.table.id,
+      row_id: options.rowId,
+    },
+  });
+}
+
 /** An action the browser runs itself, rather than the dispatch running it. */
 export async function createOpenUrlAction(
   user: User,
