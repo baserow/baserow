@@ -8066,12 +8066,16 @@ class ButtonFieldType(ReadOnlyFieldType):
             deferred_fk_update_collector,
         )
         field._serialized_workflow_actions = serialized_actions
+        # Stashed with them: the service types need it to tell a duplicate from
+        # an import when a target table is outside the id mapping.
+        field._workflow_action_import_config = import_export_config
         return field
 
     def after_import_serialized(
         self, field: ButtonField, field_cache: "FieldCache", id_mapping: Dict[str, Any]
     ):
         serialized_actions = getattr(field, "_serialized_workflow_actions", None) or []
+        import_export_config = getattr(field, "_workflow_action_import_config", None)
 
         def import_workflow_actions():
             # Deferred: an action can target another database, and this hook
@@ -8081,7 +8085,12 @@ class ButtonFieldType(ReadOnlyFieldType):
                 action_type = database_workflow_action_type_registry.get(
                     serialized_action["type"]
                 )
-                action_type.import_serialized(field, serialized_action, id_mapping)
+                action_type.import_serialized(
+                    field,
+                    serialized_action,
+                    id_mapping,
+                    import_export_config=import_export_config,
+                )
 
         if serialized_actions:
             register_deferred_callback(import_workflow_actions)

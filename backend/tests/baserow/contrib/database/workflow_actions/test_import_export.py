@@ -65,6 +65,32 @@ def test_duplicating_the_table_remaps_the_action_target(data_fixture):
 
 
 @pytest.mark.django_db
+def test_duplicating_the_table_keeps_a_target_outside_it(data_fixture):
+    """The duplicated table is the only one in the id mapping, so a service
+    pointing anywhere else finds no mapping for its target. A duplicate stays in
+    the same workspace, so the original table is still the right one to keep."""
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    other_database = data_fixture.create_database_application(user=user)
+    other_table = data_fixture.create_database_table(user=user, database=other_database)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=other_table
+    )
+    data_fixture.create_database_workflow_action(
+        CreateRowWorkflowAction, field=button_field, service=service
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_field)
+
+    assert action.specific.service.specific.table_id == other_table.id
+
+
+@pytest.mark.django_db
 def test_duplicating_a_single_field_copies_its_actions(data_fixture):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)

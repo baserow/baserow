@@ -513,7 +513,13 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         """
 
         if prop_name == "table_id" and "database_tables" in id_mapping:
-            return id_mapping["database_tables"].get(value, None)
+            # A duplicate stays in the same workspace, so a table outside the
+            # duplicated scope is still the right target. An import can land in
+            # another workspace, where a kept id would reach a table the
+            # importer cannot see.
+            config = kwargs.get("import_export_config")
+            unmapped = value if getattr(config, "is_duplicate", False) else None
+            return id_mapping["database_tables"].get(value, unmapped)
 
         return super().deserialize_property(
             prop_name,
