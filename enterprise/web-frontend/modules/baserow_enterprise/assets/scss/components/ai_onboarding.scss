@@ -1,8 +1,18 @@
 .ai-onboarding-questions__progress {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  color: $palette-neutral-700;
+  color: $palette-neutral-1000;
   margin-bottom: 8px;
+}
+
+.ai-onboarding-question-enter-active,
+.ai-onboarding-question-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.ai-onboarding-question-enter-from,
+.ai-onboarding-question-leave-to {
+  opacity: 0;
 }
 
 .ai-onboarding-questions__explanation {

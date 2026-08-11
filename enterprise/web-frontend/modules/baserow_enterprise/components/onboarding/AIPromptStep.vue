@@ -1,71 +1,81 @@
 <template>
   <div>
     <h1>{{ $t('aiPromptStep.title') }}</h1>
-    <p>{{ $t('aiPromptStep.description') }}</p>
 
-    <div v-if="loading" class="ai-prompt-loading">
-      <div class="loading"></div>
-      <div class="ai-prompt-loading__text">
-        {{ $t('aiPromptStep.generating') }}
+    <template v-if="hasVisibleError">
+      <Error :error="error"></Error>
+      <p>{{ $t('aiPromptStep.errorOtherOptions') }}</p>
+    </template>
+    <template v-else>
+      <p>{{ $t('aiPromptStep.description') }}</p>
+
+      <div v-if="loading" class="ai-prompt-loading">
+        <div class="loading"></div>
+        <div class="ai-prompt-loading__text">
+          {{ $t('aiPromptStep.generating') }}
+        </div>
       </div>
-    </div>
-    <FormGroup
-      v-else
-      :label="$t('aiPromptStep.label')"
-      small-label
-      required
-      class="margin-bottom-2"
-    >
-      <FormTextarea
-        ref="promptInput"
-        v-model="prompt"
-        :placeholder="$t('aiPromptStep.placeholder')"
-        :rows="5"
-        @input="promptEdited = true"
-      />
-    </FormGroup>
+      <FormGroup
+        v-else
+        :label="$t('aiPromptStep.label')"
+        small-label
+        required
+        class="margin-bottom-2"
+      >
+        <FormTextarea
+          ref="promptInput"
+          v-model="prompt"
+          :placeholder="$t('aiPromptStep.placeholder')"
+          :rows="5"
+          @input="promptEdited = true"
+        />
+      </FormGroup>
 
-    <div class="ai-prompt-suggestions__head">
-      <div class="ai-prompt-suggestions__title">
-        {{ $t('aiPromptStep.suggestionsTitle') }}
+      <div class="ai-prompt-suggestions__head">
+        <div class="ai-prompt-suggestions__title">
+          {{ $t('aiPromptStep.suggestionsTitle') }}
+        </div>
+        <ButtonText
+          icon="iconoir-edit-pencil"
+          :disabled="loading"
+          @click="editDetails()"
+          >{{ $t('aiPromptStep.editDetails') }}</ButtonText
+        >
       </div>
-      <ButtonText icon="iconoir-edit-pencil" @click="editDetails()">{{
-        $t('aiPromptStep.editDetails')
-      }}</ButtonText>
-    </div>
 
-    <div class="ai-prompt-suggestions">
-      <template v-if="loading">
-        <div
-          v-for="index in 4"
-          :key="index"
-          class="ai-prompt-suggestion ai-prompt-suggestion--skeleton"
+      <div class="ai-prompt-suggestions">
+        <template v-if="loading">
+          <div
+            v-for="index in 4"
+            :key="index"
+            class="ai-prompt-suggestion ai-prompt-suggestion--skeleton"
+          >
+            <div class="ai-prompt-suggestion__preview">
+              <div class="ai-prompt-suggestion__preview-text"></div>
+            </div>
+            <div class="ai-prompt-suggestion__name"></div>
+          </div>
+        </template>
+        <button
+          v-for="suggestion in suggestions"
+          v-else
+          :key="suggestion.name"
+          type="button"
+          class="ai-prompt-suggestion"
+          :class="{
+            'ai-prompt-suggestion--active': suggestion.prompt === prompt,
+          }"
+          @click="selectSuggestion(suggestion)"
         >
           <div class="ai-prompt-suggestion__preview">
-            <div class="ai-prompt-suggestion__preview-text"></div>
+            <div class="ai-prompt-suggestion__preview-text">
+              {{ suggestion.prompt }}
+            </div>
           </div>
-          <div class="ai-prompt-suggestion__name"></div>
-        </div>
-      </template>
-      <button
-        v-for="suggestion in suggestions"
-        v-else
-        :key="suggestion.name"
-        type="button"
-        class="ai-prompt-suggestion"
-        :class="{
-          'ai-prompt-suggestion--active': suggestion.prompt === prompt,
-        }"
-        @click="selectSuggestion(suggestion)"
-      >
-        <div class="ai-prompt-suggestion__preview">
-          <div class="ai-prompt-suggestion__preview-text">
-            {{ suggestion.prompt }}
-          </div>
-        </div>
-        <div class="ai-prompt-suggestion__name">{{ suggestion.name }}</div>
-      </button>
-    </div>
+          <div class="ai-prompt-suggestion__name">{{ suggestion.name }}</div>
+        </button>
+      </div>
+    </template>
 
     <AIOnboardingDetailsModal
       ref="detailsModal"
@@ -80,11 +90,13 @@
 import AIOnboardingDetailsModal from '@baserow_enterprise/components/onboarding/AIOnboardingDetailsModal'
 import AssistantService from '@baserow_enterprise/services/assistant'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
-import { notifyIf } from '@baserow/modules/core/utils/error'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import error from '@baserow/modules/core/mixins/error'
 
 export default {
   name: 'AIPromptStep',
   components: { AIOnboardingDetailsModal },
+  mixins: [error],
   props: {
     data: {
       type: Object,
@@ -101,19 +113,6 @@ export default {
       details: this.answers(),
       lastAnswers: this.answers(),
     }
-  },
-  computed: {
-    examples() {
-      return [
-        'ProjectTracker',
-        'ProductRoadmap',
-        'CompanyAssetTracker',
-        'TeamCheckIns',
-      ].map((example) => ({
-        name: this.$t(`aiDatabaseOnboardingForm.example${example}Name`),
-        prompt: this.$t(`aiDatabaseOnboardingForm.example${example}Prompt`),
-      }))
-    },
   },
   watch: {
     prompt() {
@@ -157,6 +156,7 @@ export default {
     },
     async fetchSuggestions() {
       const requested = this.details
+      this.hideError()
       this.loading = true
       try {
         const suggestions = await AssistantService(
@@ -172,12 +172,19 @@ export default {
         if (!this.promptEdited && suggestions.length > 0) {
           this.prompt = suggestions[0].prompt
         }
-      } catch (error) {
+      } catch (requestError) {
         if (requested !== this.details) {
           return
         }
-        this.suggestions = this.examples
-        notifyIf(error)
+        // Without suggestions the assistant most likely can't build the database
+        // either, so the error replaces the form instead of being a toast that's
+        // easily missed.
+        this.handleError(requestError, null, {
+          ERROR_ASSISTANT_MODEL_NOT_SUPPORTED: new ResponseErrorMessage(
+            this.$t('aiPromptStep.modelNotSupportedTitle'),
+            this.$t('aiPromptStep.modelNotSupportedMessage')
+          ),
+        })
       }
       this.loading = false
     },
@@ -193,7 +200,7 @@ export default {
       this.fetchSuggestions()
     },
     isValid() {
-      return this.prompt.trim() !== ''
+      return !this.hasVisibleError && this.prompt.trim() !== ''
     },
   },
 }

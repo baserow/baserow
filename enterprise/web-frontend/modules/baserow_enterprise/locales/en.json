@@ -840,15 +840,7 @@
     "industryPlaceholder": "e.g. Digital marketing",
     "teamLabel": "Which team are you on?",
     "teamDescription": "For example \"Client services\", \"Finance\" or \"Operations\".",
-    "teamPlaceholder": "e.g. Client services",
-    "exampleProjectTrackerName": "Project Tracker",
-    "exampleProjectTrackerPrompt": "Create a project tracker with Projects, Tasks, Assignees, Status, Priority, Due dates, and dependencies.",
-    "exampleProductRoadmapName": "Product Roadmap",
-    "exampleProductRoadmapPrompt": "Create a product roadmap with Initiatives, Features, Owners, Status, Priority, Target quarter, and release notes.",
-    "exampleCompanyAssetTrackerName": "Company Asset Tracker",
-    "exampleCompanyAssetTrackerPrompt": "Create an asset tracker with Assets, Categories, Serial numbers, Purchase date, Assigned to, Location, and warranty expiry.",
-    "exampleTeamCheckInsName": "Team Check-ins",
-    "exampleTeamCheckInsPrompt": "Create a weekly team check-in tracker with Team members, Date, Wins, Blockers, Mood, Priorities, and follow-ups."
+    "teamPlaceholder": "e.g. Client services"
   },
   "aiPromptStep": {
     "title": "What should Kuma build for you?",
@@ -857,7 +849,10 @@
     "placeholder": "e.g. Track client projects with deadlines, owners and status.",
     "generating": "Kuma is writing a suggestion for you…",
     "suggestionsTitle": "Or start with one of these",
-    "editDetails": "Edit details"
+    "editDetails": "Edit details",
+    "modelNotSupportedTitle": "Kuma is unavailable",
+    "modelNotSupportedMessage": "Kuma can't be reached because no working AI model is configured, so it can't build a database for you right now. Trying again won't help until that's fixed.",
+    "errorOtherOptions": "Go back to start a database in another way, for example from a template, an import, or from scratch."
   },
   "aiOnboardingDetailsModal": {
     "title": "Edit your details",

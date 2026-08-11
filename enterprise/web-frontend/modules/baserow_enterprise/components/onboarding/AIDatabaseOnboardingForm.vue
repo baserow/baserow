@@ -1,32 +1,38 @@
 <template>
   <form @submit.prevent>
-    <div class="ai-onboarding-questions__progress">
-      {{
-        $t('aiDatabaseOnboardingForm.progress', {
-          current: phaseIndex + 1,
-          total: phases.length,
-        })
-      }}
-    </div>
+    <i18n-t
+      scope="global"
+      keypath="aiDatabaseOnboardingForm.progress"
+      tag="div"
+      class="ai-onboarding-questions__progress"
+    >
+      <template #current>
+        <span>{{ phaseIndex + 1 }}</span>
+      </template>
+      <template #total>{{ phases.length }}</template>
+    </i18n-t>
     <p class="ai-onboarding-questions__explanation">
       {{ $t('aiDatabaseOnboardingForm.explanation') }}
     </p>
-    <FormGroup
-      :label="$t(`aiDatabaseOnboardingForm.${phase}Label`)"
-      :helper-text="$t(`aiDatabaseOnboardingForm.${phase}Description`)"
-      small-label
-      required
-    >
-      <FormInput
-        ref="input"
-        v-model="values[phase]"
-        :placeholder="$t(`aiDatabaseOnboardingForm.${phase}Placeholder`)"
-        :maxlength="48"
-        size="large"
-        @input="updateValue()"
-        @keydown.enter.prevent="continueOnEnter()"
-      />
-    </FormGroup>
+    <Transition name="ai-onboarding-question" mode="out-in" @enter="focus()">
+      <FormGroup
+        :key="phase"
+        :label="$t(`aiDatabaseOnboardingForm.${phase}Label`)"
+        :helper-text="$t(`aiDatabaseOnboardingForm.${phase}Description`)"
+        small-label
+        required
+      >
+        <FormInput
+          ref="input"
+          v-model="values[phase]"
+          :placeholder="$t(`aiDatabaseOnboardingForm.${phase}Placeholder`)"
+          :maxlength="48"
+          size="large"
+          @input="updateValue()"
+          @keydown.enter.prevent="continueOnEnter()"
+        />
+      </FormGroup>
+    </Transition>
   </form>
 </template>
 
@@ -69,7 +75,8 @@ export default {
     },
     goToPhase(index) {
       this.phaseIndex = index
-      this.focus()
+      // The input of the new question is only in the DOM once the transition
+      // enters, so focussing is done from there.
       this.updateValue()
     },
     continueOnEnter() {

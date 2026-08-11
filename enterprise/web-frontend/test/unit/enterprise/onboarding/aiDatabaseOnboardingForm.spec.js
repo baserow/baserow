@@ -10,25 +10,43 @@ const FormGroupStub = defineComponent({
   template: '<div class="form-group-stub" :data-label="label"><slot /></div>',
 })
 
+let focused = null
+
 const FormInputStub = defineComponent({
   name: 'FormInput',
-  props: { modelValue: { type: String, default: '' } },
+  props: {
+    modelValue: { type: String, default: '' },
+    placeholder: { type: String, default: '' },
+  },
   emits: ['update:modelValue', 'input'],
-  methods: { focus() {} },
+  methods: {
+    focus() {
+      focused = this.placeholder
+    },
+  },
   template:
     '<input class="form-input-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value); $emit(\'input\', $event)" />',
 })
 
-async function mountComponent() {
+async function mountComponent(stubs = {}) {
+  focused = null
   return await mountSuspended(AIDatabaseOnboardingForm, {
     global: {
       stubs: {
         FormGroup: FormGroupStub,
         FormInput: FormInputStub,
+        ...stubs,
       },
       mocks: { $t: (key) => key },
     },
   })
+}
+
+// The questions fade in and out, so the next one is only in the DOM after the
+// transition has run.
+const flushTransition = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  await nextTick()
 }
 
 const label = (wrapper) =>
@@ -90,6 +108,19 @@ describe('AI database onboarding form', () => {
 
     expect(label(wrapper)).toBe('aiDatabaseOnboardingForm.industryLabel')
     expect(wrapper.find('.form-input-stub').element.value).toBe('Marketing')
+  })
+
+  test('the next question is faded in and gets the focus', async () => {
+    const wrapper = await mountComponent({ transition: false })
+    await flushTransition()
+    expect(focused).toBe('aiDatabaseOnboardingForm.industryPlaceholder')
+
+    await answer(wrapper, 'Marketing')
+    wrapper.vm.beforeNext()
+    await flushTransition()
+
+    expect(label(wrapper)).toBe('aiDatabaseOnboardingForm.teamLabel')
+    expect(focused).toBe('aiDatabaseOnboardingForm.teamPlaceholder')
   })
 
   test('reports invalid while the ref still points at another tab', () => {

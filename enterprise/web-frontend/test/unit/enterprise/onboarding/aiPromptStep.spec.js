@@ -27,7 +27,9 @@ const FormTextareaStub = defineComponent({
 
 const ButtonTextStub = defineComponent({
   name: 'ButtonText',
-  template: '<a class="button-text-stub"><slot /></a>',
+  props: { disabled: { type: Boolean, default: false } },
+  template:
+    '<button class="button-text-stub" :disabled="disabled"><slot /></button>',
 })
 
 const DetailsModalStub = defineComponent({
@@ -35,6 +37,28 @@ const DetailsModalStub = defineComponent({
   methods: { show() {} },
   template: '<div />',
 })
+
+const ErrorStub = defineComponent({
+  name: 'Error',
+  props: { error: { type: Object, required: true } },
+  template:
+    '<div v-if="error.visible" class="error-stub">{{ error.title }} {{ error.message }}</div>',
+})
+
+// Mimics what the client adds to a failed request, so the component can look up
+// the message that belongs to the error code.
+const apiError = (code) => {
+  const error = new Error(code)
+  error.handler = {
+    getMessage: (name, specificErrorMap) =>
+      specificErrorMap?.[code] || {
+        title: 'Something went wrong',
+        message: 'Something went wrong',
+      },
+    handled: () => {},
+  }
+  return error
+}
 
 const suggestions = [
   { name: 'Client projects', prompt: 'Track client projects for Acme.' },
@@ -59,6 +83,7 @@ const globalOptions = {
     FormTextarea: FormTextareaStub,
     ButtonText: ButtonTextStub,
     AIOnboardingDetailsModal: DetailsModalStub,
+    Error: ErrorStub,
   },
   mocks: { $t: (key) => key, $i18n: { locale: 'en' } },
 }
@@ -132,6 +157,21 @@ describe('AI prompt step', () => {
       industry: 'Marketing',
       team: 'Client services',
     })
+  })
+
+  test('the details cannot be changed while the suggestions load', async () => {
+    AssistantService.mockReturnValue({
+      fetchOnboardingPromptSuggestions: vi
+        .fn()
+        .mockReturnValue(new Promise(() => {})),
+    })
+
+    const wrapper = await mountComponent()
+    await nextTick()
+
+    expect(
+      wrapper.find('.button-text-stub').attributes('disabled')
+    ).toBeDefined()
   })
 
   test('changed details are part of the data of the step', async () => {
@@ -257,19 +297,62 @@ describe('AI prompt step', () => {
     )
   })
 
-  test('falls back to the static examples when the request fails', async () => {
+  test('explains that the model is unavailable and blocks continuing', async () => {
     AssistantService.mockReturnValue({
       fetchOnboardingPromptSuggestions: vi
         .fn()
-        .mockRejectedValue(new Error('nope')),
+        .mockRejectedValue(apiError('ERROR_ASSISTANT_MODEL_NOT_SUPPORTED')),
     })
 
     const wrapper = await mountComponent()
     await flushPromises()
 
-    // The step is never left empty, and the user can still write their own.
-    expect(wrapper.findAll('.ai-prompt-suggestion--skeleton')).toHaveLength(0)
-    expect(wrapper.findAll('.ai-prompt-suggestion')).toHaveLength(4)
-    expect(wrapper.find('.form-textarea-stub').element.value).toBe('')
+    expect(wrapper.find('.error-stub').text()).toContain(
+      'aiPromptStep.modelNotSupportedTitle'
+    )
+    // Kuma can't build the database either, so there is nothing to fill out.
+    expect(wrapper.find('.form-textarea-stub').exists()).toBe(false)
+    expect(wrapper.findAll('.ai-prompt-suggestion')).toHaveLength(0)
+    expect(wrapper.vm.isValid()).toBe(false)
+  })
+
+  test('shows the generic error for any other failure', async () => {
+    AssistantService.mockReturnValue({
+      fetchOnboardingPromptSuggestions: vi
+        .fn()
+        .mockRejectedValue(apiError('ERROR_SOMETHING_ELSE')),
+    })
+
+    const wrapper = await mountComponent()
+    await flushPromises()
+
+    expect(wrapper.find('.error-stub').text()).toContain('Something went wrong')
+    expect(wrapper.find('.form-textarea-stub').exists()).toBe(false)
+  })
+
+  test('the error disappears when the suggestions can be fetched again', async () => {
+    AssistantService.mockReturnValue({
+      fetchOnboardingPromptSuggestions: vi
+        .fn()
+        .mockRejectedValue(apiError('ERROR_ASSISTANT_MODEL_NOT_SUPPORTED')),
+    })
+
+    const wrapper = await mountComponent()
+    await flushPromises()
+    expect(wrapper.find('.error-stub').exists()).toBe(true)
+
+    AssistantService.mockReturnValue({
+      fetchOnboardingPromptSuggestions: vi.fn().mockResolvedValue(suggestions),
+    })
+    wrapper.findComponent(DetailsModalStub).vm.$emit('updated', {
+      industry: 'Retail',
+      team: 'Sales',
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.error-stub').exists()).toBe(false)
+    expect(wrapper.find('.form-textarea-stub').element.value).toBe(
+      suggestions[0].prompt
+    )
   })
 })
