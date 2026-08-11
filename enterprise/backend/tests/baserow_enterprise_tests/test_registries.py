@@ -102,14 +102,66 @@ def test_snapshot_creation_with_view_scoped_role_assignment(enterprise_data_fixt
 
     SnapshotHandler().perform_create(snapshot, Progress(total=100))
 
-    snapshot_role_assignments = RoleAssignment.objects.exclude(
-        scope_id=grid_view.view_ptr.id
-    ).filter(
+    snapshot.refresh_from_db()
+    snapshot_app = snapshot.snapshot_to_application.specific
+    snapshot_table = snapshot_app.table_set.get()
+    snapshot_view = snapshot_table.view_set.get()
+
+    view_content_type = ContentType.objects.get_for_model(snapshot_view)
+    snapshot_role_assignment = RoleAssignment.objects.get(
+        scope_id=snapshot_view.id,
+        scope_type=view_content_type,
         role=role,
         workspace=workspace,
     )
-    assert snapshot_role_assignments.exists()
-    assert snapshot_role_assignments.first().workspace_id == workspace.id
+    assert snapshot_role_assignment.workspace_id == workspace.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_snapshot_creation_with_multiple_view_scoped_role_assignments(
+    enterprise_data_fixture,
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(user=user, database=database)
+    grid_view_1 = enterprise_data_fixture.create_grid_view(user=user, table=table)
+    grid_view_2 = enterprise_data_fixture.create_grid_view(user=user, table=table)
+    team = enterprise_data_fixture.create_team(workspace=workspace)
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    viewer_role = Role.objects.get(uid="VIEWER")
+    RoleAssignmentHandler().assign_role(
+        team, workspace, editor_role, grid_view_1.view_ptr
+    )
+    RoleAssignmentHandler().assign_role(
+        team, workspace, viewer_role, grid_view_2.view_ptr
+    )
+
+    snapshot = enterprise_data_fixture.create_snapshot(
+        user=user,
+        snapshot_from_application=database.application_ptr,
+        snapshot_to_application=None,
+        created_by=user,
+    )
+
+    SnapshotHandler().perform_create(snapshot, Progress(total=100))
+
+    snapshot.refresh_from_db()
+    snapshot_app = snapshot.snapshot_to_application.specific
+    snapshot_table = snapshot_app.table_set.get()
+    snapshot_views = list(snapshot_table.view_set.all().order_by("pk"))
+    assert len(snapshot_views) == 2
+
+    view_content_type = ContentType.objects.get_for_model(snapshot_views[0])
+    for snapshot_view, expected_role in zip(snapshot_views, [editor_role, viewer_role]):
+        assignment = RoleAssignment.objects.get(
+            scope_id=snapshot_view.id,
+            scope_type=view_content_type,
+            role=expected_role,
+            workspace=workspace,
+        )
+        assert assignment.workspace_id == workspace.id
 
 
 @pytest.mark.django_db(transaction=True)

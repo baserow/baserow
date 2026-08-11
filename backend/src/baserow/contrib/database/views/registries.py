@@ -576,7 +576,11 @@ class ViewType(
 
         workspace = table.database.workspace
         if not workspace:
-            workspace = Workspace.objects.get(pk=id_mapping["import_workspace_id"])
+            if "_import_workspace_obj" not in id_mapping:
+                id_mapping["_import_workspace_obj"] = Workspace.objects.get(
+                    pk=id_mapping["import_workspace_id"]
+                )
+            workspace = id_mapping["_import_workspace_obj"]
 
         for (
             serialized_structure_processor
