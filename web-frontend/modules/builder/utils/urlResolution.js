@@ -4,6 +4,7 @@ import {
   PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS,
 } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+import { getUrlScheme } from '@baserow/modules/core/utils/url'
 
 /**
  * Responsible for generating the data necessary to resolve an application builder
@@ -58,6 +59,11 @@ export default function resolveElementUrl(
   } else {
     resolvedUrl = ensureString(resolveFormula(element.navigate_to_url))
   }
+  // Browsers strip leading C0 control characters and spaces before parsing
+  // a URL, so ` javascript:` reads as relative here but still executes as
+  // a script. Strip them before anything classifies this string.
+  // eslint-disable-next-line no-control-regex
+  resolvedUrl = resolvedUrl.replace(/^[\x00-\x20]+/, '')
   resolvedUrl = prefixInternalResolvedUrl(
     resolvedUrl,
     builder,
@@ -81,17 +87,12 @@ export default function resolveElementUrl(
       resolvedUrl = `${resolvedUrl}?${queryString}`
     }
   }
-  // If the protocol is a supported one, return early.
-  const protocolRegex = /^[A-Za-z]+:/
-  if (protocolRegex.test(resolvedUrl)) {
-    for (const protocol of ALLOWED_LINK_PROTOCOLS) {
-      if (resolvedUrl.toLowerCase().startsWith(protocol)) {
-        return resolvedUrl
-      }
-    }
-
+  // Browsers ignore tab / LF / CR anywhere in a URL,
+  // so `java\tscript:` is still `javascript:`.
+  const scheme = getUrlScheme(resolvedUrl)
+  if (scheme) {
     // Disallow unsupported protocols, e.g. `javascript:`
-    return ''
+    return ALLOWED_LINK_PROTOCOLS.includes(scheme) ? resolvedUrl : ''
   }
   return resolvedUrl
 }
