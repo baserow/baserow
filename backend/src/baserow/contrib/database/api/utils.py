@@ -6,6 +6,7 @@ from django.db.models import QuerySet
 
 from rest_framework import serializers
 
+from baserow.api.exceptions import QueryParameterValidationException
 from baserow.config.settings.utils import str_to_bool
 from baserow.contrib.database.api.rows.exceptions import InvalidJoinParameterException
 from baserow.contrib.database.fields.exceptions import (
@@ -85,8 +86,18 @@ def get_include_exclude_fields(
         queryset = Field.objects.filter(table=table)
 
     if user_field_names:
-        includes = extract_field_names_from_string(include)
-        excludes = extract_field_names_from_string(exclude)
+        try:
+            includes = extract_field_names_from_string(include)
+        except ValueError:
+            raise QueryParameterValidationException(
+                {"include": [{"error": "Invalid comma-separated field names."}]}
+            )
+        try:
+            excludes = extract_field_names_from_string(exclude)
+        except ValueError:
+            raise QueryParameterValidationException(
+                {"exclude": [{"error": "Invalid comma-separated field names."}]}
+            )
         filter_type = "name__in"
     else:
         includes = extract_field_ids_from_string(include)
@@ -118,10 +129,7 @@ def extract_field_names_from_string(value):
     if not value:
         return []
 
-    try:
-        return split_comma_separated_string(value)
-    except ValueError:
-        return []
+    return split_comma_separated_string(value)
 
 
 def extract_field_ids_from_list(
