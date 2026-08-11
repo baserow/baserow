@@ -15,20 +15,30 @@ export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
   const { firstBy } = thenBy
   let sortFunction = firstBy()
+  const groupByCount = groupBys.length
   const combined = [...groupBys, ...sortings]
-  combined.forEach((sort) => {
-    // Find the field that is related to the sort.
+  combined.forEach((sort, index) => {
     const field = fields.find((f) => f.id === sort.field)
 
     if (field !== undefined) {
       const fieldName = `field_${field.id}`
       const fieldType = $registry.get('field', field.type)
-      const sortTypes = fieldType.getSortTypes(field)
-      const fieldSortFunction = sortTypes[sort.type].function(
-        fieldName,
-        sort.order,
-        field
-      )
+      let fieldSortFunction
+      if (index < groupByCount) {
+        fieldSortFunction = fieldType.getGroupBySort(
+          fieldName,
+          sort.order,
+          field,
+          sort.type
+        )
+      } else {
+        const sortTypes = fieldType.getSortTypes(field)
+        fieldSortFunction = sortTypes[sort.type].function(
+          fieldName,
+          sort.order,
+          field
+        )
+      }
       sortFunction = sortFunction.thenBy(fieldSortFunction)
     }
   })

@@ -553,21 +553,22 @@ describe('Row utilities', () => {
 
   describe('computeRowInsertPosition', () => {
     const makeSortRegistry = () => ({
-      get: (_, type) =>
-        type === 'text'
-          ? {
-              getSortTypes: () => ({
-                default: {
-                  function: (fieldName, order) => (a, b) => {
-                    const va = a[fieldName]
-                    const vb = b[fieldName]
-                    const cmp = va < vb ? -1 : va > vb ? 1 : 0
-                    return order === 'DESC' ? -cmp : cmp
-                  },
-                },
-              }),
-            }
-          : {},
+      get: (_, type) => {
+        if (type !== 'text') return {}
+        const sortFn = (fieldName, order) => (a, b) => {
+          const va = a[fieldName]
+          const vb = b[fieldName]
+          const cmp = va < vb ? -1 : va > vb ? 1 : 0
+          return order === 'DESC' ? -cmp : cmp
+        }
+        return {
+          getSortTypes: () => ({
+            default: { function: sortFn },
+          }),
+          getGroupBySort: (name, order, _field, _sortType) =>
+            sortFn(name, order),
+        }
+      },
     })
     const textField = { id: 1, type: 'text' }
     const ascSort = [{ field: 1, order: 'ASC', type: 'default' }]

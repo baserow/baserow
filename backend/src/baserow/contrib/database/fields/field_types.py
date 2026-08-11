@@ -27,6 +27,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.aggregates import ArrayAgg, JSONBAgg, StringAgg
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
 from django.db import OperationalError, connection, models
@@ -5410,28 +5411,35 @@ class MultipleSelectFieldType(
     ):
         """
         Group-by treats a cell as a set of options: ``{A, B}`` and ``{B, A}``
-        are the same group. The aggregated sort key must therefore be
-        deterministic regardless of insertion order, so we order the
-        ``StringAgg`` by the option value (and break ties with the through-table
-        id).
+        are the same group. Uses ``ArrayAgg(ARRAY[order, id])`` to produce a
+        collision-proof, deterministic sort key based on the field-defined
+        option order.
         """
 
         sort_column_name = f"{field_name}_group_by_agg_sort"
-        sortable_column_expression = self.get_sortable_column_expression(
-            field, field_name, sort_type
+
+        pair_field = ArrayField(models.IntegerField(), size=2)
+        sort_key_field = ArrayField(pair_field)
+
+        option_key = Func(
+            F(f"{field_name}__order"),
+            F(f"{field_name}__id"),
+            template="ARRAY[%(expressions)s]",
+            output_field=pair_field,
         )
+
         query = Coalesce(
-            StringAgg(
-                sortable_column_expression,
-                ",",
-                order_by=(sortable_column_expression, f"{field_name}__id"),
-                output_field=models.TextField(),
+            ArrayAgg(
+                option_key,
+                filter=Q(**{f"{field_name}__id__isnull": False}),
+                order_by=(f"{field_name}__order", f"{field_name}__id"),
             ),
-            Value(""),
-            output_field=models.TextField(),
+            Value([], output_field=sort_key_field),
+            output_field=sort_key_field,
         )
+
         annotation = {sort_column_name: query}
-        order = collate_expression(F(sort_column_name))
+        order = F(sort_column_name)
 
         if order_direction == "DESC":
             order = order.desc(nulls_first=True)
@@ -7354,28 +7362,35 @@ class MultipleCollaboratorsFieldType(
     ):
         """
         Group-by treats a cell as a set of collaborators: ``{A, B}`` and
-        ``{B, A}`` are the same group. The aggregated sort key must therefore
-        be deterministic regardless of insertion order, so we order the
-        ``StringAgg`` by name (and break ties with the through-table id).
+        ``{B, A}`` are the same group. Uses ``ArrayAgg(ARRAY[first_name, id])``
+        ordered by ``(first_name, id)`` to produce a collision-proof sort key
+        with alphabetical group ordering.
         """
 
         sort_column_name = f"{field_name}_group_by_agg_sort"
-        sortable_column_expression = self.get_sortable_column_expression(
-            field, field_name, sort_type
-        )
-        query = Coalesce(
-            StringAgg(
-                sortable_column_expression,
-                "",
-                order_by=(sortable_column_expression, f"{field_name}__id"),
-                output_field=models.TextField(),
-            ),
-            Value(""),
-            output_field=models.TextField(),
-        )
-        annotation = {sort_column_name: query}
 
-        order = collate_expression(F(sort_column_name))
+        pair_field = ArrayField(models.TextField(), size=2)
+        sort_key_field = ArrayField(pair_field)
+
+        option_key = Func(
+            F(f"{field_name}__first_name"),
+            Cast(F(f"{field_name}__id"), output_field=models.TextField()),
+            template="ARRAY[%(expressions)s]",
+            output_field=pair_field,
+        )
+
+        query = Coalesce(
+            ArrayAgg(
+                option_key,
+                filter=Q(**{f"{field_name}__id__isnull": False}),
+                order_by=(f"{field_name}__first_name", f"{field_name}__id"),
+            ),
+            Value([], output_field=sort_key_field),
+            output_field=sort_key_field,
+        )
+
+        annotation = {sort_column_name: query}
+        order = F(sort_column_name)
 
         if order_direction == "DESC":
             order = order.desc(nulls_first=True)

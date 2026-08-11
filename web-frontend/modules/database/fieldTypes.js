@@ -4120,28 +4120,30 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getGroupBySort(name, order, field) {
+    const optionOrders = new Map(
+      (field.select_options || []).map((option) => [option.id, option.order])
+    )
+
     const sortKey = (values) => {
       if (!values || values.length === 0) {
-        return ''
+        return []
       }
       return [...values]
-        .map((obj) => {
-          const option = (field.select_options || []).find(
-            (o) => o.id === obj.id
-          )
-          return { ...obj, value: option?.value ?? '' }
-        })
-        .sort(
-          (left, right) =>
-            collatedStringCompare(left.value, right.value, 'ASC') ||
-            left.id - right.id
-        )
-        .map((option) => option.value)
-        .join(',')
+        .map(({ id }) => [optionOrders.get(id) ?? Infinity, id])
+        .sort(([orderA, idA], [orderB, idB]) => orderA - orderB || idA - idB)
     }
 
-    return (a, b) =>
-      collatedStringCompare(sortKey(a[name]), sortKey(b[name]), order)
+    const comparePairs = (pairsA, pairsB) => {
+      const len = Math.min(pairsA.length, pairsB.length)
+      for (let i = 0; i < len; i++) {
+        const d = pairsA[i][0] - pairsB[i][0] || pairsA[i][1] - pairsB[i][1]
+        if (d !== 0) return order === 'ASC' ? d : -d
+      }
+      const lenDiff = pairsA.length - pairsB.length
+      return order === 'ASC' ? lenDiff : -lenDiff
+    }
+
+    return (a, b) => comparePairs(sortKey(a[name]), sortKey(b[name]))
   }
 
   parseDefaultRowValue(field, value) {
@@ -4943,23 +4945,40 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   getGroupBySort(name, order, field) {
-    const sortKey = (values) => {
-      if (!values || values.length === 0) {
-        return ''
-      }
+    const resolveName = (obj) => {
       const workspaces = this.app.$store.getters['workspace/getAll']
-      const names = values.map((obj) =>
-        workspaces.length > 0
-          ? this.app.$store.getters['workspace/getUserById'](obj.id).name
-          : obj.name
-      )
-      return names
-        .sort((left, right) => collatedStringCompare(left, right, 'ASC'))
-        .join('')
+      if (workspaces.length > 0) {
+        const user = this.app.$store.getters['workspace/getUserById'](obj.id)
+        return user?.name ?? obj.name ?? ''
+      }
+      return obj.name ?? ''
     }
 
-    return (a, b) =>
-      collatedStringCompare(sortKey(a[name]), sortKey(b[name]), order)
+    const sortKey = (values) => {
+      if (!values || values.length === 0) {
+        return []
+      }
+      return [...values]
+        .map((obj) => [resolveName(obj), obj.id])
+        .sort(
+          ([nameA, idA], [nameB, idB]) =>
+            collatedStringCompare(nameA, nameB, 'ASC') || idA - idB
+        )
+    }
+
+    const comparePairs = (pairsA, pairsB) => {
+      const len = Math.min(pairsA.length, pairsB.length)
+      for (let i = 0; i < len; i++) {
+        const d =
+          collatedStringCompare(pairsA[i][0], pairsB[i][0], 'ASC') ||
+          pairsA[i][1] - pairsB[i][1]
+        if (d !== 0) return order === 'ASC' ? d : -d
+      }
+      const lenDiff = pairsA.length - pairsB.length
+      return order === 'ASC' ? lenDiff : -lenDiff
+    }
+
+    return (a, b) => comparePairs(sortKey(a[name]), sortKey(b[name]))
   }
 
   prepareValueForCopy(field, value) {
