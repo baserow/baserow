@@ -330,9 +330,9 @@ BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
 # How long a button field click holds its lock. A backstop for a process that
 # dies mid-click; normally the lock goes as soon as the sequence finishes. Raise
 # it if a button's actions can legitimately run for longer.
-BUTTON_DISPATCH_LOCK_TTL_SECONDS = int(
+DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS = int(
     # Default TTL is 1 minute
-    os.getenv("BASEROW_BUTTON_DISPATCH_LOCK_TTL_SECONDS") or 60
+    os.getenv("BASEROW_DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS") or 60
 )
 
 

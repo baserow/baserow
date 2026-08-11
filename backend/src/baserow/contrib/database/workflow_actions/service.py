@@ -262,7 +262,9 @@ class DatabaseWorkflowActionService:
         # Identifies this click, so the release below knows its own lock.
         lock_token = uuid4().hex
         if not cache.add(
-            lock_key, lock_token, timeout=settings.BUTTON_DISPATCH_LOCK_TTL_SECONDS
+            lock_key,
+            lock_token,
+            timeout=settings.DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS,
         ):
             raise WorkflowActionDispatchInProgress()
 

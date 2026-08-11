@@ -282,6 +282,12 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 | BASEROW\_ENTERPRISE\_CODE\_RUNNER\_MEMORY\_LIMIT\_BYTES | The maximum memory size in bytes available to a code runner process.                                                                                | 16777216                        |
 | BASEROW\_ENTERPRISE\_CODE\_RUNNER\_FUEL\_LIMIT          | The wasmtime fuel limit used to cap code runner instruction execution. Set to 0 to disable the fuel limit.                                          | 1000000000                      |
 
+### Database button field configuration
+
+| Name                                                       | Description                                                                                                                                                          | Defaults |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| BASEROW\_DATABASE\_BUTTON\_DISPATCH\_LOCK\_TTL\_SECONDS    | How long a button field click holds its lock, so a second click on the same button and row is refused while the first is still running. Raise it if a button's actions can legitimately run for longer. | 60       |
+
 ### Backend Application Builder Configuration
 | Name                      | Description                                                                                                              | Defaults |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------- |
