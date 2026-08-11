@@ -166,6 +166,16 @@ describe('OpenUrlWorkflowActionType', () => {
     )
   })
 
+  test('the clicked row id is reachable for a url', async () => {
+    await execute({
+      type: 'open_url',
+      url: { formula: "concat('https://example.com/?id=', get('fields.id'))" },
+      target: 'self',
+    })
+
+    expect(window.location.href).toBe('https://example.com/?id=1')
+  })
+
   test('a url pointing at a missing field raises a toast instead of throwing', async () => {
     await expect(
       execute({

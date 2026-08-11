@@ -279,3 +279,19 @@ def test_it_resolves_through_the_registry(data_fixture):
     dispatch_context = _dispatch_context(data_fixture, user, table, row)
 
     assert dispatch_context[f"row.field_{name_field.id}"] == "Ada"
+
+
+@pytest.mark.django_db
+def test_the_human_readable_provider_reaches_the_row_id(data_fixture):
+    """A button's URL resolves through this provider, so the clicked row's id
+    has to be reachable from it as well as from the row provider."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    row = table.get_model().objects.create()
+    context = HumanReadableRowContext(row)
+
+    assert (
+        HumanReadableFieldsDataProviderType().get_data_chunk(context, ["id"]) == row.id
+    )
+    assert context["fields.id"] == row.id

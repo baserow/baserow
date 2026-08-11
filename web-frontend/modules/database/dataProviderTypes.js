@@ -16,15 +16,22 @@ export class FieldsDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     return {
       type: 'object',
-      properties: Object.fromEntries(
-        (applicationContext.fields || []).map((field) => [
-          `field_${field.id}`,
-          {
-            title: field.name,
-            type: 'string',
-          },
-        ])
-      ),
+      properties: {
+        // Not a field, but a URL commonly needs the clicked row's id.
+        id: {
+          title: this.app.$i18n.t('dataProviderTypes.rowId'),
+          type: 'number',
+        },
+        ...Object.fromEntries(
+          (applicationContext.fields || []).map((field) => [
+            `field_${field.id}`,
+            {
+              title: field.name,
+              type: 'string',
+            },
+          ])
+        ),
+      },
     }
   }
 
@@ -39,6 +46,9 @@ export class FieldsDataProviderType extends DataProviderType {
     // fail the resolution rather than silently build a wrong URL.
     if (!row || !fields) {
       throw new Error(`No row context to resolve ${fieldRef}.`)
+    }
+    if (fieldRef === 'id') {
+      return row.id
     }
     const field = fields.find((f) => `field_${f.id}` === fieldRef)
     if (!field) {
