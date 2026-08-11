@@ -45,34 +45,22 @@ describe('ViewOwnershipMenuLink permission gating', () => {
     })
 
   test('shows button on collaborative view when user has view update permission', async () => {
-    const wrapper = await mountComponent(
-      collaborativeView,
-      () => true
-    )
+    const wrapper = await mountComponent(collaborativeView, () => true)
     expect(wrapper.find('.context__menu-item').exists()).toBe(true)
   })
 
   test('hides button on collaborative view when user lacks view update permission', async () => {
-    const wrapper = await mountComponent(
-      collaborativeView,
-      () => false
-    )
+    const wrapper = await mountComponent(collaborativeView, () => false)
     expect(wrapper.find('.context__menu-item').exists()).toBe(false)
   })
 
   test('shows button on personal view when user has view update permission on collaborative target', async () => {
-    const wrapper = await mountComponent(
-      personalView,
-      () => true
-    )
+    const wrapper = await mountComponent(personalView, () => true)
     expect(wrapper.find('.context__menu-item').exists()).toBe(true)
   })
 
   test('hides button on personal view when user lacks view update permission', async () => {
-    const wrapper = await mountComponent(
-      personalView,
-      () => false
-    )
+    const wrapper = await mountComponent(personalView, () => false)
     expect(wrapper.find('.context__menu-item').exists()).toBe(false)
   })
 
@@ -84,18 +72,36 @@ describe('ViewOwnershipMenuLink permission gating', () => {
     expect(wrapper.find('.context__menu-item').exists()).toBe(false)
   })
 
-  test('checks permission against target ownership type, not current', async () => {
+  test('collaborative view checks permission against current view, not target', async () => {
     const calls = []
-    await mountComponent(
-      personalView,
-      (operation, context) => {
-        calls.push({ operation, ownershipType: context.ownership_type })
-        return true
-      }
-    )
+    await mountComponent(collaborativeView, (operation, context) => {
+      calls.push({ operation, ownershipType: context.ownership_type })
+      return true
+    })
     expect(calls).toContainEqual({
       operation: 'database.table.view.update',
       ownershipType: 'collaborative',
     })
+  })
+
+  test('personal view checks permission against collaborative target type', async () => {
+    const calls = []
+    await mountComponent(personalView, (operation, context) => {
+      calls.push({ operation, ownershipType: context.ownership_type })
+      return true
+    })
+    expect(calls).toContainEqual({
+      operation: 'database.table.view.update',
+      ownershipType: 'collaborative',
+    })
+  })
+
+  test('builder sees button on collaborative view created by another user', async () => {
+    const otherUsersCollabView = {
+      ...collaborativeView,
+      owned_by_id: 999,
+    }
+    const wrapper = await mountComponent(otherUsersCollabView, () => true)
+    expect(wrapper.find('.context__menu-item').exists()).toBe(true)
   })
 })
