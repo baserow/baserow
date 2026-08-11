@@ -10,6 +10,15 @@
   padding: 16px;
 }
 
+.iframe-element__editor-placeholder {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-line;
+}
+
 .iframe-element__placeholder {
   width: 100%;
   display: flex;

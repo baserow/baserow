@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Clarify in the Application Builder editor when IFrame URL content is only shown in preview and published applications.",
+    "issue_origin": "github",
+    "issue_number": 5876,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-11"
+}
