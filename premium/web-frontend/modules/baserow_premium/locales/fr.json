@@ -283,7 +283,8 @@
     },
     "gridViewFieldAI": {
         "generate": "Générer",
-        "regenerate": "Regénérer"
+        "regenerate": "Regénérer",
+        "promptBroken": "Le prompt est défectueux et doit être corrigé avant de pouvoir générer des valeurs."
     },
     "premiumFieldType": {
         "ai": "Prompt pour l'IA",
@@ -302,10 +303,12 @@
         "outputType": "Format du résultat",
         "autoUpdate": "Mise à jour automatique",
         "autoUpdateHelp": "Lorsque cette option est activée, la valeur du champ IA est automatiquement régénérée lorsque l'un des champs référencés dans l'invite est mis à jour.",
-        "autoUpdateDescription": "Régénérer lorsque les champs référencés changent"
+        "autoUpdateDescription": "Régénérer lorsque les champs référencés changent",
+        "invalidPrompt": "La formule du prompt est invalide."
     },
     "rowEditFieldAI": {
         "createRowBefore": "La valeur du champ IA peut être générée après la création de la ligne.",
+        "promptBroken": "Le prompt est défectueux et doit être corrigé avant de pouvoir générer des valeurs.",
         "generate": "Générer"
     },
     "functionalGridViewFieldAI": {

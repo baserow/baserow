@@ -51,6 +51,9 @@
         "coreRouterEdgeLabelRequired": "Eine Zweigbezeichnung ist erforderlich.",
         "coreRouterEdgeConditionRequired": "Eine Zweigbedingung ist erforderlich.",
         "coreRouterDescription": "Leitet den Workflow basierend auf einer Bedingung zum nächsten Zweig weiter.",
+        "coreGoto": "Gehe zu",
+        "coreGotoDescription": "Springt zu einem anderen Punkt im Workflow, wenn eine Bedingung wahr ist.",
+        "coreGotoDestinationRequired": "Ein Ziel ist erforderlich.",
         "coreSMTPEmailDescription": "Sendet eine E-Mail unter Verwendung der SMTP-Konfiguration.",
         "coreIteration": "Iterator",
         "coreIterationDescription": "Über Elemente iterieren.",
@@ -168,6 +171,7 @@
     },
     "localBaserowTableServiceConditionalForm": {
         "addFilter": "Zusätzliche Filter hinzufügen",
+        "addFilterGroup": "Filtergruppe hinzufügen",
         "noFilterTitle": "Sie haben bisher keinen Datenquellen-Filter erstellt",
         "noFilterText": "Datenquellen-Filter ermöglichen Ihnen, nur die Zeilen einer Baserow-Tabelle anzuzeigen, auf welche die Bedingungen zutreffen.",
         "relatedFieldNotFound": "Das Bezugsfeld wurde nicht gefunden.",
@@ -175,6 +179,8 @@
         "noCompatibleFilterTypesErrorTitle": "Keine kompatiblen Filterarten",
         "noCompatibleFilterTypesErrorMessage": "Keine Ihrer Felder hat kompatible Filterarten",
         "textFilterInputPlaceholder": "Text eingeben...",
+        "expressionFilterInputPlaceholder": "Wählen Sie einen Ausdruck...",
+        "useExpressionForValue": "Einen Ausdruck für diesen Filter verwenden",
         "formulaFilterInputPlaceholder": "Wählen Sie eine Formel aus...",
         "useFormulaForValue": "Eine Formel für diesen Filter verwenden",
         "useDefaultForValue": "Standardfilter für dieses Feld verwenden"
@@ -374,6 +380,14 @@
         "automation": "Automatisierung",
         "workflow": "Workflow",
         "workflowHelperText": "Es können nur veröffentlichte Workflows mit einem manuellen Auslöser gestartet werden. Wenn dieser Workflow unveröffentlichte Änderungen hat, wird die zuletzt veröffentlichte Version ausgeführt."
+    },
+    "coreGotoServiceForm": {
+        "conditionLabel": "Bedingung",
+        "conditionDescription": "Wenn diese Bedingung wahr ist, springt der Workflow zum Zielknoten, anstatt mit dem nächsten Knoten fortzufahren.",
+        "conditionPlaceholder": "Wenn wahr, springen wir zum Zielknoten.",
+        "destinationLabel": "Zielknoten",
+        "destinationDescription": "Der Knoten, zu dem gesprungen wird, wenn die Bedingung wahr ist.",
+        "destinationPlaceholder": "Wählen Sie einen Zielknoten..."
     },
     "localBaserowDeleteRowServiceForm": {
         "rowIdLabel": "Zeilen-ID(s)",

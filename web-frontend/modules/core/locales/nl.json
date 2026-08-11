@@ -346,6 +346,8 @@
         "baserowVersionDescription": "Het versienummer van deze instantie.",
         "baserowVersion": "Baserow versie",
         "settingsVerifyImportSignatureDescription": "Indien ingeschakeld, wordt de handtekening van de geïmporteerde gegevens geverifieerd om er zeker van te zijn dat er niet met de gegevens geknoeid is.",
+        "settingAllowReportingAbuseName": "Misbruik melden toestaan",
+        "settingAllowReportingAbuseDescription": "Wanneer ingeschakeld kunnen bezoekers van openbaar gedeelde weergaven en formulieren deze melden wegens misbruik, en worden alle beheerders van de instantie op de hoogte gebracht van de melding.",
         "settingsVerifyImportSignature": "Verifieer import handtekening"
     },
     "copyingNotification": {
@@ -546,6 +548,10 @@
                 "userAlreadyInWorkspace": {
                     "title": "Gebruiker zit al in de werkruimtes.",
                     "text": "Het is niet mogelijk een uitnodiging te sturen wanneer de gebruiker al lid is van de werkruimtes."
+                },
+                "tooManyInvitations": {
+                    "title": "Te veel uitnodigingen verzonden.",
+                    "text": "Je hebt te veel uitnodigingen verzonden. Probeer het later opnieuw."
                 }
             },
             "submit": "Stuur uitnodiging",
@@ -683,7 +689,14 @@
         "deletedUser": "Een verwijderde gebruiker"
     },
     "dropdown": {
-        "empty": "Geen items beschikbaar"
+        "empty": "Geen items beschikbaar",
+        "clearSearch": "Zoekopdracht wissen"
+    },
+    "groupedMenu": {
+        "core": "Core",
+        "files": "Bestanden",
+        "http": "HTTP",
+        "workflow": "Workflow"
     },
     "styleBoxForm": {
         "paddingError": "De waarde moet een geheel getal zijn tussen 0 en 200."
@@ -697,6 +710,30 @@
     },
     "versionUpgradeNotification": {
         "title": "{version} is hier! Bekijk wat er nieuw is."
+    },
+    "abuseReportCreatedNotification": {
+        "title": "{resourceName} is wegens misbruik gemeld door {reporterEmail}",
+        "openResource": "Open de gemelde pagina",
+        "showMore": "Toon meer",
+        "detailsTitle": "Misbruikmelding",
+        "reportedBy": "Gemeld door {reporterName} ({reporterEmail})."
+    },
+    "reportAbuseModal": {
+        "title": "Misbruik melden",
+        "description": "Denk je dat deze pagina wordt gebruikt voor phishing, imitatie, oplichting of andere kwaadaardige doeleinden? Laat het de beheerders van deze Baserow-instantie weten door onderstaand formulier in te dienen.",
+        "submit": "Melding indienen",
+        "close": "Sluiten",
+        "successTitle": "Bedankt voor je melding",
+        "successDescription": "De melding is ingediend en de beheerders van deze Baserow-instantie zijn op de hoogte gebracht zodat ze actie kunnen ondernemen.",
+        "reportingDisabledTitle": "Melden is uitgeschakeld",
+        "reportingDisabledDescription": "Misbruik melden is uitgeschakeld door de beheerder van deze Baserow-instantie."
+    },
+    "reportAbuseForm": {
+        "nameLabel": "Je naam",
+        "emailLabel": "Je e-mailadres",
+        "descriptionLabel": "Waarom meld je deze pagina?",
+        "descriptionHelper": "Beschrijf in detail waarom je denkt dat deze pagina misbruik maakt.",
+        "descriptionPlaceholder": "Bijvoorbeeld: deze pagina doet zich voor als een inlogpagina van een ander bedrijf en vraagt bezoekers om hun wachtwoord."
     },
     "emailNotifications": {
         "submitButton": "Frequentie bijwerken",
@@ -758,6 +795,7 @@
         "openaiOrganization": "Organisatie (optioneel)",
         "openaiModelsLabel": "Ingeschakelde modellen",
         "openaiModelsDescription": "Geef een lijst met door komma's gescheiden [OpenAI-modellen] (https://platform.openai.com/docs/models/continuous-model-upgrades) die kunnen worden gebruikt in Baserow. (bijv. `gpt-3.5-turbo,gpt-4`)",
+        "openaiModelIdentifierDescription": "Voer een [OpenAI-model-identifier](https://developers.openai.com/api/docs/models) in. Bijvoorbeeld: `gpt-5.6`, `gpt-5.6-terra` of `gpt-5.6-luna`.",
         "ollamaHostLabel": "Host",
         "ollamaModelsLabel": "Ingeschakelde modellen",
         "openaiApiKeyLabel": "API-sleutel",
@@ -765,6 +803,7 @@
         "ollamaHostDescription": "Geef de hostnaam van je [Ollama](https://ollama.com/) server. Deze draait meestal lokaal op je eigen apparaat.",
         "ollama": "Ollama",
         "ollamaModelsDescription": "Geef een lijst met door komma gescheiden [Ollama geïnstalleerde modellen] (https://ollama.com/library). Het model moet worden gedownload en geïnstalleerd voordat het kan worden gebruikt. (bijvoorbeeld `llama2,mistral`)",
+        "ollamaModelIdentifierDescription": "Voer de identifier in van een [model dat in Ollama is geïnstalleerd](https://ollama.com/library). Bijvoorbeeld: `gemma3`, `qwen3` of `llama3.3`.",
         "mistral": "Mistral",
         "mistralModelsLabel": "Ingeschakelde modellen",
         "anthropic": "Anthropic",
@@ -772,14 +811,17 @@
         "anthropicApiKeyDescription": "Geef een Anthropic API-sleutel op als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.anthropic.com/en/api/getting-started).",
         "anthropicModelsLabel": "Ingeschakelde modellen",
         "anthropicModelsDescription": "Geef een lijst van door komma's gescheiden [Anthropic modellen] (https://docs.anthropic.com/en/docs/about-claude/models) die kunnen worden gebruikt in Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "anthropicModelIdentifierDescription": "Voer een [Anthropic-model-identifier](https://platform.claude.com/docs/en/about-claude/models/overview) in. Bijvoorbeeld: `claude-sonnet-5`, `claude-opus-4-8` of `claude-haiku-4-5`.",
         "mistralApiKeyLabel": "API-sleutel",
         "mistralModelsDescription": "Geef een lijst met door komma's gescheiden [Mistral modellen] (https://docs.mistral.ai/getting-started/models/models_overview/) die kunnen worden gebruikt in Baserow. (bijv. `mistral-large-latest,mistral-small-latest`)",
+        "mistralModelIdentifierDescription": "Voer een [Mistral-model-identifier](https://docs.mistral.ai/models/) in. Bijvoorbeeld: `mistral-large-latest`, `mistral-medium-latest` of `mistral-small-latest`.",
         "mistralApiKeyDescription": "Geef een Mistral API-sleutel als u de integratie wilt inschakelen. [Instructies voor het verkrijgen van een API-sleutel](https://docs.mistral.ai/getting-started/quickstart/).",
         "openRouterApiKeyLabel": "API-sleutel",
         "openRouterOrganization": "Organisatie (optioneel)",
         "openRouter": "OpenRouter",
         "openRouterModelsLabel": "Ingeschakelde modellen",
         "openRouterModelsDescription": "Geef een lijst met door komma's gescheiden [OpenRouter modellen] (https://openrouter.ai/models) die kunnen worden gebruikt in Baserow. (bijv. `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openRouterModelIdentifierDescription": "Voer een [OpenRouter-model-identifier](https://openrouter.ai/models) in. Bijvoorbeeld: `openai/gpt-5.6` of `anthropic/claude-sonnet-5`.",
         "openRouterApiKeyDescription": "Geef een OpenRouter API-key op als u de integratie wilt inschakelen. [get an API key](https://openrouter.ai/settings/keys).",
         "openaiBaseUrl": "Basis URL",
         "openaiBaseUrlDescription": "Gebruikt standaard de OpenAI basis URL als deze leeg is. Kan optioneel worden gewijzigd in https://eu.api.openai.com/v1, https://&lt;uw-bronnaam&gt;.openai.azure.com, of een andere OpenAI-compatibele API."
@@ -798,6 +840,7 @@
     },
     "selectAIModelForm": {
         "AIModel": "AI-model",
+        "modelUnavailable": "Dit model is uitgeschakeld of niet meer beschikbaar.",
         "AIType": "AI-type",
         "fileField": "Bestandsveld",
         "temperatureLabel": "Temperatuur",
@@ -809,6 +852,7 @@
         "skip": "Voorlopig overslaan",
         "failedSkip": "Onboarding overslaan",
         "continue": "Ga verder",
+        "back": "Terug",
         "cancel": "Ik wil geen hulp bij het opzetten",
         "failedTitle": "Er is iets misgegaan",
         "failedDescription": "De onboarding is niet volledig voltooid, hoewel sommige onderdelen misschien wel zijn voltooid.",
@@ -955,7 +999,54 @@
         "dashboard": "Dashboard",
         "users": "Gebruikers",
         "workspaces": "Werkruimtes",
+        "aiProviders": "AI-providers",
         "licenses": "Licenties"
+    },
+    "aiProviderAdmin": {
+        "title": "AI-providers",
+        "description": "Beheer de providers en modellen op instantieniveau die beschikbaar zijn voor werkruimtes en automatiseringen.",
+        "addProvider": "Provider toevoegen",
+        "editProvider": "Provider bewerken",
+        "providerType": "Providertype",
+        "apiKey": "API-sleutel",
+        "changeApiKey": "API-sleutel wijzigen",
+        "apiKeyUpdateHint": "Voer een nieuwe API-sleutel in om de bestaande sleutel te vervangen.",
+        "extraField_organization": "Organisatie",
+        "extraField_base_url": "Basis-URL",
+        "extraField_host": "Host",
+        "models": "Modellen",
+        "addModel": "Model toevoegen",
+        "removeModel": "Model verwijderen",
+        "editModel": "Model bewerken",
+        "modelIdentifier": "Model-identifier",
+        "modelDiscoveryHelp": "Kies een model dat bekend is bij Pydantic AI of voer een eigen identifier in.",
+        "modelDiscoveryUnavailable": "Suggesties voor bekende modellen zijn niet beschikbaar. Voer handmatig een identifier in.",
+        "modelDiscoveryEmpty": "Pydantic AI kent geen modellen voor deze provider. Voer handmatig een identifier in.",
+        "modelDiscoveryNoMatch": "Geen bekend model komt overeen. Je kunt de ingevoerde identifier gebruiken.",
+        "noProviders": "Geen AI-providers voor de instantie geconfigureerd",
+        "noProvidersDescription": "Voeg handmatig een provider toe, of bekijk en voer het importcommando voor de omgeving uit voordat je de functie voor gebruikers inschakelt.",
+        "noModels": "Er zijn geen modellen geconfigureerd voor deze provider.",
+        "active": "Actief",
+        "inactive": "Inactief",
+        "enable": "Inschakelen",
+        "disable": "Uitschakelen",
+        "modelDisabled": "Uitgeschakeld",
+        "test": "Test",
+        "testAllModelsButtonTitle": "Test alle gedefinieerde modellen",
+        "testModelButtonTitle": "Test dit model",
+        "testPassed": "Test geslaagd",
+        "testFailed": "Test mislukt",
+        "notTested": "Niet getest",
+        "deleteProviderTitle": "{name} verwijderen?",
+        "deleteProviderDescription": "Hiermee worden de provider en de bijbehorende modellen permanent verwijderd.",
+        "deleteModelTitle": "{name} verwijderen?",
+        "deleteModelDescription": "Hiermee wordt het model permanent verwijderd.",
+        "loadError": "De AI-providerinstellingen konden niet worden geladen.",
+        "loadErrorDescription": "Controleer de verbinding en probeer het opnieuw.",
+        "retry": "Opnieuw proberen",
+        "saveError": "De AI-provider kon niet worden opgeslagen.",
+        "saveModelError": "Het AI-providermodel kon niet worden opgeslagen.",
+        "actionError": "De wijziging van de AI-provider kon niet worden voltooid."
     },
     "workspacesAdminTable": {
         "allWorkspaces": "Alle werkruimtes",
@@ -1060,6 +1151,9 @@
     "userSourceType": {
         "userCountSummary": "{count} gebruikers ({lastUpdated})"
     },
+    "academy": {
+        "learnMore": "Leer meer in de Baserow academy"
+    },
     "colorPickerContext": {
         "pickColorPlaceholder": "Of kies een vooraf gedefinieerde kleur"
     },
@@ -1067,7 +1161,13 @@
         "step": "{step} van {totalSteps}",
         "gotIt": "Ik snap het",
         "next": "Volgende",
-        "back": "Terug"
+        "back": "Terug",
+        "watchVideo": "Video bekijken"
+    },
+    "guidedTourVideoModal": {
+        "previous": "Vorige video",
+        "next": "Volgende video",
+        "close": "Sluiten"
     },
     "welcomeGuidedTourStep": {
         "title": "Welkom bij Baserow",

@@ -45,6 +45,9 @@
         "coreRouterEdgeLabelRequired": "Un nom de branche est nécessaire.",
         "coreRouterEdgeConditionRequired": "Une condition est nécessaire.",
         "coreRouterDescription": "Poursuit vers l'une des branches en fonction d'une condition.",
+        "coreGoto": "Aller à",
+        "coreGotoDescription": "Saute à un autre point du scénario lorsqu'une condition est vraie.",
+        "coreGotoDestinationRequired": "Une destination est requise.",
         "corePeriodic": "Déclencheur périodique",
         "corePeriodicDescription": "Déclenche le scénario à des intervalles spécifiés",
         "corePeriodicErrorIntervalMissing": "Un intervalle est nécessaire.",
@@ -117,11 +120,14 @@
         "noCompatibleFilterTypesErrorTitle": "Aucun filtre compatible",
         "noCompatibleFilterTypesErrorMessage": "Aucun de vos champs n'a de filtres compatibles",
         "addFilter": "Ajouter un filtre",
+        "addFilterGroup": "Ajouter un groupe de filtres",
         "filterTypeNotFound": "Le type de filtre n'est pas compatible.",
         "useFormulaForValue": "Utiliser une formule pour ce filtre",
         "useDefaultForValue": "Utiliser le filtre par défaut pour ce champ",
         "formulaFilterInputPlaceholder": "Saisissez une valeur...",
-        "textFilterInputPlaceholder": "Saisissez le texte..."
+        "textFilterInputPlaceholder": "Saisissez le texte...",
+        "expressionFilterInputPlaceholder": "Choisissez une expression...",
+        "useExpressionForValue": "Utiliser une expression pour ce filtre"
     },
     "localBaserowTableServiceSortForm": {
         "noSortTitle": "Vous n'avez pas encore créé de tri pour cette source de données",
@@ -384,6 +390,14 @@
         "automation": "Automatisation",
         "workflow": "Scénario",
         "workflowHelperText": "Seuls les scénarios publiés dotés d'un déclencheur manuel peuvent être lancés. Si ce scénario comporte des modifications non publiées, c'est la dernière version publiée qui s'exécutera."
+    },
+    "coreGotoServiceForm": {
+        "conditionLabel": "Condition",
+        "conditionDescription": "Lorsque cette condition est vraie, le scénario saute au nœud de destination au lieu de continuer vers le nœud suivant.",
+        "conditionPlaceholder": "Si vrai, nous sautons au nœud de destination.",
+        "destinationLabel": "Nœud de destination",
+        "destinationDescription": "Le nœud vers lequel sauter lorsque la condition est vraie.",
+        "destinationPlaceholder": "Choisissez un nœud de destination..."
     },
     "localBaserowDeleteRowServiceForm": {
         "rowIdLabel": "ID(s) de ligne",

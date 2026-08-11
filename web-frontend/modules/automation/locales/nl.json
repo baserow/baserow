@@ -104,6 +104,7 @@
         "running": "Loopt sinds {at}s",
         "statusSuccessBadge": "Voltooid",
         "statusErrorBadge": "Mislukt",
+        "statusSkippedBadge": "Overgeslagen",
         "successfulRuns": "Geslaagde uitvoeringen",
         "failedRuns": "Mislukte uitvoeringen",
         "errorHideDetails": "Verberg details",
@@ -126,6 +127,10 @@
         "httpRequestLabel": "Stuur een HTTP-verzoek",
         "smtpEmailLabel": "Stuur een e-mail",
         "routerLabel": "Volg 1 van {edgeCount} takken",
+        "routerHistoryLabel": "{label} ({edge})",
+        "gotoNodeLabel": "Ga naar node",
+        "gotoNodeLabelWithDestination": "Ga naar node → {destination}",
+        "gotoHistoryLabel": "{label} → {destination}",
         "iterationLabel": "Doorloop items",
         "routerDefaultEdgeLabelFallback": "Standaard",
         "routerWithOutputNodesDeleteError": "Kan niet worden verwijderd totdat de {outputCount} output-nodes zijn verwijderd.",
@@ -159,7 +164,9 @@
         "moreReplace": "Vervangen",
         "nodeOptions": "Node-opties",
         "displayLabelDebug": "ID: {id} | Vorige: {previousNodeId} | {outputUid}",
-        "moreDuplicate": "Dupliceren"
+        "moreDuplicate": "Dupliceren",
+        "gotoMarkerSource": "Springt naar markering {marker}",
+        "gotoMarkerDestination": "Bestemming van markering {marker}"
     },
     "workflowAddNode": {
         "displayTitle": "Automatiseringsnode maken"

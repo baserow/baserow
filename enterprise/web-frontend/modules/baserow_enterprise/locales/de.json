@@ -818,6 +818,14 @@
         "ai": "Kuma AI"
     },
     "aiDatabaseOnboardingForm": {
+        "progress": "Frage {current} von {total}",
+        "explanation": "Kuma erstellt Ihren Arbeitsbereich für Sie. Wenn Sie ein paar Fragen beantworten, kann Kuma vorschlagen, was zuerst erstellt werden soll, damit Sie mit etwas beginnen, das zu Ihrer tatsächlichen Arbeit passt.",
+        "industryLabel": "In welcher Branche sind Sie tätig?",
+        "industryDescription": "Ein paar Worte genügen, wie „Fertigung“, „Luftfahrt“ oder „Digitales Marketing“.",
+        "industryPlaceholder": "z. B. Digitales Marketing",
+        "teamLabel": "In welchem Team sind Sie?",
+        "teamDescription": "Zum Beispiel „Kundenservice“, „Finanzen“ oder „Betrieb“.",
+        "teamPlaceholder": "z. B. Kundenservice",
         "label": "Beschreiben Sie Ihre Datenbank",
         "placeholder": "z.B. Erstellen Sie eine Lösung für Projektmanagement",
         "description": "Beschreiben Sie, was Sie verfolgen möchten. Kuma erstellt die Tabellen und Felder.",
@@ -831,6 +839,27 @@
         "exampleTeamCheckInsPrompt": "Erstellen Sie einen wöchentlichen Team-Check-in-Tracker mit Teammitgliedern, Datum, Erfolgen, Hindernissen, Stimmung, Prioritäten und Folgemaßnahmen.",
         "exampleBugTrackerName": "Bug-Tracker",
         "exampleBugTrackerPrompt": "Erstellen Sie einen Bug-Tracker mit Bugs, Schweregrad, Status, Schritten zur Reproduktion, Umgebung, Melder, Zuständigem und Fix-Version."
+    },
+    "aiPromptStep": {
+        "title": "Was soll Kuma für Sie erstellen?",
+        "description": "Wir haben auf Grundlage Ihrer Antworten einen ersten Vorschlag geschrieben. Ändern Sie ihn oder wählen Sie unten einen anderen aus.",
+        "label": "Beschreiben Sie Ihre Datenbank",
+        "placeholder": "z. B. Kundenprojekte mit Fristen, Verantwortlichen und Status verfolgen.",
+        "generating": "Kuma schreibt einen Vorschlag für Sie…",
+        "suggestionsTitle": "Oder beginnen Sie mit einem dieser Vorschläge",
+        "editDetails": "Details bearbeiten",
+        "modelNotSupportedTitle": "Kuma ist nicht verfügbar",
+        "modelNotSupportedMessage": "Kuma ist nicht erreichbar, weil kein funktionierendes KI-Modell konfiguriert ist, und kann daher gerade keine Datenbank für Sie erstellen. Ein erneuter Versuch hilft erst, wenn das behoben ist.",
+        "errorOtherOptions": "Gehen Sie zurück, um eine Datenbank auf andere Weise zu starten, zum Beispiel aus einer Vorlage, einem Import oder von Grund auf."
+    },
+    "aiOnboardingDetailsModal": {
+        "title": "Bearbeiten Sie Ihre Angaben",
+        "submit": "Vorschläge aktualisieren"
+    },
+    "aiPromptOnboardingType": {
+        "prompt": "Erstelle eine Datenbank mit Tabellen, Feldern, Beispielzeilen und Beispielansichten, die dieser Beschreibung entspricht: {prompt}",
+        "context": "Die anfragende Person arbeitet in {industry}, im Team {team}. Nutze das, um realistische Tabellen, Felder und Beispielzeilen zu wählen.",
+        "language": "Schreibe alles, was du erstellst, in der Sprache mit dem ISO-639-1-Code „{language}“."
     },
     "aiDatabaseOnboardingStepType": {
         "prompt": "Erstellen Sie eine Datenbank inklusive Tabellen, Feldern, Beispielzeilen und Beispielansichten, die dieser Beschreibung entsprechen: {prompt}"

@@ -753,6 +753,14 @@
         "ai": "Kuma AI"
     },
     "aiDatabaseOnboardingForm": {
+        "progress": "Vraag {current} van {total}",
+        "explanation": "Kuma bouwt je werkruimte voor je. Door een paar vragen te beantwoorden kan Kuma voorstellen wat je als eerste kunt bouwen, zodat je begint met iets dat past bij het werk dat je daadwerkelijk doet.",
+        "industryLabel": "In welke sector werk je?",
+        "industryDescription": "Een paar woorden zijn genoeg, zoals \"Productie\", \"Luchtvaart\" of \"Digitale marketing\".",
+        "industryPlaceholder": "bijv. Digitale marketing",
+        "teamLabel": "In welk team zit je?",
+        "teamDescription": "Bijvoorbeeld \"Klantenservice\", \"Financiën\" of \"Operations\".",
+        "teamPlaceholder": "bijv. Klantenservice",
         "label": "Beschrijf je database",
         "placeholder": "bijv. Maak een projectmanagementoplossing",
         "description": "Beschrijf wat je wilt bijhouden. Kuma maakt de tabellen en velden voor je.",
@@ -766,6 +774,27 @@
         "exampleTeamCheckInsPrompt": "Maak een wekelijkse team check-in tracker met Teamleden, Datum, Successen, Blokkers, Stemming, Prioriteiten en opvolging.",
         "exampleBugTrackerName": "Bugtracker",
         "exampleBugTrackerPrompt": "Maak een bugtracker met Bugs, Ernst, Status, Stappen om te reproduceren, Omgeving, Melder, Toegewezen aan en fixversie."
+    },
+    "aiPromptStep": {
+        "title": "Wat moet Kuma voor je bouwen?",
+        "description": "We hebben op basis van je antwoorden een eerste voorstel geschreven. Pas het aan, of kies hieronder een ander voorstel.",
+        "label": "Beschrijf je database",
+        "placeholder": "bijv. Houd klantprojecten bij met deadlines, eigenaren en status.",
+        "generating": "Kuma schrijft een voorstel voor je…",
+        "suggestionsTitle": "Of begin met een van deze",
+        "editDetails": "Gegevens bewerken",
+        "modelNotSupportedTitle": "Kuma is niet beschikbaar",
+        "modelNotSupportedMessage": "Kuma is niet bereikbaar omdat er geen werkend AI-model is geconfigureerd, dus het kan nu geen database voor je bouwen. Opnieuw proberen helpt niet totdat dit is opgelost.",
+        "errorOtherOptions": "Ga terug om op een andere manier een database te starten, bijvoorbeeld vanuit een sjabloon, een import of vanaf nul."
+    },
+    "aiOnboardingDetailsModal": {
+        "title": "Bewerk je gegevens",
+        "submit": "Voorstellen bijwerken"
+    },
+    "aiPromptOnboardingType": {
+        "prompt": "Maak een database inclusief tabellen, velden, voorbeeldrijen en voorbeeldweergaven die overeenkomt met deze beschrijving: {prompt}",
+        "context": "De persoon die dit vraagt werkt in {industry}, in het team {team}. Gebruik dat om realistische tabellen, velden en voorbeeldrijen te kiezen.",
+        "language": "Schrijf alles wat je maakt in de taal met ISO 639-1-code \"{language}\"."
     },
     "aiDatabaseOnboardingStepType": {
         "prompt": "Maak een database met tabellen, velden, voorbeeldrijen en voorbeeldweergaven die passen bij deze beschrijving: {prompt}"

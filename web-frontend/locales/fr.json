@@ -176,7 +176,8 @@
         "multipleCollaboratorsDropdown": "Liste déroulante",
         "formViewEditRow": "Lien vers un formulaire d'édition",
         "formViewEditRowShareWarning": "Toute personne disposant du lien partagé peut modifier les lignes via le formulaire {formNames} en utilisant la colonne « Modifier la ligne » accessible au public.|Toute personne disposant du lien partagé peut modifier les lignes via le formulaire {formNames} en utilisant les colonnet « Modifier la ligne » accessible au public.",
-        "defaultValueFunctionNow": "Date courante"
+        "defaultValueFunctionNow": "Date courante",
+        "button": "Bouton"
     },
     "fieldErrors": {
         "invalidNumber": "Nombre invalide",
@@ -188,6 +189,7 @@
         "invalidDuration": "Format invalide ({durationFormat}).",
         "overflowDuration": "La valeur est hors limites.",
         "maxChars": "Max {max} caractères.",
+        "maxCharsExceeded": "Max {max} caractères (-{over}).",
         "minChars": "Min {min} caractères.",
         "higherThan": "La valeur est supérieure à {max}."
     },
@@ -225,7 +227,8 @@
         "createdBy": "Le champ « Créé par » est un champ en lecture seule qui indique l'utilisateur qui a créé la ligne.",
         "duration": "Accepte une durée temporelle sous la forme d'une chaîne au format {format} ou d'un nombre représentant le nombre total de secondes.",
         "password": "Un champ en écriture seule qui contient un mot de passe haché. La valeur sera `null` s'il n'est pas défini, ou `true` s'il a été défini. Il accepte une chaîne de caractères pour le définir.",
-        "formViewEditRow": "Colonne en lecture seule qui génère une URL unique et signée permettant de modifier la ligne via la vue formulaire associée."
+        "formViewEditRow": "Colonne en lecture seule qui génère une URL unique et signée permettant de modifier la ligne via la vue formulaire associée.",
+        "button": "Un champ bouton. Cliquer sur le bouton ouvre une URL construite à partir des valeurs de la ligne. La cellule ne stocke aucune donnée et les écritures sont rejetées."
     },
     "viewFilter": {
         "contains": "contient",
@@ -718,6 +721,8 @@
         "splitDescription": "Découpe le premier argument en utilisant le deuxième argument optionnel comme séparateur. Si le deuxième argument n'est pas fourni, utilise ' ' comme séparateur.",
         "isEmptyDescription": "Retourne vrai si l'argument est vide, sinon retourne faux",
         "stripDescription": "Supprime tout espace finale ou initiale de l'argument",
+        "encodeUriDescription": "Encode en pourcent les caractères non autorisés dans une URL, en laissant la structure de l'URL intacte",
+        "encodeUriComponentDescription": "Encode en pourcent l'argument afin qu'il puisse être utilisé en toute sécurité comme une partie d'une URL, comme un segment de chemin ou un paramètre de requête",
         "sumDescription": "Calcule la somme des nombres en argument.",
         "avgDescription": "Calcule la moyenne des nombres en argument.",
         "atDescription": "Retourne l'élément du premier argument à l'index spécifié par le deuxième argument.",

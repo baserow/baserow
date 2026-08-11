@@ -176,7 +176,8 @@
         "multipleCollaboratorsCheckboxes": "Selectievakjes",
         "formViewEditRow": "Rij bewerken link",
         "formViewEditRowShareWarning": "Iedereen met de gedeelde link kan rijen bewerken via het {formNames}-formulier via de openbaar zichtbare linkvelden voor het bewerken van rijen.|Iedereen met de gedeelde link kan rijen bewerken via het {formNames}-formulier via de openbaar zichtbare linkvelden voor het bewerken van rijen.",
-        "defaultValueFunctionNow": "Huidige datum"
+        "defaultValueFunctionNow": "Huidige datum",
+        "button": "Knop"
     },
     "fieldErrors": {
         "invalidNumber": "Ongeldig nummer",
@@ -226,7 +227,8 @@
         "createdBy": "Het aangemaakt door veld is een alleen-lezen veld dat de gebruiker toont die de rij heeft aangemaakt.",
         "duration": "Accepteert een tijdsduur als text in het formaat {format} of als een getal dat het totale aantal seconden weergeeft.",
         "password": "Een alleen schrijven veld dat een gehasht wachtwoord bevat. De waarde is `null` als het niet is ingesteld, of `true` als het is ingesteld. Het accepteert een tekenreeks om het in te stellen.",
-        "formViewEditRow": "Een alleen-lezen veld dat een unieke, ondertekende URL genereert waarmee de rij via de gekoppelde formulierweergave kan worden bewerkt."
+        "formViewEditRow": "Een alleen-lezen veld dat een unieke, ondertekende URL genereert waarmee de rij via de gekoppelde formulierweergave kan worden bewerkt.",
+        "button": "Een knopveld. Door op de knop te klikken wordt een URL geopend die is opgebouwd uit de waarden van de rij. De cel slaat geen gegevens op en schrijfacties worden geweigerd."
     },
     "viewFilter": {
         "contains": "bevat",
@@ -719,6 +721,8 @@
         "splitDescription": "Splitst het eerste argument met het optionele tweede argument als scheidingsteken. Als het tweede argument niet is opgegeven, wordt ' ' als scheidingsteken gebruikt.",
         "isEmptyDescription": "Geeft true terug als het argument leeg is, anders false.",
         "stripDescription": "Verwijdert witruimte aan het begin en einde van het argument.",
+        "encodeUriDescription": "Percent-codeert de tekens die niet zijn toegestaan in een URL, waarbij de URL-structuur intact blijft",
+        "encodeUriComponentDescription": "Percent-codeert het argument zodat het veilig kan worden gebruikt als één onderdeel van een URL, zoals een padsegment of een queryparameter",
         "sumDescription": "Telt de getallen in het argument op.",
         "avgDescription": "Berekent het gemiddelde van de getallen in het argument.",
         "atDescription": "Geeft het item in het eerste argument terug op de index die is opgegeven door het tweede argument.",

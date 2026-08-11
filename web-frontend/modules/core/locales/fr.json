@@ -346,7 +346,9 @@
         "baserowVersion": "Version de Baserow",
         "baserowVersionDescription": "Le numéro de version de cette instance.",
         "settingsVerifyImportSignature": "Vérifier la signature de l'importation",
-        "settingsVerifyImportSignatureDescription": "Lorsqu'elle est activée, la signature des données importées est vérifiée afin de s'assurer que les données n'ont pas été altérées."
+        "settingsVerifyImportSignatureDescription": "Lorsqu'elle est activée, la signature des données importées est vérifiée afin de s'assurer que les données n'ont pas été altérées.",
+        "settingAllowReportingAbuseName": "Autoriser le signalement d'abus",
+        "settingAllowReportingAbuseDescription": "Lorsque cette option est activée, les visiteurs des vues et formulaires partagés publiquement peuvent les signaler pour abus, et tous les administrateurs de l'instance sont notifiés du signalement."
     },
     "copyingNotification": {
         "title": "Copie en cours...",
@@ -529,6 +531,10 @@
                 "userAlreadyInWorkspace": {
                     "title": "L’utilisateur est déjà dans le projet.",
                     "text": "Il n’est pas possible d’envoyer une invitation lorsque l’utilisateur est déjà membre du projet."
+                },
+                "tooManyInvitations": {
+                    "title": "Trop d'invitations envoyées.",
+                    "text": "Vous avez envoyé trop d'invitations. Veuillez réessayer plus tard."
                 }
             },
             "helpIconText": "Le rôle sélectionné sera le rôle par défaut des utilisateurs dans ce projet."
@@ -663,6 +669,30 @@
     "versionUpgradeNotification": {
         "title": "La version {version} est arrivé ! Découvrez les nouveautés."
     },
+    "abuseReportCreatedNotification": {
+        "title": "{resourceName} a été signalé pour abus par {reporterEmail}",
+        "openResource": "Ouvrir la page signalée",
+        "showMore": "Afficher plus",
+        "detailsTitle": "Signalement d'abus",
+        "reportedBy": "Signalé par {reporterName} ({reporterEmail})."
+    },
+    "reportAbuseModal": {
+        "title": "Signaler un abus",
+        "description": "Pensez-vous que cette page est utilisée à des fins de phishing, d'usurpation d'identité, d'escroquerie ou d'autres usages abusifs ? Informez-en les administrateurs de cette instance Baserow en soumettant le formulaire ci-dessous.",
+        "submit": "Envoyer le signalement",
+        "close": "Fermer",
+        "successTitle": "Merci pour votre signalement",
+        "successDescription": "Le signalement a été envoyé et les administrateurs de cette instance Baserow ont été notifiés afin qu'ils puissent prendre des mesures.",
+        "reportingDisabledTitle": "Le signalement est désactivé",
+        "reportingDisabledDescription": "Le signalement d'abus a été désactivé par l'administrateur de cette instance Baserow."
+    },
+    "reportAbuseForm": {
+        "nameLabel": "Votre nom",
+        "emailLabel": "Votre adresse e-mail",
+        "descriptionLabel": "Pourquoi signalez-vous cette page ?",
+        "descriptionHelper": "Veuillez décrire en détail pourquoi vous pensez que cette page est abusive.",
+        "descriptionPlaceholder": "Par exemple : cette page se fait passer pour une page de connexion d'une autre entreprise et demande leur mot de passe aux visiteurs."
+    },
     "clearingToast": {
         "title": "Nettoyage...",
         "content": "Préparation de vos données"
@@ -681,7 +711,14 @@
         "deletedUser": "Un utilisateur supprimé"
     },
     "dropdown": {
-        "empty": "Aucune option disponible"
+        "empty": "Aucune option disponible",
+        "clearSearch": "Effacer la recherche"
+    },
+    "groupedMenu": {
+        "core": "Core",
+        "files": "Fichiers",
+        "http": "HTTP",
+        "workflow": "Scénario"
     },
     "styleSidePanel": {
         "paddingTop": "Espacement haut",
@@ -764,23 +801,28 @@
         "openaiApiKeyDescription": "Saisissez une clé API OpenAI si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API] (https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
         "openaiModelsLabel": "Modèles activés",
         "openaiModelsDescription": "Fournir une liste de [modèles OpenAI] (https://platform.openai.com/docs/models/continuous-model-upgrades) séparés par des virgules qui peuvent être utilisés dans Baserow. (par exemple `gpt-3.5-turbo,gpt-4`)",
+        "openaiModelIdentifierDescription": "Saisissez un [identifiant de modèle OpenAI](https://developers.openai.com/api/docs/models). Par exemple : `gpt-5.6`, `gpt-5.6-terra` ou `gpt-5.6-luna`.",
         "ollamaHostLabel": "Hôte",
         "ollamaHostDescription": "Indiquez le nom d'hôte de votre serveur [Ollama] (https://ollama.com/). Celui-ci s'exécute généralement localement sur votre propre serveur.",
         "ollamaModelsLabel": "Modèles activés",
         "ollamaModelsDescription": "Fournir une liste de [modèles Ollama installés] (https://ollama.com/library) séparés par des virgules. Notez que le modèle doit être téléchargé et installé avant de pouvoir être utilisé. (par exemple `llama2,mistral`)",
+        "ollamaModelIdentifierDescription": "Saisissez l'identifiant d'un [modèle installé dans Ollama](https://ollama.com/library). Par exemple : `gemma3`, `qwen3` ou `llama3.3`.",
         "anthropicApiKeyLabel": "Clé d'API",
         "anthropicModelsLabel": "Modèles activés",
         "anthropicModelsDescription": "Fournissez une liste de [modèles Anthropic](https://docs.anthropic.com/en/docs/about-claude/models) séparés par des virgules que vous souhaitez utilisés dans Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "anthropicModelIdentifierDescription": "Saisissez un [identifiant de modèle Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Par exemple : `claude-sonnet-5`, `claude-opus-4-8` ou `claude-haiku-4-5`.",
         "mistral": "Mistral",
         "mistralApiKeyLabel": "Clé d'API",
         "mistralApiKeyDescription": "Fournissez une clé API Mistral si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API](https://docs.mistral.ai/getting-started/quickstart/).",
         "mistralModelsLabel": "Modèles activés",
         "mistralModelsDescription": "Fournissez une liste de [modèles Mistral] (https://docs.mistral.ai/getting-started/models/models_overview/) séparés par des virgules qui vous souhaitez utiliser dans Baserow. (par exemple : `mistral-large-latest,mistral-small-latest`)",
+        "mistralModelIdentifierDescription": "Saisissez un [identifiant de modèle Mistral](https://docs.mistral.ai/models/). Par exemple : `mistral-large-latest`, `mistral-medium-latest` ou `mistral-small-latest`.",
         "anthropic": "Anthropic",
         "anthropicApiKeyDescription": "Fournissez une clé API Anthropic si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API](https://docs.anthropic.com/en/api/getting-started).",
         "openRouterModelsLabel": "Modèles activés",
         "openRouter": "OpenRouter",
         "openRouterModelsDescription": "Fournissez une liste de [modèles OpenRouter](https://openrouter.ai/models) séparés par des virgules qui peuvent être utilisés dans Baserow. (par exemple `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openRouterModelIdentifierDescription": "Saisissez un [identifiant de modèle OpenRouter](https://openrouter.ai/models). Par exemple : `openai/gpt-5.6` ou `anthropic/claude-sonnet-5`.",
         "openRouterApiKeyDescription": "Fournissez une clé API OpenRouter si vous souhaitez activer l'intégration. [Obtenir une clé API](https://openrouter.ai/settings/keys).",
         "openRouterApiKeyLabel": "Clé API",
         "openRouterOrganization": "Organisation (facultatif)",
@@ -861,6 +903,7 @@
         "title": "Assistant de configuration",
         "creating": "Création de votre premier projet",
         "continue": "Continuer",
+        "back": "Retour",
         "cancel": "Je ne souhaite pas d'aide pour la configuration",
         "failedDescription": "La configuration n'est pas totalement terminées, cependant certaines parties ont pu être complétées.",
         "failedTryAgain": "Réessayer",
@@ -869,6 +912,7 @@
     "selectAIModelForm": {
         "AIType": "Type d'IA",
         "AIModel": "Modèle d'IA",
+        "modelUnavailable": "Ce modèle est désactivé ou n'est plus disponible.",
         "fileField": "Champ de fichier",
         "temperatureLabel": "Température",
         "temperatureDescription": "La température d'un LLM, un paramètre défini entre 0 et {max}, ajuste le caractère aléatoire des réponses - les valeurs les plus basses donnent des réponses ciblées, tandis que les valeurs les plus élevées augmentent la créativité."
@@ -954,7 +998,54 @@
     "adminType": {
         "dashboard": "Statistiques",
         "users": "Utilisateurs",
-        "workspaces": "Projets"
+        "workspaces": "Projets",
+        "aiProviders": "Fournisseurs d'IA"
+    },
+    "aiProviderAdmin": {
+        "title": "Fournisseurs d'IA",
+        "description": "Gérez les fournisseurs et modèles au niveau de l'instance disponibles pour les projets et les automatisations.",
+        "addProvider": "Ajouter un fournisseur",
+        "editProvider": "Modifier le fournisseur",
+        "providerType": "Type de fournisseur",
+        "apiKey": "Clé API",
+        "changeApiKey": "Changer la clé API",
+        "apiKeyUpdateHint": "Saisissez une nouvelle clé API pour remplacer la clé existante.",
+        "extraField_organization": "Organisation",
+        "extraField_base_url": "URL de base",
+        "extraField_host": "Hôte",
+        "models": "Modèles",
+        "addModel": "Ajouter un modèle",
+        "removeModel": "Supprimer le modèle",
+        "editModel": "Modifier le modèle",
+        "modelIdentifier": "Identifiant du modèle",
+        "modelDiscoveryHelp": "Choisissez un modèle connu de Pydantic AI ou saisissez un identifiant personnalisé.",
+        "modelDiscoveryUnavailable": "Les suggestions de modèles connus sont indisponibles. Saisissez un identifiant manuellement.",
+        "modelDiscoveryEmpty": "Pydantic AI ne connaît aucun modèle pour ce fournisseur. Saisissez un identifiant manuellement.",
+        "modelDiscoveryNoMatch": "Aucun modèle connu ne correspond. Vous pouvez utiliser l'identifiant saisi.",
+        "noProviders": "Aucun fournisseur d'IA configuré pour l'instance",
+        "noProvidersDescription": "Ajoutez un fournisseur manuellement, ou prévisualisez et exécutez la commande d'import depuis l'environnement avant d'activer la fonctionnalité pour les utilisateurs.",
+        "noModels": "Aucun modèle n'est configuré pour ce fournisseur.",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "enable": "Activer",
+        "disable": "Désactiver",
+        "modelDisabled": "Désactivé",
+        "test": "Tester",
+        "testAllModelsButtonTitle": "Tester tous les modèles définis",
+        "testModelButtonTitle": "Tester ce modèle",
+        "testPassed": "Test réussi",
+        "testFailed": "Test échoué",
+        "notTested": "Non testé",
+        "deleteProviderTitle": "Supprimer {name} ?",
+        "deleteProviderDescription": "Cette action supprime définitivement le fournisseur et ses modèles.",
+        "deleteModelTitle": "Supprimer {name} ?",
+        "deleteModelDescription": "Cette action supprime définitivement le modèle.",
+        "loadError": "Les paramètres des fournisseurs d'IA n'ont pas pu être chargés.",
+        "loadErrorDescription": "Vérifiez la connexion et réessayez.",
+        "retry": "Réessayer",
+        "saveError": "Le fournisseur d'IA n'a pas pu être enregistré.",
+        "saveModelError": "Le modèle du fournisseur d'IA n'a pas pu être enregistré.",
+        "actionError": "La modification du fournisseur d'IA n'a pas pu être effectuée."
     },
     "workspacesAdminTable": {
         "allWorkspaces": "Liste des projets",
@@ -1059,6 +1150,9 @@
     "userSourceType": {
         "userCountSummary": "{count} utilisateurs ({lastUpdated})"
     },
+    "academy": {
+        "learnMore": "En savoir plus dans l'académie Baserow"
+    },
     "colorPickerContext": {
         "pickColorPlaceholder": "Ou choisir une couleur prédéfinie"
     },
@@ -1066,7 +1160,13 @@
         "step": "{step} sur {totalSteps}",
         "gotIt": "Compris",
         "next": "Suivant",
-        "back": "Retour"
+        "back": "Retour",
+        "watchVideo": "Regarder la vidéo"
+    },
+    "guidedTourVideoModal": {
+        "previous": "Vidéo précédente",
+        "next": "Vidéo suivante",
+        "close": "Fermer"
     },
     "welcomeGuidedTourStep": {
         "title": "Bienvenue sur Baserow",

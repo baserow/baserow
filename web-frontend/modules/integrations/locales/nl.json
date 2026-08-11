@@ -25,6 +25,7 @@
     "localBaserowTableServiceConditionalForm": {
         "relatedFieldNotFound": "Het gerelateerde veld is niet gevonden.",
         "addFilter": "Extra filter toevoegen",
+        "addFilterGroup": "Filtergroep toevoegen",
         "noFilterTitle": "U hebt nog geen gegevensbronfilter gemaakt",
         "noFilterText": "Met gegevensbronfilters kun je rijen in de Baserow tabel weergeven die van toepassing zijn op je voorwaarden.",
         "filterTypeNotFound": "Het filtertype is niet compatibel.",
@@ -33,7 +34,9 @@
         "formulaFilterInputPlaceholder": "Tekst invoeren...",
         "useFormulaForValue": "Gebruik een formule voor dit filter",
         "useDefaultForValue": "Gebruik het standaardfilter voor dit veld",
-        "textFilterInputPlaceholder": "Tekst invoeren..."
+        "textFilterInputPlaceholder": "Tekst invoeren...",
+        "expressionFilterInputPlaceholder": "Kies een expressie...",
+        "useExpressionForValue": "Gebruik een expressie voor dit filter"
     },
     "localBaserowTableSelector": {
         "databaseFieldLabel": "Database",
@@ -90,6 +93,9 @@
         "coreRouterEdgeLabelRequired": "Een vertakkingslabel is nodig.",
         "coreRouterEdgeConditionRequired": "Een vertakkingsvoorwaarde is vereist.",
         "coreRouterDescription": "Leidt de workflow naar de volgende vertakking op basis van een voorwaarde.",
+        "coreGoto": "Ga naar",
+        "coreGotoDescription": "Springt naar een ander punt in de workflow wanneer een voorwaarde waar is.",
+        "coreGotoDestinationRequired": "Een bestemming is verplicht.",
         "corePeriodic": "Periodieke trigger",
         "corePeriodicDescription": "Triggert de workflow op periodieke basis met gespecificeerde intervallen",
         "corePeriodicErrorIntervalMissing": "Een interval is vereist.",
@@ -384,6 +390,14 @@
         "automation": "Automatisering",
         "workflow": "Workflow",
         "workflowHelperText": "Alleen gepubliceerde workflows met een handmatige activering kunnen worden gestart. Als deze workflow niet-gepubliceerde wijzigingen heeft, wordt de laatst gepubliceerde versie uitgevoerd."
+    },
+    "coreGotoServiceForm": {
+        "conditionLabel": "Voorwaarde",
+        "conditionDescription": "Wanneer deze voorwaarde waar is, springt de workflow naar de bestemmingsnode in plaats van door te gaan naar de volgende node.",
+        "conditionPlaceholder": "Als waar, springen we naar de bestemmingsnode.",
+        "destinationLabel": "Bestemmingsnode",
+        "destinationDescription": "De node waarnaar wordt gesprongen wanneer de voorwaarde waar is.",
+        "destinationPlaceholder": "Kies een bestemmingsnode..."
     },
     "localBaserowDeleteRowServiceForm": {
         "rowIdLabel": "Rij-ID('s)",

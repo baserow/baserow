@@ -108,6 +108,7 @@
         "statusError": "Ausführung fehlgeschlagen",
         "statusSuccessBadge": "Abgeschlossen",
         "statusErrorBadge": "Fehlgeschlagen",
+        "statusSkippedBadge": "Übersprungen",
         "statusDisabled": "Von Baserow deaktiviert",
         "successfulRuns": "Erfolgreiche Ausführungen",
         "completedInSeconds": "In {s} Sekunden abgeschlossen.",
@@ -135,6 +136,10 @@
         "httpRequestLabel": "Eine HTTP-Anfrage senden",
         "smtpEmailLabel": "Eine E-Mail senden",
         "routerLabel": "1 von {edgeCount} Verzweigungen folgen",
+        "routerHistoryLabel": "{label} ({edge})",
+        "gotoNodeLabel": "Gehe zu Knoten",
+        "gotoNodeLabelWithDestination": "Gehe zu Knoten → {destination}",
+        "gotoHistoryLabel": "{label} → {destination}",
         "iterationLabel": "Über Elemente iterieren",
         "defaultEdgeLabelFallback": "Standard",
         "routerWithOutputNodesDeleteError": "Kann nicht gelöscht werden, bis seine {outputCount} Ausgabeknoten entfernt sind.",
@@ -167,7 +172,9 @@
         "moreReplace": "Ersetzen",
         "nodeOptions": "Knotenoptionen",
         "displayLabelDebug": "ID: {id} | Vorh.: {previousNodeId} | {outputUid}",
-        "moreDuplicate": "Duplizieren"
+        "moreDuplicate": "Duplizieren",
+        "gotoMarkerSource": "Springt zu Markierung {marker}",
+        "gotoMarkerDestination": "Ziel der Markierung {marker}"
     },
     "workflowAddNode": {
         "displayTitle": "Automatisierungsknoten erstellen"

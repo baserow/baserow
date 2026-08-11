@@ -286,6 +286,7 @@
     },
     "gridViewFieldAI": {
         "regenerate": "Opnieuw genereren",
+        "promptBroken": "De prompt werkt niet en moet worden hersteld voordat er waarden kunnen worden gegenereerd.",
         "generate": "Genereren"
     },
     "fieldAISubForm": {
@@ -301,11 +302,13 @@
         "outputTypeChangedWarning": "Wist de gegenereerde celwaarden.",
         "autoUpdate": "Automatisch bijwerken",
         "autoUpdateHelp": "Als deze optie is ingeschakeld, wordt de waarde van het AI-veld automatisch opnieuw gegenereerd als een van de velden waarnaar wordt verwezen als de prompt wordt bijgewerkt.",
-        "autoUpdateDescription": "Opnieuw genereren wanneer velden waarnaar wordt verwezen veranderen"
+        "autoUpdateDescription": "Opnieuw genereren wanneer velden waarnaar wordt verwezen veranderen",
+        "invalidPrompt": "De promptformule is ongeldig."
     },
     "rowEditFieldAI": {
         "generate": "Genereren",
-        "createRowBefore": "De AI-waarde kan worden gegenereerd nadat de rij is aangemaakt."
+        "createRowBefore": "De AI-waarde kan worden gegenereerd nadat de rij is aangemaakt.",
+        "promptBroken": "De prompt werkt niet en moet worden hersteld voordat er waarden kunnen worden gegenereerd."
     },
     "premiumFieldType": {
         "ai": "AI prompt",

@@ -65,7 +65,43 @@
     },
     "sidebar": {
         "viewAPI": "API Documenten bekijken",
-        "createTable": "Tabel aanmaken"
+        "createTable": "Tabel aanmaken",
+        "adminContentCategory": "Inhoud"
+    },
+    "adminType": {
+        "databaseViews": "Weergaven"
+    },
+    "viewsAdmin": {
+        "title": "Weergaven"
+    },
+    "viewsAdminTable": {
+        "allViews": "Alle weergaven",
+        "onlyPublic": "Alleen openbaar gedeelde weergaven",
+        "name": "Weergave",
+        "type": "Type",
+        "table": "Tabel",
+        "database": "Database",
+        "workspace": "Werkruimte",
+        "public": "Openbaar gedeeld",
+        "passwordProtected": "Wachtwoord",
+        "ownedBy": "Eigenaar",
+        "createdOn": "Aangemaakt op",
+        "allWorkspaces": "Alle werkruimtes"
+    },
+    "viewsAdminRotateSlugModal": {
+        "title": "URL vernieuwen",
+        "refreshWarning": "Weet je zeker dat je de URL van {viewName} wilt vernieuwen? Na het vernieuwen wordt een nieuwe URL gegenereerd en is het niet meer mogelijk om de weergave via de oude URL te openen. Iedereen die de oude URL heeft, heeft geen toegang meer tot de weergave.",
+        "generateNewURL": "Nieuwe URL genereren"
+    },
+    "viewsAdminContext": {
+        "copyPublicUrl": "Openbare URL kopiëren",
+        "openPublicView": "Openbare weergave in nieuw tabblad openen",
+        "filterWorkspace": "Filteren op werkruimte",
+        "rotateSlug": "Slug vernieuwen",
+        "makePrivate": "Privé maken",
+        "makePublic": "Openbaar maken",
+        "publicUrlCopiedTitle": "Openbare URL gekopieerd",
+        "publicUrlCopiedMessage": "De openbare URL van de weergave is naar je klembord gekopieerd."
     },
     "sidebarItem": {
         "exportTable": "Tabel exporteren",
@@ -571,7 +607,8 @@
         "AIValuesGenerationErrorTitle": "AI-waardegeneratie mislukt",
         "AIValuesGenerationErrorMessage": "Controleer alsjeblieft je API_KEY en controleer het geselecteerde model.",
         "copyCellsWithHeader": "Cellen met koptekst kopiëren",
-        "generateAllAiValues": "Genereer alle AI-waarden"
+        "generateAllAiValues": "Genereer alle AI-waarden",
+        "promptBroken": "De prompt werkt niet en moet worden hersteld voordat er waarden kunnen worden gegenereerd."
     },
     "gridViewFieldLinkRow": {
         "unnamed": "onbenoemde rij {value}",
@@ -677,6 +714,11 @@
         "stateImportingTable": "Importeren van tabel {table}",
         "errorJobAlreadyRunningTitle": "Al bezig",
         "errorJobAlreadyRunningDescription": "Er loopt al een andere import taak. U moet wachten tot die klaar is voordat u een andere start.",
+        "errorRequiresAuthenticationTitle": "Authenticatie vereist",
+        "errorRequiresAuthenticationDescription": "Deze basis kan alleen met extra authenticatie worden geïmporteerd. De optie \"Sessie-authenticatie\" hieronder is voor u ingeschakeld. Volg de instructies om de cookiewaarden \"__Host-airtable-session\" en \"__Host-airtable-session.sig\" in de velden te kopiëren en probeer het opnieuw.",
+        "errorBaseNotPublicTitle": "Basis is niet toegankelijk",
+        "errorBaseNotPublicDescription": "Airtable heeft voor deze link geen publiekelijk gedeelde basis teruggegeven. Open de link in uw browser om te controleren of de basis die u wilt importeren wordt geladen en of de volledige URL correct is gekopieerd, en probeer het daarna opnieuw.",
+        "openSharedLink": "Open de gedeelde link",
         "linkError": "De link moet er als volgt uitzien: https://airtable.com/shrxxxxxxxxxxxxxx",
         "skipFiles": "Bestanden importeren overslaan",
         "skipFilesHelper": "Een Airtable base met veel bestanden kan het importeren vertragen. Als je dit inschakelt, wordt het importeren van de bestanden overgeslagen.",
@@ -853,6 +895,13 @@
         "noFieldsTitle": "Dit formulier heeft geen velden",
         "noFieldsContent": "Klik op een veld in de linkerzijbalk om er een toe te voegen."
     },
+    "formViewFooterLinks": {
+        "reportAbuse": "Misbruik melden"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "Misbruik melden",
+        "moreOptions": "Meer opties"
+    },
     "gridViewFieldFile": {
         "dropHere": "Laat hier los",
         "dropFileHere": "Laat bestanden hier los"
@@ -1001,6 +1050,11 @@
         "databaseNamePrefill": "{name}'s database",
         "workspaceName": "{name}'s werkruimte"
     },
+    "templateOnboardingCancelModal": {
+        "title": "Selecteer een sjabloon om te beginnen",
+        "description": "Om de onboarding over te slaan, selecteer je een van de onderstaande sjablonen. Beginnen met een sjabloon is de beste manier om Baserow te leren kennen, omdat het tabellen, velden en voorbeeldgegevens voor je instelt. Je kunt het later altijd wijzigen of verwijderen.",
+        "continue": "Gebruik deze sjabloon"
+    },
     "databaseImportStep": {
         "description": "Verplaats je gegevens naar Baserow, in slechts een paar klikken.",
         "tableNameLabel": "Tabel naam",
@@ -1145,7 +1199,18 @@
     "configureDataSyncModal": {
         "title": "Data sync",
         "syncedFields": "Gesynchroniseerde velden",
-        "syncSettings": "Sync instellingen"
+        "syncSettings": "Sync instellingen",
+        "syncHistory": "Synchronisatiegeschiedenis"
+    },
+    "dataSyncRuns": {
+        "title": "Synchronisatiegeschiedenis",
+        "description": "De meest recente synchronisaties van deze tabel, ongeacht wie of wat ze heeft gestart.",
+        "previousRuns": "Eerdere uitvoeringen",
+        "noRuns": "Deze tabel is nog niet gesynchroniseerd.",
+        "triggerManual": "Handmatig",
+        "triggerPeriodic": "Periodiek",
+        "byUser": "door {name}",
+        "duration": "{seconds}s"
     },
     "configureDataSyncVisibleFields": {
         "fields": "Gesynchroniseerde velden",
@@ -1225,6 +1290,13 @@
         "notPublicWarning": "Deze weergave van het formulier is niet openbaar gemaakt. De bewerkingslink werkt pas als het formulier openbaar is gemaakt.",
         "notPublic": "(niet openbaar)",
         "formDoesNotExist": "Het geselecteerde formulier bestaat niet meer."
+    },
+    "fieldButtonSubForm": {
+        "label": "Label",
+        "labelPlaceholder": "Openen",
+        "url": "URL",
+        "urlPlaceholder": "bijv. concat('https://example.com/', get('fields.field_1'))",
+        "invalidUrl": "De URL-formule is ongeldig."
     },
     "editRowLink": {
         "editRow": "Rij bewerken"

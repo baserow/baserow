@@ -328,6 +328,7 @@
         "openaiOrganization": "Organisation (optional)",
         "openaiModelsLabel": "Aktivierte Modelle",
         "openaiModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [OpenAI-Modellen](https://platform.openai.com/docs/models/continuous-model-upgrades) an, die in Baserow verwendet werden können. (z. B. `gpt-3.5-turbo,gpt-4`)",
+        "openaiModelIdentifierDescription": "Geben Sie eine [OpenAI-Modellkennung](https://developers.openai.com/api/docs/models) ein. Zum Beispiel: `gpt-5.6`, `gpt-5.6-terra` oder `gpt-5.6-luna`.",
         "openaiBaseUrl": "Basis-URL",
         "openaiBaseUrlDescription": "Verwendet standardmäßig die Standard-OpenAI-Basis-URL, wenn leer. Kann optional auf https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com oder eine andere OpenAI-kompatible API geändert werden.",
         "anthropic": "Anthropic",
@@ -335,22 +336,26 @@
         "anthropicApiKeyDescription": "Geben Sie einen Anthropic-API-Schlüssel an, wenn Sie die Integration aktivieren möchten. [Anweisungen zum Erhalt eines API-Schlüssels](https://docs.anthropic.com/en/api/getting-started).",
         "anthropicModelsLabel": "Aktivierte Modelle",
         "anthropicModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [Anthropic-Modellen](https://docs.anthropic.com/en/docs/about-claude/models) an, die in Baserow verwendet werden können. (z.B. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "anthropicModelIdentifierDescription": "Geben Sie eine [Anthropic-Modellkennung](https://platform.claude.com/docs/en/about-claude/models/overview) ein. Zum Beispiel: `claude-sonnet-5`, `claude-opus-4-8` oder `claude-haiku-4-5`.",
         "mistral": "Mistral",
         "mistralApiKeyLabel": "API-Schlüssel",
         "mistralApiKeyDescription": "Geben Sie einen Mistral-API-Schlüssel an, wenn Sie die Integration aktivieren möchten. [Anleitung zum Erhalt eines API-Schlüssels](https://docs.mistral.ai/getting-started/quickstart/).",
         "mistralModelsLabel": "Aktivierte Modelle",
         "mistralModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [Mistral-Modellen](https://docs.mistral.ai/getting-started/models/models_overview/) an, die in Baserow verwendet werden können. (z.B. `mistral-large-latest, mistral-small-latest`)",
+        "mistralModelIdentifierDescription": "Geben Sie eine [Mistral-Modellkennung](https://docs.mistral.ai/models/) ein. Zum Beispiel: `mistral-large-latest`, `mistral-medium-latest` oder `mistral-small-latest`.",
         "ollama": "Ollama",
         "ollamaHostLabel": "Host",
         "ollamaHostDescription": "Geben Sie den Hostnamen Ihres [Ollama](https://ollama.com/)-Servers an. Dieser läuft normalerweise lokal auf Ihrem eigenen Gerät.",
         "ollamaModelsLabel": "Aktivierte Modelle",
         "ollamaModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [bei Ollama installierten Modellen](https://ollama.com/library) an. Beachten Sie, dass das Modell heruntergeladen und installiert werden muss, bevor es verwendet werden kann. (z.B. `llama2,mistral`)",
+        "ollamaModelIdentifierDescription": "Geben Sie die Kennung eines [in Ollama installierten Modells](https://ollama.com/library) ein. Zum Beispiel: `gemma3`, `qwen3` oder `llama3.3`.",
         "openRouter": "OpenRouter",
         "openRouterApiKeyLabel": "API-Schlüssel",
         "openRouterApiKeyDescription": "Geben Sie einen OpenRouter-API-Schlüssel an, wenn Sie die Integration aktivieren möchten. [Einen API-Schlüssel erhalten](https://openrouter.ai/settings/keys).",
         "openRouterOrganization": "Organisation (optional)",
         "openRouterModelsLabel": "Aktivierte Modelle",
-        "openRouterModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [OpenRouter-Modellen](https://openrouter.ai/models) an, die in Baserow verwendet werden können. (z.B. `openai/gpt-4o,anthropic/claude-3-haiku`)"
+        "openRouterModelsDescription": "Geben Sie eine durch Kommata getrennte Liste von [OpenRouter-Modellen](https://openrouter.ai/models) an, die in Baserow verwendet werden können. (z.B. `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openRouterModelIdentifierDescription": "Geben Sie eine [OpenRouter-Modellkennung](https://openrouter.ai/models) ein. Zum Beispiel: `openai/gpt-5.6` oder `anthropic/claude-sonnet-5`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Generative-KI-Einstellungen",
@@ -635,7 +640,9 @@
         "emailVerificationRecommended": "Empfohlen",
         "emailVerificationEnforced": "Erzwungen",
         "settingsVerifyImportSignature": "Import-Signatur prüfen",
-        "settingsVerifyImportSignatureDescription": "Wenn diese Funktion aktiviert ist, wird die Signatur der importierten Daten überprüft um sicherzustellen, dass die Daten nicht manipuliert wurden."
+        "settingsVerifyImportSignatureDescription": "Wenn diese Funktion aktiviert ist, wird die Signatur der importierten Daten überprüft um sicherzustellen, dass die Daten nicht manipuliert wurden.",
+        "settingAllowReportingAbuseName": "Melden von Missbrauch erlauben",
+        "settingAllowReportingAbuseDescription": "Wenn aktiviert, können Besucher öffentlich geteilter Ansichten und Formulare diese wegen Missbrauchs melden, und alle Instanz-Administratoren werden über die Meldung benachrichtigt."
     },
     "formSidebar": {
         "fields": "Felder",
@@ -771,6 +778,10 @@
                 "userAlreadyInWorkspace": {
                     "title": "Der Benutzer ist bereits Mitglied des Arbeitsbereichs.",
                     "text": "Es ist nicht möglich, eine Einladung zu senden, wenn der Benutzer bereits Mitglied des Arbeitsbereich ist."
+                },
+                "tooManyInvitations": {
+                    "title": "Zu viele Einladungen versendet.",
+                    "text": "Sie haben zu viele Einladungen versendet. Bitte versuchen Sie es später erneut."
                 }
             }
         }
@@ -812,7 +823,14 @@
         "integrationPlaceholder": "Wählen Sie eine Integration aus"
     },
     "dropdown": {
-        "empty": "Keine Einträge verfügbar"
+        "empty": "Keine Einträge verfügbar",
+        "clearSearch": "Suche löschen"
+    },
+    "groupedMenu": {
+        "core": "Core",
+        "files": "Dateien",
+        "http": "HTTP",
+        "workflow": "Workflow"
     },
     "richTextEditorMentionsList": {
         "notFound": "Keine Benutzer gefunden"
@@ -831,6 +849,30 @@
     },
     "versionUpgradeNotification": {
         "title": "{version} ist da! Sehen Sie sich an, was es Neues gibt."
+    },
+    "abuseReportCreatedNotification": {
+        "title": "{resourceName} wurde von {reporterEmail} wegen Missbrauchs gemeldet",
+        "openResource": "Gemeldete Seite öffnen",
+        "showMore": "Mehr anzeigen",
+        "detailsTitle": "Missbrauchsmeldung",
+        "reportedBy": "Gemeldet von {reporterName} ({reporterEmail})."
+    },
+    "reportAbuseModal": {
+        "title": "Missbrauch melden",
+        "description": "Glauben Sie, dass diese Seite für Phishing, Identitätsmissbrauch, Betrug oder andere missbräuchliche Zwecke verwendet wird? Informieren Sie die Administratoren dieser Baserow-Instanz, indem Sie das untenstehende Formular absenden.",
+        "submit": "Meldung absenden",
+        "close": "Schließen",
+        "successTitle": "Vielen Dank für Ihre Meldung",
+        "successDescription": "Die Meldung wurde übermittelt und die Administratoren dieser Baserow-Instanz wurden benachrichtigt, damit sie Maßnahmen ergreifen können.",
+        "reportingDisabledTitle": "Meldungen sind deaktiviert",
+        "reportingDisabledDescription": "Das Melden von Missbrauch wurde vom Administrator dieser Baserow-Instanz deaktiviert."
+    },
+    "reportAbuseForm": {
+        "nameLabel": "Ihr Name",
+        "emailLabel": "Ihre E-Mail-Adresse",
+        "descriptionLabel": "Warum melden Sie diese Seite?",
+        "descriptionHelper": "Bitte beschreiben Sie im Detail, warum Sie diese Seite für missbräuchlich halten.",
+        "descriptionPlaceholder": "Zum Beispiel: Diese Seite gibt sich als Anmeldeseite eines anderen Unternehmens aus und fragt Besucher nach ihrem Passwort."
     },
     "emailNotifications": {
         "title": "E-Mailbenachrichtigungen",
@@ -901,6 +943,7 @@
     "selectAIModelForm": {
         "AIType": "KI-Typ",
         "AIModel": "KI-Modell",
+        "modelUnavailable": "Dieses Modell ist deaktiviert oder nicht mehr verfügbar.",
         "fileField": "Dateifeld",
         "temperatureLabel": "Temperatur",
         "temperatureDescription": "Die Temperatur eines LLM, ein Parameter zwischen 0 und {max}, passt die Zufälligkeit der Antworten an – niedrigere Werte führen zu fokussierten Antworten, während höhere Werte die Kreativität erhöhen."
@@ -909,6 +952,7 @@
         "title": "Einführung",
         "creating": "Erstellen Ihres ersten Arbeitsbereichs",
         "continue": "Fortfahren",
+        "back": "Zurück",
         "skip": "Vorerst überspringen",
         "cancel": "Ich möchte bei der Einrichtung keine Unterstützung",
         "failedTitle": "Etwas ist schiefgegangen",
@@ -966,7 +1010,54 @@
     "adminType": {
         "dashboard": "Dashboard",
         "users": "Benutzer",
-        "workspaces": "Arbeitsbereiche"
+        "workspaces": "Arbeitsbereiche",
+        "aiProviders": "KI-Anbieter"
+    },
+    "aiProviderAdmin": {
+        "title": "KI-Anbieter",
+        "description": "Verwalten Sie die Anbieter und Modelle auf Instanzebene, die für Arbeitsbereiche und Automatisierungen verfügbar sind.",
+        "addProvider": "Anbieter hinzufügen",
+        "editProvider": "Anbieter bearbeiten",
+        "providerType": "Anbietertyp",
+        "apiKey": "API-Schlüssel",
+        "changeApiKey": "API-Schlüssel ändern",
+        "apiKeyUpdateHint": "Geben Sie einen neuen API-Schlüssel ein, um den bestehenden Schlüssel zu ersetzen.",
+        "extraField_organization": "Organisation",
+        "extraField_base_url": "Basis-URL",
+        "extraField_host": "Host",
+        "models": "Modelle",
+        "addModel": "Modell hinzufügen",
+        "removeModel": "Modell entfernen",
+        "editModel": "Modell bearbeiten",
+        "modelIdentifier": "Modellkennung",
+        "modelDiscoveryHelp": "Wählen Sie ein Pydantic AI bekanntes Modell oder geben Sie eine beliebige eigene Kennung ein.",
+        "modelDiscoveryUnavailable": "Vorschläge für bekannte Modelle sind nicht verfügbar. Geben Sie eine Kennung manuell ein.",
+        "modelDiscoveryEmpty": "Pydantic AI kennt keine Modelle für diesen Anbieter. Geben Sie eine Kennung manuell ein.",
+        "modelDiscoveryNoMatch": "Kein bekanntes Modell stimmt überein. Sie können die eingegebene Kennung verwenden.",
+        "noProviders": "Keine KI-Anbieter für die Instanz konfiguriert",
+        "noProvidersDescription": "Fügen Sie manuell einen Anbieter hinzu, oder prüfen Sie den Umgebungs-Importbefehl und führen Sie ihn aus, bevor Sie die Funktion für Benutzer aktivieren.",
+        "noModels": "Für diesen Anbieter sind keine Modelle konfiguriert.",
+        "active": "Aktiv",
+        "inactive": "Inaktiv",
+        "enable": "Aktivieren",
+        "disable": "Deaktivieren",
+        "modelDisabled": "Deaktiviert",
+        "test": "Testen",
+        "testAllModelsButtonTitle": "Alle definierten Modelle testen",
+        "testModelButtonTitle": "Dieses Modell testen",
+        "testPassed": "Test bestanden",
+        "testFailed": "Test fehlgeschlagen",
+        "notTested": "Nicht getestet",
+        "deleteProviderTitle": "{name} löschen?",
+        "deleteProviderDescription": "Dadurch werden der Anbieter und seine Modelle dauerhaft entfernt.",
+        "deleteModelTitle": "{name} löschen?",
+        "deleteModelDescription": "Dadurch wird das Modell dauerhaft entfernt.",
+        "loadError": "Die KI-Anbieter-Einstellungen konnten nicht geladen werden.",
+        "loadErrorDescription": "Überprüfen Sie die Verbindung und versuchen Sie es erneut.",
+        "retry": "Erneut versuchen",
+        "saveError": "Der KI-Anbieter konnte nicht gespeichert werden.",
+        "saveModelError": "Das KI-Anbieter-Modell konnte nicht gespeichert werden.",
+        "actionError": "Die Änderung des KI-Anbieters konnte nicht abgeschlossen werden."
     },
     "workspacesAdminTable": {
         "allWorkspaces": "Alle Arbeitsbereiche",
@@ -1074,11 +1165,20 @@
     "userSourceType": {
         "userCountSummary": "{count} Benutzer ({lastUpdated})"
     },
+    "academy": {
+        "learnMore": "Erfahren Sie mehr in der Baserow-Academy"
+    },
     "guidedTourStep": {
         "step": "{step} von {totalSteps}",
         "gotIt": "Verstanden",
         "next": "Weiter",
-        "back": "Zurück"
+        "back": "Zurück",
+        "watchVideo": "Video ansehen"
+    },
+    "guidedTourVideoModal": {
+        "previous": "Vorheriges Video",
+        "next": "Nächstes Video",
+        "close": "Schließen"
     },
     "welcomeGuidedTourStep": {
         "title": "Willkommen bei Baserow",

@@ -211,6 +211,8 @@
     },
     "pagePreview": {
         "emptyMessage": "Anklicken, um ein Element zu erstellen",
+        "fixedHeader": "FIXIERTER HEADER",
+        "fixedFooter": "FIXIERTER FOOTER",
         "header": "KOPFBEREICH",
         "footer": "FUSSBEREICH"
     },
@@ -339,8 +341,12 @@
         "urlLabel": "URL",
         "urlPlaceholder": "Link zur externen Ressource, welche eingebettet werden soll",
         "urlHelp": "Hinweis: Bitte vergewissern Sie sich, dass Sie die Kontrolle über die eingegebene URL haben oder dieser vertrauen.",
+        "allowSameOriginLabel": "Dem iFrame Zugriff auf die Daten seiner eigenen Website erlauben",
+        "allowSameOriginHelp": "Aktivieren Sie dies nur für eine vertrauenswürdige externe URL. Es erlaubt dem iFrame, Cookies, Speicher und andere Same-Origin-Funktionen in Vorschauen und veröffentlichten Anwendungen zu verwenden.",
         "embedLabel": "Einbetten",
         "embedPlaceholder": "Reiner HTML-Inhalt, der eingebettet werden soll",
+        "warningTitle": "Verwenden Sie nur vertrauenswürdige Inhalte",
+        "warningMessage": "IFrame-Inhalte sind im Editor in einer Sandbox isoliert, wo eingebettetes HTML Skripte isoliert ausführen kann. In Vorschauen und veröffentlichten Anwendungen kann eingebettetes HTML ohne Einschränkungen ausgeführt werden, während externe URLs Skripte ausführen, Formulare absenden und Pop-ups öffnen können.",
         "heightLabel": "Höhe (px)",
         "heightPlaceholder": "Höhe in Pixeln"
     },
@@ -532,6 +538,8 @@
         "integrationLabel": "Integration",
         "servicePlaceholder": "Wählen Sie einen Dienst aus",
         "integrationPlaceholder": "Wählen Sie eine Integration aus",
+        "searchActionPlaceholder": "Aktionen suchen",
+        "noActionsFound": "Keine Aktionen gefunden",
         "errorUniqueName": "Der Name der Datenquelle muss eindeutig sein."
     },
     "dataSourceContext": {
@@ -732,6 +740,9 @@
         "submitLabel": "Beim Absenden",
         "afterLoginLabel": "Nach dem Login"
     },
+    "getExpressionComponent": {
+        "errorTooltip": "Ungültige Referenz"
+    },
     "getFormulaComponent": {
         "errorTooltip": "Ungültiger Bezug"
     },
@@ -829,9 +840,13 @@
     },
     "workflowActionTypes": {
         "notificationLabel": "Benachrichtigung anzeigen",
+        "notificationDescription": "Dem Benutzer eine Benachrichtigung anzeigen.",
         "openPageLabel": "Seite öffnen",
+        "openPageDescription": "Den Benutzer zu einer anderen Seite oder URL navigieren.",
         "logoutLabel": "Abmelden",
+        "logoutDescription": "Den aktuellen Benutzer abmelden.",
         "refreshDataSourceLabel": "Datenquelle aktualisieren",
+        "refreshDataSourceDescription": "Eine Datenquelle neu laden und die Elemente aktualisieren, die sie verwenden.",
         "httpRequest": "HTTP-Anfrage senden",
         "errorNavigateToPageMissing": "Fehlende Eigenschaft \"Navigieren zu\"",
         "errorPageParameterInError": "Mindestens ein Seitenparameter ist falsch konfiguriert",
@@ -845,7 +860,9 @@
         "descriptionPlaceholder": "Text eingeben..."
     },
     "event": {
-        "addAction": "Aktion hinzufügen"
+        "addAction": "Aktion hinzufügen",
+        "searchActions": "Aktionen suchen",
+        "noActionsFound": "Keine Aktionen gefunden"
     },
     "collectionFieldType": {
         "boolean": "Boolesch",
@@ -923,6 +940,7 @@
         "optionType": "Optionstyp",
         "manual": "Manuell",
         "dataSource": "Datenquelle",
+        "expressions": "Ausdrücke",
         "formulas": "Formeln"
     },
     "fieldMappingContext": {
@@ -1087,6 +1105,10 @@
     "previewPublishGuidedTourStep": {
         "title": "Vorschau & Veröffentlichung Ihrer Anwendung",
         "content": "Klicken Sie auf **Vorschau**, um Ihre Anwendung privat zu testen. Wenn Sie bereit sind, klicken Sie auf **Veröffentlichen**, um sie über eine Domäne mit der Öffentlichkeit zu teilen."
+    },
+    "pageElementBehaviour": {
+        "normal": "Normal",
+        "fixed": "Fixiert"
     },
     "workflowAction": {
         "sampleDataModalTitle": "Payload für {actionLabel}",

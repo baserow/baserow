@@ -174,7 +174,8 @@
         "ai": "KI-Eingabeaufforderung",
         "multipleCollaboratorsDropdown": "Dropdown-Menü",
         "multipleCollaboratorsCheckboxes": "Kontrollkästchen",
-        "defaultValueFunctionNow": "Aktuelles Datum"
+        "defaultValueFunctionNow": "Aktuelles Datum",
+        "button": "Button"
     },
     "fieldErrors": {
         "invalidNumber": "Ungültige Zahl",
@@ -187,6 +188,7 @@
         "overflowDuration": "Der Wert liegt außerhalb des zulässigen Bereichs.",
         "higherThan": "Wert ist höher als {max}.",
         "maxChars": "Maximal {max} Zeichen.",
+        "maxCharsExceeded": "Max. {max} Zeichen (-{over}).",
         "minChars": "Mindestens {min} Zeichen."
     },
     "fieldDocs": {
@@ -223,7 +225,8 @@
         "uuid": "Eine schreibgeschützte, eindeutige und dauerhafte UUID.",
         "autonumber": "Ein schreibgeschütztes Feld, das bei jeder neuen Zeile automatisch eine Zahl hochzählt.",
         "password": "Ein schreibgeschütztes Feld, das ein gehashtes Passwort enthält. Der Wert ist `null`, wenn es nicht gesetzt ist, oder `true`, wenn es gesetzt wurde. Es akzeptiert eine Zeichenkette, um es zu setzen.",
-        "formViewEditRow": "Ein schreibgeschütztes Feld, das eine eindeutige, signierte URL erzeugt, mit der die Zeile über die verknüpfte Formularansicht bearbeitet werden kann."
+        "formViewEditRow": "Ein schreibgeschütztes Feld, das eine eindeutige, signierte URL erzeugt, mit der die Zeile über die verknüpfte Formularansicht bearbeitet werden kann.",
+        "button": "Ein Button-Feld. Ein Klick auf den Button öffnet eine URL, die aus den Werten der Zeile erstellt wird. Die Zelle speichert keine Daten und Schreibvorgänge werden abgelehnt."
     },
     "fieldConstraint": {
         "uniqueWithEmpty": "Eindeutig mit leeren Werten"
@@ -698,6 +701,8 @@
         "splitDescription": "Teilt das erste Argument unter Verwendung des optionalen zweiten Arguments als Trennzeichen. Wird das zweite Argument nicht angegeben, wird ' ' als Trennzeichen verwendet.",
         "isEmptyDescription": "Gibt true zurück, wenn das Argument leer ist, andernfalls false",
         "stripDescription": "Entfernt führende und nachfolgende Leerzeichen aus dem Argument",
+        "encodeUriDescription": "Prozent-kodiert die Zeichen, die in einer URL nicht erlaubt sind, wobei die URL-Struktur intakt bleibt",
+        "encodeUriComponentDescription": "Prozent-kodiert das Argument, damit es sicher als einzelner Teil einer URL verwendet werden kann, z. B. als Pfadsegment oder Query-Parameter",
         "sumDescription": "Summiert die Zahlen innerhalb des Arguments.",
         "avgDescription": "Berechnet den Durchschnitt der Zahlen innerhalb des Arguments.",
         "atDescription": "Gibt das Element im ersten Argument an dem durch das zweite Argument angegebenen Index zurück.",

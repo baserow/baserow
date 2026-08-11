@@ -65,7 +65,43 @@
     },
     "sidebar": {
         "viewAPI": "Documentation de l'API",
-        "createTable": "Nouvelle table"
+        "createTable": "Nouvelle table",
+        "adminContentCategory": "Contenu"
+    },
+    "adminType": {
+        "databaseViews": "Vues"
+    },
+    "viewsAdmin": {
+        "title": "Vues"
+    },
+    "viewsAdminTable": {
+        "allViews": "Toutes les vues",
+        "onlyPublic": "Uniquement les vues partagées publiquement",
+        "name": "Vue",
+        "type": "Type",
+        "table": "Table",
+        "database": "Base de données",
+        "workspace": "Projet",
+        "public": "Partagée publiquement",
+        "passwordProtected": "Mot de passe",
+        "ownedBy": "Propriétaire",
+        "createdOn": "Créée le",
+        "allWorkspaces": "Tous les projets"
+    },
+    "viewsAdminRotateSlugModal": {
+        "title": "Rafraîchir l'URL",
+        "refreshWarning": "Êtes-vous sûr·e de vouloir rafraîchir l'URL de {viewName} ? Après le rafraîchissement, une nouvelle URL sera générée et il ne sera plus possible d'accéder à la vue via l'ancienne URL. Toutes les personnes disposant de l'ancienne URL ne pourront plus accéder à la vue.",
+        "generateNewURL": "Générer une nouvelle URL"
+    },
+    "viewsAdminContext": {
+        "copyPublicUrl": "Copier l'URL publique",
+        "openPublicView": "Ouvrir la vue publique dans un nouvel onglet",
+        "filterWorkspace": "Filtrer par projet",
+        "rotateSlug": "Renouveler le slug",
+        "makePrivate": "Rendre privée",
+        "makePublic": "Rendre publique",
+        "publicUrlCopiedTitle": "URL publique copiée",
+        "publicUrlCopiedMessage": "L'URL publique de la vue a été copiée dans votre presse-papiers."
     },
     "sidebarItem": {
         "exportTable": "Exporter la table",
@@ -535,6 +571,8 @@
     "gridViewFieldType": {
         "createFilter": "Définir un filtre",
         "sortField": "Trier",
+        "groupByField": "Grouper par",
+        "ungroupByField": "Ne pas grouper par",
         "hideField": "Cacher un champ",
         "insertRight": "Insérer à droite",
         "insertLeft": "Insérer à gauche",
@@ -569,7 +607,8 @@
         "AIValuesGenerationErrorTitle": "La génération de valeur par l'IA a échoué",
         "AIValuesGenerationErrorMessage": "Veuillez vérifier votre API_KEY et le modèle sélectionné.",
         "copyCellsWithHeader": "Copier les cellules avec l'en-tête",
-        "generateAllAiValues": "Générer toutes les valeurs"
+        "generateAllAiValues": "Générer toutes les valeurs",
+        "promptBroken": "Le prompt est défectueux et doit être corrigé avant de pouvoir générer des valeurs."
     },
     "gridViewFieldLinkRow": {
         "unnamed": "Ligne sans nom {value}",
@@ -675,6 +714,11 @@
         "stateImportingTable": "Import de la table {table}",
         "errorJobAlreadyRunningTitle": "Déjà en cours",
         "errorJobAlreadyRunningDescription": "Une autre tâche est déjà en cours. Vous devez attendre que celle-ci finisse avant d'en démarrer une autre.",
+        "errorRequiresAuthenticationTitle": "Authentification requise",
+        "errorRequiresAuthenticationDescription": "Cette base ne peut être importée qu'avec une authentification supplémentaire. L'option « Authentification de la session » ci-dessous a été activée pour vous. Suivez les instructions pour copier les valeurs des cookies « __Host-airtable-session » et « __Host-airtable-session.sig » dans les champs, puis réessayez.",
+        "errorBaseNotPublicTitle": "Impossible d'accéder à la base",
+        "errorBaseNotPublicDescription": "Airtable n'a pas renvoyé de base partagée publiquement pour ce lien. Ouvrez le lien dans votre navigateur pour vérifier qu'il charge bien la base que vous souhaitez importer et que l'URL complète a été copiée correctement, puis réessayez.",
+        "openSharedLink": "Ouvrir le lien partagé",
         "linkError": "Le lien devrait ressembler à : https://airtable.com/shrxxxxxxxxxxxxxx",
         "skipFilesHelper": "Une base Airtable contenant de nombreux fichiers peut ralentir l'importation. L'activation de cette option permet d'ignorer l'importation des fichiers.",
         "skipFiles": "Ne pas importer les fichiers",
@@ -810,6 +854,13 @@
         "descriptionPlaceholder": "Description",
         "noFieldsContent": "Cliquez sur un champ dans la barre latérale gauche pour en ajouter un.",
         "noFieldsTitle": "Ce formulaire n'a pas de champs"
+    },
+    "formViewFooterLinks": {
+        "reportAbuse": "Signaler un abus"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "Signaler un abus",
+        "moreOptions": "Plus d'options"
     },
     "table": {
         "chooseView": "Choisir la vue",
@@ -1005,6 +1056,11 @@
         "databaseNamePrefill": "Base de données de {name}",
         "workspaceName": "Projet de {name}"
     },
+    "templateOnboardingCancelModal": {
+        "title": "Sélectionnez un modèle pour commencer",
+        "description": "Pour passer l'onboarding, sélectionnez l'un des modèles ci-dessous. Commencer avec un modèle est la meilleure façon de découvrir Baserow, car il configure pour vous des tables, des champs et des données d'exemple. Vous pourrez toujours le modifier ou le supprimer plus tard.",
+        "continue": "Utiliser ce modèle"
+    },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Migrer vers un filtre de date riche",
         "migrateButtonTooltip": "Nouveau filtre disponible. Cliquez pour mettre à jour. Le fonctionnement est similaire."
@@ -1147,7 +1203,18 @@
     "configureDataSyncModal": {
         "title": "Synchronisation des données",
         "syncedFields": "Champs synchronisés",
-        "syncSettings": "Paramètres de synchronisation"
+        "syncSettings": "Paramètres de synchronisation",
+        "syncHistory": "Historique de synchronisation"
+    },
+    "dataSyncRuns": {
+        "title": "Historique de synchronisation",
+        "description": "Les synchronisations les plus récentes de cette table, quel que soit qui ou quoi les a lancées.",
+        "previousRuns": "Exécutions précédentes",
+        "noRuns": "Cette table n'a pas encore été synchronisée.",
+        "triggerManual": "Manuelle",
+        "triggerPeriodic": "Périodique",
+        "byUser": "par {name}",
+        "duration": "{seconds}s"
     },
     "configureDataSyncVisibleFields": {
         "title": "Modifier les champs synchronisés",
@@ -1223,6 +1290,13 @@
         "notPublicWarning": "Ce formulaire n'est pas accessible au public. Le lien de modification ne fonctionnera pas tant que le formulaire n'aura pas été rendu public.",
         "notPublic": "(non public)",
         "formDoesNotExist": "Le formulaire sélectionné n'existe plus."
+    },
+    "fieldButtonSubForm": {
+        "label": "Libellé",
+        "labelPlaceholder": "Ouvrir",
+        "url": "URL",
+        "urlPlaceholder": "ex. concat('https://example.com/', get('fields.field_1'))",
+        "invalidUrl": "La formule d'URL est invalide."
     },
     "editRowLink": {
         "editRow": "Modifier la ligne"

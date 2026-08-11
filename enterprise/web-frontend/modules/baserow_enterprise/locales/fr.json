@@ -754,6 +754,14 @@
         "ai": "Kuma IA"
     },
     "aiDatabaseOnboardingForm": {
+        "progress": "Question {current} sur {total}",
+        "explanation": "Kuma construit votre projet pour vous. En répondant à quelques questions, il peut suggérer quoi construire en premier, afin que vous commenciez avec quelque chose qui correspond au travail que vous faites réellement.",
+        "industryLabel": "Dans quel secteur travaillez-vous ?",
+        "industryDescription": "Quelques mots suffisent, comme « Industrie manufacturière », « Aérospatiale » ou « Marketing digital ».",
+        "industryPlaceholder": "ex. Marketing digital",
+        "teamLabel": "Dans quelle équipe êtes-vous ?",
+        "teamDescription": "Par exemple « Service client », « Finance » ou « Opérations ».",
+        "teamPlaceholder": "ex. Service client",
         "label": "Décrivez votre base de données",
         "placeholder": "ex. Créer une solution de gestion de projet",
         "description": "Décrivez ce que vous voulez suivre. Kuma va créer les tables et les colonnes.",
@@ -767,6 +775,27 @@
         "exampleTeamCheckInsPrompt": "Créer un Suivi hebdomadaire d’équipe avec les Membres de l'équipe, Date, Succés, Obstacles, Ambiance, Priorités et suivis.",
         "exampleBugTrackerName": "Suivi de défauts",
         "exampleBugTrackerPrompt": "Créez un suivi de défauts avec Défaut, Sévérité, Status, Étapes de reproduction, Environnement, Créateur, Affectation et Version de correction."
+    },
+    "aiPromptStep": {
+        "title": "Que doit construire Kuma pour vous ?",
+        "description": "Nous avons rédigé une première suggestion à partir de vos réponses. Modifiez-la ou choisissez-en une autre ci-dessous.",
+        "label": "Décrivez votre base de données",
+        "placeholder": "ex. Suivre les projets clients avec les échéances, les responsables et le statut.",
+        "generating": "Kuma rédige une suggestion pour vous…",
+        "suggestionsTitle": "Ou commencez avec l'une de celles-ci",
+        "editDetails": "Modifier les détails",
+        "modelNotSupportedTitle": "Kuma est indisponible",
+        "modelNotSupportedMessage": "Kuma est injoignable car aucun modèle d'IA fonctionnel n'est configuré, il ne peut donc pas construire de base de données pour vous pour le moment. Réessayer ne servira à rien tant que ce n'est pas corrigé.",
+        "errorOtherOptions": "Revenez en arrière pour démarrer une base de données autrement, par exemple à partir d'un modèle, d'un import ou de zéro."
+    },
+    "aiOnboardingDetailsModal": {
+        "title": "Modifier vos informations",
+        "submit": "Mettre à jour les suggestions"
+    },
+    "aiPromptOnboardingType": {
+        "prompt": "Crée une base de données comprenant des tables, des champs, des lignes d'exemple et des vues d'exemple correspondant à cette description : {prompt}",
+        "context": "La personne qui demande travaille dans {industry}, dans l'équipe {team}. Utilise cela pour choisir des tables, des champs et des lignes d'exemple réalistes.",
+        "language": "Écris tout ce que tu crées dans la langue portant le code ISO 639-1 « {language} »."
     },
     "aiDatabaseOnboardingStepType": {
         "prompt": "Créer une base de données comprenant des tables, des colonnes, des lignes et des vues d'exemple correspondant à cette description : {prompt}"

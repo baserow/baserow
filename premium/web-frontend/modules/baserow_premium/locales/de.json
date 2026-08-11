@@ -328,7 +328,8 @@
     },
     "gridViewFieldAI": {
         "generate": "Generieren",
-        "regenerate": "Erneut generieren"
+        "regenerate": "Erneut generieren",
+        "promptBroken": "Die Eingabeaufforderung ist fehlerhaft und muss korrigiert werden, bevor Werte generiert werden können."
     },
     "fieldAISubForm": {
         "prompt": "Eingabeaufforderung",
@@ -341,11 +342,13 @@
         "outputTypeChangedWarning": "Löscht die generierten Zellenwerte.",
         "autoUpdate": "Automatisch aktualisieren",
         "autoUpdateHelp": "Wenn aktiviert, wird der Wert des KI-Feldes automatisch neu generiert, sobald eines der in der Eingabeaufforderung referenzierten Felder aktualisiert wird.",
-        "autoUpdateDescription": "Neu generieren, wenn referenzierte Felder sich ändern"
+        "autoUpdateDescription": "Neu generieren, wenn referenzierte Felder sich ändern",
+        "invalidPrompt": "Die Formel der Eingabeaufforderung ist ungültig."
     },
     "rowEditFieldAI": {
         "generate": "Generieren",
-        "createRowBefore": "Der KI-Wert kann nach der Erstellung der Zeile generiert werden."
+        "createRowBefore": "Der KI-Wert kann nach der Erstellung der Zeile generiert werden.",
+        "promptBroken": "Die Eingabeaufforderung ist fehlerhaft und muss korrigiert werden, bevor Werte generiert werden können."
     },
     "aiFormulaModal": {
         "title": "Formel mittels KI generieren",

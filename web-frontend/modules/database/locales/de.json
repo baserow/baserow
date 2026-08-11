@@ -60,7 +60,43 @@
     },
     "sidebar": {
         "viewAPI": "API-Dokumente anzeigen",
-        "createTable": "Neue Tabelle"
+        "createTable": "Neue Tabelle",
+        "adminContentCategory": "Inhalt"
+    },
+    "adminType": {
+        "databaseViews": "Ansichten"
+    },
+    "viewsAdmin": {
+        "title": "Ansichten"
+    },
+    "viewsAdminTable": {
+        "allViews": "Alle Ansichten",
+        "onlyPublic": "Nur öffentlich geteilte Ansichten",
+        "name": "Ansicht",
+        "type": "Typ",
+        "table": "Tabelle",
+        "database": "Datenbank",
+        "workspace": "Arbeitsbereich",
+        "public": "Öffentlich geteilt",
+        "passwordProtected": "Passwort",
+        "ownedBy": "Eigentümer",
+        "createdOn": "Erstellt am",
+        "allWorkspaces": "Alle Arbeitsbereiche"
+    },
+    "viewsAdminRotateSlugModal": {
+        "title": "URL aktualisieren",
+        "refreshWarning": "Sind Sie sicher, dass Sie die URL von {viewName} aktualisieren möchten? Nach der Aktualisierung wird eine neue URL generiert und die Ansicht kann nicht mehr über die alte URL aufgerufen werden. Alle, die die alte URL haben, können nicht mehr auf die Ansicht zugreifen.",
+        "generateNewURL": "Neue URL generieren"
+    },
+    "viewsAdminContext": {
+        "copyPublicUrl": "Öffentliche URL kopieren",
+        "openPublicView": "Öffentliche Ansicht in neuem Tab öffnen",
+        "filterWorkspace": "Nach Arbeitsbereich filtern",
+        "rotateSlug": "Slug erneuern",
+        "makePrivate": "Privat machen",
+        "makePublic": "Öffentlich machen",
+        "publicUrlCopiedTitle": "Öffentliche URL kopiert",
+        "publicUrlCopiedMessage": "Die öffentliche URL der Ansicht wurde in Ihre Zwischenablage kopiert."
     },
     "sidebarItem": {
         "exportTable": "Tabelle exportieren",
@@ -681,6 +717,8 @@
         "createFilter": "Filter erstellen",
         "duplicate": "Feld duplizieren",
         "sortField": "Sortieren",
+        "groupByField": "Gruppieren nach",
+        "ungroupByField": "Nicht gruppieren nach",
         "hideField": "Feld ausblenden",
         "dataSyncField": "Das Feld ist schreibgeschützt und Teil des Datenabgleichs der Tabelle.",
         "dataSyncFieldTwoWaySync": "Das Feld wird mit dem Datenabgleich der Tabelle synchronisiert.",
@@ -706,6 +744,7 @@
         "copyCellsWithHeader": "Zellen mit Kopfbereich kopieren",
         "generateCellsValues": "Werte mit KI generieren",
         "generateAllAiValues": "Alle KI-Werte generieren",
+        "promptBroken": "Die Eingabeaufforderung ist fehlerhaft und muss korrigiert werden, bevor Werte generiert werden können.",
         "rowCount": "Keine Zeilen | 1 Zeile | {count} Zeilen",
         "hiddenRowsInsertedTitle": "Zeilen hinzugefügt",
         "hiddenRowsInsertedMessage": "{number} neu hinzugefügte Zeilen wurden hinzugefügt, sind aber wegen der aktiven Filter nicht sichtbar.",
@@ -835,6 +874,11 @@
         "stateImportingTable": "Tabelle {table} wird importiert",
         "errorJobAlreadyRunningTitle": "Bereits in Arbeit",
         "errorJobAlreadyRunningDescription": "Ein weiterer Importauftrag ist bereits in Arbeit. Sie müssen abwarten, bis dieser Vorgang abgeschlossen ist, bevor Sie einen weiteren beginnen.",
+        "errorRequiresAuthenticationTitle": "Authentifizierung erforderlich",
+        "errorRequiresAuthenticationDescription": "Diese Base kann nur mit zusätzlicher Authentifizierung importiert werden. Die Option „Sitzungs-Authentifizierung“ unten wurde für Sie aktiviert. Folgen Sie den Anweisungen, um die Cookie-Werte „__Host-airtable-session“ und „__Host-airtable-session.sig“ in die Felder zu kopieren, und versuchen Sie es erneut.",
+        "errorBaseNotPublicTitle": "Auf die Base konnte nicht zugegriffen werden",
+        "errorBaseNotPublicDescription": "Airtable hat für diesen Link keine öffentlich geteilte Base zurückgegeben. Öffnen Sie den Link in Ihrem Browser, um zu prüfen, ob die Base geladen wird, die Sie importieren möchten, und ob die vollständige URL korrekt kopiert wurde, und versuchen Sie es dann erneut.",
+        "openSharedLink": "Geteilten Link öffnen",
         "linkError": "Der Link sollte wie folgt aussehen: https://airtable.com/shrxxxxxxxxxxxxxx",
         "skipFiles": "Import von Dateien überspringen",
         "skipFilesHelper": "Eine Airtable-Base mit vielen Dateien kann den Import verlangsamen. Wenn Sie dies aktivieren, wird der Import der Dateien übersprungen.",
@@ -923,6 +967,13 @@
         "descriptionPlaceholder": "Beschreibung",
         "noFieldsTitle": "Dieses Formular hat noch keine Felder",
         "noFieldsContent": "Klicken Sie auf ein Feld in der linken Seitenleiste, um eines hinzuzufügen."
+    },
+    "formViewFooterLinks": {
+        "reportAbuse": "Missbrauch melden"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "Missbrauch melden",
+        "moreOptions": "Weitere Optionen"
     },
     "table": {
         "adjacentRow": {
@@ -1079,6 +1130,11 @@
         "template": "Vorlage",
         "workspaceName": "Arbeitsbereich von {name}"
     },
+    "templateOnboardingCancelModal": {
+        "title": "Wählen Sie eine Vorlage, um loszulegen",
+        "description": "Um das Onboarding zu überspringen, wählen Sie eine der untenstehenden Vorlagen. Mit einer Vorlage zu beginnen ist der beste Weg, Baserow kennenzulernen, da sie Tabellen, Felder und Beispieldaten für Sie einrichtet. Sie können sie später jederzeit ändern oder löschen.",
+        "continue": "Diese Vorlage verwenden"
+    },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Umstellung auf mehrstufigen Datumsfilter",
         "migrateButtonTooltip": "Neuer Filter verfügbar. Zum Aktualisieren anklicken. Er funktioniert genauso."
@@ -1134,7 +1190,18 @@
     "configureDataSyncModal": {
         "title": "Datenabgleich",
         "syncedFields": "Synchronisierte Felder",
-        "syncSettings": "Sync-Einstellungen"
+        "syncSettings": "Sync-Einstellungen",
+        "syncHistory": "Synchronisierungsverlauf"
+    },
+    "dataSyncRuns": {
+        "title": "Synchronisierungsverlauf",
+        "description": "Die letzten Synchronisierungsläufe dieser Tabelle, unabhängig davon, wer oder was sie gestartet hat.",
+        "previousRuns": "Frühere Läufe",
+        "noRuns": "Diese Tabelle wurde noch nicht synchronisiert.",
+        "triggerManual": "Manuell",
+        "triggerPeriodic": "Periodisch",
+        "byUser": "von {name}",
+        "duration": "{seconds}s"
     },
     "configureDataSyncVisibleFields": {
         "title": "Synchronisierte Felder ändern",
@@ -1187,6 +1254,13 @@
         "notPublicWarning": "Diese Formularansicht ist nicht öffentlich geteilt. Der Bearbeitungslink funktioniert erst, wenn das Formular öffentlich gemacht wird.",
         "notPublic": "(nicht öffentlich)",
         "formDoesNotExist": "Das ausgewählte Formular existiert nicht mehr."
+    },
+    "fieldButtonSubForm": {
+        "label": "Beschriftung",
+        "labelPlaceholder": "Öffnen",
+        "url": "URL",
+        "urlPlaceholder": "z. B. concat('https://example.com/', get('fields.field_1'))",
+        "invalidUrl": "Die URL-Formel ist ungültig."
     },
     "editRowLink": {
         "editRow": "Zeile bearbeiten"

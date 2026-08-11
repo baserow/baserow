@@ -315,6 +315,8 @@
         "addIntegration": "Nieuwe integratie toevoegen",
         "noIntegrations": "je hebt nog geen integratie",
         "integrationPlaceholder": "Selecteer een integratie",
+        "searchActionPlaceholder": "Acties zoeken",
+        "noActionsFound": "Geen acties gevonden",
         "errorUniqueName": "Data bron naam moet uniek zijn.",
         "selectTypeFirst": "Selecteer eerst de dienst",
         "servicePlaceholder": "Selecteer een dienst",
@@ -471,9 +473,13 @@
         "updateRowLabel": "Rij bijwerken",
         "createRowLabel": "Rij maken",
         "notificationLabel": "Melding tonen",
+        "notificationDescription": "Toon een notificatiebericht aan de gebruiker.",
         "openPageLabel": "Pagina openen",
+        "openPageDescription": "Navigeer de gebruiker naar een andere pagina of URL.",
         "logoutLabel": "Uitloggen",
+        "logoutDescription": "Log de huidige gebruiker uit.",
         "refreshDataSourceLabel": "Gegevensbron verversen",
+        "refreshDataSourceDescription": "Herlaad een gegevensbron en werk de elementen bij die deze gebruiken.",
         "deleteRowLabel": "Verwijder Rij",
         "httpRequest": "Stuur HTTP verzoek",
         "errorNavigateToPageMissing": "Ontbreekt Navigeer naar eigenschap",
@@ -561,7 +567,9 @@
         "userSourceType": "Type"
     },
     "event": {
-        "addAction": "actie toevoegen"
+        "addAction": "actie toevoegen",
+        "searchActions": "Acties zoeken",
+        "noActionsFound": "Geen acties gevonden"
     },
     "buttonElement": {
         "noValue": "Naamloos...",
@@ -604,6 +612,9 @@
         "submitLabel": "Op versturen",
         "clickLabel": "Op klik",
         "afterLoginLabel": "Na inloggen"
+    },
+    "getExpressionComponent": {
+        "errorTooltip": "Ongeldige verwijzing"
     },
     "formContainerElementForm": {
         "submitButtonLabel": "Verstuur knop",
@@ -651,8 +662,12 @@
         "urlLabel": "URL",
         "urlPlaceholder": "Link naar de externe bron die moet worden ingesloten",
         "urlHelp": "Opmerking: zorg ervoor dat je controle hebt over de ingevoerde URL of dat je deze vertrouwt.",
+        "allowSameOriginLabel": "Sta het iframe toe om toegang te krijgen tot de gegevens van zijn eigen site",
+        "allowSameOriginHelp": "Schakel dit alleen in voor een vertrouwde externe URL. Het stelt het iframe in staat om cookies, opslag en andere same-origin-functies te gebruiken in voorbeelden en gepubliceerde applicaties.",
         "embedLabel": "Insluiten",
         "embedPlaceholder": "Ruwe HTML-inhoud die moet worden ingesloten",
+        "warningTitle": "Gebruik alleen vertrouwde inhoud",
+        "warningMessage": "IFrame-inhoud wordt in de editor in een sandbox geplaatst, waar ingesloten HTML scripts geïsoleerd kan uitvoeren. In voorbeelden en gepubliceerde applicaties kan ingesloten HTML zonder beperkingen worden uitgevoerd, terwijl externe URL's scripts kunnen uitvoeren, formulieren kunnen versturen en pop-ups kunnen openen.",
         "heightLabel": "Hoogte (px)",
         "heightPlaceholder": "Hoogte in pixels",
         "missingValue": "IFrame bron ontbreekt...",
@@ -848,6 +863,7 @@
         "addOption": "optie toevoegen",
         "manual": "Handmatig",
         "dataSource": "Gegevensbron",
+        "expressions": "Expressies",
         "formulas": "Formules",
         "optionType": "Opties type",
         "label": "Opties",

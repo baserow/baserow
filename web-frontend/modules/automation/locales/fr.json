@@ -104,6 +104,7 @@
         "running": "S'exécute depuis {at}s",
         "statusSuccessBadge": "Complété",
         "statusErrorBadge": "Échoué",
+        "statusSkippedBadge": "Ignoré",
         "successfulRuns": "Succès",
         "failedRuns": "Échecs",
         "errorHideDetails": "Masquer les détails",
@@ -126,6 +127,10 @@
         "httpRequestLabel": "Envoyer une requête HTTP",
         "smtpEmailLabel": "Envoyer un courriel",
         "routerLabel": "Suivre 1 des {edgeCount} branches",
+        "routerHistoryLabel": "{label} ({edge})",
+        "gotoNodeLabel": "Aller au nœud",
+        "gotoNodeLabelWithDestination": "Aller au nœud → {destination}",
+        "gotoHistoryLabel": "{label} → {destination}",
         "iterationLabel": "Itérer sur les lignes",
         "routerDefaultEdgeLabelFallback": "Par défaut",
         "routerWithOutputNodesDeleteError": "Ne peut être supprimé que si ses {outputCount} nœuds de sortie sont supprimés.",
@@ -159,7 +164,9 @@
         "moreReplace": "Remplacer",
         "nodeOptions": "Options du nœud",
         "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
-        "moreDuplicate": "Dupliquer"
+        "moreDuplicate": "Dupliquer",
+        "gotoMarkerSource": "Saute au marqueur {marker}",
+        "gotoMarkerDestination": "Destination du marqueur {marker}"
     },
     "workflowAddNode": {
         "displayTitle": "Créer un nœud de scénario"

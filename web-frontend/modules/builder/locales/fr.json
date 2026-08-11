@@ -340,6 +340,8 @@
         "servicePlaceholder": "Sélectionnez un service",
         "errorUniqueName": "Le nom de la source de données doit être unique.",
         "integrationPlaceholder": "Sélectionnez une intégration",
+        "searchActionPlaceholder": "Rechercher des actions",
+        "noActionsFound": "Aucune action trouvée",
         "actionLabel": "Action",
         "integrationLabel": "Intégration",
         "nameLabel": "Nom"
@@ -491,7 +493,9 @@
         "urlPlaceholder": "Saisir le texte..."
     },
     "event": {
-        "addAction": "ajouter une action"
+        "addAction": "ajouter une action",
+        "searchActions": "Rechercher des actions",
+        "noActionsFound": "Aucune action trouvée"
     },
     "buttonElement": {
         "noValue": "Sans nom...",
@@ -518,11 +522,15 @@
     },
     "workflowActionTypes": {
         "notificationLabel": "Afficher une notification",
+        "notificationDescription": "Afficher un message de notification à l'utilisateur.",
         "openPageLabel": "Ouvrir une page",
+        "openPageDescription": "Rediriger l'utilisateur vers une autre page ou URL.",
         "updateRowLabel": "Mise à jour de ligne",
         "createRowLabel": "Création de ligne",
         "logoutLabel": "Déconnexion",
+        "logoutDescription": "Déconnecter l'utilisateur actuel.",
         "refreshDataSourceLabel": "Actualiser une source de données",
+        "refreshDataSourceDescription": "Recharger une source de données et mettre à jour les éléments qui l'utilisent.",
         "deleteRowLabel": "Supprimer une ligne",
         "httpRequest": "Envoyer une requête HTTP",
         "errorNavigateToPageMissing": "Propriété Naviguer vers manquante",
@@ -537,6 +545,9 @@
         "clickLabel": "Au clic",
         "submitLabel": "Sur validation",
         "afterLoginLabel": "Après la connexion"
+    },
+    "getExpressionComponent": {
+        "errorTooltip": "Référence invalide"
     },
     "linkFieldForm": {
         "fieldLinkNamePlaceholder": "Saisir la valeur...",
@@ -608,6 +619,8 @@
     },
     "pagePreview": {
         "emptyMessage": "Cliquez pour créer un élément",
+        "fixedHeader": "EN-TÊTE FIXE",
+        "fixedFooter": "PIED DE PAGE FIXE",
         "header": "EN-TÊTE",
         "footer": "PIED DE PAGE"
     },
@@ -639,8 +652,12 @@
         "sourceTypeLabel": "Type de la source",
         "urlLabel": "URL",
         "urlHelp": "Remarque : assurez-vous que vous contrôlez ou faites confiance à l'URL saisie.",
+        "allowSameOriginLabel": "Autoriser l'iframe à accéder aux données de son propre site",
+        "allowSameOriginHelp": "N'activez ceci que pour une URL externe de confiance. Cela permet à l'iframe d'utiliser les cookies, le stockage et d'autres fonctionnalités same-origin dans les aperçus et les applications publiées.",
         "embedLabel": "Embarquer",
         "embedPlaceholder": "Contenu HTML brut à intégrer",
+        "warningTitle": "N'utilisez que du contenu de confiance",
+        "warningMessage": "Le contenu de l'iframe est isolé dans une sandbox dans l'éditeur, où le HTML intégré peut exécuter des scripts de manière isolée. Dans les aperçus et les applications publiées, le HTML intégré peut s'exécuter sans restrictions, tandis que les URL externes peuvent exécuter des scripts, soumettre des formulaires et ouvrir des popups.",
         "heightLabel": "Hauteur (px)",
         "heightPlaceholder": "Hauteur en pixels",
         "emptyValue": "Source vide...",
@@ -889,6 +906,7 @@
         "optionType": "Type d'options",
         "manual": "Manuelle",
         "dataSource": "Source de données",
+        "expressions": "Expressions",
         "formulas": "Formules",
         "addOptionDescription": "Cliquez sur \"ajouter une option\" pour ajouter des options à votre liste de choix"
     },
@@ -1210,6 +1228,10 @@
     "previewPublishGuidedTourStep": {
         "title": "Prévisualiser et publier votre application",
         "content": "Cliquez sur **Preview** pour tester votre application en privé. Lorsque vous êtes prêt, cliquez sur **Publier** pour la partager avec le public via un domaine."
+    },
+    "pageElementBehaviour": {
+        "normal": "Normal",
+        "fixed": "Fixe"
     },
     "builderToast": {
         "details": "Détails",
