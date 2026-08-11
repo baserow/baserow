@@ -31,3 +31,15 @@ export async function createTable(
   );
   return new Table(response.data.id, response.data.name, database);
 }
+
+export async function listTables(
+  user: User,
+  database: Database,
+): Promise<Table[]> {
+  const response: any = await getClient(user).get(
+    `database/tables/database/${database.id}/`,
+  );
+  return response.data.map(
+    (table: any) => new Table(table.id, table.name, database),
+  );
+}

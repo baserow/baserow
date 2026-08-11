@@ -23,9 +23,11 @@ import {
   listWorkflowActions,
 } from "../../fixtures/database/workflowAction";
 import { listRows } from "../../fixtures/database/rows";
-import { Table, createTable } from "../../fixtures/database/table";
-import { createField } from "../../fixtures/database/field";
+import { Table, createTable, listTables } from "../../fixtures/database/table";
+import { createField, getFieldsForTable } from "../../fixtures/database/field";
 import { patchView } from "../../fixtures/database/view";
+import { User, createUser } from "../../fixtures/user";
+import { addUserToWorkspace } from "../../fixtures/workspace";
 import { getClient } from "../../client";
 import { baserowConfig } from "../../playwright.config";
 
@@ -39,6 +41,10 @@ const LINK_FIELD_INDEX = 6;
 const BROKEN_FIELD_INDEX = 10;
 const BAD_LINK_FIELD_INDEX = 11;
 const REMOVE_FIELD_INDEX = 13;
+const SPAWN_FIELD_INDEX = 14;
+const MODIFIED_BY_FIELD_INDEX = 15;
+// The field one test creates in the UI, which lands after all of the above.
+const CREATED_FIELD_INDEX = 17;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
@@ -54,10 +60,14 @@ const BUTTON_FIELD_NAMES = [
   "BadLink",
   "Retype",
   "Remove",
+  "Spawn",
+  "Cross",
 ];
 
 let g: GridSetupResult;
 let otherTable: Table;
+/** A second member of the workspace, for the tests about who a click runs as. */
+let otherUser: User;
 
 /** The header column of a non-primary field, by name. */
 function fieldHeader(page: Page, name: string) {
@@ -70,19 +80,39 @@ function fieldHeader(page: Page, name: string) {
     });
 }
 
+/**
+ * A table's row in the sidebar, matched on the whole name so "Tickets" and
+ * "Tickets 2" stay apart.
+ */
+function sidebarTable(page: Page, name: string) {
+  return page.locator("li.tree__sub").filter({
+    has: page.locator("a.tree__sub-link", {
+      hasText: new RegExp(`^\\s*${name}\\s*$`),
+    }),
+  });
+}
+
 /** Opens a field's "Edit field" form from its header dropdown. */
 async function openFieldEditor(page: Page, name: string) {
-  await fieldHeader(page, name)
-    .locator(".grid-view__description-icon-trigger")
-    .click();
-  await page.locator(".context__menu-item", { hasText: "Edit field" }).click();
+  // The Context self-hides when it does not fit, and the first click can land
+  // before the header has settled, so open it until the menu is really there.
+  const editItem = page.locator(".context__menu-item", {
+    hasText: "Edit field",
+  });
+  await expect(async () => {
+    await fieldHeader(page, name)
+      .locator(".grid-view__description-icon-trigger")
+      .click();
+    await expect(editItem).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  await editItem.click();
   await expect(page.locator(".button-field-action-list")).toBeVisible();
 }
 
 test.describe("Button field", () => {
   // The grid only renders the columns that fit, and this suite needs one
   // button field per behaviour, so every column has to be on screen at once.
-  test.use({ viewport: { width: 3600, height: 900 } });
+  test.use({ viewport: { width: 4200, height: 900 } });
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -103,6 +133,9 @@ test.describe("Button field", () => {
         { name: "BadLink", type: "button", settings: { label: "BadLink" } },
         { name: "Retype", type: "button", settings: { label: "Retype" } },
         { name: "Remove", type: "button", settings: { label: "Remove" } },
+        { name: "Spawn", type: "button", settings: { label: "Spawn" } },
+        { name: "ModifiedBy", type: "last_modified_by" },
+        { name: "Cross", type: "button", settings: { label: "Cross" } },
       ],
     });
 
@@ -179,7 +212,21 @@ test.describe("Button field", () => {
     // A second table for the re-pick test, with a field name this table has
     // none of, so which table's mappings are showing is unambiguous.
     otherTable = await createTable(g.user, "Others", g.database);
-    await createField(g.user, "OtherOnly", "text", {}, otherTable);
+    const otherOnly = await createField(
+      g.user,
+      "OtherOnly",
+      "text",
+      {},
+      otherTable,
+    );
+
+    // "Cross" points outside the table it lives on, so duplicating that table
+    // leaves its target with no entry in the id mapping.
+    await createRowAction(g.user, g.fieldByName["Cross"], {
+      type: "local_baserow_create_row",
+      table: otherTable,
+      fieldMappings: [{ field: otherOnly, value: "'crossed'" }],
+    });
 
     await createRowAction(g.user, g.fieldByName["Retarget"], {
       type: "local_baserow_update_row",
@@ -209,6 +256,19 @@ test.describe("Button field", () => {
       table: g.table,
       rowId: "get('row.id')",
     });
+
+    // "Spawn" writes a row that did not exist when it was clicked, so the
+    // effect lands somewhere other than the clicked row.
+    await createRowAction(g.user, g.fieldByName["Spawn"], {
+      type: "local_baserow_create_row",
+      table: g.table,
+      fieldMappings: [{ field: g.fieldByName["Name"], value: "'Spawned'" }],
+    });
+
+    // A second member of the workspace, who clicks the same buttons as the
+    // user that configured them.
+    otherUser = await createUser();
+    await addUserToWorkspace(g.user, g.database.workspace, otherUser);
   });
 
   test("clicking a button runs its row action and the grid shows the result", async ({
@@ -294,6 +354,33 @@ test.describe("Button field", () => {
       expect(actions[0].service.field_mappings[0].value.formula).toBe(
         "'seeded'",
       );
+    }).toPass({ timeout: 15_000 });
+
+    // Removing is the other half of the same reconciliation, and it deletes
+    // server side rather than creating, so the list has to be re-sent without
+    // the action that went.
+    await openFieldEditor(page, "Editable");
+    await expect(
+      actionList.locator(".button-field-action-list__item"),
+    ).toHaveCount(2);
+    await actionList
+      .locator(".button-field-action-list__item")
+      .first()
+      .locator(".button-field-action-list__header .button-icon")
+      .click();
+    await expect(
+      actionList.locator(".button-field-action-list__item"),
+    ).toHaveCount(1);
+
+    await page.locator(".field-context button", { hasText: "Save" }).click();
+
+    await expect(async () => {
+      const actions = await listWorkflowActions(
+        g.user,
+        g.fieldByName["Editable"],
+      );
+      // Only the survivor is left, still configured as it was.
+      expect(actions.map((action) => action.type)).toEqual(["open_url"]);
     }).toPass({ timeout: 15_000 });
   });
 
@@ -779,5 +866,171 @@ test.describe("Button field", () => {
 
     const rows = await listRows(g.user, g.table);
     expect(rows.map((row) => row.Name)).toEqual(["Grace", "Hedy"]);
+  });
+
+  test("a create row action puts the new row on the grid", async ({ page }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await expect(grid.leftRows()).toHaveCount(1);
+
+    await grid.fieldCellAt(0, SPAWN_FIELD_INDEX).locator("button").click();
+
+    // The row the click made is not the row it was clicked on, so the grid can
+    // only learn about it from the broadcast that follows the dispatch.
+    await expect(grid.leftRows()).toHaveCount(2);
+    await expect(grid.primaryCellAt(1)).toHaveText("Spawned");
+
+    const rows = await listRows(g.user, g.table);
+    expect(rows.map((row) => row.Name)).toEqual(["Ada", "Spawned"]);
+  });
+
+  test("a click runs as whoever clicked, not as whoever configured it", async ({
+    page,
+    browser,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await grid.fieldCellAt(0, RUN_FIELD_INDEX).locator("button").click();
+    await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText("done");
+    await expect(grid.fieldCellAt(0, MODIFIED_BY_FIELD_INDEX)).toContainText(
+      g.user.name,
+    );
+
+    // A different member of the workspace, in their own browser, clicking the
+    // same button on the same row.
+    const otherContext = await browser.newContext();
+    try {
+      const otherPage = await otherContext.newPage();
+      const otherGrid = new GridPage(otherPage, otherUser);
+      await otherGrid.goTo(g.database, g.table);
+
+      await otherGrid.fieldCellAt(0, RUN_FIELD_INDEX).locator("button").click();
+
+      // The write is attributed to them, not to the user who built the field.
+      // Nothing in the action says who it runs as, which is the point of
+      // dispatching as the actor instead of an integration's authorized user.
+      await expect(
+        otherGrid.fieldCellAt(0, MODIFIED_BY_FIELD_INDEX),
+      ).toContainText(otherUser.name);
+
+      // The first user sees it land too, from a click they never made.
+      await expect(grid.fieldCellAt(0, MODIFIED_BY_FIELD_INDEX)).toContainText(
+        otherUser.name,
+      );
+    } finally {
+      await otherContext.close();
+    }
+  });
+
+  test("a duplicated table's actions target the copy, not the original", async ({
+    page,
+  }) => {
+    // Duplicating a table this wide is slow, and the job has to finish before
+    // anything can be asserted.
+    test.setTimeout(180_000);
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    // Duplicate from the sidebar, the way a user would. The Context self-hides
+    // when it does not fit, so the menu is opened until the item is there.
+    const original = sidebarTable(page, "Tickets");
+    await original.hover();
+    const duplicateItem = page.locator(
+      '.context__menu-item-link:visible:has-text("Duplicate")',
+    );
+    await expect(async () => {
+      await original.locator(".tree__options").click();
+      await expect(duplicateItem).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15_000 });
+    await duplicateItem.click();
+
+    const copyRow = sidebarTable(page, "Tickets 2");
+    await expect(copyRow).toBeVisible({ timeout: 150_000 });
+    await copyRow.locator("a.tree__sub-link").click();
+    await expect(page.locator(".grid-view__right")).toBeVisible();
+
+    const form = page.locator(".button-field-action-list__form");
+    // Database first, then table.
+    const targetTable = form.locator(".dropdown__selected-text").nth(1);
+
+    // "Run" targets the table it lives on, so the copy's version follows the
+    // copy.
+    await openFieldEditor(page, "Run");
+    await expect(targetTable).toHaveText("Tickets 2");
+    await expect(form.getByText("Status")).toBeVisible();
+
+    // A closed field context stays mounted, so the next editor has to open on
+    // a fresh page or both forms would be addressable at once.
+    await page.reload();
+    await expect(page.locator(".grid-view__right")).toBeVisible();
+
+    // "Cross" targets a table that was not duplicated, which has no entry in
+    // the id mapping. Nulling it there is what emptied these dropdowns.
+    await openFieldEditor(page, "Cross");
+    await expect(targetTable).toHaveText("Others");
+    await expect(form.getByText("OtherOnly")).toBeVisible();
+
+    const copy = (await listTables(g.user, g.database)).find(
+      (table) => table.name === "Tickets 2",
+    );
+    if (!copy) throw new Error("the duplicated table is missing");
+    const copyFields = await getFieldsForTable(g.user, copy);
+    const fieldNamed = (name: string) => {
+      const field = copyFields.find((candidate) => candidate.name === name);
+      if (!field) throw new Error(`the duplicated ${name} field is missing`);
+      return field;
+    };
+
+    // The same two, read back from the server rather than the form.
+    const runActions = await listWorkflowActions(g.user, fieldNamed("Run"));
+    expect(runActions[0].service.table_id).toBe(copy.id);
+    expect(runActions[0].service.table_id).not.toBe(g.table.id);
+
+    const crossActions = await listWorkflowActions(g.user, fieldNamed("Cross"));
+    expect(crossActions[0].service.table_id).toBe(otherTable.id);
+  });
+
+  test("a button field made in the UI renders disabled until it has an action", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await page.locator(".grid-view__add-column").click();
+    const context = page.locator(".field-context:visible");
+    await context.getByPlaceholder("Name").fill("Made");
+
+    // The type only appears here while the feature flag is on, so picking it
+    // is the flag's only end to end coverage.
+    await context.locator(".dropdown").first().click();
+    await page
+      .locator(".dropdown__items:visible")
+      .locator(".select__item-link", { hasText: "Button" })
+      .click();
+
+    await context.getByPlaceholder("Open").fill("Go");
+    await context.locator("button", { hasText: "Create" }).click();
+
+    await expect(fieldHeader(page, "Made")).toBeVisible();
+    const button = grid
+      .fieldCellAt(0, CREATED_FIELD_INDEX)
+      .locator(".grid-field-button button");
+    await expect(button).toHaveText("Go");
+    // A button with nothing to run has nothing to do.
+    await expect(button).toBeDisabled();
+
+    // Put the table back, since the rest of the suite counts on its columns.
+    await fieldHeader(page, "Made")
+      .locator(".grid-view__description-icon-trigger")
+      .click();
+    await page
+      .locator(".context__menu-item-link", { hasText: "Delete field" })
+      .click();
+    await expect(fieldHeader(page, "Made")).toHaveCount(0);
   });
 });
