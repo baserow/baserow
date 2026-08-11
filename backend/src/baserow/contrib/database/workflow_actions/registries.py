@@ -18,7 +18,10 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
-from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
+from baserow.core.services.exceptions import (
+    InvalidServiceTypeDispatchSource,
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
@@ -251,9 +254,14 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     def dispatch(
         self, workflow_action, dispatch_context: "DatabaseDispatchContext"
     ) -> DispatchResult:
-        return ServiceHandler().dispatch_service(
-            workflow_action.service.specific, dispatch_context
-        )
+        service = workflow_action.service.specific
+        # A database service runs as the dispatch actor, never as an
+        # integration's `authorized_user` (ADR 006 section 5).
+        if service.integration_id is not None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "A database service cannot use an integration."
+            )
+        return ServiceHandler().dispatch_service(service, dispatch_context)
 
 
 class DatabaseWorkflowActionTypeRegistry(

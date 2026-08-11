@@ -535,3 +535,30 @@ def test_a_button_with_only_an_open_url_does_not_take_the_lock(data_fixture):
 
     assert results == []
     assert len(client_actions) == 1
+
+
+@pytest.mark.django_db
+def test_a_service_carrying_an_integration_does_not_run_as_its_user(data_fixture):
+    """An integration's `authorized_user` outranks the dispatch actor. The row
+    count either side proves the refusal left the table alone."""
+
+    user = data_fixture.create_user()
+    victim = data_fixture.create_user()
+    victim_integration = data_fixture.create_local_baserow_integration(
+        user=victim, authorized_user=victim
+    )
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _create_row_action(data_fixture, button_field, table, name_field, "made")
+    service = action.service.specific
+    service.integration = victim_integration
+    service.save()
+    rows_before = table.get_model().objects.count()
+
+    with pytest.raises(WorkflowActionDispatchError):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert table.get_model().objects.count() == rows_before
