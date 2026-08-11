@@ -64,6 +64,23 @@ describe('More onboarding step', () => {
     )
   })
 
+  test('follows the earlier answer when it changes', async () => {
+    const wrapper = await mountComponent({
+      database: { type: 'ai', team: 'Client services' },
+    })
+    await nextTick()
+
+    await wrapper.setProps({
+      data: {
+        database: { type: 'ai', team: 'Client services' },
+        ai_prompt: { team: 'Sales' },
+      },
+    })
+    await nextTick()
+
+    expect(wrapper.emitted('update-data').at(-1)[0].team).toBe('Sales')
+  })
+
   test('does not treat its own answer as an earlier one', async () => {
     const wrapper = await mountComponent({ more: { team: 'Marketing' } })
     await nextTick()

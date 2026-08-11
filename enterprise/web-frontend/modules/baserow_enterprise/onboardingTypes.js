@@ -33,7 +33,6 @@ export class AIPromptOnboardingType extends OnboardingType {
   async complete(data, responses, callback) {
     const { $i18n: i18n } = this.app
     const workspace = responses[DatabaseOnboardingType.getType()].workspace
-    const database = data[DatabaseOnboardingType.getType()]
 
     await this.app.$store.dispatch('workspace/select', workspace)
 
@@ -41,8 +40,8 @@ export class AIPromptOnboardingType extends OnboardingType {
     const message = [
       i18n.t('aiPromptOnboardingType.prompt', { prompt: stepData.prompt }),
       i18n.t('aiPromptOnboardingType.context', {
-        industry: database.industry,
-        team: database.team,
+        industry: stepData.industry,
+        team: stepData.team,
       }),
       i18n.t('aiPromptOnboardingType.language', {
         language: stepData.language,

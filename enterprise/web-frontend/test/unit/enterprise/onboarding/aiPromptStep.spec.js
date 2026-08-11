@@ -41,27 +41,50 @@ const suggestions = [
   { name: 'Content calendar', prompt: 'Plan and schedule social posts.' },
 ]
 
+// The onboarding keeps the steps alive, so leaving and coming back to the step must
+// be tested the same way.
+const KeepAliveHost = defineComponent({
+  components: { AIPromptStep },
+  props: {
+    data: { type: Object, required: true },
+    visible: { type: Boolean, default: true },
+  },
+  template:
+    '<KeepAlive><AIPromptStep v-if="visible" :data="data" /></KeepAlive>',
+})
+
+const globalOptions = {
+  stubs: {
+    FormGroup: FormGroupStub,
+    FormTextarea: FormTextareaStub,
+    ButtonText: ButtonTextStub,
+    AIOnboardingDetailsModal: DetailsModalStub,
+  },
+  mocks: { $t: (key) => key, $i18n: { locale: 'en' } },
+}
+
+function onboardingData(database = {}) {
+  return {
+    database: {
+      type: 'ai',
+      industry: 'Marketing',
+      team: 'Client services',
+      ...database,
+    },
+  }
+}
+
 async function mountComponent(database = {}) {
   return await mountSuspended(AIPromptStep, {
-    props: {
-      data: {
-        database: {
-          type: 'ai',
-          industry: 'Marketing',
-          team: 'Client services',
-          ...database,
-        },
-      },
-    },
-    global: {
-      stubs: {
-        FormGroup: FormGroupStub,
-        FormTextarea: FormTextareaStub,
-        ButtonText: ButtonTextStub,
-        AIOnboardingDetailsModal: DetailsModalStub,
-      },
-      mocks: { $t: (key) => key, $i18n: { locale: 'en' } },
-    },
+    props: { data: onboardingData(database) },
+    global: globalOptions,
+  })
+}
+
+async function mountKeptAlive() {
+  return await mountSuspended(KeepAliveHost, {
+    props: { data: onboardingData() },
+    global: globalOptions,
   })
 }
 
@@ -106,7 +129,69 @@ describe('AI prompt step', () => {
     expect(wrapper.emitted('update-data').at(-1)[0]).toEqual({
       prompt: suggestions[1].prompt,
       language: 'en',
+      industry: 'Marketing',
+      team: 'Client services',
     })
+  })
+
+  test('changed details are part of the data of the step', async () => {
+    const wrapper = await mountComponent()
+    await flushPromises()
+
+    wrapper.findComponent(DetailsModalStub).vm.$emit('updated', {
+      industry: 'Retail',
+      team: 'Sales',
+    })
+    await flushPromises()
+
+    expect(wrapper.emitted('update-data').at(-1)[0]).toEqual(
+      expect.objectContaining({ industry: 'Retail', team: 'Sales' })
+    )
+  })
+
+  test('changed details survive leaving and coming back to the step', async () => {
+    const host = await mountKeptAlive()
+    await flushPromises()
+
+    host.findComponent(DetailsModalStub).vm.$emit('updated', {
+      industry: 'Retail',
+      team: 'Sales',
+    })
+    await flushPromises()
+
+    await host.setProps({ visible: false })
+    await host.setProps({ visible: true })
+    await flushPromises()
+
+    expect(
+      host.findComponent(AIPromptStep).emitted('update-data').at(-1)[0]
+    ).toEqual(expect.objectContaining({ industry: 'Retail', team: 'Sales' }))
+  })
+
+  test('changing the earlier answers replaces the details', async () => {
+    const host = await mountKeptAlive()
+    await flushPromises()
+
+    host.findComponent(DetailsModalStub).vm.$emit('updated', {
+      industry: 'Retail',
+      team: 'Sales',
+    })
+    await flushPromises()
+
+    await host.setProps({ visible: false })
+    await host.setProps({
+      visible: true,
+      data: {
+        database: { type: 'ai', industry: 'Hotels', team: 'Front desk' },
+      },
+    })
+    await flushPromises()
+
+    expect(
+      host.findComponent(AIPromptStep).emitted('update-data').at(-1)[0]
+    ).toEqual(
+      expect.objectContaining({ industry: 'Hotels', team: 'Front desk' })
+    )
   })
 
   test('a hand written prompt survives regenerating the suggestions', async () => {

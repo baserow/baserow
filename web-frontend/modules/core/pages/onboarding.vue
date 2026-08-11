@@ -57,7 +57,6 @@
               <div class="onboarding__back">
                 <ButtonText
                   :ph-autocapture="'onboarding-back-step-' + step.getType()"
-                  tag="a"
                   icon="iconoir-nav-arrow-left"
                   :disabled="!canGoBack()"
                   @click="previous()"
@@ -184,6 +183,12 @@ export default {
     canSkip() {
       return this.step.canSkip()
     },
+    updateData() {
+      const type = this.step.getType()
+      return (data) => {
+        this.data = { ...this.data, [type]: data }
+      }
+    },
   },
   methods: {
     /**
@@ -203,10 +208,6 @@ export default {
      * `canGoBack` and `goBack`.
      */
     previous() {
-      // A disabled anchor still fires a click, so the guard has to be here too.
-      if (!this.canGoBack()) {
-        return
-      }
       if (this.$refs.form?.canGoBack?.() === true) {
         this.$refs.form.goBack()
       } else {
@@ -408,9 +409,6 @@ export default {
       await this.$store.dispatch('workspace/clearAll')
       await this.$store.dispatch('application/clearAll')
       this.$router.push({ name: 'dashboard' })
-    },
-    updateData(data) {
-      this.data = { ...this.data, [this.step.getType()]: data }
     },
     isValid() {
       const form = this.$refs?.form

@@ -100,13 +100,16 @@ export default {
     /**
      * An earlier step can already have asked which team the user is on, like the
      * AI one does. We don't want to ask that twice, so their answer is used as is.
+     * The answer of the last step wins because that's the one the user could have
+     * corrected most recently.
      */
     prefilledTeam() {
       return (
         Object.entries(this.data)
           .filter(([type]) => type !== MoreOnboardingType.getType())
           .map(([, stepData]) => stepData?.team)
-          .find((team) => team) || ''
+          .filter((team) => team)
+          .pop() || ''
       )
     },
     chosenTeam() {
@@ -152,7 +155,7 @@ export default {
     how() {
       this.updateValue()
     },
-    team() {
+    chosenTeam() {
       this.updateValue()
     },
     country() {

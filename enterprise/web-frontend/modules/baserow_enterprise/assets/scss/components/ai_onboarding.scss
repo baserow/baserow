@@ -46,8 +46,15 @@
   gap: 24px 14px;
 }
 
-.ai-prompt-suggestion:hover {
-  text-decoration: none;
+.ai-prompt-suggestion {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .ai-prompt-suggestion__preview {

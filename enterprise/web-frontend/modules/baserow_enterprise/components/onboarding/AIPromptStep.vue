@@ -29,7 +29,7 @@
       <div class="ai-prompt-suggestions__title">
         {{ $t('aiPromptStep.suggestionsTitle') }}
       </div>
-      <ButtonText tag="a" icon="iconoir-edit-pencil" @click="editDetails()">{{
+      <ButtonText icon="iconoir-edit-pencil" @click="editDetails()">{{
         $t('aiPromptStep.editDetails')
       }}</ButtonText>
     </div>
@@ -47,10 +47,11 @@
           <div class="ai-prompt-suggestion__name"></div>
         </div>
       </template>
-      <a
+      <button
         v-for="suggestion in suggestions"
         v-else
         :key="suggestion.name"
+        type="button"
         class="ai-prompt-suggestion"
         :class="{
           'ai-prompt-suggestion--active': suggestion.prompt === prompt,
@@ -63,7 +64,7 @@
           </div>
         </div>
         <div class="ai-prompt-suggestion__name">{{ suggestion.name }}</div>
-      </a>
+      </button>
     </div>
 
     <AIOnboardingDetailsModal
@@ -98,6 +99,7 @@ export default {
       promptEdited: false,
       suggestions: [],
       details: this.answers(),
+      lastAnswers: this.answers(),
     }
   },
   computed: {
@@ -117,6 +119,9 @@ export default {
     prompt() {
       this.emitData()
     },
+    details() {
+      this.emitData()
+    },
   },
   mounted() {
     this.emitData()
@@ -127,9 +132,10 @@ export default {
     // answers and end up here again with suggestions that no longer match.
     const answers = this.answers()
     if (
-      answers.industry !== this.details.industry ||
-      answers.team !== this.details.team
+      answers.industry !== this.lastAnswers.industry ||
+      answers.team !== this.lastAnswers.team
     ) {
+      this.lastAnswers = answers
       this.details = answers
       this.fetchSuggestions()
     }
@@ -139,6 +145,7 @@ export default {
       this.$emit('update-data', {
         prompt: this.prompt,
         language: this.$i18n.locale,
+        ...this.details,
       })
     },
     answers() {
