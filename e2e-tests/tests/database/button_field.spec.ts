@@ -22,19 +22,28 @@ import {
   listWorkflowActions,
 } from "../../fixtures/database/workflowAction";
 import { listRows } from "../../fixtures/database/rows";
+import { Table, createTable } from "../../fixtures/database/table";
+import { createField } from "../../fixtures/database/field";
 import { patchView } from "../../fixtures/database/view";
 import { getClient } from "../../client";
 import { baserowConfig } from "../../playwright.config";
 
+// Positions in the right-hand section, in the order `beforeAll` creates them.
 const STATUS_FIELD_INDEX = 0;
-const RUN_FIELD_INDEX = 1;
-const LINK_FIELD_INDEX = 2;
-const BROKEN_FIELD_INDEX = 6;
-const BAD_LINK_FIELD_INDEX = 7;
+const NOTE_FIELD_INDEX = 1;
+const RUN_FIELD_INDEX = 2;
+const RUN_TWO_FIELD_INDEX = 3;
+const DEFERRED_FIELD_INDEX = 4;
+const LINK_FIELD_INDEX = 6;
+const BROKEN_FIELD_INDEX = 10;
+const BAD_LINK_FIELD_INDEX = 11;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
   "Run",
+  "RunTwo",
+  "Deferred",
+  "Retarget",
   "Link",
   "Editable",
   "Orderable",
@@ -44,6 +53,7 @@ const BUTTON_FIELD_NAMES = [
 ];
 
 let g: GridSetupResult;
+let otherTable: Table;
 
 /** The header column of a non-primary field, by name. */
 function fieldHeader(page: Page, name: string) {
@@ -68,7 +78,7 @@ async function openFieldEditor(page: Page, name: string) {
 test.describe("Button field", () => {
   // The grid only renders the columns that fit, and this suite needs one
   // button field per behaviour, so every column has to be on screen at once.
-  test.use({ viewport: { width: 2200, height: 900 } });
+  test.use({ viewport: { width: 3200, height: 900 } });
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -76,7 +86,11 @@ test.describe("Button field", () => {
       tableName: "Tickets",
       fields: [
         { name: "Status", type: "text" },
+        { name: "Note", type: "text" },
         { name: "Run", type: "button", settings: { label: "Run" } },
+        { name: "RunTwo", type: "button", settings: { label: "RunTwo" } },
+        { name: "Deferred", type: "button", settings: { label: "Deferred" } },
+        { name: "Retarget", type: "button", settings: { label: "Retarget" } },
         { name: "Link", type: "button", settings: { label: "Link" } },
         { name: "Editable", type: "button", settings: { label: "Editable" } },
         { name: "Orderable", type: "button", settings: { label: "Orderable" } },
@@ -132,6 +146,40 @@ test.describe("Button field", () => {
     // resolves in the browser.
     await createOpenUrlAction(g.user, g.fieldByName["BadLink"], {
       url: "get('fields.field_999999')",
+    });
+
+    // "RunTwo" writes a different column to "Run", so two buttons on one row
+    // can be checked without the two writes racing each other.
+    await createRowAction(g.user, g.fieldByName["RunTwo"], {
+      type: "update_row",
+      table: g.table,
+      rowId: "get('row.id')",
+      fieldMappings: [{ field: g.fieldByName["Note"], value: "'two'" }],
+    });
+
+    // "Deferred" runs server side and then hands a client action back, so the
+    // browser still has work to do after the cell may be gone.
+    await createRowAction(g.user, g.fieldByName["Deferred"], {
+      type: "update_row",
+      table: g.table,
+      rowId: "get('row.id')",
+      fieldMappings: [{ field: g.fieldByName["Status"], value: "'scrolled'" }],
+    });
+    await createOpenUrlAction(g.user, g.fieldByName["Deferred"], {
+      url: "'/dashboard'",
+      target: "self",
+    });
+
+    // A second table for the re-pick test, with a field name this table has
+    // none of, so which table's mappings are showing is unambiguous.
+    otherTable = await createTable(g.user, "Others", g.database);
+    await createField(g.user, "OtherOnly", "text", {}, otherTable);
+
+    await createRowAction(g.user, g.fieldByName["Retarget"], {
+      type: "update_row",
+      table: g.table,
+      rowId: "get('row.id')",
+      fieldMappings: [{ field: g.fieldByName["Status"], value: "'x'" }],
     });
   });
 
@@ -454,5 +502,152 @@ test.describe("Button field", () => {
       expect(publicFieldIds).not.toContain(fieldId);
       expect(rows.data.results[0]).not.toHaveProperty(`field_${fieldId}`);
     }
+  });
+
+  test("a client action still runs when its cell scrolls away mid-dispatch", async ({
+    page,
+  }) => {
+    // The grid only keeps the rows near the viewport mounted, so a slow
+    // dispatch can outlive the cell that started it. Whatever is left to do
+    // afterwards must neither be skipped nor throw at a dead component.
+    await resetRows(
+      g,
+      Array.from({ length: 60 }, (_, i) => ({
+        Name: `Row ${i + 1}`,
+        Status: "todo",
+      })),
+    );
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(
+      (url) => url.pathname.endsWith("/workflow_actions/dispatch/"),
+      async (route) => {
+        await held;
+        await route.continue();
+      },
+    );
+
+    await grid.fieldCellAt(0, DEFERRED_FIELD_INDEX).locator("button").click();
+
+    // Scroll the clicked row out of the rendered buffer while the request is
+    // still open, so the cell unmounts underneath it.
+    await grid.scrollPrimaryIntoView("Row 60");
+    await expect(
+      page.locator(".grid-view__left").getByText("Row 1", { exact: true }),
+    ).toHaveCount(0);
+
+    release();
+
+    // The `open_url` handed back by the dispatch still runs, in a browser
+    // whose originating cell no longer exists.
+    await expect(page).toHaveURL(/\/(dashboard|workspace\/\d+)/);
+    expect(pageErrors).toEqual([]);
+
+    const rows = await listRows(g.user, g.table);
+    expect(rows.find((row) => row.Name === "Row 1")?.Status).toBe("scrolled");
+  });
+
+  test("two buttons on the same row do not block each other", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo", Note: "" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    // Both the in-flight guard and the backend lock are keyed by field and
+    // row, so a click on one button must not shut out the other.
+    let dispatches = 0;
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(
+      (url) => url.pathname.endsWith("/workflow_actions/dispatch/"),
+      async (route) => {
+        dispatches += 1;
+        await held;
+        await route.continue();
+      },
+    );
+
+    await grid.fieldCellAt(0, RUN_FIELD_INDEX).locator("button").click();
+    await grid.fieldCellAt(0, RUN_TWO_FIELD_INDEX).locator("button").click();
+
+    await expect.poll(() => dispatches).toBe(2);
+
+    release();
+
+    await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText("done");
+    await expect(grid.fieldCellAt(0, NOTE_FIELD_INDEX)).toHaveText("two");
+  });
+
+  test("re-picking a target table shows the newly picked table's fields", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    // Held back so the fields for "Others" arrive after the ones for the table
+    // picked next. Without the fetch token that stale response would win and
+    // the form would list a table the user is no longer pointing at.
+    let releaseOthers: () => void = () => {};
+    let othersFetched = 0;
+    const othersHeld = new Promise<void>((resolve) => {
+      releaseOthers = resolve;
+    });
+    const othersPath = `/database/fields/table/${otherTable.id}/`;
+    await page.route(
+      (url) => url.pathname.endsWith(othersPath),
+      async (route) => {
+        othersFetched += 1;
+        await othersHeld;
+        await route.continue();
+      },
+    );
+
+    await openFieldEditor(page, "Retarget");
+    const actionForm = page.locator(".button-field-action-list__form");
+    // Database first, then table: the second dropdown of the pair.
+    const tableDropdown = actionForm.locator(".dropdown").nth(1);
+
+    const pickTable = async (name: string) => {
+      await tableDropdown.click();
+      await page
+        .locator(".dropdown__items:visible")
+        .locator(".select__item-link", { hasText: name })
+        .click();
+    };
+
+    // Switched back straight away, so the first table's fields are still in
+    // flight when the second request goes out.
+    await pickTable("Others");
+    await pickTable("Tickets");
+
+    // The race only happened if the first table's fields were really in
+    // flight across the second pick.
+    expect(othersFetched).toBe(1);
+    await expect(actionForm.getByText("Status")).toBeVisible();
+
+    // Only now does the overtaken response land, and it has to be waited for:
+    // asserting its absence before it arrives would pass either way.
+    const stale = page.waitForResponse((response) =>
+      response.url().endsWith(othersPath),
+    );
+    releaseOthers();
+    await stale;
+    await page.waitForTimeout(500);
+
+    // The later request still owns the form, and nothing is left spinning.
+    await expect(actionForm.getByText("OtherOnly")).toHaveCount(0);
+    await expect(actionForm.getByText("Status")).toBeVisible();
+    await expect(actionForm.locator(".loading-spinner")).toHaveCount(0);
   });
 });
