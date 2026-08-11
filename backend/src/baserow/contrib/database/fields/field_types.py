@@ -51,7 +51,7 @@ from django.db.models import (
 )
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
-from django.db.models.functions import Cast, Coalesce, Left, RowNumber
+from django.db.models.functions import Cast, Coalesce, Left, LPad, RowNumber
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -7372,9 +7372,15 @@ class MultipleCollaboratorsFieldType(
         pair_field = ArrayField(models.TextField(), size=2)
         sort_key_field = ArrayField(pair_field)
 
+        collated_name = collate_expression(F(f"{field_name}__first_name"))
+
         option_key = Func(
-            F(f"{field_name}__first_name"),
-            Cast(F(f"{field_name}__id"), output_field=models.TextField()),
+            collated_name,
+            LPad(
+                Cast(F(f"{field_name}__id"), output_field=models.TextField()),
+                12,
+                Value("0"),
+            ),
             template="ARRAY[%(expressions)s]",
             output_field=pair_field,
         )
@@ -7383,7 +7389,7 @@ class MultipleCollaboratorsFieldType(
             ArrayAgg(
                 option_key,
                 filter=Q(**{f"{field_name}__id__isnull": False}),
-                order_by=(f"{field_name}__first_name", f"{field_name}__id"),
+                order_by=(collated_name.asc(), F(f"{field_name}__id").asc()),
             ),
             Value([], output_field=sort_key_field),
             output_field=sort_key_field,
