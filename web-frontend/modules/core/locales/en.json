@@ -549,6 +549,8 @@
     "tutorialsMessage": "Discover the potential of Baserow",
     "apiDocumentation": "API documentation",
     "apiDocumentationMessage": "Learn more about our code",
+    "academy": "Baserow Academy",
+    "academyMessage": "Follow courses and become an expert",
     "emptyWorkspace": "This workspace is empty",
     "emptyWorkspaceMessage": "Get started by creating a new database or application.",
     "addNew": "Add new...",
