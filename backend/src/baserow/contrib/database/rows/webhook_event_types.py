@@ -156,6 +156,9 @@ class RowsEventType(RespectSendWebhookEvents, WebhookEventType):
         :return: A list of row IDs in the related table that have changed.
         """
 
+        if not rows:
+            return []
+
         model = rows[0]._meta.model
         table_field_objs = model.get_field_objects()
 
@@ -251,7 +254,7 @@ class RowsEventType(RespectSendWebhookEvents, WebhookEventType):
 
         q = self._get_filters_for_webhooks_to_call(model=model, table=table, **kwargs)
 
-        if kwargs.get("rows") is not None:
+        if kwargs.get("rows"):
             q |= self.get_filters_for_related_webhook_to_call(
                 model=model, table=table, **kwargs
             )

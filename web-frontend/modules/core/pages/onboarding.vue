@@ -3,10 +3,12 @@
     <Toasts></Toasts>
     <div v-if="creating && creatingFailed" class="onboarding__loading">
       <div class="onboarding__loading-text">
-        {{ $t('onboarding.failedTitle') }}
+        {{ failedJobErrorMessage?.title || $t('onboarding.failedTitle') }}
       </div>
-      <p>
-        {{ $t('onboarding.failedDescription') }}
+      <p class="onboarding__loading-description">
+        {{
+          failedJobErrorMessage?.message || $t('onboarding.failedDescription')
+        }}
       </p>
       <div>
         <Button
@@ -130,6 +132,8 @@ export default {
       data: {},
       creating: false,
       creatingFailed: false,
+      failedJobErrorMessage: null,
+      jobPollingError: null,
       cancelling: false,
       reloading: false,
       message: null,
@@ -228,6 +232,15 @@ export default {
             this.job = null
           } catch (error) {
             this.creatingFailed = true
+            // The polled job holds the reason of the failure, so the step can
+            // provide a specific explanation that helps the user take action.
+            if (this.job) {
+              this.failedJobErrorMessage = step.getJobErrorMessage(
+                this.job,
+                this.data,
+                responses
+              )
+            }
             console.error(error)
             return
           }
@@ -315,6 +328,7 @@ export default {
       location.reload()
     },
     startAndWaitForJob(job) {
+      this.jobPollingError = null
       this.startJobPoller(job)
 
       return new Promise((resolve, reject) => {
@@ -325,9 +339,17 @@ export default {
           } else if (this.jobHasFailed) {
             clearInterval(intervalId)
             reject(new Error('job failed'))
+          } else if (this.jobPollingError !== null) {
+            clearInterval(intervalId)
+            reject(this.jobPollingError)
           }
         }, 100)
       })
+    },
+    onJobPollingError(error) {
+      // Without storing the error, the interval in `startAndWaitForJob` would keep
+      // spinning forever because the job is reset when polling fails.
+      this.jobPollingError = error
     },
   },
 }

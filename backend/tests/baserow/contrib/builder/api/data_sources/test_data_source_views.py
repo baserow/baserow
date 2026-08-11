@@ -2305,7 +2305,7 @@ def test_dispatch_data_source_anonymous_unpublished_builder_is_denied(
     response = api_client.post(url, {}, format="json")
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
-    assert response.json()["error"] == "PERMISSION_DENIED"
+    assert response.json()["detail"] == "Authentication credentials were not provided."
 
 
 @pytest.mark.django_db
@@ -2617,6 +2617,7 @@ def test_dispatch_data_source_view(
     mock_builder_dispatch_context,
     mock_dispatch_data_source,
     api_client,
+    data_fixture,
 ):
     """
     Test the DispatchDataSourceView endpoint.
@@ -2625,7 +2626,9 @@ def test_dispatch_data_source_view(
     filter any fields in the Editor.
     """
 
+    user, token = data_fixture.create_user_and_token()
     mock_data_source = MagicMock()
+    mock_data_source.page.builder.is_published = False
     mock_get_data_source.return_value = mock_data_source
 
     mock_dispatch_context = MagicMock()
@@ -2639,7 +2642,7 @@ def test_dispatch_data_source_view(
         "api:builder:data_source:dispatch",
         kwargs={"data_source_id": mock_data_source_id},
     )
-    response = api_client.post(url)
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
     assert response.status_code == 200
     assert response.json() == mock_response
@@ -2724,6 +2727,41 @@ def test_private_dispatch_data_source_view_returns_all_fields(api_client, data_f
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("dispatch_all", [False, True])
+@pytest.mark.parametrize("authenticated", [False, True])
+def test_published_internal_dispatch_is_denied(
+    api_client, data_fixture, dispatch_all, authenticated
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+    )
+
+    builder.workspace = None
+    builder.save()
+    data_fixture.create_builder_custom_domain(published_to=builder)
+
+    if dispatch_all:
+        url = reverse(
+            "api:builder:data_source:dispatch-all", kwargs={"page_id": page.id}
+        )
+    else:
+        url = reverse(
+            "api:builder:data_source:dispatch",
+            kwargs={"data_source_id": data_source.id},
+        )
+
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if authenticated else {}
+    response = api_client.post(url, {}, format="json", **headers)
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
 @patch(
     "baserow.contrib.builder.api.data_sources.views.DataSourceService.dispatch_page_data_sources"
 )
@@ -2734,6 +2772,7 @@ def test_dispatch_data_sources_view(
     mock_builder_dispatch_context,
     mock_dispatch_page_data_sources,
     api_client,
+    data_fixture,
 ):
     """
     Test the DispatchDataSourcesView
@@ -2743,7 +2782,9 @@ def test_dispatch_data_sources_view(
     filter any fields in the Editor.
     """
 
+    user, token = data_fixture.create_user_and_token()
     mock_page = MagicMock()
+    mock_page.builder.is_published = False
     mock_get_page.return_value = mock_page
 
     mock_dispatch_context = MagicMock()
@@ -2756,7 +2797,7 @@ def test_dispatch_data_sources_view(
     url = reverse(
         "api:builder:data_source:dispatch-all", kwargs={"page_id": mock_page_id}
     )
-    response = api_client.post(url)
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
     assert response.status_code == 200
     assert response.json() == mock_service_contents

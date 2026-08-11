@@ -94,9 +94,19 @@ test.describe("Table import job restore after reload", () => {
 
     // Reload the page while the import is still running. We deliberately
     // don't wait for "networkidle" — the job poller fires every 2s, so
-    // networkidle won't settle and would eat the test budget. The next
-    // click auto-waits for the title to appear.
+    // networkidle won't settle and would eat the test budget.
     await page.reload();
+
+    // Wait until Nuxt finishes hydrating. The sidebar is server-rendered, so
+    // without this the click below lands on the SSR markup before Vue attaches
+    // its listener and is silently lost — the database never expands and the
+    // "New table" link never appears.
+    await page.waitForFunction(
+      () =>
+        typeof (window as any).useNuxtApp === "function" &&
+        !(window as any).useNuxtApp().isHydrating,
+      { timeout: 15000 }
+    );
 
     // Navigate back to the database
     await page.getByTitle("ImportTestDb").click();
@@ -260,6 +270,15 @@ test.describe("Table import job restore after reload", () => {
     // here — the job poller fires every 2s so networkidle won't settle and
     // would consume the test budget before the post-reload checks run.
     await page.reload();
+
+    // Wait until Nuxt finishes hydrating, so the clicks below aren't dispatched
+    // against the not-yet-hydrated SSR markup.
+    await page.waitForFunction(
+      () =>
+        typeof (window as any).useNuxtApp === "function" &&
+        !(window as any).useNuxtApp().isHydrating,
+      { timeout: 15000 }
+    );
 
     // After reload, navigate back to the table and reopen the import modal
     await page.getByTitle("ExistingImportDb").click();

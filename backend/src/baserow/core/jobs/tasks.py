@@ -65,15 +65,17 @@ def run_async_job(self, job_id: int):
             exception_mapping.update(job_type.job_exceptions_map)
 
             should_raise = True
+            error_code = ""
             for exception, error_message in exception_mapping.items():
                 if isinstance(e, exception):
                     if callable(error_message):
                         error_message = error_message(e)
                     error = error_message.format(e=e)
+                    error_code = exception.__name__
                     should_raise = False
                     break
 
-            job.set_state_failed(str(e), error)
+            job.set_state_failed(str(e), error, error_code)
             job.save()
 
             try:

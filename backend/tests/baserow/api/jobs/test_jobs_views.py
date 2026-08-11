@@ -106,6 +106,7 @@ def test_create_job(mock_run_async, data_fixture, api_client):
             "state": "pending",
             "progress_percentage": 0,
             "human_readable_error": "",
+            "error_code": "",
         }
         mock_run_async.delay.assert_called()
 
@@ -142,6 +143,7 @@ def test_list_jobs(data_fixture, api_client):
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
+        "error_code": "",
         "test_field": 42,
     }
 
@@ -153,6 +155,7 @@ def test_list_jobs(data_fixture, api_client):
         "progress_percentage": 0,
         "state": "failed",
         "human_readable_error": "",
+        "error_code": "",
         "test_field": 42,
     }
 
@@ -299,6 +302,7 @@ def test_get_job(data_fixture, api_client):
         "progress_percentage": 0,
         "state": "pending",
         "human_readable_error": "",
+        "error_code": "",
         "test_field": 42,
     }
 
@@ -327,6 +331,7 @@ def test_get_job(data_fixture, api_client):
         "progress_percentage": 50,
         "state": "failed",
         "human_readable_error": "Wrong",
+        "error_code": "",
         "test_field": 42,
     }
 
@@ -387,6 +392,7 @@ def test_cancel_job_running(
             "state": "pending",
             "progress_percentage": 0,
             "human_readable_error": "",
+            "error_code": "",
         },
         resp,
     )
@@ -472,6 +478,7 @@ def test_cancel_job_pending(
             "state": "pending",
             "progress_percentage": 0,
             "human_readable_error": "",
+            "error_code": "",
         },
         resp,
     )
@@ -545,6 +552,7 @@ def test_cancel_job_finished(
             "state": "pending",
             "progress_percentage": 0,
             "human_readable_error": "",
+            "error_code": "",
         },
         resp,
     )

@@ -34,6 +34,16 @@
   color: $palette-neutral-900;
 }
 
+.onboarding__loading-description {
+  margin: 12px 0 24px;
+  padding: 0 20px;
+  font-size: 14px;
+  max-width: 560px;
+  text-align: center;
+  line-height: 1.6;
+  color: $palette-neutral-900;
+}
+
 .onboarding__form {
   display: flex;
   flex-direction: column;

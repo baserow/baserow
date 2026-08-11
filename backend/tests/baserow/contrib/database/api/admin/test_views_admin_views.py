@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
@@ -13,7 +14,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.contrib.database.views.models import View
+from baserow.contrib.database.views.models import GridView, View
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.action.signals import action_done
@@ -141,14 +142,10 @@ def test_admin_can_search_views(api_client, data_fixture):
     data_fixture.create_grid_view(name="Something else")
 
     searches = [
-        "Unique view name",
-        str(view.id),
         str(view.slug),
-        "Unique table name",
+        str(view.id),
         str(table.id),
-        "Unique database name",
         str(database.id),
-        "Unique workspace name",
         str(workspace.id),
         "unique-owner@baserow.io",
         str(owner.id),
@@ -168,7 +165,7 @@ def test_admin_can_search_views(api_client, data_fixture):
 
     response = api_client.get(
         url,
-        {"search": "Unique view name"},
+        {"search": str(view.slug)},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -181,6 +178,130 @@ def test_admin_can_search_views(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.json()["count"] == 0
+
+
+@pytest.mark.django_db
+def test_admin_search_matches_a_slug_and_an_owner_exactly(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+    owner = data_fixture.create_user(email="owner@baserow.io")
+    view = data_fixture.create_grid_view(owned_by=owner)
+    data_fixture.create_grid_view()
+
+    url = reverse("api:database:admin:views:list")
+    partials = [str(view.slug)[:-1], "owner@baserow", "OWNER@BASEROW.IO"]
+    for search in partials:
+        response = api_client.get(
+            url, {"search": search}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        assert response.status_code == HTTP_200_OK
+        assert response.json()["count"] == 0, search
+
+    for search in [str(view.slug), "owner@baserow.io"]:
+        response = api_client.get(
+            url, {"search": search}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        assert [result["id"] for result in response.json()["results"]] == [view.id], (
+            search
+        )
+
+
+@pytest.mark.django_db
+def test_admin_search_finds_every_view_of_a_database_with_many_tables(
+    api_client, data_fixture
+):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+    database = data_fixture.create_database_application()
+    views = [
+        data_fixture.create_grid_view(
+            table=data_fixture.create_database_table(database=database)
+        )
+        for _ in range(3)
+    ]
+
+    url = reverse("api:database:admin:views:list")
+    with patch(
+        "baserow.contrib.database.api.admin.views.views.MAX_INLINE_SEARCH_IDS", 1
+    ):
+        response = api_client.get(
+            url,
+            {"search": str(database.id)},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_200_OK
+    assert {result["id"] for result in response.json()["results"]} == {
+        view.id for view in views
+    }
+
+
+@pytest.mark.django_db
+def test_admin_search_matches_ids_exactly(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+    # The ids are set explicitly so that one contains the other, which is what tells
+    # an exact match apart from a substring one. A view only sets its own content
+    # type when it is saved without an id, so it has to be provided here as well.
+    content_type = ContentType.objects.get_for_model(GridView)
+    view = data_fixture.create_grid_view(
+        id=1000, content_type=content_type, name="Some view"
+    )
+    data_fixture.create_grid_view(
+        id=10001, content_type=content_type, name="Another view"
+    )
+
+    url = reverse("api:database:admin:views:list")
+    response = api_client.get(
+        url,
+        # An id that merely contains the searched digits must not match.
+        {"search": str(view.id)},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert [result["id"] for result in response.json()["results"]] == [view.id]
+
+    # A number too large to be an id is not matched against one: doing so makes
+    # Postgres scan instead of using the index, and it can never find anything.
+    response = api_client.get(
+        url,
+        {"search": str(2**31)},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["count"] == 0
+
+
+@pytest.mark.django_db
+def test_admin_can_filter_views_on_workspace_id(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+    workspace = data_fixture.create_workspace()
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table)
+    other_view = data_fixture.create_grid_view()
+
+    url = reverse("api:database:admin:views:list")
+    response = api_client.get(
+        url,
+        {"workspace_id": workspace.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert [result["id"] for result in response.json()["results"]] == [view.id]
+
+    # A filter that cannot be a valid id is ignored rather than erroring.
+    response = api_client.get(
+        url,
+        {"workspace_id": "not-an-id"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert {result["id"] for result in response.json()["results"]} == {
+        view.id,
+        other_view.id,
+    }
 
 
 @pytest.mark.django_db
@@ -325,7 +446,9 @@ def test_admin_list_views_number_of_queries_is_constant(api_client, data_fixture
             assert response.status_code == HTTP_200_OK
         return len(queries.captured_queries)
 
-    data_fixture.create_grid_view(public=True)
+    # The baseline needs an owned view too: the owner is prefetched, and Django skips
+    # a prefetch entirely when every row it would resolve has no owner.
+    data_fixture.create_grid_view(public=True, owned_by=data_fixture.create_user())
     first_count = fetch_and_count_queries()
 
     data_fixture.create_grid_view(public=True)

@@ -16,6 +16,15 @@
         <SwitchInput v-model="onlyPublic" small>
           {{ $t('viewsAdminTable.onlyPublic') }}
         </SwitchInput>
+        <PaginatedDropdown
+          ref="workspaceFilter"
+          :value="workspaceId"
+          :initial-display-name="workspaceName"
+          :fetch-page="fetchWorkspaces"
+          :empty-item-display-name="$t('viewsAdminTable.allWorkspaces')"
+          :not-selected-text="$t('viewsAdminTable.allWorkspaces')"
+          @input="workspaceId = $event"
+        ></PaginatedDropdown>
       </div>
     </template>
     <template #menus="slotProps">
@@ -23,7 +32,7 @@
         ref="viewsAdminContext"
         :view="editView"
         @update="slotProps.updateRow"
-        @search-workspace-id="searchWorkspaceId"
+        @filter-workspace="filterWorkspace"
       ></ViewsAdminContext>
     </template>
   </CrudTable>
@@ -31,6 +40,8 @@
 
 <script>
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
+import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
+import { fetchWorkspaceOptions } from '@baserow/modules/core/services/admin/workspaces'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import LocalDateField from '@baserow/modules/core/components/crudTable/fields/LocalDateField'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
@@ -44,6 +55,7 @@ export default {
   name: 'ViewsAdminTable',
   components: {
     CrudTable,
+    PaginatedDropdown,
     ViewsAdminContext,
   },
   data() {
@@ -51,6 +63,8 @@ export default {
     return {
       editView: {},
       onlyPublic: true,
+      workspaceId: null,
+      workspaceName: null,
     }
   },
   computed: {
@@ -59,7 +73,14 @@ export default {
       return search ? String(search) : null
     },
     filters() {
-      return this.onlyPublic ? { only_public: 'true' } : {}
+      const filters = {}
+      if (this.onlyPublic) {
+        filters.only_public = 'true'
+      }
+      if (this.workspaceId !== null) {
+        filters.workspace_id = String(this.workspaceId)
+      }
+      return filters
     },
     columns() {
       return [
@@ -162,14 +183,15 @@ export default {
       this.editView = row
       this.$refs.viewsAdminContext[action](target, 'bottom', 'left', 4)
     },
-    async searchWorkspaceId(workspaceId) {
-      // Turn the public only filter off so that all the views of the workspace are
-      // visible, and search on the workspace id, which also matches the workspace id
-      // column. Wait for the changed filters to propagate to the CrudTable so that
-      // the search doesn't fetch with the old filters.
-      this.onlyPublic = false
+    fetchWorkspaces(page, search) {
+      return fetchWorkspaceOptions(this.$client, page, search)
+    },
+    async filterWorkspace({ id, name }) {
+      this.workspaceId = id
+      this.workspaceName = name
       await this.$nextTick()
-      this.$refs.crudTable.setSearch(String(workspaceId))
+      this.$refs.workspaceFilter.clear()
+      this.$refs.crudTable.setSearch('')
     },
   },
 }

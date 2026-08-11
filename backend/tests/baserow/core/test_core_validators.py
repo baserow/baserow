@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 
 import pytest
 
+from baserow.core.formula.validator import ensure_array
 from baserow.core.user.password_validation import MaximumLengthValidator
 
 very_long_password = (
@@ -38,3 +39,8 @@ def test_max_length_validator_help_text():
         MaximumLengthValidator(max_length=1).get_help_text()
         == expected_help_text_singular
     )
+
+
+def test_ensure_array_with_unquoted_newline_raises_validation_error():
+    with pytest.raises(ValidationError):
+        ensure_array('[\n  {\n    "name": ""\n  }\n]')

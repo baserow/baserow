@@ -137,8 +137,30 @@ def test_split_comma_separated_string():
     assert split_comma_separated_string('A,\\"B,C\\,D') == ["A", '"B', "C,D"]
 
 
+def test_split_comma_separated_string_with_unquoted_newline_raises_value_error():
+    with pytest.raises(ValueError):
+        split_comma_separated_string('[\n  {\n    "name": ""\n  }\n]')
+
+
 def test_remove_invalid_surrogate_characters():
     assert remove_invalid_surrogate_characters(b"test\uD83Dtest") == "testtest"
+    assert remove_invalid_surrogate_characters(b"test\u0000test") == "testtest"
+    assert remove_invalid_surrogate_characters(b"test\x00test") == "testtest"
+    # An escaped backslash followed by `u0000` is not an escape sequence and must
+    # be left intact.
+    assert remove_invalid_surrogate_characters(rb"test\\u0000test") == (
+        r"test\\u0000test"
+    )
+    # An escaped backslash followed by a real escape sequence only removes the
+    # escape sequence.
+    assert remove_invalid_surrogate_characters(rb"test\\\u0000test") == r"test\\test"
+    # Valid characters in the `\uD###` range (like Hangul) and surrogate pairs
+    # (like emoji's) must be kept.
+    assert remove_invalid_surrogate_characters(rb"test\ud55c") == r"test\ud55c"
+    assert (
+        remove_invalid_surrogate_characters(rb"test\ud83d\ude00") == r"test\ud83d\ude00"
+    )
+    assert remove_invalid_surrogate_characters(rb"test\udc00test") == "testtest"
 
 
 def test_unused_names():

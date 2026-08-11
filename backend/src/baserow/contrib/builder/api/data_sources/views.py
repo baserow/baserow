@@ -456,7 +456,7 @@ class MoveDataSourceView(APIView):
 
 
 class DispatchDataSourceView(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         parameters=[
@@ -513,6 +513,8 @@ class DispatchDataSourceView(APIView):
         """
 
         data_source = DataSourceHandler().get_data_source(data_source_id)
+        if data_source.page.builder.is_published:
+            raise PermissionException
 
         dispatch_context = BuilderDispatchContext(
             request,
@@ -528,7 +530,7 @@ class DispatchDataSourceView(APIView):
 
 
 class DispatchDataSourcesView(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
 
     @extend_schema(
         parameters=[
@@ -566,8 +568,13 @@ class DispatchDataSourcesView(APIView):
         """
 
         page = PageHandler().get_page(page_id)
+        if page.builder.is_published:
+            raise PermissionException
+
         dispatch_context = BuilderDispatchContext(
-            request, page, only_expose_public_allowed_properties=False
+            request,
+            page,
+            only_expose_public_allowed_properties=False,
         )
         service_contents = DataSourceService().dispatch_page_data_sources(
             request.user, page, dispatch_context

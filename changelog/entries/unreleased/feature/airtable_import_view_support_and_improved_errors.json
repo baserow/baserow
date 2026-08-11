@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Airtable import now supports publicly shared views and improved errors.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-10"
+}

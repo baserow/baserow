@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 
 from baserow.contrib.database.export_serialized import DatabaseExportSerializedStructure
@@ -53,7 +54,7 @@ from .import_report import (
     AirtableImportReport,
 )
 from .models import DownloadFile
-from .registry import AirtableColumnType
+from .registry import REMOVE_FIELD_OBJECT, AirtableColumnType
 from .utils import get_airtable_row_primary_value, quill_to_markdown
 
 
@@ -657,16 +658,58 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
         )
 
     def after_field_objects_prepared(
-        self, field_mapping_per_table, baserow_field, raw_airtable_column
+        self, field_mapping_per_table, raw_airtable_table, field_object, import_report
     ):
-        foreign_table_id = raw_airtable_column["typeOptions"]["foreignTableId"]
-        foreign_field_mapping = field_mapping_per_table[foreign_table_id]
+        baserow_field = field_object["baserow_field"]
+        foreign_table_id = field_object["raw_airtable_column"]["typeOptions"][
+            "foreignTableId"
+        ]
+        foreign_field_mapping = field_mapping_per_table.get(foreign_table_id, {})
         foreign_primary_field = next(
-            field["baserow_field"]
-            for field in foreign_field_mapping.values()
-            if field["baserow_field"].primary
+            (
+                field["baserow_field"]
+                for field in foreign_field_mapping.values()
+                if field["baserow_field"].primary
+            ),
+            None,
         )
+
+        # The foreign table is not part of the import when a single view is shared
+        # publicly, or when the data integrity of the base is compromised. The
+        # relationship can't be imported in that case, so the field is downgraded to
+        # a text field preserving the visible value of the cells.
+        if foreign_primary_field is None:
+            return self._downgrade_to_text_field(
+                field_object, raw_airtable_table, import_report
+            )
+
         baserow_field.link_row_table_primary_field = foreign_primary_field
+        return field_object
+
+    def _downgrade_to_text_field(self, field_object, raw_airtable_table, import_report):
+        baserow_field = field_object["baserow_field"]
+        downgraded_field = LongTextField()
+        downgraded_field.id = baserow_field.id
+        downgraded_field.pk = 0
+        downgraded_field.name = baserow_field.name
+        downgraded_field.order = baserow_field.order
+        downgraded_field.description = baserow_field.description
+        downgraded_field.content_type = ContentType.objects.get_for_model(
+            downgraded_field
+        )
+        import_report.add_failed(
+            downgraded_field.name,
+            SCOPE_FIELD,
+            raw_airtable_table["name"],
+            ERROR_TYPE_UNSUPPORTED_FEATURE,
+            f'Field "{downgraded_field.name}" was imported as text field because '
+            f"the linked table is not part of the import.",
+        )
+        return {
+            **field_object,
+            "baserow_field": downgraded_field,
+            "baserow_field_type": field_type_registry.get_by_model(downgraded_field),
+        }
 
     def to_baserow_export_serialized_value(
         self,
@@ -680,6 +723,17 @@ class ForeignKeyAirtableColumnType(AirtableColumnType):
         config,
         import_report,
     ):
+        # If the field has been downgraded to a text field because the related table
+        # is not part of the import, the visible names of the linked rows are the
+        # only value that can be preserved.
+        if not isinstance(baserow_field, LinkRowField):
+            display_names = [
+                v["foreignRowDisplayName"]
+                for v in value or []
+                if "foreignRowDisplayName" in v
+            ]
+            return ", ".join(display_names) if display_names else None
+
         foreign_table_id = raw_airtable_column["typeOptions"]["foreignTableId"]
 
         # Airtable doesn't always provide an object with a `foreignRowId`. This can
@@ -921,6 +975,35 @@ class CountAirtableColumnType(AirtableColumnType):
     ):
         type_options = raw_airtable_column.get("typeOptions", {})
         return CountField(through_field_id=type_options.get("relationColumnId"))
+
+    def after_field_objects_prepared(
+        self, field_mapping_per_table, raw_airtable_table, field_object, import_report
+    ):
+        baserow_field = field_object["baserow_field"]
+        field_mapping = field_mapping_per_table[raw_airtable_table["id"]]
+        through_field_object = field_mapping.get(baserow_field.through_field_id)
+        foreign_table_id = (
+            through_field_object["raw_airtable_column"]
+            .get("typeOptions", {})
+            .get("foreignTableId")
+            if through_field_object
+            else None
+        )
+
+        # The count can only be computed through a link field to a table that's part
+        # of the import.
+        if foreign_table_id not in field_mapping_per_table:
+            import_report.add_failed(
+                baserow_field.name,
+                SCOPE_FIELD,
+                raw_airtable_table["name"],
+                ERROR_TYPE_UNSUPPORTED_FEATURE,
+                f'Field "{baserow_field.name}" was not imported because the link '
+                f"field it depends on could not be imported.",
+            )
+            return REMOVE_FIELD_OBJECT
+
+        return field_object
 
     def to_baserow_export_serialized_value(
         self,

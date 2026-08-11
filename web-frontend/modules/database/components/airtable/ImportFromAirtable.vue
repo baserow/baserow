@@ -1,7 +1,18 @@
 <template>
   <div>
-    <AirtableImportForm @submitted="importFromAirtable">
-      <Error :error="error"></Error>
+    <AirtableImportForm ref="form" @submitted="importFromAirtable">
+      <Error :error="error">
+        <template v-if="showOpenSharedLink" #actions>
+          <a
+            class="alert__actions-button-text"
+            :href="lastAirtableUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ $t('importFromAirtable.openSharedLink') }}
+          </a>
+        </template>
+      </Error>
       <div class="modal-progress__actions">
         <ProgressBar
           v-if="jobIsRunning || jobHasSucceeded"
@@ -40,6 +51,11 @@ import error from '@baserow/modules/core/mixins/error'
 import jobProgress from '@baserow/modules/core/mixins/jobProgress'
 import AirtableService from '@baserow/modules/database/services/airtable'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
+import {
+  AIRTABLE_BASE_NOT_PUBLIC,
+  AIRTABLE_BASE_REQUIRES_AUTHENTICATION,
+  getAirtableJobErrorMessage,
+} from '@baserow/modules/database/utils/airtableErrors'
 
 export default {
   name: 'ImportFromAirtable',
@@ -55,6 +71,8 @@ export default {
   data() {
     return {
       loading: false,
+      lastAirtableUrl: '',
+      showOpenSharedLink: false,
     }
   },
   beforeUnmount() {
@@ -68,6 +86,8 @@ export default {
 
       this.loading = true
       this.hideError()
+      this.lastAirtableUrl = values.airtableUrl
+      this.showOpenSharedLink = false
 
       try {
         const { data } = await AirtableService(this.$client).create(
@@ -120,11 +140,24 @@ export default {
       }
     },
     onJobFailed() {
-      const error = new ResponseErrorMessage(
-        this.$t('importFromAirtable.importError'),
-        this.job.human_readable_error
+      if (
+        this.job.error_code === AIRTABLE_BASE_REQUIRES_AUTHENTICATION &&
+        this.$refs.form
+      ) {
+        // Expand the session authentication section so that the user immediately
+        // sees the instructions and inputs that the error refers to.
+        this.$refs.form.values.useSession = true
+      }
+      // The error message asks the user to verify the link in their browser, so
+      // offer to open it directly.
+      this.showOpenSharedLink = this.job.error_code === AIRTABLE_BASE_NOT_PUBLIC
+      const errorMessage = getAirtableJobErrorMessage(
+        (key) => this.$t(key),
+        this.job
       )
-      this.stopPollAndHandleError(error)
+      this.stopPollAndHandleError(
+        new ResponseErrorMessage(errorMessage.title, errorMessage.message)
+      )
     },
     onJobPollingError(error) {
       this.stopPollAndHandleError(error)

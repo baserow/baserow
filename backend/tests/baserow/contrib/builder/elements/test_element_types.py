@@ -853,6 +853,21 @@ def test_iframe_element_import_export_formula(data_fixture):
 
 
 @pytest.mark.django_db
+def test_iframe_element_import_export_same_origin_permission(data_fixture):
+    page = data_fixture.create_builder_page()
+    exported_element = data_fixture.create_builder_iframe_element(
+        page=page,
+        allow_same_origin=True,
+    )
+
+    serialized = IFrameElementType().export_serialized(exported_element)
+    assert serialized["allow_same_origin"] is True
+
+    [imported_element] = PageHandler().import_elements(page, [serialized], {})
+    assert imported_element.allow_same_origin is True
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "storage",
     [None, FileSystemStorage(location=str(tempdir), base_url="http://localhost")],

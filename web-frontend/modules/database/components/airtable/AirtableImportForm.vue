@@ -79,7 +79,7 @@
       >
         <FormInput
           v-model="v$.values.sessionSignature.$model"
-          :error="v$.values.session.$error"
+          :error="v$.values.sessionSignature.$error"
           placeholder="OYncZ-Nz..."
           size="large"
           @blur="v$.values.sessionSignature.$touch"

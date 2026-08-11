@@ -43,7 +43,6 @@ from baserow.core.user_sources.registries import (
 )
 from baserow.core.user_sources.service import UserSourceService
 from baserow.core.utils import MirrorDict, Progress
-from baserow.test_utils.helpers import AnyStr
 from baserow_enterprise.integrations.local_baserow.models import LocalBaserowUserSource
 from baserow_enterprise.integrations.local_baserow.user_source_types import (
     LocalBaserowUserSourceType,
@@ -1105,9 +1104,14 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
         table=table,
         row_id="2",
     )
+    for field in fields:
+        data_fixture.create_builder_heading_element(
+            page=page,
+            value=f"get('data_source.{data_source.id}.field_{field.id}')",
+        )
 
     # Create the user table for the user_source
-    user_table, user_fields, user_rows = data_fixture.build_table(
+    user_table, user_fields, _ = data_fixture.build_table(
         user=user,
         columns=[
             ("Email", "text"),
@@ -1138,11 +1142,12 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
     DomainHandler().publish(domain1, progress)
     domain1.refresh_from_db()
 
-    user_source_type = user_source.get_type()
-
-    user = user_rows[0]
-
-    user_source_user = user_source_type.get_user(user_source, email="test@baserow.io")
+    published_user_source = user_source.get_type().model_class.objects.get(
+        application=domain1.published_to
+    )
+    user_source_user = published_user_source.get_type().get_user(
+        published_user_source, email="test@baserow.io"
+    )
 
     refresh_token = user_source_user.get_refresh_token()
     access_token = refresh_token.access_token
@@ -1151,7 +1156,7 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
     published_data_source = published_page.datasource_set.first()
 
     url = reverse(
-        "api:builder:data_source:dispatch",
+        "api:builder:domains:public_dispatch",
         kwargs={"data_source_id": published_data_source.id},
     )
 
@@ -1159,13 +1164,11 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
         url,
         {},
         format="json",
-        HTTP_AUTHORIZATION_US=f"JWT {access_token}",
+        HTTP_AUTHORIZATION=f"JWT {access_token}",
     )
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        "id": 2,
-        "order": AnyStr(),
         fields[0].name: "Audi",
         fields[1].name: "Orange",
     }

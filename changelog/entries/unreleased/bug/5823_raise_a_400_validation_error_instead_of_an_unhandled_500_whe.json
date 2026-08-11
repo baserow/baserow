@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Raise a 400 validation error instead of an unhandled 500 when comma-separated field values contain unquoted newlines.",
+    "issue_origin": "github",
+    "issue_number": 5823,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-03"
+}

@@ -16,9 +16,9 @@
           </a>
         </li>
         <li class="context__menu-item">
-          <a class="context__menu-item-link" @click.prevent="searchWorkspaceId">
-            <i class="context__menu-item-icon iconoir-search"></i>
-            {{ $t('viewsAdminContext.searchWorkspaceId') }}
+          <a class="context__menu-item-link" @click.prevent="filterWorkspace">
+            <i class="context__menu-item-icon iconoir-filter"></i>
+            {{ $t('viewsAdminContext.filterWorkspace') }}
           </a>
         </li>
         <li class="context__menu-item">
@@ -79,7 +79,7 @@ export default {
       type: Object,
     },
   },
-  emits: ['update', 'search-workspace-id'],
+  emits: ['update', 'filter-workspace'],
   data() {
     return {
       updatePublicLoading: false,
@@ -115,8 +115,11 @@ export default {
       window.open(this.publicUrl, '_blank')
       this.hide()
     },
-    searchWorkspaceId() {
-      this.$emit('search-workspace-id', this.view.workspace_id)
+    filterWorkspace() {
+      this.$emit('filter-workspace', {
+        id: this.view.workspace_id,
+        name: this.view.workspace_name,
+      })
       this.hide()
     },
     async updatePublic(publicValue) {

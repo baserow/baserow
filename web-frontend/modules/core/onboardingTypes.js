@@ -61,6 +61,15 @@ export class OnboardingType extends Registerable {
   getJobForPolling(data, responses) {}
 
   /**
+   * Can optionally return an object containing a `title` and `message` explaining
+   * why the job returned by `getJobForPolling` failed, so that the user can take
+   * action. If `null` is returned, a generic failure message is shown.
+   */
+  getJobErrorMessage(job, data, responses) {
+    return null
+  }
+
+  /**
    * Can optionally return a route to where the user must be redirected after
    * completing all steps. Note that the last route will be used as we can only
    * redirect to one.

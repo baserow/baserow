@@ -70,7 +70,20 @@ class APIListingView(
         if not ids_param:
             return queryset
 
-        record_ids = split_comma_separated_string(ids_param)
+        try:
+            record_ids = split_comma_separated_string(ids_param)
+        except ValueError:
+            raise QueryParameterValidationException(
+                {
+                    "ids": [
+                        {
+                            "code": "invalid",
+                            "error": "The provided ids parameter is not a valid "
+                            "comma separated string.",
+                        }
+                    ]
+                }
+            )
 
         invalid_id = next(
             (record for record in record_ids if not record.isdigit()), None

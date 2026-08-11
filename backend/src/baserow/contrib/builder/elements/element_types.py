@@ -2096,8 +2096,14 @@ class IFrameElementType(ElementType):
     display_name = _("Iframe")
     type = "iframe"
     model_class = IFrameElement
-    allowed_fields = ["source_type", "url", "embed", "height"]
-    serializer_field_names = ["source_type", "url", "embed", "height"]
+    allowed_fields = ["source_type", "url", "embed", "height", "allow_same_origin"]
+    serializer_field_names = [
+        "source_type",
+        "url",
+        "embed",
+        "height",
+        "allow_same_origin",
+    ]
     simple_formula_fields = ["url", "embed"]
 
     class SerializedDict(ElementDict):
@@ -2105,6 +2111,7 @@ class IFrameElementType(ElementType):
         url: BaserowFormulaObject
         embed: BaserowFormulaObject
         height: int
+        allow_same_origin: bool
 
     @property
     def serializer_field_overrides(self):
@@ -2130,6 +2137,11 @@ class IFrameElementType(ElementType):
                 min_value=1,
                 max_value=2000,
             ),
+            "allow_same_origin": serializers.BooleanField(
+                help_text=IFrameElement._meta.get_field("allow_same_origin").help_text,
+                required=False,
+                default=False,
+            ),
         }
 
         return overrides
@@ -2148,6 +2160,7 @@ class IFrameElementType(ElementType):
                 version=BASEROW_FORMULA_VERSION_INITIAL,
             ),
             "height": 300,
+            "allow_same_origin": False,
         }
 
 

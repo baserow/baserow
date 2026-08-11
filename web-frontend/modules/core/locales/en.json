@@ -1188,11 +1188,20 @@
   "userSourceType": {
     "userCountSummary": "{count} users ({lastUpdated})"
   },
+  "academy": {
+    "learnMore": "Learn more at the Baserow academy"
+  },
   "guidedTourStep": {
     "step": "{step} of {totalSteps}",
     "gotIt": "Got it",
     "next": "Next",
-    "back": "Back"
+    "back": "Back",
+    "watchVideo": "Watch video"
+  },
+  "guidedTourVideoModal": {
+    "previous": "Previous video",
+    "next": "Next video",
+    "close": "Close"
   },
   "welcomeGuidedTourStep": {
     "title": "Welcome to Baserow",
