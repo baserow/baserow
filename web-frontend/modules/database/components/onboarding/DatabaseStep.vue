@@ -37,6 +37,7 @@
       ref="stepComponent"
       @input="updateValue($event)"
       @selected-template="selectedTemplate"
+      @next-step="$emit('next-step')"
     ></component>
   </div>
 </template>
@@ -55,7 +56,7 @@ export default {
       type: Object,
     },
   },
-  emits: ['update-data'],
+  emits: ['update-data', 'next-step'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },
@@ -116,6 +117,15 @@ export default {
   methods: {
     isValid() {
       return this.selectedStepType.isValid(this.data, this.v$, this.$refs)
+    },
+    beforeNext() {
+      return this.$refs.stepComponent?.beforeNext?.() === true
+    },
+    canGoBack() {
+      return this.$refs.stepComponent?.canGoBack?.() === true
+    },
+    goBack() {
+      this.$refs.stepComponent.goBack()
     },
     updateValue(params = {}) {
       this.$nextTick(() => {

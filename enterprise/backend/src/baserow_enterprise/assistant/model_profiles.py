@@ -35,6 +35,7 @@ SUBAGENT = "subagent"  # database, builder, automations
 UTILITY = "utility"  # formula, fixer (precision-oriented)
 SAMPLE = "sample"  # sample row generation (creative)
 TITLE = "title"  # title generation
+SUGGESTIONS = "suggestions"  # onboarding prompt suggestions (creative)
 
 # ---------------------------------------------------------------------------
 # Per-model profiles
@@ -67,6 +68,11 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
         "timeout": 10,
         "max_tokens": AssistantChat.TITLE_MAX_LENGTH,
     },
+    SUGGESTIONS: {
+        "temperature": 0.6,
+        "timeout": 30,
+        "max_tokens": 4096,
+    },
 }
 
 _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
@@ -91,6 +97,11 @@ _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
         TITLE: {
             **_DEFAULT_PROFILE[TITLE],
         },
+        SUGGESTIONS: {
+            # No groq_reasoning_format here for the same reason as UTILITY: this
+            # is a structured-output task and reasoning tokens pollute it.
+            **_DEFAULT_PROFILE[SUGGESTIONS],
+        },
     },
 }
 
@@ -107,7 +118,7 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
     operators to override it without changing code.
 
     :param model: pydantic-ai model string (e.g. ``"groq:openai/gpt-oss-120b"``).
-    :param role: One of ORCHESTRATOR, SUBAGENT, UTILITY, TITLE.
+    :param role: One of ORCHESTRATOR, SUBAGENT, UTILITY, SAMPLE, TITLE, SUGGESTIONS.
     :return: A ModelSettings dict suitable for ``model_settings=`` parameter.
     """
 

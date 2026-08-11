@@ -357,3 +357,41 @@ class AssistantRateChatMessageSerializer(serializers.Serializer):
         if data["sentiment"] != "DISLIKE":
             validated_data["feedback"] = ""
         return validated_data
+
+
+class OnboardingPromptSuggestionsRequestSerializer(serializers.Serializer):
+    industry = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=48,
+        help_text="The industry the user works in.",
+    )
+    team = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=48,
+        help_text="The team the user is part of.",
+    )
+    language = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=10,
+        help_text=(
+            "ISO 639 language code the suggestions must be written in. Falls back "
+            "to the language of the user's profile."
+        ),
+    )
+
+
+class OnboardingPromptSuggestionSerializer(serializers.Serializer):
+    name = serializers.CharField(help_text="Short label describing the suggestion.")
+    prompt = serializers.CharField(
+        help_text="The prompt that can be used to create the database."
+    )
+
+
+class OnboardingPromptSuggestionsSerializer(serializers.Serializer):
+    suggestions = OnboardingPromptSuggestionSerializer(many=True)

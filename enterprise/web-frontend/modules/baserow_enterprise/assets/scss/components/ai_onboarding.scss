@@ -1,0 +1,125 @@
+.ai-onboarding-questions__progress {
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1000;
+  margin-bottom: 8px;
+}
+
+.ai-onboarding-question-enter-active,
+.ai-onboarding-question-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.ai-onboarding-question-enter-from,
+.ai-onboarding-question-leave-to {
+  opacity: 0;
+}
+
+.ai-onboarding-questions__explanation {
+  margin-bottom: 24px;
+  color: $palette-neutral-900;
+}
+
+.ai-prompt-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid $palette-cyan-200;
+  background-color: $palette-cyan-50;
+  padding: 20px 16px;
+  margin-bottom: 24px;
+
+  @include rounded($rounded-md);
+}
+
+.ai-prompt-loading__text {
+  color: $palette-cyan-700;
+}
+
+.ai-prompt-suggestions__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.ai-prompt-suggestions__title {
+  font-size: 12px;
+  font-weight: 500;
+  color: $palette-neutral-700;
+}
+
+.ai-prompt-suggestions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 14px;
+}
+
+.ai-prompt-suggestion {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-prompt-suggestion__preview {
+  border: 1px solid $palette-neutral-200;
+  background: $palette-neutral-25;
+  color: $palette-neutral-900;
+  padding: 12px;
+  font-size: 11px;
+  margin-bottom: 10px;
+
+  @include rounded($rounded-md);
+
+  .ai-prompt-suggestion--active & {
+    border-color: $palette-blue-500;
+    box-shadow: 0 0 0 1px $palette-blue-500;
+  }
+
+  .ai-prompt-suggestion--skeleton & {
+    animation: ai-prompt-suggestion-pulse 1.4s ease-in-out infinite;
+  }
+}
+
+.ai-prompt-suggestion__preview-text {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 16px;
+  height: 48px;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.ai-prompt-suggestion__name {
+  @extend %ellipsis;
+
+  font-weight: 500;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+
+  .ai-prompt-suggestion--skeleton & {
+    height: 12px;
+    width: 60%;
+    background: $palette-neutral-200;
+    animation: ai-prompt-suggestion-pulse 1.4s ease-in-out infinite;
+
+    @include rounded($rounded);
+  }
+}
+
+@keyframes ai-prompt-suggestion-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}

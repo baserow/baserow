@@ -23,6 +23,7 @@
       </Dropdown>
     </FormGroup>
     <FormGroup
+      v-if="!prefilledTeam"
       :label="$t('teamStep.description')"
       :error="v$.team.$error"
       required
@@ -73,9 +74,16 @@
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 import { countryList } from '@baserow/modules/core/utils/countries'
+import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
 
 export default {
   name: 'MoreStep',
+  props: {
+    data: {
+      type: Object,
+      required: true,
+    },
+  },
   emits: ['update-data'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
@@ -89,6 +97,24 @@ export default {
     }
   },
   computed: {
+    /**
+     * An earlier step can already have asked which team the user is on, like the
+     * AI one does. We don't want to ask that twice, so their answer is used as is.
+     * The answer of the last step wins because that's the one the user could have
+     * corrected most recently.
+     */
+    prefilledTeam() {
+      return (
+        Object.entries(this.data)
+          .filter(([type]) => type !== MoreOnboardingType.getType())
+          .map(([, stepData]) => stepData?.team)
+          .filter((team) => team)
+          .pop() || ''
+      )
+    },
+    chosenTeam() {
+      return this.prefilledTeam || this.team
+    },
     hows() {
       return [
         this.$t('moreStep.howSearchEngine'),
@@ -129,7 +155,7 @@ export default {
     how() {
       this.updateValue()
     },
-    team() {
+    chosenTeam() {
       this.updateValue()
     },
     country() {
@@ -146,24 +172,27 @@ export default {
     updateValue() {
       this.$emit('update-data', {
         how: this.how,
-        team: this.team,
+        team: this.chosenTeam,
         country: this.country,
         share: this.share,
       })
     },
   },
   validations() {
-    return {
+    const rules = {
       how: {
-        required: helpers.withMessage(this.$t('error.requiredField'), required),
-      },
-      team: {
         required: helpers.withMessage(this.$t('error.requiredField'), required),
       },
       country: {
         required: helpers.withMessage(this.$t('error.requiredField'), required),
       },
     }
+    if (!this.prefilledTeam) {
+      rules.team = {
+        required: helpers.withMessage(this.$t('error.requiredField'), required),
+      }
+    }
+    return rules
   },
 }
 </script>

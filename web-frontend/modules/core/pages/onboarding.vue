@@ -54,12 +54,28 @@
         <div ref="bodyWrapper" class="onboarding__body-wrapper">
           <div class="onboarding__body">
             <div>
-              <component
-                :is="step.getFormComponent()"
-                ref="form"
-                :data="data"
-                @update-data="updateData"
-              ></component>
+              <div class="onboarding__back">
+                <ButtonText
+                  :ph-autocapture="'onboarding-back-step-' + step.getType()"
+                  icon="iconoir-nav-arrow-left"
+                  :disabled="!canGoBack()"
+                  @click="previous()"
+                  >{{ $t('onboarding.back') }}</ButtonText
+                >
+              </div>
+              <!--
+              The steps are kept alive so that going back doesn't throw away what the
+              user already filled out.
+              -->
+              <KeepAlive>
+                <component
+                  :is="step.getFormComponent()"
+                  ref="form"
+                  :data="data"
+                  @update-data="updateData"
+                  @next-step="goToNextStep"
+                ></component>
+              </KeepAlive>
             </div>
             <div class="onboarding__actions">
               <Button
@@ -167,21 +183,62 @@ export default {
     canSkip() {
       return this.step.canSkip()
     },
+    updateData() {
+      const type = this.step.getType()
+      return (data) => {
+        this.data = { ...this.data, [type]: data }
+      }
+    },
   },
   methods: {
     /**
-     * Called when the user wants to go to the user step. This means that the provided
-     * form values must be valid. If the onboarding reached the end, it should
-     * automatically complete it.
+     * Called when the user clicks on the continue button. A form component can
+     * handle that click itself by implementing `beforeNext` and returning `true`,
+     * which is needed when it asks several questions in a row.
      */
     async next() {
+      if (this.$refs.form?.beforeNext?.() === true) {
+        return
+      }
+      await this.goToNextStep()
+    },
+    /**
+     * Called when the user clicks on the back button. A form component that walks
+     * through several questions itself handles the click by implementing
+     * `canGoBack` and `goBack`.
+     */
+    previous() {
+      if (this.$refs.form?.canGoBack?.() === true) {
+        this.$refs.form.goBack()
+      } else {
+        this.stepIndex--
+        this.afterStepChange()
+      }
+    },
+    /**
+     * `isValid` and `canGoBack` read from the step's component, which is only
+     * available in `$refs` after it has rendered. Steps are kept alive, so there is
+     * no `mounted` that emits data and re-renders us, and we must do it ourselves.
+     */
+    afterStepChange() {
+      this.$nextTick(() => {
+        this.$refs.bodyWrapper.scrollTop = 0
+        this.$forceUpdate()
+      })
+    },
+    canGoBack() {
+      return this.stepIndex > 0 || this.$refs.form?.canGoBack?.() === true
+    },
+    /**
+     * Moves to the next step. If the onboarding reached the end, it should
+     * automatically complete it.
+     */
+    async goToNextStep() {
       if (this.stepIndex === this.steps.length - 1) {
         await this.complete()
       } else {
         this.stepIndex++
-        this.$nextTick(() => {
-          this.$refs.bodyWrapper.scrollTop = 0
-        })
+        this.afterStepChange()
       }
     },
     /**
@@ -192,7 +249,7 @@ export default {
       // If the step is skipped, we don't want to store any left over data of the form
       // because that can influence what happens when completing.
       delete this.data[this.step.getType()]
-      await this.next()
+      await this.goToNextStep()
     },
     /**
      * Called when all the steps have been filled out. It will start the process off
@@ -352,9 +409,6 @@ export default {
       await this.$store.dispatch('workspace/clearAll')
       await this.$store.dispatch('application/clearAll')
       this.$router.push({ name: 'dashboard' })
-    },
-    updateData(data) {
-      this.data = { ...this.data, [this.step.getType()]: data }
     },
     isValid() {
       const form = this.$refs?.form
