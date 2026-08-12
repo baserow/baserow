@@ -21,15 +21,15 @@
       <div class="widget__header-main">
         <div class="widget__header-title-wrapper">
           <div class="widget__header-title">{{ widget.title }}</div>
-
-          <Badge
+          <span
             v-if="dataSourceMisconfigured"
-            color="red"
-            :size="widget.type === 'summary' ? 'regular' : 'small'"
-            indicator
-            rounded
-            >{{ $t('widget.fixConfiguration') }}</Badge
+            v-tooltip="$t('widget.fixConfiguration')"
+            class="dashboard-widget__configuration-status"
+            role="img"
+            :aria-label="$t('widget.fixConfiguration')"
           >
+            <i class="iconoir-warning-circle" aria-hidden="true"></i>
+          </span>
         </div>
         <div v-if="widget.description" class="widget__header-description">
           {{ widget.description }}
