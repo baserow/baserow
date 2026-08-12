@@ -20,7 +20,7 @@ const summary = (id, gridX, gridY, gridWidth, gridHeight) => ({
 })
 
 describe('widgetGridLayout', () => {
-  test('selects a layout from the viewport width', () => {
+  test('selects a layout from the available container width', () => {
     expect(getDashboardGridColumns(920)).toBe(6)
     expect(getDashboardGridColumns(700)).toBe(4)
     expect(getDashboardGridColumns(599)).toBe(1)

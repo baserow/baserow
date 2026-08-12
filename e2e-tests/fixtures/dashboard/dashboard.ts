@@ -53,3 +53,14 @@ export async function getDashboardWidgets(
   );
   return response.data;
 }
+
+export async function updateDashboardWidgetLayout(
+  dashboard: Dashboard,
+  widgets: DashboardWidget[],
+): Promise<DashboardWidget[]> {
+  const response: any = await getClient(dashboard.workspace.user).patch(
+    `dashboard/${dashboard.id}/widgets/layout/`,
+    { widgets },
+  );
+  return response.data;
+}
