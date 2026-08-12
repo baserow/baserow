@@ -5,7 +5,6 @@ import pytest
 from baserow.contrib.dashboard.widgets.actions import (
     CreateWidgetActionType,
     DeleteWidgetActionType,
-    DeleteWidgetWithLayoutActionType,
     UpdateWidgetActionType,
     UpdateWidgetLayoutActionType,
 )
@@ -228,7 +227,6 @@ def test_can_undo_redo_update_widget_layout(data_fixture):
     )
     second_widget.refresh_from_db()
     assert (second_widget.grid_x, second_widget.grid_y) == (2, 0)
-
     ActionHandler.undo(
         user,
         [ApplicationActionScopeType.value(application_id=dashboard.id)],
@@ -245,54 +243,3 @@ def test_can_undo_redo_update_widget_layout(data_fixture):
     assert_undo_redo_actions_are_valid(actions_redone, [UpdateWidgetLayoutActionType])
     second_widget.refresh_from_db()
     assert (second_widget.grid_x, second_widget.grid_y) == (2, 0)
-
-
-@pytest.mark.django_db
-@pytest.mark.undo_redo
-def test_can_undo_redo_delete_widget_with_layout(data_fixture):
-    session_id = "session-id"
-    user = data_fixture.create_user(session_id=session_id)
-    workspace = data_fixture.create_workspace(user=user)
-    dashboard = data_fixture.create_dashboard_application(
-        workspace=workspace, user=user
-    )
-    first_widget = WidgetService().create_widget(
-        user, "summary", dashboard.id, title="First"
-    )
-    second_widget = WidgetService().create_widget(
-        user, "summary", dashboard.id, title="Second"
-    )
-    compacted_layout = [
-        {
-            "id": second_widget.id,
-            "grid_x": 0,
-            "grid_y": 0,
-            "grid_width": 2,
-            "grid_height": 4,
-        }
-    ]
-
-    action_type_registry.get_by_type(DeleteWidgetWithLayoutActionType).do(
-        user, dashboard.id, first_widget.id, compacted_layout
-    )
-    assert len(WidgetService().get_widgets(user, dashboard.id)) == 1
-
-    ActionHandler.undo(
-        user,
-        [ApplicationActionScopeType.value(application_id=dashboard.id)],
-        session_id,
-    )
-    widgets = list(WidgetService().get_widgets(user, dashboard.id))
-    assert {widget.id for widget in widgets} == {first_widget.id, second_widget.id}
-    second_widget.refresh_from_db()
-    assert (second_widget.grid_x, second_widget.grid_y) == (0, 4)
-
-    actions_redone = ActionHandler.redo(
-        user,
-        [ApplicationActionScopeType.value(application_id=dashboard.id)],
-        session_id,
-    )
-    assert_undo_redo_actions_are_valid(
-        actions_redone, [DeleteWidgetWithLayoutActionType]
-    )
-    assert len(WidgetService().get_widgets(user, dashboard.id)) == 1

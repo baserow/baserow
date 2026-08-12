@@ -291,63 +291,6 @@ class WidgetService:
         )
 
     @transaction.atomic
-    def delete_widget_with_layout(
-        self,
-        user: AbstractUser,
-        dashboard_id: int,
-        widget_id: int,
-        layout: list[dict[str, int]],
-    ) -> UpdatedWidgetLayout:
-        """Trashes one widget and atomically persists the resulting full layout."""
-
-        dashboard = self.dashboard_handler.get_dashboard(dashboard_id)
-        CoreHandler().check_permissions(
-            user,
-            UpdateWidgetLayoutOperationType.type,
-            workspace=dashboard.workspace,
-            context=dashboard,
-        )
-
-        widgets = self.handler.get_widgets_for_update(dashboard)
-        widgets_by_id = {widget.id: widget for widget in widgets}
-        widget = widgets_by_id.get(widget_id)
-        if widget is None:
-            raise WidgetDoesNotExist()
-
-        CoreHandler().check_permissions(
-            user,
-            DeleteWidgetOperationType.type,
-            workspace=dashboard.workspace,
-            context=widget,
-        )
-
-        original_layout = [self.handler.get_widget_layout(widget) for widget in widgets]
-        remaining_widgets = [widget for widget in widgets if widget.id != widget_id]
-        layout_by_widget_id = self._validate_widget_layout(remaining_widgets, layout)
-
-        TrashHandler.trash(user, dashboard.workspace, dashboard, widget)
-        self.handler.update_widget_layout(remaining_widgets, layout_by_widget_id)
-
-        updated_widgets = list(self.handler.get_widgets(dashboard))
-        new_layout = [
-            layout_by_widget_id[widget.id]
-            for widget in sorted(remaining_widgets, key=lambda widget: widget.id)
-        ]
-        widgets_layout_updated.send(
-            self,
-            user=user,
-            dashboard=dashboard,
-            widgets=updated_widgets,
-        )
-        return UpdatedWidgetLayout(
-            dashboard,
-            updated_widgets,
-            original_layout,
-            new_layout,
-            widget,
-        )
-
-    @transaction.atomic
     def delete_widget_and_compact_layout(
         self, user: AbstractUser, widget_id: int
     ) -> UpdatedWidgetLayout:

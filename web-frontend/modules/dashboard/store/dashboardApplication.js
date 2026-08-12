@@ -249,10 +249,13 @@ export const actions = {
       commit('UPDATE_DATA', { dataSourceId, values: { _error: true } })
     }
   },
-  async deleteWidget({ dispatch }, widgetId) {
+  async deleteWidget({ state, commit }, widgetId) {
     const { $client } = this
     await WidgetService($client).delete(widgetId)
-    dispatch('handleWidgetDeleted', widgetId)
+    const { data } = await WidgetService($client).getAllWidgets(
+      state.dashboardId
+    )
+    commit('SET_WIDGETS', data)
   },
   handleWidgetDeleted({ commit }, widgetId) {
     commit('DELETE_WIDGET', widgetId)
@@ -261,16 +264,6 @@ export const actions = {
     const { $client } = this
     const { data } = await WidgetService($client).updateLayout(
       dashboardId,
-      layout
-    )
-    commit('SET_WIDGETS', data)
-    return data
-  },
-  async deleteWidgetWithLayout({ commit }, { dashboardId, widgetId, layout }) {
-    const { $client } = this
-    const { data } = await WidgetService($client).deleteWithLayout(
-      dashboardId,
-      widgetId,
       layout
     )
     commit('SET_WIDGETS', data)

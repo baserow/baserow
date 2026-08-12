@@ -2,8 +2,13 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { actions } from '@baserow/modules/dashboard/store/dashboardApplication'
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
+import WidgetService from '@baserow/modules/dashboard/services/widget'
 
 vi.mock('@baserow/modules/dashboard/services/dataSource', () => ({
+  default: vi.fn(),
+}))
+
+vi.mock('@baserow/modules/dashboard/services/widget', () => ({
   default: vi.fn(),
 }))
 
@@ -50,5 +55,26 @@ describe('Dashboard application store', () => {
     await fetchPromise
 
     expect(commit).toHaveBeenCalledWith('ADD_DATA_SOURCE', dataSource)
+  })
+
+  test('deleteWidget reloads the canonical widget layout after deletion', async () => {
+    const deleteWidget = vi.fn().mockResolvedValue()
+    const getAllWidgets = vi.fn().mockResolvedValue({
+      data: [{ id: 2, grid_x: 2, grid_y: 0, grid_width: 4, grid_height: 4 }],
+    })
+    WidgetService.mockReturnValue({ delete: deleteWidget, getAllWidgets })
+    const commit = vi.fn()
+
+    await actions.deleteWidget.call(
+      { $client: {} },
+      { state: { dashboardId: 42 }, commit },
+      1
+    )
+
+    expect(deleteWidget).toHaveBeenCalledWith(1)
+    expect(getAllWidgets).toHaveBeenCalledWith(42)
+    expect(commit).toHaveBeenCalledWith('SET_WIDGETS', [
+      { id: 2, grid_x: 2, grid_y: 0, grid_width: 4, grid_height: 4 },
+    ])
   })
 })

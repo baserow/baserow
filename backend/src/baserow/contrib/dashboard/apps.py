@@ -103,7 +103,6 @@ class DashboardConfig(AppConfig):
         from baserow.contrib.dashboard.widgets.actions import (
             CreateWidgetActionType,
             DeleteWidgetActionType,
-            DeleteWidgetWithLayoutActionType,
             UpdateWidgetActionType,
             UpdateWidgetLayoutActionType,
         )
@@ -120,7 +119,6 @@ class DashboardConfig(AppConfig):
         action_type_registry.register(UpdateWidgetActionType())
         action_type_registry.register(UpdateWidgetLayoutActionType())
         action_type_registry.register(DeleteWidgetActionType())
-        action_type_registry.register(DeleteWidgetWithLayoutActionType())
         action_type_registry.register(UpdateDashboardDataSourceActionType())
 
         from baserow.core.search.registries import workspace_search_registry

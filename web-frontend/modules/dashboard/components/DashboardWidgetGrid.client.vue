@@ -285,22 +285,13 @@ export default {
         return
       }
 
-      const previousLayout = this.layout.map((item) => ({ ...item }))
       this.isPersisting = true
-      this.layout = this.layout.filter((item) => Number(item.i) !== widgetId)
-
-      await this.$nextTick()
       try {
         await this.$store.dispatch(
-          `${this.storePrefix}dashboardApplication/deleteWidgetWithLayout`,
-          {
-            dashboardId: this.dashboard.id,
-            widgetId,
-            layout: toWidgetLayoutPayload(this.layout),
-          }
+          `${this.storePrefix}dashboardApplication/deleteWidget`,
+          widgetId
         )
       } catch (error) {
-        this.layout = previousLayout
         notifyIf(error, 'dashboard')
       } finally {
         this.isPersisting = false
