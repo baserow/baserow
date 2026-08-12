@@ -28,7 +28,6 @@ from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
 from baserow.contrib.dashboard.widgets.actions import (
     CreateWidgetActionType,
     DeleteWidgetActionType,
-    DeleteWidgetWithLayoutActionType,
     UpdateWidgetActionType,
     UpdateWidgetLayoutActionType,
 )
@@ -49,7 +48,6 @@ from .errors import (
 )
 from .serializers import (
     CreateWidgetSerializer,
-    DeleteWidgetWithLayoutSerializer,
     UpdateWidgetLayoutSerializer,
     UpdateWidgetSerializer,
     WidgetSerializer,
@@ -303,58 +301,6 @@ class WidgetLayoutView(APIView):
         widgets = UpdateWidgetLayoutActionType.do(
             request.user,
             dashboard_id,
-            data["widgets"],
-        )
-        return Response(serialize_widgets(widgets))
-
-
-class WidgetLayoutDeleteView(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="dashboard_id",
-                location=OpenApiParameter.PATH,
-                type=OpenApiTypes.INT,
-                description="The id of the dashboard whose widget is deleted.",
-            ),
-            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
-            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
-        ],
-        tags=["Dashboard widgets"],
-        operation_id="delete_dashboard_widget_with_layout",
-        description=(
-            "Atomically deletes a widget and persists the complete resulting layout."
-        ),
-        request=DeleteWidgetWithLayoutSerializer,
-        responses={
-            200: DiscriminatorCustomFieldsMappingSerializer(
-                widget_type_registry, WidgetSerializer, many=True
-            ),
-            400: get_error_schema(
-                ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_WIDGET_LAYOUT_INVALID"]
-            ),
-            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
-            404: get_error_schema(
-                ["ERROR_DASHBOARD_DOES_NOT_EXIST", "ERROR_WIDGET_DOES_NOT_EXIST"]
-            ),
-        },
-    )
-    @transaction.atomic
-    @map_exceptions(
-        {
-            DashboardDoesNotExist: ERROR_DASHBOARD_DOES_NOT_EXIST,
-            WidgetDoesNotExist: ERROR_WIDGET_DOES_NOT_EXIST,
-            WidgetLayoutInvalid: ERROR_WIDGET_LAYOUT_INVALID,
-        }
-    )
-    @validate_body(DeleteWidgetWithLayoutSerializer)
-    def post(self, request, data: Dict, dashboard_id: int):
-        widgets = DeleteWidgetWithLayoutActionType.do(
-            request.user,
-            dashboard_id,
-            data["widget_id"],
             data["widgets"],
         )
         return Response(serialize_widgets(widgets))

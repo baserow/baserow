@@ -117,7 +117,3 @@ class WidgetLayoutItemSerializer(serializers.Serializer):
 
 class UpdateWidgetLayoutSerializer(serializers.Serializer):
     widgets = WidgetLayoutItemSerializer(many=True)
-
-
-class DeleteWidgetWithLayoutSerializer(UpdateWidgetLayoutSerializer):
-    widget_id = serializers.IntegerField(min_value=1)

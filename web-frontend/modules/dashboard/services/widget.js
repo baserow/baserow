@@ -16,12 +16,6 @@ export default (client) => {
         widgets,
       })
     },
-    deleteWithLayout(dashboardId, widgetId, widgets) {
-      return client.post(`/dashboard/${dashboardId}/widgets/layout/delete/`, {
-        widget_id: widgetId,
-        widgets,
-      })
-    },
     delete(widgetId) {
       return client.delete(`/dashboard/widgets/${widgetId}/`)
     },
