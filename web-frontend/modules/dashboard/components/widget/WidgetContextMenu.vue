@@ -4,7 +4,7 @@
       :data-testid="`dashboard-widget-context-${widget.id}`"
       icon="iconoir-more-vert"
       type="secondary"
-      size="regular"
+      size="small"
       @click.stop="
         $refs.context.toggle($refs.contextButton, 'bottom', 'right', 8, -8)
       "
