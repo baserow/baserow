@@ -17,8 +17,7 @@
     "title": "Add new widget"
   },
   "widget": {
-    "fixConfiguration": "Fix configuration",
-    "dragWidget": "Drag widget"
+    "fixConfiguration": "Fix configuration"
   },
   "summaryWidget": {
     "name": "Summary"
