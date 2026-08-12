@@ -25,6 +25,19 @@ describe('GuidedTourStep component', () => {
     })
   }
 
+  test('no close button is shown if the step is not stoppable', async () => {
+    const wrapper = await mountComponent()
+    expect(wrapper.find('.guided-tour-step__close').exists()).toBe(false)
+  })
+
+  test('clicking the close button of a stoppable step emits stop', async () => {
+    const wrapper = await mountComponent({ props: { stoppable: true } })
+
+    await wrapper.find('.guided-tour-step__close').trigger('click')
+
+    expect(wrapper.emitted('stop')).toHaveLength(1)
+  })
+
   test('no video is shown if the step has none', async () => {
     const wrapper = await mountComponent()
     expect(wrapper.find('.guided-tour-step__video').exists()).toBe(false)

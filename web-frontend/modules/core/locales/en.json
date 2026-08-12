@@ -65,6 +65,7 @@
     "dashboard": "Dashboard",
     "trash": "Trash",
     "settings": "My settings",
+    "replayGuidedTour": "Replay guided tour",
     "notifications": "Notifications",
     "adminSettings": "Admin settings",
     "general": "General",
@@ -1199,7 +1200,8 @@
     "gotIt": "Got it",
     "next": "Next",
     "back": "Back",
-    "watchVideo": "Watch video"
+    "watchVideo": "Watch video",
+    "stopTour": "Stop tour"
   },
   "guidedTourVideoModal": {
     "previous": "Previous video",

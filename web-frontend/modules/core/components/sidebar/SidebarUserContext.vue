@@ -97,6 +97,13 @@
           <SettingsModal ref="settingsModal"></SettingsModal>
         </li>
 
+        <li class="context__menu-item">
+          <a class="context__menu-item-link" @click="replayGuidedTour()">
+            <i class="context__menu-item-icon iconoir-help-square"></i>
+            {{ $t('sidebar.replayGuidedTour') }}
+          </a>
+        </li>
+
         <component
           :is="component"
           v-for="(component, index) in sidebarUserContextComponents"
@@ -229,6 +236,11 @@ export default {
         await pageFinished(this.nuxtApp)
         await nextTick()
       } catch {}
+    },
+    async replayGuidedTour() {
+      this.hide()
+      await this.$nextTick()
+      await this.$store.dispatch('guidedTour/forceStart')
     },
     hasUnreadNotifications(workspaceId) {
       return this.$store.getters['notification/workspaceHasUnread'](workspaceId)
