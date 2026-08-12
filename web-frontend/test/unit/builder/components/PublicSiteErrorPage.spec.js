@@ -1,10 +1,16 @@
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { createI18n } from 'vue-i18n'
 
 import PublicSiteErrorPage from '@baserow/modules/builder/components/PublicSiteErrorPage'
 import Button from '@baserow/modules/core/components/Button'
 
 describe('PublicSiteErrorPage', () => {
+  // The component calls `useI18n()` in its setup, which needs an i18n instance
+  // installed on the app, the plain `mount` doesn't install the Nuxt plugins.
+  const createI18nPlugin = () =>
+    createI18n({ legacy: false, locale: 'en', messages: { en: {} } })
+
   const createRouterAndMount = async (pathMatch) => {
     const router = createRouter({
       history: createMemoryHistory(),
@@ -26,7 +32,7 @@ describe('PublicSiteErrorPage', () => {
         error: { statusCode: 404, message: 'Page not found' },
       },
       global: {
-        plugins: [router],
+        plugins: [router, createI18nPlugin()],
         components: { Button },
         mocks: { $t: (key) => key },
         stubs: { Logo: true },
@@ -80,7 +86,7 @@ describe('PublicSiteErrorPage', () => {
         },
       },
       global: {
-        plugins: [router],
+        plugins: [router, createI18nPlugin()],
         components: { Button },
         mocks: { $t: (key) => key },
         stubs: { Logo: true },
