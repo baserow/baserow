@@ -13,14 +13,14 @@ const LoadingWidgetContent = {
   template: '<div class="loading-widget-content">{{ loading }}</div>',
 }
 
-function mountDashboardWidget() {
+function mountDashboardWidget({ dataSource, dataForDataSource } = {}) {
   const widgetType = {
     name: 'Chart',
     component: LoadingWidgetContent,
     isLoading: () => true,
   }
 
-  return mount(DashboardWidget, {
+  const wrapper = mount(DashboardWidget, {
     props: {
       dashboard: { workspace: { id: 1 } },
       widget: {
@@ -46,8 +46,9 @@ function mountDashboardWidget() {
         $store: {
           getters: {
             'dashboardApplication/getData': {},
-            'dashboardApplication/getDataForDataSource': () => undefined,
-            'dashboardApplication/getDataSourceById': () => undefined,
+            'dashboardApplication/getDataForDataSource': () =>
+              dataForDataSource,
+            'dashboardApplication/getDataSourceById': () => dataSource,
             'dashboardApplication/getSelectedWidgetId': null,
             'dashboardApplication/isEditMode': true,
           },
@@ -60,14 +61,32 @@ function mountDashboardWidget() {
       },
     },
   })
+
+  return { wrapper }
 }
 
 describe('DashboardWidget', () => {
   test('keeps the header and context menu available while a chart is loading', () => {
-    const wrapper = mountDashboardWidget()
+    const { wrapper } = mountDashboardWidget()
 
     expect(wrapper.find('.widget__header-title').text()).toBe('Loading chart')
     expect(wrapper.find('widget-context-menu-stub').exists()).toBe(true)
+    expect(wrapper.find('.loading-widget-content').text()).toBe('true')
+  })
+
+  test('keeps invalid widget content visible with a configuration tooltip', () => {
+    const { wrapper } = mountDashboardWidget({
+      dataSource: { id: 1 },
+      dataForDataSource: { _error: true },
+    })
+
+    const configurationStatus = wrapper.find(
+      '.dashboard-widget__configuration-status'
+    )
+    expect(configurationStatus.exists()).toBe(true)
+    expect(configurationStatus.attributes('aria-label')).toBe(
+      'widget.fixConfiguration'
+    )
     expect(wrapper.find('.loading-widget-content').text()).toBe('true')
   })
 })
