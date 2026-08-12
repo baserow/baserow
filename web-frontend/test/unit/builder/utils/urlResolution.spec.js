@@ -251,6 +251,6 @@ describe('resolveElementUrl protocol guard tests', () => {
   test('Should still prefix an internal URL with leading characters in preview.', () => {
     expect(
       resolveCustomUrl(' /contact/', 'preview', { id: 123, pages: [] })
-    ).toEqual('/builder/123/preview/contact/')
+    ).toEqual('/builder/preview/123/contact/')
   })
 })
