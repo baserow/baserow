@@ -125,11 +125,32 @@ class LocalBaserowTableServiceFilterableMixin:
 
     def export_prepared_values(self, instance):
         values = super().export_prepared_values(instance)
-        # The service filters live on a related model (rebuilt in `after_update`), so
-        # the base export - which only reads `allowed_fields` - misses them. Capture
-        # them in the same shape `after_update` restores them from, so that changing a
-        # filter can be undone/redone.
-        values["service_filters"] = self.serialize_filters(instance)
+        # The service filters and filter groups live on related models (rebuilt in
+        # `after_update`), so the base export - which only reads `allowed_fields` -
+        # misses them. Capture them in the exact shapes `update_service_filters`
+        # restores them from. Note that these deliberately differ from the
+        # import/export shapes of `serialize_filters`/`serialize_filter_groups`:
+        # the restore path expects the API-validated keys (`group_id`,
+        # `parent_group_id`), and passing e.g. a `group` key alongside the
+        # explicit `group=` kwarg would crash the rebuild.
+        values["service_filter_groups"] = [
+            {
+                "id": g.id,
+                "filter_type": g.filter_type,
+                "parent_group_id": g.parent_group_id,
+            }
+            for g in instance.service_filter_groups.all()
+        ]
+        values["service_filters"] = [
+            {
+                "field_id": f.field_id,
+                "type": f.type,
+                "value": f.value,
+                "value_is_formula": f.value_is_formula,
+                "group_id": f.group_id,
+            }
+            for f in instance.service_filters_with_untrashed_fields
+        ]
         return values
 
     def serialize_property(

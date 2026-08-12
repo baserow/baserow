@@ -251,6 +251,36 @@ def test_automation_application_import_initializes_integrations_mapping(data_fix
 
 
 @pytest.mark.django_db
+def test_automation_application_import_with_node_referencing_trashed_integration(
+    data_fixture,
+):
+    from baserow.core.trash.handler import TrashHandler
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(user=user, automation=automation)
+    integration = automation.integrations.first().specific
+
+    # Trash the integration; the trigger's service keeps its dangling reference.
+    TrashHandler.trash(user, workspace, automation, integration)
+
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = AutomationApplicationType().export_serialized(automation, config)
+    serialized = json.loads(json.dumps(serialized))
+
+    imported = AutomationApplicationType().import_serialized(
+        workspace, serialized, config, {}
+    )
+
+    imported_workflow = imported.workflows.get(name=workflow.name)
+    imported_trigger = imported_workflow.automation_workflow_nodes.get().specific
+    # The trashed integration belongs to the source automation, so the copy's
+    # service must not reference it.
+    assert imported_trigger.service.integration_id is None
+
+
+@pytest.mark.django_db
 def test_fetch_workflows_to_serialize_without_user(data_fixture):
     workflow = data_fixture.create_automation_workflow(name="test")
 

@@ -96,6 +96,79 @@ def test_update_data_source_action(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+def test_update_data_source_filters_undo_redo(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    table, fields, _ = data_fixture.build_table(
+        user=user, columns=[("Name", "text")], rows=[["A"]]
+    )
+    field = fields[0]
+    service_type = service_type_registry.get("local_baserow_list_rows")
+
+    data_source = CreateDataSourceActionType.do(
+        user,
+        page,
+        service_type=service_type,
+        integration_id=integration.id,
+        table_id=table.id,
+    )
+
+    formula_value = {"formula": "'a'", "version": "0.1", "mode": "simple"}
+    ds_for_update = DataSourceHandler().get_data_source_for_update(data_source.id)
+    UpdateDataSourceActionType.do(
+        user,
+        ds_for_update,
+        service_type=service_type,
+        service_filter_groups=[
+            {"id": "client-group-1", "filter_type": "OR", "parent_group_id": None}
+        ],
+        service_filters=[
+            {
+                "field_id": field.id,
+                "type": "contains",
+                "value": formula_value,
+                "value_is_formula": False,
+                "group_id": "client-group-1",
+            },
+            {
+                "field_id": field.id,
+                "type": "contains",
+                "value": formula_value,
+                "value_is_formula": False,
+                "group_id": None,
+            },
+        ],
+    )
+
+    def get_state():
+        service = DataSource.objects.get(id=data_source.id).service.specific
+        groups = list(service.service_filter_groups.all())
+        filters = list(service.service_filters.order_by("order"))
+        return groups, filters
+
+    groups, filters = get_state()
+    assert len(groups) == 1 and groups[0].filter_type == "OR"
+    assert [f.group_id for f in filters] == [groups[0].id, None]
+
+    ActionHandler.undo(user, _scope(page), session_id)
+    groups, filters = get_state()
+    assert groups == [] and filters == []
+
+    ActionHandler.redo(user, _scope(page), session_id)
+    groups, filters = get_state()
+    assert len(groups) == 1 and groups[0].filter_type == "OR"
+    assert len(filters) == 2
+    assert [f.group_id for f in filters] == [groups[0].id, None]
+    assert all(f.field_id == field.id and f.type == "contains" for f in filters)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_share_data_source_undo_redo(data_fixture):
     """Toggling a data source as shared moves it to the builder's shared page; that
     move must be reverted on undo."""

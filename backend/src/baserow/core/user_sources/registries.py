@@ -208,7 +208,17 @@ class UserSourceType(
         **kwargs,
     ) -> Any:
         if prop_name == "integration_id" and value:
-            return id_mapping["integrations"][value]
+            # The user source may still reference an integration that has since
+            # been trashed (soft-deleted). Trashed integrations aren't
+            # serialized, so they won't be in the mapping - and when the
+            # application has no live integrations at all, the `integrations`
+            # key itself is never created. In both cases the dangling reference
+            # resolves to None instead of crashing the import.
+            try:
+                integrations = id_mapping["integrations"]
+            except KeyError:
+                return None
+            return integrations.get(value)
 
         if prop_name == "uid":
             # We generate a temporary uuid to prevent DB integrity error but it will be

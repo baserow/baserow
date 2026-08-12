@@ -15,4 +15,8 @@ class Migration(migrations.Migration):
             name='trashed',
             field=models.BooleanField(db_default=False, db_index=True, default=False),
         ),
+        migrations.AlterUniqueTogether(
+            name='datasource',
+            unique_together=set(),
+        ),
     ]

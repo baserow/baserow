@@ -279,13 +279,28 @@ class AutomationNodeType(
                 integration_id = id_mapping["integrations"].get(
                     integration_id, integration_id
                 )
-                integration = Integration.objects.get(id=integration_id)
-                workflow = kwargs.get("workflow")
-                if (
-                    workflow is not None
-                    and integration.application_id != workflow.automation_id
-                ):
+                # Use the trash-inclusive manager: duplicating an automation
+                # preserves the `integration_id` of a service pointing at a
+                # trashed integration (so the copy reconnects when it is
+                # restored), and the default manager would raise `DoesNotExist`
+                # on that trashed row.
+                try:
+                    integration = Integration.objects_and_trash.get(id=integration_id)
+                except Integration.DoesNotExist:
                     integration = None
+                else:
+                    # Never reference an integration outside the target
+                    # application. On a cross-application import a trashed
+                    # integration is not part of the export (so it is absent
+                    # from `id_mapping`), and the unmapped id would otherwise
+                    # resolve to an unrelated integration in another
+                    # application.
+                    workflow = kwargs.get("workflow")
+                    if (
+                        workflow is not None
+                        and integration.application_id != workflow.automation_id
+                    ):
+                        integration = None
 
             return ServiceHandler().import_service(
                 integration,

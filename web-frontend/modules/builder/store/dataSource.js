@@ -243,6 +243,13 @@ const actions = {
     { dispatch, getters, rootGetters },
     { builder, integrationId }
   ) {
+    // Integrations exist on multiple application types (e.g. automations) and
+    // the realtime integration events fire for all of them. Only builder
+    // applications have pages with data sources to re-dispatch; for any other
+    // type resolving the shared page below would crash on `pages`.
+    if (builder.type !== 'builder') {
+      return
+    }
     const selectedPage = rootGetters['page/getSelected']
     const sharedPage = rootGetters['page/getSharedPage'](builder)
     const pages = [selectedPage, sharedPage].filter(Boolean)

@@ -122,7 +122,20 @@ class AuthFormElementType(ElementType):
         **kwargs,
     ) -> Any:
         if prop_name == "user_source_id" and value:
-            return id_mapping["user_sources"][value]
+            # The element may still reference a user source that has since been
+            # trashed (soft-deleted). Trashed user sources aren't serialized, so
+            # they won't be in the mapping.
+            try:
+                user_sources = id_mapping["user_sources"]
+            except KeyError:
+                # A full-application import (publish / duplicate-application)
+                # whose builder had no live user sources never creates this key,
+                # so the dangling reference resolves to None. We index rather
+                # than `.get` with a default so a `MirrorDict` id_mapping
+                # (same-instance paste / duplicate) still maps the id to itself
+                # via its factory.
+                return None
+            return user_sources.get(value)
 
         return super().deserialize_property(
             prop_name,

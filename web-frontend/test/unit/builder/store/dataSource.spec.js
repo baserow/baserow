@@ -79,7 +79,7 @@ describe('dataSource store', () => {
 })
 
 describe('dataSource redispatchForIntegration', () => {
-  const builder = { id: 1 }
+  const builder = { id: 1, type: 'builder' }
   const selectedPage = { id: 10 }
   const sharedPage = { id: 99 }
 
@@ -124,6 +124,24 @@ describe('dataSource redispatchForIntegration', () => {
 
   test('does nothing when no data source uses the integration', () => {
     const { dispatch } = run([{ id: 1, integration_id: 6 }], 5)
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  test('does nothing for non-builder applications', () => {
+    // Integration realtime events fire for every application type (e.g.
+    // automations). Those have no pages, so the action must bail out instead
+    // of resolving the shared page (which would crash).
+    const dispatch = vi.fn()
+    const rootGetters = {
+      'page/getSelected': selectedPage,
+      'page/getSharedPage': () => {
+        throw new Error('must not resolve pages for non-builder applications')
+      },
+    }
+    dataSourceStore.actions.redispatchForIntegration(
+      { dispatch, getters: {}, rootGetters },
+      { builder: { id: 2, type: 'automation' }, integrationId: 5 }
+    )
     expect(dispatch).not.toHaveBeenCalled()
   })
 })
