@@ -1,6 +1,5 @@
 from django.db import migrations, models
 
-
 BATCH_SIZE = 1_000
 
 
@@ -25,20 +24,13 @@ def populate_widget_grid_layout(apps, schema_editor):
         widget.grid_y = next_grid_y
         widget.grid_width = 6
         widget.grid_height = grid_height
-        widget.grid_layout_initialized = True
         next_grid_y += grid_height
         widgets_to_update.append(widget)
 
         if len(widgets_to_update) == BATCH_SIZE:
             Widget.objects.bulk_update(
                 widgets_to_update,
-                [
-                    "grid_x",
-                    "grid_y",
-                    "grid_width",
-                    "grid_height",
-                    "grid_layout_initialized",
-                ],
+                ["grid_x", "grid_y", "grid_width", "grid_height"],
                 batch_size=BATCH_SIZE,
             )
             widgets_to_update.clear()
@@ -46,13 +38,7 @@ def populate_widget_grid_layout(apps, schema_editor):
     if widgets_to_update:
         Widget.objects.bulk_update(
             widgets_to_update,
-            [
-                "grid_x",
-                "grid_y",
-                "grid_width",
-                "grid_height",
-                "grid_layout_initialized",
-            ],
+            ["grid_x", "grid_y", "grid_width", "grid_height"],
             batch_size=BATCH_SIZE,
         )
 
@@ -82,11 +68,6 @@ class Migration(migrations.Migration):
             model_name="widget",
             name="grid_height",
             field=models.PositiveIntegerField(db_default=9, default=9),
-        ),
-        migrations.AddField(
-            model_name="widget",
-            name="grid_layout_initialized",
-            field=models.BooleanField(db_default=False, default=True),
         ),
         migrations.RunPython(populate_widget_grid_layout, migrations.RunPython.noop),
         migrations.AlterModelOptions(
