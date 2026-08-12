@@ -17,11 +17,11 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
 const asGridNumber = (value, fallback) =>
   Number.isInteger(value) ? value : fallback
 
-export function getDashboardGridColumns(viewportWidth) {
-  if (viewportWidth >= DESKTOP_BREAKPOINT) {
+export function getDashboardGridColumns(availableWidth) {
+  if (availableWidth >= DESKTOP_BREAKPOINT) {
     return DASHBOARD_DESKTOP_GRID_COLUMNS
   }
-  if (viewportWidth >= TABLET_BREAKPOINT) {
+  if (availableWidth >= TABLET_BREAKPOINT) {
     return DASHBOARD_TABLET_GRID_COLUMNS
   }
   return DASHBOARD_MOBILE_GRID_COLUMNS
@@ -95,7 +95,7 @@ function projectLayoutItem(item, columns) {
 }
 
 /**
- * Returns a visual layout for the available viewport width. Only the six-column
+ * Returns a visual layout for the available container width. Only the six-column
  * layout is persisted; tablet and mobile positions are deterministic projections.
  */
 export function createWidgetGridLayout(

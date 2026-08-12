@@ -63,7 +63,6 @@
           :store-prefix="storePrefix"
           :data-testid="`dashboard-widget-${layoutItem.i}`"
           :is-layout-editable="canManipulateLayout"
-          :is-resizing="isResizingWidget(layoutItem)"
           @delete-widget="deleteWidget"
         />
       </GridItem>
@@ -75,6 +74,7 @@
 import { GridItem, GridLayout } from 'grid-layout-plus'
 
 import DashboardWidget from '@baserow/modules/dashboard/components/widget/DashboardWidget'
+import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import {
   createWidgetGridLayout,
   getDashboardGridColumns,
@@ -89,6 +89,7 @@ const GRID_ROW_HEIGHT = 24
 export default {
   name: 'DashboardWidgetGrid',
   components: { DashboardWidget, GridItem, GridLayout },
+  mixins: [dimensionMixin],
   props: {
     dashboard: {
       type: Object,
@@ -108,7 +109,6 @@ export default {
       resizeState: null,
       gridGap: GRID_GAP,
       gridRowHeight: GRID_ROW_HEIGHT,
-      viewportWidth: 0,
     }
   },
   computed: {
@@ -123,7 +123,7 @@ export default {
       )
     },
     columns() {
-      return getDashboardGridColumns(this.viewportWidth)
+      return getDashboardGridColumns(this.dimensions.width)
     },
     isEditMode() {
       return this.$store.getters[
@@ -148,7 +148,7 @@ export default {
   },
   watch: {
     columns() {
-      // A viewport breakpoint can interrupt an active pointer operation.
+      // A container breakpoint can interrupt an active pointer operation.
       this.isInteracting = false
       this.clearResizeState()
       this.syncLayoutFromWidgets()
@@ -163,19 +163,13 @@ export default {
     },
   },
   mounted() {
-    this.updateViewportWidth()
-    window.addEventListener('resize', this.updateViewportWidth)
     this.syncLayoutFromWidgets()
   },
   beforeUnmount() {
     this.clearResizeState()
-    window.removeEventListener('resize', this.updateViewportWidth)
   },
   methods: {
     getWidgetGridItemConstraints,
-    updateViewportWidth() {
-      this.viewportWidth = window.innerWidth
-    },
     getWidget(layoutItem) {
       return this.widgetsById[String(layoutItem.i)]
     },

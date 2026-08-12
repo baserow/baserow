@@ -5,28 +5,58 @@
       'dashboard-widget--selected': isSelected,
       'dashboard-widget--selectable': isSelectable,
       'dashboard-widget--layout-editable': isLayoutEditable,
-      'dashboard-widget--resizing': isResizing,
     }"
     @click="selectWidgetIfAllowed(widget.id)"
   >
     <div v-if="isSelected && isEditMode" class="dashboard-widget__name">
       {{ widgetType.name }}
     </div>
+    <div
+      class="widget__header"
+      :class="{
+        'widget__header--edit-mode': isEditMode,
+        'widget__header--no-border': widget.type === 'summary',
+      }"
+    >
+      <div class="widget__header-main">
+        <div class="widget__header-title-wrapper">
+          <div class="widget__header-title">{{ widget.title }}</div>
+
+          <Badge
+            v-if="dataSourceMisconfigured"
+            color="red"
+            :size="widget.type === 'summary' ? 'regular' : 'small'"
+            indicator
+            rounded
+            >{{ $t('widget.fixConfiguration') }}</Badge
+          >
+        </div>
+        <div v-if="widget.description" class="widget__header-description">
+          {{ widget.description }}
+        </div>
+      </div>
+      <WidgetContextMenu
+        v-if="isEditMode"
+        :widget="widget"
+        :dashboard="dashboard"
+        @delete-widget="$emit('delete-widget', $event)"
+      ></WidgetContextMenu>
+    </div>
     <component
       :is="widgetComponent(widget.type)"
-      :dashboard="dashboard"
       :widget="widget"
       :store-prefix="storePrefix"
       :loading="isLoading"
-      :edit-mode="isEditMode"
-      @delete-widget="$emit('delete-widget', $event)"
     />
   </div>
 </template>
 
 <script>
+import WidgetContextMenu from '@baserow/modules/dashboard/components/widget/WidgetContextMenu'
+
 export default {
   name: 'DashboardWidget',
+  components: { WidgetContextMenu },
   props: {
     dashboard: {
       type: Object,
@@ -42,11 +72,6 @@ export default {
       default: '',
     },
     isLayoutEditable: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    isResizing: {
       type: Boolean,
       required: false,
       default: false,
@@ -78,6 +103,19 @@ export default {
         this.widget,
         this.$store.getters[`${this.storePrefix}dashboardApplication/getData`]
       )
+    },
+    dataSource() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getDataSourceById`
+      ](this.widget.data_source_id)
+    },
+    dataForDataSource() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getDataForDataSource`
+      ](this.dataSource?.id)
+    },
+    dataSourceMisconfigured() {
+      return Boolean(this.dataForDataSource?._error)
     },
   },
   methods: {
