@@ -3,9 +3,11 @@
     <div v-auto-overflow-scroll class="guided-tour-step__body">
       <a
         v-if="stoppable"
+        href="#"
         class="guided-tour-step__close"
         :title="$t('guidedTourStep.stopTour')"
-        @click="$emit('stop')"
+        :aria-label="$t('guidedTourStep.stopTour')"
+        @click.prevent="$emit('stop')"
       >
         <i class="iconoir-cancel"></i>
       </a>
