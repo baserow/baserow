@@ -45,6 +45,9 @@ class Widget(
     grid_y = models.PositiveIntegerField(default=0, db_default=0)
     grid_width = models.PositiveIntegerField(default=6, db_default=6)
     grid_height = models.PositiveIntegerField(default=9, db_default=9)
+    # TODO ZDM: Remove this field after every pre-grid-layout application version
+    # has been retired.
+    grid_layout_initialized = models.BooleanField(default=True, db_default=False)
     content_type = models.ForeignKey(
         ContentType,
         verbose_name="content type",

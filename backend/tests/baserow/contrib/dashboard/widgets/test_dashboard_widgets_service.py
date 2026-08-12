@@ -95,6 +95,39 @@ def test_get_widgets(data_fixture, stub_check_permissions):
 
 
 @pytest.mark.django_db
+def test_get_widgets_initializes_a_widget_created_by_a_pre_grid_process(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    current_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Current"
+    )
+    legacy_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Legacy"
+    )
+    Widget.objects.filter(id=legacy_widget.id).update(
+        grid_x=0,
+        grid_y=0,
+        grid_width=6,
+        grid_height=9,
+        grid_layout_initialized=False,
+    )
+
+    widgets = WidgetService().get_widgets(user, dashboard.id)
+
+    assert [widget.id for widget in widgets] == [current_widget.id, legacy_widget.id]
+    current_widget.refresh_from_db()
+    legacy_widget.refresh_from_db()
+    assert current_widget.grid_layout_initialized is True
+    assert (
+        legacy_widget.grid_x,
+        legacy_widget.grid_y,
+        legacy_widget.grid_width,
+        legacy_widget.grid_height,
+        legacy_widget.grid_layout_initialized,
+    ) == (0, 4, 2, 4, True)
+
+
+@pytest.mark.django_db
 def test_get_widgets_dashboard_trashed(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
