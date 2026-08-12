@@ -5,7 +5,9 @@
     },
     "integrationType": {
         "localBaserow": "Místní Baserow",
-        "smtp": "E-mail SMTP"
+        "smtp": "E-mail SMTP",
+        "ai": "AI",
+        "slackBot": "Slack"
     },
     "serviceType": {
         "localBaserowGetRow": "Získat jeden řádek",
@@ -47,7 +49,41 @@
         "coreRouterDescription": "Směruje pracovní postup do další větve podle podmínky.",
         "corePeriodic": "Pravidelný spouštěč",
         "corePeriodicDescription": "Spouští pracovní postup pravidelně v zadaných intervalech",
-        "corePeriodicErrorIntervalMissing": "Interval je povinný."
+        "corePeriodicErrorIntervalMissing": "Interval je povinný.",
+        "coreHTTPTrigger": "Přijmout požadavek HTTP",
+        "coreHTTPTriggerDescription": "Spustí se po přijetí požadavku HTTP.",
+        "coreIteration": "Iterátor",
+        "coreIterationDescription": "Iteruje položky.",
+        "errorIterationSourceMissing": "Chybí vlastnost zdroje",
+        "aiAgent": "Výzva AI",
+        "aiAgentDescription": "Spouští výzvy AI pomocí nakonfigurovaných generativních modelů AI.",
+        "errorNoIntegrationSelected": "Není vybráno žádné připojení",
+        "errorNoAIProviderSelected": "Není vybrán žádný poskytovatel AI",
+        "errorNoAIModelSelected": "Není vybrán žádný model AI",
+        "errorNoPromptProvided": "Není zadána žádná výzva",
+        "errorNoChoicesProvided": "Pro výstupní typ volby nejsou zadány žádné možnosti",
+        "slackWriteMessage": "Odeslat zprávu do Slacku",
+        "slackWriteMessageDescription": "Odešle zprávu do konkrétního kanálu Slacku #channel",
+        "slackWriteMessageMissingChannel": "Kanál je povinný.",
+        "slackWriteMessageMissingMessage": "Zpráva je povinná.",
+        "slackWriteMessageMissingIntegration": "Není vybráno žádné připojení ke Slacku.",
+        "localBaserowCreateRows": "Hromadně vytvořit řádky",
+        "localBaserowCreateRowsDescription": "Vytvoří více nových řádků v tabulce Baserow.",
+        "localBaserowUpdateRows": "Hromadně aktualizovat řádky",
+        "localBaserowUpdateRowsDescription": "Aktualizuje více existujících řádků v tabulce Baserow.",
+        "localBaserowFieldsUpdated": "Hodnoty konkrétních polí jsou aktualizovány",
+        "localBaserowFieldsUpdatedDescription": "Spustí se při aktualizaci řádků v konkrétních polích tabulky Baserow.",
+        "coreManualTrigger": "Ruční spouštěč",
+        "coreManualTriggerDescription": "Spustí se pouze tehdy, když tuto automatizaci spustí jiná akce pracovního postupu.",
+        "coreCSVFileReader": "Načíst soubor CSV",
+        "coreCSVFileReaderDescription": "Načte řádky ze souboru CSV.",
+        "coreStartWorkflow": "Spustit pracovní postup",
+        "coreStartWorkflowDescription": "Spustí automatizační pracovní postup.",
+        "errorNoRowsSelected": "Nejsou vybrány žádné řádky",
+        "errorCSVFileMissing": "Chybí vlastnost souboru CSV",
+        "errorCSVContentMissing": "Chybí vlastnost dat CSV",
+        "errorNoWorkflowSelected": "Není vybrán žádný pracovní postup",
+        "errorWorkflowNotImmediateDispatch": "Vybraný pracovní postup musí používat spouštěč, který se může spustit okamžitě."
     },
     "userSourceType": {
         "localBaserow": "Ověřování pomocí tabulky Baserow"
@@ -80,7 +116,8 @@
         "filterTypeNotFound": "Typ filtru není kompatibilní.",
         "noCompatibleFilterTypesErrorTitle": "Žádné kompatibilní typy filtrů",
         "noCompatibleFilterTypesErrorMessage": "Žádné z vašich polí nemá kompatibilní typ filtru",
-        "useDefaultForValue": "Použít výchozí filtr pro toto pole"
+        "useDefaultForValue": "Použít výchozí filtr pro toto pole",
+        "textFilterInputPlaceholder": "Zadejte text..."
     },
     "localBaserowTableServiceSortForm": {
         "noSortTitle": "Dosud jste nevytvořili řazení zdroje dat",
@@ -95,7 +132,9 @@
         "viewFieldLabel": "Zobrazení",
         "tableFieldLabel": "Tabulka",
         "chooseNoView": "Není vybráno",
-        "databaseFieldLabel": "Databáze"
+        "databaseFieldLabel": "Databáze",
+        "oneWayDataSyncedTableDescription": "Synchronizováno jedním směrem",
+        "twoWayDataSyncedTableDescription": "Synchronizováno oběma směry"
     },
     "localBaserowIntegrationType": {
         "localBaserowSummary": "Místní Baserow – {name}, {username}",
@@ -166,7 +205,9 @@
         "bodyTypePlain": "Prostý text",
         "bodyTypeHtml": "HTML",
         "body": "Tělo",
-        "bodyPlaceholder": "Obsah e-mailu..."
+        "bodyPlaceholder": "Obsah e-mailu...",
+        "smtpConfigurationMode": "Konfigurace SMTP",
+        "useInstanceSmtpSettings": "Použít server SMTP instance"
     },
     "serviceRefinementForms": {
         "filterTabTitle": "Filtr | 1 filtr | {count} filtrů",
@@ -194,6 +235,128 @@
     },
     "periodicForm": {
         "intervalLabel": "Interval",
-        "intervalHelper": "Zvolte, jak často chcete tento pracovní postup spouštět"
+        "intervalHelper": "Zvolte, jak často chcete tento pracovní postup spouštět",
+        "everyMinute": "Každých {minute} minut",
+        "everyHour": "Každou hodinu",
+        "everyDay": "Každý den",
+        "everyWeek": "Každý týden",
+        "everyMonth": "Každý měsíc",
+        "hour": "Hodina",
+        "minute": "Minuta",
+        "dayOfWeek": "Den v týdnu",
+        "dayOfMonth": "Den v měsíci",
+        "hourPlaceholder": "0–23",
+        "minutePlaceholder": "0–59",
+        "minuteFrequencyPlaceholder": "15",
+        "dayOfMonthPlaceholder": "1–31",
+        "minuteHelper": "Tento pracovní postup se spustí každých zadaných minut",
+        "hourHelper": "Tento pracovní postup se spustí každou hodinu v zadané minutě ve vašem místním časovém pásmu ({timezone})",
+        "dayHelper": "Tento pracovní postup se spustí každý den v zadaný čas ve vašem místním časovém pásmu ({timezone})",
+        "weekHelper": "Tento pracovní postup se spustí každý týden v zadaný den a čas ve vašem místním časovém pásmu ({timezone})",
+        "monthHelper": "Tento pracovní postup se spustí každý měsíc v zadaný den a čas ve vašem místním časovém pásmu ({timezone})",
+        "deactivatedTitle": "Pravidelný spouštěč byl deaktivován",
+        "deactivatedText": "Tento pravidelný spouštěč byl automaticky deaktivován kvůli opakovaným selháním.",
+        "everyMinuteDefault": "Každých zadaných minut",
+        "minuteFrequency": "Každých minut"
+    },
+    "aiIntegrationType": {
+        "inheritingWorkspace": "Dědí nastavení AI pracovního prostoru",
+        "overridingProviders": "Přepisuje {count} poskytovatele\\|Přepisuje {count} poskytovatelů"
+    },
+    "aiForm": {
+        "description": "Nakonfigurujte pro toto připojení nastavení poskytovatele AI. Ve výchozím nastavení se dědí nastavení AI pracovního prostoru.",
+        "workspaceSettingsTitle": "Nastavení AI pracovního prostoru",
+        "workspaceSettingsDescription": "Toto připojení ve výchozím nastavení dědí nastavení poskytovatele AI z pracovního prostoru. Níže můžete přepsat konkrétní poskytovatele.",
+        "overrideWorkspaceSettings": "Přepsat nastavení pracovního prostoru pro tohoto poskytovatele",
+        "inherited": "Zděděno",
+        "overridden": "Přepsáno"
+    },
+    "aiAgentServiceForm": {
+        "integrationLabel": "Připojení",
+        "providerLabel": "Poskytovatel AI",
+        "providerPlaceholder": "Vyberte poskytovatele AI...",
+        "modelLabel": "Model AI",
+        "modelPlaceholder": "Vyberte model...",
+        "outputTypeLabel": "Typ výstupu",
+        "outputTypeHelp": "Zvolte, jak má AI formátovat odpověď. Pokud definujete možnosti, vynutíte, aby model odpověděl pouze jednou z nich.",
+        "outputTypeText": "Text",
+        "outputTypeChoice": "Volba",
+        "temperatureLabel": "Teplota",
+        "temperaturePlaceholder": "např. 0,7",
+        "temperatureHelp": "Řídí náhodnost. Nižší hodnoty (0–0,3) jsou soustředěnější a determinističtější. Vyšší hodnoty (0,7–2,0) jsou kreativnější a rozmanitější.",
+        "promptLabel": "Výzva",
+        "promptPlaceholder": "Zde zadejte výzvu...",
+        "choicesLabel": "Možnosti",
+        "choicePlaceholder": "Zadejte možnost volby...",
+        "addChoice": "Přidat volbu",
+        "choicesRequired": "Je vyžadována alespoň jedna volba"
+    },
+    "coreIterationServiceForm": {
+        "source": "Zdroj",
+        "sourcePlaceholder": "Vyberte zdroj..."
+    },
+    "slackBotIntegrationType": {
+        "slackBotSummary": "Bot Slacku",
+        "slackBotNoToken": "Bot Slacku – nenakonfigurováno"
+    },
+    "slackBotForm": {
+        "tokenLabel": "Token uživatele bota",
+        "tokenPlaceholder": "xoxb-1234-...",
+        "tokenMustStartWith": "Token musí začínat na „xoxb-“",
+        "supportHeading": "Potřebujete pomoc?",
+        "supportDescription": "Pokud potřebujete pomoc se spárováním s aplikací Slacku, postupujte podle kroků níže.",
+        "supportSetupHeading": "1. Nastavení aplikace",
+        "supportSetupDescription": "V závislosti na nastavení pracovního prostoru Slacku možná budete moci vytvořit novou aplikaci Slacku. Jinak to za vás musí provést správce. Používáte-li existující aplikaci, která může psát zprávy, přejděte k oddílu „Párování s aplikací Slacku“.",
+        "supportSetupStep1": "Přejděte na {link} svého pracovního prostoru.",
+        "supportSetupStep2": "Vytvořte novou aplikaci, zvolte „From scratch“ a zadejte název. Vyberte pracovní prostor, ve kterém má aplikace fungovat, a klikněte na „Create“.",
+        "supportSetupStep3": "V levém postranním panelu přejděte na „OAuth > Permissions“, přejděte dolů k rozsahům oprávnění a v části „Bot Token Scopes“ vyberte „Add an OAuth Scope“.",
+        "supportSetupStep4": "Chcete-li aplikaci povolit odesílání zpráv, přidejte rozsah oprávnění {scope}.",
+        "supportPairingHeading": "2. Párování s aplikací Slacku",
+        "supportPairingStep1": "Je-li vaše aplikace nová, přejděte na „Settings“ > „Install App“. Kliknutím na zelené tlačítko nainstalujte aplikaci do pracovního prostoru.",
+        "supportPairingStep2": "Zkopírujte token „Bot User OAuth Token“ a uložte jej do pole „Bot User Token“ v tomto formuláři.",
+        "supportPairingStep3": "Nakonec, je-li vaše aplikace nová, pozvěte ji ve Slacku do vybraného kanálu pomocí {command}",
+        "supportSetupStep1Link": "stránku aplikací"
+    },
+    "slackWriteMessageServiceForm": {
+        "alertMessage": "Tato akce musí být spárována s aplikací Slacku. Začněte podle průvodce ve vyskakovacím okně připojení.",
+        "integrationLabel": "Připojení",
+        "channelLabel": "Kanál",
+        "channelPlaceholder": "Zadejte název kanálu",
+        "messageLabel": "Zpráva",
+        "messagePlaceholder": "Zadejte zprávu...",
+        "channelNoPrefix": "Odstraňte „#“ před názvem kanálu."
+    },
+    "localBaserowServiceForm": {
+        "integrationDropdownLabel": "Připojení",
+        "rowIdLabel": "ID řádku",
+        "rowIdPlaceholder": "Vyberte ID jednoho řádku"
+    },
+    "localBaserowUpsertRowServiceForm": {
+        "fieldMappingPlaceholderArray": "Vyberte hodnotu pole, např. [42]",
+        "fieldMappingPlaceholderString": "Vyberte řetězcovou hodnotu, např. \\'baserow\\'",
+        "fieldMappingPlaceholderNumber": "Vyberte číselnou hodnotu, např. 42",
+        "fieldMappingPlaceholderBoolean": "Vyberte logickou hodnotu, např. true",
+        "fieldMappingPlaceholderDate": "Vyberte hodnotu data, např. 2025-07-25",
+        "fieldMappingPlaceholderDecimal": "Vyberte desetinnou hodnotu, např. 3,14",
+        "fieldMappingPlaceholderDuration": "Vyberte hodnotu trvání, např. 1:23:40",
+        "noTableSelectedMessage": "Chcete-li začít konfigurovat pole, vyberte tabulku.",
+        "noWritableFields": "Tato tabulka neobsahuje žádná zapisovatelná pole."
+    },
+    "localBaserowFieldsUpdatedForm": {
+        "fieldLabel": "Pole",
+        "fieldHelper": "Pracovní postup se spustí pouze tehdy, když se změní hodnota jednoho z těchto polí."
+    },
+    "coreCSVFileReaderServiceForm": {
+        "inputType": "Zdroj",
+        "inputTypeFile": "Soubor",
+        "inputTypeContent": "Obsah",
+        "file": "Soubor CSV",
+        "filePlaceholder": "Vyberte soubor CSV...",
+        "csv": "Data CSV",
+        "csvPlaceholder": "Zadejte data CSV...",
+        "separator": "Oddělovač",
+        "encoding": "Kódování",
+        "firstLineIsHeader": "První řádek je záhlaví",
+        "comma": "Čárka"
     }
 }
