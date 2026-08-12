@@ -431,6 +431,116 @@ describe('Row utilities', () => {
       })
       expect(matchSortings).toBe(true)
     })
+
+    test('lookup (array formula) field sort correctly compares array values', () => {
+      const lookupField = {
+        id: 2,
+        name: 'Lookup',
+        type: 'formula',
+        formula_type: 'array',
+        array_formula_type: 'text',
+      }
+      const rows = [
+        {
+          id: 1,
+          order: '1.00000000000000000000',
+          field_2: [{ id: 20, value: 'Alpha' }],
+        },
+        {
+          id: 2,
+          order: '2.00000000000000000000',
+          field_2: [{ id: 20, value: 'Alpha' }],
+        },
+        {
+          id: 3,
+          order: '3.00000000000000000000',
+          field_2: [{ id: 10, value: 'Beta' }],
+        },
+      ]
+      const { matchSortings } = computeRowMatchFlags({
+        row: { id: 2, field_2: [{ id: 20, value: 'Alpha' }] },
+        view: baseView({
+          sortings: [{ field: 2, order: 'ASC', type: 'default' }],
+        }),
+        fields: [lookupField],
+        registry: store.$registry,
+        rowsInSortingGroup: rows,
+      })
+      expect(matchSortings).toBe(true)
+    })
+
+    test('lookup field sort detects row out of position', () => {
+      const lookupField = {
+        id: 2,
+        name: 'Lookup',
+        type: 'formula',
+        formula_type: 'array',
+        array_formula_type: 'text',
+      }
+      const rows = [
+        {
+          id: 1,
+          order: '1.00000000000000000000',
+          field_2: [{ id: 10, value: 'Beta' }],
+        },
+        {
+          id: 2,
+          order: '2.00000000000000000000',
+          field_2: [{ id: 20, value: 'Alpha' }],
+        },
+      ]
+      const { matchSortings } = computeRowMatchFlags({
+        row: { id: 2, field_2: [{ id: 20, value: 'Alpha' }] },
+        view: baseView({
+          sortings: [{ field: 2, order: 'ASC', type: 'default' }],
+        }),
+        fields: [lookupField],
+        registry: store.$registry,
+        rowsInSortingGroup: rows,
+      })
+      expect(matchSortings).toBe(false)
+    })
+
+    test('computeRowInsertPosition sorts lookup array values correctly', () => {
+      const lookupField = {
+        id: 2,
+        name: 'Lookup',
+        type: 'formula',
+        formula_type: 'array',
+        array_formula_type: 'text',
+      }
+      const existingRows = [
+        {
+          id: 1,
+          order: '1.00000000000000000000',
+          field_2: [{ id: 20, value: 'Alpha' }],
+        },
+        {
+          id: 3,
+          order: '3.00000000000000000000',
+          field_2: [{ id: 10, value: 'Beta' }],
+        },
+        {
+          id: 4,
+          order: '4.00000000000000000000',
+          field_2: [{ id: 30, value: 'Gamma' }],
+        },
+      ]
+      const newRow = {
+        id: 99,
+        order: '2.50000000000000000000',
+        field_2: [{ id: 20, value: 'Alpha' }],
+      }
+      const position = computeRowInsertPosition(
+        newRow,
+        existingRows,
+        [{ field: 2, order: 'ASC', type: 'default' }],
+        [lookupField],
+        store.$registry
+      )
+      expect(position.sortedIndex).toBe(1)
+      expect(position.anchorRowId).toBe(1)
+    })
   })
 
   describe('buildNewRowDefaults', () => {
