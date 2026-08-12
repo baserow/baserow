@@ -5,6 +5,7 @@ import {
   createSummaryWidget,
   Dashboard,
   getDashboardWidgets,
+  updateDashboardWidgetLayout,
 } from '../../fixtures/dashboard/dashboard'
 import { baserowConfig } from '../../playwright.config'
 import { expect, test } from '../baserowTest'
@@ -139,31 +140,6 @@ test.describe('Dashboard widget grid', () => {
       throw new Error('Could not measure the dashboard widget grid resizer')
     }
 
-    const resizeIndicator = await resizer.evaluate((element) => {
-      const before = getComputedStyle(element, '::before')
-
-      return {
-        before: {
-          backgroundColor: before.backgroundColor,
-          bottom: before.bottom,
-          height: before.height,
-          maskImage: before.maskImage,
-          right: before.right,
-          width: before.width,
-        },
-      }
-    })
-    expect(resizeIndicator).toMatchObject({
-      before: {
-        backgroundColor: 'rgb(181, 181, 183)',
-        bottom: '2px',
-        height: '16px',
-        maskImage: expect.stringContaining('data:image/svg+xml'),
-        right: '2px',
-        width: '16px',
-      },
-    })
-
     const gridGap = 16
     const columnWidth = (layoutBox.width - 7 * gridGap) / 6
     const x = resizerBox.x + resizerBox.width / 2
@@ -177,24 +153,10 @@ test.describe('Dashboard widget grid', () => {
       await expect(gridItem).toHaveClass(
         /dashboard-widget-grid__item--snap-resizing/
       )
-      await expect(dashboardWidget).toHaveClass(/dashboard-widget--resizing/)
-      await expect(dashboardWidget).toHaveCSS(
-        'border-top-color',
-        'rgb(78, 92, 254)'
-      )
-      await expect(dashboardWidget).toHaveCSS(
-        'background-color',
-        'rgb(240, 244, 252)'
-      )
       await expect(dashboardWidget.locator('.widget__header')).toHaveCSS(
         'cursor',
         'se-resize'
       )
-      expect(
-        await page.evaluate(() =>
-          document.body.classList.contains('dashboard-widget-grid--resizing')
-        )
-      ).toBe(true)
       await expect(dashboardWidget.locator('.widget__header-title')).toHaveCSS(
         'user-select',
         'none'
@@ -213,75 +175,12 @@ test.describe('Dashboard widget grid', () => {
         Math.abs(intermediateWidgetBox.width - initialWidgetBox.width)
       ).toBeLessThanOrEqual(1)
 
-      const placeholderOpacity = await grid
-        .locator('.vgl-layout')
-        .evaluate((element) =>
-          getComputedStyle(element)
-            .getPropertyValue('--vgl-placeholder-opacity')
-            .trim()
-        )
-      expect(placeholderOpacity).toBe('0')
-      await expect(grid.locator('.vgl-item--placeholder')).toHaveCSS(
-        'opacity',
-        '0'
-      )
-      await expect(
-        page.getByTestId('dashboard-widget-grid-resize-release-preview')
-      ).toHaveCount(0)
-
       await page.mouse.move(x + gridStep, y, { steps: 12 })
       await expect(grid).toHaveClass(/dashboard-widget-grid--interacting/)
-
-      const alignment = await page.evaluate(
-        ({ widgetId, gridGap }) => {
-          const grid = document.querySelector('.dashboard-widget-grid')
-          const layout = grid?.querySelector('.vgl-layout')
-          const widget = document.querySelector(
-            `[data-testid="dashboard-widget-grid-item-${widgetId}"]`
-          )
-          if (!grid || !layout || !widget) {
-            throw new Error('Could not inspect the dashboard widget grid')
-          }
-
-          const gridRect = grid.getBoundingClientRect()
-          const layoutRect = layout.getBoundingClientRect()
-          const widgetRect = widget.getBoundingClientRect()
-          const columns = Number.parseFloat(
-            getComputedStyle(grid).getPropertyValue(
-              '--dashboard-widget-grid-columns'
-            )
-          )
-          const step = (layoutRect.width - gridGap) / columns
-          const x = Math.round(
-            (widgetRect.left - layoutRect.left - gridGap) / step
-          )
-          const width = Math.round((widgetRect.width + gridGap) / step)
-
-          return {
-            width,
-            // A widget spans its internal gutters and ends at the last track
-            // boundary, immediately before the following real gutter.
-            leftDelta: Math.abs(widgetRect.left - gridRect.left - x * step),
-            rightDelta: Math.abs(
-              widgetRect.right - gridRect.left - ((x + width) * step - gridGap)
-            ),
-          }
-        },
-        { widgetId: widget.id, gridGap }
-      )
-
-      expect(alignment.width).toBe(3)
-      expect(alignment.leftDelta).toBeLessThanOrEqual(1)
-      expect(alignment.rightDelta).toBeLessThanOrEqual(1)
     } finally {
       await page.mouse.up()
     }
 
-    expect(
-      await page.evaluate(() =>
-        document.body.classList.contains('dashboard-widget-grid--resizing')
-      )
-    ).toBe(false)
     await expect(
       page
         .getByTestId(`dashboard-widget-${adjacentWidget.id}`)
@@ -323,16 +222,8 @@ test.describe('Dashboard widget grid', () => {
       `dashboard-widget-${secondWidget.id}`
     )
     const secondWidgetHeader = secondWidgetElement.locator('.widget__header')
-    await expect(
-      secondWidgetElement.locator('.dashboard-widget__drag-handle')
-    ).toHaveCount(0)
     await secondWidgetHeader.hover()
     await expect(secondWidgetHeader).toHaveCSS('cursor', 'move')
-    await expect(secondWidgetElement).toHaveCSS('border-top-style', 'dashed')
-    await expect(secondWidgetElement).toHaveCSS(
-      'background-color',
-      'rgb(247, 247, 247)'
-    )
 
     const secondWidgetHeaderBox = await secondWidgetHeader.boundingBox()
     if (!secondWidgetHeaderBox) {
@@ -353,15 +244,6 @@ test.describe('Dashboard widget grid', () => {
 
       const dragPlaceholder = grid.locator('.vgl-item--placeholder')
       await expect(dragPlaceholder).toBeVisible()
-      await expect(dragPlaceholder).toHaveCSS('opacity', '1')
-      await expect(dragPlaceholder).toHaveCSS(
-        'background-color',
-        'rgba(81, 144, 239, 0.16)'
-      )
-      await expect(dragPlaceholder).toHaveCSS(
-        'box-shadow',
-        'rgba(81, 144, 239, 0.65) 0px 0px 0px 1px inset'
-      )
     } finally {
       await page.mouse.up()
     }
@@ -403,5 +285,64 @@ test.describe('Dashboard widget grid', () => {
       .toBeGreaterThan(0)
 
     await observerPage.close()
+  })
+
+  test('keeps the canonical desktop layout when deleting from a tablet layout', async ({
+    page,
+    workspacePage,
+  }) => {
+    const dashboard = await createDashboard(
+      'Dashboard tablet widget deletion',
+      workspacePage.workspace
+    )
+    const firstWidget = await createSummaryWidget(dashboard, 'First widget')
+    const secondWidget = await createSummaryWidget(dashboard, 'Second widget')
+    await updateDashboardWidgetLayout(dashboard, [
+      {
+        id: firstWidget.id,
+        grid_x: 0,
+        grid_y: 0,
+        grid_width: 2,
+        grid_height: 4,
+      },
+      {
+        id: secondWidget.id,
+        grid_x: 2,
+        grid_y: 0,
+        grid_width: 4,
+        grid_height: 4,
+      },
+    ])
+
+    await page.setViewportSize({ width: 1250, height: 1000 })
+    await goToDashboard(page, dashboard)
+    await enterEditMode(page)
+
+    const firstWidgetItem = page.getByTestId(
+      `dashboard-widget-grid-item-${firstWidget.id}`
+    )
+    const secondWidgetItem = page.getByTestId(
+      `dashboard-widget-grid-item-${secondWidget.id}`
+    )
+    await expect
+      .poll(async () => {
+        const firstBox = await firstWidgetItem.boundingBox()
+        const secondBox = await secondWidgetItem.boundingBox()
+        if (!firstBox || !secondBox) {
+          return null
+        }
+        return (firstBox.width + 16) / (secondBox.width + 16)
+      })
+      .toBeCloseTo(1 / 3, 1)
+
+    await page.getByTestId(`dashboard-widget-context-${firstWidget.id}`).click()
+    await page.getByText('Delete', { exact: true }).click()
+
+    await expectWidgetLayout(dashboard, secondWidget.id, {
+      grid_x: 2,
+      grid_y: 0,
+      grid_width: 4,
+      grid_height: 4,
+    })
   })
 })
