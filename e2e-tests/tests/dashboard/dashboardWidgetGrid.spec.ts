@@ -37,7 +37,7 @@ async function dragBy(
 ) {
   const box = await source.boundingBox()
   if (!box) {
-    throw new Error('Could not measure the dashboard widget drag handle')
+    throw new Error('Could not measure the dashboard widget drag source')
   }
 
   const x = box.x + box.width / 2
@@ -111,7 +111,7 @@ test.describe('Dashboard widget grid', () => {
     await expect(loadingIndicator).toHaveCount(0, { timeout: 10_000 })
   })
 
-  test('snaps widgets to invisible grid tracks while resizing', async ({
+  test('resizes in discrete grid tracks without placeholder feedback', async ({
     page,
     workspacePage,
   }) => {
@@ -120,29 +120,116 @@ test.describe('Dashboard widget grid', () => {
       workspacePage.workspace
     )
     const widget = await createSummaryWidget(dashboard, 'Guide widget')
+    const adjacentWidget = await createSummaryWidget(
+      dashboard,
+      'Adjacent widget'
+    )
 
     await goToDashboard(page, dashboard)
     await enterEditMode(page)
 
     const grid = page.getByTestId('dashboard-widget-grid')
+    const gridItem = page.getByTestId(`dashboard-widget-grid-item-${widget.id}`)
+    const dashboardWidget = page.getByTestId(`dashboard-widget-${widget.id}`)
     const layoutBox = await grid.locator('.vgl-layout').boundingBox()
-    const resizer = page
-      .getByTestId(`dashboard-widget-grid-item-${widget.id}`)
-      .locator('.vgl-item__resizer')
+    const resizer = gridItem.locator('.vgl-item__resizer')
     const resizerBox = await resizer.boundingBox()
-    if (!layoutBox || !resizerBox) {
+    const initialWidgetBox = await gridItem.boundingBox()
+    if (!layoutBox || !resizerBox || !initialWidgetBox) {
       throw new Error('Could not measure the dashboard widget grid resizer')
     }
+
+    const resizeIndicator = await resizer.evaluate((element) => {
+      const before = getComputedStyle(element, '::before')
+
+      return {
+        before: {
+          backgroundColor: before.backgroundColor,
+          bottom: before.bottom,
+          height: before.height,
+          maskImage: before.maskImage,
+          right: before.right,
+          width: before.width,
+        },
+      }
+    })
+    expect(resizeIndicator).toMatchObject({
+      before: {
+        backgroundColor: 'rgb(181, 181, 183)',
+        bottom: '2px',
+        height: '16px',
+        maskImage: expect.stringContaining('data:image/svg+xml'),
+        right: '2px',
+        width: '16px',
+      },
+    })
 
     const gridGap = 16
     const columnWidth = (layoutBox.width - 7 * gridGap) / 6
     const x = resizerBox.x + resizerBox.width / 2
     const y = resizerBox.y + resizerBox.height / 2
+    const gridStep = columnWidth + gridGap
 
     await page.mouse.move(x, y)
     await page.mouse.down()
     try {
-      await page.mouse.move(x + columnWidth + gridGap, y, { steps: 12 })
+      await page.mouse.move(x + gridStep * 0.4, y, { steps: 6 })
+      await expect(gridItem).toHaveClass(
+        /dashboard-widget-grid__item--snap-resizing/
+      )
+      await expect(dashboardWidget).toHaveClass(/dashboard-widget--resizing/)
+      await expect(dashboardWidget).toHaveCSS(
+        'border-top-color',
+        'rgb(78, 92, 254)'
+      )
+      await expect(dashboardWidget).toHaveCSS(
+        'background-color',
+        'rgb(240, 244, 252)'
+      )
+      await expect(dashboardWidget.locator('.widget__header')).toHaveCSS(
+        'cursor',
+        'se-resize'
+      )
+      expect(
+        await page.evaluate(() =>
+          document.body.classList.contains('dashboard-widget-grid--resizing')
+        )
+      ).toBe(true)
+      await expect(dashboardWidget.locator('.widget__header-title')).toHaveCSS(
+        'user-select',
+        'none'
+      )
+      await expect(
+        page
+          .getByTestId(`dashboard-widget-${adjacentWidget.id}`)
+          .locator('.widget__header-title')
+      ).toHaveCSS('user-select', 'none')
+
+      const intermediateWidgetBox = await gridItem.boundingBox()
+      if (!intermediateWidgetBox) {
+        throw new Error('Could not measure the resizing dashboard widget')
+      }
+      expect(
+        Math.abs(intermediateWidgetBox.width - initialWidgetBox.width)
+      ).toBeLessThanOrEqual(1)
+
+      const placeholderOpacity = await grid
+        .locator('.vgl-layout')
+        .evaluate((element) =>
+          getComputedStyle(element)
+            .getPropertyValue('--vgl-placeholder-opacity')
+            .trim()
+        )
+      expect(placeholderOpacity).toBe('0')
+      await expect(grid.locator('.vgl-item--placeholder')).toHaveCSS(
+        'opacity',
+        '0'
+      )
+      await expect(
+        page.getByTestId('dashboard-widget-grid-resize-release-preview')
+      ).toHaveCount(0)
+
+      await page.mouse.move(x + gridStep, y, { steps: 12 })
       await expect(grid).toHaveClass(/dashboard-widget-grid--interacting/)
 
       const alignment = await page.evaluate(
@@ -189,6 +276,19 @@ test.describe('Dashboard widget grid', () => {
     } finally {
       await page.mouse.up()
     }
+
+    expect(
+      await page.evaluate(() =>
+        document.body.classList.contains('dashboard-widget-grid--resizing')
+      )
+    ).toBe(false)
+    await expect(
+      page
+        .getByTestId(`dashboard-widget-${adjacentWidget.id}`)
+        .locator('.widget__header-title')
+    ).toHaveCSS('user-select', 'auto')
+
+    await expectWidgetLayout(dashboard, widget.id, { grid_width: 3 })
   })
 
   test('persists drag and horizontal/vertical resize, then broadcasts the layout', async ({
@@ -219,12 +319,53 @@ test.describe('Dashboard widget grid', () => {
     const columnWidth = (layoutBox.width - 7 * 16) / 6
     const rowHeightWithMargin = 24 + 16
 
-    await dragBy(
-      page,
-      page.getByTestId(`dashboard-widget-drag-handle-${secondWidget.id}`),
-      2 * (columnWidth + 16),
-      -4 * rowHeightWithMargin
+    const secondWidgetElement = page.getByTestId(
+      `dashboard-widget-${secondWidget.id}`
     )
+    const secondWidgetHeader = secondWidgetElement.locator('.widget__header')
+    await expect(
+      secondWidgetElement.locator('.dashboard-widget__drag-handle')
+    ).toHaveCount(0)
+    await secondWidgetHeader.hover()
+    await expect(secondWidgetHeader).toHaveCSS('cursor', 'move')
+    await expect(secondWidgetElement).toHaveCSS('border-top-style', 'dashed')
+    await expect(secondWidgetElement).toHaveCSS(
+      'background-color',
+      'rgb(247, 247, 247)'
+    )
+
+    const secondWidgetHeaderBox = await secondWidgetHeader.boundingBox()
+    if (!secondWidgetHeaderBox) {
+      throw new Error('Could not measure the dashboard widget drag source')
+    }
+
+    const dragStartX = secondWidgetHeaderBox.x + secondWidgetHeaderBox.width / 2
+    const dragStartY =
+      secondWidgetHeaderBox.y + secondWidgetHeaderBox.height / 2
+    await page.mouse.move(dragStartX, dragStartY)
+    await page.mouse.down()
+    try {
+      await page.mouse.move(
+        dragStartX + 2 * (columnWidth + 16),
+        dragStartY - 4 * rowHeightWithMargin,
+        { steps: 12 }
+      )
+
+      const dragPlaceholder = grid.locator('.vgl-item--placeholder')
+      await expect(dragPlaceholder).toBeVisible()
+      await expect(dragPlaceholder).toHaveCSS('opacity', '1')
+      await expect(dragPlaceholder).toHaveCSS(
+        'background-color',
+        'rgba(81, 144, 239, 0.16)'
+      )
+      await expect(dragPlaceholder).toHaveCSS(
+        'box-shadow',
+        'rgba(81, 144, 239, 0.65) 0px 0px 0px 1px inset'
+      )
+    } finally {
+      await page.mouse.up()
+    }
+
     await expectWidgetLayout(dashboard, secondWidget.id, {
       grid_x: 2,
       grid_y: 0,
