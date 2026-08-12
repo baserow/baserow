@@ -209,9 +209,6 @@ export default {
     },
   },
   methods: {
-    mustHaveUniqueName(param) {
-      return !this.existingNames.includes(param.trim())
-    },
     getFormValues(deep = false) {
       const values = Object.assign(
         {},
@@ -252,10 +249,6 @@ export default {
           maxLength: helpers.withMessage(
             this.$t('error.maxLength', { max: 255 }),
             maxLength(255)
-          ),
-          unique: helpers.withMessage(
-            this.$t('dataSourceForm.errorUniqueName'),
-            this.mustHaveUniqueName
           ),
         },
         integration_id: {

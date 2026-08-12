@@ -363,7 +363,13 @@ export class WorkflowActionServiceType extends WorkflowActionType {
       service: workflowAction.service,
       // Pass the builder so the service type can resolve the service's integration
       // and flag the action as in-error when that integration has been trashed.
-      application: applicationContext.builder,
+      // Editor only: integrations are never loaded in preview/public mode, so
+      // there the check would flag every configured action as misconfigured and
+      // hide its element.
+      application:
+        applicationContext.mode === 'editing'
+          ? applicationContext.builder
+          : undefined,
     })
 
     if (serviceError) {

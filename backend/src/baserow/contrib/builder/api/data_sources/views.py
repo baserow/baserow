@@ -318,12 +318,19 @@ class DataSourceView(APIView):
                 request.data,
                 base_serializer_class=UpdateDataSourceSerializer,
                 serializer_class_context={"application_type": BuilderApplicationType},
+                # Partial validation, otherwise fields absent from the request
+                # (e.g. when only `page_id` is sent to share/un-share a data
+                # source) are populated with their serializer defaults, resetting
+                # formula fields like `row_id` to blank.
+                partial=True,
                 return_validated=True,
             )
 
         else:
             # No service nor type, we should validate with the default serializer
-            data = validate_data(BaseUpdateDataSourceSerializer, request.data)
+            data = validate_data(
+                BaseUpdateDataSourceSerializer, request.data, partial=True
+            )
 
         if change_service_type:
             data["new_service_type"] = service_type_from_query

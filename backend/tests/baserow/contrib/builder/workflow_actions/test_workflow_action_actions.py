@@ -108,6 +108,57 @@ def test_update_workflow_action_action(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+def test_update_create_row_workflow_action_field_mapping_undo_redo(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    name_field = fields[0]
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=name_field, value="'original'", enabled=True)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK.value, service=service
+    )
+
+    def mapping_formula():
+        return (
+            BuilderWorkflowActionHandler()
+            .get_workflow_action(workflow_action.id)
+            .service.specific.field_mappings.get(field=name_field)
+            .value["formula"]
+        )
+
+    wa = BuilderWorkflowActionHandler().get_workflow_action(workflow_action.id)
+    UpdateBuilderWorkflowActionActionType.do(
+        user,
+        wa,
+        service={
+            "field_mappings": [
+                {"field_id": name_field.id, "value": "'updated'", "enabled": True}
+            ]
+        },
+    )
+    assert mapping_formula() == "'updated'"
+
+    ActionHandler.undo(user, _scope(page), session_id)
+    assert mapping_formula() == "'original'"
+
+    ActionHandler.redo(user, _scope(page), session_id)
+    assert mapping_formula() == "'updated'"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_order_workflow_actions_action(data_fixture):
     session_id = str(uuid.uuid4())
     user = data_fixture.create_user(session_id=session_id)

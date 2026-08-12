@@ -319,6 +319,37 @@ def test_update_data_source_page(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_data_source_page_only_preserves_service_values(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(user=user, builder=page.builder)
+    table = data_fixture.create_database_table(user=user)
+    data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="name", table=table, row_id="'42'"
+    )
+
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source1.id}
+    )
+
+    response = api_client.patch(
+        url,
+        {"page_id": page2.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["page_id"] == page2.id
+    assert response.json()["row_id"]["formula"] == "'42'"
+    assert response.json()["table_id"] == table.id
+
+    data_source1.refresh_from_db()
+    assert data_source1.service.specific.row_id["formula"] == "'42'"
+
+
+@pytest.mark.django_db
 def test_update_data_source_with_duplicate_name_is_allowed_on_same_page(
     api_client, data_fixture
 ):

@@ -473,9 +473,18 @@ class CollectionElementTypeMixin:
     ) -> Any:
         if prop_name == "data_source_id" and value:
             # The element may still reference a data source that has since been
-            # trashed (soft-deleted). Trashed data sources aren't serialized, so they
-            # won't be in the mapping.
-            return id_mapping["builder_data_sources"].get(value)
+            # trashed (soft-deleted). Trashed data sources aren't serialized, so
+            # they won't be in the mapping.
+            try:
+                data_sources = id_mapping["builder_data_sources"]
+            except KeyError:
+                # A full-application import (publish / duplicate-application) whose
+                # page had no live data sources never creates this key, so the
+                # dangling reference resolves to None. We index rather than `.get`
+                # with a default so a `MirrorDict` id_mapping (same-instance paste /
+                # duplicate) still maps the id to itself via its factory.
+                return None
+            return data_sources.get(value)
 
         return super().deserialize_property(
             prop_name,

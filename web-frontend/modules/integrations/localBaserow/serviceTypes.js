@@ -60,7 +60,12 @@ export class LocalBaserowTableServiceType extends ServiceType {
    */
   getErrorMessage({ service, application }) {
     if (service !== undefined) {
-      if (application !== undefined) {
+      // Only flag an unresolvable integration when one is actually configured
+      // (`integration_id` set). A service that was never given an integration is
+      // reported by the more specific checks below (e.g. no table selected).
+      // Callers must only pass `application` when the builder's integrations are
+      // loaded in the store (editor mode) - see WorkflowActionServiceType.
+      if (application !== undefined && service.integration_id) {
         const integration = this.app.$store.getters[
           'integration/getIntegrationById'
         ](application, service.integration_id)

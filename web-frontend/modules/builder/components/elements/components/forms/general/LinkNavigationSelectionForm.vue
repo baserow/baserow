@@ -130,7 +130,6 @@ export default {
   data() {
     return {
       parametersInError: false,
-      navigateTo: '',
       allowedValues: [
         'navigation_type',
         'navigate_to_page_id',
@@ -163,6 +162,34 @@ export default {
     pages() {
       return this.$store.getters['page/getVisiblePages'](this.builder)
     },
+    // The dropdown's selection is a projection of `values`, not a separate piece
+    // of state. Deriving it (rather than mirroring it in `data`) means an
+    // external change to `values` - e.g. the form mixin's `reset()` after an
+    // undo/redo - is reflected automatically, while the write-back below only
+    // runs on genuine user input. That keeps a re-sync from emitting a spurious
+    // change (which, on undo, would register an action and discard the redo stack).
+    navigateTo: {
+      get() {
+        if (this.values.navigation_type === 'page') {
+          return this.values.navigate_to_page_id || ''
+        }
+        return 'custom'
+      },
+      set(value) {
+        if (value === '') {
+          this.values.navigation_type = 'page'
+          this.values.navigate_to_page_id = null
+          this.values.navigate_to_url = ''
+        } else if (value === 'custom') {
+          this.values.navigation_type = 'custom'
+          this.values.navigate_to_page_id = null
+        } else if (!isNaN(value)) {
+          this.values.navigation_type = 'page'
+          this.values.navigate_to_page_id = value
+          this.updatePageParameters()
+        }
+      },
+    },
     destinationPage() {
       if (!isNaN(this.navigateTo)) {
         return this.pages.find(({ id }) => id === this.navigateTo)
@@ -182,20 +209,6 @@ export default {
       },
       deep: true,
     },
-    navigateTo(value) {
-      if (value === '') {
-        this.values.navigation_type = 'page'
-        this.values.navigate_to_page_id = null
-        this.values.navigate_to_url = ''
-      } else if (value === 'custom') {
-        this.values.navigation_type = 'custom'
-        this.values.navigate_to_page_id = null
-      } else if (!isNaN(value)) {
-        this.values.navigation_type = 'page'
-        this.values.navigate_to_page_id = value
-        this.updatePageParameters()
-      }
-    },
     destinationPage(value) {
       this.updatePageParameters()
       // This means that the page select does not exist anymore
@@ -205,17 +218,6 @@ export default {
     },
   },
   mounted() {
-    if (typeof this.defaultValues.navigation_type !== 'undefined') {
-      let navigateTo = ''
-      if (this.defaultValues.navigation_type === 'page') {
-        if (this.defaultValues.navigate_to_page_id) {
-          navigateTo = this.defaultValues.navigate_to_page_id
-        }
-      } else {
-        navigateTo = 'custom'
-      }
-      this.navigateTo = navigateTo
-    }
     this.updatePageParameters()
     this.refreshParametersInError()
   },

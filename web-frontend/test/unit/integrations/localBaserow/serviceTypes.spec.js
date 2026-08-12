@@ -325,5 +325,15 @@ describe('Local baserow service types', () => {
         service: { integration_id: 41, table_id: 99 },
       })
     ).toBe(null)
+
+    // A service with no integration configured must not be flagged by the
+    // integration check even when an application is present - the more specific
+    // checks (e.g. no table selected) cover that case.
+    expect(
+      serviceType.getErrorMessage({
+        service: { table_id: 99 },
+        application,
+      })
+    ).toBe(null)
   })
 })

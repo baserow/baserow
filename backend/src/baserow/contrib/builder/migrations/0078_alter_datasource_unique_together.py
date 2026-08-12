@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('builder', '0076_builderworkflowaction_trashed'),
+        ('builder', '0077_builderworkflowaction_trashed'),
     ]
 
     operations = [
