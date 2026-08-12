@@ -34,6 +34,13 @@ class WidgetService:
         self.handler = WidgetHandler()
         self.dashboard_handler = DashboardHandler()
 
+    def _get_widgets_for_layout_mutation(self, dashboard) -> list[Widget]:
+        """Locks a dashboard's widgets and initializes any rollout-era defaults."""
+
+        widgets = self.handler.get_widgets_for_update(dashboard)
+        self.handler.initialize_uninitialized_widget_grid_layouts(widgets)
+        return widgets
+
     def get_widget(self, user: AbstractUser, widget_id: int) -> Widget:
         """
         Returns a widget instance from the database. Also checks the user permissions.
@@ -60,6 +67,7 @@ class WidgetService:
 
         return widget
 
+    @transaction.atomic
     def get_widgets(self, user: AbstractUser, dashboard_id: int) -> list[Widget]:
         """
         Gets all the widgets of a given dashboard.
@@ -88,8 +96,14 @@ class WidgetService:
             workspace=dashboard.workspace,
         )
 
-        return self.handler.get_widgets(dashboard, base_queryset=widgets)
+        if Widget.objects.filter(
+            dashboard=dashboard, grid_layout_initialized=False
+        ).exists():
+            self._get_widgets_for_layout_mutation(dashboard)
 
+        return list(self.handler.get_widgets(dashboard, base_queryset=widgets))
+
+    @transaction.atomic
     def create_widget(
         self,
         user: AbstractUser,
@@ -126,6 +140,7 @@ class WidgetService:
         widget_type_from_registry = widget_type_registry.get(widget_type)
 
         widget_type_from_registry.before_create(user, dashboard)
+        self._get_widgets_for_layout_mutation(dashboard)
 
         new_widget = self.handler.create_widget(
             widget_type_from_registry,
@@ -267,7 +282,7 @@ class WidgetService:
             context=dashboard,
         )
 
-        widgets = self.handler.get_widgets_for_update(dashboard)
+        widgets = self._get_widgets_for_layout_mutation(dashboard)
         original_layout = [self.handler.get_widget_layout(widget) for widget in widgets]
         layout_by_widget_id = self._validate_widget_layout(widgets, layout)
         self.handler.update_widget_layout(widgets, layout_by_widget_id)
@@ -316,7 +331,7 @@ class WidgetService:
             context=deleted_widget,
         )
 
-        widgets = self.handler.get_widgets_for_update(dashboard)
+        widgets = self._get_widgets_for_layout_mutation(dashboard)
         widgets_by_id = {widget.id: widget for widget in widgets}
         widget = widgets_by_id.get(widget_id)
         if widget is None:

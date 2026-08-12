@@ -179,6 +179,53 @@ class WidgetHandler:
             default=0,
         )
 
+    def initialize_uninitialized_widget_grid_layouts(
+        self, widgets: list[Widget]
+    ) -> None:
+        """Initializes layouts written by an application version without the grid.
+
+        During a zero-downtime deployment, an older application process omits the
+        grid fields when it creates a widget. The database defaults cannot encode
+        widget-type-specific dimensions, so those widgets are marked as uninitialized
+        and placed below the canonical layout by the first current process that sees
+        them.
+        """
+
+        uninitialized_widgets = [
+            widget for widget in widgets if not widget.grid_layout_initialized
+        ]
+        if not uninitialized_widgets:
+            return
+
+        next_grid_y = max(
+            (
+                widget.grid_y + widget.grid_height
+                for widget in widgets
+                if widget.grid_layout_initialized
+            ),
+            default=0,
+        )
+        for widget in sorted(
+            uninitialized_widgets, key=lambda widget: (widget.order, widget.id)
+        ):
+            grid_layout = widget.get_type().get_grid_layout()
+            widget.grid_x = 0
+            widget.grid_y = next_grid_y
+            widget.grid_width = grid_layout.default_width
+            widget.grid_height = grid_layout.default_height
+            widget.grid_layout_initialized = True
+            widget.save(
+                update_fields=[
+                    "grid_x",
+                    "grid_y",
+                    "grid_width",
+                    "grid_height",
+                    "grid_layout_initialized",
+                    "updated_on",
+                ]
+            )
+            next_grid_y += grid_layout.default_height
+
     def place_restored_widget_at_bottom(self, widget: Widget) -> None:
         """Places a restored widget after the active dashboard layout.
 
@@ -231,6 +278,7 @@ class WidgetHandler:
             grid_y=self.get_last_grid_y(dashboard),
             grid_width=grid_layout.default_width,
             grid_height=grid_layout.default_height,
+            grid_layout_initialized=True,
             **allowed_values,
         )
         widget._ensure_content_type_is_set()
