@@ -9,6 +9,7 @@
     }"
     :class="{
       'dashboard-widget-grid--interacting': isInteracting,
+      'dashboard-widget-grid--resizing': resizeState !== null,
     }"
   >
     <GridLayout
@@ -39,12 +40,21 @@
         :h="layoutItem.h"
         :is-draggable="canManipulateLayout"
         :is-resizable="canManipulateLayout"
+        :class="{
+          'dashboard-widget-grid__item--snap-resizing':
+            isResizingWidget(layoutItem),
+        }"
+        :style="getGridItemResizeStyle(layoutItem)"
         :data-testid="`dashboard-widget-grid-item-${layoutItem.i}`"
-        drag-allow-from=".dashboard-widget__drag-handle"
+        drag-allow-from=".widget__header"
+        drag-ignore-from=".widget__header-context-menu, a, button"
+        @pointerdown.capture="startResize(layoutItem, $event)"
+        @pointerup.capture="clearResizeState"
+        @pointercancel.capture="clearResizeState"
         @move="startInteraction"
-        @resize="startInteraction"
+        @resize="updateResizeState"
         @moved="persistLayout"
-        @resized="persistLayout"
+        @resized="finishResize"
       >
         <DashboardWidget
           v-if="getWidget(layoutItem)"
@@ -53,6 +63,7 @@
           :store-prefix="storePrefix"
           :data-testid="`dashboard-widget-${layoutItem.i}`"
           :is-layout-editable="canManipulateLayout"
+          :is-resizing="isResizingWidget(layoutItem)"
           @delete-widget="deleteWidget"
         />
       </GridItem>
@@ -94,6 +105,7 @@ export default {
       isInteracting: false,
       isPersisting: false,
       layout: [],
+      resizeState: null,
       gridGap: GRID_GAP,
       gridRowHeight: GRID_ROW_HEIGHT,
       viewportWidth: 0,
@@ -138,6 +150,7 @@ export default {
     columns() {
       // A viewport breakpoint can interrupt an active pointer operation.
       this.isInteracting = false
+      this.clearResizeState()
       this.syncLayoutFromWidgets()
     },
     widgets: {
@@ -155,6 +168,7 @@ export default {
     this.syncLayoutFromWidgets()
   },
   beforeUnmount() {
+    this.clearResizeState()
     window.removeEventListener('resize', this.updateViewportWidth)
   },
   methods: {
@@ -165,12 +179,80 @@ export default {
     getWidget(layoutItem) {
       return this.widgetsById[String(layoutItem.i)]
     },
+    getGridItemResizeStyle(layoutItem) {
+      if (!this.isResizingWidget(layoutItem)) {
+        return {}
+      }
+
+      const { width, height } = this.resizeState
+      const widthPercentage = (width / this.columns) * 100
+      const widthGap = this.gridGap * (width / this.columns + 1)
+
+      return {
+        '--dashboard-widget-grid-resize-width': `calc(${widthPercentage}% - ${widthGap}px)`,
+        '--dashboard-widget-grid-resize-height': `${
+          height * this.gridRowHeight + (height - 1) * this.gridGap
+        }px`,
+      }
+    },
+    isResizingWidget(layoutItem) {
+      return (
+        this.resizeState !== null &&
+        String(this.resizeState.widgetId) === String(layoutItem.i)
+      )
+    },
     syncLayoutFromWidgets() {
       this.layout = createWidgetGridLayout(this.widgets, this.columns)
     },
     startInteraction() {
       if (this.canManipulateLayout) {
         this.isInteracting = true
+      }
+    },
+    startResize(layoutItem, event) {
+      if (
+        !this.canManipulateLayout ||
+        !event.target.closest?.('.vgl-item__resizer')
+      ) {
+        return
+      }
+
+      this.resizeState = {
+        widgetId: layoutItem.i,
+        width: layoutItem.w,
+        height: layoutItem.h,
+      }
+      document.body.classList.add('dashboard-widget-grid--resizing')
+    },
+    updateResizeState(widgetId, height, width) {
+      if (!this.canManipulateLayout) {
+        return
+      }
+
+      const layoutItem = this.layout.find(
+        (item) => String(item.i) === String(widgetId)
+      )
+      if (!layoutItem) {
+        return
+      }
+
+      this.resizeState = {
+        widgetId,
+        width,
+        height,
+      }
+
+      this.startInteraction()
+    },
+    clearResizeState() {
+      this.resizeState = null
+      document.body.classList.remove('dashboard-widget-grid--resizing')
+    },
+    async finishResize() {
+      try {
+        await this.persistLayout()
+      } finally {
+        this.clearResizeState()
       }
     },
     async persistLayout() {
