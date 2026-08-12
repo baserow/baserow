@@ -4,6 +4,7 @@
   box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
   position: relative;
   display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -70,11 +71,6 @@
   cursor: default;
 }
 
-.dashboard-widget--resizing {
-  border: 1.5px solid #4e5cfe;
-  background-color: $palette-blue-50;
-}
-
 body.dashboard-widget-grid--resizing,
 body.dashboard-widget-grid--resizing * {
   cursor: se-resize !important;
@@ -82,12 +78,20 @@ body.dashboard-widget-grid--resizing * {
 }
 
 .vgl-item--dragging .dashboard-widget--layout-editable,
-.dashboard-widget--layout-editable:not(.dashboard-widget--resizing):has(
-    .widget__header:hover
-  ):not(:has(.widget__header-context-menu:hover)) {
+.dashboard-widget--layout-editable:has(.widget__header:hover):not(
+    :has(.widget__header-context-menu:hover)
+  ) {
   border-style: dashed;
   border-color: $palette-neutral-500;
   background-color: $palette-neutral-50;
+}
+
+.dashboard-widget-grid__item--snap-resizing
+  .dashboard-widget.dashboard-widget--layout-editable {
+  border-width: 1.5px;
+  border-style: solid;
+  border-color: #4e5cfe;
+  background-color: $palette-blue-50;
 }
 
 .dashboard-widget-grid {
