@@ -11,6 +11,7 @@
         v-if="canCreateWidget"
         type="primary"
         icon="iconoir-plus"
+        :loading="isCreatingWidget"
         @click="openCreateWidgetModal"
         >{{ t('emptyDashboard.addWidget') }}</Button
       >
@@ -18,6 +19,7 @@
     <CreateWidgetModal
       ref="createWidgetModal"
       :dashboard="dashboard"
+      :loading="isCreatingWidget"
       @widget-variation-selected="$emit('widget-variation-selected', $event)"
     />
   </div>
@@ -33,6 +35,10 @@ const props = defineProps({
   dashboard: {
     type: Object,
     required: true,
+  },
+  isCreatingWidget: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -55,6 +61,10 @@ const canCreateWidget = computed(() => {
 })
 
 const openCreateWidgetModal = () => {
+  if (props.isCreatingWidget) {
+    return
+  }
+
   createWidgetModal.value?.show()
 }
 </script>

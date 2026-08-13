@@ -1,6 +1,7 @@
 {
   "dashboard": {
-    "descriptionPlaceholder": "Description"
+    "descriptionPlaceholder": "Description",
+    "addWidget": "Add widget"
   },
   "dashboardHeader": {
     "doneEditing": "Done editing"

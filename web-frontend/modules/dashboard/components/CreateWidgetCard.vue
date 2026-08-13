@@ -3,7 +3,9 @@
     class="create-widget-card"
     :class="{
       'create-widget-card--available': isWidgetAvailable,
+      'create-widget-card--disabled': disabled,
     }"
+    :aria-disabled="disabled"
     @click="widgetVariationSelected"
   >
     <div class="create-widget-card__img-container">
@@ -42,6 +44,11 @@ export default {
       type: Object,
       required: true,
     },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   emits: ['widget-variation-selected'],
   computed: {
@@ -54,6 +61,10 @@ export default {
   },
   methods: {
     widgetVariationSelected() {
+      if (this.disabled) {
+        return
+      }
+
       if (!this.isWidgetAvailable) {
         this.$refs.deactivatedModal.show()
         return

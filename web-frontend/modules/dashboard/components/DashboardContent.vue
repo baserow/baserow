@@ -12,21 +12,18 @@
           >
             <DashboardContentHeader
               :dashboard="dashboard"
+              :is-creating-widget="isCreatingWidget"
               :store-prefix="storePrefix"
+              @widget-variation-selected="createWidget($event)"
             />
             <EmptyDashboard
               v-if="isEmpty"
               :dashboard="dashboard"
+              :is-creating-widget="isCreatingWidget"
               @widget-variation-selected="createWidget($event)"
             />
             <template v-else>
               <WidgetBoard :dashboard="dashboard" :store-prefix="storePrefix" />
-              <CreateWidgetButton
-                v-if="isEditMode && canCreateWidget"
-                :dashboard="dashboard"
-                :store-prefix="storePrefix"
-                @widget-variation-selected="createWidget($event)"
-              />
             </template>
           </div>
         </div>
@@ -43,7 +40,6 @@
 
 <script>
 import EmptyDashboard from '@baserow/modules/dashboard/components/EmptyDashboard'
-import CreateWidgetButton from '@baserow/modules/dashboard/components/CreateWidgetButton'
 import DashboardSidebar from '@baserow/modules/dashboard/components/DashboardSidebar'
 import DashboardContentHeader from '@baserow/modules/dashboard/components/DashboardContentHeader'
 import WidgetBoard from '@baserow/modules/dashboard/components/WidgetBoard'
@@ -53,7 +49,6 @@ export default {
   name: 'DashboardContent',
   components: {
     EmptyDashboard,
-    CreateWidgetButton,
     WidgetBoard,
     DashboardContentHeader,
     DashboardSidebar,
@@ -72,6 +67,7 @@ export default {
   data() {
     return {
       contentHeight: 0,
+      isCreatingWidget: false,
     }
   },
   computed: {
@@ -111,16 +107,14 @@ export default {
         `${this.storePrefix}dashboardApplication/enterEditMode`
       )
     },
-    canCreateWidget() {
-      return this.$hasPermission(
-        'dashboard.create_widget',
-        this.dashboard,
-        this.dashboard.workspace.id
-      )
-    },
     async createWidget(widgetVariation) {
+      if (this.isCreatingWidget) {
+        return
+      }
+
       const widgetType = widgetVariation.type.getType()
       const typeFromRegistry = this.$registry.get('dashboardWidget', widgetType)
+      this.isCreatingWidget = true
       try {
         await this.$store.dispatch('dashboardApplication/createWidget', {
           dashboard: this.dashboard,
@@ -133,6 +127,8 @@ export default {
         this.enterEditMode()
       } catch (error) {
         notifyIf(error, 'dashboard')
+      } finally {
+        this.isCreatingWidget = false
       }
     },
   },
