@@ -209,35 +209,21 @@ export const actions = {
         })
     )
   },
-  async createWidget({ commit, dispatch }, { dashboard, widget }) {
+  async createWidget({ dispatch }, { dashboard, widget }) {
     const { $client } = this
-    const tempId = Date.now()
-    commit('ADD_WIDGET', { id: tempId, ...widget })
-    let widgetData
-    try {
-      const { data } = await WidgetService($client).create(dashboard.id, widget)
-      widgetData = data
-    } catch (error) {
-      commit('DELETE_WIDGET', tempId)
-      throw error
-    }
-    const createdWidget = await dispatch('handleNewWidgetCreated', {
-      tempWidgetId: tempId,
-      createdWidget: widgetData,
-    })
+    const { data: widgetData } = await WidgetService($client).create(
+      dashboard.id,
+      widget
+    )
+    const createdWidget = await dispatch('handleNewWidgetCreated', widgetData)
     await dispatch('application/refreshPermissions', dashboard, { root: true })
     return createdWidget
   },
-  async handleNewWidgetCreated({ commit, dispatch }, payload) {
-    const { tempWidgetId, createdWidget = payload } = payload
-    if (tempWidgetId) {
-      commit('UPDATE_WIDGET', { widgetId: tempWidgetId, values: createdWidget })
-    } else {
-      commit('ADD_WIDGET', createdWidget)
-    }
-    dispatch('selectWidget', createdWidget.id)
-    await dispatch('fetchNewDataSources', createdWidget.dashboard_id)
-    return createdWidget
+  async handleNewWidgetCreated({ commit, dispatch }, widget) {
+    commit('ADD_WIDGET', widget)
+    dispatch('selectWidget', widget.id)
+    await dispatch('fetchNewDataSources', widget.dashboard_id)
+    return widget
   },
   async dispatchDataSource({ commit }, dataSourceId) {
     const { $client } = this

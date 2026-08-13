@@ -77,4 +77,52 @@ describe('Dashboard application store', () => {
       { id: 2, grid_x: 2, grid_y: 0, grid_width: 4, grid_height: 4 },
     ])
   })
+
+  test('does not add a temporary widget while its server layout is being created', async () => {
+    let resolveCreateWidget
+    const create = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveCreateWidget = resolve
+        })
+    )
+    WidgetService.mockReturnValue({ create })
+
+    const dashboard = { id: 42 }
+    const widget = { title: 'Summary', type: 'summary' }
+    const createdWidget = {
+      id: 1,
+      dashboard_id: dashboard.id,
+      ...widget,
+      grid_x: 2,
+      grid_y: 0,
+      grid_width: 2,
+      grid_height: 4,
+    }
+    const commit = vi.fn()
+    const dispatch = vi.fn()
+    dispatch.mockImplementation((action, payload) => {
+      if (action === 'handleNewWidgetCreated') {
+        return actions.handleNewWidgetCreated({ commit, dispatch }, payload)
+      }
+      return Promise.resolve()
+    })
+
+    const createWidgetPromise = actions.createWidget.call(
+      { $client: {} },
+      { commit, dispatch },
+      { dashboard, widget }
+    )
+
+    expect(commit).not.toHaveBeenCalled()
+
+    resolveCreateWidget({ data: createdWidget })
+    await createWidgetPromise
+
+    expect(dispatch).toHaveBeenCalledWith(
+      'handleNewWidgetCreated',
+      createdWidget
+    )
+    expect(commit).toHaveBeenCalledWith('ADD_WIDGET', createdWidget)
+  })
 })
