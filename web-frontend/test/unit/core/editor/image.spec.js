@@ -3,17 +3,19 @@ import { Editor } from '@tiptap/vue-3'
 import { createRichTextEditorExtensions } from '@baserow/modules/core/editor/richTextExtensions'
 import { preprocessRichTextImages } from '@baserow/modules/core/editor/richTextImageUtils'
 
-function createEditor(content = '') {
+function createEditor(content = '', enableImages = false) {
   return new Editor({
     content,
     contentType: typeof content === 'string' ? 'markdown' : 'json',
-    extensions: createRichTextEditorExtensions(),
+    extensions: createRichTextEditorExtensions({
+      enableImages,
+    }),
   })
 }
 
 describe('ScalableImage extension', () => {
   test('stores userFileName attribute on image node', () => {
-    const editor = createEditor()
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/resolved.png',
       alt: 'test',
@@ -33,7 +35,7 @@ describe('ScalableImage extension', () => {
   })
 
   test('serializes to markdown using userFileName with URL', () => {
-    const editor = createEditor()
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/resolved-url.png',
       alt: 'my image',
@@ -50,7 +52,7 @@ describe('ScalableImage extension', () => {
   })
 
   test('falls back to standard markdown when userFileName is null', () => {
-    const editor = createEditor()
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/direct.png',
       alt: 'direct',
@@ -65,7 +67,7 @@ describe('ScalableImage extension', () => {
   })
 
   test('maxWidth attribute renders in style', () => {
-    const editor = createEditor()
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'test.png',
       alt: 'test',
@@ -80,7 +82,7 @@ describe('ScalableImage extension', () => {
   })
 
   test('userFileName is not rendered to DOM', () => {
-    const editor = createEditor()
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/img.png',
       alt: 'test',
@@ -98,13 +100,12 @@ describe('ScalableImage extension', () => {
 
 describe('applyNameMap round-trip', () => {
   test('sets userFileName on image nodes via transaction', () => {
-    const editor = createEditor()
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/file.png',
       alt: 'test',
     })
 
-    // Verify image starts without userFileName
     let found = false
     editor.state.doc.descendants((node) => {
       if (node.type.name === 'image') {
@@ -114,7 +115,6 @@ describe('applyNameMap round-trip', () => {
     })
     expect(found).toBe(true)
 
-    // Apply nameMap via transaction (same logic as RichTextEditor.applyNameMap)
     const nameMap = { 'https://example.com/file.png': 'abc_def.png' }
     const { tr } = editor.state
     editor.state.doc.descendants((node, pos) => {
@@ -130,14 +130,12 @@ describe('applyNameMap round-trip', () => {
     })
     editor.view.dispatch(tr)
 
-    // Verify userFileName is now set
     editor.state.doc.descendants((node) => {
       if (node.type.name === 'image') {
         expect(node.attrs.userFileName).toBe('abc_def.png')
       }
     })
 
-    // Verify markdown serializes with userFileName reference + URL syntax
     expect(editor.getMarkdown()).toContain(
       '![test][abc_def.png](https://example.com/file.png)'
     )
@@ -145,22 +143,37 @@ describe('applyNameMap round-trip', () => {
     editor.destroy()
   })
 
-  test('preprocessRichTextImages + applyNameMap produces correct DB format', () => {
-    // Simulate API response format: ![alt][name](url)
+  test('standard markdown image is parsed as image node with enableImages', () => {
+    const standardMd = '![photo](https://example.com/user_files/abc_def.png)'
+    const editor = createEditor(standardMd, true)
+
+    let imageFound = false
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === 'image') {
+        expect(node.attrs.src).toBe(
+          'https://example.com/user_files/abc_def.png'
+        )
+        expect(node.attrs.alt).toBe('photo')
+        imageFound = true
+      }
+    })
+    expect(imageFound).toBe(true)
+
+    editor.destroy()
+  })
+
+  test('preprocessRichTextImages + applyNameMap produces correct image node', () => {
     const apiContent =
       '![photo][abc_def.png](https://example.com/user_files/abc_def.png)'
 
-    // Step 1: preprocess converts to standard markdown
     const { content, nameMap } = preprocessRichTextImages(apiContent)
     expect(content).toBe('![photo](https://example.com/user_files/abc_def.png)')
     expect(nameMap).toEqual({
       'https://example.com/user_files/abc_def.png': 'abc_def.png',
     })
 
-    // Step 2: load preprocessed content into editor
-    const editor = createEditor(content)
+    const editor = createEditor(content, true)
 
-    // Step 3: apply nameMap via transaction
     const { tr } = editor.state
     editor.state.doc.descendants((node, pos) => {
       if (node.type.name === 'image' && node.attrs.src) {
@@ -175,7 +188,6 @@ describe('applyNameMap round-trip', () => {
     })
     editor.view.dispatch(tr)
 
-    // Step 4: serialize produces format with name + URL for round-trip recovery
     const savedMarkdown = editor.getMarkdown()
     expect(savedMarkdown).toContain(
       '![photo][abc_def.png](https://example.com/user_files/abc_def.png)'

@@ -306,8 +306,6 @@ def test_rich_text_export_serialized_value_packs_files_into_zip(data_fixture, tm
     content = f"Some text ![img][{user_file.name}] more"
     row = model.objects.create(**{field_name: content})
 
-    from unittest.mock import MagicMock
-
     files_zip = MagicMock()
     files_zip.info_list.return_value = []
 
@@ -316,7 +314,11 @@ def test_rich_text_export_serialized_value_packs_files_into_zip(data_fixture, tm
         row, field_name, cache, files_zip=files_zip, storage=storage
     )
 
-    assert result == content
+    assert isinstance(result, dict)
+    assert result["content"] == content
+    assert len(result["images"]) == 1
+    assert result["images"][0]["name"] == user_file.name
+    assert result["images"][0]["original_name"] == user_file.original_name
     files_zip.add.assert_called_once()
     call_args = files_zip.add.call_args
     assert call_args[0][1] == user_file.name
@@ -343,8 +345,6 @@ def test_rich_text_export_serialized_value_skips_existing_zip_entry(
     model = table.get_model()
     content = f"![img][{user_file.name}]"
     row = model.objects.create(**{field_name: content})
-
-    from unittest.mock import MagicMock
 
     files_zip = MagicMock()
     files_zip.info_list.return_value = [{"name": user_file.name}]
@@ -608,9 +608,9 @@ def test_export_serialized_value_missing_storage_file(data_fixture, tmpdir):
         row, field_name, cache, files_zip=files_zip, storage=storage
     )
 
-    # Content is returned unchanged, no exception raised
+    # Missing file skipped — content returned as plain string, no image metadata
     assert result == content
-    assert user_file.name in result
+    assert user_file.name not in cache.get("_zip_names", set())
 
 
 @pytest.mark.django_db

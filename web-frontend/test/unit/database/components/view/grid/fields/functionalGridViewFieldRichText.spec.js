@@ -53,7 +53,7 @@ describe('FunctionalGridViewFieldRichText component', () => {
 
     const text = wrapper.text()
     expect(text.endsWith('...')).toBe(true)
-    expect(text.length).toBeLessThanOrEqual(203)
+    expect(text.length).toBeLessThanOrEqual(504)
   })
 
   test('keeps raw HTML in cell values inert', async () => {
@@ -78,14 +78,14 @@ describe('FunctionalGridViewFieldRichText component', () => {
 
   test('replaces image with URL format using placeholder', async () => {
     const wrapper = await mountComponent(
-      '![chart][file123.png](https://example.com/file123.png) description'
+      '![chart][abc123_file456.png](https://example.com/abc123_file456.png) description'
     )
 
     const text = wrapper.text()
     expect(text).toContain('🖼 chart')
     expect(text).toContain('description')
     expect(wrapper.find('img').exists()).toBe(false)
-    expect(text).not.toContain('file123.png')
+    expect(text).not.toContain('abc123_file456.png')
     expect(text).not.toContain('https://example.com')
   })
 })

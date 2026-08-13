@@ -5,11 +5,11 @@ from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 
 MARKDOWN_IMAGE_REGEX = re.compile(
-    r"!\[[^\[\]]*(?:\\.[^\[\]]*)*\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.\w+)\]"
+    r"!\[[^\[\]\\]*(?:\\.[^\[\]\\]*)*\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s]+)\]"
 )
 
 MARKDOWN_IMAGE_WITH_URL_REGEX = re.compile(
-    r"(!\[[^\[\]]*(?:\\.[^\[\]]*)*\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.\w+)\])\([^)]+\)"
+    r"(!\[[^\[\]\\]*(?:\\.[^\[\]\\]*)*\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s]+)\])\([^)]+\)"
 )
 
 

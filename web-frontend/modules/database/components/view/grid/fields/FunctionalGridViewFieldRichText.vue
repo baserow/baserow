@@ -12,7 +12,6 @@
 
 <script>
 import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
-import { replaceImagesWithPlaceholder } from '@baserow/modules/core/editor/richTextImageUtils'
 
 export default {
   name: 'FunctionalGridViewFieldRichText',
@@ -29,22 +28,24 @@ export default {
   methods: {
     renderFormattedValue() {
       const maxLen = 200
+      const sliceMargin = 500
       const { value, workspaceId } = this
 
-      let preview = replaceImagesWithPlaceholder(value)
-      if (preview.length > maxLen) {
-        preview = preview.substring(0, maxLen) + '...'
-      }
-
+      let preview = (value || '').slice(0, sliceMargin)
       const workspace = this.$store.getters['workspace/get'](workspaceId)
       const loggedUserId = this.$store.getters['auth/getUserId']
 
-      return parseMarkdown(preview, {
+      let html = parseMarkdown(preview, {
         openLinkOnClick: false,
         enableImages: false,
         workspaceUsers: workspace ? workspace.users : null,
         loggedUserId,
       })
+
+      if (value && value.length > maxLen) {
+        html += '...'
+      }
+      return html
     },
   },
 }

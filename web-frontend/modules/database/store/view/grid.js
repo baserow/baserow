@@ -4983,11 +4983,7 @@ export const actions = {
     if (canUpdateOptimistically && !hasViewRulesThatCanMoveOrHideRows) {
       const storeRow = getters.getRow(row.id)
       if (storeRow !== undefined) {
-        commit('UPDATE_ROW_FIELD_VALUE', {
-          row: storeRow,
-          field,
-          value,
-        })
+        commit('UPDATE_ROW_FIELD_VALUE', { row: storeRow, field, value })
       }
     }
 

@@ -14,8 +14,8 @@ const paragraph = (text) => ({
   ...(text === undefined ? {} : { content: [{ type: 'text', text }] }),
 })
 
-function createEditor(content, { users = null } = {}) {
-  const extensions = createRichTextEditorExtensions()
+function createEditor(content, { users = null, enableImages = false } = {}) {
+  const extensions = createRichTextEditorExtensions({ enableImages })
   if (users !== null) {
     extensions.push(createMention({ users }))
   }
@@ -298,9 +298,10 @@ describe('official TipTap Markdown integration', () => {
         },
       ],
     }
-    editor = createEditor(document)
+    const opts = { enableImages: true }
+    editor = createEditor(document, opts)
 
-    const reopened = reopen(editor)
+    const reopened = reopen(editor, opts)
     editor = reopened.editor
 
     const json = editor.getJSON()
@@ -344,11 +345,12 @@ describe('official TipTap Markdown integration', () => {
         },
       ],
     }
-    editor = createEditor(document)
+    const opts = { enableImages: true }
+    editor = createEditor(document, opts)
     const markdown = editor.getMarkdown()
     expect(markdown).toContain('&nbsp;')
 
-    const reopened = reopen(editor)
+    const reopened = reopen(editor, opts)
     editor = reopened.editor
     const json = editor.getJSON()
     const allText = JSON.stringify(json)
@@ -384,9 +386,10 @@ describe('official TipTap Markdown integration', () => {
         },
       ],
     }
-    editor = createEditor(document)
+    const opts = { enableImages: true }
+    editor = createEditor(document, opts)
 
-    const reopened = reopen(editor)
+    const reopened = reopen(editor, opts)
     editor = reopened.editor
 
     const json = editor.getJSON()
@@ -404,44 +407,62 @@ describe('official TipTap Markdown integration', () => {
       userFileName: 'abc123_def456.jpg',
       maxWidth: '100%',
     }
-    editor = createEditor({
-      type: 'doc',
-      content: [
-        {
-          type: 'orderedList',
-          attrs: { start: 1 },
-          content: [
-            {
-              type: 'listItem',
-              attrs: {},
-              content: [paragraph(), { type: 'image', attrs: imageAttrs }],
-            },
-          ],
-        },
-      ],
-    })
+    editor = createEditor(
+      {
+        type: 'doc',
+        content: [
+          {
+            type: 'orderedList',
+            attrs: { start: 1 },
+            content: [
+              {
+                type: 'listItem',
+                attrs: {},
+                content: [paragraph(), { type: 'image', attrs: imageAttrs }],
+              },
+            ],
+          },
+        ],
+      },
+      { enableImages: true }
+    )
 
     const markdown = editor.getMarkdown()
     expect(markdown).toContain('[abc123_def456.jpg]')
     expect(markdown).toContain('https://example.com/img.png')
     editor.destroy()
 
-    // Simulate the real RichTextEditor.createEditor flow:
     // preprocessRichTextImages → parse → applyNameMap
     const { content: processed, nameMap } = preprocessRichTextImages(markdown)
     expect(nameMap['https://example.com/img.png']).toBe('abc123_def456.jpg')
 
     editor = new Editor({
-      extensions: createRichTextEditorExtensions(),
+      extensions: createRichTextEditorExtensions({ enableImages: true }),
       content: processed,
       contentType: 'markdown',
     })
+
+    // Apply nameMap to stamp userFileName on image nodes
+    const { tr } = editor.state
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'image' && node.attrs.src) {
+        const name = nameMap[node.attrs.src]
+        if (name && node.attrs.userFileName !== name) {
+          tr.setNodeMarkup(pos, undefined, {
+            ...node.attrs,
+            userFileName: name,
+          })
+        }
+      }
+    })
+    editor.view.dispatch(tr)
 
     const json = editor.getJSON()
     const listItem = json.content[0].content[0]
     const imageNode = listItem.content.find((n) => n.type === 'image')
     expect(imageNode).toBeTruthy()
     expect(imageNode.attrs.src).toBe('https://example.com/img.png')
+    expect(imageNode.attrs.userFileName).toBe('abc123_def456.jpg')
   })
 
   test('round-trips the existing supported Markdown syntax', () => {

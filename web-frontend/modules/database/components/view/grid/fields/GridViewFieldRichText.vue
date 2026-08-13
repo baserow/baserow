@@ -172,8 +172,8 @@ export default {
       if (!this.hasEdits) {
         return this.value
       }
-      if (this._modalMarkdown != null) {
-        return this._modalMarkdown
+      if (this.$modalMarkdown != null) {
+        return this.$modalMarkdown
       }
       return this.$refs.input?.serializeToMarkdown() ?? this.value
     },
@@ -189,10 +189,10 @@ export default {
         this.editing = false
         return
       }
-      this._modalMarkdown =
+      this.$modalMarkdown =
         this.$refs.expandedModal?.serializeToMarkdown() ?? null
       this.save()
-      this._modalMarkdown = null
+      this.$modalMarkdown = null
     },
     onPaste() {
       // Prevent the grid paste handler from intercepting TipTap editor pastes.
@@ -220,6 +220,12 @@ export default {
         !this.editing ||
         (!this.$refs.input?.isEventTargetInside(event) && !this.isModalOpen())
       )
+    },
+    canSelectNext(event) {
+      if (this.isModalOpen()) {
+        return false
+      }
+      return !this.editing || event.key === 'Tab'
     },
   },
 }

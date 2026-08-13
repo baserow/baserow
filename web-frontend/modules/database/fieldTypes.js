@@ -17,6 +17,7 @@ import {
   isValidEmail,
   isValidURL,
 } from '@baserow/modules/core/utils/string'
+import { stripImageUrls } from '@baserow/modules/core/editor/richTextImageUtils'
 import { formulaFieldArrayFilterMixin } from '@baserow/modules/database/arrayFilterMixins'
 import {
   parseNumberValue,
@@ -1419,6 +1420,9 @@ export class LongTextFieldType extends FieldType {
   }
 
   getValidationError(field, value) {
+    if (field.long_text_enable_rich_text && value) {
+      return maxFieldTextLengthError(this.app, stripImageUrls(value))
+    }
     return maxFieldTextLengthError(this.app, value)
   }
 

@@ -279,6 +279,7 @@ from .registries import (
 )
 from .rich_text_utils import (
     MARKDOWN_IMAGE_REGEX,
+    MARKDOWN_IMAGE_WITH_URL_REGEX,
     append_user_file_urls,
     extract_user_file_names,
     resolve_user_file_urls,
@@ -546,15 +547,18 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             )
         return enable_rich_text is False
 
-    def get_serializer_field(self, instance, **kwargs):
+    def _get_serializer_field_base_kwargs(self, **kwargs):
         required = kwargs.get("required", False)
-        base_kwargs = {
+        return {
             "required": required,
             "allow_null": not required,
             "allow_blank": not required,
             "max_length": settings.MAX_FIELD_TEXT_LENGTH,
             **kwargs,
         }
+
+    def get_serializer_field(self, instance, **kwargs):
+        base_kwargs = self._get_serializer_field_base_kwargs(**kwargs)
 
         if not instance.long_text_enable_rich_text:
             return serializers.CharField(**base_kwargs)
@@ -567,24 +571,17 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         return RichTextInputField(**base_kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
-        base_field = self.get_serializer_field(instance, **kwargs)
         if not instance.long_text_enable_rich_text:
-            return base_field
+            return self.get_serializer_field(instance, **kwargs)
+
+        base_kwargs = self._get_serializer_field_base_kwargs(**kwargs)
 
         class RichTextResponseField(serializers.CharField):
             def to_representation(self, value):
                 value = super().to_representation(value)
                 return append_user_file_urls(value)
 
-        return RichTextResponseField(
-            **{
-                "required": base_field.required,
-                "allow_null": base_field.allow_null,
-                "allow_blank": base_field.allow_blank,
-                "max_length": base_field.max_length,
-                **kwargs,
-            }
-        )
+        return RichTextResponseField(**base_kwargs)
 
     def serialize_metadata_for_row_history(
         self,
@@ -627,6 +624,21 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         value = getattr(row, field.db_column)
         return collate_expression(Value(value))
 
+    def prepare_value_for_db(self, instance, value):
+        if not instance.long_text_enable_rich_text or not value:
+            return value
+
+        names = extract_user_file_names(value)
+        if not names:
+            return value
+
+        found = {uf.name for uf in UserFile.objects.all().name(*names)}
+        missing = names - found
+        if missing:
+            raise UserFileDoesNotExist(missing.pop())
+
+        return value
+
     def get_export_serialized_value(
         self,
         row: "GeneratedTableModel",
@@ -651,20 +663,42 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         if "_zip_names" not in cache:
             cache["_zip_names"] = {item["name"] for item in files_zip.info_list()}
         existing_names = cache["_zip_names"]
+
+        if "_user_file_originals" not in cache:
+            cache["_user_file_originals"] = {}
+        originals_cache = cache["_user_file_originals"]
+
+        uncached = {n for n in names if n not in originals_cache}
+        if uncached:
+            for uf in UserFile.objects.all().name(*uncached):
+                originals_cache[uf.name] = uf.original_name
+
+        image_metadata = []
         for name in names:
+            if name not in originals_cache:
+                continue
+
             cache_entry = f"user_file_{name}"
             if cache_entry not in cache:
                 if name not in existing_names:
                     file_path = user_file_handler.user_file_path(name)
+                    chunk_generator = file_chunk_generator(storage, file_path)
                     try:
-                        chunk_generator = file_chunk_generator(storage, file_path)
                         files_zip.add(chunk_generator, name)
-                        existing_names.add(name)
-                    except FileNotFoundError:
-                        pass
+                    except (FileNotFoundError, OSError):
+                        continue
+                    existing_names.add(name)
                 cache[cache_entry] = True
 
-        return content
+            image_metadata.append(
+                {"name": name, "original_name": originals_cache[name]}
+            )
+
+        return (
+            {"content": content, "images": image_metadata}
+            if image_metadata
+            else content
+        )
 
     def set_import_serialized_value(
         self,
@@ -676,19 +710,34 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         files_zip: Optional[ZipFile] = None,
         storage=None,
     ):
-        content = value
+        if isinstance(value, dict):
+            content = value.get("content", "")
+            image_metadata = value.get("images", [])
+        else:
+            content = value
+            image_metadata = []
 
-        if value and files_zip is not None:
+        if content and files_zip is not None:
             field = row._field_objects[int(field_name.removeprefix("field_"))]["field"]
             if field.long_text_enable_rich_text:
-                content = self._rewrite_image_names(value, cache, files_zip, storage)
+                originals = {
+                    img["name"]: img["original_name"]
+                    for img in image_metadata
+                    if "original_name" in img
+                }
+                content = self._rewrite_image_names(
+                    content, cache, files_zip, storage, originals
+                )
 
         setattr(row, field_name, content)
 
-    def _rewrite_image_names(self, value, cache, files_zip, storage):
+    def _rewrite_image_names(self, value, cache, files_zip, storage, originals=None):
         names = extract_user_file_names(value)
         if not names:
             return value
+
+        if originals is None:
+            originals = {}
 
         user_file_handler = UserFileHandler()
         name_mapping = {}
@@ -698,16 +747,19 @@ class LongTextFieldType(CollationSortMixin, FieldType):
                 name_mapping[name] = cache[cache_entry]
                 continue
             try:
-                with files_zip.open(name) as stream:
+                stream = files_zip.open(name)
+            except KeyError:
+                continue
+            with stream:
+                original_name = originals.get(name)
+                if not original_name:
                     deconstructed = UserFile.deconstruct_name(name)
                     original_name = f"{deconstructed['unique']}.{deconstructed['original_extension']}"
-                    user_file = user_file_handler.upload_user_file(
-                        None, original_name, stream, storage=storage
-                    )
-                    name_mapping[name] = user_file.name
-                    cache[cache_entry] = user_file.name
-            except KeyError:
-                pass
+                user_file = user_file_handler.upload_user_file(
+                    None, original_name, stream, storage=storage
+                )
+                name_mapping[name] = user_file.name
+                cache[cache_entry] = user_file.name
 
         if not name_mapping:
             return value
@@ -745,6 +797,17 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             return f"{without_ref}({url})"
 
         return MARKDOWN_IMAGE_REGEX.sub(_replace_for_export, value)
+
+    def get_human_readable_value(self, value, field_object):
+        if not value:
+            return value or ""
+
+        field = field_object["field"]
+        if not field.long_text_enable_rich_text:
+            return value
+
+        value = MARKDOWN_IMAGE_WITH_URL_REGEX.sub(lambda m: m.group(2), value)
+        return MARKDOWN_IMAGE_REGEX.sub(lambda m: m.group(1), value)
 
 
 class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):

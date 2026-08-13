@@ -1411,10 +1411,7 @@ class FieldType(
         return value
 
     def get_export_value(
-        self,
-        value: Any,
-        field_object: "FieldObject",
-        rich_value: bool = False,
+        self, value: Any, field_object: "FieldObject", rich_value: bool = False
     ) -> Any:
         """
         Should convert this field type's internal baserow value to a form suitable

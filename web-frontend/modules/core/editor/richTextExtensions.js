@@ -145,19 +145,20 @@ const ListItem = BaseListItem.extend({
       marker = `${num}. `
     }
 
-    const indent = ' '.repeat(marker.length)
     const mainContent = helpers.renderChildren([normalizedFirst])
     let output = `${marker}${mainContent}`
 
     for (let i = 0; i < rest.length; i++) {
       const child = rest[i]
-      const rendered = helpers.renderChild(child, i + 1)
+      const rendered =
+        helpers.renderChild(child, i + 1) ?? helpers.renderChildren([child])
       if (rendered == null) continue
       const indented = rendered
         .split('\n')
-        .map((line) => indent + line)
+        .map((line) => helpers.indent(line))
         .join('\n')
-      output += `\n\n${indented}`
+      const separator = child.type === 'paragraph' ? '\n\n' : '\n'
+      output += `${separator}${indented}`
     }
 
     return output.replace(emptyParagraphMarker, '&nbsp;')
@@ -230,6 +231,7 @@ const MarkdownClipboard = Extension.create({
 
 export const createRichTextContentExtensions = ({
   openLinksOnClick = false,
+  enableImages = false,
 } = {}) => {
   const extensions = [
     Document,
@@ -262,7 +264,9 @@ export const createRichTextContentExtensions = ({
     LegacyNumericHtmlEntity,
   ]
 
-  extensions.push(ScalableImage)
+  if (enableImages) {
+    extensions.push(ScalableImage)
+  }
 
   return extensions
 }
