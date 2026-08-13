@@ -235,42 +235,24 @@ export const actions = {
       })
     )
   },
-  async createWidget({ commit, dispatch }, { dashboard, widget }) {
+  async createWidget({ dispatch }, { dashboard, widget }) {
     const { $client } = this
-    const tempId = Date.now()
-    commit('ADD_WIDGET', { id: tempId, ...widget })
-    let widgetData
-    try {
-      const { data } = await WidgetService($client).create(dashboard.id, widget)
-      widgetData = data
-    } catch (error) {
-      commit('DELETE_WIDGET', tempId)
-      throw error
-    }
-    const createdWidget = await dispatch('handleNewWidgetCreated', {
-      tempWidgetId: tempId,
-      createdWidget: widgetData,
-    })
+    const { data: widgetData } = await WidgetService($client).create(
+      dashboard.id,
+      widget
+    )
+    const createdWidget = await dispatch('handleNewWidgetCreated', widgetData)
+    dispatch('selectWidget', createdWidget.id)
     await dispatch('application/refreshPermissions', dashboard, { root: true })
     return createdWidget
   },
-  async handleNewWidgetCreated({ commit, dispatch, getters, state }, payload) {
-    const { tempWidgetId = null, createdWidget = payload } = payload
-    if (tempWidgetId !== null && getters.getWidgetById(tempWidgetId)) {
-      // Created by this client, so the optimistically added widget is
-      // replaced by the real one and selected.
-      commit('UPDATE_WIDGET', { widgetId: tempWidgetId, values: createdWidget })
-      dispatch('selectWidget', createdWidget.id)
-    } else if (!getters.getWidgetById(createdWidget.id)) {
-      // Created elsewhere, e.g. by a collaborator or a trash restore, and
-      // received over realtime, so there is nothing to replace.
-      commit('ADD_WIDGET', createdWidget)
-    }
+  async handleNewWidgetCreated({ commit, dispatch, state }, widget) {
+    commit('ADD_WIDGET', widget)
     await dispatch('fetchNewDataSources', {
-      dashboardId: createdWidget.dashboard_id,
+      dashboardId: widget.dashboard_id,
       requestId: state.fetchRequestId,
     })
-    return createdWidget
+    return widget
   },
   async dispatchDataSource({ commit }, dataSourceId) {
     const { $client } = this
