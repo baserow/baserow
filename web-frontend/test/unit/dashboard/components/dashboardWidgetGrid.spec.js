@@ -18,6 +18,7 @@ const widgets = [
 const GridLayoutStub = {
   name: 'GridLayout',
   props: ['colNum'],
+  emits: ['layout-ready'],
   template: '<div class="vgl-layout" :data-columns="colNum"><slot /></div>',
 }
 
@@ -73,6 +74,7 @@ describe('DashboardWidgetGrid', () => {
       global: {
         mocks: {
           $hasPermission: hasPermission,
+          $t: (key) => key,
           $store: {
             dispatch,
             getters: {
@@ -104,20 +106,30 @@ describe('DashboardWidgetGrid', () => {
     await wrapper.vm.$nextTick()
   }
 
-  test('waits for its measured width before mounting the interactive grid', async () => {
+  test('keeps a loader visible until the initial grid layout is ready', async () => {
     mountGrid()
 
     expect(
-      wrapper.find('[data-testid="dashboard-widget-grid-bootstrap"]').exists()
+      wrapper.find('[data-testid="dashboard-widget-grid-loading"]').exists()
     ).toBe(true)
+    expect(
+      wrapper.find('[data-testid="dashboard-widget-grid-bootstrap"]').exists()
+    ).toBe(false)
     expect(wrapper.find('.vgl-layout').exists()).toBe(false)
 
     await measureGrid(700)
 
     expect(
-      wrapper.find('[data-testid="dashboard-widget-grid-bootstrap"]').exists()
-    ).toBe(false)
+      wrapper.find('[data-testid="dashboard-widget-grid-loading"]').exists()
+    ).toBe(true)
     expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('4')
+
+    await wrapper.findComponent(GridLayoutStub).vm.$emit('layout-ready')
+
+    expect(
+      wrapper.find('[data-testid="dashboard-widget-grid-loading"]').exists()
+    ).toBe(false)
+    expect(wrapper.classes('dashboard-widget-grid--layout-ready')).toBe(true)
   })
 
   test('cleans up the resize cursor when a pointer operation ends outside a grid item', async () => {
