@@ -68,9 +68,10 @@ Using `join()` to convert the list to text handles the empty scenario correctly.
 These are the constraints most often got wrong. Breaking any of them makes the
 formula fail to compile.
 
-1. **Reference fields with `field('Name')`, never `{Name}`.** Curly braces are not
-   part of the language and cannot even be tokenized. `{Total}` is invalid;
-   `field('Total')` is correct.
+1. **Reference every field with `field('Name')`.** Curly-brace references
+   borrowed from other tools are not part of this language and cannot even be
+   tokenized, so the parser rejects them before any type checking happens.
+   Write `field('Total')`, never a brace-wrapped field name.
 2. **`and()` and `or()` take exactly 2 arguments.** For three or more conditions,
    nest them: `or(a, or(b, c))`, `and(a, and(b, c))`. Passing 3+ arguments fails
    with "N arguments were given to the 'or' function".
