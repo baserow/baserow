@@ -39,6 +39,13 @@ class UpdatedWidget:
 
 
 @dataclass
+class CreatedWidget:
+    widget: Widget
+    original_layout: list[dict[str, int]]
+    new_layout: list[dict[str, int]]
+
+
+@dataclass
 class UpdatedWidgetLayout:
     dashboard: "Dashboard"
     widgets: list[Widget]
