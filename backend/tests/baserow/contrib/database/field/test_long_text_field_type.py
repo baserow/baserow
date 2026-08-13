@@ -2,6 +2,7 @@ import io
 from unittest.mock import MagicMock
 from zipfile import ZipFile
 
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 
@@ -17,11 +18,18 @@ from baserow.contrib.database.export.table_exporters.csv_table_exporter import (
 from baserow.contrib.database.fields.exceptions import IncompatiblePrimaryFieldTypeError
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.rich_text_utils import (
+    MAX_RICH_TEXT_IMAGES,
+    count_image_references,
+    extract_user_file_names,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.contrib.database.trash.models import TrashedRows
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
+from baserow.core.user_files.models import UserFile
 
 
 @pytest.mark.django_db
@@ -272,6 +280,69 @@ def test_rich_text_get_export_value_resolves_urls(data_fixture):
 
 
 @pytest.mark.django_db
+def test_rich_text_get_export_value_is_idempotent_for_resolved_values(data_fixture):
+    """
+    A stored value can already carry a resolved URL, so `get_export_value` must
+    strip before appending or the cell exports as `![alt](fresh)(stale)`.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(
+        original_name="photo.png", is_image=True, original_extension="png"
+    )
+
+    field_type = field_type_registry.get_by_model(field)
+    field_object = {"field": field, "type": field_type, "name": f"field_{field.id}"}
+
+    stored = f"hi ![photo][{user_file.name}](http://old-instance/media/x.png) bye"
+    result = field_type.get_export_value(stored, field_object)
+
+    assert ")(" not in result
+    assert "old-instance" not in result
+
+
+@pytest.mark.django_db
+def test_rich_text_import_does_not_persist_a_stale_resolved_url(data_fixture):
+    """
+    An archive can carry URLs pointing at storage this instance does not own, so
+    the import path must strip them back to the stored `![alt][name]` form.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(
+        original_name="photo.png", is_image=True, original_extension="png"
+    )
+    model = table.get_model()
+    row = model.objects.create()
+    field_type = field_type_registry.get_by_model(field)
+
+    field_type.set_import_serialized_value(
+        row,
+        f"field_{field.id}",
+        f"hi ![photo][{user_file.name}](http://old-instance/media/x.png) bye",
+        {},
+        {},
+        files_zip=None,
+        storage=None,
+    )
+    row.save()
+    row.refresh_from_db()
+
+    stored = getattr(row, f"field_{field.id}")
+
+    assert "old-instance" not in stored
+    assert f"![photo][{user_file.name}]" in stored
+
+
+@pytest.mark.django_db
 def test_rich_text_get_export_value_text_only_unchanged(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -306,8 +377,6 @@ def test_rich_text_export_serialized_value_packs_files_into_zip(data_fixture, tm
     content = f"Some text ![img][{user_file.name}] more"
     row = model.objects.create(**{field_name: content})
 
-    from unittest.mock import MagicMock
-
     files_zip = MagicMock()
     files_zip.info_list.return_value = []
 
@@ -316,7 +385,11 @@ def test_rich_text_export_serialized_value_packs_files_into_zip(data_fixture, tm
         row, field_name, cache, files_zip=files_zip, storage=storage
     )
 
-    assert result == content
+    assert isinstance(result, dict)
+    assert result["content"] == content
+    assert len(result["images"]) == 1
+    assert result["images"][0]["name"] == user_file.name
+    assert result["images"][0]["original_name"] == user_file.original_name
     files_zip.add.assert_called_once()
     call_args = files_zip.add.call_args
     assert call_args[0][1] == user_file.name
@@ -343,8 +416,6 @@ def test_rich_text_export_serialized_value_skips_existing_zip_entry(
     model = table.get_model()
     content = f"![img][{user_file.name}]"
     row = model.objects.create(**{field_name: content})
-
-    from unittest.mock import MagicMock
 
     files_zip = MagicMock()
     files_zip.info_list.return_value = [{"name": user_file.name}]
@@ -569,9 +640,9 @@ def test_ws_broadcast_serializer_resolves_rich_text_urls(data_fixture):
 
 @pytest.mark.django_db
 def test_export_serialized_value_missing_storage_file(data_fixture, tmpdir):
-    """``get_export_serialized_value`` should not raise when the image file
-    referenced in the content is missing from storage. The content is returned
-    unchanged and the missing file is silently skipped."""
+    """``files_zip.add`` only enqueues a lazy chunk generator, so a missing file
+    would otherwise blow up when the zip is streamed. The export must check
+    existence up front and skip the file instead of enqueueing it."""
 
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -594,23 +665,27 @@ def test_export_serialized_value_missing_storage_file(data_fixture, tmpdir):
     model = table.get_model()
     content = f"Some text ![img][{user_file.name}] more"
     row = model.objects.create(**{field_name: content})
+    row_2 = model.objects.create(**{field_name: content})
 
     files_zip = MagicMock()
     files_zip.info_list.return_value = []
-    # file_chunk_generator is a lazy generator — the FileNotFoundError only
-    # fires when the generator is consumed inside files_zip.add(). Simulate
-    # that by making `add` raise the error, which is what the real zip would
-    # do when iterating the chunk generator for a missing file.
-    files_zip.add.side_effect = FileNotFoundError
 
     cache = {}
     result = field_type.get_export_serialized_value(
         row, field_name, cache, files_zip=files_zip, storage=storage
     )
+    result_2 = field_type.get_export_serialized_value(
+        row_2, field_name, cache, files_zip=files_zip, storage=storage
+    )
 
-    # Content is returned unchanged, no exception raised
+    # Missing file skipped — content returned as plain string, no image metadata,
+    # nothing enqueued into the zip and the miss is cached across rows.
     assert result == content
-    assert user_file.name in result
+    assert result_2 == content
+    files_zip.add.assert_not_called()
+    assert user_file.name not in cache.get("_zip_names", set())
+    assert f"user_file_{user_file.name}" not in cache
+    assert cache["_missing_user_files"] == {user_file.name}
 
 
 @pytest.mark.django_db
@@ -648,3 +723,486 @@ def test_import_serialized_value_missing_zip_entry(data_fixture, tmpdir):
     # Original filename is preserved since it could not be re-uploaded
     assert "![img][abc123_def456.png]" in result
     assert result == content
+
+
+def _rich_text_field(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    return user, table, field, field_type_registry.get_by_model(field)
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_accepts_existing_image(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    value = f"text ![alt][{user_file.name}]"
+
+    assert field_type.prepare_value_for_db(field, value) == value
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_rejects_missing_user_file(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+
+    with pytest.raises(UserFileDoesNotExist) as exc:
+        field_type.prepare_value_for_db(field, "![x][zzzz_yyyy.png]")
+
+    assert exc.value.file_names_or_ids == ["zzzz_yyyy.png"]
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_rejects_non_image_user_file(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="doc.pdf", is_image=False)
+
+    with pytest.raises(ValidationError) as exc:
+        field_type.prepare_value_for_db(field, f"![x][{user_file.name}]")
+
+    assert exc.value.code == "not_an_image"
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_accepts_svg_user_file(data_fixture):
+    """SVG uploads are neutralized (``is_image=False``) because they are active
+    content when opened directly, but they are safe to embed via ``<img>``."""
+
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(
+        original_name="logo.svg", is_image=False, mime_type="application/octet-stream"
+    )
+    value = f"![logo][{user_file.name}]"
+
+    assert field_type.prepare_value_for_db(field, value) == value
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_demotes_external_images(data_fixture):
+    """Rich text images are Baserow user files only.
+
+    A row can be written anonymously through a form and read anonymously from a
+    public view, so an external image would let a third party host content that
+    every reader fetches. Only the user file reference stays an image.
+    """
+
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    value = (
+        f"![ok][{user_file.name}] ![ext](https://example.com/p.gif) "
+        "![inline](data:image/png;base64,AAAA)"
+    )
+
+    assert field_type.prepare_value_for_db(field, value) == (
+        f"![ok][{user_file.name}] [ext](https://example.com/p.gif) "
+        "[inline](data:image/png;base64,AAAA)"
+    )
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_ignores_non_rich_text_and_empty(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    plain = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    field_type = field_type_registry.get_by_model(plain)
+    value = "![x][zzzz_yyyy.png] ![y](https://evil.com/p.gif)"
+
+    assert field_type.prepare_value_for_db(plain, value) == value
+    assert field_type.prepare_value_for_db(plain, None) is None
+    assert field_type.prepare_value_for_db(plain, "") == ""
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_limits_image_count(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    value = " ".join(
+        f"![x][{'a' * 8}{i:04d}_hash.png]" for i in range(MAX_RICH_TEXT_IMAGES + 1)
+    )
+
+    with pytest.raises(ValidationError) as exc:
+        field_type.prepare_value_for_db(field, value)
+
+    assert exc.value.code == "too_many_images"
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_in_bulk_single_query(
+    data_fixture, django_assert_num_queries
+):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    files = [
+        data_fixture.create_user_file(original_name=f"{i}.png", is_image=True)
+        for i in range(5)
+    ]
+    values_by_row = {
+        i: f"row {i} ![a][{files[i % 5].name}] ![b][{files[(i + 1) % 5].name}] "
+        "![ext](https://evil.com/x.png)"
+        for i in range(50)
+    }
+    values_by_row[50] = None
+    values_by_row[51] = "no images here"
+
+    with django_assert_num_queries(1):
+        result = field_type.prepare_value_for_db_in_bulk(field, values_by_row)
+
+    assert result[0] == (
+        f"row 0 ![a][{files[0].name}] ![b][{files[1].name}] "
+        "[ext](https://evil.com/x.png)"
+    )
+    assert result[50] is None
+    assert result[51] == "no images here"
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_in_bulk_errors(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    ok = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    pdf = data_fixture.create_user_file(original_name="a.pdf", is_image=False)
+    values_by_row = {
+        0: f"![a][{ok.name}]",
+        1: "![m][zzzz_yyyy.png]",
+        2: f"![p][{pdf.name}]",
+    }
+
+    with pytest.raises(UserFileDoesNotExist):
+        field_type.prepare_value_for_db_in_bulk(field, dict(values_by_row))
+
+    result = field_type.prepare_value_for_db_in_bulk(
+        field, dict(values_by_row), continue_on_error=True
+    )
+    assert result[0] == f"![a][{ok.name}]"
+    assert isinstance(result[1], UserFileDoesNotExist)
+    assert isinstance(result[2], ValidationError)
+    assert result[2].code == "not_an_image"
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_in_bulk_non_rich_text_untouched(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    plain = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    field_type = field_type_registry.get_by_model(plain)
+    values_by_row = {0: "![x][zzzz_yyyy.png]", 1: None}
+
+    assert field_type.prepare_value_for_db_in_bulk(plain, dict(values_by_row)) == (
+        values_by_row
+    )
+
+
+@pytest.mark.django_db
+def test_row_handler_batch_create_validates_rich_text_images(data_fixture):
+    user, table, field, _ = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    field.db_column: f"![a][{user_file.name}] ![e](https://evil.com/x.png)"
+                },
+                {field.db_column: "plain"},
+            ],
+        )
+        .created_rows
+    )
+    assert getattr(rows[0], field.db_column) == (
+        f"![a][{user_file.name}] [e](https://evil.com/x.png)"
+    )
+
+    with pytest.raises(UserFileDoesNotExist):
+        RowHandler().create_rows(
+            user, table, rows_values=[{field.db_column: "![m][zzzz_yyyy.png]"}]
+        )
+
+
+@pytest.mark.django_db
+def test_get_human_readable_value_uses_alt_text(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    field_object = {"field": field}
+    value = (
+        r"Intro ![my \[photo\]][abc_def.png] mid "
+        "![second][ghi_jkl.jpg](https://storage/ghi_jkl.jpg) "
+        "![](https://ext.example/x.png) end"
+    )
+
+    assert field_type.get_human_readable_value(value, field_object) == (
+        "Intro my [photo] mid second  end"
+    )
+    assert field_type.get_human_readable_value(None, field_object) == ""
+    assert field_type.get_human_readable_value("", field_object) == ""
+
+
+@pytest.mark.django_db
+def test_get_human_readable_value_non_rich_text_unchanged(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    plain = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    field_type = field_type_registry.get_by_model(plain)
+    value = "![alt][abc_def.png]"
+
+    assert field_type.get_human_readable_value(value, {"field": plain}) == value
+
+
+@pytest.mark.django_db
+def test_get_export_value_non_rich_text_unchanged(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    plain = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    field_type = field_type_registry.get_by_model(plain)
+    value = "![alt][abc_def.png]"
+
+    assert field_type.get_export_value(value, {"field": plain}) == value
+
+
+@pytest.mark.django_db
+def test_import_serialized_value_demotes_external_images(data_fixture):
+    _, table, field, field_type = _rich_text_field(data_fixture)
+    model = table.get_model()
+
+    row1 = model()
+    field_type.set_import_serialized_value(
+        row1, field.db_column, "![e](https://example.com/x.png)", {}, {}, None, None
+    )
+    assert getattr(row1, field.db_column) == "[e](https://example.com/x.png)"
+
+    row2 = model()
+    field_type.set_import_serialized_value(
+        row2, field.db_column, "![e](javascript:alert(1))", {}, {}, None, None
+    )
+    assert getattr(row2, field.db_column) == "[e](javascript:alert(1))"
+
+
+@pytest.mark.django_db
+def test_rich_text_import_backfills_bytes_when_user_file_is_deduplicated(
+    data_fixture, tmpdir
+):
+    """A zip import into a different storage must still write the image bytes.
+
+    `UserFileHandler.upload_user_file` deduplicates on
+    `(original_name, sha256_hash)` and returns the existing row without writing
+    anything to the storage it was passed. Rich text passes the true human
+    `original_name`, so re-importing into a database that already holds that row
+    used to leave the cell pointing at files absent from the destination storage.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    field_name = f"field_{field.id}"
+    field_type = field_type_registry.get_by_model(field)
+
+    source_storage = FileSystemStorage(
+        location=str(tmpdir.mkdir("source")), base_url="http://localhost"
+    )
+    destination_storage = FileSystemStorage(
+        location=str(tmpdir.mkdir("destination")), base_url="http://localhost"
+    )
+
+    image_bytes = b"PNG_DATA_FOR_DEDUP_BACKFILL"
+    user_file_handler = UserFileHandler()
+    user_file = user_file_handler.upload_user_file(
+        user, "one.png", ContentFile(image_bytes), storage=source_storage
+    )
+
+    # The export packs the file under its storage name and records the human name.
+    zip_buffer = io.BytesIO()
+    with ZipFile(zip_buffer, "w") as zf:
+        zf.writestr(user_file.name, image_bytes)
+    zip_buffer.seek(0)
+    files_zip = ZipFile(zip_buffer, "r")
+
+    serialized = {
+        "content": f"Text ![one][{user_file.name}] end",
+        "images": [{"name": user_file.name, "original_name": "one.png"}],
+    }
+
+    model = table.get_model()
+    row = model(**{field_name: ""})
+
+    field_type.set_import_serialized_value(
+        row,
+        field_name,
+        serialized,
+        {},
+        {},
+        files_zip=files_zip,
+        storage=destination_storage,
+    )
+
+    result = getattr(row, field_name)
+    imported_names = extract_user_file_names(result)
+    assert imported_names, f"no user file names left in imported content: {result!r}"
+
+    for name in imported_names:
+        path = user_file_handler.user_file_path(name)
+        assert destination_storage.exists(path), (
+            f"{name} is referenced by the imported cell but is missing from the "
+            f"destination storage"
+        )
+        with destination_storage.open(path, "rb") as f:
+            assert f.read() == image_bytes
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_limits_repeated_image_occurrences(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    # One distinct name, so the distinct-name count alone would never trip the
+    # limit even though the client has to render every occurrence.
+    value = " ".join(f"![x][{user_file.name}]" for _ in range(MAX_RICH_TEXT_IMAGES + 1))
+
+    with pytest.raises(ValidationError) as exc:
+        field_type.prepare_value_for_db(field, value)
+
+    assert exc.value.code == "too_many_images"
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_in_bulk_limits_repeated_image_occurrences(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    ok = f"![x][{user_file.name}]"
+    too_many = " ".join(ok for _ in range(MAX_RICH_TEXT_IMAGES + 1))
+
+    result = field_type.prepare_value_for_db_in_bulk(
+        field, {0: ok, 1: too_many}, continue_on_error=True
+    )
+
+    assert result[0] == ok
+    assert isinstance(result[1], ValidationError)
+    assert result[1].code == "too_many_images"
+
+
+@pytest.mark.django_db
+def test_import_serialized_value_enforces_image_limit(data_fixture):
+    _, table, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    row = table.get_model()()
+    value = " ".join(f"![x][{user_file.name}]" for _ in range(MAX_RICH_TEXT_IMAGES + 5))
+
+    field_type.set_import_serialized_value(
+        row, field.db_column, value, {}, {}, None, None
+    )
+
+    stored = getattr(row, field.db_column)
+    assert count_image_references(stored) == MAX_RICH_TEXT_IMAGES
+
+
+@pytest.mark.django_db
+def test_import_serialized_value_does_not_upload_surplus_images(data_fixture, tmpdir):
+    """The limit is applied before the zip is read, so an archive cell with more
+    images than allowed never leaves orphaned user files behind."""
+
+    _, table, field, field_type = _rich_text_field(data_fixture)
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    names = [f"img{i}_{'a' * 8}.png" for i in range(MAX_RICH_TEXT_IMAGES + 1)]
+
+    zip_buffer = io.BytesIO()
+    with ZipFile(zip_buffer, "w") as zf:
+        for name in names:
+            zf.writestr(name, f"PNG_{name}".encode())
+    zip_buffer.seek(0)
+    files_zip = ZipFile(zip_buffer, "r")
+
+    row = table.get_model()()
+    before = UserFile.objects.count()
+    field_type.set_import_serialized_value(
+        row,
+        field.db_column,
+        " ".join(f"![x][{name}]" for name in names),
+        {},
+        {},
+        files_zip=files_zip,
+        storage=storage,
+    )
+
+    stored = getattr(row, field.db_column)
+    assert count_image_references(stored) == MAX_RICH_TEXT_IMAGES
+    assert UserFile.objects.count() - before == MAX_RICH_TEXT_IMAGES
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_leaves_code_literal(data_fixture):
+    """Image syntax inside inline code or a fenced block is documentation, not a
+    reference: it is neither validated nor rewritten."""
+
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    value = (
+        "Use `![alt][zzzz_yyyy.png]` or `![alt](https://e.com/a.png)`:\n"
+        "```\n![alt][zzzz_yyyy.png]\n![alt](https://e.com/a.png)\n```\n"
+        "![ext](https://e.com/b.png)"
+    )
+
+    assert field_type.prepare_value_for_db(field, value) == value.replace(
+        "![ext](https://e.com/b.png)", "[ext](https://e.com/b.png)"
+    )
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_strips_resolved_urls(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    value = f"![a][{user_file.name}](http://h/media/{user_file.name})"
+
+    assert field_type.prepare_value_for_db(field, value) == f"![a][{user_file.name}]"
+    assert field_type.prepare_value_for_db_in_bulk(field, {0: value}) == {
+        0: f"![a][{user_file.name}]"
+    }
+
+
+@pytest.mark.django_db
+def test_max_length_ignores_resolved_image_urls(data_fixture, api_client, settings):
+    """A value returned by GET carries the resolved image URLs. Sending it back
+    unchanged must not fail `max_length`, which is checked on the stored form."""
+
+    from django.urls import reverse
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(is_image=True, original_name="a.png")
+    stored = f"![a][{user_file.name}]"
+    row = table.get_model().objects.create(**{f"field_{field.id}": stored})
+
+    settings.MAX_FIELD_TEXT_LENGTH = len(stored) + 5
+    url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+    value = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}").json()[
+        f"field_{field.id}"
+    ]
+    assert len(value) > settings.MAX_FIELD_TEXT_LENGTH
+
+    response = api_client.patch(
+        url,
+        {f"field_{field.id}": value},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()[f"field_{field.id}"] == value
+
+    response = api_client.patch(
+        url,
+        {f"field_{field.id}": value + "x" * 6},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

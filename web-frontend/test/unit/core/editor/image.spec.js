@@ -1,19 +1,30 @@
 import { Editor } from '@tiptap/vue-3'
 
 import { createRichTextEditorExtensions } from '@baserow/modules/core/editor/richTextExtensions'
-import { preprocessRichTextImages } from '@baserow/modules/core/editor/richTextImageUtils'
 
-function createEditor(content = '') {
+function createEditor(content = '', enableImages = false) {
   return new Editor({
     content,
     contentType: typeof content === 'string' ? 'markdown' : 'json',
-    extensions: createRichTextEditorExtensions(),
+    extensions: createRichTextEditorExtensions({
+      enableImages,
+    }),
   })
+}
+
+function findImageNodes(editor) {
+  const images = []
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === 'image') {
+      images.push(node)
+    }
+  })
+  return images
 }
 
 describe('ScalableImage extension', () => {
   test('stores userFileName attribute on image node', () => {
-    const editor = createEditor()
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/resolved.png',
       alt: 'test',
@@ -33,7 +44,7 @@ describe('ScalableImage extension', () => {
   })
 
   test('serializes to markdown using userFileName with URL', () => {
-    const editor = createEditor()
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/resolved-url.png',
       alt: 'my image',
@@ -49,8 +60,8 @@ describe('ScalableImage extension', () => {
     editor.destroy()
   })
 
-  test('falls back to standard markdown when userFileName is null', () => {
-    const editor = createEditor()
+  test('serializes an external image without userFileName as a markdown image', () => {
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/direct.png',
       alt: 'direct',
@@ -59,13 +70,29 @@ describe('ScalableImage extension', () => {
     const markdown = editor.getMarkdown()
 
     expect(markdown).toContain('![direct](https://example.com/direct.png)')
-    expect(markdown).not.toContain('][')
+
+    editor.destroy()
+  })
+
+  test('serializes a titled external image without userFileName as a titled image', () => {
+    const editor = createEditor('', true)
+    editor.commands.setImage({
+      src: 'https://example.com/direct.png',
+      alt: 'direct',
+      title: 'A title',
+    })
+
+    const markdown = editor.getMarkdown()
+
+    expect(markdown).toContain(
+      '![direct](https://example.com/direct.png "A title")'
+    )
 
     editor.destroy()
   })
 
   test('maxWidth attribute renders in style', () => {
-    const editor = createEditor()
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'test.png',
       alt: 'test',
@@ -79,107 +106,167 @@ describe('ScalableImage extension', () => {
     editor.destroy()
   })
 
-  test('userFileName is not rendered to DOM', () => {
-    const editor = createEditor()
+  test('renders userFileName as a data attribute so HTML round-trips keep it', () => {
+    const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/img.png',
       alt: 'test',
-      userFileName: 'secret_hash123.png',
+      userFileName: 'abc_hash123.png',
     })
 
     const html = editor.getHTML()
 
-    expect(html).not.toContain('secret_hash123.png')
+    expect(html).toContain('data-user-file-name="abc_hash123.png"')
+    expect(html).not.toContain('userfilename=')
     expect(html).toContain('https://example.com/img.png')
+
+    editor.destroy()
+  })
+
+  test('keeps userFileName through an HTML copy/paste round trip', () => {
+    const source = createEditor('', true)
+    source.commands.setImage({
+      src: 'https://example.com/user_files/abc_def.png',
+      alt: 'photo',
+      userFileName: 'abc_def.png',
+    })
+    const html = source.getHTML()
+    source.destroy()
+
+    const target = createEditor('', true)
+    target.commands.insertContent(html)
+
+    const images = findImageNodes(target)
+    expect(images).toHaveLength(1)
+    expect(images[0].attrs.userFileName).toBe('abc_def.png')
+    expect(target.getMarkdown()).toContain(
+      '![photo][abc_def.png](https://example.com/user_files/abc_def.png)'
+    )
+
+    target.destroy()
+  })
+})
+
+describe('ScalableImage markdown parsing', () => {
+  test('parses a Baserow image ref with URL into an image node', () => {
+    const editor = createEditor(
+      'before ![photo][abc_def.png](https://example.com/user_files/abc_def.png) after',
+      true
+    )
+
+    const images = findImageNodes(editor)
+    expect(images).toHaveLength(1)
+    expect(images[0].attrs.src).toBe(
+      'https://example.com/user_files/abc_def.png'
+    )
+    expect(images[0].attrs.alt).toBe('photo')
+    expect(images[0].attrs.userFileName).toBe('abc_def.png')
+    expect(editor.getMarkdown()).toContain(
+      '![photo][abc_def.png](https://example.com/user_files/abc_def.png)'
+    )
+
+    editor.destroy()
+  })
+
+  test('round-trips escaped brackets in the alt text', () => {
+    const markdown = String.raw`![my\]pic][abc_def.png](https://example.com/f.png)`
+    const editor = createEditor(markdown, true)
+
+    const images = findImageNodes(editor)
+    expect(images).toHaveLength(1)
+    expect(images[0].attrs.alt).toBe('my]pic')
+    expect(editor.getMarkdown()).toBe(markdown)
+
+    editor.destroy()
+  })
+
+  // Rich text images are Baserow user files only. A plain markdown image names
+  // a host the workspace does not control, so it degrades to a link.
+  test('creates no image node for a plain https markdown image', () => {
+    const editor = createEditor(
+      'see ![photo](https://example.com/user_files/abc_def.png) here',
+      true
+    )
+
+    expect(findImageNodes(editor)).toHaveLength(0)
+    expect(editor.getText()).toContain('photo')
+
+    editor.destroy()
+  })
+
+  test.each([['javascript:alert(1)'], ['data:image/png;base64,AAAA']])(
+    'renders a plain image with unsafe url %s as text only',
+    (url) => {
+      const editor = createEditor(`![x](${url})`, true)
+
+      expect(findImageNodes(editor)).toHaveLength(0)
+      const html = editor.getHTML()
+      expect(html).not.toContain('<img')
+      expect(html).not.toContain('<a')
+      expect(html).toContain('x')
+
+      editor.destroy()
+    }
+  )
+
+  test('rejects user file names containing path separators', () => {
+    const editor = createEditor(
+      '![x][abc_def.png/../evil.png](https://example.com/evil.png)',
+      true
+    )
+
+    expect(findImageNodes(editor)).toHaveLength(0)
+    expect(editor.getHTML()).not.toContain('<img')
+
+    editor.destroy()
+  })
+
+  test('does not parse images when enableImages is false', () => {
+    const editor = createEditor(
+      '![photo][abc_def.png](https://example.com/f.png)',
+      false
+    )
+
+    expect(findImageNodes(editor)).toHaveLength(0)
 
     editor.destroy()
   })
 })
 
-describe('applyNameMap round-trip', () => {
-  test('sets userFileName on image nodes via transaction', () => {
-    const editor = createEditor()
-    editor.commands.setImage({
-      src: 'https://example.com/file.png',
-      alt: 'test',
-    })
-
-    // Verify image starts without userFileName
-    let found = false
-    editor.state.doc.descendants((node) => {
-      if (node.type.name === 'image') {
-        expect(node.attrs.userFileName).toBeNull()
-        found = true
-      }
-    })
-    expect(found).toBe(true)
-
-    // Apply nameMap via transaction (same logic as RichTextEditor.applyNameMap)
-    const nameMap = { 'https://example.com/file.png': 'abc_def.png' }
-    const { tr } = editor.state
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === 'image' && node.attrs.src) {
-        const name = nameMap[node.attrs.src]
-        if (name) {
-          tr.setNodeMarkup(pos, undefined, {
-            ...node.attrs,
-            userFileName: name,
-          })
-        }
-      }
-    })
-    editor.view.dispatch(tr)
-
-    // Verify userFileName is now set
-    editor.state.doc.descendants((node) => {
-      if (node.type.name === 'image') {
-        expect(node.attrs.userFileName).toBe('abc_def.png')
-      }
-    })
-
-    // Verify markdown serializes with userFileName reference + URL syntax
-    expect(editor.getMarkdown()).toContain(
-      '![test][abc_def.png](https://example.com/file.png)'
+describe('ScalableImage HTML parsing', () => {
+  // Pasted HTML is the other way an external image could enter the document.
+  test('rejects pasted <img> with https src without data-user-file-name', () => {
+    const editor = createEditor('', true)
+    editor.commands.insertContent(
+      '<p>a</p><img src="https://example.com/photo.png" alt="x"><p>b</p>'
     )
+
+    expect(findImageNodes(editor)).toHaveLength(0)
 
     editor.destroy()
   })
 
-  test('preprocessRichTextImages + applyNameMap produces correct DB format', () => {
-    // Simulate API response format: ![alt][name](url)
-    const apiContent =
-      '![photo][abc_def.png](https://example.com/user_files/abc_def.png)'
-
-    // Step 1: preprocess converts to standard markdown
-    const { content, nameMap } = preprocessRichTextImages(apiContent)
-    expect(content).toBe('![photo](https://example.com/user_files/abc_def.png)')
-    expect(nameMap).toEqual({
-      'https://example.com/user_files/abc_def.png': 'abc_def.png',
-    })
-
-    // Step 2: load preprocessed content into editor
-    const editor = createEditor(content)
-
-    // Step 3: apply nameMap via transaction
-    const { tr } = editor.state
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name === 'image' && node.attrs.src) {
-        const name = nameMap[node.attrs.src]
-        if (name && node.attrs.userFileName !== name) {
-          tr.setNodeMarkup(pos, undefined, {
-            ...node.attrs,
-            userFileName: name,
-          })
-        }
-      }
-    })
-    editor.view.dispatch(tr)
-
-    // Step 4: serialize produces format with name + URL for round-trip recovery
-    const savedMarkdown = editor.getMarkdown()
-    expect(savedMarkdown).toContain(
-      '![photo][abc_def.png](https://example.com/user_files/abc_def.png)'
+  test('rejects pasted <img> with unsafe src without data-user-file-name', () => {
+    const editor = createEditor('', true)
+    editor.commands.insertContent(
+      '<p>a</p><img src="javascript:alert(1)" alt="x"><p>b</p>'
     )
+
+    expect(findImageNodes(editor)).toHaveLength(0)
+
+    editor.destroy()
+  })
+
+  test('parses <img> with data-user-file-name into an image node', () => {
+    const editor = createEditor('', true)
+    editor.commands.insertContent(
+      '<img src="https://example.com/f.png" alt="x" data-user-file-name="abc_def.png">'
+    )
+
+    const images = findImageNodes(editor)
+    expect(images).toHaveLength(1)
+    expect(images[0].attrs.userFileName).toBe('abc_def.png')
+    expect(images[0].attrs.src).toBe('https://example.com/f.png')
 
     editor.destroy()
   })

@@ -1011,6 +1011,10 @@
     "showMore": "Show more repetitions",
     "selectNode": "Select"
   },
+  "richTextEditor": {
+    "errorUnsupportedImageTitle": "Image can't be embedded",
+    "errorUnsupportedImageMessage": "{name} is not a supported image and was not added."
+  },
   "richTextEditorBubbleMenu": {
     "bold": "Bold",
     "italic": "Italic",

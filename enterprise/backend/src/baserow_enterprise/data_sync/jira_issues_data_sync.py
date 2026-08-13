@@ -2,11 +2,14 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
-from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
+from baserow.contrib.database.data_sync.registries import (
+    DataSyncProperty,
+    DataSyncType,
+    RichTextDataSyncProperty,
+)
 from baserow.contrib.database.data_sync.utils import compare_date
 from baserow.contrib.database.fields.models import (
     DateField,
-    LongTextField,
     TextField,
     URLField,
 )
@@ -33,11 +36,8 @@ class JiraSummaryDataSyncProperty(DataSyncProperty):
         return TextField(name=self.name)
 
 
-class JiraDescriptionDataSyncProperty(DataSyncProperty):
+class JiraDescriptionDataSyncProperty(RichTextDataSyncProperty):
     immutable_properties = True
-
-    def to_baserow_field(self) -> LongTextField:
-        return LongTextField(name=self.name, long_text_enable_rich_text=True)
 
 
 class JiraAssigneeDataSyncProperty(DataSyncProperty):
