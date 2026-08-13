@@ -4,6 +4,7 @@
     v-if="hasChartData"
     id="chart-id"
     :key="chartRenderKey"
+    ref="chart"
     :options="chartOptions"
     :data="chartData"
     class="chart"
@@ -94,12 +95,6 @@ export default {
       type: Array,
       required: true,
     },
-  },
-  mounted() {
-    this.emitRendered()
-  },
-  updated() {
-    this.emitRendered()
   },
   computed: {
     chartComponent() {
@@ -362,7 +357,39 @@ export default {
       })
     },
   },
+  mounted() {
+    this.emitRendered()
+    this.queueChartResize()
+  },
+  updated() {
+    this.emitRendered()
+    this.queueChartResize()
+  },
+  beforeUnmount() {
+    if (this.chartResizeFrame !== null) {
+      cancelAnimationFrame(this.chartResizeFrame)
+    }
+  },
+  data() {
+    return {
+      chartResizeFrame: null,
+    }
+  },
   methods: {
+    queueChartResize() {
+      if (this.chartResizeFrame !== null) {
+        cancelAnimationFrame(this.chartResizeFrame)
+      }
+
+      // GridLayout finalizes a widget's dimensions after its chart is mounted.
+      // Let the browser apply that layout before Chart.js reads its container.
+      this.chartResizeFrame = requestAnimationFrame(() => {
+        this.chartResizeFrame = requestAnimationFrame(() => {
+          this.$refs.chart?.chart?.resize()
+          this.chartResizeFrame = null
+        })
+      })
+    },
     chartColorsSeriesOrValues(seriesIndex) {
       if (this.colorSeries) {
         return this.seriesColors[seriesIndex]
