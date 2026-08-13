@@ -2375,18 +2375,33 @@ class BaserowStringAggManyToManyValues(OneArgumentBaserowFunction):
         func_call: BaserowFunctionCall,
         arg: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaType]:
-        if getattr(arg.expression_type, "custom_string_agg_value_key", None):
-            # E.g. the multiple collaborators type aggregates `first_name`
-            # instead of `value`. Rewrite to the dedicated function so the key
-            # is bound to the call instead of mutated on this singleton. Typing
-            # re-runs whenever a formula is recompiled, so previously saved
-            # internal formulas referencing this function are rewritten too.
+        custom_value_key = getattr(
+            arg.expression_type, "custom_string_agg_value_key", None
+        )
+        if custom_value_key is None or custom_value_key == self.value_key:
+            return func_call.with_valid_type(BaserowFormulaTextType())
+        if custom_value_key == BaserowStringAggCollaboratorValues.value_key:
+            # The multiple collaborators type aggregates `first_name` instead
+            # of `value`. Rewrite to the dedicated function so the key is bound
+            # to the call instead of mutated on this singleton. Typing re-runs
+            # whenever a formula is recompiled, so previously saved internal
+            # formulas referencing this function are rewritten too.
             from baserow.contrib.database.formula.registries import (
                 formula_function_registry,
             )
 
-            return formula_function_registry.get("string_agg_collaborator_values")(arg)
-        return func_call.with_valid_type(BaserowFormulaTextType())
+            return formula_function_registry.get(
+                BaserowStringAggCollaboratorValues.type
+            )(arg)
+        # A new type declaring another custom key needs its own dedicated
+        # function def with a matching class-level `value_key` - fail loudly
+        # instead of silently aggregating the wrong key.
+        return func_call.with_invalid_type(
+            f"custom_string_agg_value_key must be either None, "
+            f"'{self.value_key}' or "
+            f"'{BaserowStringAggCollaboratorValues.value_key}', "
+            f"got '{custom_value_key}'"
+        )
 
     def to_django_expression(self, arg: Expression) -> Expression:
         return Func(
@@ -2421,14 +2436,9 @@ class BaserowStringAggCollaboratorValues(BaserowStringAggManyToManyValues):
     type = "string_agg_collaborator_values"
     arg_type = [BaserowFormulaMultipleCollaboratorsType]
     # Matches `BaserowFormulaMultipleCollaboratorsType.custom_string_agg_value_key`.
+    # The inherited `type_function` recognises the argument type's custom key as
+    # this class's `value_key` and types the call as-is.
     value_key = "first_name"
-
-    def type_function(
-        self,
-        func_call: BaserowFunctionCall,
-        arg: BaserowExpression[BaserowFormulaValidType],
-    ) -> BaserowExpression[BaserowFormulaType]:
-        return func_call.with_valid_type(BaserowFormulaTextType())
 
 
 # Deprecated, use BaserowManyToManyAgg instead. This is kept for backwards compatibility
