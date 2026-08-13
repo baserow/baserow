@@ -1,8 +1,5 @@
 <template>
-  <div v-if="dashboard" class="dashboard-app">
-    <DashboardHeader :dashboard="dashboard" />
-    <DashboardContent :dashboard="dashboard" />
-  </div>
+  <Dashboard v-if="dashboard" :dashboard="dashboard" />
 </template>
 
 <script setup>
@@ -13,8 +10,7 @@ import { useNuxtApp, useAsyncData, createError, useHead } from '#app'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
-import DashboardHeader from '@baserow/modules/dashboard/components/DashboardHeader'
-import DashboardContent from '@baserow/modules/dashboard/components/DashboardContent'
+import Dashboard from '@baserow/modules/dashboard/components/Dashboard'
 
 definePageMeta({
   layout: 'app',
