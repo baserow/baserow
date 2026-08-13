@@ -25,7 +25,7 @@ from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowPasswordAppAuthProvider,
     LocalBaserowUserSource,
 )
-from baserow_enterprise.role.default_roles import default_roles
+from baserow_enterprise.role.default_roles import user_role_uids
 
 User = get_user_model()
 
@@ -54,7 +54,7 @@ def load_test_data():
     workspace = user.workspaceuser_set.get(workspace__name="Acme Corp").workspace
 
     print("Add one user per existing role in the same workspace as admin")
-    for i, r in enumerate(default_roles.keys()):
+    for i, r in enumerate(user_role_uids):
         rl = r.lower()
         try:
             user = UserHandler().create_user(rl, f"{rl}@baserow.io", "password")

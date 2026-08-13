@@ -474,6 +474,9 @@ def test_can_search_paginated_field_permission_subject_options(
         workspace=workspace,
         members=[first_user, second_user],
     )
+    enterprise_data_fixture.create_team(
+        name="Person trashed team", workspace=workspace, trashed=True
+    )
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
     enterprise_data_fixture.enable_enterprise()

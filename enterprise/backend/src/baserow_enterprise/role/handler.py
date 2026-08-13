@@ -37,7 +37,7 @@ from baserow_premium.license.handler import LicenseHandler
 
 from .constants import (
     ALLOWED_SUBJECT_TYPE_BY_PRIORITY,
-    FIELD_PERMISSION_EDITOR_ROLE_UID,
+    INTERNAL_ROLE_UIDS,
     NO_ACCESS_ROLE_UID,
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
     READ_ONLY_ROLE_UID,
@@ -423,7 +423,7 @@ class RoleAssignmentHandler:
                 .exclude(
                     role__uid__in=[
                         NO_ROLE_LOW_PRIORITY_ROLE_UID,
-                        FIELD_PERMISSION_EDITOR_ROLE_UID,
+                        *INTERNAL_ROLE_UIDS,
                     ]
                 )
                 .annotate(

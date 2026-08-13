@@ -33,6 +33,7 @@ NO_ROLE_LOW_PRIORITY_ROLE_UID = getattr(
 # exclusively by the field permission manager and must never affect regular RBAC role
 # computation.
 FIELD_PERMISSION_EDITOR_ROLE_UID = "FIELD_PERMISSION_EDITOR"
+INTERNAL_ROLE_UIDS = (FIELD_PERMISSION_EDITOR_ROLE_UID,)
 FREE_ROLE_UIDS = [
     COMMENTER_ROLE_UID,
     VIEWER_ROLE_UID,

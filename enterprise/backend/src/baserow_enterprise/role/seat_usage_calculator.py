@@ -14,7 +14,7 @@ from baserow.core.models import (
     WorkspaceUser,
 )
 from baserow_enterprise.role.constants import BUILDER_ROLE_UID, FREE_ROLE_UIDS
-from baserow_enterprise.role.default_roles import seat_usage_role_uids
+from baserow_enterprise.role.default_roles import user_role_uids
 from baserow_enterprise.role.models import RoleAssignment
 from baserow_enterprise.teams.models import Team
 from baserow_premium.license.registries import SeatUsageSummary
@@ -171,7 +171,7 @@ class RoleBasedSeatUsageSummaryCalculator:
         # Always treat custom roles as the highest priority ones to show.
         role_to_priority = defaultdict(lambda: -1)
         num_users_with_highest_role = {}
-        for idx, uid in enumerate(seat_usage_role_uids):
+        for idx, uid in enumerate(user_role_uids):
             role_to_priority[uid] = idx
             num_users_with_highest_role[uid] = 0
 

@@ -358,7 +358,8 @@ class FieldPermissionManagerType(PermissionManagerType):
             field__table__in=table_qs,
         ).select_related("field__table__database__workspace")
 
-        roles_by_scope = RoleAssignmentHandler().get_roles_per_scope(workspace, actor)
+        role_handler = RoleAssignmentHandler()
+        roles_by_scope = role_handler.get_roles_per_scope(workspace, actor)
         custom_field_ids = {
             field_perm.field_id
             for field_perm in field_perms
@@ -373,6 +374,13 @@ class FieldPermissionManagerType(PermissionManagerType):
         computed_roles_by_table_id = {}
         scope_includes_cache = {}
 
+        def get_computed_roles_for_table(table):
+            if table.id not in computed_roles_by_table_id:
+                computed_roles_by_table_id[table.id] = role_handler.get_computed_roles(
+                    roles_by_scope, table, scope_includes_cache
+                )
+            return computed_roles_by_table_id[table.id]
+
         # Verify if the actor has the required permissions for each field permission.
         # If not, add the field id to the exceptions list.
         for field_perm in field_perms:
@@ -382,34 +390,20 @@ class FieldPermissionManagerType(PermissionManagerType):
             if field_perm.role == FieldPermissionsRoleEnum.NOBODY.value:
                 can_write_values_exceptions.add(field_perm.field_id)
             elif field_perm.role == FieldPermissionsRoleEnum.CUSTOM.value:
-                if field_perm.field.table_id not in computed_roles_by_table_id:
-                    computed_roles_by_table_id[field_perm.field.table_id] = (
-                        RoleAssignmentHandler().get_computed_roles(
-                            roles_by_scope,
-                            field_perm.field.table,
-                            scope_includes_cache,
-                        )
-                    )
-                computed_roles = computed_roles_by_table_id[field_perm.field.table_id]
                 can_edit = (
                     field_perm.field_id in selected_custom_field_ids
                     and self._is_operation_allowed(
-                        computed_roles, FieldPermissionsRoleEnum.EDITOR.value
+                        get_computed_roles_for_table(field_perm.field.table),
+                        FieldPermissionsRoleEnum.EDITOR.value,
                     )
                 )
                 if not can_edit:
                     can_write_values_exceptions.add(field_perm.field_id)
             else:
-                if field_perm.field.table_id not in computed_roles_by_table_id:
-                    computed_roles_by_table_id[field_perm.field.table_id] = (
-                        RoleAssignmentHandler().get_computed_roles(
-                            roles_by_scope,
-                            field_perm.field.table,
-                            scope_includes_cache,
-                        )
-                    )
-                computed_roles = computed_roles_by_table_id[field_perm.field.table_id]
-                can_edit = self._is_operation_allowed(computed_roles, field_perm.role)
+                can_edit = self._is_operation_allowed(
+                    get_computed_roles_for_table(field_perm.field.table),
+                    field_perm.role,
+                )
                 if not can_edit:
                     can_write_values_exceptions.add(field_perm.field_id)
 

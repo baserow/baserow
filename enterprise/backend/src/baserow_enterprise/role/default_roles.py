@@ -293,6 +293,7 @@ from baserow_enterprise.role.constants import (
     COMMENTER_ROLE_UID,
     EDITOR_ROLE_UID,
     FIELD_PERMISSION_EDITOR_ROLE_UID,
+    INTERNAL_ROLE_UIDS,
     NO_ACCESS_ROLE_UID,
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
     READ_ONLY_ROLE_UID,
@@ -343,20 +344,17 @@ default_roles = {
     FIELD_PERMISSION_EDITOR_ROLE_UID: [],
 }
 
-# This internal role is a marker for field-specific subject selection, not a user's
-# effective RBAC role, and must not appear in license seat usage summaries.
-seat_usage_role_uids = [
-    uid for uid in default_roles if uid != FIELD_PERMISSION_EDITOR_ROLE_UID
-]
+# Internal roles must be persisted, but they can never become a user's effective role.
+user_role_uids = [uid for uid in default_roles if uid not in INTERNAL_ROLE_UIDS]
 # Virtual roles are only used in-code, and it's not possible for the user to use these.
 # The READ_ONLY role is used give to the user when they don't have access to a lower
 # level object scope, but have access a higher one.
-hidden_roles = [READ_ONLY_ROLE_UID, FIELD_PERMISSION_EDITOR_ROLE_UID]
+hidden_roles = [READ_ONLY_ROLE_UID, *INTERNAL_ROLE_UIDS]
 
-if settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED not in default_roles:
+if settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED not in user_role_uids:
     raise ImproperlyConfigured(
         f"The env var BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED must be set to one of "
-        f"the following values: {default_roles.keys()} but instead it is "
+        f"the following values: {user_role_uids} but instead it is "
         f"{settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED}. "
     )
 
