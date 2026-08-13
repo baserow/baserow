@@ -582,7 +582,7 @@ class GenerativeAIModelType(Instance):
         if output_type is not None and not self._is_choices(output_type):
             return Agent(
                 output_type=PromptedOutput(output_type),
-                output_retries=3,
+                retries={"output": 3},
             )
 
         return Agent(output_type=str)

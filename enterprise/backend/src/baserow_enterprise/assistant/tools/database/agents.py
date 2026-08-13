@@ -63,6 +63,8 @@ formula_generation_agent: Agent[None, FormulaGenerationResult] = Agent(
     output_type=FormulaGenerationResult,
     instructions=FORMULA_AGENT_INSTRUCTIONS,
     name="formula_generation_agent",
+    # Stop as soon as the output tool returns; don't run trailing tool calls.
+    end_strategy="early",
 )
 
 

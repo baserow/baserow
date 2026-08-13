@@ -1,3 +1,7 @@
+import asyncio
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from django.test.utils import override_settings
@@ -52,9 +56,11 @@ def _set_test_model(settings):
 # ---------------------------------------------------------------------------
 
 
-async def _mock_run_stream_events(answer: str, messages_json: bytes = b"[]"):
+async def _mock_run_stream_events(
+    answer: str, messages_json: bytes = b"[]"
+) -> AsyncIterator[Any]:
     """
-    Async generator that mimics ``main_agent.run_stream_events()``
+    Async generator that mimics the events pulled from ``main_agent.run_stream_events()``,
     yielding PartStartEvent, then AgentRunResultEvent.
     """
     from pydantic_ai.run import AgentRunResultEvent
@@ -69,11 +75,26 @@ async def _mock_run_stream_events(answer: str, messages_json: bytes = b"[]"):
     yield AgentRunResultEvent(result=mock_result)
 
 
-def make_mock_run_stream_events_side_effect(answer: str, messages_json: bytes = b"[]"):
-    """Return a side_effect callable that returns the mock async generator."""
+@asynccontextmanager
+async def _mock_run_stream_events_cm(
+    events: AsyncIterator[Any],
+) -> AsyncIterator[AsyncIterator[Any]]:
+    """run_stream_events() is a context manager yielding an iterator, so the double must be too."""
 
-    def side_effect(*args, **kwargs):
-        return _mock_run_stream_events(answer, messages_json)
+    yield events
+
+
+def make_mock_run_stream_events_side_effect(
+    answer: str, messages_json: bytes = b"[]"
+) -> Callable[..., AbstractAsyncContextManager[AsyncIterator[Any]]]:
+    """Return a side_effect callable returning the context manager run_stream_events() now yields."""
+
+    def side_effect(
+        *args: Any, **kwargs: Any
+    ) -> AbstractAsyncContextManager[AsyncIterator[Any]]:
+        return _mock_run_stream_events_cm(
+            _mock_run_stream_events(answer, messages_json)
+        )
 
     return side_effect
 
@@ -641,7 +662,11 @@ class TestAssistantStreaming:
             mock_result.all_messages_json.return_value = b"[]"
             yield AgentRunResultEvent(result=mock_result)
 
-        mock_run_stream_events.side_effect = mock_stream_with_thinking
+        mock_run_stream_events.side_effect = (
+            lambda *args, **kwargs: _mock_run_stream_events_cm(
+                mock_stream_with_thinking(*args, **kwargs)
+            )
+        )
 
         ui_context = UIContext(
             workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
@@ -689,6 +714,109 @@ class TestAssistantStreaming:
         assert len(messages) > 0
         assert isinstance(messages[0], AiStartedMessage)
         assert messages[0].message_id is not None
+
+
+@pytest.mark.django_db
+def test_stream_agent_run_drives_the_real_pydantic_ai_stream(enterprise_data_fixture):
+    """
+    Exercises main_agent.run_stream_events for real, unmocked.
+
+    The other streaming tests patch run_stream_events with an async generator,
+    which cannot detect a change in how that call must be invoked. This one
+    fails if the call shape is wrong.
+    """
+
+    from pydantic_ai.models.test import TestModel
+
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    assistant = Assistant(chat)
+    queue = asyncio.Queue()
+
+    async def run():
+        return await assistant._stream_agent_run("say hello", None, queue)
+
+    # call_tools=[]: TestModel's default 'all' would invoke every real tool with synthetic args.
+    with patch.object(
+        assistant, "_model", TestModel(custom_output_text="hello", call_tools=[])
+    ):
+        result = async_to_sync(run)()
+
+    assert result is not None, "the real stream produced no AgentRunResultEvent"
+    answer, run_result = result
+    assert answer == "hello"
+    assert run_result.all_messages_json()
+
+
+@pytest.mark.django_db
+def test_stream_agent_run_cancellation_propagates_through_async_with(
+    enterprise_data_fixture,
+):
+    """
+    Cancels the task driving ``_stream_agent_run`` mid-stream.
+
+    ``_RunStreamEventsContext.__aexit__`` is only ever invoked by an ``async
+    with`` block, so observing it fire on cancellation proves the
+    cancellation unwound through that block.
+    """
+
+    from types import TracebackType
+
+    from pydantic_ai.agent.abstract import _RunStreamEventsContext
+    from pydantic_ai.messages import ModelMessage
+    from pydantic_ai.models.function import AgentInfo, FunctionModel
+
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    assistant = Assistant(chat)
+    queue = asyncio.Queue()
+
+    reached_block = asyncio.Event()
+
+    async def stream_function(messages: list[ModelMessage], agent_info: AgentInfo):
+        yield "partial answer"
+        reached_block.set()
+        await asyncio.Event().wait()  # never set: only cancellation ends this
+
+    aexit_exc_types: list[type[BaseException] | None] = []
+    real_aexit = _RunStreamEventsContext.__aexit__
+
+    async def spy_aexit(
+        self: _RunStreamEventsContext,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        aexit_exc_types.append(exc_type)
+        return await real_aexit(self, exc_type, exc, tb)
+
+    async def run_and_cancel() -> None:
+        with (
+            patch.object(
+                assistant, "_model", FunctionModel(stream_function=stream_function)
+            ),
+            patch.object(_RunStreamEventsContext, "__aexit__", spy_aexit),
+        ):
+            task = asyncio.ensure_future(
+                assistant._stream_agent_run("say hello", None, queue)
+            )
+            await reached_block.wait()
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+    async_to_sync(run_and_cancel)()
+
+    assert asyncio.CancelledError in aexit_exc_types, (
+        "_RunStreamEventsContext.__aexit__ never ran with CancelledError — "
+        "cancellation did not unwind through the async with block"
+    )
 
 
 @pytest.mark.django_db
@@ -826,3 +954,16 @@ class TestGetModelString:
 
     def test_explicit_model_overrides_setting(self):
         assert get_model_string("groq/custom-model") == "groq:custom-model"
+
+    def test_google_gla_prefix_is_normalised(self):
+        """Sub-agents pass this string straight to pydantic-ai's infer_model,
+        which only accepts its own provider names."""
+
+        assert get_model_string("google-gla:gemini-2.0-flash") == (
+            "google:gemini-2.0-flash"
+        )
+
+    def test_google_vertex_prefix_is_normalised(self):
+        assert get_model_string("google-vertex:gemini-2.0-flash") == (
+            "google-cloud:gemini-2.0-flash"
+        )

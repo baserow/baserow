@@ -476,7 +476,7 @@ class Assistant:
 
         reasoning_so_far = ""
 
-        async for event in main_agent.run_stream_events(
+        async with main_agent.run_stream_events(
             user_prompt=user_prompt,
             deps=self._deps,
             model=self._model,
@@ -484,34 +484,35 @@ class Assistant:
             usage_limits=UsageLimits(request_limit=200),
             toolsets=[self._toolset],
             model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
-        ):
-            if isinstance(event, AgentRunResultEvent):
-                answer = event.result.output
-                if isinstance(answer, str):
-                    answer = _strip_think_tags(answer)
-                return (answer, event.result)
+        ) as events:
+            async for event in events:
+                if isinstance(event, AgentRunResultEvent):
+                    answer = event.result.output
+                    if isinstance(answer, str):
+                        answer = _strip_think_tags(answer)
+                    return (answer, event.result)
 
-            if isinstance(event, FunctionToolCallEvent):
-                thought = _extract_tool_thought(event)
-                if thought:
-                    reasoning_so_far += thought
+                if isinstance(event, FunctionToolCallEvent):
+                    thought = _extract_tool_thought(event)
+                    if thought:
+                        reasoning_so_far += thought
+                        cleaned = _strip_think_tags(reasoning_so_far)
+                        await self._enqueue_reasoning(queue, cleaned)
+                    continue
+
+                if isinstance(event, FunctionToolResultEvent):
+                    reasoning_so_far = ""  # reset on tool results, to show the reasoning leading up to the next tool call
+                    continue
+
+                # Accumulate text/thinking deltas and send full reasoning.
+                # The frontend replaces content on each chunk, so we must
+                # send the complete text every time.
+                content = self._get_content_delta(event)
+                if content:
+                    reasoning_so_far += content
                     cleaned = _strip_think_tags(reasoning_so_far)
-                    await self._enqueue_reasoning(queue, cleaned)
-                continue
-
-            if isinstance(event, FunctionToolResultEvent):
-                reasoning_so_far = ""  # reset on tool results, to show the reasoning leading up to the next tool call
-                continue
-
-            # Accumulate text/thinking deltas and send full reasoning.
-            # The frontend replaces content on each chunk, so we must
-            # send the complete text every time.
-            content = self._get_content_delta(event)
-            if content:
-                reasoning_so_far += content
-                cleaned = _strip_think_tags(reasoning_so_far)
-                if cleaned:
-                    await self._enqueue_reasoning(queue, cleaned)
+                    if cleaned:
+                        await self._enqueue_reasoning(queue, cleaned)
 
         return None
 
