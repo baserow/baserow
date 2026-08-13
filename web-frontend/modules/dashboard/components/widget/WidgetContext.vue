@@ -33,17 +33,10 @@ export default {
   emits: ['delete-widget'],
   computed: {
     canBeDeleted() {
-      return (
-        this.$hasPermission(
-          'dashboard.widget.delete',
-          this.widget,
-          this.dashboard.workspace.id
-        ) &&
-        this.$hasPermission(
-          'dashboard.update_widget_layout',
-          this.dashboard,
-          this.dashboard.workspace.id
-        )
+      return this.$hasPermission(
+        'dashboard.widget.delete',
+        this.widget,
+        this.dashboard.workspace.id
       )
     },
   },
