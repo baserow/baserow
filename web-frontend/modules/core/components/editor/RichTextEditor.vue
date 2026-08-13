@@ -58,7 +58,10 @@ import {
   plainTextToRichTextContent,
 } from '@baserow/modules/core/editor/richTextClipboard'
 import { isRichTextSelectionVisible } from '@baserow/modules/core/editor/richTextMenuPosition'
-import { preprocessRichTextImages } from '@baserow/modules/core/editor/richTextImageUtils'
+import {
+  isRenderableUserFile,
+  stripUnresolvedImageRefs,
+} from '@baserow/modules/core/editor/richTextImageUtils'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -105,6 +108,12 @@ export default {
       type: Boolean,
       default: false,
     },
+    // Adds the image node. Off by default so comments, form descriptions and
+    // row history keep rendering image markdown as text.
+    enableImages: {
+      type: Boolean,
+      default: false,
+    },
     scrollableAreaElement: {
       type: [Object, Array, Function],
       default: null,
@@ -147,7 +156,12 @@ export default {
       loggedUserId: 'auth/getUserId',
     }),
     canUploadImages() {
-      return this.editable && this.enableRichTextFormatting && !!this.uploadFile
+      return (
+        this.editable &&
+        this.enableRichTextFormatting &&
+        this.enableImages &&
+        !!this.uploadFile
+      )
     },
     // Body-level default: floating-ui's fixed strategy mis-positions under a
     // positioned ancestor. Keep the lookup lazy so server rendering never touches
@@ -163,7 +177,14 @@ export default {
         this.createEditor()
       },
     },
+    enableImages() {
+      this.teardownEditor()
+      this.createEditor()
+    },
     modelValue(value) {
+      if (this.editable) {
+        return
+      }
       if (!_.isEqual(value, this.editor.getJSON())) {
         this.loadContent(value)
       }
@@ -180,6 +201,7 @@ export default {
   },
   methods: {
     teardownEditor() {
+      this._uploadCancelled = true
       this.unregisterAutoCollapseFloatingMenuHandler()
       this.unregisterMenuScrollHandlers()
       this.unregisterResizeObserver()
@@ -235,6 +257,7 @@ export default {
       const extensions = this.enableRichTextFormatting
         ? createRichTextEditorExtensions({
             openLinksOnClick: !this.editable,
+            enableImages: this.enableImages,
           })
         : createPlainTextEditorExtensions()
 
@@ -268,18 +291,13 @@ export default {
     },
     createEditor() {
       const extensions = this.getConfiguredExtensions()
-      let content = this.modelValue
-      let nameMap = null
-      if (typeof content === 'string') {
-        const result = preprocessRichTextImages(content)
-        content = result.content
-        nameMap = result.nameMap
-      }
+      const content = this.prepareContent(this.modelValue)
       this.editor = new Editor({
         content,
         contentType: this.getContentType(this.modelValue),
         editable: this.editable,
         editorProps: {
+          // Open links in a new tab when the user clicks on them while holding Cmd/Ctrl.
           handleClickOn: (view, pos, node, nodePos, event, direct) => {
             if (
               isActive(view.state, 'link') &&
@@ -301,11 +319,18 @@ export default {
               return false
             }
             event.preventDefault()
-            this.uploadFiles(files)
+            const dropPos = view.posAtCoords({
+              left: event.clientX,
+              top: event.clientY,
+            })
+            this.uploadFiles(files, dropPos?.pos ?? null)
             return true
           },
           handlePaste: (view, event) => {
-            if (this.canUploadImages) {
+            const plainText = event.clipboardData.getData('text/plain')
+            const hasTextContent =
+              plainText || event.clipboardData.types.includes('text/html')
+            if (this.canUploadImages && !hasTextContent) {
               const items = event.clipboardData?.items
                 ? Array.from(event.clipboardData.items)
                 : []
@@ -322,7 +347,6 @@ export default {
                 }
               }
             }
-            const plainText = event.clipboardData.getData('text/plain')
             const copiedFromRichTextEditor =
               this.enableRichTextFormatting &&
               isRichTextEditorClipboard(plainText)
@@ -366,10 +390,8 @@ export default {
           },
         },
         extensions,
-        onUpdate: ({ transaction }) => {
-          if (!transaction.getMeta('applyNameMap')) {
-            this.$emit('update:modelValue', clone(this.editor.getJSON()))
-          }
+        onUpdate: () => {
+          this.$emit('update:modelValue', clone(this.editor.getJSON()))
         },
         onFocus: ({ editor, event }) => {
           this.bubbleMenuVisible = true
@@ -378,6 +400,7 @@ export default {
           this.$emit('focus')
         },
         onBlur: ({ editor, event }) => {
+          // Do not emit a blur event if it is coming from one of the editor's menu.
           if (this.isEventFromMenu(event)) {
             return
           }
@@ -392,9 +415,6 @@ export default {
           this.setMenuScrollVisibility(true)
         },
       })
-      if (nameMap && Object.keys(nameMap).length > 0) {
-        this.applyNameMap(nameMap)
-      }
       this.initialDocument = clone(this.editor.getJSON())
       this.setupEditor()
     },
@@ -506,42 +526,23 @@ export default {
     isDirty() {
       return !_.isEqual(this.editor.getJSON(), this.initialDocument)
     },
-    loadContent(value) {
-      let content = value
-      let nameMap = null
-      if (typeof content === 'string') {
-        const result = preprocessRichTextImages(content)
-        content = result.content
-        nameMap = result.nameMap
+    /**
+     * User file refs without resolved URLs (``![alt][name]`` with no ``(url)``)
+     * would produce image nodes with empty ``src``. In read-only contexts
+     * where the backend hasn't resolved URLs, replace them with a placeholder.
+     */
+    prepareContent(value) {
+      if (typeof value === 'string' && !this.uploadFile) {
+        return stripUnresolvedImageRefs(value)
       }
-      this.editor.commands.setContent(content, {
+      return value
+    },
+    loadContent(value) {
+      this.editor.commands.setContent(this.prepareContent(value), {
         emitUpdate: false,
         contentType: this.getContentType(value),
       })
-      if (nameMap && Object.keys(nameMap).length > 0) {
-        this.applyNameMap(nameMap)
-      }
       this.initialDocument = clone(this.editor.getJSON())
-    },
-    applyNameMap(nameMap) {
-      const { tr } = this.editor.state
-      let modified = false
-      this.editor.state.doc.descendants((node, pos) => {
-        if (node.type.name === 'image' && node.attrs.src) {
-          const name = nameMap[node.attrs.src]
-          if (name && node.attrs.userFileName !== name) {
-            tr.setNodeMarkup(pos, undefined, {
-              ...node.attrs,
-              userFileName: name,
-            })
-            modified = true
-          }
-        }
-      })
-      if (modified) {
-        tr.setMeta('applyNameMap', true)
-        this.editor.view.dispatch(tr)
-      }
     },
     isEventFromMenu(event) {
       return (
@@ -554,10 +555,26 @@ export default {
         isElement(this.$refs.root, event.target) || this.isEventFromMenu(event)
       )
     },
-    addImages(imageFiles) {
+    addImages(imageFiles, insertPos = null) {
+      const validImages = []
       for (const image of imageFiles) {
-        this.editor
-          .chain()
+        if (isRenderableUserFile(image)) {
+          validImages.push(image)
+        } else {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('richTextEditor.errorUnsupportedImageTitle'),
+            message: this.$t('richTextEditor.errorUnsupportedImageMessage', {
+              name: image.original_name,
+            }),
+          })
+        }
+      }
+      for (const image of validImages) {
+        const chain = this.editor.chain()
+        if (insertPos != null) {
+          chain.focus(insertPos)
+        }
+        chain
           .setImage({
             src: image.url,
             alt: image.original_name.replace(/\.[^.]+$/, ''),
@@ -567,34 +584,57 @@ export default {
           .run()
       }
     },
-    async uploadFiles(fileArray) {
+    async uploadFiles(fileArray, insertPos = null) {
       if (!this.canUploadImages) {
         return
       }
 
+      this._uploadCancelled = false
+
       const files = fileArray.map((file) => ({ id: uuid(), file }))
 
+      // First add the file ids to the loading list so the user sees a visual loading
+      // indication for each file.
       files.forEach((file) => {
         this.loadings.push({ id: file.id })
       })
 
+      // Now upload the files one by one to not overload the backend. When finished,
+      // regardless of if it has succeeded, the loading state for that file can be
+      // removed because it has already been added as a file.
       for (const fileObj of files) {
         const id = fileObj.id
         const file = fileObj.file
 
+        if (this._uploadCancelled) {
+          break
+        }
+
         try {
           const { data } = await this.uploadFile(file)
-          if (!this.editor || this.editor.isDestroyed) {
-            return
+          if (
+            !this.editor ||
+            this.editor.isDestroyed ||
+            this._uploadCancelled
+          ) {
+            break
           }
-          this.addImages([data])
+          this.addImages([data], insertPos)
+          // The drop position is only valid for the first image: inserting it
+          // shifts the document, and the cursor is left right after it.
+          insertPos = null
         } catch (error) {
           notifyIf(error, 'userFile')
         }
 
         const index = this.loadings.findIndex((l) => l.id === id)
-        this.loadings.splice(index, 1)
+        if (index !== -1) {
+          this.loadings.splice(index, 1)
+        }
       }
+
+      // Entries skipped by an early `break` above are still pending.
+      this.loadings = []
     },
   },
 }

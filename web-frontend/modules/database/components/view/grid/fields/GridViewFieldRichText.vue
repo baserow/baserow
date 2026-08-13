@@ -27,6 +27,7 @@
       :class="{ 'grid-field-rich-text__textarea--resizable': editing }"
       :editable="editing && !isModalOpen()"
       :enable-rich-text-formatting="true"
+      :enable-images="true"
       :mentionable-users="workspace ? workspace.users : null"
       :thin-scrollbar="true"
       :menu-container="getMenuContainer"
@@ -64,6 +65,7 @@ import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
 import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
+import { stripImageUrls } from '@baserow/modules/core/editor/richTextImageUtils'
 import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
 
 export default {
@@ -163,7 +165,11 @@ export default {
         return this.getValidationError(this.value)
       }
       const ref = this.isModalOpen() ? 'expandedModal' : 'input'
-      return this.getValidationError(this.$refs[ref]?.serializeToMarkdown())
+      // The backend strips resolved image URLs before checking max_length, so
+      // measure the same string or a valid value is rejected.
+      return this.getValidationError(
+        stripImageUrls(this.$refs[ref]?.serializeToMarkdown())
+      )
     },
     getModalError() {
       return this.isModalOpen() ? this.getError() : null
@@ -172,8 +178,15 @@ export default {
       if (!this.hasEdits) {
         return this.value
       }
-      if (this._modalMarkdown != null) {
-        return this._modalMarkdown
+      // Set by onExpandedModalHidden: the modal editor is already torn down by
+      // the time save() runs from there.
+      if (this.$modalMarkdown != null) {
+        return this.$modalMarkdown
+      }
+      // A save reached while the modal is still open (e.g. the cell being
+      // unselected) must read the modal, not the stale inline editor.
+      if (this.isModalOpen()) {
+        return this.$refs.expandedModal?.serializeToMarkdown() ?? this.value
       }
       return this.$refs.input?.serializeToMarkdown() ?? this.value
     },
@@ -189,10 +202,10 @@ export default {
         this.editing = false
         return
       }
-      this._modalMarkdown =
+      this.$modalMarkdown =
         this.$refs.expandedModal?.serializeToMarkdown() ?? null
       this.save()
-      this._modalMarkdown = null
+      this.$modalMarkdown = null
     },
     onPaste() {
       // Prevent the grid paste handler from intercepting TipTap editor pastes.
@@ -220,6 +233,12 @@ export default {
         !this.editing ||
         (!this.$refs.input?.isEventTargetInside(event) && !this.isModalOpen())
       )
+    },
+    canSelectNext(event) {
+      if (this.isModalOpen()) {
+        return false
+      }
+      return !this.editing || event.key === 'Tab'
     },
   },
 }

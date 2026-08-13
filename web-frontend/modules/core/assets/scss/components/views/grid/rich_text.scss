@@ -9,14 +9,22 @@
     height: 100%;
     overflow: hidden;
 
-    img {
+    .field-rich-text--preview & img {
       display: inline-block;
-      max-height: 28px;
+      max-height: 23px;
       width: auto;
       margin: 2px 4px 2px 0;
       border-radius: 3px;
       vertical-align: middle;
       object-fit: contain;
+    }
+
+    .grid-view--row-height-medium .field-rich-text--preview & img {
+      max-height: 45px;
+    }
+
+    .grid-view--row-height-large .field-rich-text--preview & img {
+      max-height: 80px;
     }
   }
 }
@@ -46,9 +54,9 @@
   line-height: 12px;
   padding: 4px;
   border-radius: 4px;
-  background-color: $white;
+  background-color: $palette-neutral-0;
 
   &:hover {
-    color: $color-primary-600;
+    color: $palette-blue-700;
   }
 }

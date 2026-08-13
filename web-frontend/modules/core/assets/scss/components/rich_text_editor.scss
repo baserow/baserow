@@ -17,7 +17,7 @@
 
   &::-webkit-scrollbar-thumb {
     border-radius: 10px;
-    background: $color-neutral-500;
+    background: $palette-neutral-500;
     background-clip: content-box;
     border: 2px solid transparent;
   }
@@ -26,8 +26,8 @@
 .rich-text-editor__content-blockquote,
 %rich-text-editor-content-blockquote {
   padding-left: 1rem;
-  color: $color-neutral-700;
-  border-left: 4px solid $color-neutral-300;
+  color: $palette-neutral-700;
+  border-left: 4px solid $palette-neutral-300;
 }
 
 .rich-text-editor__bubble-menu-link-show-href {
@@ -97,7 +97,7 @@
 
   pre {
     padding: 1rem;
-    background-color: $color-neutral-100;
+    background-color: $palette-neutral-100;
     border-radius: $rounded;
   }
 
@@ -189,7 +189,7 @@ span[data-type='mention'] {
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: $color-neutral-500;
+  color: $palette-neutral-500;
   pointer-events: none;
   height: 0;
 }
