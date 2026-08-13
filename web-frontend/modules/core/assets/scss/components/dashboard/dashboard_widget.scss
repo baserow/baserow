@@ -21,13 +21,18 @@
   min-height: 0;
 }
 
+.dashboard-widget-board__fallback,
+.dashboard-widget-grid__bootstrap {
+  display: grid;
+  gap: 16px;
+}
+
 .dashboard-widget .widget__header-main {
   flex: 1 1 auto;
 }
 
-.dashboard-widget .widget__header-title-wrapper:has(
-    .dashboard-widget__configuration-status
-  ) {
+.dashboard-widget
+  .widget__header-title-wrapper:has(.dashboard-widget__configuration-status) {
   gap: 6px;
 }
 

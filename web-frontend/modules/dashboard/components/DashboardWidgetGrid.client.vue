@@ -12,8 +12,22 @@
       'dashboard-widget-grid--resizing': resizeState !== null,
     }"
   >
+    <div
+      v-if="!hasMeasuredDimensions && widgets.length > 0"
+      class="dashboard-widget-grid__bootstrap"
+      data-testid="dashboard-widget-grid-bootstrap"
+    >
+      <DashboardWidget
+        v-for="widget in widgets"
+        :key="widget.id"
+        :widget="widget"
+        :dashboard="dashboard"
+        :store-prefix="storePrefix"
+        :is-layout-editable="false"
+      />
+    </div>
     <GridLayout
-      v-if="layout.length > 0"
+      v-else-if="layout.length > 0"
       v-model:layout="layout"
       :col-num="columns"
       :row-height="gridRowHeight"
@@ -105,6 +119,7 @@ export default {
     return {
       isInteracting: false,
       isPersisting: false,
+      hasMeasuredDimensions: false,
       layout: [],
       resizeState: null,
       gridGap: GRID_GAP,
@@ -164,14 +179,42 @@ export default {
   },
   mounted() {
     this.syncLayoutFromWidgets()
+    window.addEventListener('pointerup', this.clearResizeState, true)
+    window.addEventListener('pointercancel', this.clearResizeState, true)
+    window.addEventListener('blur', this.clearResizeState)
   },
   beforeUnmount() {
     this.clearResizeState()
+    window.removeEventListener('pointerup', this.clearResizeState, true)
+    window.removeEventListener('pointercancel', this.clearResizeState, true)
+    window.removeEventListener('blur', this.clearResizeState)
   },
   methods: {
     getWidgetGridItemConstraints,
+    updateElementSize(entries) {
+      dimensionMixin.methods.updateElementSize.call(this, entries)
+      if (
+        entries.some(
+          (entry) =>
+            entry.target === (this.dimensions.targetElement || this.$el)
+        )
+      ) {
+        this.hasMeasuredDimensions = true
+      }
+    },
     getWidget(layoutItem) {
       return this.widgetsById[String(layoutItem.i)]
+    },
+    canDeleteWidget(widgetId) {
+      const widget = this.widgetsById[String(widgetId)]
+      return (
+        widget &&
+        this.$hasPermission(
+          'dashboard.widget.delete',
+          widget,
+          this.dashboard.workspace.id
+        )
+      )
     },
     getGridItemResizeStyle(layoutItem) {
       if (!this.isResizingWidget(layoutItem)) {
@@ -275,7 +318,7 @@ export default {
       }
     },
     async deleteWidget(widgetId) {
-      if (!this.canUpdateLayout || this.isPersisting) {
+      if (!this.canDeleteWidget(widgetId) || this.isPersisting) {
         return
       }
 
