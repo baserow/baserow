@@ -21,6 +21,7 @@ def test_if_prompt_contains_all_formula_functions():
         "jsonb_extract_path_text",
         "array_agg_no_nesting",
         "string_agg_many_to_many_values",
+        "string_agg_collaborator_values",
         "many_to_many_agg",
         "many_to_many_count",
         "array_length",

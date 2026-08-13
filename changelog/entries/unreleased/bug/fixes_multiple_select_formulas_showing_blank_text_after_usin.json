@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes multiple select formulas showing blank text after using a collaborators field in a formula",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-13"
+}
