@@ -37,6 +37,7 @@ from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.model_profiles import check_lm_ready_or_raise
 from baserow_enterprise.assistant.models import AssistantChatPrediction
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
+from baserow_enterprise.assistant.telemetry import capture_ai_feedback
 from baserow_enterprise.assistant.types import (
     AiCancelledMessage,
     AiErrorMessage,
@@ -325,4 +326,15 @@ class AssistantChatMessageFeedbackView(APIView):
         prediction.save(
             update_fields=["human_sentiment", "human_feedback", "updated_on"]
         )
+
+        trace_id = prediction.prediction.get("posthog_trace_id")
+        if trace_id:
+            capture_ai_feedback(
+                user_id=str(request.user.id),
+                trace_id=trace_id,
+                session_id=str(message.chat.uuid),
+                workspace_id=str(message.chat.workspace_id),
+                sentiment=prediction.human_sentiment,
+                feedback=prediction.human_feedback,
+            )
         return Response(status=HTTP_204_NO_CONTENT)

@@ -1,3 +1,5 @@
+import re
+from collections.abc import Sequence
 from typing import Any, Callable
 
 from django.contrib.auth.models import AbstractUser
@@ -5,7 +7,13 @@ from django.utils.translation import gettext as _
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
-from pydantic_ai import Agent, Tool
+from pydantic_ai import Agent, ModelRetry, RunContext, Tool
+from pydantic_ai.messages import (
+    ModelMessage,
+    RetryPromptPart,
+    ToolCallPart,
+    ToolReturnPart,
+)
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import UsageLimits
 
@@ -33,9 +41,11 @@ class FormulaGenerationResult(PydanticBaseModel):
 
     table_id: int = Field(
         description=(
-            "The ID of the table the formula is intended for. "
-            "Should be the same as current_table_id, unless the formula can "
-            "only be created in a different table."
+            "The ID of the table the formula field belongs to. It must be the "
+            "`id` of one of the tables in the schema given in the prompt: the "
+            "table that holds the fields the formula reads directly (for a "
+            "lookup, the table holding the link field, not the linked table). "
+            "Never invent an ID, and never use 0 or null."
         )
     )
     field_name: str = Field(
@@ -59,11 +69,148 @@ class FormulaGenerationResult(PydanticBaseModel):
     )
 
 
+# Without an explicit budget pydantic-ai allows a single attempt, so the first
+# validator rejection exhausts it ("Exceeded maximum output retries (1)").
+FORMULA_AGENT_RETRIES = 3
+
 formula_generation_agent: Agent[None, FormulaGenerationResult] = Agent(
     output_type=FormulaGenerationResult,
     instructions=FORMULA_AGENT_INSTRUCTIONS,
     name="formula_generation_agent",
+    retries=FORMULA_AGENT_RETRIES,
 )
+
+GET_FORMULA_TYPE_TOOL_NAME = "get_formula_type"
+
+# One rejected candidate is not evidence that the language cannot express a request.
+FORMULA_MIN_ATTEMPTS_BEFORE_IMPOSSIBLE = 2
+
+
+def _normalize_formula(formula: str) -> str:
+    return " ".join(formula.split())
+
+
+def _formula_attempts(messages: Sequence[ModelMessage]) -> tuple[set[str], set[str]]:
+    """
+    Split the formulas passed to get_formula_type during a run into accepted and
+    rejected.
+
+    A rejection reaches the model as a RetryPromptPart and an acceptance as a
+    ToolReturnPart, so the two sets are the run's own record of what was checked.
+    """
+
+    attempted: dict[str, str] = {}
+    accepted_ids: set[str] = set()
+    rejected_ids: set[str] = set()
+    for message in messages:
+        for part in message.parts:
+            if getattr(part, "tool_name", None) != GET_FORMULA_TYPE_TOOL_NAME:
+                continue
+            if isinstance(part, ToolCallPart):
+                formula = part.args_as_dict().get("formula")
+                if isinstance(formula, str) and formula.strip():
+                    attempted[part.tool_call_id] = _normalize_formula(formula)
+            elif isinstance(part, RetryPromptPart):
+                rejected_ids.add(part.tool_call_id)
+            elif isinstance(part, ToolReturnPart):
+                accepted_ids.add(part.tool_call_id)
+
+    accepted = {f for call_id, f in attempted.items() if call_id in accepted_ids}
+    rejected = {f for call_id, f in attempted.items() if call_id in rejected_ids}
+    return accepted, rejected
+
+
+@formula_generation_agent.output_validator
+def _verdict_must_be_backed_by_validation(
+    ctx: RunContext[None], output: FormulaGenerationResult
+) -> FormulaGenerationResult:
+    """
+    Send back any verdict get_formula_type did not actually produce.
+
+    Both directions are enforced: a valid verdict must name a formula the tool
+    accepted, and an impossible verdict must follow several materially different
+    candidates the tool rejected. A verdict with no tool call behind it is a guess.
+    """
+
+    accepted, rejected = _formula_attempts(ctx.messages)
+    if output.is_formula_valid:
+        if _normalize_formula(output.formula) not in accepted:
+            raise ModelRetry(
+                f"{output.formula!r} was never accepted by "
+                f"{GET_FORMULA_TYPE_TOOL_NAME} in this run, so its validity is "
+                f"unverified. Call {GET_FORMULA_TYPE_TOOL_NAME} on it and return "
+                "the exact formula that passed."
+            )
+    elif len(accepted | rejected) < FORMULA_MIN_ATTEMPTS_BEFORE_IMPOSSIBLE:
+        # Naming the conversions here too: this branch fires when the model gave up
+        # without validating, so it never saw the compiler's type-mismatch hint.
+        conversions = "; ".join(
+            f"to {target} use {how}"
+            for target, how in sorted(_CONVERSION_TO_TARGET_TYPE.items())
+        )
+        raise ModelRetry(
+            "A single attempt is not evidence that the request cannot be "
+            f"expressed. Validate at least {FORMULA_MIN_ATTEMPTS_BEFORE_IMPOSSIBLE} "
+            f"materially different candidates with {GET_FORMULA_TYPE_TOOL_NAME} "
+            "before giving up: vary the approach, and where a direct expression is "
+            "rejected try one that converts the argument types first — any field "
+            f"type can be converted ({conversions}). Justify failure only by "
+            f"quoting the error {GET_FORMULA_TYPE_TOOL_NAME} returned, never by "
+            "asserting from memory what the formula language does or does not "
+            "support."
+        )
+    return output
+
+
+# Keyed by the type name the compiler prints as the usable type for an argument.
+_CONVERSION_TO_TARGET_TYPE: dict[str, str] = {
+    "text": "totext(x) for a single value, or join(x, ', ') for a list",
+    "char": "totext(x)",
+    "url": "tourl(totext(x))",
+    "link": "link(totext(x))",
+    "number": "tonumber(totext(x)), or count(x) to count a list",
+    "date": "todate(totext(x), 'YYYY-MM-DD')",
+    "duration": "toduration(tonumber(totext(x))) reading the number as seconds",
+    "boolean": "a comparison such as totext(x) != '' — there is no cast to boolean",
+}
+
+_USABLE_TYPES = re.compile(
+    r"the only usable types? for this argument (?:is|are) ([a-z_]+(?:,[a-z_]+)*)"
+)
+
+
+def _type_mismatch_hint(error: str) -> str:
+    """
+    Explains that a rejected argument type is a conversion problem.
+
+    Without this the compiler's wording reads as the language not supporting the
+    operation at all, and the agent abandons a formula that a wrapped argument
+    would have made valid.
+    """
+
+    if "was of type" not in error:
+        return ""
+
+    if "there are no possible types usable here" in error:
+        return (
+            " That argument slot accepts no type at all, so no conversion will "
+            "fix it: restructure the expression instead of retrying conversions."
+        )
+
+    targets = {t for match in _USABLE_TYPES.findall(error) for t in match.split(",")}
+    repairs = [
+        f"to {target} use {_CONVERSION_TO_TARGET_TYPE[target]}"
+        for target in sorted(targets)
+        if target in _CONVERSION_TO_TARGET_TYPE
+    ]
+    hint = (
+        " This is an argument type mismatch, not an unsupported operation. Any "
+        "field type can be converted, so wrap the argument the error names in a "
+        "conversion function and validate again rather than abandoning the formula."
+    )
+    if repairs:
+        hint += " Convert " + "; ".join(repairs) + "."
+    return hint
 
 
 def get_formula_type_tool(
@@ -84,21 +231,34 @@ def get_formula_type_tool(
 
         table = helpers.filter_tables(user, workspace).filter(id=table_id).first()
         if not table:
-            raise ValueError(f"Table with ID {table_id} not found in workspace.")
+            valid_ids = list(
+                helpers.filter_tables(user, workspace).values_list("id", flat=True)
+            )
+            raise ModelRetry(
+                f"Table with ID {table_id} not found in workspace. "
+                f"Valid table IDs: {valid_ids}"
+            )
 
+        # Every rejection must reach the model as a ModelRetry: pydantic-ai turns
+        # only that into a retry prompt, so any other exception aborts the user's
+        # whole turn instead of letting the agent correct the formula.
         field = FormulaField(formula=formula, table=table, name=field_name, order=0)
-        field.recalculate_internal_fields(raise_if_invalid=True)
+        try:
+            field.recalculate_internal_fields(raise_if_invalid=True)
+            result = TypeFormulaResultSerializer(field).data
+            error = result["error"]
+        except Exception as exc:
+            error = str(exc)
 
-        result = TypeFormulaResultSerializer(field).data
-        if result["error"]:
+        if error:
             field_names = list(
                 FieldHandler()
                 .get_base_fields_queryset()
                 .filter(table=table)
                 .values_list("name", flat=True)
             )
-            raise TypeError(
-                f"Invalid formula: {result['error']}. "
+            raise ModelRetry(
+                f"Invalid formula: {error}.{_type_mismatch_hint(error)} "
                 f"Available fields in table '{table.name}': {', '.join(field_names)}"
             )
 
@@ -127,7 +287,9 @@ def make_formula_fixer(
         )
 
         formula_type_tool = Tool(get_formula_type_tool(user, workspace))
-        formula_toolset = FunctionToolset([formula_type_tool])
+        formula_toolset = FunctionToolset(
+            [formula_type_tool], max_retries=FORMULA_AGENT_RETRIES
+        )
         prompt = format_formula_fixer_prompt(
             field_name, original_formula, schema, get_formula_docs()
         )

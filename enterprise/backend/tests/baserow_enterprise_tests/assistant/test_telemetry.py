@@ -11,6 +11,7 @@ from baserow_enterprise.assistant.telemetry import (
     _tool_calls,
     _trace_ctx,
     _TraceContext,
+    capture_ai_feedback,
 )
 
 
@@ -55,7 +56,7 @@ class TestPosthogTracingCallback:
         assert props["$ai_trace_id"] == callback.trace_id
         assert props["$ai_session_id"] == str(assistant_chat_fixture.uuid)
         assert props["workspace_id"] == str(assistant_chat_fixture.workspace_id)
-        assert props["$ai_span_name"] == f"{assistant_chat_fixture.user_id}: Hello"
+        assert props["$ai_span_name"] == "Hello"
         assert props["$ai_span_id"] == callback.span_id
         assert props["$ai_latency"] >= 0
         assert props["$ai_is_error"] is False
@@ -81,7 +82,9 @@ class TestPosthogTracingCallback:
         call_args = mock_posthog.capture.call_args
         assert call_args is not None
         assert call_args.kwargs["event"] == "$ai_trace"
-        assert call_args.kwargs["properties"]["$ai_is_error"] is True
+        props = call_args.kwargs["properties"]
+        assert props["$ai_is_error"] is True
+        assert props["$ai_error"] == "Test error"
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     def test_trace_with_output(self, mock_get_client, assistant_chat_fixture):
@@ -181,6 +184,33 @@ class TestPydanticMessagesToPosthog:
 
         assert result[0]["content"][0]["type"] == "tool_result"
         assert result[0]["content"][0]["tool_call_id"] == "call_123"
+
+
+@patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+def test_capture_ai_feedback_links_rating_to_trace(mock_get_client):
+    mock_posthog = MagicMock()
+    mock_get_client.return_value = mock_posthog
+
+    capture_ai_feedback(
+        user_id="user-1",
+        trace_id="trace-1",
+        session_id="chat-1",
+        workspace_id="workspace-1",
+        sentiment=-1,
+        feedback="The requested change was not applied.",
+    )
+
+    mock_posthog.capture.assert_called_once_with(
+        distinct_id="user-1",
+        event="$ai_feedback",
+        properties={
+            "$ai_trace_id": "trace-1",
+            "$ai_session_id": "chat-1",
+            "workspace_id": "workspace-1",
+            "$ai_feedback_value": -1,
+            "$ai_feedback_text": "The requested change was not applied.",
+        },
+    )
 
 
 class TestPosthogSpanProcessor:

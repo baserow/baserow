@@ -7,6 +7,7 @@ import pytest
 from baserow_enterprise.assistant.retrying_model import (
     RetryingModel,
     _is_transient_provider_error,
+    _resolve_alias_credentials,
     _resolve_credentials,
     _resolve_model,
 )
@@ -599,3 +600,49 @@ class TestResolveModel:
         snapshot = dict(os.environ)
         _resolve_model("openai:gpt-4o")
         assert dict(os.environ) == snapshot
+
+
+class TestCustomProviderAlias:
+    """Unrecognised provider prefixes resolve as OpenAI-compatible endpoints."""
+
+    def test_alias_resolves_from_convention_env_vars(self, monkeypatch):
+        monkeypatch.setenv("HETZNER_BASE_URL", "https://hetzner.example/v1")
+        monkeypatch.setenv("HETZNER_API_KEY", "hetzner-key")
+        from pydantic_ai.models.openai import OpenAIChatModel
+
+        model = _resolve_model("hetzner:deepseek-v4-flash")
+
+        assert isinstance(model, OpenAIChatModel)
+        assert model.model_name == "deepseek-v4-flash"
+        assert str(model.client.base_url).rstrip("/") == "https://hetzner.example/v1"
+
+    def test_model_name_may_contain_slashes(self, monkeypatch):
+        monkeypatch.setenv("INFERCOM_BASE_URL", "https://infercom.example/v1")
+        monkeypatch.setenv("INFERCOM_API_KEY", "infercom-key")
+
+        model = _resolve_model("infercom:vendor/some-model")
+
+        assert model.model_name == "vendor/some-model"
+
+    def test_alias_does_not_inherit_the_udspy_fallback(self, monkeypatch):
+        # A stray legacy key must never authenticate against an unrelated endpoint.
+        monkeypatch.delenv("HETZNER_BASE_URL", raising=False)
+        monkeypatch.delenv("HETZNER_API_KEY", raising=False)
+        monkeypatch.setenv("UDSPY_LM_API_KEY", "udspy-key")
+        monkeypatch.setenv("UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL", "https://udspy.com")
+
+        creds = _resolve_alias_credentials("hetzner")
+
+        assert creds == {"api_key": None, "base_url": None}
+
+    def test_alias_without_base_url_falls_through(self, monkeypatch):
+        monkeypatch.delenv("NOSUCHPROVIDER_BASE_URL", raising=False)
+
+        with pytest.raises(Exception):
+            _resolve_model("nosuchprovider:some-model")
+
+    def test_builtin_providers_are_unaffected(self, monkeypatch):
+        monkeypatch.setenv("GROQ_API_KEY", "groq-key")
+        from pydantic_ai.models.groq import GroqModel
+
+        assert isinstance(_resolve_model("groq:openai/gpt-oss-120b"), GroqModel)

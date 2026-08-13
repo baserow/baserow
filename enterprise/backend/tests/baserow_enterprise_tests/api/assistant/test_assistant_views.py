@@ -1757,10 +1757,11 @@ def test_submit_feedback_with_like_sentiment(api_client, enterprise_data_fixture
     assert prediction.human_feedback == ""
 
 
+@patch("baserow_enterprise.api.assistant.views.capture_ai_feedback")
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_submit_feedback_with_dislike_sentiment_and_text(
-    api_client, enterprise_data_fixture
+    mock_capture_ai_feedback, api_client, enterprise_data_fixture
 ):
     """Test submitting negative feedback (DISLIKE) with feedback text"""
 
@@ -1781,7 +1782,7 @@ def test_submit_feedback_with_dislike_sentiment_and_text(
     prediction = AssistantChatPrediction.objects.create(
         human_message=human_message,
         ai_response=ai_message,
-        prediction={"reasoning": "test"},
+        prediction={"reasoning": "test", "posthog_trace_id": "trace-123"},
     )
 
     # Submit negative feedback with text
@@ -1799,6 +1800,14 @@ def test_submit_feedback_with_dislike_sentiment_and_text(
     prediction.refresh_from_db()
     assert prediction.human_sentiment == -1  # DISLIKE = -1
     assert prediction.human_feedback == feedback_text
+    mock_capture_ai_feedback.assert_called_once_with(
+        user_id=str(user.id),
+        trace_id="trace-123",
+        session_id=str(chat.uuid),
+        workspace_id=str(workspace.id),
+        sentiment=-1,
+        feedback=feedback_text,
+    )
 
 
 @pytest.mark.django_db

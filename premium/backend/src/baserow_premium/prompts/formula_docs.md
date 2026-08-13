@@ -63,6 +63,57 @@ To create formulas to make a Boolean test on data in field C, taking data from f
 
 Using `join()` to convert the list to text handles the empty scenario correctly. This formula checks if the Organization field (a link-to-table field) has a value. If it's true, it shows the content of the Name field; otherwise, it displays the content of the Notes field.
 
+## Hard Rules
+
+These are the constraints most often got wrong. Breaking any of them makes the
+formula fail to compile.
+
+1. **Reference fields with `field('Name')`, never `{Name}`.** Curly braces are not
+   part of the language and cannot even be tokenized. `{Total}` is invalid;
+   `field('Total')` is correct.
+2. **`and()` and `or()` take exactly 2 arguments.** For three or more conditions,
+   nest them: `or(a, or(b, c))`, `and(a, and(b, c))`. Passing 3+ arguments fails
+   with "N arguments were given to the 'or' function".
+3. **`min()` and `max()` take a single array argument**, such as a `lookup()` or a
+   link/lookup `field()`. They are not two-argument scalar functions. For the
+   larger of two values use `if(a > b, a, b)`.
+4. **`datetime_format()` format strings are PostgreSQL `to_char` patterns**, not
+   moment.js or Excel patterns. Use `'Day'` (or `'FMDay'` unpadded) for a weekday
+   name, `'Month'` for a month name, `'YYYY-MM-DD'` for a date, `'HH24:MI'` for a
+   24-hour time. Lowercase moment tokens such as `'dddd'`, `'mmmm'` or `'hh:mm'`
+   are silently wrong and produce numbers rather than names.
+5. **Only use functions listed in the Function Reference below.** Baserow is not
+   Excel: `weekday`, `substitute`, `countif`, `iferror`, `datedif` and `sumif` do
+   not exist. Their nearest equivalents here are `todate`/`datetime_format`,
+   `replace`/`regex_replace`, `sum(filter(...))`, `when_empty` and `date_diff`.
+
+## Type Coercion
+
+Most functions accept only certain argument types. When the value you have is not the
+type a function wants, convert it: a type mismatch is a reason to add a conversion, never
+a reason to conclude that something cannot be expressed. The error names the argument
+position and the type it received, and lists the accepted types when there are any.
+
+| You have | You want | Use | Notes |
+| -------- | -------- | --- | ----- |
+| any valid type | text | `totext(x)` | `totext` accepts every valid type, including single select, multiple select, multiple collaborators, link row, lookup, date, number and boolean. |
+| single select | text | `totext(field('x'))` | Returns the selected option's value, or `''` when the cell is empty. |
+| multiple select / multiple collaborators | text | `totext(field('x'))` | Returns the values joined into one string. The same holds for a `lookup()` of such a field. |
+| a list (link row, lookup, array) | text | `join(field('x'), ', ')` | `join` takes a list plus a separator. If the items are not text, convert them first: `join(totext(field('x')), ', ')`. |
+| text | number | `tonumber(x)` | `tonumber` accepts text only; wrap anything else: `tonumber(totext(field('x')))`. |
+| any value | a non-empty value | `when_empty(x, fallback)` | Both arguments must be the same type. |
+| a list (link row, lookup, multiple select) | item count | `count(field('x'))` | |
+| multiple select | test for an option | `has_option(field('x'), 'value')` | |
+
+`concat(...)` applies `totext` to every argument itself, so mixing types inside it needs
+no wrapping.
+
+`=` and `!=` cast both sides to text when the two types differ but are comparable, so a
+single select can be compared with text directly. A multiple select is comparable only
+with another multiple select: test its contents with `has_option`, or compare
+`totext(field('x'))`. The ordering operators `>`, `>=`, `<` and `<=` refuse select fields
+in either position.
+
 ## Function Reference
 
 ### Text Functions
@@ -163,7 +214,24 @@ The `today()` function is useful for calculating intervals or when you need to h
 
 ### Aggregate Functions
 
-These functions work with arrays and lookup values to perform calculations across multiple values.
+These functions collapse a **list** of values into one value. A list only ever comes
+from a reference to a link row field, a reference to a lookup field, or a `lookup()`
+call. A plain field of the current row holds a single value and can never be
+aggregated — combine values within one row with the arithmetic operators, and use an
+aggregate function only to combine values across linked rows.
+
+A `field()` reference to a link row field carries the **type of the linked table's
+primary field**, as a list; `lookup()` carries the type of the field it names. Arguments
+are type checked and never coerced, so that type must already be one the function
+accepts: `sum` and `avg` take numbers or durations; `min` and `max` also take text and
+dates; `every` and `any` take booleans; `join` takes a lookup field reference or a list
+of text; `count` takes a list of any type, and also a multiple select or multiple
+collaborators field directly.
+
+When a list is not yet the type a function needs, convert it rather than concluding the
+conversion is unsupported. `totext()` accepts every valid type, including multiple
+select and multiple collaborators, so `join(totext(field('a link row field')), ', ')` is
+the general way to render any list as text.
 
 | Functions       | Details                                                                                                                                                                                                                        | Syntax                                                                          | Examples                                                                                                                                                                                                                              |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

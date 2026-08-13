@@ -466,6 +466,32 @@ def test_list_elements(data_fixture):
     assert result["elements"] == []
 
 
+@pytest.mark.django_db
+def test_list_elements_on_populated_page(data_fixture):
+    # Regression: ElementItem.from_orm must only read Element attributes that
+    # survived the graph refactor (b70bc968d dropped Element.order).
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    data_fixture.create_builder_heading_element(page=page)
+    data_fixture.create_builder_form_container_element(page=page)
+    data_fixture.create_builder_table_element(page=page)
+    data_fixture.create_builder_column_element(page=page)
+
+    ctx = make_test_ctx(user, workspace)
+    result = list_elements(ctx, page_id=page.id, thought="test")
+
+    assert {el["type"] for el in result["elements"]} == {
+        "heading",
+        "form_container",
+        "table",
+        "column",
+    }
+    assert all(el["id"] for el in result["elements"])
+
+
 @pytest.mark.django_db(transaction=True)
 def test_create_text_and_button(data_fixture):
     user = data_fixture.create_user()

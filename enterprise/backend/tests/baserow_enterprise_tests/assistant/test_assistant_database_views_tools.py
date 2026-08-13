@@ -1,4 +1,5 @@
 import pytest
+from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.views.models import View, ViewFilter
 from baserow_enterprise.assistant.tools.database.tools import (
@@ -849,3 +850,53 @@ def test_create_multiple_select_is_none_of_filter(data_fixture):
     assert ViewFilter.objects.filter(
         view=view, field=field, type="multiple_select_has_not"
     ).exists()
+
+
+@pytest.mark.django_db
+def test_create_views_bad_cover_field_asks_the_model_to_retry(data_fixture):
+    # A wrong or placeholder field id must come back as a retry prompt naming the
+    # valid fields, not a bare ValueError that aborts the user's whole turn.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Photos")
+    data_fixture.create_text_field(table=table, name="Caption")
+
+    ctx = make_test_ctx(user, workspace)
+
+    with pytest.raises(ModelRetry) as exc_info:
+        create_views(
+            ctx,
+            table_id=table.id,
+            views=[ViewItemCreate(name="Gallery", type="gallery", cover_field_id=0)],
+            thought="test",
+        )
+
+    message = str(exc_info.value)
+    assert "Gallery" in message
+    assert "Caption" in message
+
+
+@pytest.mark.django_db
+def test_create_views_wrong_field_type_asks_the_model_to_retry(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Tasks")
+    text_field = data_fixture.create_text_field(table=table, name="Status")
+
+    ctx = make_test_ctx(user, workspace)
+
+    with pytest.raises(ModelRetry) as exc_info:
+        create_views(
+            ctx,
+            table_id=table.id,
+            views=[
+                ViewItemCreate(
+                    name="Board", type="kanban", column_field_id=text_field.id
+                )
+            ],
+            thought="test",
+        )
+
+    assert "Single Select" in str(exc_info.value)

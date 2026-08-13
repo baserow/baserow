@@ -6,7 +6,7 @@ from django.utils.translation import gettext as _
 
 from loguru import logger
 from pydantic import Field, create_model
-from pydantic_ai import RunContext, Tool
+from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import UsageLimits
 
@@ -15,6 +15,7 @@ from baserow.contrib.database.fields.actions import (
     DeleteFieldActionType,
     UpdateFieldActionType,
 )
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.rows.actions import (
@@ -32,12 +33,14 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.tools.shared import require_payload
 from baserow_enterprise.assistant.tools.toolset import inline_refs
 from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
 from baserow_premium.prompts import get_formula_docs
 
 from . import helpers
 from .agents import (
+    FORMULA_AGENT_RETRIES,
     formula_generation_agent,
     generate_sample_rows,
     get_formula_type_tool,
@@ -475,14 +478,14 @@ def create_tables(
     DO NOT USE when: Tables already exist — check with list_tables first.
     HOW: Pass ALL related tables in a single call — link_row fields can reference other tables in the same call by name (they are created internally before fields are added). Choose appropriate field types for each column.
         Use single_select/multiple_select with select_options for categorical data. The primary field is always text — pick a meaningful name for it.
+    REQUIRED: `database_id` and `tables` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
     """
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not tables:
-        return {"created_tables": []}
+    require_payload("create_tables", "tables", tables)
 
     database = CoreService().get_application(
         user,
@@ -568,14 +571,14 @@ def create_fields(
     RETURNS: Created fields with id, name, type. Formula errors with hints if any.
     DO NOT USE when: Creating a brand new table — use create_tables instead, which handles fields as part of table creation.
     HOW: Call get_tables_schema first to see existing fields and avoid duplicates. For link_row fields, ensure the target table already exists.
+    REQUIRED: `table_id` and `fields` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
     """
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not fields:
-        return {"created_fields": []}
+    require_payload("create_fields", "fields", fields)
 
     table = helpers.get_table(user, workspace, table_id)
 
@@ -713,6 +716,15 @@ def delete_fields(
 # ---------------------------------------------------------------------------
 
 
+def _describe_fields(table: Table) -> str:
+    """List a table's fields as ``id (name, type)`` for retry prompts."""
+
+    fields = FieldHandler().get_base_fields_queryset().filter(table=table)
+    return (
+        ", ".join(f"{f.id} ({f.name}, {f.get_type().type})" for f in fields) or "none"
+    )
+
+
 def create_views(
     ctx: RunContext[AssistantDeps],
     table_id: Annotated[
@@ -736,14 +748,14 @@ def create_views(
     RETURNS: Created views with id, name, type configuration.
     DO NOT USE when: The default grid view already meets the user's needs. Check existing views with list_views to avoid duplicates.
     HOW: Each view type requires specific config. Form views: provide field_options listing every field to show (field_id, name, order, required). Kanban: set column_field_id to a single_select field. Calendar: set date_field_id to a date field. Timeline: set both start/end date fields. Gallery: optionally set cover_field_id to a file field. Call get_tables_schema first to get the field IDs you need.
+    REQUIRED: `table_id` and `views` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
     """
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not views:
-        return {"created_views": []}
+    require_payload("create_views", "views", views)
 
     table = helpers.get_table(user, workspace, table_id)
 
@@ -756,11 +768,22 @@ def create_views(
                 % {"view_type": view.type, "view_name": view.name}
             )
 
+            # View config points at field ids the model chose, so a wrong or
+            # placeholder id must come back as a retry prompt naming the valid
+            # fields rather than a bare ValueError that aborts the whole turn.
+            try:
+                orm_kwargs = view.to_django_orm_kwargs(table)
+            except (ValueError, TypeError) as exc:
+                raise ModelRetry(
+                    f"Cannot create the '{view.name}' {view.type} view: {exc} "
+                    f"Fields in table '{table.name}': {_describe_fields(table)}"
+                ) from exc
+
             orm_view = CreateViewActionType.do(
                 user,
                 table,
                 view.type,
-                **view.to_django_orm_kwargs(table),
+                **orm_kwargs,
             )
 
             field_options = view.field_options_to_django_orm()
@@ -808,6 +831,7 @@ def create_view_filters(
     RETURNS: Created filters with id and configuration per view.
     DO NOT USE when: The view doesn't exist yet — create it first with create_views.
     HOW: Get the table schema first to know field IDs and types. Match filter type to field type.
+    REQUIRED: `view_filters` must contain at least one entry, each carrying the ID of the view it applies to. The ID says where to act; the payload says what to create. A call carrying no entries creates nothing and is rejected.
 
     ## Value formats by type
 
@@ -823,8 +847,7 @@ def create_view_filters(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not view_filters:
-        return {"created_view_filters": []}
+    require_payload("create_view_filters", "view_filters", view_filters)
 
     created_view_filters = []
     for vf in view_filters:
@@ -911,30 +934,52 @@ def generate_formula(
 
     formula_docs = get_formula_docs()
     formula_type_tool = Tool(get_formula_type_tool(user, workspace))
-    formula_toolset = FunctionToolset([formula_type_tool])
+    formula_toolset = FunctionToolset(
+        [formula_type_tool], max_retries=FORMULA_AGENT_RETRIES
+    )
 
     prompt = format_formula_generation_prompt(
         description, database_tables_schema, formula_docs
     )
 
     model = get_model_string()
-    agent_result = formula_generation_agent.run_sync(
-        prompt,
-        model=model,
-        model_settings=get_model_settings(model, UTILITY),
-        toolsets=[formula_toolset],
-        usage_limits=UsageLimits(request_limit=20),
-    )
+    try:
+        agent_result = formula_generation_agent.run_sync(
+            prompt,
+            model=model,
+            model_settings=get_model_settings(model, UTILITY),
+            toolsets=[formula_toolset],
+            usage_limits=UsageLimits(request_limit=20),
+        )
+    except ModelRetry:
+        raise
+    except Exception as exc:
+        # A sub-agent blowing up must not take the user's whole turn with it;
+        # create_tables contains generate_sample_rows the same way.
+        logger.exception("[assistant] formula_generation_agent raised unexpectedly")
+        raise ModelRetry(
+            f"The formula generator failed: {exc}. Retry with a simpler "
+            "description, or create the field without a formula."
+        ) from exc
+
     result = agent_result.output
 
+    # Both of these are recoverable: the sub-agent could not express the request
+    # or picked the wrong table, and the orchestrator can rephrase or retarget.
+    # Raising here instead would end the user's turn outright.
     if not result.is_formula_valid:
-        raise Exception(f"Error generating formula: {result.error_message}")
+        raise ModelRetry(
+            f"Could not generate a valid formula: {result.error_message} "
+            "Rephrase the description, or tell the user which part is not "
+            "expressible in the Baserow formula language."
+        )
 
     table = next((t for t in database_tables if t.id == result.table_id), None)
     if table is None:
-        raise Exception(
-            "The generated formula is intended for a different table "
-            f"than the current one. Table with ID {result.table_id} not found."
+        valid = ", ".join(f"{t.id} ({t.name})" for t in database_tables)
+        raise ModelRetry(
+            f"The generated formula targets table {result.table_id}, which is not "
+            f"in database {database_id}. Tables available: {valid}"
         )
 
     data = {
@@ -1031,8 +1076,7 @@ def _build_row_tools(
     ) -> dict[str, Any]:
         """Create new rows in the specified table."""
 
-        if not rows:
-            return {"created_row_ids": []}
+        require_payload(f"create_rows_in_table_{table.id}", "rows", rows)
 
         tool_helpers.update_status(
             _("Creating rows in %(table_name)s ") % {"table_name": table.name}
@@ -1055,6 +1099,9 @@ def _build_row_tools(
             f"DO NOT USE: For other tables — each table has its own create tool. "
             f"HOW: Fill EVERY field including ALL link_row (relationship) fields. Never skip a field unless data is genuinely unavailable."
             f"{link_row_hints}"
+            f" REQUIRED: `rows` must contain at least one row. This tool already "
+            f"knows where to write, so the call must also carry what to create; a "
+            f"call with an empty `rows` creates nothing and is rejected."
         ),
         max_retries=2,
     )

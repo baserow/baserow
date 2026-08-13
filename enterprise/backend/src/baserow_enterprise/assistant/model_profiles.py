@@ -69,7 +69,18 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     },
 }
 
+
+def _with(overrides: dict) -> dict[str, ModelSettings]:
+    """Apply *overrides* to every role of the default profile."""
+
+    return {role: {**base, **overrides} for role, base in _DEFAULT_PROFILE.items()}
+
+
 _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
+    # Rejects function tools on /v1/chat/completions unless reasoning is off:
+    # "Function tools with reasoning_effort are not supported ... set
+    # reasoning_effort to 'none'". Kuma is tool-driven, so this is mandatory.
+    "gpt-5.6-luna": _with({"openai_reasoning_effort": "none"}),
     "gpt-oss-120b": {
         ORCHESTRATOR: {
             **_DEFAULT_PROFILE[ORCHESTRATOR],
@@ -127,6 +138,13 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
         )
         if env_temp is not None:
             result["temperature"] = env_temp
+
+    # Slower self-hosted endpoints need more headroom than the defaults, which are
+    # tuned for Groq. Without this a slow endpoint times out on every call and the
+    # result is indistinguishable from the model being wrong.
+    env_timeout = getattr(settings, "BASEROW_ENTERPRISE_ASSISTANT_LLM_TIMEOUT", None)
+    if env_timeout is not None:
+        result["timeout"] = env_timeout
 
     return result
 

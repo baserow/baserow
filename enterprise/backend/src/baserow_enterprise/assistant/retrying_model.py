@@ -225,6 +225,27 @@ def _resolve_credentials(provider: str) -> dict[str, str | None]:
     return {"api_key": api_key, "base_url": base_url}
 
 
+_ALIAS_SEPARATORS = re.compile(r"[^A-Z0-9]")
+
+
+def _resolve_alias_credentials(provider: str) -> dict[str, str | None]:
+    """Return ``{"api_key": ..., "base_url": ...}`` for a custom provider alias.
+
+    Any provider prefix that is not built in is treated as an OpenAI-compatible
+    endpoint configured by convention, so ``hetzner:some-model`` reads
+    ``HETZNER_BASE_URL`` and ``HETZNER_API_KEY``.
+
+    Deliberately does *not* fall back to the deprecated ``UDSPY_LM_*`` vars: a
+    stray legacy key must never authenticate against an unrelated endpoint.
+    """
+
+    prefix = _ALIAS_SEPARATORS.sub("_", provider.upper())
+    return {
+        "api_key": os.getenv(f"{prefix}_API_KEY"),
+        "base_url": os.getenv(f"{prefix}_BASE_URL"),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Per-provider model factories
 # ---------------------------------------------------------------------------
@@ -325,6 +346,10 @@ def _resolve_model(model_name: str) -> Model:
         creds = _resolve_credentials(provider)
         return factory(name, creds)
 
+    alias_creds = _resolve_alias_credentials(provider)
+    if alias_creds["base_url"]:
+        return _make_openai(name, alias_creds)
+
     # Unknown provider — let pydantic-ai handle it.
     return infer_model(model_name)
 
@@ -345,12 +370,15 @@ class RetryingModel(WrapperModel):
         self,
         wrapped: Model | KnownModelName,
         *,
+        settings: ModelSettings | None = None,
         max_attempts: int = 3,
         base_delay: float = 1.0,
         max_delay: float = 10.0,
     ):
-        # Bypass WrapperModel.__init__ to defer infer_model.
-        Model.__init__(self)
+        # Bypass WrapperModel.__init__ to defer infer_model.  ``settings`` become
+        # this model's defaults, for callers that cannot pass ``model_settings``
+        # at every run site.
+        Model.__init__(self, settings=settings)
         self._wrapped_or_name = wrapped
         self._resolved: Model | None = None
         self.max_attempts = max_attempts
@@ -370,6 +398,12 @@ class RetryingModel(WrapperModel):
     @wrapped.setter
     def wrapped(self, value: Model) -> None:
         self._resolved = value
+
+    @property
+    def settings(self) -> ModelSettings | None:
+        # WrapperModel.settings delegates straight to the wrapped model, which
+        # would silently discard anything passed to our own constructor.
+        return self._settings if self._settings is not None else self.wrapped.settings
 
     def _delay_for(self, attempt: int) -> float:
         """Exponential back-off delay capped at ``max_delay``."""

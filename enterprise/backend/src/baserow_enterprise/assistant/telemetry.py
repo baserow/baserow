@@ -3,7 +3,8 @@ Posthog telemetry integration for the Baserow Assistant.
 
 Hooks into pydantic-ai's OpenTelemetry instrumentation to capture LLM
 generation and tool call events, mapping them to PostHog's AI analytics
-event schema (``$ai_trace``, ``$ai_generation``, ``$ai_span``).
+event schema (``$ai_trace``, ``$ai_generation``, ``$ai_span``,
+``$ai_feedback``).
 
 Architecture:
 
@@ -65,6 +66,29 @@ def _posthog_capture(distinct_id: str, event: str, properties: dict, **kwargs):
         )
     except Exception:
         pass
+
+
+def capture_ai_feedback(
+    *,
+    user_id: str,
+    trace_id: str,
+    session_id: str,
+    workspace_id: str,
+    sentiment: int | None,
+    feedback: str = "",
+) -> None:
+    """Attach a Kuma message rating to its PostHog AI trace."""
+
+    properties = {
+        "$ai_trace_id": trace_id,
+        "$ai_session_id": session_id,
+        "workspace_id": workspace_id,
+        "$ai_feedback_value": sentiment or 0,
+    }
+    if feedback:
+        properties["$ai_feedback_text"] = feedback
+
+    _posthog_capture(user_id, "$ai_feedback", properties)
 
 
 # ---------------------------------------------------------------------------
@@ -542,18 +566,25 @@ class PosthogTracingCallback:
                 if isinstance(output_state, dict):
                     output_state["tool_calls"] = tool_call_names
 
+            properties = {
+                "$ai_session_id": chat.uuid,
+                # The distinct ID already identifies the user. A longer prompt-only
+                # name makes repeated requests aggregatable across users while
+                # keeping the trace list readable.
+                "$ai_span_name": human_message[:80],
+                "$ai_span_id": self.span_id,
+                "$ai_latency": (_utc_now() - start_time).total_seconds(),
+                "$ai_is_error": exception is not None,
+                "$ai_input_state": {"user_message": human_message},
+                "$ai_output_state": output_state,
+            }
+            if exception is not None:
+                properties["$ai_error"] = str(exception)
+
             self._capture_event(
                 "$ai_trace",
                 timestamp=start_time,
-                properties={
-                    "$ai_session_id": chat.uuid,
-                    "$ai_span_name": f"{self.user_id}: {human_message[:20]}",
-                    "$ai_span_id": self.span_id,
-                    "$ai_latency": (_utc_now() - start_time).total_seconds(),
-                    "$ai_is_error": exception is not None,
-                    "$ai_input_state": {"user_message": human_message},
-                    "$ai_output_state": output_state,
-                },
+                properties=properties,
             )
 
             try:

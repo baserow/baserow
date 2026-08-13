@@ -9,6 +9,7 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.tools.shared import require_payload
 from baserow_enterprise.assistant.types import WorkflowNavigationType
 
 from . import agents, helpers
@@ -100,14 +101,14 @@ def add_nodes(
     RETURNS: Created nodes array with id, label, type.
     DO NOT USE when: You want to create an entirely new workflow — use create_workflows instead.
     HOW: Use list_nodes first to find the existing node IDs, then specify previous_node_ref to place new nodes. Use router_edge_label when attaching to a router branch.
+    REQUIRED: `workflow_id` and `nodes` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
     """
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not nodes:
-        return {"created_nodes": []}
+    require_payload("add_nodes", "nodes", nodes)
 
     tool_helpers.update_status(_("Adding nodes to workflow..."))
 
@@ -172,6 +173,7 @@ def create_workflows(
     RETURNS: Created workflows with id, name, state.
     DO NOT USE when: Workflows with those names already exist — check with list_workflows first.
     HOW: Each workflow needs exactly one trigger and one or more actions/routers. Use {{ node.ref }} syntax to reference previous node values in action formulas. Know the table_id and field_ids for row-based triggers and actions.
+    REQUIRED: `automation_id` and `workflows` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Workflow Structure
 
@@ -193,8 +195,7 @@ def create_workflows(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not workflows:
-        return {"created_workflows": []}
+    require_payload("create_workflows", "workflows", workflows)
 
     created = []
 
