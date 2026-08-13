@@ -171,3 +171,6 @@ web-frontend/storybook-static
 
 .agent
 MEMORY.md
+
+# Local Kuma eval sweep results
+.kuma-sweep/

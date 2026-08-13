@@ -1,3 +1,5 @@
+import unicodedata
+
 from django.conf import settings
 
 import pytest
@@ -5,6 +7,7 @@ import pytest
 from .eval_utils import (
     EvalChecklist,
     build_database_ui_context,
+    count_tool_errors,
     create_eval_assistant,
     format_message_history,
     print_message_history,
@@ -202,6 +205,111 @@ SEARCH_DOCS_CASES = [
 ]
 
 
+# These questions are anonymized examples from recurring production prompt
+# families. Unlike the broad retrieval cases above, each case has a factual
+# answer contract: authoritative sources are mandatory, every required concept
+# group must match, and known hallucinations must be absent.
+PRODUCTION_QUESTION_CASES = [
+    pytest.param(
+        "How do I invite users to my workspace?",
+        ["working-with-collaborators"],
+        [["member"], ["invite"], ["admin"]],
+        [],
+        id="production-invite-workspace-users",
+    ),
+    pytest.param(
+        "How do I create a form?",
+        ["guide-to-creating-forms-in-baserow"],
+        [
+            ["form view"],
+            ["add view", "create view", "view dropdown"],
+            ["share", "public"],
+        ],
+        [],
+        id="production-create-form",
+    ),
+    pytest.param(
+        "How do I delete a workspace?",
+        ["delete-a-workspace"],
+        [["delete workspace"], ["admin"], ["workspace name", "dropdown"]],
+        [
+            "can't delete a workspace",
+            "can’t delete a workspace",
+            "cannot delete a workspace",
+            "workspaces are permanent",
+        ],
+        id="production-delete-workspace",
+    ),
+    pytest.param(
+        "Wo finde ich Tutorials mit funktionierenden Links?",
+        ["user-docs", "docs/tutorials", "docs/index"],
+        [["https://baserow.io/user-docs/", "https://baserow.io/docs/"]],
+        [".md"],
+        id="production-working-tutorial-links",
+    ),
+    pytest.param(
+        "How do I connect a Baserow database to a JavaScript and HTML file?",
+        ["database-api", "personal-api-tokens"],
+        [
+            ["database token"],
+            ["authorization"],
+            [
+                "do not expose",
+                "don't expose",
+                "never expose",
+                "server-side",
+                "backend proxy",
+            ],
+        ],
+        [],
+        id="production-connect-database-to-javascript",
+    ),
+    pytest.param(
+        (
+            "What formula can I use to generate the application name from "
+            "Provider, State, and License Type?"
+        ),
+        ["understanding-formulas", "formula"],
+        [["concat"], ["provider"], ["state"], ["license type"]],
+        [],
+        id="production-generate-name-formula",
+    ),
+    pytest.param(
+        "Why can I not group by a column that is a formula?",
+        ["group-rows-in-baserow"],
+        [["formula"], ["group"], ["result type", "groupable", "group-able"]],
+        ["formula fields cannot be grouped"],
+        id="production-group-by-formula",
+    ),
+    pytest.param(
+        "Can I create a dashboard?",
+        ["create-a-dashboard", "dashboards-overview"],
+        [["dashboard"], ["create new"], ["summary", "widget"]],
+        [],
+        id="production-create-dashboard",
+    ),
+    pytest.param(
+        "How can I download the entire database while preserving links?",
+        ["export-workspaces"],
+        [
+            ["export data"],
+            ["zip"],
+            ["relationship", "link"],
+            ["structure", "configuration"],
+        ],
+        ["relationships are not preserved", "links are not preserved"],
+        id="production-export-database-with-links",
+    ),
+]
+
+
+def _normalize_answer_text(value):
+    """Normalize model typography so punctuation cannot create false failures."""
+
+    normalized = unicodedata.normalize("NFKC", value).lower()
+    return normalized.translate(str.maketrans("‐‑‒–—−", "------"))
+
+
 def _run_agent(
     agent, deps, tracker, model, usage_limits, toolset, question, ui_context
 ):
@@ -261,8 +369,10 @@ def test_search_user_docs(
         if e.get("tool_name") == "search_user_docs" and e["role"] == "assistant"
     ]
     sources = deps.sources
-    answer = result.output.lower()
-    keyword_match = any(kw.lower() in answer for kw in expected_keywords)
+    answer = _normalize_answer_text(result.output)
+    keyword_match = any(
+        _normalize_answer_text(keyword) in answer for keyword in expected_keywords
+    )
 
     # Source URL matching is non-fatal — URLs change and the retrieval may
     # return valid alternative sources.  Print a warning but don't score it.
@@ -293,3 +403,89 @@ def test_search_user_docs(
             keyword_match,
             hint=f"answer (first 300 chars): {result.output[:300]}",
         )
+
+
+@pytest.mark.eval
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "question,expected_source_patterns,required_concept_groups,forbidden_claims",
+    PRODUCTION_QUESTION_CASES,
+)
+def test_production_question_accuracy(
+    data_fixture,
+    eval_model,
+    question,
+    expected_source_patterns,
+    required_concept_groups,
+    forbidden_claims,
+):
+    """Kuma should answer recurring product questions from authoritative docs."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+        user, workspace, max_iters=10, model=eval_model
+    )
+    ui_context = build_database_ui_context(user, workspace, database)
+    result = _run_agent(
+        agent,
+        deps,
+        tracker,
+        model,
+        usage_limits,
+        toolset,
+        question=question,
+        ui_context=ui_context,
+    )
+
+    print_message_history(result)
+
+    history = format_message_history(result)
+    tool_names = [
+        entry.get("tool_name")
+        for entry in history
+        if entry.get("tool_name") is not None
+    ]
+    sources = deps.sources
+    answer = _normalize_answer_text(result.output)
+    source_match = any(
+        any(pattern.lower() in url.lower() for pattern in expected_source_patterns)
+        for url in sources
+    )
+    missing_groups = [
+        alternatives
+        for alternatives in required_concept_groups
+        if not any(
+            _normalize_answer_text(alternative) in answer
+            for alternative in alternatives
+        )
+    ]
+    present_forbidden_claims = [
+        claim for claim in forbidden_claims if _normalize_answer_text(claim) in answer
+    ]
+    error_count, error_hint = count_tool_errors(result)
+
+    with EvalChecklist("production product question accuracy") as checks:
+        checks.check(
+            "called search_user_docs",
+            "search_user_docs" in tool_names,
+            hint=f"tools called: {tool_names}",
+        )
+        checks.check(
+            "returned an authoritative source",
+            source_match,
+            hint=(f"expected one of {expected_source_patterns}; returned: {sources}"),
+        )
+        checks.check(
+            "included every required factual concept",
+            not missing_groups,
+            hint=f"missing concept groups: {missing_groups}; answer: {result.output[:500]}",
+        )
+        checks.check(
+            "did not include a known hallucination",
+            not present_forbidden_claims,
+            hint=f"forbidden claims found: {present_forbidden_claims}",
+        )
+        checks.check("had no tool validation errors", error_count == 0, error_hint)

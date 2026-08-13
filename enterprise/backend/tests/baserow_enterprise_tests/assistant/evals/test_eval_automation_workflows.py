@@ -72,17 +72,34 @@ def _run_agent(
     )
 
 
+def _rejected_tool_call_ids(history) -> set:
+    """Tool call ids whose arguments failed validation and were retried."""
+
+    return {
+        e["tool_call_id"]
+        for e in history
+        if e.get("type") == "RetryPromptPart" and e.get("tool_call_id")
+    }
+
+
 def _get_create_workflows_args(result) -> list[dict]:
     """Return the parsed ``args`` dicts of every ``create_workflows`` tool call
-    the agent made (assistant-side entries have ``args``)."""
+    the agent made (assistant-side entries have ``args``).
+
+    Calls whose arguments were rejected are dropped. Callers read index 0, so
+    keeping a retried attempt would score the abandoned call and fail a run
+    whose final state is correct.
+    """
 
     history = format_message_history(result)
+    rejected = _rejected_tool_call_ids(history)
     return [
         e["args"]
         for e in history
         if e["role"] == "assistant"
         and e.get("tool_name") == "create_workflows"
         and "args" in e
+        and e.get("tool_call_id") not in rejected
     ]
 
 

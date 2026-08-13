@@ -246,10 +246,11 @@ def test_agent_creates_app_when_table_exists(data_fixture, eval_model):
 
     pages = Page.objects.filter(builder=builder, shared=False)
 
-    # Collect data source table_ids from args
+    # setup_page carries the same data_sources/elements payload, so it has to be
+    # read too or these checks miss everything the composite tool created.
     ds_table_ids = []
-    for call in ds_calls:
-        for ds in call.get("args", {}).get("data_sources", []):
+    for call in ds_calls + setup_page_calls:
+        for ds in call.get("args", {}).get("data_sources", []) or []:
             if ds.get("table_id"):
                 ds_table_ids.append(ds["table_id"])
 
@@ -259,6 +260,7 @@ def test_agent_creates_app_when_table_exists(data_fixture, eval_model):
         "create_collection_elements",
         "create_layout_elements",
         "create_form_elements",
+        "setup_page",
     }
     el_calls = [
         e

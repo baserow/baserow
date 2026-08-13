@@ -62,6 +62,18 @@ PROMPT_CREATE_RELATED_TABLES_WITH_SAMPLE_ROWS = (
     "Price, and a link to the Authors table."
 )
 
+PROMPT_CREATES_COMPLETE_DATABASE_FROM_DESCRIPTION = (
+    "Create a database including tables, fields, example rows, and example views "
+    "matching this description: Sales and marketing database"
+)
+
+PROMPT_REPAIRS_EXISTING_FORMULA = (
+    "Fix the existing Access Summary formula in the Access Records table so it "
+    "combines the Authorising Role and Authorising Group multiple-select fields. "
+    "Show whichever side exists when one is empty; when both exist, join them "
+    "with ' - '. Look at the table and save a working formula."
+)
+
 # -- View creation prompts --------------------------------------------------
 
 PROMPT_CREATE_GRID_VIEW = (
@@ -571,6 +583,140 @@ def test_agent_creates_database_from_description(data_fixture, eval_model):
             sum(1 for f in books_fields if isinstance(f, (TextField, LongTextField)))
             >= 2,
             hint=f"books text fields: {[f.name for f in books_fields if isinstance(f, (TextField, LongTextField))]}",
+        )
+
+
+@pytest.mark.eval
+@pytest.mark.django_db(transaction=True)
+def test_agent_creates_complete_database_from_production_prompt(
+    data_fixture, eval_model
+):
+    """A common onboarding prompt should complete the whole database journey."""
+
+    from baserow.contrib.database.models import Database
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+        user, workspace, max_iters=30, model=eval_model
+    )
+    ui_context = build_database_ui_context(user, workspace)
+
+    result = _run_agent(
+        agent,
+        deps,
+        tracker,
+        model,
+        usage_limits,
+        toolset,
+        question=PROMPT_CREATES_COMPLETE_DATABASE_FROM_DESCRIPTION,
+        ui_context=ui_context,
+    )
+
+    print_message_history(result)
+    err_count, err_hint = count_tool_errors(result)
+
+    databases = list(Database.objects.filter(workspace=workspace))
+    tables = list(Table.objects.filter(database__in=databases))
+    views = list(View.objects.filter(table__in=tables))
+    non_default_views = [view for view in views if view.name.lower() != "grid"]
+    sample_row_count = sum(table.get_model().objects.count() for table in tables)
+
+    with EvalChecklist("creates complete sales and marketing database") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "exactly one database created",
+            len(databases) == 1,
+            hint=f"got: {[database.name for database in databases]}",
+        )
+        checks.check(
+            "at least two tables created",
+            len(tables) >= 2,
+            hint=f"got: {[table.name for table in tables]}",
+        )
+        checks.check(
+            "tables include additional fields",
+            bool(tables) and all(table.field_set.count() >= 2 for table in tables),
+            hint=f"field counts: {[(table.name, table.field_set.count()) for table in tables]}",
+        )
+        checks.check(
+            "sample rows created",
+            sample_row_count >= len(tables),
+            hint=f"got {sample_row_count} rows across {len(tables)} tables",
+        )
+        checks.check(
+            "example view created",
+            len(non_default_views) >= 1,
+            hint=f"views: {[(view.table.name, view.name) for view in views]}",
+        )
+
+
+@pytest.mark.eval
+@pytest.mark.django_db(transaction=True)
+def test_agent_repairs_and_saves_existing_formula(data_fixture, eval_model):
+    """A formula complaint should use the validated formula tool and persist it."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Access Management"
+    )
+    table = data_fixture.create_database_table(
+        user=user, database=database, name="Access Records"
+    )
+    data_fixture.create_text_field(table=table, name="System", primary=True)
+    data_fixture.create_multiple_select_field(table=table, name="Authorising Role")
+    data_fixture.create_multiple_select_field(table=table, name="Authorising Group")
+    formula_field = data_fixture.create_formula_field(
+        table=table,
+        name="Access Summary",
+        formula="'pending'",
+        formula_type="text",
+    )
+
+    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+        user, workspace, max_iters=20, model=eval_model
+    )
+    ui_context = build_database_ui_context(user, workspace, database, table)
+
+    result = _run_agent(
+        agent,
+        deps,
+        tracker,
+        model,
+        usage_limits,
+        toolset,
+        question=PROMPT_REPAIRS_EXISTING_FORMULA,
+        ui_context=ui_context,
+    )
+
+    print_message_history(result)
+    err_count, err_hint = count_tool_errors(result)
+    formula_field.refresh_from_db()
+    formula = formula_field.formula
+
+    with EvalChecklist("repairs existing access summary formula") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "formula was updated",
+            formula != "'pending'",
+            hint=f"formula: {formula}",
+        )
+        checks.check(
+            "formula is valid",
+            formula_field.cached_formula_type.is_valid,
+            hint=f"formula type: {formula_field.formula_type}, formula: {formula}",
+        )
+        checks.check(
+            "formula uses Authorising Role",
+            "Authorising Role" in formula,
+            hint=f"formula: {formula}",
+        )
+        checks.check(
+            "formula uses Authorising Group",
+            "Authorising Group" in formula,
+            hint=f"formula: {formula}",
         )
 
 

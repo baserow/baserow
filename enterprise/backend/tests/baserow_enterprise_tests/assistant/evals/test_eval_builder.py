@@ -152,11 +152,15 @@ def _filter_tool_calls(result, tool_names=None):
     return [e for e in calls if e.get("tool_name") in tool_names]
 
 
+# setup_page is the composite tool the assistant is told to prefer for whole
+# pages, and it carries the same "elements" payload, so omitting it makes these
+# checks blind to everything a well-behaved agent creates.
 _ELEMENT_CREATION_TOOLS = {
     "create_display_elements",
     "create_layout_elements",
     "create_form_elements",
     "create_collection_elements",
+    "setup_page",
 }
 
 
@@ -272,7 +276,14 @@ def test_agent_creates_landing_page(data_fixture, eval_model):
 
     all_el_args = _collect_element_args(result)
     heading_args = [e for e in all_el_args if e.get("type") == "heading"]
-    button_args = [e for e in all_el_args if e.get("type") == "button"]
+    # A link rendered as a button is the only construct that can target a URL,
+    # so it counts as a button here.
+    button_args = [
+        e
+        for e in all_el_args
+        if e.get("type") == "button"
+        or (e.get("type") == "link" and e.get("link_variant") == "button")
+    ]
     heading_texts = [str(e.get("value", "")).lower() for e in heading_args]
     button_texts = [
         str(e.get("value", "") or e.get("label", "")).lower() for e in button_args

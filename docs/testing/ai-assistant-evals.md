@@ -43,16 +43,53 @@ All configuration is via environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EVAL_LLM_MODEL` | `groq:openai/gpt-oss-120b` | Model string in pydantic-ai format (`provider:model`). Accepts a comma-separated list to parametrize every eval across multiple models. |
+| `EVAL_RUNS` | `1` | Runs every model/case combination this many times. Use `3` for reliability and flake-rate comparisons. |
 | `EVAL_RETRIES` | `0` | Retry each failing eval test up to N times. If a test passes on retry it's a flake (LLM non-determinism); if it fails all N retries it's a consistent bug. |
 | `GROQ_API_KEY` | — | Required when using a Groq model. |
 | `OPENAI_API_KEY` | — | Required when using an OpenAI model. |
 | `ANTHROPIC_API_KEY` | — | Required when using an Anthropic model. |
+| `<ALIAS>_BASE_URL` | — | Endpoint for a custom OpenAI-compatible provider (see below). |
+| `<ALIAS>_API_KEY` | — | Key for that provider. |
+
+### Custom OpenAI-compatible endpoints
+
+Any provider prefix that is not built in (`openai`, `groq`, `anthropic`, `ollama`,
+`google*`) is treated as an OpenAI-compatible endpoint configured **by
+convention**: the prefix is upper-cased and used to look up `<PREFIX>_BASE_URL`
+and `<PREFIX>_API_KEY`.
+
+```bash
+HETZNER_BASE_URL=https://your-hetzner-endpoint/v1
+HETZNER_API_KEY=...
+INFERCOM_BASE_URL=https://your-infercom-endpoint/v1
+INFERCOM_API_KEY=...
+
+EVAL_LLM_MODEL="groq:openai/gpt-oss-120b,hetzner:deepseek-v4-flash,hetzner:glm5.2,infercom:MiniMax-M2.7-Ultraspeed,openai:gpt-5.6-luna"
+```
+
+The model identifier after the colon is passed to the endpoint verbatim and may
+contain slashes (`infercom:vendor/some-model` works).
+
+Resolution happens in `assistant/retrying_model.py::_resolve_model`, i.e. in
+production code rather than in the eval harness. This is deliberate: sub-agents
+(`formula_agent`, the fixer, title generation) resolve their model through
+`get_model_string()` → `_resolve_model()`, so an eval-only shim would leave them
+on the default model and silently invalidate any model comparison.
+
+Aliases do **not** inherit the deprecated `UDSPY_LM_*` fallbacks, so a stray
+legacy key cannot authenticate against an unrelated endpoint. If
+`<PREFIX>_BASE_URL` is unset the prefix is passed to pydantic-ai's `infer_model`,
+which will raise for an unknown provider.
+
+Note that `BASEROW_OPENAI_BASE_URL` is **not** used by the assistant — that
+setting belongs to the generative-AI-field subsystem.
 
 ### API keys from a file
 
-The eval conftest reads API keys from the same `TEST_ENV_FILE` that
+The eval conftest reads credentials from the same `TEST_ENV_FILE` that
 `baserow/config/settings/test.py` already parses, and exposes them via
-`os.environ` so that LLM provider SDKs can find them:
+`os.environ` so that LLM provider SDKs can find them. Any variable ending in
+`_API_KEY` or `_BASE_URL` is bridged, so a new endpoint needs no code change:
 
 ```bash
 TEST_ENV_FILE=.env.testing-local just b test \
@@ -60,6 +97,14 @@ TEST_ENV_FILE=.env.testing-local just b test \
 ```
 
 Variables already present in `os.environ` take precedence.
+
+> **The path is resolved relative to `backend/`, not the repo root.**
+> `baserow/config/settings/test.py` joins `TEST_ENV_FILE` onto the backend
+> directory, so the repo-root `.env` is `TEST_ENV_FILE=../.env`. An absolute path
+> does **not** work — it is concatenated onto the relative prefix and silently
+> resolves to nothing. The failure is silent: `TEST_ENV_VARS` comes back empty,
+> no credentials are bridged, and the run fails much later with
+> `ValueError: Unknown provider: <alias>`.
 
 ### Running against multiple models
 
@@ -70,6 +115,76 @@ just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals
 ```
 
 Each test will run once per model, with the model name shown in the test ID.
+
+For a fair reliability comparison, repeat every case equally instead of only
+retrying failures:
+
+```bash
+GROQ_API_KEY=... OPENAI_API_KEY=... EVAL_RUNS=3 \
+EVAL_LLM_MODEL="groq:openai/gpt-oss-120b,openai:<challenger>" \
+just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
+  -m eval -v --junitxml=kuma-model-comparison.xml
+```
+
+The test IDs include `run-1`, `run-2`, and `run-3`. Keep `EVAL_RETRIES=0`
+for the scored comparison. `EVAL_RETRIES` is a separate diagnostic tool that
+reruns failures and would otherwise give failing cases more attempts than
+passing ones.
+
+### Running the matrix in parallel
+
+The matrix is the cross product of cases x models x runs, so it grows fast: 76
+cases x 5 models x 3 runs is 1,140 agent runs. Use `pytest-xdist` to spread them
+across processes:
+
+```bash
+EVAL_RUNS=3 EVAL_LLM_MODEL="groq:openai/gpt-oss-120b,hetzner:deepseek-v4-flash,..." \
+just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
+  -m eval -n=8 --junitxml=kuma-model-comparison.xml
+```
+
+Each xdist worker is a separate process, so the per-test rewrite of
+`settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` (used to propagate the model to
+sub-agents) cannot race between workers.
+
+#### How workers are allocated
+
+Provider rate limits, not CPU, are the ceiling for this suite. Several workers
+hitting one endpoint produce 429s, and a 429 scored as a test failure is
+indistinguishable from a model-quality regression.
+
+So parallelism is spread along the widest axis first: **across providers, then
+across models, and only then doubled up on one model.** Passing `-n`
+automatically switches scheduling to `--dist loadgroup`, and eval tests are
+tagged so that everything in a group runs on a single worker.
+
+With four models on three providers (two of them on `hetzner`):
+
+| `-n` | Layout | Groups |
+| ---: | --- | ---: |
+| 1–3 | one worker per provider; the two `hetzner` models share one | 3 |
+| 4 | one worker per model | 4 |
+| 5 | one model gets a second worker | 5 |
+| 8 | every model gets two workers | 8 |
+| 12 | every model gets three workers | 12 |
+
+Below the provider count the layout stays at one group per provider — xdist runs
+the surplus groups sequentially, so a provider is still never hit by two workers
+at once.
+
+Pass `--dist load` to opt out; an explicit `--dist` is always respected.
+
+Two more things to watch:
+
+- **Sync the knowledge base first.** `synced_knowledge_base` is a session fixture,
+  so under `-n` every worker evaluates it at once and they can all try to sync an
+  empty KB concurrently. Run the doc evals once serially (or any command that
+  populates the KB) before the parallel run, and rely on `--reuse-db` afterwards.
+- **Do not pass `-s`.** It disables capture and interleaves output from every
+  worker into an unreadable stream.
+
+See the production baseline, release gates, and report template in
+[Kuma reliability baseline and improvement plan](kuma-reliability-report.md).
 
 ## Test files
 

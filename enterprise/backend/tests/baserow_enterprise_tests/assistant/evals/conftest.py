@@ -8,18 +8,39 @@ import pytest
 
 from baserow.config.settings.test import TEST_ENV_VARS
 
-# Expose API keys from TEST_ENV_FILE to os.environ so that LLM provider
-# SDKs (which read os.getenv() at import/construction time) can find them.
-# test.py already parses TEST_ENV_FILE via dotenv_values but deliberately
-# does NOT inject non-allowlisted keys into os.environ.  We bridge that
-# gap here for the small set of keys the eval suite needs.
-_API_KEY_NAMES = ("GROQ_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY")
-for _k in _API_KEY_NAMES:
-    if (_v := TEST_ENV_VARS.get(_k)) and not os.environ.get(_k):
+# Expose provider credentials from TEST_ENV_FILE to os.environ so that LLM
+# provider SDKs (which read os.getenv() at import/construction time) can find
+# them.  test.py already parses TEST_ENV_FILE via dotenv_values but deliberately
+# does NOT inject non-allowlisted keys into os.environ.  Matching on suffix
+# rather than an explicit list means a new OpenAI-compatible endpoint only needs
+# its <ALIAS>_BASE_URL / <ALIAS>_API_KEY pair, with no change here.
+_CREDENTIAL_SUFFIXES = ("_API_KEY", "_BASE_URL")
+for _k, _v in TEST_ENV_VARS.items():
+    if _v and _k.endswith(_CREDENTIAL_SUFFIXES) and not os.environ.get(_k):
         os.environ[_k] = _v
 
 
 _EVALS_DIR = os.path.dirname(__file__)
+
+
+def _get_eval_runs():
+    """Return stable run identifiers for repeated model reliability checks."""
+
+    runs = int(os.environ.get("EVAL_RUNS", "1"))
+    if runs < 1:
+        raise pytest.UsageError("EVAL_RUNS must be a positive integer")
+    return list(range(1, runs + 1))
+
+
+@pytest.fixture(
+    autouse=True,
+    params=_get_eval_runs(),
+    ids=lambda run: f"run-{run}",
+)
+def eval_run(request):
+    """Repeat every eval equally so pass and flake rates are comparable."""
+
+    return request.param
 
 
 def _evals_explicitly_requested(config):
@@ -38,6 +59,7 @@ def _evals_explicitly_requested(config):
     return False
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
     """Skip eval tests unless explicitly requested (``-m eval`` or by path).
 
@@ -60,6 +82,119 @@ def pytest_collection_modifyitems(config, items):
             if item.get_closest_marker("eval"):
                 item.add_marker(pytest.mark.retry(eval_retries))
 
+    _assign_xdist_groups(config, items)
+
+
+def _provider_of(model: str) -> str:
+    """Return the provider prefix of a pydantic-ai model string."""
+
+    return model.split(":", 1)[0] if ":" in model else "openai"
+
+
+def _shards_per_model(models: list[str], workers: int) -> dict[str, int]:
+    """Decide how many xdist groups each model gets, widest axis first.
+
+    Parallelism is spread across providers, then across models, and only then
+    doubled up on a single model, because provider rate limits are the real
+    ceiling for this suite: a 429 scored as a test failure is indistinguishable
+    from a model-quality regression.
+
+    An empty result means "group by provider" — the narrowest, safest layout.
+    """
+
+    providers = {_provider_of(m) for m in models}
+    if workers <= len(providers):
+        return {}
+    if workers <= len(models):
+        return dict.fromkeys(models, 1)
+    base, extra = divmod(workers, len(models))
+    return {m: base + (1 if i < extra else 0) for i, m in enumerate(models)}
+
+
+def _group_name(model: str, occurrence: int, shards: dict[str, int]) -> str:
+    """Return the ``xdist_group`` for one test of *model*."""
+
+    if not shards:
+        return _provider_of(model)
+    count = shards.get(model, 1)
+    return model if count <= 1 else f"{model}#{occurrence % count}"
+
+
+def _worker_count(config) -> int:
+    """Number of xdist workers, as seen from the controller *or* a worker.
+
+    Workers are not launched with ``-n``, so ``numprocesses`` is unset there;
+    they learn the count from ``workerinput``. Both sides must agree or they
+    compute different groups for the same test.
+    """
+
+    workerinput = getattr(config, "workerinput", None)
+    if workerinput:
+        return int(workerinput.get("workercount", 1))
+    workers = getattr(config.option, "numprocesses", None)
+    return workers if isinstance(workers, int) else 1
+
+
+def _assign_xdist_groups(config, items) -> None:
+    """Tag eval items so ``--dist loadgroup`` schedules them per the policy above.
+
+    Assignment happens here rather than on the ``eval_model`` parameter because
+    splitting one model across several workers means splitting *its items*, which
+    is only possible once the full collection is known.
+
+    This must run in the workers too: xdist reads the marker there, when it
+    suffixes node ids with the group name.
+    """
+
+    workers = _worker_count(config)
+    if workers < 2:
+        return
+
+    by_model: dict[str, list] = {}
+    for item in items:
+        callspec = getattr(item, "callspec", None)
+        model = callspec.params.get("eval_model") if callspec else None
+        if model:
+            by_model.setdefault(model, []).append(item)
+
+    if not by_model:
+        return
+
+    shards = _shards_per_model(list(by_model), workers)
+    for model, model_items in by_model.items():
+        for occurrence, item in enumerate(model_items):
+            item.add_marker(
+                pytest.mark.xdist_group(name=_group_name(model, occurrence, shards))
+            )
+
+
+def pytest_configure(config):
+    """Default to loadgroup scheduling so the grouping policy is honoured."""
+
+    if getattr(config.option, "numprocesses", None) and config.option.dist in (
+        "no",
+        "load",
+    ):
+        config.option.dist = "loadgroup"
+
+
+def pytest_xdist_make_scheduler(config, log):
+    """Force group-aware scheduling for parallel runs.
+
+    Setting ``config.option.dist`` alone is not reliable: xdist derives its
+    default from ``-n`` at its own point in startup, so depending on hook order
+    the flip can be overwritten and every worker ends up serving every provider.
+    """
+
+    if not getattr(config.option, "numprocesses", None):
+        return None
+    if config.option.dist not in ("no", "load", "loadgroup"):
+        return None
+
+    from xdist.scheduler import LoadGroupScheduling
+
+    return LoadGroupScheduling(config, log)
+
 
 def pytest_generate_tests(metafunc):
     """Auto-parametrize tests that use the ``eval_model`` fixture."""
@@ -73,7 +208,7 @@ def pytest_generate_tests(metafunc):
 
 
 @pytest.fixture(scope="session")
-def synced_knowledge_base(django_db_blocker):
+def synced_knowledge_base(django_db_setup, django_db_blocker):
     """
     Sync the knowledge base once per pytest session if not already populated.
 

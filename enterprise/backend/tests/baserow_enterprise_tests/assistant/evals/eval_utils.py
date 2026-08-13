@@ -17,6 +17,8 @@ from pydantic_ai.usage import UsageLimits
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import _get_workspace_license_type
 from baserow_enterprise.assistant.deps import AssistantDeps, ToolHelpers
+from baserow_enterprise.assistant.model_profiles import ORCHESTRATOR, get_model_settings
+from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.types import (
     ApplicationUIContext,
@@ -206,6 +208,11 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
     # so store in "/" format (e.g. "groq/openai/gpt-oss-120b").
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = model.replace(":", "/", 1)
 
+    # A shared, generous ceiling keeps a slow endpoint from scoring as a wrong
+    # answer. Latency stays comparable because it is measured, not capped.
+    if eval_timeout := os.environ.get("EVAL_LLM_TIMEOUT"):
+        settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TIMEOUT = float(eval_timeout)
+
     deps = AssistantDeps(
         user=user,
         workspace=workspace,
@@ -223,7 +230,15 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
     deps.explain_manifest = explain_manifest
     usage_limits = UsageLimits(request_limit=max_iters)
 
-    return main_agent, deps, tracker, model, usage_limits, toolset
+    # Hand back the same wrapper production uses. Passing the bare string would
+    # let pydantic-ai infer the provider itself, which both skips the retry layer
+    # and rejects custom OpenAI-compatible aliases outright.  The profile is
+    # attached to the model because eval tests call run_sync() without
+    # model_settings, so otherwise they would silently run on library defaults
+    # rather than the settings production uses.
+    eval_model = RetryingModel(model, settings=get_model_settings(model, ORCHESTRATOR))
+
+    return main_agent, deps, tracker, eval_model, usage_limits, toolset
 
 
 def get_tool_call_sequence(result) -> list[str]:
