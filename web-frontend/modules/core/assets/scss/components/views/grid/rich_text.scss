@@ -9,14 +9,25 @@
     height: 100%;
     overflow: hidden;
 
-    img {
+    // Sized like a file field thumbnail (`grid-field-file__image`): a fixed
+    // height with the aspect ratio kept, so a row of mixed images lines up
+    // instead of each one keeping its own height. The file field's border
+    // rules are repeated rather than `@extend`ed, which would drag its
+    // `.grid-field-file__cell.active` nesting in with them.
+    .field-rich-text--preview & img {
       display: inline-block;
-      max-height: 28px;
+      height: 22px;
       width: auto;
       margin: 2px 4px 2px 0;
-      border-radius: 3px;
+      border: solid 1px $palette-neutral-400;
       vertical-align: middle;
       object-fit: contain;
+
+      @include rounded($rounded);
+    }
+
+    .grid-view--row-height-large .field-rich-text--preview & img {
+      height: 26px;
     }
   }
 }
@@ -46,9 +57,9 @@
   line-height: 12px;
   padding: 4px;
   border-radius: 4px;
-  background-color: $white;
+  background-color: $palette-neutral-0;
 
   &:hover {
-    color: $color-primary-600;
+    color: $palette-blue-700;
   }
 }

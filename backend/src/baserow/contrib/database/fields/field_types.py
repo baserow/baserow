@@ -6,6 +6,7 @@ from collections import defaultdict
 from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from io import BytesIO
 from itertools import cycle
 from random import randint, randrange, sample
 from typing import (
@@ -174,7 +175,11 @@ from baserow.core.handler import CoreHandler
 from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
-from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow.core.storage import (
+    ExportZipFile,
+    OverwritingStorageHandler,
+    get_default_storage,
+)
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
@@ -222,7 +227,7 @@ from .field_filters import (
     parse_ids_from_csv_string,
     starts_with_filter,
 )
-from .field_helpers import prepare_files_for_export
+from .field_helpers import get_exported_zip_names, prepare_files_for_export
 from .field_sortings import OptionallyAnnotatedOrderBy
 from .fields import (
     AlwaysNullSerializerField,
@@ -280,8 +285,15 @@ from .registries import (
 )
 from .rich_text_utils import (
     MARKDOWN_IMAGE_REGEX,
+    MAX_RICH_TEXT_IMAGES,
     append_user_file_urls,
+    count_image_references,
     extract_user_file_names,
+    is_renderable_user_file,
+    keep_first_image_references,
+    map_outside_code,
+    normalize_rich_text_for_storage,
+    replace_user_file_images_with_alt,
     resolve_user_file_urls,
     strip_user_file_urls,
 )
@@ -547,9 +559,17 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             )
         return enable_rich_text is False
 
-    def get_serializer_field(self, instance, **kwargs):
+    def _get_serializer_field_base_kwargs(self, **kwargs):
+        """
+        Kwargs shared by the request and response serializer fields, so the two
+        can't drift apart when a new default is added.
+
+        :param kwargs: Overrides passed by the caller; win over the defaults.
+        :return: The kwargs to construct a ``CharField`` with.
+        """
+
         required = kwargs.get("required", False)
-        base_kwargs = {
+        return {
             "required": required,
             "allow_null": not required,
             "allow_blank": not required,
@@ -557,35 +577,34 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             **kwargs,
         }
 
-        if not instance.long_text_enable_rich_text:
+    def get_serializer_field(self, instance, **kwargs):
+        # Input is not normalised here: `prepare_value_for_db` owns the storage
+        # format so every write path (API, import, data sync) stores one shape.
+        base_kwargs = self._get_serializer_field_base_kwargs(**kwargs)
+        if not getattr(instance, "long_text_enable_rich_text", False):
             return serializers.CharField(**base_kwargs)
 
-        class RichTextInputField(serializers.CharField):
+        class RichTextRequestField(serializers.CharField):
             def to_internal_value(self, data):
-                value = super().to_internal_value(data)
-                return strip_user_file_urls(value)
+                # Resolved image URLs are appended on read and stripped again
+                # on write, so they must not count towards `max_length` or a
+                # value returned by GET could be rejected by an unchanged PATCH.
+                return strip_user_file_urls(super().to_internal_value(data))
 
-        return RichTextInputField(**base_kwargs)
+        return RichTextRequestField(**base_kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
-        base_field = self.get_serializer_field(instance, **kwargs)
         if not instance.long_text_enable_rich_text:
-            return base_field
+            return self.get_serializer_field(instance, **kwargs)
+
+        base_kwargs = self._get_serializer_field_base_kwargs(**kwargs)
 
         class RichTextResponseField(serializers.CharField):
             def to_representation(self, value):
                 value = super().to_representation(value)
                 return append_user_file_urls(value)
 
-        return RichTextResponseField(
-            **{
-                "required": base_field.required,
-                "allow_null": base_field.allow_null,
-                "allow_blank": base_field.allow_blank,
-                "max_length": base_field.max_length,
-                **kwargs,
-            }
-        )
+        return RichTextResponseField(**base_kwargs)
 
     def serialize_metadata_for_row_history(
         self,
@@ -628,6 +647,121 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         value = getattr(row, field.db_column)
         return collate_expression(Value(value))
 
+    def _fetch_rich_text_user_files(self, names: set[str]) -> Dict[str, UserFile]:
+        """
+        Fetches the user files referenced by the given names in a single query.
+        Filtering on the indexed ``unique`` part keeps the query cheap regardless
+        of how many names are referenced; the full name is verified in Python.
+        """
+
+        if not names:
+            return {}
+
+        uniques = {name.split("_", 1)[0] for name in names}
+        return {
+            user_file.name: user_file
+            for user_file in UserFile.objects.filter(unique__in=uniques)
+            if user_file.name in names
+        }
+
+    def _validate_rich_text_references(
+        self,
+        names: set[str],
+        user_files_by_name: Dict[str, UserFile],
+        reference_count: Optional[int] = None,
+    ):
+        """
+        Checks that every user file referenced by a rich text value may be embedded.
+
+        :param names: The user file names extracted from the value.
+        :param user_files_by_name: The matching ``UserFile`` rows, keyed by name.
+        :param reference_count: How many references the value contains, counting
+            repeats. ``names`` is a set, so it cannot bound what a client renders.
+            Defaults to the number of distinct names.
+        :raises ValidationError: If too many files are referenced or one is not
+            an image.
+        :raises UserFileDoesNotExist: If a referenced name has no user file.
+        """
+
+        if reference_count is None:
+            reference_count = len(names)
+
+        if reference_count > MAX_RICH_TEXT_IMAGES:
+            raise ValidationError(
+                f"A rich text value can reference at most {MAX_RICH_TEXT_IMAGES} "
+                "images.",
+                code="too_many_images",
+            )
+
+        missing = sorted(name for name in names if name not in user_files_by_name)
+        if missing:
+            raise UserFileDoesNotExist(missing)
+
+        not_renderable = sorted(
+            name
+            for name in names
+            if not is_renderable_user_file(user_files_by_name[name])
+        )
+        if not_renderable:
+            raise ValidationError(
+                f"The user files {not_renderable} are not images and cannot be "
+                "embedded.",
+                code="not_an_image",
+            )
+
+    def prepare_value_for_db(self, instance, value):
+        if not instance.long_text_enable_rich_text or not value:
+            return value
+
+        value = normalize_rich_text_for_storage(value)
+        names = extract_user_file_names(value)
+        if not names:
+            return value
+
+        self._validate_rich_text_references(
+            names,
+            self._fetch_rich_text_user_files(names),
+            count_image_references(value),
+        )
+        return value
+
+    def prepare_value_for_db_in_bulk(
+        self, instance, values_by_row, continue_on_error=False
+    ):
+        if not instance.long_text_enable_rich_text:
+            return values_by_row
+
+        names_by_row = {}
+        counts_by_row = {}
+        all_names = set()
+        for row_index, value in values_by_row.items():
+            if not value:
+                continue
+            value = normalize_rich_text_for_storage(value)
+            values_by_row[row_index] = value
+            names = extract_user_file_names(value)
+            if names:
+                names_by_row[row_index] = names
+                counts_by_row[row_index] = count_image_references(value)
+                all_names |= names
+
+        if not all_names:
+            return values_by_row
+
+        user_files_by_name = self._fetch_rich_text_user_files(all_names)
+        for row_index, names in names_by_row.items():
+            try:
+                self._validate_rich_text_references(
+                    names, user_files_by_name, counts_by_row[row_index]
+                )
+            except Exception as e:
+                if continue_on_error:
+                    values_by_row[row_index] = e
+                else:
+                    raise
+
+        return values_by_row
+
     def get_export_serialized_value(
         self,
         row: "GeneratedTableModel",
@@ -649,23 +783,49 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             return content
 
         user_file_handler = UserFileHandler()
-        if "_zip_names" not in cache:
-            cache["_zip_names"] = {item["name"] for item in files_zip.info_list()}
-        existing_names = cache["_zip_names"]
-        for name in names:
+        existing_names = get_exported_zip_names(cache, files_zip)
+
+        if "_user_file_originals" not in cache:
+            cache["_user_file_originals"] = {}
+        originals_cache = cache["_user_file_originals"]
+
+        uncached = {n for n in names if n not in originals_cache}
+        if uncached:
+            for uf in self._fetch_rich_text_user_files(uncached).values():
+                originals_cache[uf.name] = uf.original_name
+
+        storage = storage or get_default_storage()
+        missing_files = cache.setdefault("_missing_user_files", set())
+
+        image_metadata = []
+        for name in sorted(names):
+            if name not in originals_cache or name in missing_files:
+                continue
+
             cache_entry = f"user_file_{name}"
             if cache_entry not in cache:
                 if name not in existing_names:
                     file_path = user_file_handler.user_file_path(name)
-                    try:
-                        chunk_generator = file_chunk_generator(storage, file_path)
-                        files_zip.add(chunk_generator, name)
-                        existing_names.add(name)
-                    except FileNotFoundError:
-                        pass
+                    # `files_zip.add` only enqueues a lazy generator; the file is
+                    # read when the zip is streamed, so a missing one would fail the
+                    # export mid-stream. Check once per file and skip instead.
+                    if not storage.exists(file_path):
+                        missing_files.add(name)
+                        continue
+                    chunk_generator = file_chunk_generator(storage, file_path)
+                    files_zip.add(chunk_generator, name)
+                    existing_names.add(name)
                 cache[cache_entry] = True
 
-        return content
+            image_metadata.append(
+                {"name": name, "original_name": originals_cache[name]}
+            )
+
+        return (
+            {"content": content, "images": image_metadata}
+            if image_metadata
+            else content
+        )
 
     def set_import_serialized_value(
         self,
@@ -677,19 +837,63 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         files_zip: Optional[ZipFile] = None,
         storage=None,
     ):
-        content = value
+        if isinstance(value, dict):
+            content = value.get("content", "")
+            image_metadata = value.get("images", [])
+        else:
+            content = value
+            image_metadata = []
 
-        if value and files_zip is not None:
-            field = row._field_objects[int(field_name.removeprefix("field_"))]["field"]
-            if field.long_text_enable_rich_text:
-                content = self._rewrite_image_names(value, cache, files_zip, storage)
+        field = row._field_objects[int(field_name.removeprefix("field_"))]["field"]
+        if content and field.long_text_enable_rich_text:
+            # The archive can carry resolved URLs from the instance that produced
+            # it. Those point at storage this instance does not own, so strip them
+            # to the stored `![alt][name]` form, like `prepare_value_for_db` does.
+            content = normalize_rich_text_for_storage(content)
+            # Bound the references before touching the zip, so surplus images are
+            # never uploaded only to end up unreferenced.
+            content = self._sanitize_imported_rich_text(content)
+            if files_zip is not None:
+                originals = {
+                    img["name"]: img["original_name"]
+                    for img in image_metadata
+                    if "original_name" in img
+                }
+                content = self._rewrite_image_names(
+                    content, cache, files_zip, storage, originals
+                )
 
         setattr(row, field_name, content)
 
-    def _rewrite_image_names(self, value, cache, files_zip, storage):
+    def _sanitize_imported_rich_text(self, content: str) -> str:
+        """
+        Bounds the number of images an imported value may reference.
+
+        An archive can carry a cell with far more images than the API accepts,
+        which every viewer of the table then has to render. Raising would abort
+        the whole import over one cell, so the surplus is degraded to alt text.
+
+        Existence is not re-checked: a reference whose file is not in the zip is
+        resolved through the existing user file when importing into the same
+        storage. Nor is renderability -- ``_rewrite_image_names`` re-uploads
+        through ``upload_user_file``, which re-derives ``is_image`` by sniffing.
+
+        :param content: The imported rich text value.
+        :return: The value with surplus image references replaced by alt text.
+        """
+
+        if count_image_references(content) > MAX_RICH_TEXT_IMAGES:
+            content = keep_first_image_references(content, MAX_RICH_TEXT_IMAGES)
+
+        return content
+
+    def _rewrite_image_names(self, value, cache, files_zip, storage, originals=None):
         names = extract_user_file_names(value)
         if not names:
             return value
+
+        if originals is None:
+            originals = {}
 
         user_file_handler = UserFileHandler()
         name_mapping = {}
@@ -699,29 +903,49 @@ class LongTextFieldType(CollationSortMixin, FieldType):
                 name_mapping[name] = cache[cache_entry]
                 continue
             try:
-                with files_zip.open(name) as stream:
+                stream = files_zip.open(name)
+            except KeyError:
+                continue
+            with stream:
+                original_name = originals.get(name)
+                if not original_name:
                     deconstructed = UserFile.deconstruct_name(name)
                     original_name = f"{deconstructed['unique']}.{deconstructed['original_extension']}"
-                    user_file = user_file_handler.upload_user_file(
-                        None, original_name, stream, storage=storage
-                    )
-                    name_mapping[name] = user_file.name
-                    cache[cache_entry] = user_file.name
-            except KeyError:
-                pass
+                # `upload_user_file` consumes and closes the stream, and the zip
+                # stream is not seekable. Buffer so the backfill below still has it.
+                content = stream.read()
+                user_file = user_file_handler.upload_user_file(
+                    None, original_name, BytesIO(content), storage=storage
+                )
+
+            # `upload_user_file` deduplicates on `(original_name, sha256_hash)` and
+            # returns the existing row without writing to `storage`, so the bytes can
+            # be missing when importing into a different backend. Backfill them.
+            file_path = user_file_handler.user_file_path(user_file.name)
+            destination_storage = storage or get_default_storage()
+            if not destination_storage.exists(file_path):
+                OverwritingStorageHandler(destination_storage).save(
+                    file_path, BytesIO(content)
+                )
+
+            name_mapping[name] = user_file.name
+            cache[cache_entry] = user_file.name
 
         if not name_mapping:
             return value
 
         def _replace_import_name(match):
-            old_name = match.group(1)
+            old_name = match.group("name")
             new_name = name_mapping.get(old_name)
             if new_name:
                 without_ref = match.group(0).removesuffix(f"[{old_name}]")
                 return f"{without_ref}[{new_name}]"
             return match.group(0)
 
-        return MARKDOWN_IMAGE_REGEX.sub(_replace_import_name, value)
+        return map_outside_code(
+            value,
+            lambda segment: MARKDOWN_IMAGE_REGEX.sub(_replace_import_name, segment),
+        )
 
     def get_export_value(self, value, field_object, rich_value=False):
         if not value:
@@ -731,6 +955,11 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         if not field.long_text_enable_rich_text:
             return value
 
+        # A stored value can already carry a resolved URL -- nothing strips on the
+        # import path -- and appending to that would export `![alt](fresh)(stale)`.
+        # Strip first so this stays idempotent, like `append_user_file_urls`.
+        value = strip_user_file_urls(value)
+
         names = extract_user_file_names(value)
         if not names:
             return value
@@ -738,14 +967,27 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         url_map = resolve_user_file_urls(names)
 
         def _replace_for_export(match):
-            name = match.group(1)
+            name = match.group("name")
             url = url_map.get(name)
             if not url:
                 return match.group(0)
             without_ref = match.group(0).removesuffix(f"[{name}]")
             return f"{without_ref}({url})"
 
-        return MARKDOWN_IMAGE_REGEX.sub(_replace_for_export, value)
+        return map_outside_code(
+            value,
+            lambda segment: MARKDOWN_IMAGE_REGEX.sub(_replace_for_export, segment),
+        )
+
+    def get_human_readable_value(self, value, field_object):
+        if not value:
+            return value or ""
+
+        field = field_object["field"]
+        if not field.long_text_enable_rich_text:
+            return value
+
+        return replace_user_file_images_with_alt(value)
 
 
 class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):

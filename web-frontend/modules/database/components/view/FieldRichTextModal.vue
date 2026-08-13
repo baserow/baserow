@@ -22,6 +22,7 @@
           ref="editor"
           class="rich-text-modal__editor"
           :enable-rich-text-formatting="true"
+          :enable-images="true"
           :mentionable-users="mentionableUsers"
           :model-value="modelValue"
           :clipboard-markdown-resolver="resolveClipboardMarkdown"
