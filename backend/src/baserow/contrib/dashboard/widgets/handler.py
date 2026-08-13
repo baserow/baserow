@@ -15,6 +15,7 @@ from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import extract_allowed
 
 from .exceptions import WidgetDoesNotExist
+from .grid_layout import compact_widget_layout, get_first_available_grid_position
 from .models import Widget
 from .types import UpdatedWidget, WidgetForUpdate
 
@@ -130,15 +131,6 @@ class WidgetHandler:
             "grid_height": widget.grid_height,
         }
 
-    @staticmethod
-    def _layouts_overlap(first: dict[str, int], second: dict[str, int]) -> bool:
-        return (
-            first["grid_x"] < second["grid_x"] + second["grid_width"]
-            and second["grid_x"] < first["grid_x"] + first["grid_width"]
-            and first["grid_y"] < second["grid_y"] + second["grid_height"]
-            and second["grid_y"] < first["grid_y"] + first["grid_height"]
-        )
-
     def get_compacted_widget_layout(
         self, widgets: Iterable[Widget]
     ) -> list[dict[str, int]]:
@@ -149,22 +141,9 @@ class WidgetHandler:
         every client without relying on the browser grid implementation.
         """
 
-        compacted_layout = []
-        for widget in sorted(
-            widgets,
-            key=lambda widget: (widget.grid_y, widget.grid_x, widget.id),
-        ):
-            layout = self.get_widget_layout(widget)
-            layout["grid_y"] = 0
-
-            while any(
-                self._layouts_overlap(layout, other) for other in compacted_layout
-            ):
-                layout["grid_y"] += 1
-
-            compacted_layout.append(layout)
-
-        return compacted_layout
+        return compact_widget_layout(
+            self.get_widget_layout(widget) for widget in widgets
+        )
 
     def get_last_grid_y(self, dashboard: Dashboard) -> int:
         """Returns the first free row after every active widget in a dashboard."""
@@ -177,6 +156,25 @@ class WidgetHandler:
                 ).values_list("grid_y", "grid_height")
             ),
             default=0,
+        )
+
+    def get_first_available_grid_position(
+        self,
+        widgets: Iterable[Widget],
+        grid_width: int,
+        grid_height: int,
+    ) -> tuple[int, int]:
+        """Returns the first row-major position where a widget can fit.
+
+        New widgets use their type's default dimensions. Scanning the canonical
+        six-column grid from top to bottom and left to right lets a widget fill an
+        existing compatible gap without moving any other widget.
+        """
+
+        return get_first_available_grid_position(
+            (self.get_widget_layout(widget) for widget in widgets),
+            grid_width,
+            grid_height,
         )
 
     def initialize_uninitialized_widget_grid_layouts(
@@ -253,6 +251,7 @@ class WidgetHandler:
         self,
         widget_type: WidgetType,
         dashboard: Dashboard,
+        existing_widgets: Iterable[Widget] | None = None,
         **kwargs,
     ) -> Widget:
         """
@@ -267,6 +266,13 @@ class WidgetHandler:
         order = Widget.get_last_order(dashboard)
         allowed_values = extract_allowed(kwargs, widget_type.allowed_fields)
         grid_layout = widget_type.get_grid_layout()
+        if existing_widgets is None:
+            existing_widgets = Widget.objects.filter(dashboard=dashboard)
+        grid_x, grid_y = self.get_first_available_grid_position(
+            existing_widgets,
+            grid_layout.default_width,
+            grid_layout.default_height,
+        )
 
         allowed_values["dashboard"] = dashboard
         allowed_values = widget_type.prepare_value_for_db(allowed_values)
@@ -274,8 +280,8 @@ class WidgetHandler:
         model_class = cast(Widget, widget_type.model_class)
         widget = model_class(
             order=order,
-            grid_x=0,
-            grid_y=self.get_last_grid_y(dashboard),
+            grid_x=grid_x,
+            grid_y=grid_y,
             grid_width=grid_layout.default_width,
             grid_height=grid_layout.default_height,
             grid_layout_initialized=True,

@@ -202,6 +202,52 @@ def test_create_widget(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_widget_uses_the_first_available_grid_position(data_fixture):
+    dashboard = data_fixture.create_dashboard_application()
+    left_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    right_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    for widget, grid_x in ((left_widget, 0), (right_widget, 4)):
+        widget.grid_x = grid_x
+        widget.grid_y = 0
+        widget.grid_width = 2
+        widget.grid_height = 4
+        widget.save(update_fields=["grid_x", "grid_y", "grid_width", "grid_height"])
+
+    widget = WidgetHandler().create_widget(
+        widget_type_registry.get("summary"),
+        dashboard=dashboard,
+        title="New widget title",
+    )
+
+    assert (widget.grid_x, widget.grid_y) == (2, 0)
+    assert (widget.grid_width, widget.grid_height) == (2, 4)
+
+
+@pytest.mark.django_db
+def test_create_widget_skips_a_grid_gap_that_is_too_small(data_fixture):
+    dashboard = data_fixture.create_dashboard_application()
+    left_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    right_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    for widget, grid_x, grid_width in (
+        (left_widget, 0, 2),
+        (right_widget, 3, 3),
+    ):
+        widget.grid_x = grid_x
+        widget.grid_y = 0
+        widget.grid_width = grid_width
+        widget.grid_height = 4
+        widget.save(update_fields=["grid_x", "grid_y", "grid_width", "grid_height"])
+
+    widget = WidgetHandler().create_widget(
+        widget_type_registry.get("summary"),
+        dashboard=dashboard,
+        title="New widget title",
+    )
+
+    assert (widget.grid_x, widget.grid_y) == (0, 4)
+
+
+@pytest.mark.django_db
 def test_update_widget(data_fixture):
     dashboard = data_fixture.create_dashboard_application()
     dashboard_2 = data_fixture.create_dashboard_application()
