@@ -2551,7 +2551,16 @@ class BaseDateFieldType extends FieldType {
   }
 
   prepareRichValueForCopy(field, value) {
-    return value
+    if (!value) {
+      return value
+    }
+    return {
+      type: 'date',
+      version: 1,
+      value,
+      includeTime: !!field.date_include_time,
+      timezone: getFieldTimezone(field) || null,
+    }
   }
 
   /**
@@ -2560,9 +2569,15 @@ class BaseDateFieldType extends FieldType {
    */
   prepareValueForPaste(field, clipboardData, richClipboardData) {
     if (richClipboardData) {
-      const richDateValue = this.parseInputValue(field, richClipboardData)
-      if (richDateValue) {
-        return this.formatValue(field, richDateValue)
+      const isoValue =
+        typeof richClipboardData === 'object' &&
+        richClipboardData?.type === 'date'
+          ? richClipboardData.value
+          : typeof richClipboardData === 'string'
+            ? richClipboardData
+            : null
+      if (isoValue && moment.utc(isoValue).isValid()) {
+        return this.formatValue(field, isoValue)
       }
     }
     const dateValue = this.parseInputValue(field, clipboardData || '')
@@ -2593,13 +2608,11 @@ class BaseDateFieldType extends FieldType {
     const usFieldFormats = getDateTimeFormatsFor(
       `MM${s}DD${s}YYYY`,
       `M${s}D${s}YYYY`,
-      `YYYY${s}DD${s}MM`,
       `YYYY${s}D${s}M`
     )
     const euFieldFormats = getDateTimeFormatsFor(
       `DD${s}MM${s}YYYY`,
       `D${s}M${s}YYYY`,
-      `YYYY${s}MM${s}DD`,
       `YYYY${s}M${s}D`
     )
     if (field.date_format === 'US') {
