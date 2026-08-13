@@ -79,7 +79,6 @@ export const mutations = {
   UPDATE_WIDGET(state, { widgetId, values }) {
     const widget = state.widgets.find((widget) => widget.id === widgetId)
     if (!widget) {
-      state.widgets.push(values)
       return
     }
     // In Vue 3, direct assignment works thanks to Proxy-based reactivity

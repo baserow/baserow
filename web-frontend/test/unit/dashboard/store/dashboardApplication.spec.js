@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
-import { actions } from '@baserow/modules/dashboard/store/dashboardApplication'
+import {
+  actions,
+  mutations,
+} from '@baserow/modules/dashboard/store/dashboardApplication'
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
 import WidgetService from '@baserow/modules/dashboard/services/widget'
 
@@ -124,5 +127,18 @@ describe('Dashboard application store', () => {
       createdWidget
     )
     expect(commit).toHaveBeenCalledWith('ADD_WIDGET', createdWidget)
+  })
+
+  test('does not add a partial widget update for an unknown widget', () => {
+    const state = {
+      widgets: [{ id: 1, title: 'Existing widget' }],
+    }
+
+    mutations.UPDATE_WIDGET(state, {
+      widgetId: 2,
+      values: { title: 'Partial widget update' },
+    })
+
+    expect(state.widgets).toEqual([{ id: 1, title: 'Existing widget' }])
   })
 })
