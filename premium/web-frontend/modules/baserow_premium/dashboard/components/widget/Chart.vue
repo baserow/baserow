@@ -3,6 +3,7 @@
     :is="chartComponent"
     v-if="chartData.datasets.length > 0"
     id="chart-id"
+    ref="chart"
     :options="chartOptions"
     :data="chartData"
     class="chart"
@@ -285,7 +286,37 @@ export default {
       })
     },
   },
+  mounted() {
+    this.queueChartResize()
+  },
+  updated() {
+    this.queueChartResize()
+  },
+  beforeUnmount() {
+    if (this.chartResizeFrame !== null) {
+      cancelAnimationFrame(this.chartResizeFrame)
+    }
+  },
+  data() {
+    return {
+      chartResizeFrame: null,
+    }
+  },
   methods: {
+    queueChartResize() {
+      if (this.chartResizeFrame !== null) {
+        cancelAnimationFrame(this.chartResizeFrame)
+      }
+
+      // GridLayout finalizes a widget's dimensions after its chart is mounted.
+      // Let the browser apply that layout before Chart.js reads its container.
+      this.chartResizeFrame = requestAnimationFrame(() => {
+        this.chartResizeFrame = requestAnimationFrame(() => {
+          this.$refs.chart?.chart?.resize()
+          this.chartResizeFrame = null
+        })
+      })
+    },
     chartColorsSeriesOrValues(seriesIndex) {
       if (this.colorSeries) {
         return this.seriesColors[seriesIndex]
