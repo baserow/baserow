@@ -6,14 +6,7 @@
         class="dashboard-widget-board__fallback"
         data-testid="dashboard-widget-board-fallback"
       >
-        <DashboardWidget
-          v-for="widget in widgets"
-          :key="widget.id"
-          :widget="widget"
-          :dashboard="dashboard"
-          :store-prefix="storePrefix"
-          :is-layout-editable="false"
-        />
+        <DashboardWidgetGridLoading />
       </div>
     </template>
   </ClientOnly>
@@ -21,11 +14,11 @@
 
 <script>
 import DashboardWidgetGrid from '@baserow/modules/dashboard/components/DashboardWidgetGrid.client'
-import DashboardWidget from '@baserow/modules/dashboard/components/widget/DashboardWidget'
+import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/DashboardWidgetGridLoading'
 
 export default {
   name: 'WidgetBoard',
-  components: { DashboardWidget, DashboardWidgetGrid },
+  components: { DashboardWidgetGrid, DashboardWidgetGridLoading },
   props: {
     dashboard: {
       type: Object,
@@ -35,13 +28,6 @@ export default {
       type: String,
       required: false,
       default: '',
-    },
-  },
-  computed: {
-    widgets() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/getWidgets`
-      ]
     },
   },
 }

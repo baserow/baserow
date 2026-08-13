@@ -9,25 +9,18 @@
     }"
     :class="{
       'dashboard-widget-grid--interacting': isInteracting,
+      'dashboard-widget-grid--layout-ready': isLayoutReady,
       'dashboard-widget-grid--resizing': resizeState !== null,
     }"
   >
-    <div
-      v-if="!hasMeasuredDimensions && widgets.length > 0"
-      class="dashboard-widget-grid__bootstrap"
-      data-testid="dashboard-widget-grid-bootstrap"
-    >
-      <DashboardWidget
-        v-for="widget in widgets"
-        :key="widget.id"
-        :widget="widget"
-        :dashboard="dashboard"
-        :store-prefix="storePrefix"
-        :is-layout-editable="false"
-      />
-    </div>
+    <DashboardWidgetGridLoading
+      v-if="!isLayoutReady && widgets.length > 0"
+      :class="{
+        'dashboard-widget-grid__loading--overlay': hasMeasuredDimensions,
+      }"
+    />
     <GridLayout
-      v-else-if="layout.length > 0"
+      v-if="hasMeasuredDimensions && layout.length > 0"
       v-model:layout="layout"
       :col-num="columns"
       :row-height="gridRowHeight"
@@ -36,6 +29,7 @@
       :is-draggable="canManipulateLayout"
       :is-resizable="canManipulateLayout"
       :use-style-cursor="false"
+      @layout-ready="markLayoutReady"
     >
       <GridItem
         v-for="layoutItem in layout"
@@ -88,6 +82,7 @@
 import { GridItem, GridLayout } from 'grid-layout-plus'
 
 import DashboardWidget from '@baserow/modules/dashboard/components/widget/DashboardWidget'
+import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/DashboardWidgetGridLoading'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import {
   createWidgetGridLayout,
@@ -102,7 +97,12 @@ const GRID_ROW_HEIGHT = 24
 
 export default {
   name: 'DashboardWidgetGrid',
-  components: { DashboardWidget, GridItem, GridLayout },
+  components: {
+    DashboardWidget,
+    DashboardWidgetGridLoading,
+    GridItem,
+    GridLayout,
+  },
   mixins: [dimensionMixin],
   props: {
     dashboard: {
@@ -120,6 +120,7 @@ export default {
       isInteracting: false,
       isPersisting: false,
       hasMeasuredDimensions: false,
+      isLayoutReady: false,
       layout: [],
       resizeState: null,
       gridGap: GRID_GAP,
@@ -240,6 +241,9 @@ export default {
     },
     syncLayoutFromWidgets() {
       this.layout = createWidgetGridLayout(this.widgets, this.columns)
+    },
+    markLayoutReady() {
+      this.isLayoutReady = true
     },
     startInteraction() {
       if (this.canManipulateLayout) {
