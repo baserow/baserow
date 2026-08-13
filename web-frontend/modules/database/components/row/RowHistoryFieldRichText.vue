@@ -8,7 +8,7 @@
           :editable="false"
           :enable-rich-text-formatting="true"
           :mentionable-users="workspace.users"
-          :model-value="entry.before[fieldIdentifier]"
+          :model-value="beforeValue"
         ></RichTextEditor>
       </div>
     </div>
@@ -20,7 +20,7 @@
           :editable="false"
           :enable-rich-text-formatting="true"
           :mentionable-users="workspace.users"
-          :model-value="entry.after[fieldIdentifier]"
+          :model-value="afterValue"
         ></RichTextEditor>
       </div>
     </div>
@@ -29,6 +29,7 @@
 
 <script>
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import { replaceImagesWithPlaceholder } from '@baserow/modules/core/editor/richTextImageUtils'
 
 export default {
   name: 'RowHistoryFieldText',
@@ -55,6 +56,18 @@ export default {
   computed: {
     workspace() {
       return this.$store.getters['workspace/get'](this.workspaceId)
+    },
+    // History serves the stored snapshot, whose image refs the editor renders as
+    // literal markdown here because images are off. Show the alt text instead.
+    beforeValue() {
+      return replaceImagesWithPlaceholder(
+        this.entry.before[this.fieldIdentifier]
+      )
+    },
+    afterValue() {
+      return replaceImagesWithPlaceholder(
+        this.entry.after[this.fieldIdentifier]
+      )
     },
   },
 }

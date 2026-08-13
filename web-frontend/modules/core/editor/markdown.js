@@ -13,13 +13,15 @@ import {
   MARKDOWN_OPTIONS,
 } from '@baserow/modules/core/editor/richTextExtensions'
 import {
+  demoteExternalImagesToLinks,
   preprocessRichTextImages,
+  renderImagePlaceholders,
   replaceImagesWithPlaceholder,
   stripUnresolvedImageRefs,
 } from '@baserow/modules/core/editor/richTextImageUtils'
 
 const previewMarkdownManager = new MarkdownManager({
-  extensions: createRichTextContentExtensions(),
+  extensions: createRichTextContentExtensions({ enableImages: true }),
   marked: createMarkedInstance(),
   markedOptions: MARKDOWN_OPTIONS,
 })
@@ -64,22 +66,35 @@ export const parseMarkdown = (
     loggedUserId = null,
   } = {}
 ) => {
-  let content = value || ''
-
-  if (enableImages) {
-    content = preprocessRichTextImages(content).content
-    content = stripUnresolvedImageRefs(content)
-  } else {
-    content = replaceImagesWithPlaceholder(content)
-  }
+  // The TipTap round trip must see the value as stored. `preprocessRichTextImages`
+  // below rewrites `![alt][name](url)` to a plain `![alt](url)`, which the round
+  // trip's own `parseMarkdown` then demotes to a link because it carries no
+  // `userFileName` -- an image whose cell also contains `&nbsp;` would render as
+  // a link instead of an image.
+  let content = prepareMarkdownForPreview(value || '')
 
   const md = new Markdown({ html: false })
+
+  if (enableImages) {
+    // External images are not supported: every plain `![alt](url)` becomes a
+    // link, whatever its protocol, so this render never loads an image from a
+    // host the workspace does not control.
+    content = demoteExternalImagesToLinks(content)
+    const { content: processed, nameMap } = preprocessRichTextImages(content)
+    content = stripUnresolvedImageRefs(processed)
+  } else {
+    // Image-less surfaces (the grid cell preview) show a placeholder for every
+    // image and no link at all, so the URL is never rendered. Runs before the
+    // demotion, which would otherwise turn an external image into a link here.
+    content = replaceImagesWithPlaceholder(content)
+  }
 
   // task lists
   md.use(taskLists, { label: true, enabled: true })
 
   // link
   if (!openLinkOnClick) {
+    // Remove the href attribute from the link to avoid the user clicking on it.
     md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
       const hrefIndex = tokens[idx].attrIndex('href')
       if (hrefIndex >= 0) {
@@ -88,6 +103,7 @@ export const parseMarkdown = (
       return self.renderToken(tokens, idx, options)
     }
   } else {
+    // Add target="_blank" and rel="noopener noreferrer nofollow" to all links.
     md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
       const targetIndex = tokens[idx].attrIndex('target')
       if (targetIndex < 0) {
@@ -98,6 +114,7 @@ export const parseMarkdown = (
         tokens[idx].attrPush(['rel', 'noopener noreferrer nofollow'])
       }
 
+      // Prevent container handlers from being called when clicking on a link.
       const onClickIndex = tokens[idx].attrIndex('onmousedown')
       if (onClickIndex < 0) {
         tokens[idx].attrPush([
@@ -124,5 +141,5 @@ export const parseMarkdown = (
   // mentions
   md.use(parseMention(workspaceUsers || [], loggedUserId))
 
-  return md.render(prepareMarkdownForPreview(content))
+  return renderImagePlaceholders(md.render(content))
 }

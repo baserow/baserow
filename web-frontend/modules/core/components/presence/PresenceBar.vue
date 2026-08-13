@@ -2,9 +2,7 @@
   <div v-if="otherUsers.length > 0" class="presence-bar">
     <PresenceBadge
       v-for="user in visibleUsers"
-      :key="
-        user.user_id === ANONYMOUS_USER_ID ? user.presence_id : user.user_id
-      "
+      :key="presenceKey(user)"
       :user-id="user.user_id"
       :presence-id="user.presence_id"
     />
@@ -84,6 +82,17 @@ export default {
         contentIsHtml: true,
         contentClasses: 'tooltip__content--expandable',
       }
+    },
+  },
+  methods: {
+    /**
+     * Anonymous visitors all share `ANONYMOUS_USER_ID`, so they are keyed by
+     * their presence id to keep each badge distinct.
+     */
+    presenceKey(user) {
+      return user.user_id === ANONYMOUS_USER_ID
+        ? user.presence_id
+        : user.user_id
     },
   },
 }

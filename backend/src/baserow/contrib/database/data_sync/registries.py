@@ -14,7 +14,10 @@ from baserow.contrib.database.data_sync.export_serialized import (
     DataSyncExportSerializedStructure,
 )
 from baserow.contrib.database.data_sync.models import DataSync, DataSyncSyncedProperty
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, LongTextField
+from baserow.contrib.database.fields.rich_text_utils import (
+    normalize_rich_text_for_storage,
+)
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -103,6 +106,23 @@ class DataSyncProperty(ABC):
         """
 
         return baserow_row_value == data_sync_row_value
+
+
+class RichTextDataSyncProperty(DataSyncProperty):
+    """
+    A property synced into a rich text long text field. The field normalises
+    every stored value (external images become links, resolved URLs are
+    stripped), so the remote value must be compared in that same form or every
+    sync would see a difference and rewrite the row.
+    """
+
+    def to_baserow_field(self) -> LongTextField:
+        return LongTextField(name=self.name, long_text_enable_rich_text=True)
+
+    def is_equal(self, baserow_row_value: Any, data_sync_row_value: Any) -> bool:
+        return normalize_rich_text_for_storage(
+            baserow_row_value
+        ) == normalize_rich_text_for_storage(data_sync_row_value)
 
 
 class DataSyncType(

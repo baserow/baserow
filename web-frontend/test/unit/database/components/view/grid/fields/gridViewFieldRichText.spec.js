@@ -151,6 +151,24 @@ describe('GridViewFieldRichText component', () => {
     expect(wrapper.emitted('update')).toBeUndefined()
   })
 
+  test('does not save when an external value arrives without any edits', async () => {
+    const wrapper = await mountComponent()
+    wrapper.vm.edit()
+    await wrapper.vm.$nextTick()
+
+    // A realtime update while the cell is open is not a user edit, so leaving
+    // the cell must not write the editor back over the value that arrived.
+    await wrapper.setProps({ value: 'remote' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.hasEdits).toBe(false)
+
+    wrapper.vm.cancel()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update')).toBeUndefined()
+  })
+
   test('lets TipTap handle paste events while editing', async () => {
     const wrapper = await mountComponent()
 

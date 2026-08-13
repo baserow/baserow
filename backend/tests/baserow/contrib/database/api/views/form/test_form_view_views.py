@@ -4329,3 +4329,86 @@ def test_edit_row_patch_deleted_form_view(data_fixture, api_client):
     )
     response = api_client.patch(url, {}, format="json")
     assert response.status_code == HTTP_404_NOT_FOUND
+
+
+def _public_form_with_rich_text_field(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="notes", long_text_enable_rich_text=True
+    )
+    form = data_fixture.create_form_view(table=table, public=True)
+    data_fixture.create_form_view_field_option(
+        form, field, required=False, enabled=True
+    )
+    return table, field, form
+
+
+@pytest.mark.django_db
+def test_submit_form_view_with_missing_user_file_is_a_client_error(
+    api_client, data_fixture
+):
+    """
+    The rich text validation in `prepare_value_for_db` runs inside the submit
+    action, after `validate_data`, so without conversion it would escape this
+    `AllowAny` view as a 500 for an anonymous respondent.
+    """
+
+    table, field, form = _public_form_with_rich_text_field(data_fixture)
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+
+    response = api_client.post(
+        url, {f"field_{field.id}": "hi ![x][zzzzzzzz_yyyyyyyy.png]"}, format="json"
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_submit_form_view_with_non_image_user_file_is_a_client_error(
+    api_client, data_fixture
+):
+    table, field, form = _public_form_with_rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(
+        original_name="doc.pdf", is_image=False, original_extension="pdf"
+    )
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+
+    response = api_client.post(
+        url, {f"field_{field.id}": f"![x][{user_file.name}]"}, format="json"
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_submit_form_view_with_too_many_images_is_a_client_error(
+    api_client, data_fixture
+):
+    table, field, form = _public_form_with_rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(
+        original_name="a.png", is_image=True, original_extension="png"
+    )
+    value = " ".join(f"![x][{user_file.name}]" for _ in range(101))
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+
+    response = api_client.post(url, {f"field_{field.id}": value}, format="json")
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_submit_form_view_with_rich_text_plain_text_still_succeeds(
+    api_client, data_fixture
+):
+    table, field, form = _public_form_with_rich_text_field(data_fixture)
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+
+    response = api_client.post(
+        url, {f"field_{field.id}": "just some notes"}, format="json"
+    )
+
+    assert response.status_code == HTTP_200_OK

@@ -17,7 +17,7 @@
 
   &::-webkit-scrollbar-thumb {
     border-radius: 10px;
-    background: $color-neutral-500;
+    background: $palette-neutral-500;
     background-clip: content-box;
     border: 2px solid transparent;
   }
@@ -26,8 +26,8 @@
 .rich-text-editor__content-blockquote,
 %rich-text-editor-content-blockquote {
   padding-left: 1rem;
-  color: $color-neutral-700;
-  border-left: 4px solid $color-neutral-300;
+  color: $palette-neutral-700;
+  border-left: 4px solid $palette-neutral-300;
 }
 
 .rich-text-editor__bubble-menu-link-show-href {
@@ -97,7 +97,7 @@
 
   pre {
     padding: 1rem;
-    background-color: $color-neutral-100;
+    background-color: $palette-neutral-100;
     border-radius: $rounded;
   }
 
@@ -149,6 +149,27 @@
   /* stylelint-enable selector-class-pattern */
 }
 
+.rich-text-editor__image-placeholder {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px dashed $palette-neutral-300;
+  border-radius: 4px;
+  color: $palette-neutral-700;
+  font-size: 13px;
+}
+
+// Stands in for an image on the surfaces that render none. An icon rather than
+// the U+1F5BC glyph, which Inter does not cover: the browser fell back to the
+// colour emoji font on some pages and to a monochrome one on others, so the
+// same cell looked different in the grid and in a public view.
+.rich-text-image-placeholder {
+  display: inline-block;
+  margin-right: 2px;
+  color: $palette-neutral-700;
+  font-size: 14px;
+  vertical-align: -0.15em;
+}
+
 .field-rich-text--preview img {
   display: block;
   max-width: 100%;
@@ -189,7 +210,7 @@ span[data-type='mention'] {
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: $color-neutral-500;
+  color: $palette-neutral-500;
   pointer-events: none;
   height: 0;
 }

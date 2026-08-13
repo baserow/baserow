@@ -1,7 +1,13 @@
 import {
+  demoteExternalImagesToLinks,
+  isRenderableUserFile,
+  iterCodeSegments,
   preprocessRichTextImages,
   stripImageUrls,
+  stripUnresolvedImageRefs,
   replaceImagesWithPlaceholder,
+  trimUnfinishedImageRef,
+  IMAGE_PLACEHOLDER,
 } from '@baserow/modules/core/editor/richTextImageUtils'
 
 describe('preprocessRichTextImages', () => {
@@ -54,6 +60,177 @@ describe('preprocessRichTextImages', () => {
       'https://example.com/f.png': 'abc_def.png',
     })
   })
+
+  test('does not match user file names containing path separators', () => {
+    const input = [
+      '![x][abc_def.png/../evil.png](https://example.com/e.png)',
+      String.raw`![x][abc_def.png\..\evil.png](https://example.com/e.png)`,
+    ].join(' ')
+    const result = preprocessRichTextImages(input)
+    expect(result.content).toBe(input)
+    expect(result.nameMap).toEqual({})
+  })
+
+  test('does not match user file names containing parentheses', () => {
+    const input = '![x][abc_def.png)](https://example.com/abc_def.png))'
+    const result = preprocessRichTextImages(input)
+    expect(result.content).toBe(input)
+    expect(result.nameMap).toEqual({})
+  })
+
+  test('does not convert plain markdown images', () => {
+    const input = '![alt](https://example.com/file.png)'
+    expect(preprocessRichTextImages(input)).toEqual({
+      content: input,
+      nameMap: {},
+    })
+  })
+})
+
+describe('stripUnresolvedImageRefs', () => {
+  test('does not match user file names containing path separators', () => {
+    const input = '![x][abc_def.png/../evil.png]'
+    expect(stripUnresolvedImageRefs(input)).toBe(input)
+  })
+})
+
+describe('demoteExternalImagesToLinks', () => {
+  test('returns empty string for null', () => {
+    expect(demoteExternalImagesToLinks(null)).toBe('')
+  })
+
+  test('returns content unchanged without images', () => {
+    expect(demoteExternalImagesToLinks('Hello [link](https://a.com)')).toBe(
+      'Hello [link](https://a.com)'
+    )
+  })
+
+  test('demotes an https image', () => {
+    expect(
+      demoteExternalImagesToLinks(
+        'see ![alt](https://example.com/photo.png) now'
+      )
+    ).toBe('see [alt](https://example.com/photo.png) now')
+  })
+
+  test('demotes an http image', () => {
+    expect(
+      demoteExternalImagesToLinks('![alt](http://example.com/photo.png)')
+    ).toBe('[alt](http://example.com/photo.png)')
+  })
+
+  test('downgrades unsafe schemes to links', () => {
+    expect(demoteExternalImagesToLinks('![](javascript:alert(1))')).toBe(
+      '[](javascript:alert(1))'
+    )
+    expect(
+      demoteExternalImagesToLinks('![x](data:image/png;base64,AAAA)')
+    ).toBe('[x](data:image/png;base64,AAAA)')
+  })
+
+  test('does not touch Baserow image refs', () => {
+    const withUrl = '![alt][abc123_def456.png](https://example.com/f.png)'
+    const withoutUrl = '![alt][abc123_def456.png]'
+    expect(demoteExternalImagesToLinks(withUrl)).toBe(withUrl)
+    expect(demoteExternalImagesToLinks(withoutUrl)).toBe(withoutUrl)
+  })
+
+  test('handles escaped brackets in alt text', () => {
+    expect(
+      demoteExternalImagesToLinks(
+        String.raw`![my\]pic](https://example.com/f.png)`
+      )
+    ).toBe(String.raw`[my\]pic](https://example.com/f.png)`)
+  })
+
+  // The Baserow ref keeps its image form; only the plain one is demoted.
+  test('handles a mix of Baserow refs and external images', () => {
+    expect(
+      demoteExternalImagesToLinks(
+        '![a][f1_h1.png](https://cdn.com/1.png) ![b](https://example.com/2.png)'
+      )
+    ).toBe(
+      '![a][f1_h1.png](https://cdn.com/1.png) [b](https://example.com/2.png)'
+    )
+  })
+
+  test('downgrades ftp to link', () => {
+    expect(demoteExternalImagesToLinks('![x](ftp://a.com/x.png)')).toBe(
+      '[x](ftp://a.com/x.png)'
+    )
+  })
+})
+
+describe('trimUnfinishedImageRef', () => {
+  test.each([
+    ['text ![alt', 'text '],
+    ['text ![alt][abc_def.pn', 'text '],
+    ['text ![alt][abc_def.png](https://exa', 'text '],
+    ['text ![alt](https://exa', 'text '],
+    [String.raw`text ![a\]b][abc_d`, 'text '],
+  ])('drops the cut-off token in %j', (input, expected) => {
+    expect(trimUnfinishedImageRef(input)).toBe(expected)
+  })
+
+  test.each([
+    'plain text',
+    '![a][abc_def.png](https://example.com/f.png) tail',
+    '![a][abc_def.png](https://example.com/f.png)',
+    '![a](https://example.com/f.png) and ![b][x_y.png]',
+    '![a][x_y.png] then [a link](https://example.com)',
+  ])('keeps complete content %j', (input) => {
+    expect(trimUnfinishedImageRef(input)).toBe(input)
+  })
+
+  test('returns empty string for null', () => {
+    expect(trimUnfinishedImageRef(null)).toBe('')
+  })
+})
+
+describe('isRenderableUserFile', () => {
+  test('accepts files flagged as image by the backend', () => {
+    expect(
+      isRenderableUserFile({ is_image: true, original_name: 'photo.png' })
+    ).toBe(true)
+  })
+
+  test('accepts svg files even though the backend does not flag them', () => {
+    expect(
+      isRenderableUserFile({ is_image: false, original_extension: 'svg' })
+    ).toBe(true)
+    expect(
+      isRenderableUserFile({ is_image: false, original_extension: 'SVGZ' })
+    ).toBe(true)
+  })
+
+  test('rejects non-image files', () => {
+    expect(
+      isRenderableUserFile({ is_image: false, original_extension: 'pdf' })
+    ).toBe(false)
+    expect(
+      isRenderableUserFile({
+        is_image: false,
+        original_name: 'doc.svg.pdf',
+        original_extension: 'pdf',
+      })
+    ).toBe(false)
+    expect(isRenderableUserFile(null)).toBe(false)
+  })
+
+  test('ignores original_name so it cannot disagree with the backend', () => {
+    // Backend only checks original_extension; a name ending in .svg with a
+    // different extension must be rejected here too.
+    expect(
+      isRenderableUserFile({
+        is_image: false,
+        original_name: 'trick.svg',
+        original_extension: 'pdf',
+      })
+    ).toBe(false)
+    expect(
+      isRenderableUserFile({ is_image: false, original_name: 'logo.svg' })
+    ).toBe(false)
+  })
 })
 
 describe('stripImageUrls', () => {
@@ -100,32 +277,110 @@ describe('replaceImagesWithPlaceholder', () => {
       replaceImagesWithPlaceholder(
         '![photo][abc123_def456.png](https://example.com/f.png)'
       )
-    ).toBe('🖼 photo')
+    ).toBe('🖼︎ photo')
   })
 
   test('replaces image without URL with placeholder', () => {
     expect(replaceImagesWithPlaceholder('![photo][abc123_def456.png]')).toBe(
-      '🖼 photo'
+      '🖼︎ photo'
     )
   })
 
   test('uses generic placeholder when alt is empty', () => {
-    expect(replaceImagesWithPlaceholder('![](abc_def.png)')).toBe(
-      '![](abc_def.png)'
-    )
-    expect(replaceImagesWithPlaceholder('![][abc_def.png]')).toBe('🖼')
+    expect(replaceImagesWithPlaceholder('![](abc_def.png)')).toBe('🖼︎')
+    expect(replaceImagesWithPlaceholder('![][abc_def.png]')).toBe('🖼︎')
+  })
+
+  test('replaces external image with placeholder', () => {
+    expect(
+      replaceImagesWithPlaceholder('![photo](https://example.com/photo.png)')
+    ).toBe('🖼︎ photo')
   })
 
   test('replaces multiple images', () => {
     const input = 'Before ![a][f1_h1.png] middle ![b][f2_h2.jpg] after'
     expect(replaceImagesWithPlaceholder(input)).toBe(
-      'Before 🖼 a middle 🖼 b after'
+      'Before 🖼︎ a middle 🖼︎ b after'
     )
   })
 
   test('handles escaped brackets in alt text', () => {
     expect(
       replaceImagesWithPlaceholder(String.raw`![my\]pic][abc_def.png]`)
-    ).toBe(String.raw`🖼 my\]pic`)
+    ).toBe(String.raw`🖼︎ my\]pic`)
+  })
+})
+
+describe('iterCodeSegments', () => {
+  test('splits inline spans and fences out of the text', () => {
+    const content = 'a `b` c\n```\nd\n```\ne'
+    expect([...iterCodeSegments(content)]).toEqual([
+      ['a ', false],
+      ['`b`', true],
+      [' c\n', false],
+      ['```\nd\n```\n', true],
+      ['e', false],
+    ])
+  })
+
+  test('a span closes only on a run of the same length', () => {
+    expect([...iterCodeSegments('``a ` b`` c')]).toEqual([
+      ['``a ` b``', true],
+      [' c', false],
+    ])
+    expect([...iterCodeSegments('a ` b')]).toEqual([['a ` b', false]])
+  })
+
+  test('a fence closes only on the same char and at least the same length', () => {
+    expect([...iterCodeSegments('~~~\ncode\n~~~~\nafter')]).toEqual([
+      ['~~~\ncode\n~~~~\n', true],
+      ['after', false],
+    ])
+    const unclosed = '````\n~~~\n```\nstill code'
+    expect([...iterCodeSegments(unclosed)]).toEqual([[unclosed, true]])
+  })
+
+  test('is linear on runs that never pair up', () => {
+    const content = Array.from({ length: 2000 }, (_, n) =>
+      '`'.repeat(n + 1)
+    ).join(' ')
+    const start = performance.now()
+    expect([...iterCodeSegments(content)]).toEqual([[content, false]])
+    expect(performance.now() - start).toBeLessThan(1000)
+  })
+})
+
+describe('image syntax inside code is literal', () => {
+  const ref = '![x][abc_def.png]'
+  const resolved = `${ref}(http://h/abc_def.png)`
+  const ext = '![x](https://e.com/a.png)'
+
+  test('preprocessRichTextImages', () => {
+    const { content, nameMap } = preprocessRichTextImages(
+      `\`${resolved}\` ${resolved}`
+    )
+    expect(content).toBe(`\`${resolved}\` ![x](http://h/abc_def.png)`)
+    expect(nameMap).toEqual({ 'http://h/abc_def.png': 'abc_def.png' })
+  })
+
+  test('stripImageUrls', () => {
+    expect(stripImageUrls(`\`${resolved}\` ${resolved}`)).toBe(
+      `\`${resolved}\` ${ref}`
+    )
+  })
+
+  test('stripUnresolvedImageRefs and replaceImagesWithPlaceholder', () => {
+    expect(stripUnresolvedImageRefs(`\`${ref}\` ${ref}`)).toBe(
+      `\`${ref}\` ${IMAGE_PLACEHOLDER} x`
+    )
+    expect(
+      replaceImagesWithPlaceholder(`\`\`\`\n${ref}\n${ext}\n\`\`\`\n${ext}`)
+    ).toBe(`\`\`\`\n${ref}\n${ext}\n\`\`\`\n${IMAGE_PLACEHOLDER} x`)
+  })
+
+  test('demoteExternalImagesToLinks', () => {
+    expect(demoteExternalImagesToLinks(`\`${ext}\` ${ext}`)).toBe(
+      `\`${ext}\` [x](https://e.com/a.png)`
+    )
   })
 })

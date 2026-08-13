@@ -13,6 +13,7 @@ import { History } from '@tiptap/extension-history'
 import { HorizontalRule } from '@tiptap/extension-horizontal-rule'
 import { Italic } from '@tiptap/extension-italic'
 import { isAllowedUri, Link as BaseLink } from '@tiptap/extension-link'
+import { getListMarker } from '@tiptap/extension-list'
 import { ListItem as BaseListItem } from '@tiptap/extension-list-item'
 import { OrderedList } from '@tiptap/extension-ordered-list'
 import { Paragraph } from '@tiptap/extension-paragraph'
@@ -29,6 +30,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Marked } from 'marked'
 
 import { ScalableImage } from '@baserow/modules/core/editor/image'
+import { LINK_PROTOCOLS } from '@baserow/modules/core/editor/linkProtocols'
 import { rememberRichTextEditorClipboard } from '@baserow/modules/core/editor/richTextClipboard'
 import {
   decodeInlineCodeText,
@@ -47,11 +49,6 @@ export const MARKDOWN_OPTIONS = {
 export const createMarkedInstance = () => new Marked()
 
 const HEADING_LEVELS = [1, 2, 3]
-const LINK_PROTOCOLS = [
-  { scheme: 'ftp' },
-  { scheme: 'mailto', optionalSlashes: true },
-  { scheme: 'tel', optionalSlashes: true },
-]
 
 const Heading = BaseHeading.extend({
   parseMarkdown(token, helpers) {
@@ -141,23 +138,24 @@ const ListItem = BaseListItem.extend({
     let marker = '- '
     if (context.parentType === 'orderedList') {
       const start = context.meta?.parentAttrs?.start || 1
-      const num = start + (context.index || 0)
-      marker = `${num}. `
+      const type = context.meta?.parentAttrs?.type
+      marker = getListMarker(type, start - 1 + (context.index || 0), '. ')
     }
 
-    const indent = ' '.repeat(marker.length)
     const mainContent = helpers.renderChildren([normalizedFirst])
     let output = `${marker}${mainContent}`
 
     for (let i = 0; i < rest.length; i++) {
       const child = rest[i]
-      const rendered = helpers.renderChild(child, i + 1)
+      const rendered =
+        helpers.renderChild(child, i + 1) ?? helpers.renderChildren([child])
       if (rendered == null) continue
       const indented = rendered
         .split('\n')
-        .map((line) => indent + line)
+        .map((line) => helpers.indent(line))
         .join('\n')
-      output += `\n\n${indented}`
+      const separator = child.type === 'paragraph' ? '\n\n' : '\n'
+      output += `${separator}${indented}`
     }
 
     return output.replace(emptyParagraphMarker, '&nbsp;')
@@ -230,6 +228,7 @@ const MarkdownClipboard = Extension.create({
 
 export const createRichTextContentExtensions = ({
   openLinksOnClick = false,
+  enableImages = false,
 } = {}) => {
   const extensions = [
     Document,
@@ -262,7 +261,9 @@ export const createRichTextContentExtensions = ({
     LegacyNumericHtmlEntity,
   ]
 
-  extensions.push(ScalableImage)
+  if (enableImages) {
+    extensions.push(ScalableImage)
+  }
 
   return extensions
 }

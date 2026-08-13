@@ -11,6 +11,7 @@
       :disabled="readOnly"
       :editable="!readOnly"
       :enable-rich-text-formatting="true"
+      :enable-images="true"
       :mentionable-users="workspace ? workspace.users : null"
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
@@ -29,6 +30,7 @@
 <script>
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 import UserFileService from '@baserow/modules/core/services/userFile'
+import { stripImageUrls } from '@baserow/modules/core/editor/richTextImageUtils'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
@@ -38,6 +40,7 @@ export default {
   mixins: [rowEditField, rowEditFieldInput],
   data() {
     return {
+      // local copy of the value storing the JSON representation of the rich text editor
       richCopy: '',
     }
   },
@@ -60,7 +63,11 @@ export default {
       return await UserFileService(this.$client).uploadFile(file)
     },
     getError() {
-      return this.getValidationError(this.$refs.input?.serializeToMarkdown())
+      // The backend strips resolved image URLs before checking max_length, so
+      // measure the same string or a valid value is rejected.
+      return this.getValidationError(
+        stripImageUrls(this.$refs.input?.serializeToMarkdown())
+      )
     },
     unselect() {
       this.$super(rowEditFieldInput).unselect()
@@ -74,6 +81,7 @@ export default {
       return this.$el?.closest('.modal__box-content') ?? null
     },
     beforeSave() {
+      // No ref (modal teardown) or an unchanged value means nothing to reserialize.
       if (!this.$refs.input?.isDirty()) {
         return this.value
       }

@@ -13,6 +13,7 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.test_utils.helpers import (
     AnyStr,
     get_form_view_edit_row_url,
@@ -848,17 +849,18 @@ def test_rich_text_response_field_null_value(data_fixture):
 
 
 @pytest.mark.django_db
-def test_rich_text_input_serializer_strips_urls(data_fixture):
+def test_rich_text_row_create_strips_urls(data_fixture):
+    """The storage format is owned by `prepare_value_for_db`, so every writer
+    (API, import, data sync, handler callers) stores the same shape."""
+
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_long_text_field(
         table=table, name="Notes", long_text_enable_rich_text=True
     )
     user_file = data_fixture.create_user_file(
-        original_name="photo.png", original_extension="png"
+        original_name="photo.png", original_extension="png", is_image=True
     )
-
-    model = table.get_model()
     field_key = f"field_{field.id}"
 
     # Simulate what the frontend sends: ![alt][name](url)
@@ -867,15 +869,15 @@ def test_rich_text_input_serializer_strips_urls(data_fixture):
         f"(https://example.com/media/user_files/{user_file.name})"
     )
 
-    input_class = get_row_serializer_class(model=model)
-    serializer = input_class(data={field_key: frontend_content})
-    assert serializer.is_valid(), serializer.errors
-    validated = serializer.validated_data[field_key]
+    row = RowHandler().create_row(
+        user=user, table=table, values={field_key: frontend_content}
+    )
 
     # URL must be stripped — DB stores reference-only format
-    assert validated == f"Hello ![photo][{user_file.name}]"
-    assert "https://" not in validated
-    assert "(" not in validated
+    stored = getattr(row, field_key)
+    assert stored == f"Hello ![photo][{user_file.name}]"
+    assert "https://" not in stored
+    assert "(" not in stored
 
 
 @pytest.mark.django_db

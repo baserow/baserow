@@ -1,6 +1,7 @@
 import datetime
 from copy import deepcopy
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -944,3 +945,64 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
         "gitlab_url": "https://gitlab.com",
         "gitlab_project_id": "1",
     }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@responses.activate
+def test_sync_data_sync_table_description_with_image_is_stable(
+    enterprise_data_fixture,
+):
+    """The rich text description demotes `![alt](url)` to a link on write. The
+    second sync must compare in that stored form, or every run rewrites the row."""
+
+    issue = deepcopy(SINGLE_ISSUE)
+    issue["description"] = "Screenshot ![shot](https://gitlab.com/uploads/a.png)"
+    for _ in range(2):
+        responses.add(
+            responses.GET,
+            "https://gitlab.com/api/v4/projects/1/issues?page=1&per_page=50&state=all",
+            status=200,
+            json=[issue],
+        )
+        responses.add(
+            responses.GET,
+            "https://gitlab.com/api/v4/projects/1/issues?page=2&per_page=50&state=all",
+            status=200,
+            json=NO_ISSUES_RESPONSE,
+        )
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="gitlab_issues",
+        synced_properties=["id", "description"],
+        gitlab_url="https://gitlab.com",
+        gitlab_project_id="1",
+        gitlab_access_token="test",
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    description_field = specific_iterator(
+        data_sync.table.field_set.all().order_by("id")
+    )[1]
+    model = data_sync.table.get_model()
+    row = model.objects.get()
+    assert getattr(row, f"field_{description_field.id}") == (
+        "Screenshot [shot](https://gitlab.com/uploads/a.png)"
+    )
+    updated_on = row.updated_on
+
+    with patch(
+        "baserow.contrib.database.data_sync.handler.RowHandler.update_rows"
+    ) as update_rows:
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    update_rows.assert_not_called()
+    assert model.objects.get().updated_on == updated_on
