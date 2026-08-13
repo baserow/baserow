@@ -38,22 +38,14 @@
         ></a>
       </div>
     </div>
-    <CreateWidgetButton
-      v-if="isEditMode && !isEmpty && canCreateWidget"
-      :dashboard="dashboard"
-      :loading="isCreatingWidget"
-      @widget-variation-selected="$emit('widget-variation-selected', $event)"
-    />
   </div>
 </template>
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import CreateWidgetButton from '@baserow/modules/dashboard/components/CreateWidgetButton'
 
 export default {
   name: 'DashboardContentHeader',
-  components: { CreateWidgetButton },
   props: {
     dashboard: {
       type: Object,
@@ -64,13 +56,7 @@ export default {
       required: false,
       default: '',
     },
-    isCreatingWidget: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
   },
-  emits: ['widget-variation-selected'],
   data() {
     return {
       editingDashboardName: false,
@@ -82,18 +68,6 @@ export default {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/isEditMode`
       ]
-    },
-    isEmpty() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/isEmpty`
-      ]
-    },
-    canCreateWidget() {
-      return this.$hasPermission(
-        'dashboard.create_widget',
-        this.dashboard,
-        this.dashboard.workspace.id
-      )
     },
   },
   methods: {
