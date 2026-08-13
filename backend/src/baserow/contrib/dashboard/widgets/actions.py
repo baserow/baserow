@@ -1,17 +1,16 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.dashboard.actions import DASHBOARD_ACTION_CONTEXT
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.action.scopes import ApplicationActionScopeType
-from baserow.core.trash.handler import TrashHandler
 
 from .models import Widget
 from .service import WidgetService
-from .trash_types import WidgetTrashableItemType
 
 
 class CreateWidgetActionType(UndoableActionType):
@@ -30,12 +29,21 @@ class CreateWidgetActionType(UndoableActionType):
         widget_id: int
         widget_title: str
         widget_type: str
+        # ``None`` identifies actions stored before grid layouts were introduced.
+        # An empty list is a valid snapshot for a dashboard that had no widgets.
+        original_layout: list[dict[str, int]] | None = None
+        new_layout: list[dict[str, int]] | None = None
 
     @classmethod
+    @transaction.atomic
     def do(
         cls, user: AbstractUser, dashboard_id: int, widget_type: str, data: dict
     ) -> Widget:
-        widget = WidgetService().create_widget(user, widget_type, dashboard_id, **data)
+        widget_service = WidgetService()
+        created_widget = widget_service.create_widget_with_layout(
+            user, widget_type, dashboard_id, **data
+        )
+        widget = created_widget.widget
         cls.register_action(
             user=user,
             params=cls.Params(
@@ -44,6 +52,8 @@ class CreateWidgetActionType(UndoableActionType):
                 widget.id,
                 widget.title,
                 widget_type,
+                created_widget.original_layout,
+                created_widget.new_layout,
             ),
             scope=cls.scope(widget.dashboard.id),
             workspace=widget.dashboard.workspace,
@@ -55,26 +65,41 @@ class CreateWidgetActionType(UndoableActionType):
         return ApplicationActionScopeType.value(dashboard_id)
 
     @classmethod
+    @transaction.atomic
     def undo(
         cls,
         user: AbstractUser,
         params: Params,
         action_to_undo: Action,
     ):
-        WidgetService().delete_widget(user, params.widget_id)
+        widget_service = WidgetService()
+        if params.original_layout is None:
+            widget_service.delete_widget_legacy(user, params.widget_id)
+        else:
+            widget_service.delete_widget_and_restore_layout(
+                user,
+                params.widget_id,
+                params.original_layout,
+            )
 
     @classmethod
+    @transaction.atomic
     def redo(
         cls,
         user: AbstractUser,
         params: Params,
         action_to_redo: Action,
     ):
-        TrashHandler.restore_item(
-            user,
-            WidgetTrashableItemType.type,
-            params.widget_id,
-        )
+        widget_service = WidgetService()
+        if params.new_layout is None:
+            widget_service.restore_widget_legacy(user, params.widget_id)
+        else:
+            widget_service.restore_widget_and_update_layout(
+                user,
+                params.dashboard_id,
+                params.widget_id,
+                params.new_layout,
+            )
 
 
 class UpdateWidgetActionType(UndoableActionType):
@@ -229,8 +254,10 @@ class DeleteWidgetActionType(UndoableActionType):
         dashboard_name: str
         widget_id: int
         widget_title: str
-        original_layout: list[dict[str, int]] = field(default_factory=list)
-        new_layout: list[dict[str, int]] = field(default_factory=list)
+        # ``None`` identifies actions stored before grid layouts were introduced.
+        # An empty list is a valid snapshot for a dashboard without widgets.
+        original_layout: list[dict[str, int]] | None = None
+        new_layout: list[dict[str, int]] | None = None
 
     @classmethod
     def do(cls, user: AbstractUser, widget_id: int) -> None:
@@ -264,14 +291,15 @@ class DeleteWidgetActionType(UndoableActionType):
         params: Params,
         action_to_undo: Action,
     ):
-        TrashHandler.restore_item(
-            user,
-            WidgetTrashableItemType.type,
-            params.widget_id,
-        )
-        if params.original_layout:
-            WidgetService().update_widget_layout(
-                user, params.dashboard_id, params.original_layout
+        widget_service = WidgetService()
+        if params.original_layout is None:
+            widget_service.restore_widget_legacy(user, params.widget_id)
+        else:
+            widget_service.restore_widget_and_update_layout(
+                user,
+                params.dashboard_id,
+                params.widget_id,
+                params.original_layout,
             )
 
     @classmethod
@@ -281,4 +309,12 @@ class DeleteWidgetActionType(UndoableActionType):
         params: Params,
         action_to_redo: Action,
     ):
-        WidgetService().delete_widget(user, params.widget_id)
+        widget_service = WidgetService()
+        if params.new_layout is None:
+            widget_service.delete_widget_legacy(user, params.widget_id)
+        else:
+            widget_service.delete_widget_and_restore_layout(
+                user,
+                params.widget_id,
+                params.new_layout,
+            )
