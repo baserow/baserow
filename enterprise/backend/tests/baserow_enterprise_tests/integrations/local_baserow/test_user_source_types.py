@@ -47,7 +47,6 @@ from baserow.core.user_sources.registries import (
 )
 from baserow.core.user_sources.service import UserSourceService
 from baserow.core.utils import MirrorDict, Progress
-from baserow.test_utils.helpers import AnyStr
 from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
 from baserow_enterprise.application_users.usage import get_over_limit_cache_key
 from baserow_enterprise.integrations.local_baserow.models import LocalBaserowUserSource
