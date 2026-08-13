@@ -1545,6 +1545,89 @@ def test_dispatch_data_source_with_adhoc_search(api_client, data_fixture):
     }
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
+def test_dispatch_data_source_with_adhoc_search_and_filter_referencing_other_data_source(
+    api_client, data_fixture
+):
+    """
+    The adhoc refinements of the request (search, filters, sortings) must only
+    be applied to the data source the request targets. When that data source's
+    filter formula references another data source, the nested dispatch used to
+    apply the adhoc search too, and because the element's searchable field ids
+    don't exist in the referenced table, the full-text search crashed with an
+    `IndexError`.
+    """
+
+    with transaction.atomic():
+        user, token = data_fixture.create_user_and_token()
+        members_table, _, _ = data_fixture.build_table(
+            user=user,
+            columns=[("Email", "text")],
+            rows=[["a@x.com"]],
+        )
+        clients_table, _, _ = data_fixture.build_table(
+            user=user,
+            columns=[("Client name", "text"), ("Tenant", "text")],
+            rows=[["Acme", "a@x.com"], ["Globex", "b@x.com"]],
+        )
+    email_field = members_table.field_set.get(name="Email")
+    client_name_field = clients_table.field_set.get(name="Client name")
+    tenant_field = clients_table.field_set.get(name="Tenant")
+
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+
+    members_data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=members_table,
+        row_id="1",
+    )
+    clients_data_source = (
+        data_fixture.create_builder_local_baserow_list_rows_data_source(
+            user=user, page=page, integration=integration, table=clients_table
+        )
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=clients_data_source.service,
+        field=tenant_field,
+        value=f"get('data_source.{members_data_source.id}.field_{email_field.id}')",
+        value_is_formula=True,
+        order=0,
+    )
+    element = data_fixture.create_builder_table_element(
+        page=page, data_source=clients_data_source
+    )
+    element.property_options.create(
+        schema_property=client_name_field.db_column, searchable=True
+    )
+
+    url = reverse(
+        "api:builder:data_source:dispatch",
+        kwargs={"data_source_id": clients_data_source.id},
+    )
+
+    response = api_client.post(
+        f"{url}?search_query=Acme",
+        {"metadata": {"data_source": {"element": element.id}}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    results = response.json()["results"]
+    assert len(results) == 1
+    assert results[0][client_name_field.name] == "Acme"
+
+
 @pytest.mark.django_db
 def test_dispatch_data_source_with_element_from_different_page(
     api_client, data_fixture

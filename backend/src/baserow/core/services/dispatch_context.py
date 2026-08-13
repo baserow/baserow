@@ -80,6 +80,21 @@ class DispatchContext(RuntimeFormulaContext, ABC):
 
         return new_context
 
+    def is_adhoc_refinable(self, service: Service) -> bool:
+        """
+        Responsible for returning whether the request's adhoc refinements
+        (search, filters and sortings) may be applied when dispatching the
+        given service. By default they apply to every dispatched service,
+        but subclasses can restrict them to the service the request actually
+        targets, so that refinements don't leak into nested dispatches (e.g.
+        a data source referenced by another data source's filter formula).
+
+        :param service: The service that is currently being dispatched.
+        :return: Whether adhoc refinements may be applied to this service.
+        """
+
+        return True
+
     @property
     @abstractmethod
     def is_publicly_searchable(self) -> bool:

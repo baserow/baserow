@@ -107,6 +107,29 @@ def test_dispatch_context_search_query():
 
 
 @pytest.mark.django_db
+def test_dispatch_context_is_adhoc_refinable(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user, page=page
+    )
+    other_data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user, page=page
+    )
+    request = HttpRequest()
+
+    # Without a targeted data source, any service is adhoc refinable.
+    dispatch_context = BuilderDispatchContext(request, page)
+    assert dispatch_context.is_adhoc_refinable(data_source.service) is True
+
+    # With a targeted data source, only its own service is adhoc refinable.
+    dispatch_context = BuilderDispatchContext(request, page, data_source=data_source)
+    assert dispatch_context.is_adhoc_refinable(data_source.service) is True
+    assert dispatch_context.is_adhoc_refinable(other_data_source.service) is False
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("collection_element_type", collection_element_types())
 def test_dispatch_context_is_publicly_searchable(collection_element_type, data_fixture):
     user = data_fixture.create_user()
