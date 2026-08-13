@@ -3,9 +3,7 @@ export const registerRealtimeEvents = (realtime) => {
     if (
       data.dashboard_id === store.getters['dashboardApplication/getDashboardId']
     ) {
-      store.dispatch('dashboardApplication/handleNewWidgetCreated', {
-        createdWidget: data.widget,
-      })
+      store.dispatch('dashboardApplication/handleNewWidgetCreated', data.widget)
     }
   })
   realtime.registerEvent('widget_updated', ({ store }, data) => {
