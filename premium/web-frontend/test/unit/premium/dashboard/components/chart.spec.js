@@ -10,9 +10,7 @@ const ChartComponentStub = {
   props: ['data', 'options'],
   data() {
     return {
-      chart: {
-        resize,
-      },
+      chart: { resize },
     }
   },
   template: '<canvas />',
@@ -44,21 +42,24 @@ const seriesConfig = [
 ]
 
 describe('Chart', () => {
-  let animationFrames
+  let originalResizeObserver
+  let resizeObservers
   let wrapper
 
   beforeEach(() => {
-    animationFrames = []
     resize.mockReset()
+    resizeObservers = []
+    originalResizeObserver = globalThis.ResizeObserver
+    globalThis.ResizeObserver = class {
+      constructor(callback) {
+        this.callback = callback
+        resizeObservers.push(this)
+      }
 
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      vi.fn((callback) => {
-        animationFrames.push(callback)
-        return animationFrames.length
-      })
-    )
-    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+      disconnect = vi.fn()
+
+      observe = vi.fn()
+    }
 
     wrapper = mount(Chart, {
       props: {
@@ -86,31 +87,70 @@ describe('Chart', () => {
 
   afterEach(() => {
     wrapper?.unmount()
-    vi.unstubAllGlobals()
+    if (originalResizeObserver) {
+      globalThis.ResizeObserver = originalResizeObserver
+    } else {
+      delete globalThis.ResizeObserver
+    }
   })
 
-  function flushAnimationFrames() {
-    while (animationFrames.length > 0) {
-      animationFrames.shift()()
-    }
-  }
+  test('owns resizing with one observer on the dedicated direct parent', () => {
+    const chartContainer = wrapper.find('.chart__container').element
+    const resizeObserver = resizeObservers[0]
 
-  test('resizes the Chart.js instance after mounting and updating', async () => {
-    expect(resize).not.toHaveBeenCalled()
+    expect(chartContainer.firstElementChild.tagName).toBe('CANVAS')
+    expect(resizeObserver.observe).toHaveBeenCalledWith(chartContainer)
+    expect(
+      wrapper.getComponent(ChartComponentStub).props('options')
+    ).toMatchObject({
+      responsive: false,
+      maintainAspectRatio: false,
+    })
 
-    flushAnimationFrames()
+    resizeObserver.callback([
+      {
+        target: chartContainer,
+        contentRect: { width: 400, height: 200 },
+      },
+    ])
 
-    expect(resize).toHaveBeenCalledTimes(1)
+    expect(resize).toHaveBeenCalledWith(400, 200)
+  })
+
+  test('renders the responsive chart container when data becomes available', async () => {
+    await wrapper.setProps({
+      dataSourceData: {
+        result: null,
+      },
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.chart__container').exists()).toBe(false)
+    expect(wrapper.find('.chart__no-data').exists()).toBe(true)
+    expect(resizeObservers[0].disconnect).toHaveBeenCalledTimes(1)
 
     await wrapper.setProps({
       dataSourceData: {
         result: {
-          field_1_count: 2,
+          field_1_count: 1,
         },
       },
     })
-    flushAnimationFrames()
+    await wrapper.vm.$nextTick()
 
-    expect(resize).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.chart__container').exists()).toBe(true)
+    expect(wrapper.find('.chart__no-data').exists()).toBe(false)
+    expect(resizeObservers[1].observe).toHaveBeenCalledWith(
+      wrapper.find('.chart__container').element
+    )
+  })
+
+  test('disconnects its observer when unmounted', () => {
+    const resizeObserver = resizeObservers[0]
+
+    wrapper.unmount()
+    wrapper = null
+
+    expect(resizeObserver.disconnect).toHaveBeenCalledTimes(1)
   })
 })

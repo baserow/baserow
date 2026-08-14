@@ -1,13 +1,14 @@
 <template>
-  <component
-    :is="chartComponent"
-    v-if="chartData.datasets.length > 0"
-    id="chart-id"
-    ref="chart"
-    :options="chartOptions"
-    :data="chartData"
-    class="chart"
-  />
+  <div v-if="hasChart" ref="chartContainer" class="chart__container">
+    <component
+      :is="chartComponent"
+      id="chart-id"
+      ref="chart"
+      :options="chartOptions"
+      :data="chartData"
+      class="chart"
+    />
+  </div>
 
   <div v-else class="chart__no-data">
     <span class="chart__no-data-dashed-line"></span>
@@ -95,6 +96,9 @@ export default {
     },
   },
   computed: {
+    hasChart() {
+      return this.chartData.datasets.length > 0
+    },
     chartComponent() {
       if (this.chartSeries.length > 0) {
         const firstSeriesConfig = this.getIndividualSeriesConfig(
@@ -114,7 +118,9 @@ export default {
     },
     chartOptions() {
       return {
-        responsive: true,
+        // The grid owns the chart container geometry. A single observer below
+        // resizes Chart.js explicitly, avoiding its second internal observer.
+        responsive: false,
         maintainAspectRatio: false,
         plugins: {
           legend: {
@@ -286,36 +292,45 @@ export default {
       })
     },
   },
-  mounted() {
-    this.queueChartResize()
+  watch: {
+    hasChart() {
+      this.$nextTick(() => {
+        this.observeChartContainer()
+      })
+    },
   },
-  updated() {
-    this.queueChartResize()
+  mounted() {
+    this.observeChartContainer()
   },
   beforeUnmount() {
-    if (this.chartResizeFrame !== null) {
-      cancelAnimationFrame(this.chartResizeFrame)
-    }
+    this.chartResizeObserver?.disconnect()
   },
   data() {
     return {
-      chartResizeFrame: null,
+      chartResizeObserver: null,
+      observedChartContainer: null,
     }
   },
   methods: {
-    queueChartResize() {
-      if (this.chartResizeFrame !== null) {
-        cancelAnimationFrame(this.chartResizeFrame)
+    observeChartContainer() {
+      const chartContainer = this.$refs.chartContainer
+
+      if (chartContainer === this.observedChartContainer) {
+        return
       }
 
-      // GridLayout finalizes a widget's dimensions after its chart is mounted.
-      // Let the browser apply that layout before Chart.js reads its container.
-      this.chartResizeFrame = requestAnimationFrame(() => {
-        this.chartResizeFrame = requestAnimationFrame(() => {
-          this.$refs.chart?.chart?.resize()
-          this.chartResizeFrame = null
-        })
+      this.chartResizeObserver?.disconnect()
+      this.observedChartContainer = chartContainer || null
+
+      if (!chartContainer || typeof ResizeObserver === 'undefined') {
+        return
+      }
+
+      this.chartResizeObserver = new ResizeObserver(([entry]) => {
+        const { width, height } = entry.contentRect
+        this.$refs.chart?.chart?.resize(width, height)
       })
+      this.chartResizeObserver.observe(chartContainer)
     },
     chartColorsSeriesOrValues(seriesIndex) {
       if (this.colorSeries) {

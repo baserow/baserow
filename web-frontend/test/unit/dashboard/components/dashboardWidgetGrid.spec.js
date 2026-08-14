@@ -36,11 +36,13 @@ const DashboardWidgetStub = {
 
 describe('DashboardWidgetGrid', () => {
   let originalResizeObserver
+  let animationFrames
   let resizeObservers
   let wrapper
   let dispatch
 
   beforeEach(() => {
+    animationFrames = []
     resizeObservers = []
     dispatch = vi.fn().mockResolvedValue()
     originalResizeObserver = globalThis.ResizeObserver
@@ -54,6 +56,14 @@ describe('DashboardWidgetGrid', () => {
 
       observe = vi.fn()
     }
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn((callback) => {
+        animationFrames.push(callback)
+        return animationFrames.length
+      })
+    )
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
   })
 
   afterEach(() => {
@@ -64,6 +74,7 @@ describe('DashboardWidgetGrid', () => {
     } else {
       delete globalThis.ResizeObserver
     }
+    vi.unstubAllGlobals()
   })
 
   function mountGrid({ hasPermission = () => true } = {}) {
@@ -125,6 +136,13 @@ describe('DashboardWidgetGrid', () => {
     expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('4')
 
     await wrapper.findComponent(GridLayoutStub).vm.$emit('layout-ready')
+
+    expect(
+      wrapper.find('[data-testid="dashboard-widget-grid-loading"]').exists()
+    ).toBe(true)
+
+    animationFrames.shift()()
+    await wrapper.vm.$nextTick()
 
     expect(
       wrapper.find('[data-testid="dashboard-widget-grid-loading"]').exists()
