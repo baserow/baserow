@@ -781,7 +781,8 @@
         "failedTitle": "Něco se pokazilo",
         "failedDescription": "Úvodní nastavení se nedokončilo úplně, i když některé části mohly být dokončeny.",
         "failedTryAgain": "Zkusit znovu",
-        "failedSkip": "Přeskočit úvodní nastavení"
+        "failedSkip": "Přeskočit úvodní nastavení",
+        "back": "Zpět"
     },
     "moreStep": {
         "title": "Řekněte nám o sobě něco více",
@@ -1002,7 +1003,8 @@
         "step": "{step} z {totalSteps}",
         "gotIt": "Rozumím",
         "next": "Další",
-        "back": "Zpět"
+        "back": "Zpět",
+        "watchVideo": "Přehrát video"
     },
     "welcomeGuidedTourStep": {
         "title": "Vítejte v Baserow",
@@ -1309,5 +1311,13 @@
         "files": "Soubory",
         "http": "HTTP",
         "workflow": "Pracovní postup"
+    },
+    "academy": {
+        "learnMore": "Zjistěte více v akademii Baserow"
+    },
+    "guidedTourVideoModal": {
+        "previous": "Předchozí video",
+        "next": "Další video",
+        "close": "Zavřít"
     }
 }
