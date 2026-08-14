@@ -10,7 +10,7 @@ from baserow.contrib.dashboard.widgets.actions import (
     UpdateWidgetActionType,
     UpdateWidgetLayoutActionType,
 )
-from baserow.contrib.dashboard.widgets.models import SummaryWidget
+from baserow.contrib.dashboard.widgets.models import SummaryWidget, Widget
 from baserow.contrib.dashboard.widgets.operations import UpdateWidgetLayoutOperationType
 from baserow.contrib.dashboard.widgets.service import WidgetService
 from baserow.core.action.handler import ActionHandler
@@ -264,6 +264,75 @@ def test_can_undo_redo_update_widget_layout(data_fixture):
     assert_undo_redo_actions_are_valid(actions_redone, [UpdateWidgetLayoutActionType])
     second_widget.refresh_from_db()
     assert (second_widget.grid_x, second_widget.grid_y) == (4, 0)
+
+
+@pytest.mark.django_db
+def test_update_widget_layout_action_rolls_back_when_registration_fails(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    first_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="First"
+    )
+    second_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Second"
+    )
+    new_layout = [
+        {
+            "id": first_widget.id,
+            "grid_x": 0,
+            "grid_y": 0,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+        {
+            "id": second_widget.id,
+            "grid_x": 4,
+            "grid_y": 0,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+    ]
+
+    with (
+        patch.object(
+            UpdateWidgetLayoutActionType,
+            "register_action",
+            side_effect=RuntimeError("Registration failed"),
+        ),
+        pytest.raises(RuntimeError, match="Registration failed"),
+    ):
+        UpdateWidgetLayoutActionType.do(user, dashboard.id, new_layout)
+
+    first_widget.refresh_from_db()
+    second_widget.refresh_from_db()
+    assert (first_widget.grid_x, first_widget.grid_y) == (0, 0)
+    assert (second_widget.grid_x, second_widget.grid_y) == (2, 0)
+
+
+@pytest.mark.django_db
+def test_delete_widget_action_rolls_back_when_registration_fails(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    deleted_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Deleted"
+    )
+    remaining_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Remaining"
+    )
+
+    with (
+        patch.object(
+            DeleteWidgetActionType,
+            "register_action",
+            side_effect=RuntimeError("Registration failed"),
+        ),
+        pytest.raises(RuntimeError, match="Registration failed"),
+    ):
+        DeleteWidgetActionType.do(user, deleted_widget.id)
+
+    assert Widget.objects.filter(id=deleted_widget.id).exists()
+    remaining_widget.refresh_from_db()
+    assert (remaining_widget.grid_x, remaining_widget.grid_y) == (2, 0)
 
 
 @pytest.mark.django_db

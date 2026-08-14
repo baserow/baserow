@@ -96,21 +96,16 @@ def widget_deleted(
 def widgets_layout_updated(
     sender,
     dashboard,
-    widgets,
     user=None,
     **kwargs,
 ):
-    """Broadcast a complete widget set after an atomic grid-layout mutation."""
+    """Tell subscribers to reload their permission-filtered widget list."""
 
     def send_ws_message():
         page_type = page_registry.get("dashboard")
         payload = {
             "type": "widgets_layout_updated",
             "dashboard_id": dashboard.id,
-            "widgets": [
-                widget_type_registry.get_serializer(widget, WidgetSerializer).data
-                for widget in widgets
-            ],
         }
         page_type.broadcast(
             payload,

@@ -10,6 +10,7 @@ from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.widgets.exceptions import (
     WidgetDoesNotExist,
+    WidgetLayoutInvalid,
     WidgetTypeDoesNotExist,
 )
 from baserow.contrib.dashboard.widgets.models import SummaryWidget, Widget
@@ -150,10 +151,7 @@ def test_get_widgets_initializes_a_widget_created_by_a_pre_grid_process(data_fix
     _, kwargs = widgets_layout_updated_mock.call_args
     assert kwargs["user"] is None
     assert kwargs["dashboard"] == dashboard
-    assert [widget.id for widget in kwargs["widgets"]] == [
-        current_widget.id,
-        legacy_widget.id,
-    ]
+    assert "widgets" not in kwargs
 
 
 @pytest.mark.django_db
@@ -346,6 +344,101 @@ def test_update_widget_dashboard_trashed(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_visible_widget_layout_preserves_hidden_widgets(
+    data_fixture, stub_check_permissions
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    visible_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Visible"
+    )
+    hidden_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Hidden"
+    )
+    hidden_updated_on = hidden_widget.updated_on
+
+    def exclude_hidden_widget(
+        actor,
+        operation_name,
+        queryset,
+        workspace=None,
+        context=None,
+    ):
+        return queryset.exclude(id=hidden_widget.id)
+
+    with stub_check_permissions() as stub:
+        stub.filter_queryset = exclude_hidden_widget
+        updated_layout = WidgetService().update_visible_widget_layout(
+            user,
+            dashboard.id,
+            [
+                {
+                    "id": visible_widget.id,
+                    "grid_x": 4,
+                    "grid_y": 0,
+                    "grid_width": 2,
+                    "grid_height": 4,
+                }
+            ],
+        )
+
+    visible_widget.refresh_from_db()
+    hidden_widget.refresh_from_db()
+    assert (visible_widget.grid_x, visible_widget.grid_y) == (4, 0)
+    assert (hidden_widget.grid_x, hidden_widget.grid_y) == (2, 0)
+    assert hidden_widget.updated_on == hidden_updated_on
+    assert {item["id"] for item in updated_layout.new_layout} == {
+        visible_widget.id,
+        hidden_widget.id,
+    }
+
+
+@pytest.mark.django_db
+def test_update_visible_widget_layout_rejects_collision_with_hidden_widget(
+    data_fixture, stub_check_permissions
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    visible_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Visible"
+    )
+    hidden_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Hidden"
+    )
+
+    def exclude_hidden_widget(
+        actor,
+        operation_name,
+        queryset,
+        workspace=None,
+        context=None,
+    ):
+        return queryset.exclude(id=hidden_widget.id)
+
+    with stub_check_permissions() as stub:
+        stub.filter_queryset = exclude_hidden_widget
+        with pytest.raises(WidgetLayoutInvalid):
+            WidgetService().update_visible_widget_layout(
+                user,
+                dashboard.id,
+                [
+                    {
+                        "id": visible_widget.id,
+                        "grid_x": 2,
+                        "grid_y": 0,
+                        "grid_width": 2,
+                        "grid_height": 4,
+                    }
+                ],
+            )
+
+    visible_widget.refresh_from_db()
+    hidden_widget.refresh_from_db()
+    assert (visible_widget.grid_x, visible_widget.grid_y) == (0, 0)
+    assert (hidden_widget.grid_x, hidden_widget.grid_y) == (2, 0)
+
+
+@pytest.mark.django_db
 def test_delete_widget(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -357,11 +450,11 @@ def test_delete_widget(data_fixture):
 
 
 @pytest.mark.django_db
-def test_delete_widget_broadcasts_only_the_canonical_layout(data_fixture):
+def test_delete_widget_broadcasts_only_a_layout_invalidation(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
     deleted_widget = data_fixture.create_summary_widget(dashboard=dashboard)
-    remaining_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    data_fixture.create_summary_widget(dashboard=dashboard)
 
     with (
         patch(
@@ -377,11 +470,11 @@ def test_delete_widget_broadcasts_only_the_canonical_layout(data_fixture):
     widgets_layout_updated_mock.assert_called_once()
     _, kwargs = widgets_layout_updated_mock.call_args
     assert kwargs["dashboard"] == dashboard
-    assert [widget.id for widget in kwargs["widgets"]] == [remaining_widget.id]
+    assert "widgets" not in kwargs
 
 
 @pytest.mark.django_db
-def test_restore_widget_and_update_layout_broadcasts_only_the_canonical_layout(
+def test_restore_widget_and_update_layout_broadcasts_only_a_layout_invalidation(
     data_fixture,
 ):
     user = data_fixture.create_user()
@@ -425,10 +518,7 @@ def test_restore_widget_and_update_layout_broadcasts_only_the_canonical_layout(
     widgets_layout_updated_mock.assert_called_once()
     _, kwargs = widgets_layout_updated_mock.call_args
     assert kwargs["dashboard"] == dashboard
-    assert [widget.id for widget in kwargs["widgets"]] == [
-        restored_widget.id,
-        remaining_widget.id,
-    ]
+    assert "widgets" not in kwargs
 
 
 @pytest.mark.django_db

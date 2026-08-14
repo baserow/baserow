@@ -60,17 +60,58 @@ class WidgetService:
         self,
         dashboard: Dashboard,
         user: AbstractUser | None = None,
-    ) -> list[Widget]:
-        """Publishes the complete canonical layout after a successful mutation."""
+    ) -> None:
+        """Publishes a non-sensitive invalidation after a layout mutation."""
 
-        widgets = list(self.handler.get_widgets(dashboard))
         widgets_layout_updated.send(
             self,
             user=user,
             dashboard=dashboard,
-            widgets=widgets,
         )
-        return widgets
+
+    def _apply_widget_layout(
+        self,
+        user: AbstractUser,
+        dashboard: Dashboard,
+        widgets: list[Widget],
+        layout: list[dict[str, int]],
+        original_layout: list[dict[str, int]],
+        *,
+        layout_by_widget_id: dict[int, dict[str, int]] | None = None,
+        widgets_to_update: list[Widget] | None = None,
+        enforce_vertical_bound: bool = True,
+        deleted_widget: Widget | None = None,
+    ) -> UpdatedWidgetLayout:
+        """Persists a layout and publishes one canonical invalidation.
+
+        The mutation callers own their domain-specific work, such as trashing or
+        restoring a widget. This method owns the common layout finalization so all
+        paths validate, persist, refresh, signal, and build their result uniformly.
+        """
+
+        if layout_by_widget_id is None:
+            layout_by_widget_id = self._validate_widget_layout(
+                widgets,
+                layout,
+                enforce_vertical_bound=enforce_vertical_bound,
+            )
+
+        if widgets_to_update is None:
+            widgets_to_update = widgets
+        self.handler.update_widget_layout(widgets_to_update, layout_by_widget_id)
+        updated_widgets = list(self.handler.get_widgets(dashboard))
+        self._send_widgets_layout_updated(dashboard, user)
+        new_layout = [
+            layout_by_widget_id[widget.id]
+            for widget in sorted(widgets, key=lambda widget: widget.id)
+        ]
+        return UpdatedWidgetLayout(
+            dashboard,
+            updated_widgets,
+            original_layout,
+            new_layout,
+            deleted_widget,
+        )
 
     def get_widget(self, user: AbstractUser, widget_id: int) -> Widget:
         """
@@ -257,6 +298,8 @@ class WidgetService:
         self,
         widgets: list[Widget],
         layout: list[dict[str, int]],
+        *,
+        enforce_vertical_bound: bool = True,
     ) -> dict[int, dict[str, int]]:
         """Validates a full layout against widget identities and type constraints."""
 
@@ -316,6 +359,16 @@ class WidgetService:
                 raise WidgetLayoutInvalid("The widget height is outside of its limits.")
             normalized_layout.append(item)
 
+        if enforce_vertical_bound:
+            total_grid_height = sum(item["grid_height"] for item in normalized_layout)
+            if any(
+                item["grid_y"] + item["grid_height"] > total_grid_height
+                for item in normalized_layout
+            ):
+                raise WidgetLayoutInvalid(
+                    "A widget cannot be positioned below the total layout height."
+                )
+
         for index, item in enumerate(normalized_layout):
             for other in normalized_layout[index + 1 :]:
                 if layouts_overlap(item, other):
@@ -329,6 +382,8 @@ class WidgetService:
         user: AbstractUser,
         dashboard_id: int,
         layout: list[dict[str, int]],
+        *,
+        enforce_vertical_bound: bool = True,
     ) -> UpdatedWidgetLayout:
         """Atomically persists a complete dashboard widget layout."""
 
@@ -342,19 +397,78 @@ class WidgetService:
 
         widgets, _ = self._get_widgets_for_layout_mutation(dashboard)
         original_layout = [self.handler.get_widget_layout(widget) for widget in widgets]
-        layout_by_widget_id = self._validate_widget_layout(widgets, layout)
-        self.handler.update_widget_layout(widgets, layout_by_widget_id)
-
-        updated_widgets = self._send_widgets_layout_updated(dashboard, user)
-        new_layout = [
-            layout_by_widget_id[widget.id]
-            for widget in sorted(widgets, key=lambda widget: widget.id)
-        ]
-        return UpdatedWidgetLayout(
+        return self._apply_widget_layout(
+            user,
             dashboard,
-            updated_widgets,
+            widgets,
+            layout,
             original_layout,
-            new_layout,
+            enforce_vertical_bound=enforce_vertical_bound,
+        )
+
+    @transaction.atomic
+    def update_visible_widget_layout(
+        self,
+        user: AbstractUser,
+        dashboard_id: int,
+        layout: list[dict[str, int]],
+    ) -> UpdatedWidgetLayout:
+        """Updates only widgets visible to ``user`` and preserves hidden geometry."""
+
+        dashboard = self.dashboard_handler.get_dashboard(dashboard_id)
+        core_handler = CoreHandler()
+        core_handler.check_permissions(
+            user,
+            UpdateWidgetLayoutOperationType.type,
+            workspace=dashboard.workspace,
+            context=dashboard,
+        )
+        core_handler.check_permissions(
+            user,
+            ListWidgetsOperationType.type,
+            workspace=dashboard.workspace,
+            context=dashboard,
+        )
+
+        widgets, _ = self._get_widgets_for_layout_mutation(dashboard)
+        visible_queryset = core_handler.filter_queryset(
+            user,
+            ListWidgetsOperationType.type,
+            Widget.objects.filter(id__in=[widget.id for widget in widgets]),
+            workspace=dashboard.workspace,
+        )
+        visible_widget_ids = set(visible_queryset.values_list("id", flat=True))
+        visible_widgets = [
+            widget for widget in widgets if widget.id in visible_widget_ids
+        ]
+
+        # Validate identities and type constraints against exactly the visible
+        # snapshot first. The vertical bound and collisions require the complete
+        # merged layout and are checked below.
+        visible_layout_by_widget_id = self._validate_widget_layout(
+            visible_widgets,
+            layout,
+            enforce_vertical_bound=False,
+        )
+        merged_layout = [
+            visible_layout_by_widget_id.get(
+                widget.id, self.handler.get_widget_layout(widget)
+            )
+            for widget in widgets
+        ]
+        merged_layout_by_widget_id = self._validate_widget_layout(
+            widgets,
+            merged_layout,
+        )
+        original_layout = [self.handler.get_widget_layout(widget) for widget in widgets]
+        return self._apply_widget_layout(
+            user,
+            dashboard,
+            widgets,
+            merged_layout,
+            original_layout,
+            layout_by_widget_id=merged_layout_by_widget_id,
+            widgets_to_update=visible_widgets,
         )
 
     def _delete_widget_and_apply_layout(
@@ -401,23 +515,20 @@ class WidgetService:
             layout_by_widget_id = {item["id"]: item for item in layout}
         else:
             layout_by_widget_id = self._validate_widget_layout(
-                remaining_widgets, layout
+                remaining_widgets,
+                layout,
+                enforce_vertical_bound=False,
             )
 
         TrashHandler.trash(user, dashboard.workspace, dashboard, widget)
-        self.handler.update_widget_layout(remaining_widgets, layout_by_widget_id)
-
-        updated_widgets = self._send_widgets_layout_updated(dashboard, user)
-        new_layout = [
-            layout_by_widget_id[widget.id]
-            for widget in sorted(remaining_widgets, key=lambda widget: widget.id)
-        ]
-        return UpdatedWidgetLayout(
+        return self._apply_widget_layout(
+            user,
             dashboard,
-            updated_widgets,
+            remaining_widgets,
+            layout,
             original_layout,
-            new_layout,
-            deleted_widget,
+            layout_by_widget_id=layout_by_widget_id,
+            deleted_widget=deleted_widget,
         )
 
     @transaction.atomic
@@ -505,18 +616,13 @@ class WidgetService:
 
         widgets = self.handler.get_widgets_for_update(dashboard)
         original_layout = [self.handler.get_widget_layout(widget) for widget in widgets]
-        layout_by_widget_id = self._validate_widget_layout(widgets, layout)
-        self.handler.update_widget_layout(widgets, layout_by_widget_id)
-        updated_widgets = self._send_widgets_layout_updated(dashboard, user)
-        new_layout = [
-            layout_by_widget_id[widget.id]
-            for widget in sorted(widgets, key=lambda widget: widget.id)
-        ]
-        return UpdatedWidgetLayout(
+        return self._apply_widget_layout(
+            user,
             dashboard,
-            updated_widgets,
+            widgets,
+            layout,
             original_layout,
-            new_layout,
+            enforce_vertical_bound=False,
         )
 
     def restore_widget_legacy(self, user: AbstractUser, widget_id: int) -> Widget:
