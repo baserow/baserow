@@ -42,6 +42,8 @@ test.describe("Builder page heading element test suite", () => {
       if (node) node.remove();
     });
 
+    // Subscribe before clicking: the Preview handler calls window.open()
+    // synchronously, so the "page" event can fire before click() resolves.
     const newPagePromise = context.waitForEvent("page");
     await page.getByRole("button", { name: "Preview" }).click();
     const newPage = await newPagePromise;

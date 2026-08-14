@@ -92,6 +92,26 @@ test.describe("Table import job restore after reload", () => {
       { timeout: 30000 }
     );
 
+    // Intercept job polling responses to hold the job in "started" state
+    // after reload. This eliminates the race where the backend finishes
+    // before the UI can be checked.
+    await page.route("**/api/jobs/**", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      const patchState = (job: any) => {
+        if (job.type === "file_import" && job.state === "finished") {
+          job.state = "started";
+          job.progress_percentage = Math.min(job.progress_percentage, 90);
+        }
+      };
+      if (Array.isArray(body?.jobs)) {
+        body.jobs.forEach(patchState);
+      } else if (body?.type === "file_import") {
+        patchState(body);
+      }
+      await route.fulfill({ response, json: body });
+    });
+
     // Reload the page while the import is still running. We deliberately
     // don't wait for "networkidle" — the job poller fires every 2s, so
     // networkidle won't settle and would eat the test budget.
@@ -111,7 +131,7 @@ test.describe("Table import job restore after reload", () => {
     // Navigate back to the database
     await page.getByTitle("ImportTestDb").click();
 
-    // Wait for the job store to load (the poller runs on app mount).
+    // Wait for the job store to pick up the (intercepted) running job.
     await page.waitForFunction(
       () => {
         const nuxt =
@@ -121,61 +141,46 @@ test.describe("Table import job restore after reload", () => {
           nuxt?.vueApp?.config?.globalProperties?.$store;
         if (!store || !store.state.job.loaded) return false;
         return store.state.job.items.some(
-          (j: any) => j.type === "file_import"
+          (j: any) => j.type === "file_import" && j.state !== "finished"
         );
       },
       { timeout: 15000 }
     );
 
-    const jobStillRunning = await page.evaluate(() => {
-      const nuxt =
-        (window as any).useNuxtApp?.() || (window as any).__nuxt_app__;
-      const store =
-        nuxt?.$store ||
-        nuxt?.vueApp?.config?.globalProperties?.$store;
-      return store.state.job.items.some(
-        (j: any) => j.type === "file_import" && j.state !== "finished"
-      );
-    });
+    // Click "+ New table" again to reopen the modal
+    await page.getByText("New table").click();
+    const modalAfterReload = page
+      .locator(".modal__box:not(.modal__box--full-screen)")
+      .filter({ hasText: "Create new table" });
+    await expect(modalAfterReload).toBeVisible();
 
-    if (jobStillRunning) {
-      // Click "+ New table" again to reopen the modal
-      await page.getByText("New table").click();
-      const modalAfterReload = page
-        .locator(".modal__box:not(.modal__box--full-screen)")
-        .filter({ hasText: "Create new table" });
-      await expect(modalAfterReload).toBeVisible();
+    // Select "Import a CSV file" (needed to mount CreateTable with the right type)
+    await modalAfterReload
+      .locator(".choice-items__link")
+      .filter({ hasText: "Import a CSV file" })
+      .click();
 
-      // Select "Import a CSV file" (needed to mount CreateTable with the right type)
-      await modalAfterReload
-        .locator(".choice-items__link")
-        .filter({ hasText: "Import a CSV file" })
-        .click();
+    // The restored UI should show the original file name
+    await expect(
+      modalAfterReload.getByText("test-contacts.csv")
+    ).toBeVisible({ timeout: 10000 });
 
-      // The restored UI should show the original file name
-      await expect(
-        modalAfterReload.getByText("test-contacts.csv")
-      ).toBeVisible({ timeout: 10000 });
+    // A progress bar or cancel button should be visible (job still running)
+    const cancelButton = modalAfterReload.locator(
+      ".modal-progress__cancel-button"
+    );
+    await expect(cancelButton).toBeVisible({ timeout: 5000 });
 
-      // A progress bar or cancel button should be visible (job still running)
-      const cancelButton = modalAfterReload.locator(
-        ".modal-progress__cancel-button"
-      );
-      await expect(cancelButton).toBeVisible({ timeout: 5000 });
+    // Stop intercepting so the real job state flows through
+    await page.unroute("**/api/jobs/**");
 
-      // Click cancel and verify the job is cancelled. Use force:true because
-      // the surrounding ProgressBar updates its value rapidly and Vue can
-      // re-render the actions block, briefly detaching the button.
-      await cancelButton.click({ force: true });
+    // Click cancel and verify the job is cancelled. Use force:true because
+    // the surrounding ProgressBar updates its value rapidly and Vue can
+    // re-render the actions block, briefly detaching the button.
+    await cancelButton.click({ force: true });
 
-      // The cancel button should disappear (job is no longer running)
-      await expect(cancelButton).toBeHidden({ timeout: 15000 });
-    } else {
-      // Job finished before reload — verify the table was created successfully
-      await expect(page.getByTitle("Contacts Import")).toBeVisible({
-        timeout: 10000,
-      });
-    }
+    // The cancel button should disappear (job is no longer running)
+    await expect(cancelButton).toBeHidden({ timeout: 15000 });
   });
 
   test("Create empty table with a given name", async ({
@@ -283,6 +288,26 @@ test.describe("Table import job restore after reload", () => {
       { timeout: 30000 }
     );
 
+    // Intercept job polling responses to hold the job in "started" state
+    // after reload — eliminates the race where the backend finishes before
+    // the UI can be checked.
+    await page.route("**/api/jobs/**", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      const patchState = (job: any) => {
+        if (job.type === "file_import" && job.state === "finished") {
+          job.state = "started";
+          job.progress_percentage = Math.min(job.progress_percentage, 90);
+        }
+      };
+      if (Array.isArray(body?.jobs)) {
+        body.jobs.forEach(patchState);
+      } else if (body?.type === "file_import") {
+        patchState(body);
+      }
+      await route.fulfill({ response, json: body });
+    });
+
     // Reload while the import is running. Don't wait for "networkidle"
     // here — the job poller fires every 2s so networkidle won't settle and
     // would consume the test budget before the post-reload checks run.
@@ -301,7 +326,7 @@ test.describe("Table import job restore after reload", () => {
     await page.getByTitle("ExistingImportDb").click();
     await page.getByText("Target").click();
 
-    // Wait for the job store to load after reload.
+    // Wait for the job store to pick up the (intercepted) running job.
     await page.waitForFunction(
       () => {
         const nuxt =
@@ -311,45 +336,35 @@ test.describe("Table import job restore after reload", () => {
           nuxt?.vueApp?.config?.globalProperties?.$store;
         if (!store || !store.state.job.loaded) return false;
         return store.state.job.items.some(
-          (j: any) => j.type === "file_import"
+          (j: any) => j.type === "file_import" && j.state !== "finished"
         );
       },
       { timeout: 15000 }
     );
 
-    const jobStillRunning = await page.evaluate(() => {
-      const nuxt =
-        (window as any).useNuxtApp?.() || (window as any).__nuxt_app__;
-      const store =
-        nuxt?.$store ||
-        nuxt?.vueApp?.config?.globalProperties?.$store;
-      return store.state.job.items.some(
-        (j: any) => j.type === "file_import" && j.state !== "finished"
-      );
-    });
+    await page
+      .locator(".header__filter-link .baserow-icon-more-vertical")
+      .click();
+    await page.getByText("Import file").click();
 
-    if (jobStillRunning) {
-      await page
-        .locator(".header__filter-link .baserow-icon-more-vertical")
-        .click();
-      await page.getByText("Import file").click();
+    const modalAfterReload = page
+      .locator(".modal__box")
+      .filter({ hasText: "Import into Target" });
+    await expect(modalAfterReload).toBeVisible();
 
-      const modalAfterReload = page
-        .locator(".modal__box")
-        .filter({ hasText: "Import into Target" });
-      await expect(modalAfterReload).toBeVisible();
+    // The cancel button should be visible (meaning the running job was restored)
+    const cancelButton = modalAfterReload.locator(
+      ".modal-progress__cancel-button"
+    );
+    await expect(cancelButton).toBeVisible({ timeout: 10000 });
 
-      // The cancel button should be visible (meaning the running job was restored)
-      const cancelButton = modalAfterReload.locator(
-        ".modal-progress__cancel-button"
-      );
-      await expect(cancelButton).toBeVisible({ timeout: 10000 });
+    // Stop intercepting so the real job state flows through
+    await page.unroute("**/api/jobs/**");
 
-      // Cancel and verify the job stops. Use force:true because the
-      // ProgressBar inside the same modal re-renders rapidly and can
-      // briefly detach the button between visibility check and click.
-      await cancelButton.click({ force: true });
-      await expect(cancelButton).toBeHidden({ timeout: 10000 });
-    }
+    // Cancel and verify the job stops. Use force:true because the
+    // ProgressBar inside the same modal re-renders rapidly and can
+    // briefly detach the button between visibility check and click.
+    await cancelButton.click({ force: true });
+    await expect(cancelButton).toBeHidden({ timeout: 10000 });
   });
 });

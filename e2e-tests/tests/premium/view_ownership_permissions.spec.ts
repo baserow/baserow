@@ -113,28 +113,29 @@ test.describe("View ownership type toggle permissions", () => {
     expect(errorResponse.status).toBe(401);
   });
 
-  test("builder can see 'To personal' on admin's collaborative view and operation succeeds", async ({
+  test("builder can convert admin's collaborative view to personal", async ({
     page,
   }) => {
     const grid = new GridPage(page, builder);
     await grid.goTo(g.database, g.table, g.view);
     await openViewContextMenu(page, g.view.name);
     await expectContextMenuOpen(page);
-    await expect(ownershipToggleLocator(page, "To personal")).toBeVisible();
+    const toggle = ownershipToggleLocator(page, "To personal");
+    await expect(toggle).toBeVisible();
+    await toggle.click();
 
-    // Verify the backend also allows this operation
-    const client = getClient(builder);
-    try {
-      const response = await client.patch(`database/views/${g.view.id}/`, {
-        ownership_type: "personal",
-      });
-      expect(response.status).toBe(200);
-    } finally {
-      // Revert so other tests still see g.view as collaborative
-      await client.patch(`database/views/${g.view.id}/`, {
-        ownership_type: "collaborative",
-      });
-    }
+    // Re-navigate to get a clean page state after ownership change
+    await grid.goTo(g.database, g.table, g.view);
+
+    // Verify conversion succeeded — menu now shows "To collaborative"
+    await openViewContextMenu(page, g.view.name);
+    await expectContextMenuOpen(page);
+    await expect(ownershipToggleLocator(page, "To collaborative")).toBeVisible();
+
+    // Revert so other tests still see g.view as collaborative
+    await getClient(builder).patch(`database/views/${g.view.id}/`, {
+      ownership_type: "collaborative",
+    });
   });
 
   test("editor cannot see 'To collaborative' on own personal view", async ({
@@ -160,7 +161,7 @@ test.describe("View ownership type toggle permissions", () => {
     expect(errorResponse.status).toBe(401);
   });
 
-  test("builder can see 'To collaborative' on own personal view and operation succeeds", async ({
+  test("builder can convert own personal view to collaborative", async ({
     page,
   }) => {
     const personalView = await createPersonalView(
@@ -172,14 +173,17 @@ test.describe("View ownership type toggle permissions", () => {
     await grid.goTo(g.database, g.table, personalView);
     await openViewContextMenu(page, personalView.name);
     await expectContextMenuOpen(page);
-    await expect(ownershipToggleLocator(page, "To collaborative")).toBeVisible();
+    const toggle = ownershipToggleLocator(page, "To collaborative");
+    await expect(toggle).toBeVisible();
+    await toggle.click();
 
-    // Verify the backend also allows this operation
-    const response = await getClient(builder).patch(
-      `database/views/${personalView.id}/`,
-      { ownership_type: "collaborative" },
-    );
-    expect(response.status).toBe(200);
+    // Re-navigate to get a clean page state after ownership change
+    await grid.goTo(g.database, g.table, personalView);
+
+    // Verify conversion succeeded — menu now shows "To personal"
+    await openViewContextMenu(page, personalView.name);
+    await expectContextMenuOpen(page);
+    await expect(ownershipToggleLocator(page, "To personal")).toBeVisible();
   });
 
   test("admin can see 'To personal' on collaborative view", async ({
