@@ -954,17 +954,25 @@ def _recalculate(field, table):
 
 
 @pytest.mark.django_db
-def test_index_rejects_a_fourth_argument(table_with_file_field):
+@pytest.mark.parametrize(
+    "formula",
+    [
+        "index(field('Files'), 0, 'text')",
+        "index(field('Files'), 0, 'text', 'anything')",
+    ],
+    ids=["three_args", "four_args"],
+)
+def test_index_only_accepts_two_arguments(table_with_file_field, formula):
+    """The mode is written by the typing step, never taken from the formula."""
+
     user, table = table_with_file_field
 
     with pytest.raises(InvalidFormulaType):
-        _create_formula(
-            user, table, "four", "index(field('Files'), 0, 'text', 'anything')"
-        )
+        _create_formula(user, table, "extra", formula)
 
 
 @pytest.mark.django_db
-def test_index_rejects_a_fourth_argument_over_the_api(
+def test_index_only_accepts_two_arguments_over_the_api(
     table_with_file_field, api_client, data_fixture
 ):
     user, table = table_with_file_field
@@ -973,7 +981,7 @@ def test_index_rejects_a_fourth_argument_over_the_api(
     response = api_client.post(
         f"/api/database/fields/table/{table.id}/",
         {
-            "name": "four",
+            "name": "extra",
             "type": "formula",
             "formula": "index(field('Files'), 0, 'text', 'anything')",
         },
@@ -983,21 +991,6 @@ def test_index_rejects_a_fourth_argument_over_the_api(
 
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_WITH_FORMULA"
-
-
-@pytest.mark.django_db
-def test_a_supplied_third_argument_is_replaced_by_the_resolved_mode(
-    table_with_file_field,
-):
-    user, table = table_with_file_field
-
-    field = _create_formula(
-        user, table, "three", "index(field('Files'), 0, 'not-a-mode')"
-    )
-
-    assert field.formula_type != "invalid"
-    assert "not-a-mode" not in field.internal_formula
-    assert "single_file" in field.internal_formula
 
 
 @pytest.mark.django_db

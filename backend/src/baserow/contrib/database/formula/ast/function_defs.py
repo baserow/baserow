@@ -3121,7 +3121,7 @@ class BaserowIndex(BaserowFunctionDefinition):
         args: List[BaserowExpression[BaserowFormulaValidType]],
         func_call: BaserowFunctionCall[UnTyped],
     ) -> BaserowExpression[BaserowFormulaType]:
-        if len(args) not in (2, 3):
+        if len(args) != 2:
             return func_call.with_invalid_type(
                 "index requires exactly 2 arguments: an array and an index."
             )
