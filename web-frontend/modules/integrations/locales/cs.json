@@ -83,13 +83,17 @@
         "errorCSVFileMissing": "Chybí vlastnost souboru CSV",
         "errorCSVContentMissing": "Chybí vlastnost dat CSV",
         "errorNoWorkflowSelected": "Není vybrán žádný pracovní postup",
-        "errorWorkflowNotImmediateDispatch": "Vybraný pracovní postup musí používat spouštěč, který se může spustit okamžitě."
+        "errorWorkflowNotImmediateDispatch": "Vybraný pracovní postup musí používat spouštěč, který se může spustit okamžitě.",
+        "coreGoto": "Přejít na",
+        "coreGotoDescription": "Přeskočí na jiné místo pracovního postupu, když je podmínka pravdivá.",
+        "coreGotoDestinationRequired": "Cíl je povinný."
     },
     "userSourceType": {
         "localBaserow": "Ověřování pomocí tabulky Baserow"
     },
     "localBaserowForm": {
-        "userMessage": "Vytvořením tohoto připojení opravňujete aplikaci používat váš účet k provádění změn v místním pracovním prostoru Baserow."
+        "userMessage": "Vytvořením tohoto připojení opravňujete aplikaci používat váš účet k provádění změn v místním pracovním prostoru Baserow.",
+        "user": "Uživatel"
     },
     "localBaserowGetRowForm": {
         "rowFieldLabel": "ID řádku",
@@ -117,7 +121,10 @@
         "noCompatibleFilterTypesErrorTitle": "Žádné kompatibilní typy filtrů",
         "noCompatibleFilterTypesErrorMessage": "Žádné z vašich polí nemá kompatibilní typ filtru",
         "useDefaultForValue": "Použít výchozí filtr pro toto pole",
-        "textFilterInputPlaceholder": "Zadejte text..."
+        "textFilterInputPlaceholder": "Zadejte text...",
+        "addFilterGroup": "Přidat skupinu filtrů",
+        "expressionFilterInputPlaceholder": "Vyberte výraz...",
+        "useExpressionForValue": "Použít pro tento filtr výraz"
     },
     "localBaserowTableServiceSortForm": {
         "noSortTitle": "Dosud jste nevytvořili řazení zdroje dat",
@@ -207,7 +214,8 @@
         "body": "Tělo",
         "bodyPlaceholder": "Obsah e-mailu...",
         "smtpConfigurationMode": "Konfigurace SMTP",
-        "useInstanceSmtpSettings": "Použít server SMTP instance"
+        "useInstanceSmtpSettings": "Použít server SMTP instance",
+        "integrationDropdownLabel": "Připojení"
     },
     "serviceRefinementForms": {
         "filterTabTitle": "Filtr | 1 filtr | {count} filtrů",
@@ -357,6 +365,40 @@
         "separator": "Oddělovač",
         "encoding": "Kódování",
         "firstLineIsHeader": "První řádek je záhlaví",
-        "comma": "Čárka"
+        "comma": "Čárka",
+        "semicolon": "Středník",
+        "tab": "Tabulátor",
+        "pipe": "Svislá čára",
+        "utf8": "UTF-8",
+        "utf8Bom": "UTF-8 s BOM",
+        "latin1": "Latin-1"
+    },
+    "coreStartWorkflowServiceForm": {
+        "automation": "Automatizace",
+        "workflow": "Pracovní postup",
+        "workflowHelperText": "Spustit lze pouze publikované pracovní postupy s ručním spouštěčem. Má-li tento pracovní postup nepublikované změny, spustí se poslední publikovaná verze."
+    },
+    "localBaserowDeleteRowServiceForm": {
+        "rowIdLabel": "ID řádků",
+        "rowIdPlaceholder": "Vyberte ID řádku nebo pole ID řádků",
+        "rowIdHelper": "Vyberte jedno ID řádku nebo pole ID řádků. Najednou lze odstranit až {limit} řádků."
+    },
+    "localBaserowCreateRowsServiceForm": {
+        "rowsLabel": "Řádky",
+        "rowsPlaceholder": "Vyberte seznam objektů řádků",
+        "rowsHelper": "Výraz musí vracet pole objektů řádků nebo řetězec JSON, který se na takové pole analyzuje. Jako klíče objektu použijte názvy polí nebo jejich ID. Najednou lze vytvořit až {limit} řádků."
+    },
+    "localBaserowUpdateRowsServiceForm": {
+        "rowsLabel": "Řádky",
+        "rowsPlaceholder": "Vyberte seznam objektů řádků s ID",
+        "rowsHelper": "Výraz musí vracet pole objektů řádků nebo řetězec JSON, který se na takové pole analyzuje. Každý objekt musí obsahovat vlastnost id. Jako klíče objektu použijte názvy polí nebo jejich ID. Najednou lze aktualizovat až {limit} řádků."
+    },
+    "coreGotoServiceForm": {
+        "conditionLabel": "Podmínka",
+        "conditionDescription": "Je-li tato podmínka pravdivá, pracovní postup přeskočí na cílový uzel namísto pokračování k dalšímu uzlu.",
+        "conditionPlaceholder": "Pokud je podmínka pravdivá, přeskočíme na cílový uzel.",
+        "destinationLabel": "Cílový uzel",
+        "destinationDescription": "Uzel, na který se přejde, když je podmínka pravdivá.",
+        "destinationPlaceholder": "Vyberte cílový uzel..."
     }
 }
