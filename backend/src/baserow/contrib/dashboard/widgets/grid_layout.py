@@ -62,20 +62,28 @@ def get_first_available_grid_position(
         raise ValueError("The widget dimensions do not fit in the dashboard grid.")
 
     layout = list(layouts)
-    last_grid_y = max(
-        (item["grid_y"] + item["grid_height"] for item in layout),
-        default=0,
-    )
-
-    for grid_y in range(last_grid_y + 1):
-        for grid_x in range(DASHBOARD_GRID_COLUMNS - grid_width + 1):
+    available_positions = []
+    for grid_x in range(DASHBOARD_GRID_COLUMNS - grid_width + 1):
+        grid_y = 0
+        while True:
             candidate = {
                 "grid_x": grid_x,
                 "grid_y": grid_y,
                 "grid_width": grid_width,
                 "grid_height": grid_height,
             }
-            if not any(layouts_overlap(candidate, existing) for existing in layout):
-                return grid_x, grid_y
+            collisions = [
+                existing for existing in layout if layouts_overlap(candidate, existing)
+            ]
+            if not collisions:
+                available_positions.append((grid_y, grid_x))
+                break
 
-    raise RuntimeError("The dashboard grid did not have an available position.")
+            # At least one of the current collisions remains until the greatest
+            # bottom edge, so no position before it can fit at this grid_x.
+            grid_y = max(
+                existing["grid_y"] + existing["grid_height"] for existing in collisions
+            )
+
+    grid_y, grid_x = min(available_positions)
+    return grid_x, grid_y

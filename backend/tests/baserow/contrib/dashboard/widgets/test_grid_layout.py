@@ -106,6 +106,27 @@ def test_get_first_available_grid_position_fills_compatible_gaps():
     assert get_first_available_grid_position(layouts, 2, 4) == (2, 0)
 
 
+def test_get_first_available_grid_position_skips_to_collision_bottom_edges():
+    layouts = [
+        {
+            "id": 1,
+            "grid_x": 0,
+            "grid_y": 0,
+            "grid_width": DASHBOARD_GRID_COLUMNS,
+            "grid_height": 1_000_000_000,
+        },
+        {
+            "id": 2,
+            "grid_x": 0,
+            "grid_y": 1_000_000_000,
+            "grid_width": DASHBOARD_GRID_COLUMNS,
+            "grid_height": 4,
+        },
+    ]
+
+    assert get_first_available_grid_position(layouts, 2, 4) == (0, 1_000_000_004)
+
+
 @pytest.mark.parametrize("grid_width, grid_height", [(0, 4), (7, 4), (2, 0)])
 def test_get_first_available_grid_position_rejects_invalid_dimensions(
     grid_width, grid_height
