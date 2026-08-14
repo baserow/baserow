@@ -709,6 +709,16 @@ jobs:
           cd e2e-tests
           yarn install
 
+      # The browsers come from the runner's system Chrome
+      # (PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1), but video recording on retry
+      # (video: "on-first-retry") still needs Playwright's bundled ffmpeg.
+      - name: Install Playwright ffmpeg
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 0
+        run: |
+          cd e2e-tests
+          npx playwright install ffmpeg
+
       - name: Verify Google Chrome
         run: google-chrome --version
 
