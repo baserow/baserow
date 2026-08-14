@@ -49,6 +49,16 @@ async function dragBy(
   await page.mouse.up()
 }
 
+function waitForWidgetLayoutUpdate(page: Page, dashboard: Dashboard) {
+  return page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PATCH' &&
+      response
+        .url()
+        .includes(`/dashboard/${dashboard.id}/widgets/layout/`)
+  )
+}
+
 async function expectWidgetLayout(
   dashboard: Dashboard,
   widgetId: number,
@@ -203,7 +213,22 @@ test.describe('Dashboard widget grid', () => {
     )
     const firstWidget = await createSummaryWidget(dashboard, 'First widget')
     const secondWidget = await createSummaryWidget(dashboard, 'Second widget')
-    await createSummaryWidget(dashboard, 'Third widget')
+    await updateDashboardWidgetLayout(dashboard, [
+      {
+        id: firstWidget.id,
+        grid_x: 0,
+        grid_y: 0,
+        grid_width: 2,
+        grid_height: 4,
+      },
+      {
+        id: secondWidget.id,
+        grid_x: 0,
+        grid_y: 4,
+        grid_width: 2,
+        grid_height: 4,
+      },
+    ])
 
     await goToDashboard(page, dashboard)
 
@@ -237,6 +262,7 @@ test.describe('Dashboard widget grid', () => {
     const dragStartX = secondWidgetHeaderBox.x + secondWidgetHeaderBox.width / 2
     const dragStartY =
       secondWidgetHeaderBox.y + secondWidgetHeaderBox.height / 2
+    const dragResponsePromise = waitForWidgetLayoutUpdate(page, dashboard)
     await page.mouse.move(dragStartX, dragStartY)
     await page.mouse.down()
     try {
@@ -252,6 +278,10 @@ test.describe('Dashboard widget grid', () => {
       await page.mouse.up()
     }
 
+    const dragResponse = await dragResponsePromise
+    expect(dragResponse.ok()).toBeTruthy()
+    await expect(grid).not.toHaveClass(/dashboard-widget-grid--interacting/)
+
     await expectWidgetLayout(dashboard, secondWidget.id, {
       grid_x: 2,
       grid_y: 0,
@@ -260,7 +290,11 @@ test.describe('Dashboard widget grid', () => {
     const resizer = page
       .getByTestId(`dashboard-widget-grid-item-${secondWidget.id}`)
       .locator('.vgl-item__resizer')
+    const resizeResponsePromise = waitForWidgetLayoutUpdate(page, dashboard)
     await dragBy(page, resizer, 2 * (columnWidth + 16), 2 * rowHeightWithMargin)
+    const resizeResponse = await resizeResponsePromise
+    expect(resizeResponse.ok()).toBeTruthy()
+    await expect(grid).not.toHaveClass(/dashboard-widget-grid--interacting/)
     await expectWidgetLayout(dashboard, secondWidget.id, {
       grid_x: 2,
       grid_y: 0,
