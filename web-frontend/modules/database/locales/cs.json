@@ -65,7 +65,8 @@
     },
     "sidebar": {
         "viewAPI": "Zobrazit dokumentaci API",
-        "createTable": "Nová tabulka"
+        "createTable": "Nová tabulka",
+        "adminContentCategory": "Obsah"
     },
     "sidebarItem": {
         "exportTable": "Exportovat tabulku",
@@ -73,7 +74,8 @@
         "lastSynced": "Naposledy synchronizováno",
         "notSynced": "nesynchronizováno",
         "sync": "Synchronizovat tabulku",
-        "updateSyncConfig": "Aktualizovat konfiguraci synchronizace"
+        "updateSyncConfig": "Aktualizovat konfiguraci synchronizace",
+        "importFile": "Importovat soubor"
     },
     "duplicateTableJobType": {
         "duplicating": "Duplikuji",
@@ -141,7 +143,7 @@
         "description": "Každý řádek v tabulce {name} obsahuje následující pole.",
         "id": "ID",
         "name": "Název",
-        "type": "",
+        "type": "Typ",
         "compatibleFilters": "Kompatibilní filtry"
     },
     "apiDocsTableListRows": {
@@ -152,8 +154,8 @@
         "search": "Je-li zadán, vrátí se pouze řádky s daty odpovídajícími vyhledávacímu dotazu.",
         "orderBy": "Řádky lze volitelně řadit podle polí oddělených čárkou. Ve výchozím nastavení nebo je-li před polem znak `+`, se řadí vzestupně (A-Z); je-li před polem znak `-`, lze řadit sestupně (Z-A).\n\n #### S `user_field_names`:\n\n `order_by` má být čárkami oddělený seznam názvů polí, podle nichž se má řadit. Zadáte-li například následující parametr GET `order_by=My Field,-My Field 2`, budou se řádky řadit podle pole `My Field` vzestupně. Mají-li některá pole stejnou hodnotu, tato podmnožina se bude řadit podle pole `My Field 2` sestupně.\n\n Zajistěte, aby názvy polí začínající na `+` nebo `-` měly výslovně před sebou další `+` nebo `-`. Např. `+-Name`.\n\n Název polí obsahující čárky musí být uzavřen v uvozovkách: `\"Name ,\"`. Obsahují-li názvy polí uvozovky, musí být escapovány znakem `\\`. Např.: `Name \\\"`. \n\n#### Bez `user_field_names`:\n\n `order_by` má být čárkami oddělený seznam `field_` následovaný ID pole, podle něhož se má řadit. Zadáte-li například následující parametr GET `order_by=field_1,-field_2`, budou se řádky řadit podle `field_1` vzestupně. Mají-li některá pole stejnou hodnotu, tato podmnožina se bude řadit podle `field_2` sestupně.",
         "filter": "Řádky lze volitelně filtrovat stejnými filtry zobrazení, které jsou pro zobrazení k dispozici. Lze použít více filtrů, pokud mají stejný formát. Proměnné `field` a `filter` určují, jak a kde se má filtr použít.\n\n#### S `user_field_names`:\n\nZadáte-li například volitelně následující parametr GET: `filter__Name__equal=test`, vrátí se pouze řádky, ve kterých se hodnota `Name` rovná 'test'. Tato metoda je zpětně kompatibilní a pokud se shoda názvu nezdaří, ověří hodnotu vůči `field_id`.\n\n#### Bez `user_field_names`:\n\nZadáte-li například volitelně následující parametr GET: `filter__field_1__equal=test`, vrátí se pouze řádky, ve kterých se hodnota `field_1` rovná 'test'.\n\nVezměte prosím na vědomí, že pokud je zadán parametr filters, tento parametr bude ignorován. ",
-        "filterLink": "",
-        "filterType": "",
+        "filterLink": "Seznam všech filtrů najdete zde.",
+        "filterType": "- \\`AND\\`: Označuje, že řádky musí odpovídat všem zadaným filtrům.\n- \\`OR\\`: Označuje, že řádky musí odpovídat pouze jednomu z filtrů.\n\n Funguje to pouze v případě, že jsou zadány dva nebo více filtrů.",
         "include": "V odpovědi jsou ve výchozím nastavení zahrnuta všechna pole. Zadáním parametru dotazu include můžete vybrat podmnožinu polí, která se mají zahrnout.\n\n #### S `user_field_names`:\n\n `include` má být čárkami oddělený seznam názvů polí, která se mají zahrnout do výsledků. Zadáte-li například následující parametr GET: `include=My Field,-My Field 2`, zahrnou se pouze tato pole (nejsou-li výslovně vyloučena).\n\n Název polí obsahující čárky musí být uzavřen v uvozovkách: `\"Name ,\"`. Obsahují-li názvy polí uvozovky, musí být escapovány znakem `\\`. Např.: `Name \\\"`.\n\n #### Bez `user_field_names`:\n\n `include` má být čárkami oddělený seznam `field_` následovaný ID pole, která se mají zahrnout do výsledků. Například: Zadáte-li následující parametr GET `include=field_1,field_2`, zahrnou se pouze pole s ID `1` a `2` (nejsou-li výslovně vyloučena).",
         "exclude": "V odpovědi jsou ve výchozím nastavení zahrnuta všechna pole. Zadáním parametru dotazu exclude můžete vybrat podmnožinu polí, která se mají vyloučit.\n\n #### S `user_field_names`:\n\n `exclude` má být čárkami oddělený seznam názvů polí, která se mají vyloučit z výsledků. Zadáte-li například následující parametr GET: `exclude=My Field,-My Field 2`, tato pole se vyloučí.\n\n Název polí obsahující čárky musí být uzavřen v uvozovkách: `\"Name ,\"`. Obsahují-li názvy polí uvozovky, musí být escapovány znakem `\\`. Např.: `Name \\\"`.\n\n #### Bez `user_field_names`:\n\n `exclude` má být čárkami oddělený seznam `field_` následovaný ID pole, která se mají vyloučit z výsledků. Například: Zadáte-li následující parametr GET `exclude=field_1,field_2`, vyloučí se pole s ID `1` a `2`.",
         "viewId": "Ve výchozím nastavení se nepoužije žádný z filtrů a řazení kromě těch, které jsou definované v parametrech dotazu. Filtry a řazení zobrazení můžete přidat uvedením jeho `id` v parametru GET `view_id`. Zadáte-li například následující parametr GET `view_id=1`, použijí se filtry a řazení definované v zobrazení s ID `1`. `view_id` najdete v kontextové nabídce libovolného zobrazení. Jde o číslo v hranatých závorkách za názvem zobrazení. \n\n #### S `filter__{'{'}field{'}'}__{'{'}filter{'}'}` \n\n Použije se filtr zadaný v parametru dotazu i filtry definované v zobrazení.\n\n #### S `order_by` \n\n Je-li zadáno `order_by`, řazení definované v zobrazení bude ignorováno.",
@@ -306,7 +308,8 @@
         "dbIndexError": "Tento typ pole nemůže mít index. Před uložením jej odstraňte nebo změňte typ pole.",
         "dbIndexDescription": "Indexování může výrazně zlepšit výkon filtrování, ale zpomaluje operace vytváření, aktualizace a odstraňování.",
         "defaultValueDisabledByConstraint": "S jedinečným omezením nelze nastavit výchozí hodnotu",
-        "dbIndexDisabledTooltip": "Indexování není pro tento typ pole k dispozici."
+        "dbIndexDisabledTooltip": "Indexování není pro tento typ pole k dispozici.",
+        "defaultValueOverriddenByView": "Pro toto pole je nastavena výchozí hodnota na úrovni zobrazení, která má přednost před touto výchozí hodnotou."
     },
     "fieldLookupSubForm": {
         "noTable": "",
@@ -435,7 +438,8 @@
         "filePreview": "Náhled obsahu souboru",
         "importPreview": "Náhled importu",
         "useUpsertField": "Aktualizovat řádky, pokud již existují",
-        "upsertTooltip": "Přiřaďte existující řádky podle jedinečného pole, aby se data přepsala importovanými hodnotami."
+        "upsertTooltip": "Přiřaďte existující řádky podle jedinečného pole, aby se data přepsala importovanými hodnotami.",
+        "restoredFile": "Importuje se soubor „{name}“..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Kliknutím upravíte vzorec",
@@ -515,7 +519,8 @@
         "sort": "Řazení | 1 řazení | {count} řazení"
     },
     "viewDecorator": {
-        "decorator": "Barva | 1 barva | {count} barev"
+        "decorator": "Barva | 1 barva | {count} barev",
+        "hiddenFieldWarning": "Dekorace jsou pro editory a nižší role odstraněny, protože mohou odkazovat na skrytá pole."
     },
     "viewRotateSlugModal": {
         "title": "Obnovit adresu URL",
@@ -574,7 +579,8 @@
         "importFile": "Importovat soubor",
         "deleteView": "Odstranit zobrazení",
         "toPersonal": "Převést na osobní",
-        "toCollaborative": "Převést na spolupracující"
+        "toCollaborative": "Převést na spolupracující",
+        "defaultRowValues": "Výchozí hodnoty řádků"
     },
     "deleteViewModal": {
         "title": "Odstranit {name}",
@@ -605,7 +611,9 @@
         "hideField": "Skrýt pole",
         "dataSyncField": "Pole je určeno jen pro čtení a je součástí synchronizace dat tabulky.",
         "noWriteValues": "Změny tohoto pole jsou omezené.",
-        "dataSyncFieldTwoWaySync": "Pole je synchronizováno se synchronizací dat tabulky."
+        "dataSyncFieldTwoWaySync": "Pole je synchronizováno se synchronizací dat tabulky.",
+        "groupByField": "Seskupit podle",
+        "ungroupByField": "Neseskupovat podle"
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "Řádek neodpovídá filtrům",
@@ -633,7 +641,8 @@
         "AIValuesGenerationErrorTitle": "Generování hodnot pomocí AI se nezdařilo",
         "AIValuesGenerationErrorMessage": "Zkontrolujte svůj API_KEY a ověřte vybraný model.",
         "copyCellsWithHeader": "Kopírovat buňky se záhlavím",
-        "generateAllAiValues": "Generovat všechny hodnoty AI"
+        "generateAllAiValues": "Generovat všechny hodnoty AI",
+        "promptBroken": "Výzva je porušená a před generováním hodnot ji musíte opravit."
     },
     "gridViewFieldFile": {
         "dropHere": "Sem přetáhněte",
@@ -669,7 +678,9 @@
     },
     "exportTableForm": {
         "viewLabel": "Vyberte zobrazení k exportu:",
-        "typeError": "Není k dispozici žádný typ exportu. Vyberte jiné zobrazení nebo celou tabulku."
+        "typeError": "Není k dispozici žádný typ exportu. Vyberte jiné zobrazení nebo celou tabulku.",
+        "includeRowId": "Zahrnout ID řádku",
+        "includePrimaryField": "Zahrnout primární pole"
     },
     "exportTableLoadingBar": {
         "export": "Export",
@@ -700,7 +711,7 @@
         "back": "Zpět na nástěnku"
     },
     "viewAggregationType": {
-        "emptyCount": "",
+        "emptyCount": "(Prázdné)",
         "notEmptyCount": "Vyplněné",
         "emptyPercentage": "Procento prázdných",
         "notEmptyPercentage": "Procento vyplněných",
@@ -732,7 +743,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Sdílejte odkaz na svou databázi",
-        "airtableShareLinkDescription": "Chcete-li importovat databázi Airtable, musíte mít sdílený odkaz na celou databázi. V Airtable po otevření databáze klikněte na tlačítko sdílení v pravém horním rohu. Poté musíte vybrat možnost „Share via link“. V dialogu sdílení můžete kliknout na kartu „Share publicly“ a potom na „Enable shared base link“. Zkopírujte veřejný odkaz a vložte jej do pole níže.",
+        "airtableShareLinkDescription": "Chcete-li importovat databázi Airtable, musíte mít sdílený odkaz na celou databázi. V Airtable po otevření databáze klikněte na tlačítko sdílení v pravém horním rohu. Poté musíte vybrat možnost „Share via link“. V dialogu sdílení můžete kliknout na kartu „Share publicly“ a potom na „Enable shared base link“. Zkopírujte veřejný odkaz a vložte jej do pole níže. Odkaz na veřejně sdílené zobrazení je také přijímán a importuje se jako databáze obsahující tuto jedinou tabulku.",
         "airtableShareLinkBeta": "Tato funkce importuje většinu dat, existují však nekompatibility. Proto bude přidána tabulka s názvem „Airtable import report“ obsahující seznam položek, které nebyly importovány nebo byly importovány jen částečně.",
         "airtableShareLinkPaste": "Vložte sem odkaz",
         "importButtonLabel": "Importovat z Airtable",
@@ -753,12 +764,17 @@
         "skipFilesHelper": "Databáze Airtable s mnoha soubory může import zpomalit. Zapnutím této volby se import souborů přeskočí.",
         "useSession": "Ověření relace",
         "useSessionHelper": "Použijte tuto volbu, pokud veřejně sdílená databáze vyžaduje ověření.",
-        "sessionDescription": "Pokud import odpoví „The Airtable base requires authentication.“, mohou organizační nastavení v Airtable bránit přístupu k databázi Airtable bez předchozího ověření. Proto je nutné ručně získat relaci a podpis. V prohlížeči navštivte adresu URL veřejně sdílené databáze a podle potřeby se přihlaste. Otevřete nabídku aplikace kliknutím v pravém horním rohu -> „More tools“ -> „Developer tools“. Otevřete kartu „Application“ (ve Firefoxu „Storage“) a klikněte na „https://airtable.com“. Nyní vyhledejte hodnoty cookies „__Host-airtable-session“ a „__Host-airtable-session.sig“ a vložte je do polí níže.",
+        "sessionDescription": "Pokud import selže, protože databáze vyžaduje ověření, mohou organizační nastavení v Airtable bránit přístupu k databázi Airtable bez předchozího ověření. Proto je nutné ručně získat relaci a podpis. V prohlížeči navštivte adresu URL veřejně sdílené databáze a podle potřeby se přihlaste. Otevřete nabídku aplikace kliknutím v pravém horním rohu -> „More tools“ -> „Developer tools“. Otevřete kartu „Application“ (ve Firefoxu „Storage“) a klikněte na „https://airtable.com“. Nyní vyhledejte hodnoty cookies „__Host-airtable-session“ a „__Host-airtable-session.sig“ a vložte je do polí níže.",
         "sessionLabel": "Cookie relace (__Host-airtable-session)",
-        "sessionSignatureLabel": "Cookie podpisu relace (__Host-airtable-session.sig)"
+        "sessionSignatureLabel": "Cookie podpisu relace (__Host-airtable-session.sig)",
+        "errorRequiresAuthenticationTitle": "Vyžadováno ověření",
+        "errorRequiresAuthenticationDescription": "Tuto databázi lze importovat pouze s dodatečným ověřením. Níže uvedená možnost „Ověření relace“ pro vás byla povolena. Podle pokynů zkopírujte hodnoty souborů cookie „__Host-airtable-session“ a „__Host-airtable-session.sig“ do polí a zkuste to znovu.",
+        "errorBaseNotPublicTitle": "K databázi se nepodařilo přistoupit",
+        "errorBaseNotPublicDescription": "Airtable pro tento odkaz nevrátil veřejně sdílenou databázi. Otevřete odkaz v prohlížeči a ověřte, že načte databázi, kterou chcete importovat, a že byla správně zkopírována celá adresa URL. Poté to zkuste znovu.",
+        "openSharedLink": "Otevřít sdílený odkaz"
     },
     "chooseSingleSelectField": {
-        "addSelectField": "",
+        "addSelectField": "Přidat pole s jedním výběrem",
         "warningWhenNothingToChooseOrCreate": "Nejsou k dispozici žádná pole s jedním výběrem a nemáte oprávnění žádné vytvořit."
     },
     "viewDecoratorContext": {
@@ -781,7 +797,7 @@
         "cannotSumitValues": "Toto pole je určeno jen pro čtení a ve formuláři se nezobrazí."
     },
     "duplicateFieldContext": {
-        "duplicate": "",
+        "duplicate": "Duplikovat pole",
         "cloneData": "Kopírovat data",
         "readOnlyField": "Hodnoty buněk se vyplní automaticky."
     },
@@ -916,8 +932,10 @@
         "groupBy": "Seskupit podle",
         "thenBy": "Poté podle",
         "addGroupBy": "vyberte pole, podle kterého chcete seskupit",
-        "maxGroupBysReached": "Seskupení | Seskupit podle 1 pole | Seskupit podle {count} polí",
-        "hiddenFieldWarning": "Jedno nebo více seskupení odkazuje na skrytá pole, která nebudou viditelná pro editory a nižší role."
+        "maxGroupBysReached": "Můžete seskupovat podle nejvýše {count} polí.",
+        "hiddenFieldWarning": "Jedno nebo více seskupení odkazuje na skrytá pole, která nebudou viditelná pro editory a nižší role.",
+        "collapseAllGroups": "Sbalit vše",
+        "expandAllGroups": "Rozbalit vše"
     },
     "formSubmittedNotification": {
         "title": "Formulář {formName} byl odeslán v tabulce {tableName}:",
@@ -1070,7 +1088,8 @@
         "importError": "Během importu souboru se něco nezdařilo",
         "stateRowCreation": "Importuje se...",
         "statePreValidation": "Ověřují se data...",
-        "stateCreateTable": "Vytváří se tabulka..."
+        "stateCreateTable": "Vytváří se tabulka...",
+        "importingTable": "Importuje se tabulka „{name}“..."
     },
     "importErrorReport": {
         "reportTitleFailure": "Řádky se selháním",
@@ -1096,7 +1115,10 @@
         "error": "Během synchronizace se něco nezdařilo",
         "autoAddLabel": "Automaticky přidávat nové vlastnosti",
         "autoAddHelper": "Automaticky přidává a synchronizuje nově dostupné vlastnosti ze zdroje dat do tabulky Baserow. Aby tato funkce fungovala, musí být synchronizovány všechny vlastnosti.",
-        "twoWaySyncLabel": "Obousměrná synchronizace"
+        "twoWaySyncLabel": "Obousměrná synchronizace",
+        "syncing": "Synchronizují se data...",
+        "deleteUnmatchedRowsLabel": "Odstranit řádky, když jsou ve zdroji odstraněny nebo skryty",
+        "deleteUnmatchedRowsHelper": "Je-li tato volba povolena, řádky odstraněné ve zdroji nebo ve zdroji již neviditelné se při každé synchronizaci odstraní také z této tabulky. Je-li zakázána, tyto řádky se zachovají a znovu použijí, pokud se zdrojový řádek znovu objeví."
     },
     "syncTableModal": {
         "title": "Synchronizovat {name}",
@@ -1124,7 +1146,8 @@
     "configureDataSyncModal": {
         "title": "Synchronizace dat",
         "syncedFields": "Synchronizovaná pole",
-        "syncSettings": "Nastavení synchronizace"
+        "syncSettings": "Nastavení synchronizace",
+        "syncHistory": "Historie synchronizace"
     },
     "configureDataSyncVisibleFields": {
         "title": "Změnit synchronizovaná pole",
@@ -1205,5 +1228,102 @@
     "rowEditFieldFormViewEditRow": {
         "copyLink": "Kopírovat odkaz",
         "noFormView": "Není nastaveno žádné formulářové zobrazení"
+    },
+    "viewsAdminTable": {
+        "allWorkspaces": "Všechny pracovní prostory",
+        "allViews": "Všechna zobrazení",
+        "onlyPublic": "Pouze veřejně sdílená zobrazení",
+        "name": "Zobrazení",
+        "type": "Typ",
+        "table": "Tabulka",
+        "database": "Databáze",
+        "workspace": "Pracovní prostor",
+        "public": "Veřejně sdílené",
+        "passwordProtected": "Heslo",
+        "ownedBy": "Vlastník",
+        "createdOn": "Vytvořeno dne"
+    },
+    "viewsAdminContext": {
+        "filterWorkspace": "Filtrovat podle pracovního prostoru",
+        "copyPublicUrl": "Kopírovat veřejnou adresu URL",
+        "openPublicView": "Otevřít veřejné zobrazení na nové kartě",
+        "rotateSlug": "Obnovit slug",
+        "makePrivate": "Nastavit jako soukromé",
+        "makePublic": "Nastavit jako veřejné",
+        "publicUrlCopiedTitle": "Veřejná adresa URL zkopírována",
+        "publicUrlCopiedMessage": "Veřejná adresa URL zobrazení byla zkopírována do schránky."
+    },
+    "templateOnboardingCancelModal": {
+        "title": "Vyberte šablonu pro začátek",
+        "description": "Chcete-li přeskočit úvodní nastavení, vyberte jednu z níže uvedených šablon. Začít se šablonou je nejlepší způsob, jak poznat Baserow, protože za vás nastaví tabulky, pole a ukázková data. Později ji můžete kdykoli změnit nebo odstranit.",
+        "continue": "Použít tuto šablonu"
+    },
+    "viewGroupBy": {
+        "groupBy": "Seskupení | Seskupit podle 1 pole | Seskupit podle {count} polí"
+    },
+    "defaultValuesModal": {
+        "title": "Výchozí hodnoty pro {name}",
+        "setDefaultValue": "Nastavit výchozí hodnotu",
+        "removeDefaultValue": "Odstranit výchozí hodnotu",
+        "staticValue": "Statická hodnota"
+    },
+    "gridViewFreezeHandle": {
+        "freeze": "Zmrazit 0 sloupců | Zmrazit 1 sloupec | Zmrazit {count} sloupců",
+        "hoverHint": "Přetažením zmrazíte sloupce"
+    },
+    "tableExcelImporter": {
+        "chooseFileLabel": "Vyberte soubor Excel",
+        "chooseFileDescription": "Existující tabulku můžete importovat nahráním souboru .xlsx, .xls nebo .ods. Obsahuje-li soubor více listů, můžete si vybrat, který importovat.",
+        "chooseFile": "Vyberte soubor Excel",
+        "sheet": "List",
+        "firstRowHeader": "První řádek je záhlaví",
+        "limitFileSize": "Maximální velikost souboru je {limit} MB.",
+        "limitError": "Nelze importovat více než {limit} řádků.",
+        "processingError": "Při zpracování souboru Excel došlo k chybě: {error}",
+        "emptyError": "Tento soubor Excel neobsahuje žádné listy.",
+        "emptySheetError": "Vybraný list je prázdný."
+    },
+    "viewSearch": {
+        "clearSearch": "Vymazat vyhledávání"
+    },
+    "gridViewGroupByBanner": {
+        "emptyValue": "(Prázdné)",
+        "expandGroup": "Rozbalit skupinu",
+        "collapseGroup": "Sbalit skupinu"
+    },
+    "adminType": {
+        "databaseViews": "Zobrazení"
+    },
+    "viewsAdmin": {
+        "title": "Zobrazení"
+    },
+    "viewsAdminRotateSlugModal": {
+        "title": "Obnovit adresu URL",
+        "refreshWarning": "Opravdu chcete obnovit adresu URL zobrazení {viewName}? Po obnovení se vygeneruje nová adresa URL a přes starou adresu URL už nebude možné k zobrazení přistupovat. Každý, kdo má starou adresu URL, už k zobrazení nebude moci přistupovat.",
+        "generateNewURL": "Vygenerovat novou adresu URL"
+    },
+    "dataSyncRuns": {
+        "title": "Historie synchronizace",
+        "description": "Nejnovější spuštění synchronizace této tabulky bez ohledu na to, jak byla spuštěna.",
+        "previousRuns": "Předchozí spuštění",
+        "noRuns": "Tato tabulka zatím nebyla synchronizována.",
+        "triggerManual": "Ruční",
+        "triggerPeriodic": "Pravidelná",
+        "byUser": "uživatel {name}",
+        "duration": "{seconds}s"
+    },
+    "formViewFooterLinks": {
+        "reportAbuse": "Nahlásit zneužití"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "Nahlásit zneužití",
+        "moreOptions": "Další možnosti"
+    },
+    "fieldButtonSubForm": {
+        "label": "Popisek",
+        "labelPlaceholder": "Otevřít",
+        "url": "URL",
+        "urlPlaceholder": "např. concat('https://example.com/', get('fields.field_1'))",
+        "invalidUrl": "Vzorec adresy URL je neplatný."
     }
 }
