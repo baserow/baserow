@@ -243,7 +243,7 @@
         "fillSeats": "Obsadit volná místa uživateli, kteří tarif nepoužívají",
         "removeAll": "Odebrat všechny uživatele",
         "licenseId": "ID licence",
-        "addUser": "",
+        "addUser": "Přidat uživatele",
         "plan": "Tarif",
         "premium": "Premium",
         "expired": "Platnost vypršela",
@@ -359,11 +359,11 @@
     "calendarViewHeader": {
         "displayBy": "Zobrazit podle",
         "displayedBy": "Zobrazeno podle pole „{fieldName}“",
-        "labels": "Štítky"
+        "labels": "Popisky"
     },
     "timelineViewHeader": {
         "dateSettings": "Nastavení data",
-        "labels": "Štítky"
+        "labels": "Popisky"
     },
     "selectDateFieldContext": {
         "save": "Uložit"
