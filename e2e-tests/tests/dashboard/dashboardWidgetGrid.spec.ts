@@ -63,7 +63,7 @@ async function expectWidgetLayout(
 }
 
 test.describe('Dashboard widget grid', () => {
-  test.use({ viewport: { width: 1440, height: 1000 } })
+  test.use({ viewport: { width: 1920, height: 1000 } })
 
   test('keeps widget context menus available in edit mode', async ({
     page,
@@ -84,7 +84,9 @@ test.describe('Dashboard widget grid', () => {
     const contextButton = page.getByTestId(
       `dashboard-widget-context-${widget.id}`
     )
+    await page.getByTestId(`dashboard-widget-${widget.id}`).hover()
     await expect(contextButton).toBeVisible()
+    await expect(contextButton).toHaveCSS('pointer-events', 'auto')
     await contextButton.click()
     await expect(page.getByText('Delete', { exact: true })).toBeVisible()
   })
@@ -130,6 +132,7 @@ test.describe('Dashboard widget grid', () => {
     await enterEditMode(page)
 
     const grid = page.getByTestId('dashboard-widget-grid')
+    await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '6')
     const gridItem = page.getByTestId(`dashboard-widget-grid-item-${widget.id}`)
     const dashboardWidget = page.getByTestId(`dashboard-widget-${widget.id}`)
     const layoutBox = await grid.locator('.vgl-layout').boundingBox()
@@ -210,6 +213,7 @@ test.describe('Dashboard widget grid', () => {
     await enterEditMode(page)
 
     const grid = page.getByTestId('dashboard-widget-grid')
+    await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '6')
     const layoutBox = await grid.locator('.vgl-layout').boundingBox()
     if (!layoutBox) {
       throw new Error('Could not measure the dashboard widget grid')
@@ -314,9 +318,14 @@ test.describe('Dashboard widget grid', () => {
       },
     ])
 
-    await page.setViewportSize({ width: 1250, height: 1000 })
+    await page.setViewportSize({ width: 1500, height: 1000 })
     await goToDashboard(page, dashboard)
     await enterEditMode(page)
+
+    await expect(page.getByTestId('dashboard-widget-grid')).toHaveCSS(
+      '--dashboard-widget-grid-columns',
+      '4'
+    )
 
     const firstWidgetItem = page.getByTestId(
       `dashboard-widget-grid-item-${firstWidget.id}`
@@ -335,7 +344,12 @@ test.describe('Dashboard widget grid', () => {
       })
       .toBeCloseTo(1 / 3, 1)
 
-    await page.getByTestId(`dashboard-widget-context-${firstWidget.id}`).click()
+    await page.getByTestId(`dashboard-widget-${firstWidget.id}`).hover()
+    const contextButton = page.getByTestId(
+      `dashboard-widget-context-${firstWidget.id}`
+    )
+    await expect(contextButton).toHaveCSS('pointer-events', 'auto')
+    await contextButton.click()
     await page.getByText('Delete', { exact: true }).click()
 
     await expectWidgetLayout(dashboard, secondWidget.id, {
