@@ -2,7 +2,7 @@
   "dashboard": {
     "descriptionPlaceholder": "Description",
     "addWidget": "Add widget",
-    "widgetsLoading": "Loading dashboard widgets"
+    "widgetsLoading": "Loading your dashboard..."
   },
   "dashboardHeader": {
     "doneEditing": "Done editing"

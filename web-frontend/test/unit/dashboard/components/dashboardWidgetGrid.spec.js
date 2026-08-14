@@ -124,6 +124,9 @@ describe('DashboardWidgetGrid', () => {
       wrapper.find('[data-testid="dashboard-widget-grid-loading"]').exists()
     ).toBe(true)
     expect(
+      wrapper.get('[data-testid="dashboard-widget-grid-loading"]').text()
+    ).toBe('dashboard.widgetsLoading')
+    expect(
       wrapper.find('[data-testid="dashboard-widget-grid-bootstrap"]').exists()
     ).toBe(false)
     expect(wrapper.find('.vgl-layout').exists()).toBe(false)

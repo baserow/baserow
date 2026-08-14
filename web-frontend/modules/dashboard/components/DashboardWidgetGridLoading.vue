@@ -1,10 +1,17 @@
 <template>
   <div
-    class="dashboard-widget-grid__loading loading-spinner"
+    class="dashboard-widget-grid__loading"
     data-testid="dashboard-widget-grid-loading"
     role="status"
-    :aria-label="$t('dashboard.widgetsLoading')"
-  ></div>
+  >
+    <span
+      class="dashboard-widget-grid__loading-spinner"
+      aria-hidden="true"
+    ></span>
+    <span class="dashboard-widget-grid__loading-label">
+      {{ $t('dashboard.widgetsLoading') }}
+    </span>
+  </div>
 </template>
 
 <script>
