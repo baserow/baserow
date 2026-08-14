@@ -23,10 +23,29 @@
 
 .dashboard-widget-board__fallback {
   width: 100%;
+  display: flex;
+  flex: 1 1 auto;
 }
 
 .dashboard-widget-grid__loading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   min-height: 240px;
+  background-color: rgba($white, 0.8);
+}
+
+.dashboard-widget-grid__loading-spinner {
+  @include loading(32px);
+}
+
+.dashboard-widget-grid__loading-label {
+  color: $palette-neutral-700;
+  font-size: 12px;
+  line-height: 20px;
 }
 
 .dashboard-widget-grid > .dashboard-widget-grid__loading--overlay {
@@ -152,6 +171,9 @@ body.dashboard-widget-grid--resizing * {
   --grid-gap: var(--dashboard-widget-grid-gap);
 
   position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   width: 100%;
 
   .vgl-layout {
