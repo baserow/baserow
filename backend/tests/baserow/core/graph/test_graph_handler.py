@@ -764,7 +764,7 @@ def test_remove_container_with_self_referencing_child():
 def test_get_children_terminates_on_self_referencing_next():
     # Traversal must track the points already seen: a `next` pointing back at
     # an already-seen point is not followed. The graph is NOT mutated —
-    # repairing corruption is the healing process's job (heal_orphan_elements).
+    # repairing corruption is the healing process's job (heal_corrupted_graph).
     model = make_graph_model(
         {"0": 1, "1": {"children": {"": [2]}}, "2": {"next": {"": [2]}}}
     )
@@ -918,7 +918,7 @@ def test_remove_parent_of_point_whose_children_contains_itself():
 
 
 def test_prune_points_handles_self_referencing_stale_point():
-    # prune_points is the heal_orphan_elements path for graph entries whose DB
+    # prune_points is the heal_corrupted_graph path for graph entries whose DB
     # row is gone. A stale point whose `next` is itself must not be reported as
     # its own predecessor (leaving the real parent's children dangling), nor be
     # spliced back in as its own successor.
@@ -1026,6 +1026,181 @@ def test_strip_dangling_references():
         "3": {},
     }
     assert graph.strip_dangling_references() == []
+
+
+def test_find_cycle_reference_pairs():
+    graph = {
+        "0": 1,
+        # Root chain: 1 -> 2 (container) -> ... -> 5 (tail).
+        "1": {"next": {"": [2]}},
+        # 2's child chain (3 -> 4) loops back onto 1, an ancestor-level point:
+        # 4 -> next -> 1 is the cycle-closing back-edge.
+        "2": {"next": {"": [5]}, "children": {"0": [3]}},
+        "3": {"next": {"": [4]}},
+        "4": {"next": {"": [1]}},
+        "5": {},
+        # Detached two-point cycle.
+        "6": {"next": {"": [7]}},
+        "7": {"next": {"": [6]}},
+        # A dangling reference can never close a cycle.
+        "8": {"next": {"": [99]}},
+        # A direct self-reference is a (single-point) cycle.
+        "9": {"next": {"": [9]}},
+    }
+
+    assert BaseGraphHandler.find_cycle_reference_pairs(graph) == {
+        (4, 1),
+        (7, 6),
+        (9, 9),
+    }
+    # An acyclic graph — including converging references — has no back-edges.
+    assert (
+        BaseGraphHandler.find_cycle_reference_pairs(
+            {"0": 1, "1": {"next": {"": [3]}}, "2": {"next": {"": [3]}}, "3": {}}
+        )
+        == set()
+    )
+    assert BaseGraphHandler.find_cycle_reference_pairs({}) == set()
+    assert BaseGraphHandler.find_cycle_reference_pairs(None) == set()
+
+
+def test_find_cycle_reference_pairs_does_not_recurse():
+    # A next-chain deeper than the Python recursion limit must still be
+    # scannable: the DFS is iterative.
+    depth = 5000
+    graph = {"0": 1}
+    for i in range(1, depth):
+        graph[str(i)] = {"next": {"": [i + 1]}}
+    graph[str(depth)] = {"next": {"": [1]}}
+
+    assert BaseGraphHandler.find_cycle_reference_pairs(graph) == {(depth, 1)}
+
+
+def test_strip_cycle_references():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [5]}, "children": {"0": [3]}},
+            "3": {"next": {"": [4]}},
+            "4": {"next": {"": [1]}},
+            "5": {},
+            "6": {"next": {"": [7]}},
+            "7": {"next": {"": [6]}},
+        }
+    )
+    graph = model.get_graph()
+
+    stripped = graph.strip_cycle_references()
+
+    assert stripped == [(4, 1), (7, 6)]
+    # Only the cycle-closing references are dropped; every point keeps the
+    # position its traversal tree reaches it at, and nothing root-reachable
+    # becomes unreachable.
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"next": {"": [5]}, "children": {"0": [3]}},
+        "3": {"next": {"": [4]}},
+        "4": {},
+        "5": {},
+        "6": {"next": {"": [7]}},
+        "7": {},
+    }
+    assert BaseGraphHandler.find_unreachable_point_ids(model.graph) == {6, 7}
+    # Already-acyclic graph: nothing stripped, nothing changed.
+    assert graph.strip_cycle_references() == []
+
+
+def test_find_converging_reference_pairs():
+    # Diamond: 3 is referenced by both 1 (root-reachable) and 2 (detached).
+    # The root-reachable reference is canonical; the other is surplus.
+    assert BaseGraphHandler.find_converging_reference_pairs(
+        {"0": 1, "1": {"next": {"": [3]}}, "2": {"next": {"": [3]}}, "3": {}}
+    ) == {(2, 3)}
+
+    # The root pointer is always canonical: a real reference to the root
+    # point is surplus even when it is the only next/children reference.
+    assert BaseGraphHandler.find_converging_reference_pairs(
+        {"0": 1, "1": {}, "2": {"next": {"": [1]}}}
+    ) == {(2, 1)}
+
+    # A source referencing the same point twice is never canonical: both its
+    # references are surplus (removal is per source-target pair), and the
+    # detached point is later rescued by reattach_unreachable_points.
+    assert BaseGraphHandler.find_converging_reference_pairs(
+        {"0": 1, "1": {"next": {"": [2]}, "children": {"0": [2]}}, "2": {}}
+    ) == {(1, 2)}
+
+    # Single incoming references — including in detached components — are
+    # never flagged, and references to unkeyed points are the dangling
+    # detector's responsibility.
+    assert (
+        BaseGraphHandler.find_converging_reference_pairs(
+            {
+                "0": 1,
+                "1": {"next": {"": [2, 99]}},
+                "2": {},
+                "4": {"next": {"": [5]}},
+                "5": {},
+            }
+        )
+        == set()
+    )
+    assert BaseGraphHandler.find_converging_reference_pairs({}) == set()
+    assert BaseGraphHandler.find_converging_reference_pairs(None) == set()
+
+
+def test_strip_converging_references():
+    model = make_graph_model(
+        {
+            "0": 1,
+            # Root chain 1 -> 2 -> 3; detached 4 also references 3 (diamond).
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [3]}},
+            "3": {},
+            "4": {"next": {"": [3]}},
+        }
+    )
+    graph = model.get_graph()
+
+    stripped = graph.strip_converging_references()
+
+    assert stripped == [(4, 3)]
+    # The canonical (root-reachable) reference is kept; the surplus one is
+    # gone, and its source is left for the reattachment pass.
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+        "4": {},
+    }
+    assert BaseGraphHandler.find_unreachable_point_ids(model.graph) == {4}
+    # Already-consistent graph: nothing stripped, nothing changed.
+    assert graph.strip_converging_references() == []
+
+
+def test_collect_descendant_ids():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [6]}, "children": {"0": [3], "1": [5]}},
+            "3": {"next": {"": [4]}, "children": {"": [7]}},
+            "4": {},
+            "5": {},
+            "6": {},
+            "7": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.collect_descendant_ids(2) == {3, 4, 5, 7}
+    assert graph.collect_descendant_ids(3) == {7}
+    assert graph.collect_descendant_ids(4) == set()
+    # A point with no entry has no subtree.
+    assert graph.collect_descendant_ids(99) == set()
 
 
 def test_find_unreachable_point_ids():

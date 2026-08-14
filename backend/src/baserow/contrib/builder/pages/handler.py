@@ -610,6 +610,27 @@ class PageHandler:
             + 1
         )
 
+    def heal_corrupted_graph(self, page: Page) -> Dict[str, Any]:
+        """
+        Reconcile ``page.graph`` with the element rows that actually exist,
+        repairing every known graph corruption class (orphans, stale points,
+        self-references, dangling references, cycles, converging references,
+        invalid children edges and detached points). The page owns the graph,
+        so this is the single healing entry point; the element-aware logic
+        lives in `PageHealingHandler`.
+
+        :param page: The page whose graph should be reconciled.
+        :return: A graph "patch" — the top-level graph entries that changed,
+            keyed by point id — empty when nothing changed. See
+            `PageHealingHandler.heal_corrupted_graph`.
+        """
+
+        from baserow.contrib.builder.pages.healing_handler import (
+            PageHealingHandler,
+        )
+
+        return PageHealingHandler().heal_corrupted_graph(page)
+
     def import_pages(
         self,
         builder: Builder,

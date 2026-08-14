@@ -1,5 +1,4 @@
 from collections import defaultdict
-from copy import deepcopy
 from typing import (
     Any,
     Callable,
@@ -15,7 +14,6 @@ from typing import (
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
-from django.db import transaction
 from django.db.models import QuerySet
 
 from baserow.contrib.builder.elements.exceptions import (
@@ -196,8 +194,14 @@ class ElementHandler:
         element = grouped_elements[element.id]
 
         ancestry = []
+        seen_ids = {element.id}
         while element.parent_element_id is not None:
+            # A corrupted graph can make an element (transitively) its own
+            # parent; stop instead of walking the cycle forever.
+            if element.parent_element_id in seen_ids:
+                break
             element = grouped_elements[element.parent_element_id]
+            seen_ids.add(element.id)
             if predicate is None or (
                 isinstance(predicate, Callable) and predicate(element)
             ):
@@ -306,225 +310,6 @@ class ElementHandler:
                 _get_elements,
             )
         return _get_elements()
-
-    def heal_orphan_elements(self, page: Page) -> Dict[str, Any]:
-        """
-        Reconcile `page.graph` with the elements that actually exist in the
-        database, repairing drift that can appear during a non-zero-downtime deploy
-        when older code mutates element rows without touching the graph. Keeping the
-        graph the single source of truth means downstream operations (move, delete,
-        …) never have to special-case a missing or dangling graph entry.
-
-        Five kinds of inconsistency are reconciled:
-
-        - "orphans": rows present in the DB but absent from the graph (e.g. created
-          by old code). They are inserted where a newly added element would land:
-
-          - Unshared page: appended to the end of the page's root chain.
-          - Shared page: appended to the end of the first shared element (the
-            Header/Footer container at the root of the shared page).
-
-        - "stale points": ids still referenced by the graph whose row no longer
-          exists (e.g. hard-deleted by old code). They are spliced out via
-          `prune_points` so a traversal can never resolve a missing point (which
-          would otherwise raise and 500 the editor's element list).
-
-        - "self-references": points listing themselves as their own `next` or
-          child — an invariant violation that would otherwise only be healed
-          when a chain traversal happens to walk that subtree. The corrupted
-          self-edges are stripped via `strip_self_references`; detection is a
-          pure in-memory scan, so the steady-state fast path stays as cheap as
-          before (one id-list query, no lock, no writes).
-
-        - "dangling references": ids listed in `next` or `children` which have
-          no corresponding point entry in the graph. They are simply dropped
-          via `strip_dangling_references`.
-
-        - "detached points": live elements keyed in the graph but unreachable
-          from the root (no incoming reference) — invisible in the editor and
-          undeletable (`get_position` raises). They are re-attached at the
-          bottom of the graph via `reattach_unreachable_points` so they become
-          the last element(s) of the page (or of the shared container's
-          default slot on a shared page). Detection is also a pure in-memory
-          scan.
-
-        :param page: The page whose graph should be reconciled.
-        :return: A graph "patch" — the top-level graph entries that changed, keyed by
-            point id, each holding its full new value. Empty when nothing changed.
-            Because the graph is a flat dict, a client can apply it with a shallow
-            merge (`{...graph, ...patch}`). Note a pruned stale key is not in the
-            patch (a shallow merge can't express a deletion), but its now-relinked
-            predecessor is, so the stale key is left unreferenced — harmless, and the
-            client drops it on the next full graph sync.
-        """
-
-        root_key = page.get_graph().GRAPH_ROOT_KEY
-
-        def compute_drift(graph) -> tuple[set, set, set, set, set]:
-            graph_ids = {int(k) for k in graph if k != root_key}
-            db_ids = set(Element.objects.filter(page=page).values_list("id", flat=True))
-            # (orphans missing from the graph, stale points missing from the DB,
-            # points referencing themselves via next/children, references with
-            # no corresponding graph point, live points keyed in the graph but
-            # unreachable from the root). The last three checks are pure
-            # in-memory scans — no extra query.
-            return (
-                db_ids - graph_ids,
-                graph_ids - db_ids,
-                BaseGraphHandler.find_self_referencing_point_ids(graph),
-                BaseGraphHandler.find_dangling_reference_ids(graph),
-                BaseGraphHandler.find_unreachable_point_ids(graph) & db_ids,
-            )
-
-        # Fast path: nothing to reconcile (the steady state). Avoid locking/writes.
-        orphan_ids, stale_ids, self_ref_ids, dangling_ids, detached_ids = compute_drift(
-            page.get_graph().graph
-        )
-        if (
-            not orphan_ids
-            and not stale_ids
-            and not self_ref_ids
-            and not dangling_ids
-            and not detached_ids
-        ):
-            return {}
-
-        # Re-check under a row lock so concurrent reads can't race on the same graph.
-        with transaction.atomic():
-            locked_page = Page.objects.select_for_update().get(id=page.id)
-            graph_handler = locked_page.get_graph()
-            (
-                orphan_ids,
-                stale_ids,
-                self_ref_ids,
-                dangling_ids,
-                detached_ids,
-            ) = compute_drift(graph_handler.graph)
-            if (
-                not orphan_ids
-                and not stale_ids
-                and not self_ref_ids
-                and not dangling_ids
-                and not detached_ids
-            ):
-                return {}
-
-            # Snapshot before mutating so we can return only what changed.
-            before = deepcopy(graph_handler.graph)
-
-            # Strip self-references first: a point that is its own next/child
-            # violates the graph invariant and would otherwise stay corrupted
-            # until a chain traversal happens to walk (and heal) that subtree.
-            if self_ref_ids:
-                graph_handler.strip_self_references()
-
-            # Drop references which cannot be traversed because the referenced
-            # point has no serialized graph entry.
-            if dangling_ids:
-                graph_handler.strip_dangling_references()
-
-            # Prune stale points next so orphan placement (which traverses the
-            # graph, e.g. append → get_last_position) can't walk into a missing
-            # point part-way through.
-            if stale_ids:
-                graph_handler.prune_points(stale_ids)
-
-            # On a shared page, append orphans to the first shared element (the root
-            # Header/Footer container); otherwise append to the end of the page.
-            container = None
-            if locked_page.shared:
-                root_id = graph_handler.graph.get(root_key)
-                container = (
-                    graph_handler.get_point(root_id) if root_id is not None else None
-                )
-
-            # Re-attach detached subtrees (live elements keyed in the graph but
-            # unreachable from the root — invisible and undeletable ghosts) at
-            # the bottom of the graph, before appending orphans. Run even when
-            # detached_ids was empty at detection time: pruning a stale
-            # container above can itself leave live children detached, and this
-            # is a no-op in-memory scan when there is nothing to re-attach.
-            reattached_ids = graph_handler.reattach_unreachable_points(
-                container=container
-            )
-
-            for orphan in Element.objects.filter(id__in=orphan_ids).order_by("id"):
-                if container is not None:
-                    graph_handler.insert(
-                        orphan, container, GraphPointPosition.CHILD, ""
-                    )
-                else:
-                    graph_handler.append(orphan)
-
-            after = graph_handler.graph
-            patch = {k: v for k, v in after.items() if before.get(k) != v}
-
-        # Reflect the healed graph on the caller's page and drop any cached elements.
-        page.graph = locked_page.graph
-        self.invalidate_element_cache(page)
-
-        self._report_graph_heal(
-            page,
-            orphan_ids,
-            stale_ids,
-            self_ref_ids,
-            dangling_ids,
-            set(reattached_ids),
-            patch,
-        )
-
-        return patch
-
-    def _report_graph_heal(
-        self,
-        page: Page,
-        healed_ids: set,
-        pruned_ids: set,
-        self_ref_ids: set,
-        dangling_ids: set,
-        reattached_ids: set,
-        graph_patch: Dict[str, Any],
-    ) -> None:
-        """
-        Surface a graph reconciliation in Sentry so we know it happened. Drift means
-        the page graph diverged from the DB — typically element rows written or
-        hard-deleted by older code during a non-zero-downtime deploy — and has now
-        been repaired. Reported at "warning" level (it signals an upstream
-        inconsistency, even though it's self-corrected), with the counts, ids and
-        the applied patch.
-        """
-
-        import sentry_sdk
-
-        with sentry_sdk.new_scope() as scope:
-            scope.set_context(
-                "graph_heal",
-                {
-                    "page_id": page.id,
-                    "builder_id": page.builder_id,
-                    "shared": page.shared,
-                    "healed_element_count": len(healed_ids),
-                    "healed_element_ids": sorted(healed_ids),
-                    "pruned_stale_count": len(pruned_ids),
-                    "pruned_stale_ids": sorted(pruned_ids),
-                    "stripped_self_reference_count": len(self_ref_ids),
-                    "stripped_self_reference_ids": sorted(self_ref_ids),
-                    "stripped_dangling_reference_count": len(dangling_ids),
-                    "stripped_dangling_reference_ids": sorted(dangling_ids),
-                    "reattached_detached_count": len(reattached_ids),
-                    "reattached_detached_ids": sorted(reattached_ids),
-                    "graph_patch": graph_patch,
-                },
-            )
-            sentry_sdk.capture_message(
-                f"Healed {len(healed_ids)} orphan element(s), pruned "
-                f"{len(pruned_ids)} stale point(s), stripped "
-                f"{len(self_ref_ids)} self-reference(s), stripped "
-                f"{len(dangling_ids)} dangling reference(s) and re-attached "
-                f"{len(reattached_ids)} detached point(s) in the graph of "
-                f"builder page {page.id}.",
-                level="warning",
-            )
 
     def _get_builder_elements_cache_key(self, builder_id: int, specific: bool) -> str:
         return f"ab_get_{builder_id}_builder_elements_{specific}"
@@ -869,21 +654,31 @@ class ElementHandler:
         :return: An object that can be used as import context.
         """
 
-        if not element_id:
-            return {}
-
         if not element_map:
             element_map = {}
 
-        if element_id in element_map:
-            current_element = element_map[element_id]
-        else:
-            # Fetch the element if we have no cache
-            current_element = self.get_element(element_id)
+        # Walk the ancestry iteratively with a seen-set so that a corrupted
+        # graph (an element that is transitively its own parent) terminates
+        # instead of looping forever.
+        chain = []
+        seen_ids = set()
+        current_id = element_id
+        while current_id and current_id not in seen_ids:
+            seen_ids.add(current_id)
+            if current_id in element_map:
+                current_element = element_map[current_id]
+            else:
+                # Fetch the element if we have no cache
+                current_element = self.get_element(current_id)
+            chain.append(current_element)
+            current_id = current_element.parent_element_id
 
-        return self.get_import_context_addition(
-            current_element.parent_element_id, element_map
-        ) | current_element.get_type().import_context_addition(current_element)
+        # Merge outermost ancestor first so that an inner element's context
+        # overrides its ancestors', matching the original recursive semantics.
+        context = {}
+        for element in reversed(chain):
+            context |= element.get_type().import_context_addition(element)
+        return context
 
     def _postprocess_imported_element(
         self,

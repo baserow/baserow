@@ -147,6 +147,34 @@ class BaseGraphHandler(ABC):
         local_cache.delete(self.generate_previous_position_map_cache_key(self.instance))
         self._instance_locked = True
 
+    def lock_for_update(self):
+        """
+        Public entry point to take the container row lock (and refresh the
+        in-memory graph) ahead of time — e.g. so a service can validate its
+        inputs against the latest committed state before mutating. Idempotent
+        per handler instance; the later mutation-time locks become no-ops.
+        """
+
+        self._lock_instance_for_update()
+
+    @staticmethod
+    def lock_all_for_update(handlers: List["BaseGraphHandler"]):
+        """
+        Lock several graph containers in a deterministic (ascending pk) order,
+        so that two transactions locking the same pair of containers can never
+        acquire them in opposite orders and deadlock (e.g. two simultaneous
+        cross-graph moves in opposite directions).
+
+        :param handlers: The graph handlers whose containers should be locked.
+        """
+
+        def lock_order(handler: "BaseGraphHandler"):
+            instance = handler.instance
+            return getattr(instance, "pk", None) or getattr(instance, "id", 0) or 0
+
+        for handler in sorted(handlers, key=lock_order):
+            handler._lock_instance_for_update()
+
     def _update_graph(self, graph: Optional[SerializedGraph] = None):
         """
         Responsible for updating the instance's `graph` field. If `graph` is provided,
@@ -581,7 +609,7 @@ class BaseGraphHandler(ABC):
 
         The walk never mutates the graph: repairing corruption is the
         responsibility of the healing process (e.g. the builder's
-        `heal_orphan_elements`); a walk just refuses to follow a reference to
+        `heal_corrupted_graph`); a walk just refuses to follow a reference to
         an already-seen point.
 
         :param first_id: The starting point ID.
@@ -661,6 +689,73 @@ class BaseGraphHandler(ABC):
             return result
 
         return collect(point)
+
+    def collect_descendant_ids(self, point_id: int) -> set[int]:
+        """
+        Returns the ids of every point inside the given point's subtree — its
+        children (all edges) and everything reachable from them through `next`
+        (all outputs) and further `children`. A pure serialized-graph walk with
+        a seen set (no model resolution, no queries), so it terminates even on
+        a corrupted graph and is cheap enough to run as a write-time guard.
+
+        :param point_id: The id of the point whose subtree should be walked.
+        :return: The ids of the subtree's points (the point itself excluded).
+        """
+
+        graph = self.graph
+        seen: set[int] = {int(point_id)}
+        stack: List[int] = []
+
+        info = graph.get(str(point_id))
+        if isinstance(info, dict):
+            for child_ids in self._get_children_dict_from_info(info).values():
+                stack.extend(int(child_id) for child_id in child_ids)
+
+        result: set[int] = set()
+        while stack:
+            current = stack.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            result.add(current)
+            info = graph.get(str(current))
+            if not isinstance(info, dict):
+                continue
+            for next_ids in info.get("next", {}).values():
+                stack.extend(int(next_id) for next_id in next_ids)
+            for child_ids in self._get_children_dict_from_info(info).values():
+                stack.extend(int(child_id) for child_id in child_ids)
+
+        return result
+
+    def _has_incoming_references(self, point_id: int) -> bool:
+        """
+        Return whether any point in the graph (or the root pointer) references
+        the given point via `next` or `children`. The point's own entry is
+        ignored: a corrupted self-reference is `strip_self_references`'
+        responsibility, not a reason to treat the point as placed.
+
+        :param point_id: The id to look up incoming references for.
+        :return: True when at least one incoming reference exists.
+        """
+
+        graph = self.graph
+        if graph.get(self.GRAPH_ROOT_KEY) == point_id:
+            return True
+        for key, info in graph.items():
+            if (
+                key == self.GRAPH_ROOT_KEY
+                or int(key) == int(point_id)
+                or not isinstance(info, dict)
+            ):
+                continue
+            for next_ids in info.get("next", {}).values():
+                if point_id in next_ids:
+                    return True
+            for child_ids in self._get_children_dict_from_info(info).values():
+                if point_id in child_ids:
+                    return True
+        return False
 
     def merge_children_into_place(
         self,
@@ -793,29 +888,47 @@ class BaseGraphHandler(ABC):
 
         graph = self.graph
 
-        # Inserting a point that the reference (or the root) already points at
-        # is a double insert: the point's "old successor" would be read as the
-        # point itself, writing a self-referencing `next` into the graph. This
-        # state is reachable through concurrent transactions (e.g. a stale
-        # write resurrecting a reference that a trash had removed, followed by
-        # a restore); reject it loudly so the transaction rolls back instead
-        # of persisting a corrupted graph.
-        if reference_point is None:
-            already_referenced = graph.get(self.GRAPH_ROOT_KEY) == point.id
-        elif position == "south":
-            already_referenced = point.id in self.get_info(reference_point).get(
-                "next", {}
-            ).get(output, [])
-        elif position == "child":
-            already_referenced = point.id in self._get_children_dict(
-                self.get_info(reference_point)
-            ).get(output, [])
-        else:
-            already_referenced = False
-        if already_referenced:
+        # The reference must actually be keyed in the (just refreshed) graph.
+        # A live row that isn't keyed — e.g. an element deleted by a concurrent
+        # transaction after the caller fetched it, or an orphan that hasn't
+        # been healed yet — has no entry to splice into; proceeding would
+        # either KeyError midway or write a reference no traversal can follow.
+        if reference_point is not None and str(reference_point.id) not in graph:
             raise GraphPointReferencePointInvalid(
-                f"Point {point.id} is already referenced by its insertion "
-                f"reference; inserting it again would corrupt the graph."
+                f"Point {point.id} cannot be inserted relative to point "
+                f"{reference_point.id}, which is not in the graph."
+            )
+
+        # Inserting a point that the graph already references — through the
+        # root pointer or any `next`/`children` reference, at any position —
+        # is a double insert: the old reference survives next to the new one,
+        # leaving the point with two incoming references (or, when the
+        # insertion resolves against the point itself, a self-reference).
+        # This state is reachable through concurrent transactions (e.g. a
+        # stale write resurrecting a reference that a trash had removed,
+        # followed by a restore) and through a move of a "ghost" point whose
+        # entry a stale write dropped while a reference to it survived
+        # (`remove` then splices nothing). Reject it loudly so the transaction
+        # rolls back instead of persisting a corrupted graph.
+        if self._has_incoming_references(point.id):
+            raise GraphPointReferencePointInvalid(
+                f"Point {point.id} is already referenced in the graph; "
+                f"inserting it again would corrupt the graph."
+            )
+
+        # A reference inside the point's own subtree would make the point its
+        # own transitive successor: the reference would gain a `next` or
+        # `children` entry pointing back at its own ancestor — a cycle. This
+        # is reachable through a move whose caller resolved the reference from
+        # stale state (e.g. a client that doesn't yet know the reference was
+        # moved into the point being dragged).
+        if (
+            reference_point is not None
+            and reference_point.id in self.collect_descendant_ids(point.id)
+        ):
+            raise GraphPointReferencePointInvalid(
+                f"Point {point.id} cannot be inserted relative to point "
+                f"{reference_point.id}, which is inside its own subtree."
             )
 
         new_next = None
@@ -1058,9 +1171,33 @@ class BaseGraphHandler(ABC):
                 f"Point {point_to_move.id} cannot be moved relative to itself."
             )
 
-        self._lock_instance_for_update()
-        if is_cross_graph:
-            target._lock_instance_for_update()
+        # Lock in deterministic (ascending pk) order so two opposite-direction
+        # cross-graph moves can never deadlock on each other's row locks.
+        self.lock_all_for_update([self, target] if is_cross_graph else [self])
+
+        # A reference inside the moved point's own subtree would loop the
+        # subtree back onto its ancestor — a cycle. insert() guards this too,
+        # but by then remove() has already spliced the point out; failing here
+        # keeps the guard ahead of any graph write. Checked on the source
+        # graph, where the subtree lives at this stage of the move.
+        if (
+            reference_point is not None
+            and reference_point.id in self.collect_descendant_ids(point_to_move.id)
+        ):
+            raise GraphPointReferencePointInvalid(
+                f"Point {point_to_move.id} cannot be moved relative to point "
+                f"{reference_point.id}, which is inside its own subtree."
+            )
+
+        # The reference must be keyed in the graph it will be used in (the
+        # target graph for cross-graph moves). insert() re-checks this, but by
+        # then remove() has already spliced the point out and persisted;
+        # failing here keeps the guard ahead of any graph write.
+        if reference_point is not None and str(reference_point.id) not in target.graph:
+            raise GraphPointReferencePointInvalid(
+                f"Point {point_to_move.id} cannot be moved relative to point "
+                f"{reference_point.id}, which is not in the graph."
+            )
 
         # An orphaned point (in the DB but absent from this graph, e.g. created
         # during a not-yet-zero-downtime deployment) has no entry or subtree to
@@ -1369,6 +1506,266 @@ class BaseGraphHandler(ABC):
             self._update_graph()
 
         return stripped
+
+    @classmethod
+    def find_cycle_reference_pairs(
+        cls, graph: SerializedGraph | None
+    ) -> set[tuple[int, int]]:
+        """
+        Return every `(from_id, target_id)` reference that closes a cycle in
+        the graph — a `next`/`children` reference pointing back at a point that
+        is already on the traversal path leading to `from_id` (a DFS
+        back-edge). A graph containing such a reference makes a point its own
+        transitive successor or ancestor, so unguarded walks (e.g. resolving an
+        element's ancestry) never terminate.
+
+        The scan is a pure in-memory O(n) iterative depth-first search over the
+        serialized graph — no recursion (chains can be deeper than the Python
+        recursion limit), no model resolution and no queries — so it is safe to
+        call on every request as a fast-path corruption check. The search
+        starts from the root so that references on the root-reachable traversal
+        tree are never misclassified, then sweeps the remaining (detached)
+        points in id order so cycles in detached components are found too.
+
+        Removing every returned reference is guaranteed to leave the graph
+        acyclic (every cycle contains at least one back-edge of any DFS
+        forest), and never unreaches a point: each back-edge target was already
+        reached through the traversal tree before the back-edge was seen.
+
+        :param graph: A raw serialized graph dict (maybe `None`).
+        :return: The set of `(from_id, target_id)` cycle-closing references.
+        """
+
+        graph = graph or {}
+
+        def outgoing(point_id: int) -> List[int]:
+            info = graph.get(str(point_id))
+            if not isinstance(info, dict):
+                return []
+            refs: List[int] = []
+            for next_ids in info.get("next", {}).values():
+                refs.extend(int(next_id) for next_id in next_ids)
+            for child_ids in cls._get_children_dict_from_info(info).values():
+                refs.extend(int(child_id) for child_id in child_ids)
+            # A dangling reference has no entry to traverse into, so it can
+            # never close a cycle; `strip_dangling_references` owns those.
+            return [ref for ref in refs if str(ref) in graph]
+
+        back_edges: set[tuple[int, int]] = set()
+        on_path: set[int] = set()
+        done: set[int] = set()
+
+        start_ids: List[int] = []
+        if cls.GRAPH_ROOT_KEY in graph and str(graph[cls.GRAPH_ROOT_KEY]) in graph:
+            start_ids.append(int(graph[cls.GRAPH_ROOT_KEY]))
+        start_ids.extend(sorted(int(key) for key in graph if key != cls.GRAPH_ROOT_KEY))
+
+        for start_id in start_ids:
+            if start_id in done:
+                continue
+            on_path.add(start_id)
+            stack = [(start_id, iter(outgoing(start_id)))]
+            while stack:
+                point_id, refs_iterator = stack[-1]
+                pushed = False
+                for ref in refs_iterator:
+                    if ref in on_path:
+                        back_edges.add((point_id, ref))
+                    elif ref not in done:
+                        on_path.add(ref)
+                        stack.append((ref, iter(outgoing(ref))))
+                        pushed = True
+                        break
+                if not pushed:
+                    stack.pop()
+                    on_path.discard(point_id)
+                    done.add(point_id)
+
+        return back_edges
+
+    def strip_cycle_references(self) -> List[tuple[int, int]]:
+        """
+        Remove every cycle-closing `next`/`children` reference from the graph
+        (see `find_cycle_reference_pairs`). Only the corrupted back-edges are
+        dropped: every point stays in the graph at the position its traversal
+        tree reaches it, so the repair is minimal and never detaches a
+        root-reachable point. The graph is persisted when anything was
+        stripped.
+
+        :return: The `(from_id, target_id)` pairs that were stripped.
+        """
+
+        self._lock_instance_for_update()
+        stripped = sorted(self.find_cycle_reference_pairs(self.graph))
+        for from_id, target_id in stripped:
+            self._remove_references_to(target_id, {from_id})
+
+        if stripped:
+            self._update_graph()
+
+        return stripped
+
+    @classmethod
+    def find_converging_reference_pairs(
+        cls, graph: SerializedGraph | None
+    ) -> set[tuple[int, int]]:
+        """
+        Return every `(from_id, target_id)` reference that gives a point more
+        than one incoming reference. The graph invariant is that every point
+        has exactly one incoming position (the previous-position map and
+        `get_position` are single-valued), so converging references — two
+        chains "merging" onto one point — are corruption: splices resolve only
+        one of the predecessors, letting the other survive and compound (this
+        is the aftermath left behind by pre-guard double inserts).
+
+        For each converging point one canonical reference is kept and the rest
+        are returned for stripping:
+
+        - the root pointer always wins (it cannot be stripped);
+        - otherwise the reference whose source is discovered first by a
+          breadth-first walk from the root, so the kept reference is on the
+          root-reachable traversal and stripping never unreaches the point;
+        - for points only referenced from detached components, the lowest
+          source id wins, deterministically;
+        - a source holding several references to the same point contributes
+          all of them (reference removal is per source-target pair), so it is
+          only eligible as canonical when it references the point exactly
+          once. When no eligible source remains every reference is returned;
+          the detached point is then re-attached by
+          `reattach_unreachable_points`.
+
+        Self-references are never canonical and never returned — they are
+        `find_self_referencing_point_ids`' responsibility. References to
+        unkeyed points are ignored too (`strip_dangling_references` owns
+        those). A pure in-memory O(n) scan: no recursion, no model resolution,
+        no queries.
+
+        :param graph: A raw serialized graph dict (maybe `None`).
+        :return: The set of `(from_id, target_id)` surplus references.
+        """
+
+        graph = graph or {}
+
+        def refs_of(point_id: int) -> List[int]:
+            info = graph.get(str(point_id))
+            if not isinstance(info, dict):
+                return []
+            refs: List[int] = []
+            for next_ids in info.get("next", {}).values():
+                refs.extend(int(next_id) for next_id in next_ids)
+            for child_ids in cls._get_children_dict_from_info(info).values():
+                refs.extend(int(child_id) for child_id in child_ids)
+            return refs
+
+        # Collect every incoming reference per keyed target (with
+        # multiplicity), excluding self-references.
+        root_id = graph.get(cls.GRAPH_ROOT_KEY)
+        incoming: Dict[int, List[int]] = {}
+        for key in graph:
+            if key == cls.GRAPH_ROOT_KEY:
+                continue
+            source_id = int(key)
+            for target_id in refs_of(source_id):
+                if target_id == source_id or str(target_id) not in graph:
+                    continue
+                incoming.setdefault(target_id, []).append(source_id)
+
+        converging = {
+            target_id: source_ids
+            for target_id, source_ids in incoming.items()
+            if len(source_ids) + (1 if target_id == root_id else 0) > 1
+        }
+        if not converging:
+            return set()
+
+        # Breadth-first discovery order from the root, to prefer canonical
+        # references that sit on the root-reachable traversal.
+        discovery_index: Dict[int, int] = {}
+        if root_id is not None and str(root_id) in graph:
+            queue = [int(root_id)]
+            while queue:
+                current = queue.pop(0)
+                if current in discovery_index:
+                    continue
+                discovery_index[current] = len(discovery_index)
+                queue.extend(ref for ref in refs_of(current) if str(ref) in graph)
+
+        pairs: set[tuple[int, int]] = set()
+        for target_id, source_ids in converging.items():
+            if target_id == root_id:
+                # The root pointer is the canonical reference; every real
+                # reference to the root point is surplus.
+                pairs.update((source_id, target_id) for source_id in source_ids)
+                continue
+
+            counts: Dict[int, int] = {}
+            for source_id in source_ids:
+                counts[source_id] = counts.get(source_id, 0) + 1
+            eligible = [source_id for source_id, count in counts.items() if count == 1]
+            canonical = min(
+                eligible,
+                key=lambda source_id: (
+                    source_id not in discovery_index,
+                    discovery_index.get(source_id, 0),
+                    source_id,
+                ),
+                default=None,
+            )
+            pairs.update(
+                (source_id, target_id) for source_id in counts if source_id != canonical
+            )
+
+        return pairs
+
+    def strip_converging_references(self) -> List[tuple[int, int]]:
+        """
+        Remove every surplus incoming reference from the graph (see
+        `find_converging_reference_pairs`), so that each point is left with a
+        single canonical incoming position. Stripping can detach a subtree
+        whose only surviving path ran through a stripped reference; callers
+        follow up with `reattach_unreachable_points` (as the builder heal
+        does). The graph is persisted when anything was stripped.
+
+        :return: The `(from_id, target_id)` pairs that were stripped.
+        """
+
+        self._lock_instance_for_update()
+        stripped = sorted(self.find_converging_reference_pairs(self.graph))
+        for from_id, target_id in stripped:
+            self._remove_references_to(target_id, {from_id})
+
+        if stripped:
+            self._update_graph()
+
+        return stripped
+
+    def strip_children_edges(self, point: GraphPoint, edges: List[str]) -> List[int]:
+        """
+        Remove the given children edges from a point's entry. The referenced
+        subtrees keep their own entries and simply become unreachable — the
+        caller is expected to follow up with `reattach_unreachable_points`
+        (as the builder heal does). Used to repair children stored under an
+        edge the point cannot have (e.g. a non-container that gained children
+        through corruption). The graph is persisted when anything was dropped.
+
+        :param point: The point whose children edges should be removed.
+        :param edges: The edge keys to drop.
+        :return: The ids that were directly referenced by the dropped edges.
+        """
+
+        self._lock_instance_for_update()
+        info = self.get_info(point)
+        children_dict = self._get_children_dict(info)
+        dropped: List[int] = []
+        for edge in edges:
+            if edge in children_dict:
+                dropped.extend(int(child_id) for child_id in children_dict[edge])
+                self._set_children(info, edge, [])
+
+        if dropped:
+            self._update_graph()
+
+        return dropped
 
     @classmethod
     def find_unreachable_point_ids(cls, graph: SerializedGraph | None) -> set[int]:

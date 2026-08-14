@@ -1,10 +1,11 @@
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, List
 
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
 
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
+    ElementMoveNotAllowed,
     ElementNotInSamePage,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
@@ -35,6 +36,7 @@ from baserow.core.graph.exceptions import (
     GraphPointNotFoundInGraph,
     GraphPointReferencePointInvalid,
 )
+from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.handler import TrashHandler
@@ -92,33 +94,6 @@ class ElementService:
 
         return self.handler.get_elements(page, base_queryset=user_elements)
 
-    def heal_orphan_elements(self, user: AbstractUser, page: Page) -> Dict[str, Any]:
-        """
-        Repair ``page``'s graph by inserting any elements that exist in the DB but
-        are missing from it (e.g. created by older code during a non-zero-downtime
-        deploy). Intended to run on the editor's element-list read so the graph
-        stays the single source of truth — NOT on the public/published read.
-
-        The returned patch is handed to the requesting client in-band (see the
-        view), so it sees the repair immediately. Other connected clients converge
-        on their next element fetch — which returns the healed graph *and* the
-        orphan's element data together — so no realtime broadcast is needed (a
-        graph-only broadcast couldn't render an element they don't yet have).
-
-        :param user: The user the heal is performed on behalf of.
-        :param page: The page whose graph should be healed.
-        :return: The graph patch (changed entries), empty when nothing was healed.
-        """
-
-        CoreHandler().check_permissions(
-            user,
-            ListElementsPageOperationType.type,
-            workspace=page.builder.workspace,
-            context=page,
-        )
-
-        return self.handler.heal_orphan_elements(page)
-
     def get_builder_elements(
         self, user: AbstractUser, builder: "Builder"
     ) -> List[Element]:
@@ -170,6 +145,13 @@ class ElementService:
         # We currently only support one value for the output, other than
         # a blank string, and that's the place inside a container.
         output = kwargs.pop("place_in_container", "") or ""
+
+        # Take the page graph lock before fetching and validating the
+        # reference, so validation runs against the latest committed state. A
+        # pre-lock validation can pass against stale data (e.g. a container
+        # place that a concurrent transaction just removed) and then write
+        # children into a place that no longer exists.
+        page.get_graph().lock_for_update()
 
         try:
             reference_element = (
@@ -318,6 +300,16 @@ class ElementService:
             context=element,
         )
 
+        # Take the graph locks (in deterministic order, so opposite-direction
+        # cross-page moves can't deadlock) before fetching and validating the
+        # reference, so validation runs against the latest committed state. A
+        # pre-lock validation can pass against stale data (e.g. a container
+        # place that a concurrent transaction just removed) and then write
+        # children into a place that no longer exists.
+        BaseGraphHandler.lock_all_for_update(
+            [element.page.get_graph(), target_page.get_graph()]
+        )
+
         try:
             reference_element = (
                 self.handler.get_element(reference_element_id)
@@ -335,6 +327,23 @@ class ElementService:
         if reference_element is not None and reference_element.id == element.id:
             raise GraphPointReferencePointInvalid(
                 "An element cannot be moved relative to itself."
+            )
+
+        # Nor relative to an element inside its own subtree (e.g. a container
+        # onto one of its own children): the subtree travels with the element,
+        # so the reference would end up pointing back at its own ancestor — a
+        # cycle. The client can legitimately send this when its local state is
+        # stale (the reference was moved into the dragged element by another
+        # tab or a not-yet-synced operation), so reject it as a handled error;
+        # the graph's write guards remain the last line of defense.
+        if (
+            reference_element is not None
+            and reference_element.id
+            in element.page.get_graph().collect_descendant_ids(element.id)
+        ):
+            raise ElementMoveNotAllowed(
+                f"The element {element.id} cannot be moved relative to element "
+                f"{reference_element.id}, which is inside its own subtree."
             )
 
         # Check we are on the same builder.

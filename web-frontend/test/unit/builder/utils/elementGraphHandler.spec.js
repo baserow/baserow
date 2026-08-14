@@ -100,3 +100,31 @@ describe('ElementGraphHandler.getChildren', () => {
     expect(children.map((el) => el.id)).toEqual([4])
   })
 })
+
+describe('ElementGraphHandler.buildElementMaps on corrupted graphs', () => {
+  test('terminates when a slot chain loops back onto an ancestor', () => {
+    // Column 1 slot 0 chain: 2 -> 3 -> back to 2 (client-side divergence
+    // shape); the walk must terminate and keep the sane assignments.
+    const graph = {
+      0: 1,
+      1: { children: { 0: [2] } },
+      2: { next: { '': [3] } },
+      3: { next: { '': [2] } },
+    }
+    const { parentMap, placeMap } = ElementGraphHandler.buildElementMaps(graph)
+    expect(parentMap).toEqual({ 2: 1, 3: 1 })
+    expect(placeMap).toEqual({ 2: '0', 3: '0' })
+  })
+
+  test('terminates when two containers converge on one chain', () => {
+    const graph = {
+      0: 1,
+      1: { children: { 0: [3] }, next: { '': [2] } },
+      2: { children: { 0: [3] } },
+      3: {},
+    }
+    const { parentMap } = ElementGraphHandler.buildElementMaps(graph)
+    // First discovery wins; the walk must simply terminate.
+    expect(parentMap[3]).toBeDefined()
+  })
+})

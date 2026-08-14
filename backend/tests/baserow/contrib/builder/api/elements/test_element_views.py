@@ -674,8 +674,12 @@ def test_move_element_reference_element_not_in_same_page(api_client, data_fixtur
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
+    # Without an explicit target_page_id the move targets the element's own
+    # page (the target is deliberately NOT derived from the reference's page —
+    # a concurrently moved reference must not teleport the element), so a
+    # reference on another page is rejected.
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_PAGE_NOT_IN_BUILDER"
+    assert response.json()["error"] == "ERROR_ELEMENT_NOT_IN_SAME_PAGE"
 
 
 @pytest.mark.django_db
@@ -950,6 +954,7 @@ def test_move_element_to_other_page_container_returns_error_when_place_is_invali
         url,
         {
             "reference_element_id": column_element.id,
+            "target_page_id": target_page.id,
             "place_in_container": "9999",
             "position": GraphPointPosition.CHILD,
         },

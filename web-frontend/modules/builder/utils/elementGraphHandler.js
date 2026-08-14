@@ -84,6 +84,10 @@ export default class ElementGraphHandler extends BaseGraphHandler {
   static buildElementMaps(graph) {
     const parentMap = {}
     const placeMap = {}
+    // On a corrupted graph a chain can loop back onto itself or another
+    // container's chain; the seen set guarantees termination (a valid graph
+    // gives every element a single incoming reference, so nothing is skipped).
+    const seen = new Set()
     for (const [nodeId, info] of Object.entries(graph)) {
       if (nodeId === '0' || !info || typeof info !== 'object') continue
       const children = info.children
@@ -91,7 +95,8 @@ export default class ElementGraphHandler extends BaseGraphHandler {
       const childrenObj = Array.isArray(children) ? { '': children } : children
       for (const [place, headIds] of Object.entries(childrenObj)) {
         let currentId = headIds[0] ?? null
-        while (currentId) {
+        while (currentId != null && !seen.has(String(currentId))) {
+          seen.add(String(currentId))
           const id = Number(currentId)
           parentMap[id] = Number(nodeId)
           placeMap[id] = place

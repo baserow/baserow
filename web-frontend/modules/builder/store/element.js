@@ -1,3 +1,4 @@
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
 import { uuid } from '@baserow/modules/core/utils/string'
 
@@ -703,7 +704,23 @@ const actions = {
           }
           updateCachedValues(resolvedTargetPage)
         }
-        throw error
+
+        // The backend fails closed on moves it can't accept (graph write
+        // guards, stale references): fire() runs from a timeout, so a
+        // rethrow would be an unobserved rejection and the element would
+        // silently snap back with no explanation. Surface the error, then
+        // re-sync from the server (which also runs the graph heal) so the
+        // local state converges instead of staying diverged until a reload.
+        notifyIf(error)
+        try {
+          await dispatch('fetch', { builder, page })
+          if (isCrossPage) {
+            await dispatch('fetch', { builder, page: resolvedTargetPage })
+          }
+        } catch (refetchError) {
+          // Best-effort: the optimistic rollback above already restored a
+          // consistent local state.
+        }
       }
     }
 
