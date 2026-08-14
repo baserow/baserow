@@ -121,6 +121,7 @@ export default {
       isPersisting: false,
       hasMeasuredDimensions: false,
       isLayoutReady: false,
+      layoutReadyFrame: null,
       layout: [],
       resizeState: null,
       gridGap: GRID_GAP,
@@ -185,6 +186,9 @@ export default {
     window.addEventListener('blur', this.clearResizeState)
   },
   beforeUnmount() {
+    if (this.layoutReadyFrame !== null) {
+      cancelAnimationFrame(this.layoutReadyFrame)
+    }
     this.clearResizeState()
     window.removeEventListener('pointerup', this.clearResizeState, true)
     window.removeEventListener('pointercancel', this.clearResizeState, true)
@@ -243,7 +247,16 @@ export default {
       this.layout = createWidgetGridLayout(this.widgets, this.columns)
     },
     markLayoutReady() {
-      this.isLayoutReady = true
+      if (this.layoutReadyFrame !== null) {
+        cancelAnimationFrame(this.layoutReadyFrame)
+      }
+
+      // Keep the loader for one final frame so geometry observers owned by
+      // widget content (notably Chart.js) can redraw before the grid is revealed.
+      this.layoutReadyFrame = requestAnimationFrame(() => {
+        this.isLayoutReady = true
+        this.layoutReadyFrame = null
+      })
     },
     startInteraction() {
       if (this.canManipulateLayout) {
