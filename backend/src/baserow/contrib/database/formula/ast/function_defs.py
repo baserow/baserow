@@ -79,6 +79,9 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowStringLiteral,
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    ALLOWED_ARRAY_INDEX_SQL,
+    ARRAY_INDEX_SQL_BY_MODE,
+    DEFAULT_ARRAY_INDEX_SQL,
     AndExpr,
     BaserowStringAgg,
     EqualsExpr,
@@ -3069,6 +3072,9 @@ def _index_output_field(mode):
         _lookup_formula_type_from_string,
     )
 
+    if mode == "date_with_time":
+        mode = "date"
+
     try:
         return _lookup_formula_type_from_string(mode).output_field_class()
     except Exception:
@@ -3094,6 +3100,8 @@ def _unwrap_literal_value(django_expr):
 
 class BaserowIndex(BaserowFunctionDefinition):
     type = "index"
+    # A 4th argument is still parsed so internal formulas written before it was
+    # dropped keep working, but the typing step below refuses to produce one.
     num_args = NumOfArgsBetween(2, 4)
 
     @property
@@ -3104,7 +3112,7 @@ class BaserowIndex(BaserowFunctionDefinition):
             elif arg_index == 1:
                 return [BaserowFormulaNumberType]
             else:
-                return [BaserowFormulaTextType]  # mode + sql literals
+                return [BaserowFormulaTextType]  # mode literal
 
         return type_checker
 
@@ -3113,7 +3121,7 @@ class BaserowIndex(BaserowFunctionDefinition):
         args: List[BaserowExpression[BaserowFormulaValidType]],
         func_call: BaserowFunctionCall[UnTyped],
     ) -> BaserowExpression[BaserowFormulaType]:
-        if len(args) not in (2, 4):
+        if len(args) not in (2, 3):
             return func_call.with_invalid_type(
                 "index requires exactly 2 arguments: an array and an index."
             )
@@ -3128,19 +3136,12 @@ class BaserowIndex(BaserowFunctionDefinition):
 
         sub_type = arg1.expression_type.sub_type
 
-        if len(args) == 4:
-            return func_call.with_args(list(args)).with_valid_type(sub_type)
-
+        # Always regenerated so the stored mode matches the resolved sub type.
         mode_literal = BaserowStringLiteral(
             sub_type.array_index_mode, BaserowFormulaTextType()
         )
-        sql_literal = BaserowStringLiteral(
-            sub_type.array_index_sql, BaserowFormulaTextType()
-        )
 
-        return func_call.with_args(
-            [arg1, arg2, mode_literal, sql_literal]
-        ).with_valid_type(sub_type)
+        return func_call.with_args([arg1, arg2, mode_literal]).with_valid_type(sub_type)
 
     def to_django_expression_given_args(
         self,
@@ -3149,10 +3150,18 @@ class BaserowIndex(BaserowFunctionDefinition):
     ) -> "WrappedExpressionWithMetadata":
         # Fall back to text defaults if args weren't augmented at type time.
         mode = "text"
-        value_sql = "{elem} ->> 'value'"
-        if len(args) >= 4:
+        if len(args) >= 3:
             mode = _unwrap_literal_value(args[2].expression) or mode
-            value_sql = _unwrap_literal_value(args[3].expression) or value_sql
+
+        value_sql = None
+        if len(args) >= 4:
+            # Internal formulas predating the mode lookup carry the template
+            # itself; it is used only when a formula type still produces it.
+            legacy_sql = _unwrap_literal_value(args[3].expression)
+            if legacy_sql in ALLOWED_ARRAY_INDEX_SQL:
+                value_sql = legacy_sql
+        if value_sql is None:
+            value_sql = ARRAY_INDEX_SQL_BY_MODE.get(mode, DEFAULT_ARRAY_INDEX_SQL)
         safe_index = handle_arg_being_nan(
             args[1].expression,
             Value(None, output_field=fields.IntegerField()),

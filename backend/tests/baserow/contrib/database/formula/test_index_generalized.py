@@ -7,11 +7,30 @@ first(arr) = index(arr, 0), last(arr) = index(arr, -1).
 from datetime import date, timedelta
 from decimal import Decimal
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import FormulaField
+from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    ALLOWED_ARRAY_INDEX_SQL,
+    ARRAY_INDEX_SQL_BY_MODE,
+    DEFAULT_ARRAY_INDEX_SQL,
+)
+from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    JSONBArrayGetElement as JSONBArrayGetElementExpr,
+)
+from baserow.contrib.database.formula.handler import FormulaHandler
 from baserow.contrib.database.formula.types.exceptions import InvalidFormulaType
+from baserow.contrib.database.formula.types.formula_types import (
+    BASEROW_FORMULA_TYPES,
+    BaserowFormulaDateType,
+    BaserowFormulaNumberType,
+)
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.formula.parser.parser import convert_string_to_string_literal_token
 
 
 def _setup_single_select(df, table):
@@ -888,3 +907,222 @@ def test_baserow_index_to_django_expression_handles_unaugmented_args():
 
     assert isinstance(result, WrappedExpressionWithMetadata)
     assert isinstance(result.expression, JSONBArrayGetElement)
+
+
+# index() takes an array and an index. A 3rd argument holding the extraction
+# mode is written by the typing step; the 4th argument older versions wrote is
+# still parsed so stored formulas keep working.
+
+
+@pytest.fixture
+def table_with_file_field(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_file_field(table=table, name="Files", primary=True)
+    RowHandler().create_rows(user, table, [{}])
+    return user, table
+
+
+def _create_formula(user, table, name, formula):
+    return FieldHandler().create_field(
+        user, table, "formula", name=name, formula=formula
+    )
+
+
+def _legacy_four_arg(internal, mode, template):
+    """Rebuild the 4-arg internal formula a pre-fix version would have stored."""
+
+    return internal.replace(
+        f"'{mode}'",
+        convert_string_to_string_literal_token(mode, True)
+        + ","
+        + convert_string_to_string_literal_token(template, True),
+    )
+
+
+def _recalculate(field, table):
+    """Recompute a field's column straight from its stored internal formula."""
+
+    reloaded = FormulaField.objects.get(id=field.id)
+    reloaded.clear_cached_properties()
+    model = table.get_model()
+    expr = FormulaHandler.baserow_expression_to_update_django_expression(
+        reloaded.cached_typed_internal_expression, model
+    )
+    model.objects_and_trash.all().update(**{field.db_column: expr})
+    return model
+
+
+@pytest.mark.django_db
+def test_index_rejects_a_fourth_argument(table_with_file_field):
+    user, table = table_with_file_field
+
+    with pytest.raises(InvalidFormulaType):
+        _create_formula(
+            user, table, "four", "index(field('Files'), 0, 'text', 'anything')"
+        )
+
+
+@pytest.mark.django_db
+def test_index_rejects_a_fourth_argument_over_the_api(
+    table_with_file_field, api_client, data_fixture
+):
+    user, table = table_with_file_field
+    jwt = data_fixture.generate_token(user)
+
+    response = api_client.post(
+        f"/api/database/fields/table/{table.id}/",
+        {
+            "name": "four",
+            "type": "formula",
+            "formula": "index(field('Files'), 0, 'text', 'anything')",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt}",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_WITH_FORMULA"
+
+
+@pytest.mark.django_db
+def test_a_supplied_third_argument_is_replaced_by_the_resolved_mode(
+    table_with_file_field,
+):
+    user, table = table_with_file_field
+
+    field = _create_formula(
+        user, table, "three", "index(field('Files'), 0, 'not-a-mode')"
+    )
+
+    assert field.formula_type != "invalid"
+    assert "not-a-mode" not in field.internal_formula
+    assert "single_file" in field.internal_formula
+
+
+@pytest.mark.django_db
+def test_internal_formula_carries_only_the_mode(table_with_file_field):
+    user, table = table_with_file_field
+
+    field = _create_formula(user, table, "two", "index(field('Files'), 0)")
+
+    assert "single_file" in field.internal_formula
+    for template in ALLOWED_ARRAY_INDEX_SQL:
+        assert template not in field.internal_formula
+
+
+@pytest.mark.django_db
+def test_legacy_four_argument_internal_formula_still_evaluates(table_with_file_field):
+    """Rows written before the 4th argument was dropped must keep working."""
+
+    user, table = table_with_file_field
+    field = _create_formula(
+        user, table, "legacy4", "get_file_visible_name(index(field('Files'),0))"
+    )
+    expected = getattr(table.get_model().objects.first(), field.db_column)
+
+    legacy = _legacy_four_arg(field.internal_formula, "single_file", "{elem}")
+    assert legacy != field.internal_formula
+    FormulaField.objects.filter(id=field.id).update(internal_formula=legacy)
+
+    model = _recalculate(field, table)
+    assert getattr(model.objects.first(), field.db_column) == expected
+
+
+@pytest.mark.django_db
+def test_legacy_four_argument_date_row_keeps_its_time(data_fixture):
+    """Legacy rows stored mode 'date' for both casts, so the template must win."""
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table_a = data_fixture.create_database_table(database=database, name="A")
+    table_b = data_fixture.create_database_table(database=database, name="B")
+    data_fixture.create_text_field(table=table_a, name="pa", primary=True)
+    data_fixture.create_text_field(table=table_b, name="pb", primary=True)
+
+    link = FieldHandler().create_field(
+        user, table_a, "link_row", name="link", link_row_table=table_b
+    )
+    target = data_fixture.create_date_field(
+        table=table_b, name="target", date_include_time=True, date_format="ISO"
+    )
+    rows_b = (
+        RowHandler()
+        .create_rows(user, table_b, [{target.db_column: "2024-01-15T13:45:00Z"}])
+        .created_rows
+    )
+    RowHandler().create_rows(user, table_a, [{link.db_column: [rows_b[0].id]}])
+    FieldHandler().create_field(
+        user, table_a, "formula", name="lk", formula="lookup('link','target')"
+    )
+    field = FieldHandler().create_field(
+        user, table_a, "formula", name="idx", formula="index(field('lk'),0)"
+    )
+
+    expected = getattr(table_a.get_model().objects.first(), field.db_column)
+    assert expected.hour == 13 and expected.minute == 45
+
+    legacy = field.internal_formula.replace(
+        "'date_with_time'",
+        "'date',"
+        + convert_string_to_string_literal_token(
+            "({elem} ->> 'value')::timestamptz", True
+        ),
+    )
+    assert legacy != field.internal_formula
+    FormulaField.objects.filter(id=field.id).update(internal_formula=legacy)
+
+    model = _recalculate(field, table_a)
+    assert getattr(model.objects.first(), field.db_column) == expected
+
+
+@pytest.mark.django_db
+def test_legacy_fourth_argument_is_ignored_when_not_a_known_template(
+    table_with_file_field,
+):
+    """Only a template a formula type still produces is used; others fall back."""
+
+    user, table = table_with_file_field
+    field = _create_formula(user, table, "stale", "index(field('Files'),0)")
+
+    stale = _legacy_four_arg(
+        field.internal_formula, "single_file", "{elem} /*stale_template*/"
+    )
+    FormulaField.objects.filter(id=field.id).update(internal_formula=stale)
+
+    with CaptureQueriesContext(connection) as ctx:
+        _recalculate(field, table)
+
+    assert not any("stale_template" in q["sql"] for q in ctx.captured_queries)
+
+
+def test_unknown_mode_falls_back_to_the_default_template():
+    assert ARRAY_INDEX_SQL_BY_MODE.get("nope", DEFAULT_ARRAY_INDEX_SQL) == (
+        DEFAULT_ARRAY_INDEX_SQL
+    )
+
+
+def test_jsonb_array_get_element_only_accepts_known_templates():
+    expr = JSONBArrayGetElementExpr(None, None, "{elem}::regclass", None)
+
+    assert expr.value_sql == DEFAULT_ARRAY_INDEX_SQL
+
+
+def test_every_formula_type_mode_maps_to_its_own_template():
+    """Locks the mode -> SQL table against drift when a new type is added."""
+
+    instances = [
+        BaserowFormulaDateType("ISO", True, "24"),
+        BaserowFormulaDateType("ISO", False, "24"),
+        BaserowFormulaNumberType(2),
+    ]
+    for cls in BASEROW_FORMULA_TYPES:
+        try:
+            instances.append(cls())
+        except TypeError:
+            continue
+
+    for instance in instances:
+        mode = instance.array_index_mode
+        assert mode in ARRAY_INDEX_SQL_BY_MODE, f"{mode} missing from the mode table"
+        assert ARRAY_INDEX_SQL_BY_MODE[mode] == instance.array_index_sql

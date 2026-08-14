@@ -163,6 +163,29 @@ class JSONBArrayJoinValues(Func):
         return sql, (*separator_params, *params)
 
 
+DEFAULT_ARRAY_INDEX_SQL = "{elem} ->> 'value'"
+
+ARRAY_INDEX_SQL_BY_MODE = {
+    "text": DEFAULT_ARRAY_INDEX_SQL,
+    "char": DEFAULT_ARRAY_INDEX_SQL,
+    "url": DEFAULT_ARRAY_INDEX_SQL,
+    "date_interval": DEFAULT_ARRAY_INDEX_SQL,
+    "button": "{elem} -> 'value'",
+    "link": "{elem} -> 'value'",
+    "single_select": "{elem} -> 'value'",
+    "multiple_select": "{elem} -> 'value'",
+    "multiple_collaborators": "{elem} -> 'value'",
+    "single_file": "{elem}",
+    "number": "({elem} ->> 'value')::numeric",
+    "boolean": "({elem} ->> 'value')::boolean",
+    "duration": "({elem} ->> 'value')::interval",
+    "date": "({elem} ->> 'value')::date",
+    "date_with_time": "({elem} ->> 'value')::timestamptz",
+}
+
+ALLOWED_ARRAY_INDEX_SQL = frozenset(ARRAY_INDEX_SQL_BY_MODE.values())
+
+
 class JSONBArrayGetElement(Expression):
     """
     Extract a single element from a JSONB array by 0-based index (negative
@@ -171,6 +194,7 @@ class JSONBArrayGetElement(Expression):
     *value_sql* is a SQL template with an ``{elem}`` placeholder that controls
     how the element is extracted (e.g. ``({elem} ->> 'value')::numeric``).
     Each formula type provides its own template via ``array_index_sql``.
+    Templates outside ``ALLOWED_ARRAY_INDEX_SQL`` fall back to the default.
 
     PostgreSQL's ``->`` operator natively handles negative indices and returns
     NULL for out-of-bounds, so no CASE expression is needed.
@@ -180,6 +204,8 @@ class JSONBArrayGetElement(Expression):
         super().__init__(output_field=output_field)
         self.array_expr = array_expr
         self.index_expr = index_expr
+        if value_sql not in ALLOWED_ARRAY_INDEX_SQL:
+            value_sql = DEFAULT_ARRAY_INDEX_SQL
         self.value_sql = value_sql
 
     def resolve_expression(

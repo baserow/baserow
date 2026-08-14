@@ -58,6 +58,7 @@ from baserow.contrib.database.formula.ast.tree import (
     BaserowStringLiteral,
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
+    ARRAY_INDEX_SQL_BY_MODE,
     ComparisonOperator,
     JSONArrayCompareIntervalValueExpr,
     JSONArrayCompareNumericValueExpr,
@@ -928,9 +929,12 @@ class BaserowFormulaDateType(
         return cls(**kwargs)
 
     @property
+    def array_index_mode(self) -> str:
+        return "date_with_time" if self.date_include_time else "date"
+
+    @property
     def array_index_sql(self) -> str:
-        cast = "::timestamptz" if self.date_include_time else "::date"
-        return f"({{elem}} ->> 'value'){cast}"
+        return ARRAY_INDEX_SQL_BY_MODE[self.array_index_mode]
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
