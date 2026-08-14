@@ -37,15 +37,15 @@
         "queryParamsTitle": "Parametry řetězce dotazu"
     },
     "pageHeaderItemTypes": {
-        "labelElements": "Elementy",
+        "labelElements": "Prvky",
         "labelDataSource": "Data",
         "labelVariables": "Proměnné",
         "labelSettings": "Nastavení stránky"
     },
     "elementsContext": {
-        "searchPlaceholder": "Hledat elementy",
-        "noElements": "Nenalezeny žádné elementy",
-        "noPageElements": "Pro tuto stránku nebyly nalezeny žádné elementy"
+        "searchPlaceholder": "Hledat prvky",
+        "noElements": "Nebyly nalezeny žádné prvky",
+        "noPageElements": "Pro tuto stránku nebyly nalezeny žádné prvky"
     },
     "elementType": {
         "heading": "Nadpis",
@@ -59,13 +59,13 @@
         "column": "Sloupce",
         "columnDescription": "Kontejner sloupců",
         "button": "Tlačítko",
-        "buttonDescription": "Element tlačítka",
+        "buttonDescription": "Prvek tlačítka",
         "table": "Tabulka",
-        "tableDescription": "Element tabulky",
+        "tableDescription": "Prvek tabulky",
         "formContainer": "Formulář",
-        "formContainerDescription": "Element formuláře",
+        "formContainerDescription": "Prvek formuláře",
         "checkbox": "Zaškrtávací políčko",
-        "checkboxDescription": "Element zaškrtávacího políčka",
+        "checkboxDescription": "Prvek zaškrtávacího políčka",
         "iframe": "IFrame",
         "iframeDescription": "Vložený rámec",
         "text": "Text",
@@ -73,7 +73,7 @@
         "authForm": "Přihlašovací formulář",
         "authFormDescription": "Formulář pro přihlášení uživatele",
         "repeat": "Opakování",
-        "repeatDescription": "Opakovatelná sada elementů",
+        "repeatDescription": "Opakovatelná sada prvků",
         "choice": "Volba",
         "choiceDescription": "Pro výběr jedné/více hodnot",
         "recordSelector": "Výběr záznamu",
@@ -84,27 +84,27 @@
         "headerDescription": "Kontejner sdílený napříč stránkami",
         "footer": "Vícestránková patička",
         "footerDescription": "Kontejner sdílený napříč stránkami",
-        "notAllowedUnlessTop": "Tento element je povolen pouze v horní části stránky",
-        "notAllowedUnlessBottom": "Tento element je povolen pouze v dolní části stránky",
-        "notAllowedUnlessHeader": "Tento element je povolen pouze uvnitř záhlaví stránky",
-        "notAllowedUnlessFooter": "Tento element je povolen pouze uvnitř patičky stránky",
-        "notAllowedInsideContainer": "Tento element není povolen uvnitř kontejneru",
-        "notAllowedInsideSameType": "Tento element není povolen v kontejneru stejného typu",
-        "notAllowedLocation": "Tento element není v tomto umístění povolen",
+        "notAllowedUnlessTop": "Tento prvek je povolen pouze v horní části stránky",
+        "notAllowedUnlessBottom": "Tento prvek je povolen pouze v dolní části stránky",
+        "notAllowedUnlessHeader": "Tento prvek je povolen pouze uvnitř záhlaví stránky",
+        "notAllowedUnlessFooter": "Tento prvek je povolen pouze uvnitř patičky stránky",
+        "notAllowedInsideContainer": "Tento prvek není povolen uvnitř kontejneru",
+        "notAllowedInsideSameType": "Tento prvek není povolen v kontejneru stejného typu",
+        "notAllowedLocation": "Tento prvek není v tomto umístění povolen",
         "menu": "Nabídka",
-        "menuDescription": "Element nabídky",
+        "menuDescription": "Prvek nabídky",
         "simpleContainer": "Kontejner",
-        "simpleContainerDescription": "Kontejner pro další elementy",
+        "simpleContainerDescription": "Kontejner pro další prvky",
         "ratingInput": "Vstup hodnocení",
-        "ratingInputDescription": "Element vstupu hodnocení",
+        "ratingInputDescription": "Prvek vstupu hodnocení",
         "rating": "Hodnocení",
-        "ratingDescription": "Element hodnocení",
-        "invalidElementValue": "Neplatná hodnota elementu: {value}",
+        "ratingDescription": "Prvek hodnocení",
+        "invalidElementValue": "Neplatná hodnota prvku: {value}",
         "fileInput": "Vstup pro soubor",
         "fileInputDescription": "Vstup pro nahrávání souborů",
         "errorValueMissing": "Chybí vlastnost hodnoty",
         "errorEmptyContainer": "Tento kontejner je prázdný",
-        "errorParentWithDataSourceMissing": "Na elementu ani nadřazeném kontejneru není vybraný zdroj dat",
+        "errorParentWithDataSourceMissing": "Na prvku ani nadřazeném kontejneru není vybraný zdroj dat",
         "errorDataSourceMissing": "Není vybraný zdroj dat",
         "errorSchemaPropertyMissing": "Není vybraná vlastnost schématu",
         "errorWorkflowActionInError": "Alespoň jedna akce je chybně nakonfigurovaná",
@@ -123,12 +123,12 @@
         "errorSubMenuItemInError": "Alespoň jedna podnabídka je chybně nakonfigurovaná"
     },
     "addElementButton": {
-        "label": "Element"
+        "label": "Prvek"
     },
     "addElementModal": {
-        "title": "Přidat nový element",
-        "searchPlaceholder": "Hledat elementy",
-        "elementInProgress": "Přidává se element..."
+        "title": "Přidat nový prvek",
+        "searchPlaceholder": "Hledat prvky",
+        "elementInProgress": "Přidává se prvek..."
     },
     "elementMenu": {
         "moveUp": "Přesunout nahoru",
@@ -148,11 +148,11 @@
         "style": "Styl",
         "visibility": "Viditelnost",
         "events": "Události",
-        "eventsTabDeactivatedNoEvents": "Tento element nepodporuje žádné události",
+        "eventsTabDeactivatedNoEvents": "Tento prvek nepodporuje žádné události",
         "eventsTabInError": "Jedna nebo více akcí je chybně nakonfigurováno."
     },
     "emptySidePanelState": {
-        "message": "Kliknutím na jeden z elementů zobrazíte další podrobnosti"
+        "message": "Kliknutím na jeden z prvků zobrazíte další podrobnosti"
     },
     "headingElementForm": {
         "levelTitle": "Úroveň",
@@ -317,7 +317,7 @@
         "backgroundImage": "Obrázek",
         "backgroundImageMode": "Režim výplně",
         "cssClasses": "Třídy CSS",
-        "cssClassesHelp": "Nastavte pro tento element seznam tříd oddělených mezerami, které se objeví ve vygenerovaném HTML.",
+        "cssClassesHelp": "Nastavte pro tento prvek seznam tříd oddělených mezerami, které se objeví ve vygenerovaném HTML.",
         "cssClassesPlaceholder": "Zadejte třídy CSS..."
     },
     "dataProviderType": {
@@ -395,7 +395,7 @@
         "notificationDescription": "Zobrazit uživateli zprávu s oznámením.",
         "openPageDescription": "Přejděte s uživatelem na jinou stránku nebo adresu URL.",
         "logoutDescription": "Odhlaste aktuálního uživatele.",
-        "refreshDataSourceDescription": "Znovu načtěte zdroj dat a aktualizujte elementy, které jej používají."
+        "refreshDataSourceDescription": "Znovu načtěte zdroj dat a aktualizujte prvky, které jej používají."
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "Název",
@@ -412,7 +412,7 @@
         "nodeMissing": "Chybí"
     },
     "pagePreview": {
-        "emptyMessage": "Kliknutím vytvoříte element",
+        "emptyMessage": "Kliknutím vytvoříte prvek",
         "header": "ZÁHLAVÍ",
         "footer": "PATIČKA",
         "fixedHeader": "PEVNÉ ZÁHLAVÍ",
@@ -524,7 +524,9 @@
         "missingValue": "Chybí zdroj IFrame...",
         "emptyValue": "Prázdný zdroj IFrame...",
         "warningTitle": "Používejte pouze důvěryhodný obsah",
-        "warningMessage": "Obsah IFrame je v editoru izolován v sandboxu, kde může vložené HTML spouštět skripty odděleně. V náhledech a publikovaných aplikacích může vložené HTML spouštět skripty bez omezení, zatímco externí adresy URL mohou spouštět skripty, odesílat formuláře a otevírat vyskakovací okna."
+        "warningMessage": "Obsah IFrame je v editoru izolován v sandboxu, kde může vložené HTML spouštět skripty odděleně. V náhledech a publikovaných aplikacích může vložené HTML spouštět skripty bez omezení, zatímco externí adresy URL mohou spouštět skripty, odesílat formuláře a otevírat vyskakovací okna.",
+        "allowSameOriginLabel": "Povolit prvku iframe přístup k datům vlastního webu",
+        "allowSameOriginHelp": "Tuto možnost povolte pouze pro důvěryhodnou externí adresu URL. Umožňuje prvku iframe používat v náhledech a publikovaných aplikacích soubory cookie, úložiště a další funkce stejného původu."
     },
     "linkNavigationSelection": {
         "navigateTo": "Přejít na",
@@ -587,7 +589,7 @@
         "errorFetchingRolesTitle": "Role uživatelů se nepodařilo načíst",
         "errorFetchingRolesMessage": "Při načítání rolí uživatelů došlo k problému.",
         "visibilityCondition": "Podmínka viditelnosti",
-        "visibilityConditionHelper": "Pokud je výsledek tohoto výrazu pravdivý a volba návštěvníka výše je pravdivá, element bude viditelný. Tato podmínka ovlivňuje pouze viditelnost elementu. Chcete-li místo toho vyloučit data z odpovědi serveru, použijte výše uvedenou možnost filtrování podle uživatelské role.",
+        "visibilityConditionHelper": "Pokud je výsledek tohoto výrazu pravdivý a volba návštěvníka výše je pravdivá, prvek bude viditelný. Tato podmínka ovlivňuje pouze viditelnost prvku. Chcete-li místo toho vyloučit data z odpovědi serveru, použijte výše uvedenou možnost filtrování podle uživatelské role.",
         "visibilityConditionPlaceholder": "Podmínka...",
         "documentationLink": "dokumentace"
     },
@@ -604,8 +606,8 @@
     "repeatElement": {
         "empty": "Nebyly nalezeny žádné položky.",
         "showMore": "Zobrazit více",
-        "missingDataSourceTooltip": "Chcete-li začít přidávat elementy, vyberte zdroj dat.",
-        "missingSchemaPropertyTooltip": "Chcete-li začít přidávat elementy, vyberte vlastnost.",
+        "missingDataSourceTooltip": "Chcete-li začít přidávat prvky, vyberte zdroj dat.",
+        "missingSchemaPropertyTooltip": "Chcete-li začít přidávat prvky, vyberte vlastnost.",
         "emptyState": "Nebyly nalezeny žádné záznamy."
     },
     "repeatElementForm": {
@@ -635,7 +637,7 @@
         "role": "Role"
     },
     "buttonFieldForm": {
-        "infoMessage": "Chcete-li nakonfigurovat akce tohoto tlačítka, otevřete kartu „Události“ aktuálního elementu.",
+        "infoMessage": "Chcete-li nakonfigurovat akce tohoto tlačítka, otevřete kartu „Události“ aktuálního prvku.",
         "labelPlaceholder": "Zadejte popisek..."
     },
     "buttonField": {
@@ -754,7 +756,7 @@
         "expressions": "Výrazy"
     },
     "choiceElement": {
-        "addOptions": "Chcete-li začít tento element používat, přidejte možnosti..."
+        "addOptions": "Chcete-li začít tento prvek používat, přidejte možnosti..."
     },
     "resetButton": {
         "reset": "Obnovit výchozí hodnotu tématu"
@@ -811,12 +813,12 @@
         "disableField": "Zakázat pole"
     },
     "customStyle": {
-        "configureThemeOverrides": "Konfigurovat přepsání tématu pro tento element",
-        "backToElement": "Zpět ke konfiguraci elementu"
+        "configureThemeOverrides": "Konfigurovat přepsání tématu pro tento prvek",
+        "backToElement": "Zpět ke konfiguraci prvku"
     },
     "collectionElementForm": {
         "noDataSourceMessage": "Vyberte zdroj dat s více řádky pro výpis všech výsledků nebo zdroj dat s jedním řádkem pro výběr vlastnosti v tomto řádku.",
-        "noSchemaPropertyMessage": "Vyberte vlastnost uvnitř zdroje dat, kterou chcete použít jako data seznamu elementu.",
+        "noSchemaPropertyMessage": "Vyberte vlastnost uvnitř zdroje dat, kterou chcete použít jako data seznamu prvku.",
         "propertyOptionLabel": "Akce uživatele"
     },
     "imageFieldForm": {
@@ -893,7 +895,7 @@
         "searchHeading": "Vyhledávání",
         "optionUnavailable": "Není dostupné",
         "noPropertiesAvailable": "Nejsou k dispozici žádná pole.",
-        "formDescription": "Vyberte, podle kterých vlastností ve zdroji dat tohoto elementu mohou návštěvníci stránky filtrovat, řadit a vyhledávat."
+        "formDescription": "Vyberte, podle kterých vlastností ve zdroji dat tohoto prvku mohou návštěvníci stránky filtrovat, řadit a vyhledávat."
     },
     "recordSelectorElement": {
         "emptyAdhocState": "Nebyly nalezeny žádné záznamy odpovídající '{query}'.",
@@ -975,10 +977,10 @@
         "title": "Upravit poskytovatele: {name}"
     },
     "addElementCategory": {
-        "suggestedElement": "Doporučené elementy",
-        "baseElement": "Základní elementy",
-        "layoutElement": "Elementy rozvržení",
-        "formElement": "Elementy formuláře"
+        "suggestedElement": "Doporučené prvky",
+        "baseElement": "Základní prvky",
+        "layoutElement": "Prvky rozvržení",
+        "formElement": "Prvky formuláře"
     },
     "orientations": {
         "label": "Orientace",
@@ -1012,7 +1014,7 @@
         "menuItemAddButton": "Tlačítko",
         "menuItemAddSeparator": "Oddělovač",
         "menuItemAddSpacer": "Mezera",
-        "eventDescription": "Chcete-li nakonfigurovat akce pro toto tlačítko, otevřete kartu Události tohoto elementu.",
+        "eventDescription": "Chcete-li nakonfigurovat akce pro toto tlačítko, otevřete kartu Události tohoto prvku.",
         "noMenuItemsMessage": "Kliknutím na „Přidat“ přidáte první položku nabídky.",
         "variant": "Varianta podle typu zařízení",
         "expanded": "Rozbalená",
@@ -1023,7 +1025,7 @@
         "closeEditorCompactMenu": "Zavřít nabídku"
     },
     "simpleContainerElementForm": {
-        "noConfigurationOptions": "Element kontejneru nemá žádné možnosti konfigurace."
+        "noConfigurationOptions": "Prvek kontejneru nemá žádné možnosti konfigurace."
     },
     "textDecorationSelector": {
         "underline": "Podtržení",
@@ -1058,24 +1060,24 @@
         "delete": "Odstranit"
     },
     "elementsGuidedTourStep": {
-        "title": "Přidejte na stránku elementy",
-        "content": "Každá aplikace potřebuje komponenty! Přidejte elementy jako tabulky, formuláře, tlačítka a další, které vaši aplikaci oživí."
+        "title": "Přidejte na stránku prvky",
+        "content": "Každá aplikace potřebuje komponenty! Přidejte prvky, například tabulky, formuláře, tlačítka a další, které vaši aplikaci oživí."
     },
     "dataGuidedTourStep": {
         "title": "Propojte svá data",
-        "content": "Propojte zde své tabulky Baserow, abyste mohli dynamicky zobrazovat, filtrovat a aktualizovat data v různých elementech."
+        "content": "Propojte zde své tabulky Baserow, abyste mohli dynamicky zobrazovat, filtrovat a aktualizovat data v různých prvcích."
     },
     "previewGuidedTourStep": {
         "title": "Vaše řídicí centrum",
-        "content": "Zde konfigurujete stránky své aplikace. Přidávejte elementy, zobrazte si náhled výsledku a uspořádejte aplikaci přesně podle svých představ."
+        "content": "Zde konfigurujete stránky své aplikace. Přidávejte prvky, zobrazte si náhled výsledku a uspořádejte aplikaci přesně podle svých představ."
     },
     "devicesGuidedTourStep": {
         "title": "Náhled na různých zařízeních",
         "content": "Přepínejte mezi náhledy pro počítač, tablet a mobil a zjistěte, jak vaše aplikace vypadá při různých velikostech obrazovky. Zkontrolujte, že návrh funguje dokonale na všech zařízeních!"
     },
     "sidePanelGuidedTourStep": {
-        "title": "Boční panel: přizpůsobení elementů",
-        "content": "**Karta Obecné** – nakonfigurujte vybraný element.\n\n**Karta Styl** – přizpůsobte odsazení, okraje a další.\n\n**Karta Viditelnost** – určete, kdo může tento element vidět: přihlášení uživatelé, odhlášení uživatelé nebo konkrétní role.\n\n**Karta Události** – pokud element podporuje akce, nakonfigurujte je zde pro dynamickou interaktivitu."
+        "title": "Boční panel: přizpůsobení prvků",
+        "content": "**Karta Obecné** – nakonfigurujte vybraný prvek.\n\n**Karta Styl** – přizpůsobte odsazení, okraje a další.\n\n**Karta Viditelnost** – určete, kdo může tento prvek vidět: přihlášení uživatelé, odhlášení uživatelé nebo konkrétní role.\n\n**Karta Události** – pokud prvek podporuje akce, nakonfigurujte je zde pro dynamickou interaktivitu."
     },
     "previewPublishGuidedTourStep": {
         "title": "Náhled a publikace vaší aplikace",
