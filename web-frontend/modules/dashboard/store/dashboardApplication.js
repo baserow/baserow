@@ -6,6 +6,9 @@ import debounce from 'lodash/debounce'
 
 export const state = () => ({
   dashboardId: null,
+  dashboardGeneration: 0,
+  widgetFetchGeneration: 0,
+  dataSourceFetchGeneration: 0,
   loading: false,
   editMode: false,
   selectedWidgetId: null,
@@ -20,9 +23,72 @@ export const state = () => ({
 
 let debouncedWidgetUpdate = null
 
+const normalizeDashboardFetchRequest = (request, state, generationKey) => {
+  const requestValues =
+    typeof request === 'object' && request !== null
+      ? request
+      : { dashboardId: request }
+
+  return {
+    dashboardId: requestValues.dashboardId,
+    dashboardGeneration:
+      requestValues.dashboardGeneration ?? state.dashboardGeneration,
+    generation: requestValues.generation ?? state[generationKey],
+  }
+}
+
+const normalizeDataSourceDispatchRequest = (request, state) => {
+  const requestValues =
+    typeof request === 'object' && request !== null
+      ? request
+      : { dataSourceId: request }
+
+  return {
+    dataSourceId: requestValues.dataSourceId,
+    dashboardId: requestValues.dashboardId ?? state.dashboardId,
+    dashboardGeneration:
+      requestValues.dashboardGeneration ?? state.dashboardGeneration,
+    generation: requestValues.generation ?? state.dataSourceFetchGeneration,
+  }
+}
+
+const isDashboardRequestCurrent = (state, request) => {
+  return (
+    state.dashboardId === request.dashboardId &&
+    state.dashboardGeneration === request.dashboardGeneration
+  )
+}
+
+const isFetchRequestCurrent = (state, request, generationKey) => {
+  return (
+    isDashboardRequestCurrent(state, request) &&
+    state[generationKey] === request.generation
+  )
+}
+
+const refreshAfterWidgetCreation = async (dispatch, dashboard) => {
+  const refreshes = [
+    () => dispatch('fetchNewDataSources', dashboard.id),
+    () => dispatch('application/refreshPermissions', dashboard, { root: true }),
+  ]
+  const results = await Promise.allSettled(
+    refreshes.map((refresh) => Promise.resolve().then(refresh))
+  )
+  const retries = results.flatMap((result, index) => {
+    return result.status === 'rejected'
+      ? [Promise.resolve().then(refreshes[index])]
+      : []
+  })
+
+  await Promise.allSettled(retries)
+}
+
 export const mutations = {
   RESET(state) {
     state.dashboardId = null
+    state.dashboardGeneration += 1
+    state.widgetFetchGeneration += 1
+    state.dataSourceFetchGeneration += 1
     state.editMode = false
     state.selectedWidgetId = null
     state.widgets = []
@@ -31,7 +97,18 @@ export const mutations = {
     state.data = {}
   },
   SET_DASHBOARD_ID(state, dashboardId) {
+    if (state.dashboardId !== dashboardId) {
+      state.dashboardGeneration += 1
+      state.widgetFetchGeneration += 1
+      state.dataSourceFetchGeneration += 1
+    }
     state.dashboardId = dashboardId
+  },
+  INVALIDATE_WIDGET_FETCH(state) {
+    state.widgetFetchGeneration += 1
+  },
+  INVALIDATE_DATA_SOURCE_FETCH(state) {
+    state.dataSourceFetchGeneration += 1
   },
   TOGGLE_EDIT_MODE(state) {
     state.editMode = !state.editMode
@@ -53,13 +130,24 @@ export const mutations = {
     }
   },
   ADD_DATA_SOURCE(state, dataSource) {
-    state.dataSources.push(dataSource)
+    const existingDataSource = state.dataSources.find(
+      (existingDataSource) => existingDataSource.id === dataSource.id
+    )
+    if (existingDataSource) {
+      Object.assign(existingDataSource, dataSource)
+    } else {
+      state.dataSources.push(dataSource)
+    }
   },
   UPDATE_DATA_SOURCE(state, { dataSourceId, values }) {
     const dataSource = state.dataSources.find(
       (dataSource) => dataSource.id === dataSourceId
     )
-    Object.assign(dataSource, values)
+    if (dataSource) {
+      Object.assign(dataSource, values)
+    } else {
+      state.dataSources.push({ id: dataSourceId, ...values })
+    }
   },
   UPDATE_DATA(state, { dataSourceId, values }) {
     if (state.data[dataSourceId] === undefined) {
@@ -119,9 +207,18 @@ export const actions = {
   selectWidget({ commit }, widgetId) {
     commit('SELECT_WIDGET', widgetId)
   },
-  updateWidget({ commit }, { widgetId, values, originalValues }) {
+  updateWidget(
+    { state, commit, dispatch },
+    { widgetId, values, originalValues }
+  ) {
     return new Promise((resolve, reject) => {
       const { $client } = this
+      commit('INVALIDATE_WIDGET_FETCH')
+      const request = normalizeDashboardFetchRequest(
+        state.dashboardId,
+        state,
+        'widgetFetchGeneration'
+      )
       commit('UPDATE_WIDGET', { widgetId, values })
 
       let previousOriginalValues = originalValues
@@ -134,9 +231,22 @@ export const actions = {
         try {
           await WidgetService($client).update(widgetId, values)
           debouncedWidgetUpdate = null
+          if (
+            isDashboardRequestCurrent(state, request) &&
+            !isFetchRequestCurrent(state, request, 'widgetFetchGeneration')
+          ) {
+            await dispatch('fetchWidgets', request.dashboardId)
+          }
           resolve()
         } catch (error) {
-          commit('UPDATE_WIDGET', { widgetId, values: previousOriginalValues })
+          if (isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
+            commit('UPDATE_WIDGET', {
+              widgetId,
+              values: previousOriginalValues,
+            })
+          } else if (isDashboardRequestCurrent(state, request)) {
+            await dispatch('fetchWidgets', request.dashboardId)
+          }
           reject(error)
         }
       }, 1000)
@@ -144,118 +254,298 @@ export const actions = {
       debouncedWidgetUpdate()
     })
   },
-  handleWidgetUpdated({ commit }, widget) {
+  async handleWidgetUpdated({ state, commit, dispatch }, widget) {
+    commit('INVALIDATE_WIDGET_FETCH')
+    if (
+      state.loading ||
+      !state.widgets.some((existingWidget) => existingWidget.id === widget.id)
+    ) {
+      await dispatch('fetchWidgets', state.dashboardId)
+      return
+    }
     commit('UPDATE_WIDGET', { widgetId: widget.id, values: widget })
   },
   async updateDataSource(
-    { commit, dispatch },
+    { state, commit, dispatch },
     { dataSourceId, values, widget }
   ) {
     const { $client, $registry } = this
+    commit('INVALIDATE_DATA_SOURCE_FETCH')
+    const request = normalizeDataSourceDispatchRequest({ dataSourceId }, state)
     commit('UPDATE_DATA', { dataSourceId, values: null })
     const { data } = await DataSourceService($client).update(
       dataSourceId,
       values
     )
+    if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+      return
+    }
     if (widget) {
       const widgetType = $registry.get('dashboardWidget', widget.type)
       await widgetType.dataSourceUpdated(widget, data)
+      if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+        return
+      }
     }
     await dispatch('handleDataSourceUpdated', data)
   },
-  async handleDataSourceUpdated({ commit, dispatch }, dataSource) {
+  async handleDataSourceUpdated({ state, commit, dispatch }, dataSource) {
+    commit('INVALIDATE_DATA_SOURCE_FETCH')
+    const request = normalizeDataSourceDispatchRequest(
+      { dataSourceId: dataSource.id },
+      state
+    )
     commit('UPDATE_DATA_SOURCE', {
       dataSourceId: dataSource.id,
       values: dataSource,
     })
     try {
-      await dispatch('dispatchDataSource', dataSource.id)
+      await dispatch('dispatchDataSource', request)
     } catch (error) {
-      commit('UPDATE_DATA', {
-        dataSourceId: dataSource.id,
-        values: { _error: true },
-      })
+      if (isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+        commit('UPDATE_DATA', {
+          dataSourceId: dataSource.id,
+          values: { _error: true },
+        })
+      }
     }
   },
-  async fetchInitial({ commit, dispatch }, { dashboardId, forEditing }) {
+  async fetchInitial({ state, commit, dispatch }, { dashboardId, forEditing }) {
     const { $client } = this
     commit('RESET')
     commit('SET_DASHBOARD_ID', dashboardId)
-    const { data } = await WidgetService($client).getAllWidgets(dashboardId)
-    commit('SET_WIDGETS', data)
+    const request = {
+      dashboardId,
+      dashboardGeneration: state.dashboardGeneration,
+    }
+
+    let widgets
+    do {
+      widgets = await dispatch('fetchWidgets', dashboardId)
+    } while (widgets === undefined && isDashboardRequestCurrent(state, request))
+    if (!isDashboardRequestCurrent(state, request)) {
+      return
+    }
+
     await dispatch('setLoading', false)
-    await dispatch('fetchNewDataSources', dashboardId)
+    let dataSources
+    do {
+      dataSources = await dispatch('fetchNewDataSources', dashboardId)
+    } while (
+      dataSources === undefined &&
+      isDashboardRequestCurrent(state, request)
+    )
+    if (!isDashboardRequestCurrent(state, request)) {
+      return
+    }
 
     if (forEditing) {
       const { data: integrationsData } =
         await IntegrationService($client).fetchAll(dashboardId)
+      if (!isDashboardRequestCurrent(state, request)) {
+        return
+      }
       integrationsData.forEach((integration) => {
         commit('ADD_INTEGRATION', integration)
       })
     }
   },
-  async fetchNewDataSources({ commit, dispatch, getters }, dashboardId) {
+  async fetchWidgets({ state, commit }, requestValues) {
     const { $client } = this
-    const { data: dataSourcesData } =
-      await DataSourceService($client).getAllDataSources(dashboardId)
+    const dashboardId =
+      typeof requestValues === 'object' && requestValues !== null
+        ? requestValues.dashboardId
+        : requestValues
+    if (dashboardId !== state.dashboardId) {
+      return
+    }
+    commit('INVALIDATE_WIDGET_FETCH')
+    const request = normalizeDashboardFetchRequest(
+      dashboardId,
+      state,
+      'widgetFetchGeneration'
+    )
+    const { data } = await WidgetService($client).getAllWidgets(
+      request.dashboardId
+    )
+    if (!isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
+      return
+    }
+    commit('SET_WIDGETS', data)
+    return data
+  },
+  async fetchNewDataSources(
+    { state, commit, dispatch, getters },
+    requestValues
+  ) {
+    const { $client } = this
+    const dashboardId =
+      typeof requestValues === 'object' && requestValues !== null
+        ? requestValues.dashboardId
+        : requestValues
+    if (dashboardId !== state.dashboardId) {
+      return
+    }
+    commit('INVALIDATE_DATA_SOURCE_FETCH')
+    const request = normalizeDashboardFetchRequest(
+      dashboardId,
+      state,
+      'dataSourceFetchGeneration'
+    )
+    const { data: dataSourcesData } = await DataSourceService(
+      $client
+    ).getAllDataSources(request.dashboardId)
+
+    if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+      return
+    }
 
     await Promise.all(
-      dataSourcesData
-        .filter((dataSource) => !getters.getDataSourceById(dataSource.id))
-        .map(async (dataSource) => {
-          commit('ADD_DATA_SOURCE', dataSource)
-          await dispatch('dispatchDataSource', dataSource.id)
-        })
+      dataSourcesData.map(async (dataSource) => {
+        if (
+          !isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')
+        ) {
+          return
+        }
+        const existingDataSource = getters.getDataSourceById(dataSource.id)
+        const existingData = state.data[dataSource.id]
+        const shouldDispatch =
+          !existingDataSource ||
+          !existingData ||
+          Object.keys(existingData).length === 0 ||
+          existingData._error === true
+        commit('ADD_DATA_SOURCE', dataSource)
+        if (!shouldDispatch) {
+          return
+        }
+        await dispatch(
+          'dispatchDataSource',
+          normalizeDataSourceDispatchRequest(
+            {
+              dataSourceId: dataSource.id,
+              dashboardId: request.dashboardId,
+              dashboardGeneration: request.dashboardGeneration,
+              generation: request.generation,
+            },
+            state
+          )
+        )
+      })
     )
+    if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+      return
+    }
+    return dataSourcesData
   },
-  async createWidget({ dispatch }, { dashboard, widget }) {
+  async createWidget({ state, dispatch }, { dashboard, widget }) {
     const { $client } = this
+    const request = {
+      dashboardId: dashboard.id,
+      dashboardGeneration: state.dashboardGeneration,
+    }
     const { data: widgetData } = await WidgetService($client).create(
       dashboard.id,
       widget
     )
+    if (!isDashboardRequestCurrent(state, request)) {
+      return widgetData
+    }
     const createdWidget = await dispatch('handleNewWidgetCreated', widgetData)
-    await dispatch('application/refreshPermissions', dashboard, { root: true })
+    if (!isDashboardRequestCurrent(state, request)) {
+      return createdWidget
+    }
+    // The POST above is the creation boundary. Refreshing related client state must
+    // never turn a persisted widget into an apparent creation failure.
+    await refreshAfterWidgetCreation(dispatch, dashboard)
     return createdWidget
   },
-  async handleNewWidgetCreated({ commit, dispatch }, widget) {
+  handleNewWidgetCreated({ state, commit, dispatch }, widget) {
+    if (widget.dashboard_id !== state.dashboardId) {
+      return widget
+    }
+    commit('INVALIDATE_WIDGET_FETCH')
+    commit('INVALIDATE_DATA_SOURCE_FETCH')
     commit('ADD_WIDGET', widget)
     dispatch('selectWidget', widget.id)
-    await dispatch('fetchNewDataSources', widget.dashboard_id)
     return widget
   },
-  async dispatchDataSource({ commit }, dataSourceId) {
+  async dispatchDataSource({ state, commit }, requestValues) {
     const { $client } = this
-    commit('UPDATE_DATA', { dataSourceId, values: null })
+    const request = normalizeDataSourceDispatchRequest(requestValues, state)
+    if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+      return
+    }
+
+    commit('UPDATE_DATA', { dataSourceId: request.dataSourceId, values: null })
     try {
-      const { data } = await DataSourceService($client).dispatch(dataSourceId)
-      commit('UPDATE_DATA', { dataSourceId, values: data })
+      const { data } = await DataSourceService($client).dispatch(
+        request.dataSourceId
+      )
+      if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+        return
+      }
+      commit('UPDATE_DATA', {
+        dataSourceId: request.dataSourceId,
+        values: data,
+      })
     } catch (error) {
-      commit('UPDATE_DATA', { dataSourceId, values: { _error: true } })
+      if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+        return
+      }
+      commit('UPDATE_DATA', {
+        dataSourceId: request.dataSourceId,
+        values: { _error: true },
+      })
     }
   },
-  async deleteWidget({ state, commit }, widgetId) {
+  async deleteWidget({ state, commit, dispatch }, widgetId) {
     const { $client } = this
-    await WidgetService($client).delete(widgetId)
-    const { data } = await WidgetService($client).getAllWidgets(
-      state.dashboardId
+    commit('INVALIDATE_WIDGET_FETCH')
+    const request = normalizeDashboardFetchRequest(
+      state.dashboardId,
+      state,
+      'widgetFetchGeneration'
     )
-    commit('SET_WIDGETS', data)
+    await WidgetService($client).delete(widgetId)
+    if (!isDashboardRequestCurrent(state, request)) {
+      return
+    }
+    await dispatch('fetchWidgets', request.dashboardId)
   },
-  handleWidgetDeleted({ commit }, widgetId) {
+  async handleWidgetDeleted({ state, commit, dispatch }, widgetId) {
+    const widgetExists = state.widgets.some((widget) => widget.id === widgetId)
+    commit('INVALIDATE_WIDGET_FETCH')
+    if (state.loading || !widgetExists) {
+      await dispatch('fetchWidgets', state.dashboardId)
+      return
+    }
     commit('DELETE_WIDGET', widgetId)
   },
-  async updateWidgetLayout({ commit }, { dashboardId, layout }) {
+  async updateWidgetLayout({ state, commit }, { dashboardId, layout }) {
     const { $client } = this
+    commit('INVALIDATE_WIDGET_FETCH')
+    const request = normalizeDashboardFetchRequest(
+      dashboardId,
+      state,
+      'widgetFetchGeneration'
+    )
     const { data } = await WidgetService($client).updateLayout(
       dashboardId,
       layout
     )
+    if (!isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
+      return data
+    }
     commit('SET_WIDGETS', data)
     return data
   },
-  handleWidgetsLayoutUpdated({ commit }, widgets) {
-    commit('SET_WIDGETS', widgets)
+  async handleWidgetsLayoutUpdated({ state, commit, dispatch }) {
+    commit('INVALIDATE_WIDGET_FETCH')
+    commit('INVALIDATE_DATA_SOURCE_FETCH')
+    await Promise.allSettled([
+      dispatch('fetchWidgets', state.dashboardId),
+      dispatch('fetchNewDataSources', state.dashboardId),
+    ])
   },
 }
 
