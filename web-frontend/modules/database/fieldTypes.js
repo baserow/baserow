@@ -2569,14 +2569,25 @@ class BaseDateFieldType extends FieldType {
    */
   prepareValueForPaste(field, clipboardData, richClipboardData) {
     if (richClipboardData) {
-      const isoValue =
+      let isoValue = null
+      if (
         typeof richClipboardData === 'object' &&
         richClipboardData?.type === 'date'
-          ? richClipboardData.value
-          : typeof richClipboardData === 'string'
-            ? richClipboardData
-            : null
-      if (isoValue && moment.utc(isoValue).isValid()) {
+      ) {
+        isoValue = richClipboardData.value
+      } else if (
+        typeof richClipboardData === 'string' &&
+        /^\d{4}-\d{2}-\d{2}/.test(richClipboardData)
+      ) {
+        isoValue = richClipboardData
+      }
+      if (isoValue && moment.utc(isoValue, moment.ISO_8601, true).isValid()) {
+        if (
+          typeof richClipboardData === 'object' &&
+          richClipboardData.type === 'date'
+        ) {
+          return this._convertRichDateValue(field, richClipboardData)
+        }
         return this.formatValue(field, isoValue)
       }
     }
@@ -2652,6 +2663,39 @@ class BaseDateFieldType extends FieldType {
 
   parseFromLinkedRowItemValue(field, value) {
     return this.parseInputValue(field, value)
+  }
+
+  _convertRichDateValue(field, richPayload) {
+    const date = moment.utc(richPayload.value)
+    if (!date.isValid()) {
+      return null
+    }
+    const targetIncludeTime = !!field.date_include_time
+    const targetTimezone = getFieldTimezone(field)
+    const sourceTimezone = richPayload.timezone
+
+    if (targetIncludeTime && !richPayload.includeTime) {
+      // date-only → datetime: interpret source date as midnight in target timezone
+      if (targetTimezone) {
+        const localMidnight = moment.tz(
+          date.format('YYYY-MM-DD'),
+          'YYYY-MM-DD',
+          targetTimezone
+        )
+        return localMidnight.utc().format()
+      }
+      return date.format()
+    }
+
+    if (!targetIncludeTime && richPayload.includeTime) {
+      // datetime → date-only: convert to source timezone then extract calendar date
+      if (sourceTimezone) {
+        return date.tz(sourceTimezone).format('YYYY-MM-DD')
+      }
+      return date.format('YYYY-MM-DD')
+    }
+
+    return this.formatValue(field, richPayload.value)
   }
 
   formatValue(field, value) {

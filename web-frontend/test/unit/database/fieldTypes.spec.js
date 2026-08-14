@@ -707,6 +707,24 @@ const datePrepareValueForPaste = [
     field: { date_format: 'US', date_include_time: true },
     expectedValue: '2026-01-10T00:00:00Z',
   },
+  // date-only → datetime with non-UTC timezone: midnight in target timezone
+  {
+    fieldValue: '10/01/2026',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10',
+      includeTime: false,
+      timezone: null,
+    },
+    field: {
+      date_format: 'EU',
+      date_include_time: true,
+      date_force_timezone: 'Europe/Rome',
+    },
+    expectedValue: '2026-01-09T23:00:00Z',
+  },
+  // datetime → date-only: extract calendar date in source timezone
   {
     fieldValue: '01/10/2026 14:30',
     richValue: {
@@ -715,6 +733,45 @@ const datePrepareValueForPaste = [
       value: '2026-01-10T14:30:00Z',
       includeTime: true,
       timezone: 'UTC',
+    },
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+  // datetime → date when timezone shifts calendar day
+  {
+    fieldValue: '01/10/2026 23:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T23:30:00Z',
+      includeTime: true,
+      timezone: 'Europe/Rome',
+    },
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-11',
+  },
+  // datetime → date with America/New_York (UTC-5 in Jan)
+  {
+    fieldValue: '01/10/2026 22:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-11T03:30:00Z',
+      includeTime: true,
+      timezone: 'America/New_York',
+    },
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+  // datetime → date with null source timezone (falls back to UTC calendar date)
+  {
+    fieldValue: '01/10/2026 23:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T23:30:00Z',
+      includeTime: true,
+      timezone: null,
     },
     field: { date_format: 'US' },
     expectedValue: '2026-01-10',
@@ -752,7 +809,20 @@ const datePrepareValueForPaste = [
     expectedValue: '2026-01-10T14:30:00Z',
   },
 
-  // --- Group 16: Rich clipboard — invalid/garbage payloads fall back to text ---
+  // --- Group 16: Rich clipboard — invalid/garbage/locale payloads fall back to text ---
+  // Locale-formatted string as richClipboardData (ImportFileModal passes raw cell values)
+  {
+    fieldValue: '01/10/2026',
+    richValue: '01/10/2026',
+    field: { date_format: 'EU' },
+    expectedValue: '2026-10-01',
+  },
+  {
+    fieldValue: '01/10/2026',
+    richValue: '01/10/2026',
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
   {
     fieldValue: '03/15/2026',
     richValue: 'not-a-date',
