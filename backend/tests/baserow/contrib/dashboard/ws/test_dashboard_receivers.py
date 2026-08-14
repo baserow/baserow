@@ -83,14 +83,11 @@ def test_widgets_layout_updated_ws_receiver(
 ):
     user = data_fixture.create_user(web_socket_id="test_websocket_id")
     dashboard = data_fixture.create_dashboard_application()
-    first_widget = data_fixture.create_summary_widget(dashboard=dashboard)
-    second_widget = data_fixture.create_summary_widget(dashboard=dashboard)
 
     widgets_layout_updated.send(
         None,
         user=user,
         dashboard=dashboard,
-        widgets=[first_widget, second_widget],
     )
 
     mock_broadcast_to_channel_group.delay.assert_called_once()
@@ -98,10 +95,7 @@ def test_widgets_layout_updated_ws_receiver(
     assert args[0][0] == f"dashboard-{dashboard.id}"
     assert args[0][1]["type"] == "widgets_layout_updated"
     assert args[0][1]["dashboard_id"] == dashboard.id
-    assert [widget["id"] for widget in args[0][1]["widgets"]] == [
-        first_widget.id,
-        second_widget.id,
-    ]
+    assert "widgets" not in args[0][1]
     assert args[0][2] == "test_websocket_id"
 
 

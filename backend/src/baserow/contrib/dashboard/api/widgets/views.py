@@ -298,9 +298,12 @@ class WidgetLayoutView(APIView):
     )
     @validate_body(UpdateWidgetLayoutSerializer)
     def patch(self, request, data: Dict, dashboard_id: int):
-        widgets = UpdateWidgetLayoutActionType.do(
+        UpdateWidgetLayoutActionType.do(
             request.user,
             dashboard_id,
             data["widgets"],
         )
+        # Layout updates operate on the complete dashboard snapshot, but the API
+        # response must still honor per-widget visibility rules.
+        widgets = WidgetService().get_widgets(request.user, dashboard_id)
         return Response(serialize_widgets(widgets))

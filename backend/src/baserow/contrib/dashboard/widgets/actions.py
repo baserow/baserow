@@ -190,13 +190,14 @@ class UpdateWidgetLayoutActionType(UndoableActionType):
         new_layout: list[dict[str, int]]
 
     @classmethod
+    @transaction.atomic
     def do(
         cls,
         user: AbstractUser,
         dashboard_id: int,
         new_layout: list[dict[str, int]],
     ) -> list[Widget]:
-        updated_layout = WidgetService().update_widget_layout(
+        updated_layout = WidgetService().update_visible_widget_layout(
             user, dashboard_id, new_layout
         )
         cls.register_action(
@@ -224,7 +225,10 @@ class UpdateWidgetLayoutActionType(UndoableActionType):
         action_to_undo: Action,
     ):
         WidgetService().update_widget_layout(
-            user, params.dashboard_id, params.original_layout
+            user,
+            params.dashboard_id,
+            params.original_layout,
+            enforce_vertical_bound=False,
         )
 
     @classmethod
@@ -235,7 +239,10 @@ class UpdateWidgetLayoutActionType(UndoableActionType):
         action_to_redo: Action,
     ):
         WidgetService().update_widget_layout(
-            user, params.dashboard_id, params.new_layout
+            user,
+            params.dashboard_id,
+            params.new_layout,
+            enforce_vertical_bound=False,
         )
 
 
@@ -260,6 +267,7 @@ class DeleteWidgetActionType(UndoableActionType):
         new_layout: list[dict[str, int]] | None = None
 
     @classmethod
+    @transaction.atomic
     def do(cls, user: AbstractUser, widget_id: int) -> None:
         updated_layout = WidgetService().delete_widget_and_compact_layout(
             user, widget_id
