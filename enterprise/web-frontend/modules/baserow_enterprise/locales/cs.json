@@ -101,7 +101,8 @@
         "password": "Ověření pomocí e-mailu a hesla",
         "saml": "Poskytovatel SSO SAML",
         "ssoSamlProviderNameUnconfigured": "Nenakonfigurované SSO SAML",
-        "ssoOIDCProviderNameUnconfigured": "Nenakonfigurované OpenID Connect"
+        "ssoOIDCProviderNameUnconfigured": "Nenakonfigurované OpenID Connect",
+        "ssoSamlProviderName": "SSO SAML: {domain}"
     },
     "editAuthProviderMenuContext": {
         "edit": "Upravit",
@@ -327,7 +328,8 @@
         "xlsFileReader": "Čtečka souborů XLS",
         "xlsFileReaderContent": "Načítejte řádky ze souborů XLS a XLSX v uzlech automatizace a akcích pracovních postupů tvůrce aplikací.",
         "dataScanner": "Skener dat",
-        "dataScannerContent": "Prohledávejte všechna data v instanci Baserow a hledejte citlivé vzory, například čísla IBAN nebo zdravotnické identifikátory, případně porovnávejte data se seznamy známých hodnot. Nastavte automatické plány skenování a zobrazujte podrobné výsledky."
+        "dataScannerContent": "Prohledávejte všechna data v instanci Baserow a hledejte citlivé vzory, například čísla IBAN nebo zdravotnické identifikátory, případně porovnávejte data se seznamy známých hodnot. Nastavte automatické plány skenování a zobrazujte podrobné výsledky.",
+        "dateDependency": "Datumová závislost"
     },
     "userTeamsField": {
         "no_records": "Žádné týmy"
@@ -420,7 +422,7 @@
         "multiple": "Více souborů?",
         "required": "Povinné",
         "fileTypes": "Typy souborů",
-        "fileTypesHelper": "Zvolte přípony souborů, které má vstup souborů povolit (jednu na řádek), například jpg, png, svg nebo pdf. Chcete-li povolit všechny soubory daného typu, můžete zadat image/, video/ nebo audio/*. Ponecháte-li pole prázdné, budou povoleny všechny typy souborů.",
+        "fileTypesHelper": "Zvolte přípony souborů, které má vstup souborů povolit (jednu na řádek), například jpg, png, svg nebo pdf. Chcete-li povolit všechny soubory daného typu, můžete zadat image/*, video/* nebo audio/*. Ponecháte-li pole prázdné, budou povoleny všechny typy souborů.",
         "preview": "Zobrazovat náhledy obrázků?",
         "maxFileSize": "Maximální velikost souboru",
         "maxFileSizePlaceholder": "Zadejte číslo...",
@@ -504,7 +506,7 @@
         "authenticationLabel": "Ověření",
         "authenticationHelper": "Zvolte způsob ověření pro službu Jira.",
         "projectKey": "Klíč projektu Jira (volitelné)",
-        "projectKeyHelper": "Klíč projektu Jira (např. PROJ). Najdete jej kliknutím na Project settings v Jira. Pokud jej nezadáte, vrátí se všechny problémy.",
+        "projectKeyHelper": "Klíč projektu Jira (např. PROJ). Najdete jej kliknutím na `Project settings` v Jira. Pokud jej nezadáte, vrátí se všechny problémy.",
         "jiraUsername": "Uživatelské jméno Jira",
         "usernameHelper": "Uživatelské jméno účtu Jira použitého k ověření. Jde o e-mail, kterým se přihlašujete.",
         "apiToken": "Token API Jira",
@@ -723,7 +725,9 @@
         "instructing": "Kuma dostává pokyny k vytvoření vaší databáze."
     },
     "aiPromptOnboardingType": {
-        "prompt": "Vytvoř databázi včetně tabulek, polí, ukázkových řádků a ukázkových zobrazení odpovídajících tomuto popisu: {prompt}"
+        "prompt": "Vytvoř databázi včetně tabulek, polí, ukázkových řádků a ukázkových zobrazení odpovídajících tomuto popisu: {prompt}",
+        "context": "Osoba zadávající požadavek pracuje v odvětví v týmu . Použij tyto informace k výběru realistických tabulek, polí a ukázkových řádků.",
+        "language": "Vše, co vytvoříš, napiš v jazyce s kódem ISO 639-1 \"{language}\"."
     },
     "advanced": {
         "license": "Advanced",
@@ -853,5 +857,29 @@
     "memberRolesTableContexItem": {
         "label": "Spravovat členy",
         "additionalRoles": "Další role"
+    },
+    "aiDatabaseOnboardingForm": {
+        "explanation": "Kuma vám vytvoří pracovní prostor. Odpovězte na několik otázek a navrhne, co vytvořit jako první, abyste začali s něčím, co odpovídá tomu, jak skutečně pracujete.",
+        "industryDescription": "Stačí pár slov, například „Výroba“, „Letecký a kosmický průmysl“ nebo „Digitální marketing“.",
+        "industryPlaceholder": "např. Digitální marketing",
+        "progress": "Otázka {current} z {total}",
+        "teamDescription": "Například „Klientské služby“, „Finance“ nebo „Provoz“.",
+        "teamLabel": "V jakém týmu pracujete?",
+        "teamPlaceholder": "např. Klientské služby"
+    },
+    "aiOnboardingDetailsModal": {
+        "submit": "Aktualizovat návrhy",
+        "title": "Upravit údaje"
+    },
+    "aiPromptStep": {
+        "description": "Na základě vašich odpovědí jsme připravili první návrh. Upravte jej nebo níže vyberte jiný.",
+        "editDetails": "Upravit údaje",
+        "errorOtherOptions": "Vraťte se zpět a začněte vytvářet databázi jiným způsobem, například ze šablony, importem nebo od začátku.",
+        "generating": "Kuma pro vás připravuje návrh…",
+        "label": "Popište svou databázi",
+        "modelNotSupportedMessage": "Kuma není k dispozici, protože není nakonfigurován žádný funkční model AI, takže vám teď nemůže vytvořit databázi. Dokud nebude problém vyřešen, opakovaný pokus nepomůže.",
+        "modelNotSupportedTitle": "Kuma není k dispozici",
+        "placeholder": "např. Sleduj klientské projekty s termíny, vlastníky a stavem.",
+        "title": "Co má pro vás Kuma vytvořit?"
     }
 }
