@@ -865,7 +865,8 @@
         "progress": "Otázka {current} z {total}",
         "teamDescription": "Například „Klientské služby“, „Finance“ nebo „Provoz“.",
         "teamLabel": "V jakém týmu pracujete?",
-        "teamPlaceholder": "např. Klientské služby"
+        "teamPlaceholder": "např. Klientské služby",
+        "industryLabel": "V jakém odvětví působíte?"
     },
     "aiOnboardingDetailsModal": {
         "submit": "Aktualizovat návrhy",
@@ -880,6 +881,7 @@
         "modelNotSupportedMessage": "Kuma není k dispozici, protože není nakonfigurován žádný funkční model AI, takže vám teď nemůže vytvořit databázi. Dokud nebude problém vyřešen, opakovaný pokus nepomůže.",
         "modelNotSupportedTitle": "Kuma není k dispozici",
         "placeholder": "např. Sleduj klientské projekty s termíny, vlastníky a stavem.",
-        "title": "Co má pro vás Kuma vytvořit?"
+        "title": "Co má pro vás Kuma vytvořit?",
+        "suggestionsTitle": "Nebo začněte jedním z těchto návrhů"
     }
 }
