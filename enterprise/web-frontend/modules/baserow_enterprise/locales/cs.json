@@ -3,7 +3,7 @@
         "sso": "SSO",
         "deactivated": "Dostupné ve verzi advanced/enterprise",
         "license": "Enterprise",
-        "sidebarTooltip": "Tvůj účet má celkový přístup k enterprise funkcím",
+        "sidebarTooltip": "Váš účet má celkový přístup k enterprise funkcím",
         "rbac": "RBAC",
         "licenseDescription": "Uživatelé s rolemi Viewer a Commenter jsou v tomto tarifu zdarma. Pokud má uživatel v kterémkoli pracovním prostoru jakoukoli jinou roli, automaticky obsadí placené místo.",
         "overflowWarning": "Máte příliš mnoho uživatelů s jinou rolí než Viewer nebo Commenter a vyčerpali jste všechna placená místa. Na stránce Členové v každém pracovním prostoru změňte jejich roli na Viewer.",
@@ -19,11 +19,11 @@
     "createTeamModal": {
         "title": "Vytvořit tým",
         "invalidNameMessage": "Tento název týmu je v daném pracovním prostoru již použit.",
-        "invalidNameTitle": "Prosím, použij jiný název"
+        "invalidNameTitle": "Použijte jiný název"
     },
     "updateTeamModal": {
         "title": "Aktualizovat {teamName}",
-        "invalidNameTitle": "Prosím, použij jiný název",
+        "invalidNameTitle": "Použijte jiný název",
         "invalidNameMessage": "Tento název týmu je v daném pracovním prostoru již použit."
     },
     "manageTeamModals": {
@@ -35,7 +35,7 @@
         "roleTitle": "Výchozí role",
         "inviteMembers": "Přidat členy",
         "membersTitle": "Členové",
-        "noSubjectsSelected": "Pro případné přidání členů do týmu klikni na '{buttonLabel}'.",
+        "noSubjectsSelected": "Pro případné přidání členů do týmu klikněte na '{buttonLabel}'.",
         "roleHelpText": "Specifické uživatelské role budou vždy nadřazeny rolím definovaným pro tým."
     },
     "editTeamContext": {
@@ -90,7 +90,7 @@
         "exportFilename": "Export správcovského protokolu auditu - {date}",
         "exportWorkspaceFilename": " Pracovní prostor ({workspaceId}) export protokolu auditu - {date}",
         "cancelledTitle": "Export se nezdařil",
-        "cancelledDescription": "Během exportu protokolu auditu nastala chyba. Prosím zkus to znovu."
+        "cancelledDescription": "Během exportu protokolu auditu nastala chyba. Prosím zkuste to znovu."
     },
     "authProviders": {
         "noProviders": "Dosud nebyly nakonfigurováni žádní poskytovatelé ověření.",
@@ -114,7 +114,7 @@
         "invalidDomain": "Neplatný název domény",
         "domainAlreadyExists": "Poskytovatel SAML pro tuto doménu již existuje",
         "metadata": "Metadata",
-        "metadataPlaceholder": "Vlož metadata poskytovatele identity...",
+        "metadataPlaceholder": "Vložte metadata poskytovatele identity...",
         "relayStateUrl": "Výchozí URL adresa Relay State",
         "acsUrl": "Adresa URL pro Single Sign On",
         "invalidMetadata": "Neplatná XML metadata pro poskytovatele identit",
@@ -133,15 +133,15 @@
         "errorInvalidSamlRequest": "Požadavek SAML je neplatný.",
         "errorInvalidSamlResponse": "Odpověď SAML je neplatná.",
         "errorProviderDoesNotExist": "tento zprostředkovatel ověřování neexistuje nebo není k dispozici.",
-        "errorWorkspaceInvitationEmailMismatch": "Tvoje e-mailová adresa neodpovídá pozvánce.",
-        "loginText": "Již máš účet?",
-        "help": "Pro pomoc, prosím, kontaktuj svého administrátora.",
+        "errorWorkspaceInvitationEmailMismatch": "Vaše e-mailová adresa neodpovídá pozvánce.",
+        "loginText": "Již máte účet?",
+        "help": "Pro pomoc, prosím, kontaktujte svého administrátora.",
         "errorAuthFlowError": "během ověřovacího procesu s vybraným zprostředkovatelem došlo k chybě.",
-        "errorDifferentProvider": "použijprosím poskytovatele, u kterého jsi se původně zaregistroval.",
+        "errorDifferentProvider": "použijte prosím poskytovatele, u kterého jste se původně zaregistrovali.",
         "errorSignupDisabled": "přihlášení bylo administrátorem zakázáno.",
         "title": "Něco se nepodařilo:",
         "defaultErrorMessage": "Průběh přihlášení pomocí SSO nebylo možné dokončit.",
-        "errorSsoFeatureNotActive": "Funkce SSO není aktivní. Kontaktuj svého administrátora.",
+        "errorSsoFeatureNotActive": "Funkce SSO není aktivní. Kontaktujte svého administrátora.",
         "errorUserDeactivated": "uživatel byl zakázán."
     },
     "roles": {
@@ -202,7 +202,7 @@
         "onlyYouHaveAccess": "K tomuto objektu typu {type} máte přístup pouze vy."
     },
     "loginWithSaml": {
-        "loginText": "Již máš heslo?",
+        "loginText": "Již máte heslo?",
         "signInWithSaml": "Přihlásit se pomocí SAML SSO",
         "redirecting": "Přesměrování na poskytovatele identity...",
         "continueWithSaml": "Pokračovat k poskytovateli SAML SSO",
@@ -229,7 +229,7 @@
         "memberRolesViewTabTitle": "Zobrazení"
     },
     "createSettingsAuthProviderModal": {
-        "title": "Vlož nový {type}"
+        "title": "Přidat nový {type}"
     },
     "assistantMessageSources": {
         "sources": "{count} zdroj | {count} zdroje"
@@ -726,7 +726,7 @@
     },
     "aiPromptOnboardingType": {
         "prompt": "Vytvoř databázi včetně tabulek, polí, ukázkových řádků a ukázkových zobrazení odpovídajících tomuto popisu: {prompt}",
-        "context": "Osoba zadávající požadavek pracuje v odvětví v týmu . Použij tyto informace k výběru realistických tabulek, polí a ukázkových řádků.",
+        "context": "Osoba zadávající požadavek pracuje v odvětví {industry} a v týmu {team}. Použijte tyto informace k výběru realistických tabulek, polí a ukázkových řádků.",
         "language": "Vše, co vytvoříš, napiš v jazyce s kódem ISO 639-1 \"{language}\"."
     },
     "advanced": {
