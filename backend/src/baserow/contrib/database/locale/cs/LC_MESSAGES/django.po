@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2026-08-14 23:57+0000\n"
+"PO-Revision-Date: 2026-08-16 00:51+0000\n"
 "Last-Translator: Michal Várady <miko.vaji@gmail.com>\n"
 "Language-Team: Czech <https://hosted.weblate.org/projects/baserow/backend-"
 "database/cs/>\n"
@@ -126,7 +126,7 @@ msgid ""
 "%(sender)s assigned you to %(field_name)s in row %(row_id)s in "
 "%(table_name)s."
 msgstr ""
-"%(sender)s Tě přiřadil k %(field_name)s v řádku %(row_id)s v %(table_name)s."
+"%(sender)s Vás přiřadil k %(field_name)s v řádku %(row_id)s v %(table_name)s."
 
 #: src/baserow/contrib/database/plugins.py:63
 #, python-format
