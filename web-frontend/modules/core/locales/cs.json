@@ -62,9 +62,9 @@
     },
     "error": {
         "alreadyExistsTitle": "Uživatel již existuje",
-        "alreadyExistsMessage": "Uživatel s danou emailovou adresou již existuje.",
+        "alreadyExistsMessage": "Uživatel s danou e-mailovou adresou již existuje.",
         "passwordRequired": "Heslo je povinné.",
-        "invalidEmail": "Prosím zadejte platnou emailovou adresu.",
+        "invalidEmail": "Prosím zadejte platnou e-mailovou adresu.",
         "disabledAccountTitle": "Účet je zakázán",
         "disabledAccountMessage": "Tento uživatelský účet byl zakázán.",
         "incorrectCredentialTitle": "Nesprávné přihlašovací údaje",
