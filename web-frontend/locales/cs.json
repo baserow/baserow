@@ -109,7 +109,7 @@
         "emailAddress": "E-mailová adresa"
     },
     "error": {
-        "invalidEmail": "Prosím zadejte platnou emailovou adresu.",
+        "invalidEmail": "Prosím zadejte platnou e-mailovou adresu.",
         "notMatchingPassword": "Toto pole musí souhlasit s vaším polem hesla.",
         "minLength": "Tady je vyžadováno alespoň {min} znaků.",
         "maxLength": "Tady je dovoleno maximálně {max} znaků.",
@@ -155,7 +155,7 @@
         "lookup": "Vyhledání",
         "multipleCollaborators": "Spolupracovníci",
         "defaultFormViewComponent": "Výchozí",
-        "ai": "Příkazové pole AI",
+        "ai": "Prompt AI",
         "lastModifiedBy": "Naposledy změněno uživatelem",
         "rollup": "Rollup",
         "count": "Součet",
@@ -710,7 +710,7 @@
         "containsDescription": "Vrátí true, pokud první argument obsahuje druhý argument.",
         "reverseDescription": "Obrátí argument. Je-li argument řetězec, obrátí řetězec. Je-li seznam, obrátí pořadí seznamu.",
         "joinDescription": "Spojí první argument, přičemž volitelný druhý argument použije jako oddělovač. Není-li druhý argument zadán, použije jako oddělovač ','.",
-        "splitDescription": "Rozdělí první argument, přičemž volitelný druhý argument použije jako oddělovač. Není-li druhý argument zadán, použije jako oddělovač ' ' .",
+        "splitDescription": "Rozdělí první argument, přičemž volitelný druhý argument použije jako oddělovač. Není-li druhý argument zadán, použije jako oddělovač ' '.",
         "isEmptyDescription": "Vrátí true, pokud je argument prázdný, jinak false",
         "stripDescription": "Odstraní z argumentu počáteční a koncové mezery",
         "sumDescription": "Sečte čísla uvnitř argumentu.",
