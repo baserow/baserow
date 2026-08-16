@@ -2,7 +2,7 @@ import pytest
 
 from baserow.contrib.database.fields.formula_visitors import (
     extract_field_id_dependencies,
-    get_formula_field_error,
+    get_table_field_ids,
     replace_field_id_references,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -82,57 +82,29 @@ def test_extract_field_id_dependencies():
 
 
 @pytest.mark.django_db
-def test_get_formula_field_error(data_fixture):
-    table = data_fixture.create_database_table()
-    field = data_fixture.create_text_field(table=table)
-
-    assert get_formula_field_error("", table.id) is None
-    assert get_formula_field_error(f"get('fields.field_{field.id}')", table.id) is None
-    assert (
-        get_formula_field_error("get('fields.field_999999')", table.id)
-        == "The formula references a field that no longer exists."
-    )
-    assert (
-        get_formula_field_error("concat(broken", table.id)
-        == "The formula could not be parsed."
-    )
-    # Raw formulas are literal text, so they are never parsed or validated.
-    assert (
-        get_formula_field_error(
-            {"formula": "https://example.com", "mode": "raw"}, table.id
-        )
-        is None
-    )
-
-
-@pytest.mark.django_db
-def test_get_formula_field_error_caches_field_ids_per_table(
+def test_get_table_field_ids_is_cached_per_table(
     data_fixture, django_assert_num_queries
 ):
     table = data_fixture.create_database_table()
     field = data_fixture.create_text_field(table=table)
-    formula = f"get('fields.field_{field.id}')"
 
     with local_cache.context():
-        # The second validation reuses the cached field ids.
+        # The second read reuses the cached ids.
         with django_assert_num_queries(1):
-            assert get_formula_field_error(formula, table.id) is None
-            assert get_formula_field_error(formula, table.id) is None
+            assert get_table_field_ids(table.id) == {field.id}
+            assert get_table_field_ids(table.id) == {field.id}
 
 
 @pytest.mark.django_db
-def test_get_formula_field_error_cache_is_invalidated_on_schema_change(data_fixture):
+def test_get_table_field_ids_cache_is_invalidated_on_schema_change(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(table=table)
-    formula = f"get('fields.field_{field.id}')"
 
     with local_cache.context():
-        assert get_formula_field_error(formula, table.id) is None
+        assert get_table_field_ids(table.id) == {field.id}
 
-        # Trashing the field sends `table_schema_changed`, so the cached ids must
-        # not keep reporting the reference as valid.
+        # Trashing the field sends `table_schema_changed`, so the cached ids
+        # must not keep reporting it as still there.
         FieldHandler().delete_field(user, field)
-        assert get_formula_field_error(formula, table.id) == (
-            "The formula references a field that no longer exists."
-        )
+        assert get_table_field_ids(table.id) == set()
