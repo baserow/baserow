@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import FieldButtonSubForm from '@baserow/modules/database/components/field/FieldButtonSubForm'
 import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionReconciliation'
@@ -82,6 +83,29 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
       expect(wrapper.vm.$client.patch).not.toHaveBeenCalled()
       expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
+    })
+
+    test('the list is not editable until the saved actions have arrived', async () => {
+      // Editing before they land either loses the edit to the response, or
+      // saves a list missing actions the user never saw, deleting them.
+      const client = testApp.getApp().$client
+      let resolveGet
+      client.get.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveGet = resolve
+        })
+      )
+
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+
+      expect(wrapper.findComponent(ButtonFieldActionList).exists()).toBe(false)
+      expect(wrapper.find('.loading-spinner').exists()).toBe(true)
+
+      resolveGet({ data: [{ id: 1, type: 'open_url' }] })
+      await flushPromises()
+
+      expect(wrapper.findComponent(ButtonFieldActionList).exists()).toBe(true)
+      expect(wrapper.vm.localActions).toEqual([{ id: 1, type: 'open_url' }])
     })
 
     test('cancelling drops the discarded action from the reopened editor', async () => {

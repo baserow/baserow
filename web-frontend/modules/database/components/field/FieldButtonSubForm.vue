@@ -14,7 +14,10 @@
         {{ $t('error.requiredField') }}
       </template>
     </FormGroup>
+    <!-- An edit made before the saved actions arrive would be lost to them. -->
+    <div v-if="loadingActions" class="loading-spinner margin-top-2"></div>
     <ButtonFieldActionList
+      v-else
       :value="localActions"
       :database="database"
       @input="localActions = $event"
@@ -68,6 +71,7 @@ export default {
       // cancelling discards the edits without ever calling the API.
       serverActions: [],
       localActions: [],
+      loadingActions: false,
     }
   },
   computed: {
@@ -91,10 +95,13 @@ export default {
     // FieldForm swaps this sub-form in while the user browses the type
     // dropdown, when `defaultValues` is still a saved field of another type.
     if (this.defaultValues.id && this.defaultValues.type === 'button') {
+      this.loadingActions = true
       try {
         await this.fetchWorkflowActions(this.defaultValues.id)
       } catch (error) {
         notifyIf(error, 'field')
+      } finally {
+        this.loadingActions = false
       }
     }
   },
