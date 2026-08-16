@@ -16,6 +16,12 @@ from .views.rows.signals import (
     views_rows_updated,
 )
 from .views.signals import view_created, view_deleted, view_updated, views_reordered
+from .workflow_actions.signals import (
+    workflow_action_created,
+    workflow_action_deleted,
+    workflow_action_updated,
+    workflow_actions_reordered,
+)
 
 if settings.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS:
     PUBLIC_SIGNALS = []
@@ -74,5 +80,9 @@ __all__ = [
     "views_rows_deleted",
     "views_before_rows_update",
     "views_before_rows_delete",
+    "workflow_action_created",
+    "workflow_action_updated",
+    "workflow_action_deleted",
+    "workflow_actions_reordered",
     *PUBLIC_SIGNALS,
 ]
