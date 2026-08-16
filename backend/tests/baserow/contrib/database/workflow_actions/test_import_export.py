@@ -91,6 +91,65 @@ def test_duplicating_the_table_keeps_a_target_outside_it(data_fixture):
 
 
 @pytest.mark.django_db
+def test_duplicating_the_table_keeps_the_mappings_of_a_target_outside_it(data_fixture):
+    """A kept target table's fields are outside the duplicated scope too, so
+    dropping them left the action on the right table with nothing to write."""
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    other_database = data_fixture.create_database_application(user=user)
+    other_table = data_fixture.create_database_table(user=user, database=other_database)
+    other_field = data_fixture.create_text_field(table=other_table, name="Name")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=other_table
+    )
+    service.field_mappings.create(field=other_field, value="'x'", enabled=True)
+    data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_field)
+    duplicated_service = action.specific.service.specific
+
+    assert duplicated_service.table_id == other_table.id
+    assert [m.field_id for m in duplicated_service.field_mappings.all()] == [
+        other_field.id
+    ], "The action keeps its target table, so it must keep what it writes there."
+
+
+@pytest.mark.django_db
+def test_duplicating_the_table_drops_a_mapping_whose_field_was_trashed(data_fixture):
+    """A trashed field is unmapped for the same reason an out of scope one is,
+    so keeping every unmapped id would resurrect this against the source."""
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table
+    )
+    service.field_mappings.create(field=doomed_field, value="'x'", enabled=True)
+    data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
+    )
+    FieldHandler().delete_field(user, doomed_field)
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_field)
+    duplicated_service = action.specific.service.specific
+
+    assert duplicated_service.table_id == duplicated_table.id
+    assert list(duplicated_service.field_mappings.all()) == []
+
+
+@pytest.mark.django_db
 def test_duplicating_a_single_field_copies_its_actions(data_fixture):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)

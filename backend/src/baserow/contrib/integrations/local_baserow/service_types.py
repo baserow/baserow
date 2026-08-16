@@ -41,6 +41,7 @@ from baserow.contrib.database.fields.field_types import (
     MultipleCollaboratorsFieldType,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.contrib.database.fields.registries import (
     field_aggregation_registry,
@@ -1977,6 +1978,31 @@ class LocalBaserowUpsertRowServiceType(
             service, prop_name, files_zip=files_zip, storage=storage, cache=cache
         )
 
+    def _import_field_mapping_field_id(
+        self, field_id: int, id_mapping: Dict[str, Any], is_duplicate: bool
+    ) -> Optional[int]:
+        """
+        The id a field mapping should point at once imported.
+
+        An unmapped field was trashed, or belongs to a table outside the copied
+        scope. A duplicate keeps such a table, so it keeps its fields too.
+
+        :param field_id: The field id the mapping was exported with.
+        :param id_mapping: The id mapping dict.
+        :param is_duplicate: Whether this import is a duplicate.
+        :return: The field id to point at, or None to drop the mapping.
+        """
+
+        if "database_fields" not in id_mapping:
+            return field_id
+
+        mapped_field_id = id_mapping["database_fields"].get(field_id)
+        if mapped_field_id is not None or not is_duplicate:
+            return mapped_field_id
+
+        # `objects` excludes trashed fields, so this tells the two apart.
+        return field_id if Field.objects.filter(id=field_id).exists() else None
+
     def deserialize_property(
         self,
         prop_name: str,
@@ -1997,15 +2023,13 @@ class LocalBaserowUpsertRowServiceType(
         """
 
         if prop_name == "field_mappings":
+            config = kwargs.get("import_export_config")
+            is_duplicate = getattr(config, "is_duplicate", False)
             return [
                 {
                     **item,
-                    "field_id": (
-                        # The `database_fields` exist, but the field ID
-                        # won't be present if it's trashed.
-                        id_mapping["database_fields"].get(item["field_id"])
-                        if "database_fields" in id_mapping
-                        else item["field_id"]
+                    "field_id": self._import_field_mapping_field_id(
+                        item["field_id"], id_mapping, is_duplicate
                     ),
                 }
                 for item in value
