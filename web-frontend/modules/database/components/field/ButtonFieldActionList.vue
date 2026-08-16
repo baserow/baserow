@@ -17,9 +17,9 @@
     <div class="button-field-action-list__items">
       <div
         v-for="(action, index) in value"
-        :key="`${action.id ?? 'new'}-${index}`"
+        :key="actionKey(action)"
         v-sortable="{
-          id: action.id ?? `new-${index}`,
+          id: actionKey(action),
           handle: '[data-sortable-handle]',
           update: onSortableUpdate,
         }"
@@ -80,6 +80,8 @@
 
 <script>
 import _ from 'lodash'
+import { uuid } from '@baserow/modules/core/utils/string'
+import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionReconciliation'
 
 /**
  * Controlled editor for a button field's ordered action list. Owns no state
@@ -109,6 +111,14 @@ export default {
       return this.$registry.get('databaseWorkflowActionType', action.type)
     },
     /**
+     * What identifies a row of this list. An unsaved action has no id, and
+     * its position cannot stand in for one: deleting the action above would
+     * hand its identity, and so its form state, to the one below.
+     */
+    actionKey(action) {
+      return action.id ?? action[CLIENT_ID_KEY]
+    },
+    /**
      * No type until the user picks one, and no `id` until the field is saved.
      */
     addAction(type = null) {
@@ -116,9 +126,10 @@ export default {
     },
     newAction(type) {
       if (type === null) {
-        return { type: null }
+        return { [CLIENT_ID_KEY]: uuid(), type: null }
       }
       return {
+        [CLIENT_ID_KEY]: uuid(),
         type,
         ...this.$registry
           .get('databaseWorkflowActionType', type)
@@ -127,7 +138,8 @@ export default {
     },
     /**
      * The old config is dropped, since it means nothing to the new type. The
-     * `id` is kept so the change reconciles as an update and keeps its place.
+     * `id` is kept so the change reconciles as an update and keeps its place,
+     * and the client id so the row stays the same row.
      */
     onActionTypeChanged(index, type) {
       const action = this.value[index]
@@ -137,6 +149,9 @@ export default {
       const replacement = this.newAction(type)
       if (action.id != null) {
         replacement.id = action.id
+      }
+      if (action[CLIENT_ID_KEY] != null) {
+        replacement[CLIENT_ID_KEY] = action[CLIENT_ID_KEY]
       }
       this.$emit(
         'input',
@@ -167,9 +182,8 @@ export default {
       this.$emit('input', newList)
     },
     onSortableUpdate(newOrder) {
-      // Namespaced so an unsaved action can never collide with a real id.
       const bySortId = new Map(
-        this.value.map((action, index) => [action.id ?? `new-${index}`, action])
+        this.value.map((action) => [this.actionKey(action), action])
       )
       // An id with no action behind it would render as undefined and crash.
       const reordered = newOrder

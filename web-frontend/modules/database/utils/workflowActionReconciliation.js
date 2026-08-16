@@ -3,12 +3,16 @@ import _ from 'lodash'
 // Keys the API owns. Everything else is the type's own config.
 const API_OWNED_KEYS = ['id', 'type', 'order', 'field_id']
 
+// How the editor tells one unsaved action from another, before the server has
+// given it an id. Never sent, and never part of a diff against the server.
+export const CLIENT_ID_KEY = '_clientId'
+
 /**
  * The type specific config of an action, without the keys the API owns. Used
  * both to diff two actions and to build the payload that persists one.
  */
 export function workflowActionConfig(action) {
-  return _.omit(action, API_OWNED_KEYS)
+  return _.omit(action, [...API_OWNED_KEYS, CLIENT_ID_KEY])
 }
 
 /**

@@ -2,6 +2,7 @@ import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
+import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionReconciliation'
 
 // Read rather than imported: the i18n loader turns an imported locale file
 // into compiled message ASTs, which the copy below can't be read off of.
@@ -58,7 +59,9 @@ describe('ButtonFieldActionList', () => {
 
     await wrapper.vm.addAction()
 
-    expect(wrapper.emitted('input')[0][0]).toEqual([{ type: null }])
+    expect(wrapper.emitted('input')[0][0]).toEqual([
+      { [CLIENT_ID_KEY]: expect.any(String), type: null },
+    ])
   })
 
   test('the row dropdown offers every registered type, in order', async () => {
@@ -148,7 +151,7 @@ describe('ButtonFieldActionList', () => {
     await wrapper.vm.onActionTypeChanged(0, 'open_url')
 
     expect(lastEmitted(wrapper)).toEqual([
-      { id: 1, type: 'open_url' },
+      { id: 1, [CLIENT_ID_KEY]: expect.any(String), type: 'open_url' },
       { id: 2, type: 'local_baserow_delete_row', service: {} },
     ])
   })
@@ -159,7 +162,11 @@ describe('ButtonFieldActionList', () => {
     await wrapper.vm.onActionTypeChanged(0, 'local_baserow_create_row')
 
     expect(wrapper.emitted('input')[0][0]).toEqual([
-      { type: 'local_baserow_create_row', service: {} },
+      {
+        [CLIENT_ID_KEY]: expect.any(String),
+        type: 'local_baserow_create_row',
+        service: {},
+      },
     ])
   })
 
@@ -221,15 +228,19 @@ describe('ButtonFieldActionList', () => {
     expect(emitted[0][0].map((a) => a.id)).toEqual([2, 1])
   })
 
-  test('onSortableUpdate resolves ids correctly when a saved action id collides with an unsaved action index', async () => {
-    // The saved action's real id (1) collides with the unsaved action's
-    // fallback index (1) unless the sortable ids are namespaced.
+  test('onSortableUpdate resolves a saved action and an unsaved one alike', async () => {
+    // The unsaved action is identified by its client id rather than by where
+    // it sits, so no saved id can be taken for an unsaved action's place.
     const wrapper = await mountList([
       { id: 1, type: 'local_baserow_create_row', service: {} },
-      { type: 'local_baserow_delete_row', service: {} },
+      {
+        [CLIENT_ID_KEY]: 'client-1',
+        type: 'local_baserow_delete_row',
+        service: {},
+      },
     ])
 
-    await wrapper.vm.onSortableUpdate(['new-1', 1])
+    await wrapper.vm.onSortableUpdate(['client-1', 1])
 
     const emitted = wrapper.emitted('input')
     const [reordered] = emitted[emitted.length - 1]
@@ -239,6 +250,29 @@ describe('ButtonFieldActionList', () => {
     expect(reordered[0].id).toBeUndefined()
     expect(reordered[1].type).toBe('local_baserow_create_row')
     expect(reordered[1].id).toBe(1)
+  })
+
+  test('deleting an unsaved action leaves the one below as its own row', async () => {
+    // Two unsaved actions of the same type render the same form, so if the
+    // survivor takes over the deleted row Vue keeps that row's form state and
+    // shows the deleted action's configuration.
+    const wrapper = await mountList([
+      { [CLIENT_ID_KEY]: 'client-1', type: 'open_url' },
+      { [CLIENT_ID_KEY]: 'client-2', type: 'open_url' },
+    ])
+
+    const rowsBefore = wrapper.findAll('.button-field-action-list__item')
+    const survivorBefore = rowsBefore[1].element
+    const deletedBefore = rowsBefore[0].element
+
+    await wrapper.setProps({
+      value: [{ [CLIENT_ID_KEY]: 'client-2', type: 'open_url' }],
+    })
+
+    const rowsAfter = wrapper.findAll('.button-field-action-list__item')
+    expect(rowsAfter).toHaveLength(1)
+    expect(rowsAfter[0].element).toBe(survivorBefore)
+    expect(rowsAfter[0].element).not.toBe(deletedBefore)
   })
 
   test('the sortable items have no non-sortable siblings', async () => {

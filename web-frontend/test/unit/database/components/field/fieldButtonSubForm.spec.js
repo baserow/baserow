@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import FieldButtonSubForm from '@baserow/modules/database/components/field/FieldButtonSubForm'
+import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionReconciliation'
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 
@@ -72,7 +73,11 @@ describe('FieldButtonSubForm', () => {
       await wrapper.vm.$nextTick()
 
       expect(wrapper.vm.localActions).toEqual([
-        { type: 'local_baserow_create_row', service: {} },
+        {
+          [CLIENT_ID_KEY]: expect.any(String),
+          type: 'local_baserow_create_row',
+          service: {},
+        },
       ])
       expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
       expect(wrapper.vm.$client.patch).not.toHaveBeenCalled()
@@ -307,7 +312,12 @@ describe('FieldButtonSubForm', () => {
       // Back on the server's type, but with the config reset: an untyped
       // service where the server has a typed, configured one.
       expect(wrapper.vm.localActions).toEqual([
-        { id: 1, type: 'local_baserow_create_row', service: {} },
+        {
+          id: 1,
+          [CLIENT_ID_KEY]: expect.any(String),
+          type: 'local_baserow_create_row',
+          service: {},
+        },
       ])
 
       await wrapper.vm.saveWorkflowActions(7)
@@ -348,7 +358,9 @@ describe('FieldButtonSubForm', () => {
       wrapper.findComponent(ButtonFieldActionList).vm.addAction()
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.vm.localActions).toEqual([{ type: null }])
+      expect(wrapper.vm.localActions).toEqual([
+        { [CLIENT_ID_KEY]: expect.any(String), type: null },
+      ])
 
       wrapper.vm.$client.post.mockClear()
 
