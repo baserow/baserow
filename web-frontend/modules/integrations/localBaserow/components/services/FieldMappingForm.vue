@@ -13,6 +13,7 @@
           v-model="fieldValue"
           :disabled="!mapping.enabled"
           :placeholder="placeholderForType"
+          @blur="flushPendingValue"
         />
         <template #placeholder>
           <div class="field-mapping-form__placeholder" />
@@ -85,6 +86,7 @@ export default {
         // a lot of fields
         clearTimeout(this.debounceTimeout)
         this.debounceTimeout = setTimeout(() => {
+          this.debounceTimeout = null
           this.$emit('update', { value })
         }, 500)
       },
@@ -103,7 +105,22 @@ export default {
       this.localValue = newValue
     },
   },
+  beforeUnmount() {
+    clearTimeout(this.debounceTimeout)
+  },
   methods: {
+    /**
+     * Applies a debounced edit straight away, so a save triggered by leaving
+     * this field sees it.
+     */
+    flushPendingValue() {
+      if (this.debounceTimeout === null) {
+        return
+      }
+      clearTimeout(this.debounceTimeout)
+      this.debounceTimeout = null
+      this.$emit('update', { value: this.localValue })
+    },
     defaultEmptyFormula() {
       return {
         enabled: true,

@@ -223,7 +223,7 @@ export default {
       default: () => ({}),
     },
   },
-  emits: ['input', 'update:mode', 'update:invalid'],
+  emits: ['input', 'update:mode', 'update:invalid', 'blur'],
   data() {
     return {
       editor: null,
@@ -485,6 +485,7 @@ export default {
         content: this.content,
         editable: !this.disabled && !this.readOnly,
         onUpdate: this.onUpdate,
+        onBlur: () => this.$emit('blur'),
         extensions: this.extensions,
         parseOptions: {
           preserveWhitespace: 'full',
