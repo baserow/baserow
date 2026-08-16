@@ -124,7 +124,9 @@ class DatabaseWorkflowActionsView(APIView):
         )
 
         serializer = database_workflow_action_type_registry.get_serializer(
-            workflow_action, DatabaseWorkflowActionSerializer
+            workflow_action,
+            DatabaseWorkflowActionSerializer,
+            context={"user": request.user},
         )
 
         return Response(serializer.data)
@@ -174,7 +176,9 @@ class DatabaseWorkflowActionsView(APIView):
 
         data = [
             database_workflow_action_type_registry.get_serializer(
-                workflow_action, DatabaseWorkflowActionSerializer
+                workflow_action,
+                DatabaseWorkflowActionSerializer,
+                context={"user": request.user},
             ).data
             for workflow_action in workflow_actions
         ]
@@ -300,7 +304,9 @@ class DatabaseWorkflowActionView(APIView):
         )
 
         serializer = database_workflow_action_type_registry.get_serializer(
-            workflow_action_updated, DatabaseWorkflowActionSerializer
+            workflow_action_updated,
+            DatabaseWorkflowActionSerializer,
+            context={"user": request.user},
         )
         return Response(serializer.data)
 
@@ -433,7 +439,9 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 "results": results,
                 "client_actions": [
                     database_workflow_action_type_registry.get_serializer(
-                        workflow_action, DatabaseWorkflowActionSerializer
+                        workflow_action,
+                        DatabaseWorkflowActionSerializer,
+                        context={"user": request.user},
                     ).data
                     for workflow_action in client_actions
                 ],

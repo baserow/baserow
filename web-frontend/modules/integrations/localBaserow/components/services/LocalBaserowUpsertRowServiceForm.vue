@@ -14,17 +14,24 @@
     <p v-if="!service?.table_id">
       {{ $t('localBaserowUpsertRowServiceForm.noTableSelectedMessage') }}
     </p>
-    <FieldMappingsForm
-      v-if="!tableLoading"
-      v-model="values.field_mappings"
-      :fields="writableSchemaFields"
-    ></FieldMappingsForm>
-    <Alert
-      v-if="!tableLoading && service?.table_id && !writableSchemaFields.length"
-      type="warning"
-    >
-      <p>{{ $t('localBaserowUpsertRowServiceForm.noWritableFields') }}</p>
+    <Alert v-if="tableInaccessible" type="warning">
+      <p>{{ $t('localBaserowUpsertRowServiceForm.noTableAccess') }}</p>
     </Alert>
+    <template v-else>
+      <FieldMappingsForm
+        v-if="!tableLoading"
+        v-model="values.field_mappings"
+        :fields="writableSchemaFields"
+      ></FieldMappingsForm>
+      <Alert
+        v-if="
+          !tableLoading && service?.table_id && !writableSchemaFields.length
+        "
+        type="warning"
+      >
+        <p>{{ $t('localBaserowUpsertRowServiceForm.noWritableFields') }}</p>
+      </Alert>
+    </template>
   </form>
 </template>
 
@@ -110,6 +117,13 @@ export default {
     }
   },
   computed: {
+    /**
+     * The backend leaves the schema out for a table the reader may not see,
+     * so there are no mappings to offer and saying why beats an empty list.
+     */
+    tableInaccessible() {
+      return this.service?.table_accessible === false
+    },
     /**
      * Returns the writable fields in the schema, which the
      * `FieldMappingForm` can use to display the field mapping options.

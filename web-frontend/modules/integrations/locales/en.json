@@ -384,6 +384,7 @@
     "fieldMappingPlaceholderDecimal": "Choose a decimal value, e.g. 3.14",
     "fieldMappingPlaceholderDuration": "Choose a duration value, e.g. 1:23:40",
     "noTableSelectedMessage": "Choose a table to begin configuring your fields.",
+    "noTableAccess": "You don't have access to this table, so its fields can't be shown here.",
     "noWritableFields": "This table does not contain any writable fields."
   },
   "localBaserowDeleteRowServiceForm": {

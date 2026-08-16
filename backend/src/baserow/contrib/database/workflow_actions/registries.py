@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Any, Dict, Generator
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Prefetch
 
-from baserow.api.services.serializers import (
-    PolymorphicServiceRequestSerializer,
-    PolymorphicServiceSerializer,
+from baserow.api.services.serializers import PolymorphicServiceRequestSerializer
+from baserow.contrib.database.api.workflow_actions.service_serializers import (
+    DatabasePolymorphicServiceSerializer,
 )
 from baserow.contrib.database.formula_importer import import_formula
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
@@ -104,7 +104,7 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
     serializer_field_names = ["service"]
     serializer_field_overrides = {
-        "service": PolymorphicServiceSerializer(
+        "service": DatabasePolymorphicServiceSerializer(
             help_text="The service which this workflow action is associated with."
         )
     }

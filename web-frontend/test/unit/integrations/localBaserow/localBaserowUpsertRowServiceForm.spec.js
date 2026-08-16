@@ -39,6 +39,37 @@ describe('LocalBaserowUpsertRowServiceForm', () => {
     await wrapper.vm.$nextTick()
   }
 
+  describe('a table the reader has no access to', () => {
+    test('says so instead of showing an empty mapping list', async () => {
+      const wrapper = await mountForm({
+        databases: DATABASES,
+        service: { table_id: 1, table_accessible: false, schema: null },
+      })
+
+      expect(
+        wrapper.findComponent({ name: 'FieldMappingsForm' }).exists()
+      ).toBe(false)
+      expect(wrapper.text()).toContain(
+        'localBaserowUpsertRowServiceForm.noTableAccess'
+      )
+    })
+
+    test('an accessible table still offers its mappings', async () => {
+      const wrapper = await mountForm({
+        databases: DATABASES,
+        service: {
+          table_id: 1,
+          table_accessible: true,
+          schema: { properties: {} },
+        },
+      })
+
+      expect(wrapper.text()).not.toContain(
+        'localBaserowUpsertRowServiceForm.noTableAccess'
+      )
+    })
+  })
+
   describe('the table loading spinner', () => {
     test('a table change raises it by default, as the builder expects', async () => {
       // The builder, automation and dashboard callers save on a table change
