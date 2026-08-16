@@ -12,7 +12,9 @@
           ></LocalBaserowServiceForm>
         </div>
       </div>
-      <div v-if="values.integration_id && values.table_id" class="row">
+      <!-- The service form owns the table picker and no longer carries an
+           integration, so the table is what says this row id can be set. -->
+      <div v-if="values.table_id" class="row">
         <div class="col col-6">
           <FormGroup
             small-label
