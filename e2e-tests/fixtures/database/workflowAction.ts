@@ -37,7 +37,7 @@ export async function createWorkflowAction(
   );
 }
 
-export async function updateWorkflowAction(
+async function updateWorkflowAction(
   user: User,
   action: WorkflowAction,
   values: Record<string, unknown>,
@@ -62,13 +62,6 @@ export async function listWorkflowActions(
     `database/field/${field.id}/workflow_actions/`,
   );
   return response.data;
-}
-
-export async function deleteWorkflowAction(
-  user: User,
-  action: WorkflowAction,
-): Promise<void> {
-  await getClient(user).delete(`database/workflow_action/${action.id}/`);
 }
 
 /**
@@ -134,15 +127,4 @@ export async function createOpenUrlAction(
     url: options.url,
     target: options.target ?? "self",
   });
-}
-
-export async function orderWorkflowActions(
-  user: User,
-  field: Field,
-  actionIds: number[],
-): Promise<void> {
-  await getClient(user).post(
-    `database/field/${field.id}/workflow_actions/order/`,
-    { workflow_action_ids: actionIds },
-  );
 }

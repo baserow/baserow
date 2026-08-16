@@ -44,7 +44,7 @@ const REMOVE_FIELD_INDEX = 13;
 const SPAWN_FIELD_INDEX = 14;
 const MODIFIED_BY_FIELD_INDEX = 15;
 // The field one test creates in the UI, which lands after all of the above.
-const CREATED_FIELD_INDEX = 17;
+const CREATED_FIELD_INDEX = 18;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
@@ -62,6 +62,7 @@ const BUTTON_FIELD_NAMES = [
   "Remove",
   "Spawn",
   "Cross",
+  "Prunable",
 ];
 
 let g: GridSetupResult;
@@ -112,7 +113,7 @@ async function openFieldEditor(page: Page, name: string) {
 test.describe("Button field", () => {
   // The grid only renders the columns that fit, and this suite needs one
   // button field per behaviour, so every column has to be on screen at once.
-  test.use({ viewport: { width: 4200, height: 900 } });
+  test.use({ viewport: { width: 4600, height: 900 } });
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -136,6 +137,7 @@ test.describe("Button field", () => {
         { name: "Spawn", type: "button", settings: { label: "Spawn" } },
         { name: "ModifiedBy", type: "last_modified_by" },
         { name: "Cross", type: "button", settings: { label: "Cross" } },
+        { name: "Prunable", type: "button", settings: { label: "Prunable" } },
       ],
     });
 
@@ -222,6 +224,13 @@ test.describe("Button field", () => {
 
     // "Cross" points outside the table it lives on, so duplicating that table
     // leaves its target with no entry in the id mapping.
+    await createOpenUrlAction(g.user, g.fieldByName["Prunable"], {
+      url: "'/keep-me'",
+    });
+    await createOpenUrlAction(g.user, g.fieldByName["Prunable"], {
+      url: "'/prune-me'",
+    });
+
     await createRowAction(g.user, g.fieldByName["Cross"], {
       type: "local_baserow_create_row",
       table: otherTable,
@@ -451,6 +460,33 @@ test.describe("Button field", () => {
 
     // The guard is what kept the held request the only one.
     expect(dispatches).toBe(1);
+  });
+
+  test("removing an action in the editor deletes it on save", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await openFieldEditor(page, "Prunable");
+    const rows = page.locator(
+      ".button-field-action-list .button-field-action-list__item",
+    );
+    await expect(rows).toHaveCount(2);
+
+    // Remove the second, so the survivor is the one that was already first.
+    await rows.nth(1).locator("button").first().click();
+    await expect(rows).toHaveCount(1);
+
+    await page.locator(".field-context button", { hasText: "Save" }).click();
+
+    await expect(async () => {
+      const actions = await listWorkflowActions(
+        g.user,
+        g.fieldByName["Prunable"],
+      );
+      expect(actions.map((action) => action.url.formula)).toEqual(["'/keep-me'"]);
+    }).toPass({ timeout: 15_000 });
   });
 
   test("dragging an action to a new position saves the new order", async ({
