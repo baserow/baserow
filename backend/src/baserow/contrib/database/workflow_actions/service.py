@@ -76,9 +76,11 @@ class DatabaseWorkflowActionService:
     def get_workflow_actions(
         self, user: AbstractUser, field: ButtonField
     ) -> List[DatabaseWorkflowAction]:
+        # An action carries the schema of the table it writes to, which the
+        # reader may have no access to.
         CoreHandler().check_permissions(
             user,
-            ReadFieldOperationType.type,
+            UpdateFieldOperationType.type,
             workspace=field.table.database.workspace,
             context=field,
         )
