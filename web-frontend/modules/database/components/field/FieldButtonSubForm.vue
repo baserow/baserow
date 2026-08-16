@@ -36,6 +36,7 @@ import ButtonFieldActionList from '@baserow/modules/database/components/field/Bu
 import DatabaseFormulaInput from '@baserow/modules/database/components/field/DatabaseFormulaInput'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import {
+  CLIENT_ID_KEY,
   reconcileWorkflowActions,
   workflowActionConfig,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
@@ -127,13 +128,33 @@ export default {
      * editable copy. Also called after a save, so a second save reconciles
      * against real ids rather than re-creating what the first one made.
      */
-    async fetchWorkflowActions(fieldId) {
+    async fetchWorkflowActions(fieldId, { keepEdits = false } = {}) {
       const { data } = await WorkflowActionService(this.$client).fetchAll(
         fieldId
       )
       this.serverActions = data
-      // Deep copy, or the reconciliation would diff a list against itself.
-      this.localActions = clone(data)
+      if (!keepEdits) {
+        // Deep copy, or the reconciliation would diff a list against itself.
+        this.localActions = clone(data)
+      }
+    },
+    /**
+     * Puts the ids the server just handed out onto the buffered actions they
+     * belong to, so a save that stopped half way can be retried without
+     * creating a second copy of everything the first attempt made.
+     */
+    adoptAssignedIds(assignedIds, replacedIds) {
+      if (assignedIds.size === 0 && replacedIds.size === 0) {
+        return
+      }
+      this.localActions = this.localActions.map((action) => {
+        const created = assignedIds.get(action[CLIENT_ID_KEY])
+        if (created !== undefined) {
+          return { ...action, id: created }
+        }
+        const replaced = replacedIds.get(action.id)
+        return replaced === undefined ? action : { ...action, id: replaced }
+      })
     },
     /**
      * Adds the `type` the API needs to a payload's `service`, taken from the
@@ -174,6 +195,8 @@ export default {
       const service = WorkflowActionService(this.$client)
       const createdIds = []
       const replacedIds = new Map()
+      const assignedIds = new Map()
+      let failed = false
       // Captured before the `finally` below re-fetches and replaces the list.
       const serverById = new Map(this.serverActions.map((a) => [a.id, a]))
 
@@ -181,6 +204,7 @@ export default {
         for (const action of toCreate) {
           const { data } = await service.create(fieldId, action.type)
           createdIds.push(data.id)
+          assignedIds.set(action[CLIENT_ID_KEY], data.id)
           const values = this.configPayload(action, data)
           if (Object.keys(values).length > 0) {
             await service.update(data.id, values)
@@ -225,11 +249,18 @@ export default {
         if (finalOrder.length > 0) {
           await service.order(fieldId, finalOrder)
         }
+      } catch (error) {
+        failed = true
+        throw error
       } finally {
-        // Re-sync either way: on success for the real ids, on a partial
-        // failure to show what persisted. Must not mask the original error.
+        // A failure leaves the edits in the buffer to be retried, but carrying
+        // the ids of whatever did get made. The server list is refreshed
+        // either way, so the retry diffs against what is really there.
+        if (failed) {
+          this.adoptAssignedIds(assignedIds, replacedIds)
+        }
         try {
-          await this.fetchWorkflowActions(fieldId)
+          await this.fetchWorkflowActions(fieldId, { keepEdits: failed })
         } catch (refreshError) {
           notifyIf(refreshError, 'field')
         }

@@ -132,9 +132,11 @@ export default {
         // The field is saved, so its actions can be saved too. A failure here
         // must not undo the field update, so it is only surfaced.
         const fieldId = this.field.id
+        let actionsSaved = true
         try {
           await this.$refs.form.saveWorkflowActions(fieldId)
         } catch (error) {
+          actionsSaved = false
           notifyIf(error, 'field')
         }
         // Read after the save, so it reflects what actually persisted.
@@ -154,8 +156,13 @@ export default {
               value: hasWorkflowActions,
             })
           }
-          this.$refs.form?.reset()
           this.loading = false
+          // Closing would discard the edits that did not make it, with only a
+          // toast to say so. The editor stays open on them to be retried.
+          if (!actionsSaved) {
+            return
+          }
+          this.$refs.form?.reset()
           this.hide()
           this.$emit('updated')
         }

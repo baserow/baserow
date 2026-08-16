@@ -15,6 +15,8 @@ describe('field contexts keep has_workflow_actions in sync', () => {
   // What the stubbed field form reports it has server side. `null` stands for
   // a field type that has no notion of workflow actions.
   let reportedWorkflowActions = null
+  // Set by a test to make the stubbed form's action save fail.
+  let actionSaveError = null
 
   const table = { id: 1 }
   const view = { id: 1, type: 'grid' }
@@ -35,7 +37,11 @@ describe('field contexts keep has_workflow_actions in sync', () => {
       'database',
     ],
     methods: {
-      async saveWorkflowActions() {},
+      async saveWorkflowActions() {
+        if (actionSaveError !== null) {
+          throw actionSaveError
+        }
+      },
       hasWorkflowActions() {
         return reportedWorkflowActions
       },
@@ -76,6 +82,7 @@ describe('field contexts keep has_workflow_actions in sync', () => {
   beforeEach(async () => {
     testApp = new TestApp()
     reportedWorkflowActions = null
+    actionSaveError = null
     client = testApp.getApp().$client
     vi.spyOn(client, 'get').mockResolvedValue({ data: [] })
     vi.spyOn(client, 'post').mockResolvedValue({ data: {} })
@@ -86,6 +93,54 @@ describe('field contexts keep has_workflow_actions in sync', () => {
   afterEach(async () => {
     await testApp.afterEach()
     vi.restoreAllMocks()
+  })
+
+  test('a failed action save leaves the editor open on the edits', async () => {
+    // Closing would drop whatever did not save, leaving only a toast. The
+    // field itself did save, so its callback still has to run.
+    const field = buttonField()
+    await testApp.store.dispatch('field/forceSetFields', { fields: [field] })
+
+    const wrapper = await mountContext(UpdateFieldContext, {
+      table,
+      field,
+      view,
+      allFieldsInTable,
+      database,
+    })
+    client.patch.mockResolvedValue({ data: { ...field } })
+    // Shaped like an API error, which is what `notifyIf` turns into a toast
+    // rather than re-throwing.
+    actionSaveError = { handler: { notifyIf: vi.fn() } }
+    const hide = vi.spyOn(wrapper.vm, 'hide')
+
+    await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+    await wrapper.emitted('update')[0][0].callback()
+
+    expect(hide).not.toHaveBeenCalled()
+    expect(wrapper.emitted('updated')).toBeUndefined()
+    expect(wrapper.vm.loading).toBe(false)
+  })
+
+  test('a save that works closes the editor', async () => {
+    const field = buttonField()
+    await testApp.store.dispatch('field/forceSetFields', { fields: [field] })
+
+    const wrapper = await mountContext(UpdateFieldContext, {
+      table,
+      field,
+      view,
+      allFieldsInTable,
+      database,
+    })
+    client.patch.mockResolvedValue({ data: { ...field } })
+    const hide = vi.spyOn(wrapper.vm, 'hide')
+
+    await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+    await wrapper.emitted('update')[0][0].callback()
+
+    expect(hide).toHaveBeenCalled()
+    expect(wrapper.emitted('updated')).toHaveLength(1)
   })
 
   test('a first action flips the flag the update response left false', async () => {

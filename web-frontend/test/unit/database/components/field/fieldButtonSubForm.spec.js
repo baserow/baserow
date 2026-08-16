@@ -519,6 +519,76 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.get).not.toHaveBeenCalled()
     })
 
+    test('a half saved list keeps the edits, carrying the ids it did get', async () => {
+      // Replacing the buffer with the server's list would drop whatever did
+      // not save, and keeping it raw would create the saved ones a second
+      // time on the retry.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [
+        { [CLIENT_ID_KEY]: 'a', type: 'open_url', url: { formula: "'one'" } },
+        { [CLIENT_ID_KEY]: 'b', type: 'open_url', url: { formula: "'two'" } },
+      ]
+
+      // The first action is created, its config sticks, the second create fails.
+      wrapper.vm.$client.post
+        .mockResolvedValueOnce({ data: { id: 55, type: 'open_url' } })
+        .mockRejectedValueOnce(new Error('boom'))
+      wrapper.vm.$client.get.mockResolvedValue({
+        data: [{ id: 55, type: 'open_url', url: { formula: "'one'" } }],
+      })
+
+      await expect(wrapper.vm.saveWorkflowActions(7)).rejects.toThrow('boom')
+
+      // The edits are still there, and the one that saved now knows its id, so
+      // a retry updates it rather than creating it again.
+      // `target` is the mounted open url form emitting its own default.
+      expect(wrapper.vm.localActions).toEqual([
+        {
+          [CLIENT_ID_KEY]: 'a',
+          id: 55,
+          type: 'open_url',
+          url: { formula: "'one'" },
+          target: 'self',
+        },
+        {
+          [CLIENT_ID_KEY]: 'b',
+          type: 'open_url',
+          url: { formula: "'two'" },
+          target: 'self',
+        },
+      ])
+      // The server list is refreshed all the same, so the retry diffs right.
+      expect(wrapper.vm.serverActions).toEqual([
+        { id: 55, type: 'open_url', url: { formula: "'one'" } },
+      ])
+    })
+
+    test('a save that works still replaces the buffer with the server list', async () => {
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [
+        { [CLIENT_ID_KEY]: 'a', type: 'open_url', url: { formula: "'one'" } },
+      ]
+      wrapper.vm.$client.post.mockResolvedValueOnce({
+        data: { id: 55, type: 'open_url' },
+      })
+      wrapper.vm.$client.get.mockResolvedValue({
+        data: [{ id: 55, type: 'open_url', url: { formula: "'one'" } }],
+      })
+
+      await wrapper.vm.saveWorkflowActions(7)
+
+      expect(wrapper.vm.localActions).toEqual([
+        {
+          id: 55,
+          type: 'open_url',
+          url: { formula: "'one'" },
+          target: 'self',
+        },
+      ])
+    })
+
     test('a failed fetch on mount degrades to an empty list', async () => {
       const client = testApp.getApp().$client
       client.get.mockRejectedValueOnce(
