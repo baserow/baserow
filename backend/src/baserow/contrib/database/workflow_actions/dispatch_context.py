@@ -6,6 +6,7 @@ from baserow.contrib.database.data_providers.registries import (
     database_data_provider_type_registry,
 )
 from baserow.contrib.database.fields.models import ButtonField
+from baserow.contrib.database.rows.data_providers import RowDataProviderType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.models import Service
 from baserow.core.services.utils import ServiceAdhocRefinements
@@ -48,6 +49,20 @@ class DatabaseDispatchContext(DispatchContext):
         # `clone()` carries `actor` over itself, hence its absence from
         # `own_properties`.
         super().__init__(actor=actor, **kwargs)
+
+        # Holds the row read for the action that is running. It has to be made
+        # here rather than by the provider: `clone()` copies this cache dict,
+        # so a holder added to a clone would be thrown away with it, while the
+        # dict placed here is shared by reference with every clone.
+        self.cache[RowDataProviderType.CACHE_KEY] = {}
+
+    def start_action(self):
+        """
+        Drops the row read by the action that just finished, so the next one
+        reads the row as it is when it starts (ADR 006 section 4).
+        """
+
+        self.cache[RowDataProviderType.CACHE_KEY].clear()
 
     @property
     def data_provider_registry(self):

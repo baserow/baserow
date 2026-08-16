@@ -375,8 +375,8 @@ def test_a_click_does_not_enter_the_undo_stack(data_fixture):
 
 
 @pytest.mark.django_db
-def test_every_action_sees_the_row_as_it_was_at_click_time(data_fixture):
-    """ADR 006 section 4: the row provider is a snapshot."""
+def test_every_action_sees_what_the_actions_before_it_did(data_fixture):
+    """ADR 006 section 4: the row provider re-reads per action."""
 
     from baserow.contrib.database.workflow_actions.models import (
         LocalBaserowUpdateRowWorkflowAction,
@@ -401,7 +401,7 @@ def test_every_action_sees_the_row_as_it_was_at_click_time(data_fixture):
     )
 
     # Second action copies the clicked row's Name into a new row. If the
-    # provider re-read the row it would copy 'after'.
+    # provider held a click-time snapshot it would copy 'before'.
     copy = data_fixture.create_database_workflow_action(
         LocalBaserowCreateRowWorkflowAction, field=button_field
     )
@@ -417,9 +417,9 @@ def test_every_action_sees_the_row_as_it_was_at_click_time(data_fixture):
     row.refresh_from_db()
     assert getattr(row, f"field_{name_field.id}") == "after"
     created = model.objects.exclude(id=row.id).get()
-    assert getattr(created, f"field_{name_field.id}") == "before", (
-        "The second action must see the row as it was at click time, not as the "
-        "first action left it (ADR 006 section 4)."
+    assert getattr(created, f"field_{name_field.id}") == "after", (
+        "The second action must see the row as the first action left it, not "
+        "as it was at click time (ADR 006 section 4)."
     )
 
 
@@ -565,3 +565,109 @@ def test_a_service_carrying_an_integration_does_not_run_as_its_user(data_fixture
         )
 
     assert table.get_model().objects.count() == rows_before
+
+
+@pytest.mark.django_db
+def test_a_multiple_select_is_read_as_fresh_as_the_text_beside_it(data_fixture):
+    """The bug reported on the phase 2a review: a sequence copied the clicked
+    row's text as it was at click time, but its multiple select as an earlier
+    action had left it. Values held through a related manager are fetched when
+    they are read, so they were never part of the snapshot the rest of the row
+    was. Both must read the same way, whichever way that is."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    select_field = data_fixture.create_multiple_select_field(table=table, name="Tags")
+    option_a = data_fixture.create_select_option(field=select_field, value="a")
+    option_b = data_fixture.create_select_option(field=select_field, value="b")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+
+    model = table.get_model()
+    name_column = f"field_{name_field.id}"
+    tags_column = f"field_{select_field.id}"
+    row = model.objects.create(**{name_column: "before"})
+    getattr(row, tags_column).set([option_a.id])
+
+    # The first action changes the clicked row's name and tags. No runtime
+    # formula builds a list, so a multiple select cannot be written by a field
+    # mapping: the change rides on the first action's signal instead.
+    def change_the_clicked_row(sender, **kwargs):
+        changed = model.objects.get(id=row.id)
+        setattr(changed, name_column, "after")
+        changed.save()
+        getattr(changed, tags_column).set([option_b.id])
+
+    # It reads the name as well, so a provider that read the row once for the
+    # whole click would answer the second action from this action's read.
+    first = _create_row_action(data_fixture, button_field, table, name_field, "unused")
+    first_mapping = first.service.specific.field_mappings.get()
+    first_mapping.value = f"get('row.{name_column}')"
+    first_mapping.save()
+
+    # The second action copies both of the clicked row's values into a new row.
+    copy = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    copy_service = copy.service.specific
+    copy_service.table = table
+    copy_service.save()
+    copy_service.field_mappings.create(
+        field=name_field, value=f"get('row.{name_column}')", enabled=True
+    )
+    copy_service.field_mappings.create(
+        field=select_field, value=f"get('row.{tags_column}')", enabled=True
+    )
+
+    rows_created.connect(change_the_clicked_row)
+    try:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    finally:
+        rows_created.disconnect(change_the_clicked_row)
+
+    copied = model.objects.exclude(id=row.id).order_by("id").last()
+    copied_name = getattr(copied, name_column)
+    copied_tags = [option.id for option in getattr(copied, tags_column).all()]
+
+    assert (copied_name, copied_tags) == ("after", [option_b.id]), (
+        "The text and the multiple select must be read at the same moment. "
+        f"Got name={copied_name!r} and tags={copied_tags!r}: one of them is a "
+        "click-time snapshot and the other is not (ADR 006 section 4)."
+    )
+
+
+@pytest.mark.django_db
+def test_reading_the_clicked_row_after_it_was_deleted_fails_the_action(data_fixture):
+    """ADR 006 section 4: resolving to nothing would let the action write
+    blanks, so it fails and the sequence stops instead."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{name_field.id}": "doomed"})
+
+    # First action deletes the clicked row.
+    delete = data_fixture.create_database_workflow_action(
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
+    )
+    delete_service = delete.service.specific
+    delete_service.table = table
+    delete_service.row_id = "get('row.id')"
+    delete_service.save()
+
+    # Second action tries to read it afterwards.
+    copy = _create_row_action(data_fixture, button_field, table, name_field, "unused")
+    mapping = copy.service.specific.field_mappings.get()
+    mapping.value = f"get('row.field_{name_field.id}')"
+    mapping.save()
+
+    with pytest.raises(WorkflowActionDispatchError) as exc:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert exc.value.workflow_action_id == copy.id
+    # The delete stands: completed actions are never rolled back.
+    assert model.objects.count() == 0

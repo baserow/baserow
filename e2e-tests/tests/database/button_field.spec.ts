@@ -857,8 +857,8 @@ test.describe("Button field", () => {
     await grid.goTo(g.database, g.table);
     await expect(grid.leftRows()).toHaveCount(3);
 
-    // The dispatch snapshots the row before running, so the action can delete
-    // the very row that was clicked.
+    // The row id resolves before the action runs, so the action can delete the
+    // very row that was clicked.
     await grid.fieldCellAt(0, REMOVE_FIELD_INDEX).locator("button").click();
 
     await expect(grid.leftRows()).toHaveCount(2);

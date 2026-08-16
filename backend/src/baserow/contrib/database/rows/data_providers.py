@@ -7,6 +7,7 @@ from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
 )
+from baserow.core.formula.exceptions import InvalidFormulaContext
 from baserow.core.formula.registries import DataProviderType
 
 if TYPE_CHECKING:
@@ -90,12 +91,44 @@ class RowDataProviderType(DataProviderType):
     value. That suits prompt text and client-side URLs, but not writing a
     number, date or link back into a row (ADR 006 section 4).
 
-    The row is a snapshot taken when the click was dispatched: every action in a
-    sequence sees the row as it was at click time, even if an earlier action
-    changed or deleted it.
+    The row is read again when each action starts, so an action sees what the
+    actions before it did to it. A sequence that deletes the clicked row fails
+    the action that reads it afterwards rather than resolving to nothing.
     """
 
     type = "row"
+
+    # The dispatch context holds the row read for the running action under this
+    # key, so the formulas of one action share a single read.
+    CACHE_KEY = "current_row"
+
+    def _read_row(self, dispatch_context, clicked_row):
+        """
+        The clicked row as it is now, or None once it has been deleted.
+
+        Read once per action: `clone()` copies the context's cache dict but not
+        what is in it, so the holder placed there by `DatabaseDispatchContext`
+        is shared with every clone, and the dispatch loop empties it between
+        actions.
+
+        :param dispatch_context: The context this dispatch runs in.
+        :param clicked_row: The row as it was when the button was clicked.
+        :return: The row, or None if it no longer exists.
+        """
+
+        holder = dispatch_context.cache.get(self.CACHE_KEY)
+        if holder is None:
+            # A context that never made a holder, such as an AI prompt's, gets
+            # the read without the caching.
+            holder = {}
+
+        if "row" not in holder:
+            model = clicked_row._meta.model
+            # Trashed rows are excluded by the model's manager, so a deleted
+            # row reads as None here.
+            holder["row"] = model.objects.filter(id=clicked_row.id).first()
+
+        return holder["row"]
 
     def get_data_chunk(
         self, dispatch_context: "DatabaseDispatchContext", path: List[str]
@@ -107,9 +140,17 @@ class RowDataProviderType(DataProviderType):
 
         # The mirror of the guard above: an AI prompt's `get('row.…')` lands
         # here against a context that carries no row.
-        row = getattr(dispatch_context, "row", None)
-        if row is None:
+        clicked_row = getattr(dispatch_context, "row", None)
+        if clicked_row is None:
             return None
+
+        row = self._read_row(dispatch_context, clicked_row)
+        if row is None:
+            # Resolving to nothing would let a later action write blanks over
+            # the deleted row's values, so the action fails instead.
+            raise InvalidFormulaContext(
+                "The clicked row no longer exists, so this action cannot read it."
+            )
 
         # Lets an update or delete target the clicked row: `row_id` is a
         # formula, so `get('row.id')` is the only way to express it.

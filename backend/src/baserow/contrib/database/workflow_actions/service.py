@@ -283,6 +283,9 @@ class DatabaseWorkflowActionService:
             # (ADR 006 section 8), while still firing `action_done`.
             with without_undo_redo_registration(user):
                 for workflow_action in server_actions:
+                    # Each action reads the clicked row itself, so it sees what
+                    # the actions before it did to it (ADR 006 section 4).
+                    dispatch_context.start_action()
                     try:
                         result = self.handler.dispatch_workflow_action(
                             workflow_action, dispatch_context

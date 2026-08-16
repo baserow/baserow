@@ -222,11 +222,21 @@ The database module registers two data providers for button dispatch:
   and automation's `PreviousNodeProviderType`, with identifier remapping on import, so
   all three modules keep the same design.
 
-The raw row provider is a snapshot taken at dispatch time: every action sees the row as
-it was when the user clicked, even after an earlier action changed or deleted it;
-fresher values come from the previous-action provider. Like the builder's, both
-providers are implemented on backend and frontend, so the action editor's data explorer
-and the dispatch path see the same shapes.
+The raw row provider reads the row again as each action starts, so an action sees what
+the actions before it did to it. Reading the row after an earlier action deleted it
+fails that action and stops the sequence, rather than resolving to nothing and letting
+the action write blanks. Like the builder's, both providers are implemented on backend
+and frontend, so the action editor's data explorer and the dispatch path see the same
+shapes.
+
+This reverses an earlier decision to make the provider a click-time snapshot. That
+version was never fully true: values held through a related manager, such as link row,
+multiple select and multiple collaborators, were read when the formula ran rather than
+when the click happened, so a sequence mixed snapshotted and live values with no way to
+tell which was which. It also leaned on the previous-action provider as the way to read
+fresher values, which reads a named earlier action's result rather than the row, in a
+different shape from this provider. A click-time snapshot may return later as a provider
+of its own, asked for by name.
 
 ### 5. Integrations and ownership
 
