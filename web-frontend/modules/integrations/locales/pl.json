@@ -27,7 +27,7 @@
     "localBaserowTableServiceConditionalForm": {
         "relatedFieldNotFound": "Powiązane pole nie zostało znalezione.",
         "filterTypeNotFound": "Niezgodny typ filtra.",
-        "addFilter": "Dodaj dodatkowy filtr",
+        "addFilter": "Dodaj filtr",
         "noFilterTitle": "Filtr źródła danych nie został jeszcze utworzony",
         "noFilterText": "Filtry źródła danych umożliwiają wyświetlanie wierszy, które spełniają określone przez Ciebie warunki.",
         "noCompatibleFilterTypesErrorTitle": "Brak kompatybilnych typów filtrów",
@@ -35,7 +35,10 @@
         "formulaFilterInputPlaceholder": "Wprowadź formułę...",
         "useFormulaForValue": "Użyj formuły dla tego filtra",
         "useDefaultForValue": "Użyj domyślnego filtra dla tego pola",
-        "textFilterInputPlaceholder": "Wprowadź tekst..."
+        "textFilterInputPlaceholder": "Wprowadź tekst...",
+        "addFilterGroup": "Dodaj grupę filtrów",
+        "expressionFilterInputPlaceholder": "Wybierz wyrażenie...",
+        "useExpressionForValue": "Zastosuj wyrażenie dla tego filtra"
     },
     "serviceType": {
         "localBaserowGetRow": "Pobierz jeden wiersz",
@@ -111,7 +114,10 @@
         "errorCSVFileMissing": "Brak atrybutu pliku CSV",
         "errorCSVContentMissing": "Brak atrybutu danych w pliku CSV",
         "errorNoWorkflowSelected": "Nie wybrano żadnego procesu",
-        "errorWorkflowNotImmediateDispatch": "Wybrany proces musi zostać uruchomiony przez trigger, który wyzwala się w sposób natychmiastowy."
+        "errorWorkflowNotImmediateDispatch": "Wybrany proces musi zostać uruchomiony przez trigger, który wyzwala się w sposób natychmiastowy.",
+        "coreGoto": "Przejdź do",
+        "coreGotoDescription": "Jeśli warunek jest spełniony, przechodzi do innego punktu procesu.",
+        "coreGotoDestinationRequired": "Punkt docelowy jest wymagany."
     },
     "userSourceType": {
         "localBaserow": "Uwierzytelnianie tabeli Baserow"
@@ -134,7 +140,7 @@
         "localBaserowSummary": "Lokalny Baserow - {name}, {username}",
         "localBaserowWarning": "Autoryzacja konta daje każdemu, kto ma uprawnienia do edycji aplikacji, pełny dostęp do danych, do których masz dostęp. Możliwe jest utworzenie drugiego użytkownika, nadanie mu odpowiednich uprawnień i korzystanie z niego.",
         "smtp": "E-mail SMTP",
-        "slackBot": "Bot Slack",
+        "slackBot": "Slack",
         "ai": "AI"
     },
     "localBaserowGetRowForm": {
@@ -393,11 +399,19 @@
     "localBaserowCreateRowsServiceForm": {
         "rowsLabel": "Wiersze",
         "rowsPlaceholder": "Wybierz listę obiektów typu \"wiersz\"",
-        "rowsHelper": "Wynikiem musi być tablica obiektów wierszy lub ciąg JSON, który po przetworzeniu tworzy taką tablicę. Jako klucze obiektów należy użyć nazw lub ID pól. Jednorazowo można utworzyć do {limit} wierszy."
+        "rowsHelper": "Wyrażenie musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który po przetworzeniu utworzy taką tablicę. Jako kluczy obiektów należy użyć nazw lub ID pól. Jednorazowo można utworzyć do {limit} wierszy."
     },
     "localBaserowUpdateRowsServiceForm": {
         "rowsLabel": "Wiersze",
         "rowsPlaceholder": "Wybierz liste ID obiektów typu \"wiersz\"",
-        "rowsHelper": "Wynikiem musi być tablica obiektów wierszy lub ciąg JSON, który po przetworzeniu utworzy taką tablicę. Każdy obiekt musi zawierać atrybut identyfikacyjny. Jako klucza obiektu można użyć nazwy lub ID pola. Jednorazowo można zaktualizować do {limit} wierszy."
+        "rowsHelper": "Wyrażenie musi zwrócić tablicę obiektów wierszy lub ciąg JSON, który po przetworzeniu utworzy taką tablicę. Każdy obiekt musi zawierać atrybut identyfikacyjny. Jako klucza obiektu można użyć nazwy lub ID pola. Jednorazowo można zaktualizować do {limit} wierszy."
+    },
+    "coreGotoServiceForm": {
+        "conditionLabel": "Warunek",
+        "conditionDescription": "Jeśli warunek jest spełniony, zamiast kontynuować do kolejnego węzła, proces przejdzie do węzła określonego jako docelowy.",
+        "conditionPlaceholder": "Jeśli warunek jest spełniony, przechodzimy do węzła docelowego.",
+        "destinationLabel": "Węzeł docelowy",
+        "destinationDescription": "Węzeł, do którego proces przejdzie, jeśli warunek jest spełniony.",
+        "destinationPlaceholder": "Wybierz węzeł docelowy..."
     }
 }
