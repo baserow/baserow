@@ -87,6 +87,8 @@ export default {
     return {
       loading: false,
       showDescription: false,
+      // Whether the last save left action edits behind to be retried.
+      actionsFailed: false,
     }
   },
   computed: {
@@ -102,6 +104,11 @@ export default {
   },
   watch: {
     field() {
+      // The field's own update lands here too, and rebuilding the form would
+      // throw away the action edits a failed save is holding on to.
+      if (this.actionsFailed) {
+        return
+      }
       // If the field values are updated via an outside source, think of real time
       // collaboration or via the modal, we want to reset the form so that it contains
       // the correct base values.
@@ -139,6 +146,7 @@ export default {
           actionsSaved = false
           notifyIf(error, 'field')
         }
+        this.actionsFailed = !actionsSaved
         // Read after the save, so it reflects what actually persisted.
         const hasWorkflowActions = this.$refs.form.hasWorkflowActions()
 
@@ -179,6 +187,7 @@ export default {
       }
     },
     cancel() {
+      this.actionsFailed = false
       this.reset()
       this.hide()
     },
