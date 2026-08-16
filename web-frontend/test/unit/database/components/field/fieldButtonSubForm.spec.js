@@ -15,13 +15,16 @@ describe('FieldButtonSubForm', () => {
     testApp.afterEach()
   })
 
-  const mountForm = async (defaultValues = {}) =>
+  const mountForm = async (
+    defaultValues = {},
+    allFieldsInTable = [{ id: 1, type: 'text', name: 'Name' }]
+  ) =>
     testApp.mount(FieldButtonSubForm, {
       propsData: {
         table: { id: 1 },
         view: null,
         primary: false,
-        allFieldsInTable: [{ id: 1, type: 'text', name: 'Name' }],
+        allFieldsInTable,
         name: 'button',
         database: { id: 1, workspace: { id: 1 } },
         defaultValues,
@@ -603,6 +606,28 @@ describe('FieldButtonSubForm', () => {
         (group) => group.type === 'data'
       )
       // `allFieldsInTable` above holds a single "Name" field.
+      const rowNode = dataGroup.nodes.find((node) => node.identifier === 'row')
+      expect(rowNode.nodes.map((node) => node.identifier)).toEqual([
+        'id',
+        'field_1',
+      ])
+    })
+
+    test('a password field is not offered to read from', async () => {
+      // Its stored value is the hash, which the dispatch refuses to return.
+      const form = await mountForm({ type: 'button', label: 'Go' }, [
+        { id: 1, type: 'text', name: 'Name' },
+        { id: 2, type: 'password', name: 'Secret' },
+      ])
+
+      const input = await mountInjectedInput(form, {
+        modelValue: { formula: "'hi'", mode: 'simple' },
+      })
+
+      const formulaInput = input.findComponent({ name: 'DatabaseFormulaInput' })
+      const dataGroup = formulaInput.vm.nodesHierarchy.find(
+        (group) => group.type === 'data'
+      )
       const rowNode = dataGroup.nodes.find((node) => node.identifier === 'row')
       expect(rowNode.nodes.map((node) => node.identifier)).toEqual([
         'id',

@@ -171,6 +171,13 @@ class FieldType(
     """Indicates whether the field allows inserting/updating row values or if it is
     read only."""
 
+    write_only = False
+    """
+    Indicates whether the stored value must never be handed back, as the password
+    field's hash must not be. Serializers and exports mask such a value already;
+    this marks it for the paths that read the column itself.
+    """
+
     keep_data_on_duplication = True
     """
     Indicates whether the data must be kept when duplicating the field. We typically

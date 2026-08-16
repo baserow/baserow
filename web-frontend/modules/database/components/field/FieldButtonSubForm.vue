@@ -75,8 +75,14 @@ export default {
       const context = {}
       Object.defineProperty(context, 'fields', {
         enumerable: true,
+        // A write only field is left out: the dispatch refuses to read one, so
+        // offering it would only build a formula that fails on click.
         get: () =>
-          this.allFieldsInTable.filter((f) => f.id !== this.defaultValues.id),
+          this.allFieldsInTable.filter(
+            (f) =>
+              f.id !== this.defaultValues.id &&
+              !this.$registry.get('field', f.type).isWriteOnlyField(f)
+          ),
       })
       return context
     },

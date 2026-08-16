@@ -7707,6 +7707,7 @@ class PasswordFieldType(FieldType):
 
     type = "password"
     model_class = PasswordField
+    write_only = True
     can_be_in_form_view = True
     keep_data_on_duplication = True
     _can_order_by_types = []

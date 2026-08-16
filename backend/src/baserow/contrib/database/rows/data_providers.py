@@ -168,6 +168,13 @@ class RowDataProviderType(DataProviderType):
         if field_object is None:
             return None
 
+        if field_object["type"].write_only:
+            # The stored value is a password hash. Returning it would put it
+            # somewhere readable, which no other surface allows.
+            raise InvalidFormulaContext(
+                f'The "{field_object["field"].name}" field cannot be read by an action.'
+            )
+
         try:
             # A link row, select or collaborator field holds a manager or a
             # model instance, which no action can write. The field type turns

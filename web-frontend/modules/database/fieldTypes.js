@@ -961,6 +961,14 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Whether the stored value must never be handed back, as a password field's
+   * hash must not be. Such a field is not offered where a value would be read.
+   */
+  isWriteOnlyField(field) {
+    return false
+  }
+
+  /**
    * Determines if it is possible to write values to the field. This is used to
    * determine if the field values are editable in the UI. To be able to write
    * values, the field type must not be read-only and the user must have
@@ -5251,6 +5259,10 @@ export class PasswordFieldType extends FieldType {
 
   static getIconClass() {
     return 'iconoir-lock'
+  }
+
+  isWriteOnlyField(field) {
+    return true
   }
 
   getName() {

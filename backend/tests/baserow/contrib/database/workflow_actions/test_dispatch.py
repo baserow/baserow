@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import make_password
 from django.core.cache import cache
 
 import pytest
@@ -671,3 +672,33 @@ def test_reading_the_clicked_row_after_it_was_deleted_fails_the_action(data_fixt
     assert exc.value.workflow_action_id == copy.id
     # The delete stands: completed actions are never rolled back.
     assert model.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_a_password_field_cannot_be_read_into_another_row(data_fixture):
+    """The stored value is the hash. Every other surface masks it, so the row
+    provider must not be the one way to copy it somewhere readable."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    password_field = data_fixture.create_password_field(table=table, name="Secret")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+
+    model = table.get_model()
+    hashed = make_password("hunter2")
+    row = model.objects.create(**{f"field_{password_field.id}": hashed})
+
+    copy = _create_row_action(data_fixture, button_field, table, name_field, "unused")
+    mapping = copy.service.specific.field_mappings.get()
+    mapping.value = f"get('row.field_{password_field.id}')"
+    mapping.save()
+
+    with pytest.raises(WorkflowActionDispatchError) as exc:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert exc.value.workflow_action_id == copy.id
+    assert hashed not in str(exc.value), "The refusal must not carry the hash."
+    written = [getattr(r, f"field_{name_field.id}") for r in model.objects.all()]
+    assert hashed not in written
