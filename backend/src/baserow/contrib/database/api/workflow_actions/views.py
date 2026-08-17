@@ -417,21 +417,19 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
         row = RowHandler().get_row(request.user, field.table, data["row_id"])
 
-        dispatch_results, client_actions = (
-            DatabaseWorkflowActionService().dispatch_workflow_actions(
-                request.user, field, row
-            )
+        dispatch = DatabaseWorkflowActionService().dispatch_workflow_actions(
+            request.user, field, row
         )
 
         results = [
             {
-                "workflow_action_id": workflow_action.id,
+                "workflow_action_id": dispatched.workflow_action.id,
                 # Every action runs synchronously inside the request. The field
                 # is here so an async one can report "dispatched" later.
                 "status": "completed",
-                "data": dispatch_result.data,
+                "data": dispatched.result.data,
             }
-            for workflow_action, dispatch_result in dispatch_results
+            for dispatched in dispatch.dispatched
         ]
 
         return Response(
@@ -443,7 +441,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                         DatabaseWorkflowActionSerializer,
                         context={"user": request.user},
                     ).data
-                    for workflow_action in client_actions
+                    for workflow_action in dispatch.client_actions
                 ],
             }
         )

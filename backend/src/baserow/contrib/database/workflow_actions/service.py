@@ -1,4 +1,4 @@
-from typing import Any, List, Tuple
+from typing import Any, List
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -36,6 +36,10 @@ from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_updated,
     workflow_actions_reordered,
 )
+from baserow.contrib.database.workflow_actions.types import (
+    DispatchedWorkflowAction,
+    WorkflowActionsDispatchResult,
+)
 from baserow.core.action.context import without_undo_redo_registration
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import (
@@ -46,7 +50,6 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
     TriggerServiceNotDispatchable,
 )
-from baserow.core.services.types import DispatchResult
 from baserow.core.types import PermissionCheck
 
 # Failures whose message is written for the clicker, and so is safe to return.
@@ -188,10 +191,7 @@ class DatabaseWorkflowActionService:
 
     def dispatch_workflow_actions(
         self, user: AbstractUser, field: ButtonField, row: Any
-    ) -> Tuple[
-        List[Tuple[DatabaseWorkflowAction, DispatchResult]],
-        List[DatabaseWorkflowAction],
-    ]:
+    ) -> WorkflowActionsDispatchResult:
         """
         Runs the server-side actions in order as the given user, and hands the
         frontend-only ones back for the caller to run.
@@ -209,8 +209,8 @@ class DatabaseWorkflowActionService:
             meant for the clicker. Any other failure is re-raised as it is, so
             its message stays server side. Either way the actions before it have
             already run and are not rolled back.
-        :return: The (action, result) pairs for the server-side actions, and the
-            frontend-only actions for the caller to run itself, both in order.
+        :return: What the server-side actions returned, and the frontend-only
+            actions for the caller to run itself, both in order.
         """
 
         # Field scoped, so it also covers a button with no actions: without it
@@ -225,7 +225,7 @@ class DatabaseWorkflowActionService:
         workflow_actions = list(self.handler.get_workflow_actions(field))
 
         if not workflow_actions:
-            return [], []
+            return WorkflowActionsDispatchResult()
 
         # Checked over every action, frontend-only included, so a click is
         # refused as a whole (ADR 006 section 7), and before the lock is taken,
@@ -255,7 +255,7 @@ class DatabaseWorkflowActionService:
         # Nothing server side means no state to protect, so no lock: a button
         # that only opens a URL must not reject a second click.
         if not server_actions:
-            return [], client_actions
+            return WorkflowActionsDispatchResult(client_actions=client_actions)
 
         # Taken only when the key is absent, so a double click cannot run the
         # sequence twice, and released by a script that checks ownership first,
@@ -280,7 +280,7 @@ class DatabaseWorkflowActionService:
 
         try:
             dispatch_context = DatabaseDispatchContext(user, field, row)
-            results = []
+            dispatched = []
 
             # The clicker's own actions must not land in their undo stack
             # (ADR 006 section 8), while still firing `action_done`.
@@ -307,9 +307,9 @@ class DatabaseWorkflowActionService:
                                 positions[workflow_action.id],
                             ) from exc
                         raise
-                    results.append((workflow_action, result))
+                    dispatched.append(DispatchedWorkflowAction(workflow_action, result))
 
-            return results, client_actions
+            return WorkflowActionsDispatchResult(dispatched, client_actions)
         finally:
             try:
                 lock.release()
