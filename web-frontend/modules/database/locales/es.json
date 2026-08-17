@@ -661,7 +661,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Comparte un enlace a tu Base",
-        "airtableShareLinkDescription": "Para importar tu base de Airtable, necesitas disponer de un enlace compartido de toda la base. En Airtable, haz clic en el botón «Compartir» en la esquina superior derecha después de abrir tu base. Después, debes escoger la opción «Compartir mediante enlace\". En la ventana emergente de compartir pulsa la pestaña «Compartir públicamente» y luego en «Enlace privado de solo lectura». Copia el enlace público y pégalo en el campo de entrada que aparece a continuación.",
+        "airtableShareLinkDescription": "Para importar tu base de Airtable, necesitas disponer de un enlace compartido de toda la base. En Airtable, haz clic en el botón «Compartir» en la esquina superior derecha después de abrir tu base. Después, debes escoger la opción «Compartir mediante enlace\". En la ventana emergente de compartir pulsa la pestaña «Compartir públicamente» y luego en «Enlace privado de solo lectura». Copia el enlace público y pégalo en el campo de entrada abajo. También se acepta un enlace a una vista compartida públicamente, y se importará como una base de datos que contiene esa única tabla.",
         "airtableShareLinkBeta": "Esta funcionalidad importará la mayor parte de los datos, pero existen incompatibilidades. Por lo tanto, se añadirá una tabla llamada \"Airtable import report\" que contendrá una lista de cosas que no fueron importadas o que se importaron parcialmente.",
         "airtableShareLinkPaste": "Pega el enlace aquí",
         "importButtonLabel": "Importar desde Airtable",
@@ -682,9 +682,11 @@
         "skipFilesHelper": "Una base de Airtable con muchos archivos puede ralentizar la importación. Al habilitar esta opción se omite la importación de los archivos.",
         "useSession": "Autenticación de sesión",
         "useSessionHelper": "Utiliza esto si la base compartida públicamente requiere autenticación.",
-        "sessionDescription": "Si la importación devuelve «The Airtable base requires authentication.», puede ser que la configuración organizacional de Airtable impida acceder a la base sin autenticarte primero. Para ello, debes extraer manualmente la sesión y la firma. Abre la URL de la base pública compartida en tu navegador y, si es necesario, inicia sesión. Haz clic en el menú de la aplicación en la esquina superior derecha → «Más herramientas» → «Herramientas de desarrollador». En la pestaña «Aplicación» (en Firefox «Almacenamiento») selecciona «https://airtable.com». Busca los valores de cookie «__Host‑airtable‑session» y «__Host‑airtable‑session.sig» y pégalos en los campos que aparecen a continuación.",
+        "sessionDescription": "Si la importación falla porque la base requiere autenticación, puede ser que la configuración organizacional de Airtable impida acceder a la base sin autenticarte primero. Para ello, debes extraer manualmente la sesión y la firma. Abre la URL de la base pública compartida en tu navegador y, si es necesario, inicia sesión. Haz clic en el menú de la aplicación en la esquina superior derecha → «Más herramientas» → «Herramientas de desarrollador». En la pestaña «Aplicación» (en Firefox «Almacenamiento») selecciona «https://airtable.com». Busca los valores de cookie «__Host‑airtable‑session» y «__Host‑airtable‑session.sig» y pégalos en los campos que aparecen a continuación.",
         "sessionLabel": "Cookie de sesión (__Host‑airtable‑session)",
-        "sessionSignatureLabel": "Cookie de firma de sesión (__Host‑airtable‑session.sig)"
+        "sessionSignatureLabel": "Cookie de firma de sesión (__Host‑airtable‑session.sig)",
+        "errorBaseNotPublicDescription": "Airtable no devolvió una base compartida públicamente para este enlace. Abre el enlace en tu navegador para comprobar que carga la base que quieres importar y que la URL completa se copió correctamente, luego inténtalo de nuevo.",
+        "errorRequiresAuthenticationDescription": "Esta base solo puede importarse con autenticación adicional. La opción «Autenticación de sesión» de abajo se ha habilitado para ti. Sigue las instrucciones para copiar los valores de las cookies «__Host-airtable-session» y «__Host-airtable-session.sig» en los campos, e inténtalo de nuevo."
     },
     "viewDecorator": {
         "decorator": "Color | 1 Color | {recuento} Colores",
@@ -1256,5 +1258,11 @@
         "expandGroup": "Expandir grupo",
         "collapseGroup": "Colapsar grupo",
         "emptyValue": "(Vacío)"
+    },
+    "viewsAdminRotateSlugModal": {
+        "refreshWarning": "¿Estás seguro de que quieres refrescar la URL de {viewName}? Después de refrescar, se generará una nueva URL y no será posible acceder a la vista mediante la URL anterior. Todos los que tengan la URL anterior no podrán acceder a la vista nunca más."
+    },
+    "templateOnboardingCancelModal": {
+        "description": "Para omitir la bienvenida, selecciona una de las plantillas a continuación. Empezar con una plantilla es la mejor manera de conocer Baserow porque configura tablas, campos y datos de ejemplo por ti. Siempre puedes cambiarlo o eliminarlo más adelante."
     }
 }
