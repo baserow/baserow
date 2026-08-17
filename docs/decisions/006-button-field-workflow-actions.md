@@ -390,9 +390,12 @@ it. Concretely:
 - **Field type conversion.** Converting away deletes actions and services; converting
   into a button starts empty. Both directions are destructive, like other fields that
   carry configuration.
-- **Undo/redo.** Configuration changes are undoable like other field updates. Clicks are
-  never undoable, even when a sequence only touches rows: a partially undoable button is
-  more confusing than none.
+- **Undo/redo.** Clicks are never undoable, even when a sequence only touches rows: a
+  partially undoable button is more confusing than none. Nor are the actions themselves
+  yet: the field update around them is undoable, so undoing a save restores the label
+  and leaves the actions as they were saved. Builder workflow actions are the same, and
+  making either undoable needs a way to restore a deleted action with its service, which
+  neither has.
 - **Deleting a user.** Nothing breaks: actions run as whoever clicks, and v1 services
   have no integration, so no button depends on any particular account.
 - **Failure mid-sequence.** Execution stops, later actions are skipped, completed

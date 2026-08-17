@@ -15,6 +15,9 @@ from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowDeleteRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
+from baserow.contrib.database.workflow_actions.registries import (
+    database_workflow_action_type_registry,
+)
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
@@ -770,3 +773,36 @@ def test_a_disabled_mapping_on_a_trashed_field_does_not_stop_the_click(data_fixt
 
     created = model.objects.exclude(id=row.id).get()
     assert getattr(created, f"field_{name_field.id}") == "kept"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_save_restores_the_field_but_not_its_actions(data_fixture):
+    """ADR 006 section 8: the actions are not undoable yet, while the field
+    around them is. This pins that half state so it is a decision rather than a
+    surprise, and fails when undo is implemented, which is when the ADR needs
+    revisiting."""
+
+    from baserow.api.sessions import set_untrusted_client_session_id
+    from baserow.contrib.database.action.scopes import TableActionScopeType
+    from baserow.contrib.database.fields.actions import UpdateFieldActionType
+    from baserow.core.action.handler import ActionHandler
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Before")
+    set_untrusted_client_session_id(user, "session-1")
+
+    # A save changes the label and adds an action, the way the editor does.
+    UpdateFieldActionType.do(user, button_field, new_type_name="button", label="After")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user, database_workflow_action_type_registry.get("open_url"), button_field
+    )
+
+    ActionHandler.undo(
+        user, [TableActionScopeType.value(table_id=table.id)], "session-1"
+    )
+
+    button_field.refresh_from_db()
+    assert button_field.label == "Before"
+    assert button_field.workflow_actions.count() == 1
