@@ -204,18 +204,7 @@ describe('GridView component', () => {
     const sectionKey = pathKey(groupPath, [groupField])
     const row = { id: 20 }
     const context = {
-      sourceGroupPath: groupPath,
-      groupByFields: [groupField],
-      groupBySectionRows: new Map([
-        [
-          sectionKey,
-          new Map([
-            [0, { id: 10 }],
-            [1, row],
-            [2, { id: 30 }],
-          ]),
-        ],
-      ]),
+      sourceRowLocation: { sectionKey, position: 1 },
       row,
     }
 

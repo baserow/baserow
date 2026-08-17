@@ -4855,6 +4855,7 @@ export const actions = {
 
     let groupUpdateCompleted = false
     let groupUpdateResponseData = null
+    let moveResponseData
 
     try {
       if (crossesGroup) {
@@ -4879,23 +4880,7 @@ export const actions = {
         grid.id,
         undoRedoActionGroupId
       )
-      // Use the return value to update the moved row with values from
-      // the backend
-      commit('UPDATE_ROW_IN_BUFFER', { row, values: data })
-      if (before === null) {
-        // Not having a before means that the row was moved to the end and because
-        // that order was just an estimation, we want to update it with the real
-        // order, otherwise there could be order conflicts in the future.
-        commit('UPDATE_ROW_IN_BUFFER', { row, values: { order: data.order } })
-      }
-      dispatch('fetchByScrollTopDelayed', {
-        scrollTop: getScrollTop(),
-        fields,
-      })
-      dispatch('fetchAllFieldAggregationData', {
-        view: grid,
-        clearGroupByAggregationLoadingPaths: crossesGroup,
-      })
+      moveResponseData = data
     } catch (error) {
       const values = groupUpdateCompleted
         ? { ...groupUpdateResponseData, order: oldOrder }
@@ -4924,6 +4909,27 @@ export const actions = {
       }
       throw error
     }
+
+    // Use the return value to update the moved row with values from
+    // the backend
+    commit('UPDATE_ROW_IN_BUFFER', { row, values: moveResponseData })
+    if (before === null) {
+      // Not having a before means that the row was moved to the end and because
+      // that order was just an estimation, we want to update it with the real
+      // order, otherwise there could be order conflicts in the future.
+      commit('UPDATE_ROW_IN_BUFFER', {
+        row,
+        values: { order: moveResponseData.order },
+      })
+    }
+    dispatch('fetchByScrollTopDelayed', {
+      scrollTop: getScrollTop(),
+      fields,
+    })
+    dispatch('fetchAllFieldAggregationData', {
+      view: grid,
+      clearGroupByAggregationLoadingPaths: crossesGroup,
+    })
   },
   /**
    * Updates a grid view field value. It will immediately be updated in the store
@@ -6798,6 +6804,9 @@ export const getters = {
       fields: groupByFields,
       rowHeight: state.rowHeight,
     })
+  },
+  getGroupByRowLocation: (state) => (rowId) => {
+    return state.groupBy.rowLocations[rowId] || null
   },
   getGroupByRowPath: (state, getters) => (rowId, fields) => {
     const location = state.groupBy.rowLocations[rowId]

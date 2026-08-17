@@ -179,6 +179,7 @@ export function buildLayout({
         type: 'rowSection',
         depth: node.depth,
         path: node.path,
+        display: node.display,
         rowCount,
         y,
         height: sectionHeight,
@@ -191,6 +192,8 @@ export function buildLayout({
         type: 'addRow',
         depth: node.depth,
         path: node.path,
+        display: node.display,
+        rowCount,
         y,
         height: ADD_ROW_HEIGHT,
       })
@@ -399,6 +402,7 @@ function buildPagedLayout({
             type: 'rowSection',
             depth: node.depth ?? depth,
             path: node.path,
+            display: node.display,
             rowCount,
             y,
             height: sectionHeight,
@@ -411,6 +415,8 @@ function buildPagedLayout({
             type: 'addRow',
             depth: node.depth ?? depth,
             path: node.path,
+            display: node.display,
+            rowCount,
             y,
             height: ADD_ROW_HEIGHT,
           })
@@ -751,25 +757,12 @@ export function resolveGroupByRowMoveTarget({
       return null
     }
 
-    const section = layout.items.find(
-      (candidate) =>
-        candidate.type === 'rowSection' &&
-        pathKey(candidate.path, fields) === sectionKey
-    )
-    if (!section) {
-      return null
-    }
-    const header = layout.items.find(
-      (candidate) =>
-        candidate.type === 'header' &&
-        pathKey(candidate.path, fields) === sectionKey
-    )
-
+    const { rowCount } = item
     const rows = sectionRows.get(sectionKey)
     if (item.type === 'rowSection') {
       const hoveredPosition = Math.min(
-        section.rowCount - 1,
-        Math.floor((contentY - section.y) / rowHeight)
+        rowCount - 1,
+        Math.floor((contentY - item.y) / rowHeight)
       )
       if (rows?.get(hoveredPosition) === undefined) {
         return null
@@ -778,28 +771,26 @@ export function resolveGroupByRowMoveTarget({
 
     const position =
       item.type === 'addRow'
-        ? section.rowCount
+        ? rowCount
         : Math.max(
             0,
-            Math.min(
-              section.rowCount,
-              Math.round((contentY - section.y) / rowHeight)
-            )
+            Math.min(rowCount, Math.round((contentY - item.y) / rowHeight))
           )
-    const before = position === section.rowCount ? null : rows?.get(position)
+    const before = position === rowCount ? null : rows?.get(position)
 
     // A sparse/unloaded row slot cannot provide the row id needed by the move API.
-    if (position < section.rowCount && before === undefined) {
+    if (position < rowCount && before === undefined) {
       return null
     }
 
     return {
       before,
       path: item.path,
-      display: header?.display ?? null,
+      display: item.display ?? null,
       sectionKey,
       position,
-      y: section.y + position * rowHeight,
+      // The add-row line already sits at the end-of-group slot.
+      y: item.type === 'addRow' ? item.y : item.y + position * rowHeight,
     }
   }
 

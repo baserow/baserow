@@ -294,6 +294,75 @@ describe('gridGroupByRender', () => {
         })
       ).toBeNull()
     })
+
+    test('resolves the same targets in a paged layout', () => {
+      const pagedLayout = buildLayout({
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 2,
+            nodes: {
+              0: {
+                path: pathA,
+                depth: 0,
+                row_count: 2,
+                sibling_index: 0,
+                row_offset: 0,
+              },
+              1: {
+                path: pathB,
+                display: displayB,
+                depth: 0,
+                row_count: 1,
+                sibling_index: 1,
+                row_offset: 0,
+              },
+            },
+          },
+        },
+        collapse: { mode: 'expand', paths: [] },
+        fields,
+      })
+      const pagedSectionA = pagedLayout.items.find(
+        (item) => item.type === 'rowSection' && item.path.field_1 === 'A'
+      )
+      const pagedAddRowB = pagedLayout.items.find(
+        (item) => item.type === 'addRow' && item.path.field_1 === 'B'
+      )
+
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout: pagedLayout,
+          sectionRows,
+          contentY: pagedSectionA.y + 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: true,
+        })
+      ).toMatchObject({
+        before: rowA1,
+        path: pathA,
+        position: 0,
+        y: pagedSectionA.y,
+      })
+
+      expect(
+        resolveGroupByRowMoveTarget({
+          layout: pagedLayout,
+          sectionRows,
+          contentY: pagedAddRowB.y + 1,
+          fields,
+          sourcePath: pathA,
+          allowCrossGroup: true,
+        })
+      ).toMatchObject({
+        before: null,
+        path: pathB,
+        display: displayB,
+        position: 1,
+        y: pagedAddRowB.y,
+      })
+    })
   })
 
   test('an empty loaded paged layout keeps a top-level add-row line', () => {

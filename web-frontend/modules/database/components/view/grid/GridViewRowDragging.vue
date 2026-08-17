@@ -26,10 +26,7 @@ import {
   canMoveRowsAcrossGroupByFields,
   getGroupByFieldsFromActiveGroupBys,
 } from '@baserow/modules/database/utils/gridGroupBy'
-import {
-  pathKey,
-  resolveGroupByRowMoveTarget,
-} from '@baserow/modules/database/utils/gridGroupByRender'
+import { resolveGroupByRowMoveTarget } from '@baserow/modules/database/utils/gridGroupByRender'
 
 export default {
   name: 'GridViewRowDragging',
@@ -147,6 +144,14 @@ export default {
       return this.$store.getters[
         this.storePrefix + 'view/grid/getGroupByRowPath'
       ](this.row.id, this.allFieldsInTable)
+    },
+    sourceRowLocation() {
+      if (!this.isGroupByMode || this.row === null) {
+        return null
+      }
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupByRowLocation'
+      ](this.row.id)
     },
     canMoveAcrossGroups() {
       return canMoveRowsAcrossGroupByFields(this.groupByFields, this.$registry)
@@ -303,21 +308,14 @@ export default {
       clearTimeout(this.scrollTimeout)
     },
     isGroupedTargetNoop(target) {
-      if (target === null || this.sourceGroupPath === null) {
+      const location = this.sourceRowLocation
+      if (target === null || location === null) {
         return false
       }
-      const sourceSectionKey = pathKey(this.sourceGroupPath, this.groupByFields)
-      if (target.sectionKey !== sourceSectionKey) {
-        return false
-      }
-      const sourceRows = this.groupBySectionRows.get(sourceSectionKey)
-      const sourcePosition = [...(sourceRows?.entries() || [])].find(
-        ([, row]) => row.id === this.row.id
-      )?.[0]
       return (
-        sourcePosition !== undefined &&
-        (target.position === sourcePosition ||
-          target.position === sourcePosition + 1)
+        target.sectionKey === location.sectionKey &&
+        (target.position === location.position ||
+          target.position === location.position + 1)
       )
     },
     /**
