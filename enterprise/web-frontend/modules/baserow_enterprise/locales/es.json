@@ -758,7 +758,15 @@
         "exampleProjectTrackerName": "Gestor de proyectos",
         "exampleProductRoadmapName": "Hoja de ruta del producto",
         "exampleTeamCheckInsName": "Gestor de seguimiento de equipo",
-        "exampleBugTrackerName": "Gestor de errores"
+        "exampleBugTrackerName": "Gestor de errores",
+        "progress": "Pregunta {current} de {total}",
+        "industryLabel": "¿En qué industria estás?",
+        "industryDescription": "Unas pocas palabras son suficientes, como \"Manufactura\", \"Aeroespacial\" o \"Marketing digital\".",
+        "industryPlaceholder": "Marketing digital",
+        "teamLabel": "¿En qué equipo estás?",
+        "teamDescription": "Por ejemplo \"Servicios al cliente\", \"Finanzas\" u \"Operaciones\".",
+        "teamPlaceholder": "ej. Servicios al cliente",
+        "explanation": "Kuma construye tu espacio de trabajo por ti. Responder un par de preguntas permite que sugiera qué construir primero, así empiezas con algo que coincide con el trabajo que realmente haces."
     },
     "aiDatabaseOnboardingStepType": {
         "prompt": "Crea una base de datos que incluya: tablas, campos, filas de ejemplo y vistas de ejemplo que coincidan con esta descripción: {prompt}"
@@ -866,14 +874,14 @@
     },
     "coreCodeServiceForm": {
         "codeHelperText": "Baserow llama a la función `principal(contexto)` cuando se ejecuta la acción. Usa `contexto` para leer valores inyectados y devuelve un `objeto` cuyas propiedades pueden ser usadas por acciones posteriores.",
-        "injectionsHelperText": "Las inyecciones son fórmulas evaluadas antes de que el código se ejecute. Cada nombre de inyección se convierte en una propiedad de `contexto`. Por ejemplo, una inyección llamada `nombreCliente` está disponible como `contexto.nombreCliente`.",
+        "injectionsHelperText": "Las inyecciones son expresiones evaluadas antes de que el código se ejecute. Cada nombre de inyección se convierte en una propiedad de `contexto`. Por ejemplo, una inyección llamada `nombreCliente` está disponible como `contexto.nombreCliente`.",
         "nameFieldInvalid": "El nombre debe ser un nombre de variable válido.",
         "codePlaceholder": "Ingresa el código para ejecutar",
         "nameFieldRequired": "El campo nombre es obligatorio.",
         "editCode": "Editar código",
         "injectionsLabel": "Inyecciones de datos",
         "namePlaceholder": "Nombre de la variable",
-        "valuePlaceholder": "Fórmula del valor",
+        "valuePlaceholder": "Expresión de valor",
         "addInjection": "Añadir inyección",
         "codeLabel": "Código",
         "nameLabel": "Nombre",
@@ -897,5 +905,9 @@
     "nodeType": {
         "xlsFileReaderLabel": "Leer un archivo XLS",
         "codeLabel": "Ejecutar código"
+    },
+    "aiPromptStep": {
+        "title": "¿Qué debería Kuma construir para ti?",
+        "modelNotSupportedMessage": "No se puede contactar a Kuma porque ningún modelo de IA funcional está configurado, así que no puede construir una base de datos para ti ahora. Intentar de nuevo no ayudará hasta que eso se arregle."
     }
 }
