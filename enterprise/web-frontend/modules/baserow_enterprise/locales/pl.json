@@ -842,7 +842,8 @@
         "exampleTeamCheckInsName": "Spotkania zespołu",
         "exampleTeamCheckInsPrompt": "Utwórz tracker co-tygodniowych spotkań zespołu zawierający Członków zespołu, Daty spotkań, Osiągnięcia, Przeszkody, Nastroje, Priorytety i Zadania.",
         "exampleBugTrackerName": "Tracker błędów w oprogramowaniu",
-        "exampleBugTrackerPrompt": "Utwórz tracker błędów w oprogramowaniu zawierający Opisy błędów, Priorytety, Status, Kroki do odtworzenia, Środowisko, Zgłaszających, Osoby przypisane do rozwiązania i Wersje poprawek."
+        "exampleBugTrackerPrompt": "Utwórz tracker błędów w oprogramowaniu zawierający Opisy błędów, Priorytety, Status, Kroki do odtworzenia, Środowisko, Zgłaszających, Osoby przypisane do rozwiązania i Wersje poprawek.",
+        "progress": "Pytanie {current} z {total}"
     },
     "aiDatabaseOnboardingStepType": {
         "prompt": "Utwórz bazę danych z tabelami, polami, przykładowymi wierszami i przykładowymi widokami zgodnie z następującym opisem: {prompt}"
@@ -872,11 +873,11 @@
         "codePlaceholder": "Wprowadź kod, który ma być uruchomiony",
         "editCode": "Edytuj kod",
         "injectionsLabel": "Wstawianie danych",
-        "injectionsHelperText": "Wstawienia (injections) to wyrażenia analizowane przed uruchomieniem kodu. Wszystkie nazwy wstawień są ustawiane jako atrybuty obiektu context. Na przykład wstawienie o nazwie customerName jest dostępne jako context.customerName.",
+        "injectionsHelperText": "Wstawienia (injections) to wyrażenia analizowane przed uruchomieniem kodu. Wszystkie nazwy wstawień są ustawiane jako atrybuty obiektu context. Na przykład, wstawienie o nazwie customerName jest dostępne jako context.customerName.",
         "nameLabel": "Nazwa",
         "namePlaceholder": "Nazwa zmiennej",
         "valueLabel": "Wartość",
-        "valuePlaceholder": "Formuła wartości",
+        "valuePlaceholder": "Wyrażenie wartości",
         "addInjection": "Dodaj wstawienie (injection)",
         "nameFieldRequired": "Pole nazwy jest wymagane.",
         "nameFieldInvalid": "Nazwa musi być poprawną nazwą zmiennej."
