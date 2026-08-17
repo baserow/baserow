@@ -637,7 +637,9 @@
         "heightLabel": "Altura (en px)",
         "heightPlaceholder": "Altura en píxeles",
         "missingValue": "Falta la fuente IFrame...",
-        "emptyValue": "Fuente IFrame vacía..."
+        "emptyValue": "Fuente IFrame vacía...",
+        "warningMessage": "El contenido del IFrame está en un entorno restringido en el editor, donde el HTML incrustado puede ejecutar scripts de forma aislada. En las previsualizaciones y aplicaciones publicadas, el HTML incrustado puede ejecutarse sin restricciones, mientras que las URLs externas pueden ejecutar scripts, enviar formularios y abrir ventanas emergentes.",
+        "allowSameOriginHelp": "Solo habilita esto para una URL externa de confianza. Permite que el iframe use cookies, almacenamiento y otras características del mismo origen en previsualizaciones y aplicaciones publicadas."
     },
     "linkNavigationSelection": {
         "navigateTo": "Navegar a",
@@ -701,7 +703,7 @@
         "errorFetchingRolesTitle": "No se han podido recuperar los roles de usuario",
         "errorFetchingRolesMessage": "Se ha producido un problema al recuperar los roles de usuario.",
         "visibilityCondition": "Condición de visibilidad",
-        "visibilityConditionHelper": "Si el resultado de esta fórmula es «verdadero», y la elección del visitante anterior es «verdadero», el elemento será visible. Esta condición solo afecta la visibilidad del elemento. Para excluir datos de la respuesta del servidor, usa la opción de filtrado por rol de usuario anterior.",
+        "visibilityConditionHelper": "Si el resultado de esta expresión es «verdadero», y la elección del visitante anterior es «verdadero», el elemento será visible. Esta condición solo afecta la visibilidad del elemento. Para excluir datos de la respuesta del servidor, usa la opción de filtrado por rol de usuario anterior.",
         "visibilityConditionPlaceholder": "Condición…",
         "documentationLink": "documentación"
     },
