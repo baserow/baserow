@@ -1,7 +1,6 @@
 import base64
 import io
 import zlib
-from unittest import mock
 from urllib.parse import parse_qsl, urlencode, urlparse
 
 from django.test.utils import override_settings
@@ -10,10 +9,7 @@ from django.urls import reverse
 import pytest
 from defusedxml import ElementTree
 from freezegun import freeze_time
-from rest_framework.status import (
-    HTTP_302_FOUND,
-    HTTP_400_BAD_REQUEST,
-)
+from rest_framework.status import HTTP_302_FOUND
 from saml2.xml.schema import validate as validate_saml_xml
 
 from baserow.contrib.builder.domains.handler import DomainHandler
@@ -179,46 +175,3 @@ def test_builder_saml_assertion_consumer_service(
 
         assert query_param["next"] == "/toto"
         assert f"user_source_saml_token__{published_user_source.id}" in query_param
-
-
-@pytest.mark.django_db()
-@override_settings(DEBUG=True)
-@mock.patch(
-    "baserow_enterprise.api.integrations.common.sso.saml.views.is_sso_feature_active",
-    return_value=False,
-)
-def test_builder_saml_sp_login_rejects_without_active_sso(
-    _mock_feature, data_fixture, api_client, enterprise_data_fixture
-):
-    metadata = enterprise_data_fixture.get_test_saml_idp_metadata()
-    data = populate_local_baserow_test_data(data_fixture)
-    user_source = data["unpublished_user_source"]
-
-    data_fixture.create_app_auth_provider(
-        SamlAppAuthProviderModel,
-        user_source=user_source,
-        domain="test.com",
-        metadata=metadata,
-    )
-
-    login_url = reverse(
-        "api:user_sources:sso_saml:login",
-        kwargs={"user_source_uid": user_source.uid},
-    )
-    response = api_client.get(login_url)
-    assert response.status_code == HTTP_400_BAD_REQUEST
-
-
-@pytest.mark.django_db()
-@override_settings(DEBUG=True)
-@mock.patch(
-    "baserow_enterprise.api.integrations.common.sso.saml.views.is_sso_feature_active",
-    return_value=False,
-)
-def test_builder_saml_acs_rejects_without_active_sso(_mock_feature, api_client):
-    acs_url = reverse("api:user_sources:sso_saml:acs")
-    response = api_client.post(
-        acs_url,
-        data={"SAMLResponse": "dGVzdA==", "RelayState": "http://test.com/"},
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST

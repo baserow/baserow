@@ -46,7 +46,6 @@ from baserow_enterprise.sso.saml.exceptions import (
     InvalidSamlRequest,
     InvalidSamlResponse,
 )
-from baserow_enterprise.sso.utils import is_sso_feature_active
 
 
 class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
@@ -79,9 +78,6 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
         self,
         request: Request,
     ) -> HttpResponseRedirect:
-        if not is_sso_feature_active():
-            raise InvalidSamlRequest("SSO feature is not active.")
-
         user = None
         application_urls = None
         error_raised = {"code": None}
@@ -196,13 +192,9 @@ class SamlAppAuthProviderBaserowInitiatedSingleSignOn(APIView):
     @map_exceptions(
         {
             UserSourceDoesNotExist: ERROR_USER_SOURCE_DOES_NOT_EXIST,
-            InvalidSamlRequest: SsoErrorCode.INVALID_SAML_REQUEST,
         }
     )
     def get(self, request: Request, user_source_uid: str) -> HttpResponseRedirect:
-        if not is_sso_feature_active():
-            raise InvalidSamlRequest("SSO feature is not active.")
-
         user_source = UserSourceHandler().get_user_source_by_uid(user_source_uid)
 
         application_urls = user_source.application.get_type().get_application_urls(
