@@ -7,6 +7,7 @@ from baserow.contrib.database.data_providers.registries import (
 )
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.rows.data_providers import RowDataProviderType
+from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.models import Service
 from baserow.core.services.utils import ServiceAdhocRefinements
@@ -56,7 +57,7 @@ class DatabaseDispatchContext(DispatchContext):
         # dict placed here is shared by reference with every clone.
         self.cache[RowDataProviderType.CACHE_KEY] = {}
 
-    def start_action(self):
+    def start_action(self) -> None:
         """
         Drops the row read by the action that just finished, so the next one
         reads the row as it is when it starts (ADR 006 section 4).
@@ -65,7 +66,7 @@ class DatabaseDispatchContext(DispatchContext):
         self.cache[RowDataProviderType.CACHE_KEY].clear()
 
     @property
-    def data_provider_registry(self):
+    def data_provider_registry(self) -> DataProviderTypeRegistry:
         return database_data_provider_type_registry
 
     def range(self, service: Service) -> tuple[int, int | None]:

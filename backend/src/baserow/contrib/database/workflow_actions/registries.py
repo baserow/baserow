@@ -1,4 +1,7 @@
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
+from zipfile import ZipFile
+
+from django.core.files.storage import Storage
 
 from baserow.contrib.database.formula_importer import import_formula
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
@@ -12,10 +15,14 @@ from baserow.core.registry import (
 from baserow.core.services.exceptions import (
     InvalidServiceTypeDispatchSource,
 )
+from baserow.core.services.types import DispatchResult
+from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.workflow_actions.registries import WorkflowActionType
 
 if TYPE_CHECKING:
-    pass
+    from baserow.contrib.database.workflow_actions.dispatch_context import (
+        DatabaseDispatchContext,
+    )
 
 
 class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
@@ -33,21 +40,25 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}
 
-    def dispatch(self, workflow_action, dispatch_context):
+    def dispatch(
+        self,
+        workflow_action: WorkflowAction,
+        dispatch_context: "DatabaseDispatchContext",
+    ) -> DispatchResult:
         raise InvalidServiceTypeDispatchSource(
             "This workflow action type cannot be dispatched."
         )
 
     def import_serialized(
         self,
-        parent,
-        serialized_values,
-        id_mapping,
-        files_zip=None,
-        storage=None,
-        cache=None,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, int]],
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, Any]] = None,
         **kwargs,
-    ):
+    ) -> WorkflowAction:
         """
         Imports the action, then defers remapping the field references inside
         its formulas, such as `get('fields.field_25')` or `get('row.field_25')`.

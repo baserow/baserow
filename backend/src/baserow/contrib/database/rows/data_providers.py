@@ -102,7 +102,9 @@ class RowDataProviderType(DataProviderType):
     # key, so the formulas of one action share a single read.
     CACHE_KEY = "current_row"
 
-    def _read_row(self, dispatch_context, clicked_row):
+    def _read_row(
+        self, dispatch_context: "DatabaseDispatchContext", clicked_row: Any
+    ) -> Any:
         """
         The clicked row as it is now, or None once it has been deleted.
 

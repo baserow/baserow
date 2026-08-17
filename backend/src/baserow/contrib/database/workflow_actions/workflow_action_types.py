@@ -1,7 +1,9 @@
-from typing import TYPE_CHECKING, Any, Dict, Generator
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional
+from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import Prefetch
+from django.core.files.storage import Storage
+from django.db.models import Prefetch, QuerySet
 
 from baserow.api.services.serializers import PolymorphicServiceRequestSerializer
 from baserow.contrib.database.api.workflow_actions.service_serializers import (
@@ -61,7 +63,7 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         service: Dict
 
     @property
-    def allowed_fields(self):
+    def allowed_fields(self) -> List[str]:
         return super().allowed_fields + ["service"]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
@@ -75,8 +77,13 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         return {"service": service_type.export_serialized(pytest_params["service"])}
 
     def serialize_property(
-        self, workflow_action, prop_name, files_zip=None, storage=None, cache=None
-    ):
+        self,
+        workflow_action: WorkflowAction,
+        prop_name: str,
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, Any]] = None,
+    ) -> Any:
         if prop_name == "service":
             service = workflow_action.service.specific
             return service.get_type().export_serialized(
@@ -93,14 +100,14 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
     def deserialize_property(
         self,
-        prop_name,
-        value,
-        id_mapping,
-        files_zip=None,
-        storage=None,
-        cache=None,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Dict[int, int]],
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, Any]] = None,
         **kwargs,
-    ):
+    ) -> Any:
         """
         Recreates the backing service from its serialized values. The service
         type remaps its own references, such as the target table id.
@@ -133,8 +140,8 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         self,
         values: Dict[str, Any],
         user: AbstractUser,
-        instance: WorkflowAction = None,
-    ):
+        instance: Optional[WorkflowAction] = None,
+    ) -> Dict[str, Any]:
         """
         Creates the backing service when the action is new, and forwards any
         supplied service values to it.
@@ -171,7 +178,7 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         service = workflow_action.service.specific
         yield from service.get_type().formula_generator(service)
 
-    def enhance_queryset(self, queryset):
+    def enhance_queryset(self, queryset: QuerySet) -> QuerySet:
         return (
             super()
             .enhance_queryset(queryset)
@@ -192,7 +199,9 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         )
 
     def dispatch(
-        self, workflow_action, dispatch_context: "DatabaseDispatchContext"
+        self,
+        workflow_action: WorkflowAction,
+        dispatch_context: "DatabaseDispatchContext",
     ) -> DispatchResult:
         service = workflow_action.service.specific
         # A database service runs as the dispatch actor, never as an
