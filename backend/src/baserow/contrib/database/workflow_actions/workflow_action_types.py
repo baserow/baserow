@@ -5,6 +5,8 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db.models import Prefetch, QuerySet
 
+from rest_framework.fields import empty
+
 from baserow.api.services.serializers import PolymorphicServiceRequestSerializer
 from baserow.contrib.database.api.workflow_actions.service_serializers import (
     DatabasePolymorphicServiceSerializer,
@@ -41,6 +43,25 @@ if TYPE_CHECKING:
     )
 
 
+class DefaultTypedServiceRequestSerializer(PolymorphicServiceRequestSerializer):
+    """
+    A service request serializer that names the service type itself when the
+    caller leaves it out, so an action can be created already configured.
+
+    The action type decides which service backs it, and the editor knows that
+    service under a name of its own, so it has no way to supply this one.
+    """
+
+    def __init__(self, *args, service_type_name: str = None, **kwargs):
+        self.service_type_name = service_type_name
+        super().__init__(*args, **kwargs)
+
+    def run_validation(self, data=empty) -> Any:
+        if isinstance(data, dict) and not data.get("type"):
+            data = {**data, "type": self.service_type_name}
+        return super().run_validation(data)
+
+
 class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     service_type = None  # Must be implemented by subclasses.
 
@@ -51,16 +72,27 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         )
     }
     request_serializer_field_names = ["service"]
-    request_serializer_field_overrides = {
-        "service": PolymorphicServiceRequestSerializer(
-            default=None,
-            required=False,
-            help_text="The service which this workflow action is associated with.",
-        )
-    }
 
     class SerializedDict(DatabaseWorkflowActionDict):
         service: Dict
+
+    def get_field_overrides(
+        self, request_serializer: bool, extra_params: Dict, **kwargs
+    ) -> Dict:
+        # Built per type rather than declared, so the serializer can fall back
+        # to the service type this action carries.
+        if request_serializer:
+            return {
+                "service": DefaultTypedServiceRequestSerializer(
+                    service_type_name=self.service_type,
+                    default=None,
+                    required=False,
+                    help_text="The service which this workflow action is "
+                    "associated with.",
+                )
+            }
+
+        return super().get_field_overrides(request_serializer, extra_params, **kwargs)
 
     @property
     def allowed_fields(self) -> List[str]:

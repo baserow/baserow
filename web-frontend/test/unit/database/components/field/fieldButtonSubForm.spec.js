@@ -141,7 +141,9 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
     })
 
-    test('saving creates a new action then applies its config', async () => {
+    test('saving creates a new action with its config in one call', async () => {
+      // One call, so a failure cannot leave an action behind with none of the
+      // config the user filled in.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = []
       wrapper.vm.localActions = [
@@ -155,18 +157,15 @@ describe('FieldButtonSubForm', () => {
 
       expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
         'database/field/7/workflow_actions/',
-        { type: 'local_baserow_create_row' }
+        { type: 'local_baserow_create_row', service: { table_id: 3 } }
       )
-      expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
-        'database/workflow_action/55/',
-        { service: { table_id: 3 } }
-      )
+      expect(wrapper.vm.$client.patch).not.toHaveBeenCalled()
     })
 
-    test('a created action is configured with the service type the server assigned', async () => {
-      // A buffered service carries no `type` until the server has made one,
-      // and the polymorphic serializer 500s on a payload it cannot type. The
-      // follow-up has to take the type from the service the create returned.
+    test('a created service is sent untyped, for the server to name', async () => {
+      // The editor calls this service type `local_baserow_create_row` while the
+      // API calls it `local_baserow_upsert_row`, so the editor cannot name it.
+      // The action type settles which service backs it, so the server does.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = []
       wrapper.vm.localActions = [
@@ -177,22 +176,20 @@ describe('FieldButtonSubForm', () => {
         data: {
           id: 55,
           type: 'local_baserow_create_row',
-          service: { id: 9, type: 'local_baserow_upsert_row', table_id: null },
+          service: { id: 9, type: 'local_baserow_upsert_row', table_id: 3 },
         },
       })
 
       await wrapper.vm.afterFieldSaved(7)
 
-      expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
-        'database/workflow_action/55/',
-        { service: { type: 'local_baserow_upsert_row', table_id: 3 } }
-      )
+      const [, payload] = wrapper.vm.$client.post.mock.calls[0]
+      expect(payload.service).toEqual({ table_id: 3 })
+      expect(payload.service.type).toBeUndefined()
     })
 
     test('saving a new open url action persists its own config', async () => {
       // `open_url` is backed by no service, so its config is `url`/`target` on
-      // the action itself. The create only carries the type, so the follow-up
-      // update has to send whatever config the type actually has.
+      // the action itself, and it goes out with the create like any other.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = []
       wrapper.vm.localActions = [
@@ -209,9 +206,13 @@ describe('FieldButtonSubForm', () => {
 
       await wrapper.vm.afterFieldSaved(7)
 
-      expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
-        'database/workflow_action/55/',
-        { url: { formula: "'x'", mode: 'simple' }, target: 'blank' }
+      expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
+        'database/field/7/workflow_actions/',
+        {
+          type: 'open_url',
+          url: { formula: "'x'", mode: 'simple' },
+          target: 'blank',
+        }
       )
     })
 

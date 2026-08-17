@@ -22,11 +22,14 @@ describe('workflowAction service', () => {
     )
   })
 
-  test('create sends only the type', () => {
-    service.create(11, 'local_baserow_create_row')
+  test('create sends the values it is given', () => {
+    service.create(11, {
+      type: 'local_baserow_create_row',
+      service: { table_id: 3 },
+    })
     expect(client.post).toHaveBeenCalledWith(
       'database/field/11/workflow_actions/',
-      { type: 'local_baserow_create_row' }
+      { type: 'local_baserow_create_row', service: { table_id: 3 } }
     )
   })
 

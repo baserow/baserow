@@ -183,6 +183,19 @@ export default {
       return this.withTypedService(workflowActionConfig(action), created)
     },
     /**
+     * An action and its config in one payload, so a create cannot half succeed
+     * and leave a blank action on the server. The service is sent untyped: the
+     * editor names service types differently from the API, and the action type
+     * already settles which one this is.
+     */
+    createPayload(action) {
+      const config = workflowActionConfig(action)
+      if (config.service && Object.keys(config.service).length === 0) {
+        delete config.service
+      }
+      return { type: action.type, ...config }
+    },
+    /**
      * Diffs the buffered list against the server and issues the calls to
      * match: creates, updates, deletes, then order. Called by the field form
      * once the field is saved, since a new field has no id until then.
@@ -202,13 +215,12 @@ export default {
 
       try {
         for (const action of toCreate) {
-          const { data } = await service.create(fieldId, action.type)
+          const { data } = await service.create(
+            fieldId,
+            this.createPayload(action)
+          )
           createdIds.push(data.id)
           assignedIds.set(action[CLIENT_ID_KEY], data.id)
-          const values = this.configPayload(action, data)
-          if (Object.keys(values).length > 0) {
-            await service.update(data.id, values)
-          }
         }
 
         for (const { id, values } of toUpdate) {

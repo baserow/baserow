@@ -3,10 +3,8 @@ export default (client) => {
     fetchAll(fieldId) {
       return client.get(`database/field/${fieldId}/workflow_actions/`)
     },
-    create(fieldId, type) {
-      return client.post(`database/field/${fieldId}/workflow_actions/`, {
-        type,
-      })
+    create(fieldId, values) {
+      return client.post(`database/field/${fieldId}/workflow_actions/`, values)
     },
     update(workflowActionId, values) {
       return client.patch(

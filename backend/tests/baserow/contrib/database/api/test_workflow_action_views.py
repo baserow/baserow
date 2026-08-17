@@ -41,6 +41,73 @@ def test_create_workflow_action(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_configures_the_service_without_being_told_its_type(
+    api_client, data_fixture
+):
+    """An action type already decides which service backs it, and the editor
+    knows that service by a name of its own, so the type is filled in here.
+    Without it a configured action takes a create and an update, and a failure
+    between the two leaves a blank action behind."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    button_field = data_fixture.create_button_field(table=table)
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:list",
+            kwargs={"field_id": button_field.id},
+        ),
+        {
+            "type": "local_baserow_create_row",
+            "service": {
+                "table_id": table.id,
+                "field_mappings": [
+                    {"field_id": name_field.id, "value": "'set'", "enabled": True}
+                ],
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    service = response.json()["service"]
+    assert service["type"] == "local_baserow_upsert_row"
+    assert service["table_id"] == table.id
+    assert [
+        (mapping["field_id"], mapping["value"]["formula"])
+        for mapping in service["field_mappings"]
+    ] == [(name_field.id, "'set'")]
+
+
+@pytest.mark.django_db
+def test_create_still_takes_the_service_type_when_it_is_given(api_client, data_fixture):
+    """Filling the type in must not stop a caller naming it themselves."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:list",
+            kwargs={"field_id": button_field.id},
+        ),
+        {
+            "type": "local_baserow_create_row",
+            "service": {"type": "local_baserow_upsert_row", "table_id": table.id},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["service"]["table_id"] == table.id
+
+
+@pytest.mark.django_db
 def test_create_ignores_a_supplied_integration(api_client, data_fixture):
     """A service tied to an integration dispatches as that integration's
     `authorized_user` instead of as the clicker, so the id must never be
