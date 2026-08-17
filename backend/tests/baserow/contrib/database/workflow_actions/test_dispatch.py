@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth.hashers import make_password
 from django.core.cache import cache
 
@@ -253,6 +255,42 @@ def test_a_lock_taken_by_a_later_click_is_left_alone(data_fixture):
         "The finished sequence deleted a lock it no longer held, so the click "
         "that owns it is now running unprotected."
     )
+
+
+@pytest.mark.django_db
+def test_the_lock_is_released_without_a_separate_delete(data_fixture):
+    """The test above covers a lock lost well before the release. The window it
+    cannot reach is the one inside the release itself: reading the key, then
+    losing it to a later click, then deleting what is no longer this click's.
+    Closed only by checking ownership and removing the key in one step, so the
+    release must not reach for `delete` at all."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+    lock_key = f"button_dispatch_{button_field.id}_{row.id}"
+
+    deleted_keys = []
+    real_delete = cache.delete
+
+    def record_delete(key, *args, **kwargs):
+        deleted_keys.append(key)
+        return real_delete(key, *args, **kwargs)
+
+    with patch.object(cache, "delete", side_effect=record_delete):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert lock_key not in deleted_keys, (
+        "The lock was released with a delete of its own, so a TTL that runs out "
+        "between the ownership check and the delete takes a later click's lock "
+        "with it."
+    )
+    # Released all the same, or the next click on this row would be refused.
+    assert cache.get(lock_key) is None
 
 
 @pytest.mark.django_db

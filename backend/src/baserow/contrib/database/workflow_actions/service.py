@@ -1,11 +1,11 @@
 from typing import Any, List, Tuple
-from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 
 from loguru import logger
+from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.fields.operations import (
@@ -257,17 +257,18 @@ class DatabaseWorkflowActionService:
         if not server_actions:
             return [], client_actions
 
-        # `cache.add` is atomic and only succeeds when the key is absent, so a
-        # double click cannot run the sequence twice. Keyed on field and row
-        # together, so two buttons on one row do not block each other.
-        lock_key = f"button_dispatch_{field.id}_{row.id}"
-        # Identifies this click, so the release below knows its own lock.
-        lock_token = uuid4().hex
-        if not cache.add(
-            lock_key,
-            lock_token,
+        # Taken only when the key is absent, so a double click cannot run the
+        # sequence twice, and released by a script that checks ownership first,
+        # so a click whose TTL ran out cannot drop a later click's lock. Keyed
+        # on field and row together, so two buttons on one row do not block
+        # each other.
+        lock = cache.lock(
+            f"button_dispatch_{field.id}_{row.id}",
             timeout=settings.DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS,
-        ):
+        )
+        # Never waits: a second click is refused rather than queued behind one
+        # that is still running.
+        if not lock.acquire(blocking=False):
             raise WorkflowActionDispatchInProgress()
 
         # Positions come from the whole list, frontend-only actions included, so
@@ -310,8 +311,9 @@ class DatabaseWorkflowActionService:
 
             return results, client_actions
         finally:
-            # Only delete this click's own lock: once the TTL expires the key
-            # can belong to a later click. Not atomic, but a much smaller
-            # window than deleting unconditionally.
-            if cache.get(lock_key) == lock_token:
-                cache.delete(lock_key)
+            try:
+                lock.release()
+            except LockNotOwnedError:
+                # The TTL ran out mid-sequence, so the key is a later click's
+                # to release.
+                pass
