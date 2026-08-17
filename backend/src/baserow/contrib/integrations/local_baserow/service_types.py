@@ -2161,11 +2161,21 @@ class LocalBaserowUpsertRowServiceType(
         row_id: Optional[int] = resolved_values.get("row_id", None)
 
         row_values = {}
-        field_mappings = (
-            service.field_mappings.select_related("field")
-            .filter(enabled=True)
-            .exclude(field__trashed=True)
+        enabled_field_mappings = list(
+            service.field_mappings.select_related("field").filter(enabled=True)
         )
+        field_mappings = [fm for fm in enabled_field_mappings if not fm.field.trashed]
+
+        # Without an integration the service acts as the person in front of the
+        # screen, so a mapping left pointing at a trashed field fails the
+        # dispatch instead of being dropped, which would write the row without
+        # it (ADR 006 section 8). Raised before anything is written.
+        if len(field_mappings) != len(enabled_field_mappings) and (
+            service.integration_id is None
+        ):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "This action writes to a field that no longer exists."
+            )
 
         # Track the field<->mapping relationship.
         context_map = {fm.field: fm for fm in field_mappings}

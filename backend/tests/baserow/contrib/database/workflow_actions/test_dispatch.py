@@ -3,6 +3,7 @@ from django.core.cache import cache
 
 import pytest
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.signals import rows_created
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
@@ -702,3 +703,70 @@ def test_a_password_field_cannot_be_read_into_another_row(data_fixture):
     assert hashed not in str(exc.value), "The refusal must not carry the hash."
     written = [getattr(r, f"field_{name_field.id}") for r in model.objects.all()]
     assert hashed not in written
+
+
+@pytest.mark.django_db
+def test_a_mapping_left_on_a_trashed_field_fails_rather_than_writing_without_it(
+    data_fixture,
+):
+    """ADR 006 section 8: the reference is kept and the button asks to be
+    reconfigured. Dropping the mapping would write a row missing the value the
+    action was configured to put there."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    model = table.get_model()
+    row = model.objects.create()
+
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(field=name_field, value="'kept'", enabled=True)
+    service.field_mappings.create(field=doomed_field, value="'gone'", enabled=True)
+
+    FieldHandler().delete_field(user, doomed_field)
+    rows_before = model.objects.count()
+
+    with pytest.raises(WorkflowActionDispatchError) as exc:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert exc.value.workflow_action_id == action.id
+    assert model.objects.count() == rows_before
+    # The mapping is still there, so restoring the field heals it.
+    assert service.field_mappings.count() == 2
+
+
+@pytest.mark.django_db
+def test_a_disabled_mapping_on_a_trashed_field_does_not_stop_the_click(data_fixture):
+    """A disabled mapping writes nothing, so a trashed field behind one is not
+    something the clicker has to reconfigure."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    model = table.get_model()
+    row = model.objects.create()
+
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(field=name_field, value="'kept'", enabled=True)
+    service.field_mappings.create(field=doomed_field, value="'gone'", enabled=False)
+
+    FieldHandler().delete_field(user, doomed_field)
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(user, button_field, row)
+
+    created = model.objects.exclude(id=row.id).get()
+    assert getattr(created, f"field_{name_field.id}") == "kept"
