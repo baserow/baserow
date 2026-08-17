@@ -5,16 +5,16 @@ import CreateFieldContext from '@baserow/modules/database/components/field/Creat
 
 /**
  * The field create/update response carries a `has_workflow_actions` computed
- * before `saveWorkflowActions` runs, and the store commits it verbatim, so
+ * before `afterFieldSaved` runs, and the store commits it verbatim, so
  * every cell renders the wrong branch until a reload. These tests pin that the
  * contexts correct the flag after the actions are saved, in both directions.
  */
 describe('field contexts keep has_workflow_actions in sync', () => {
   let testApp = null
   let client = null
-  // What the stubbed field form reports it has server side. `null` stands for
-  // a field type that has no notion of workflow actions.
-  let reportedWorkflowActions = null
+  // What the stubbed field form reports the save response got wrong. `null`
+  // stands for a field type with nothing to correct.
+  let reportedValuesAfterSave = null
   // Set by a test to make the stubbed form's action save fail.
   let actionSaveError = null
 
@@ -37,13 +37,13 @@ describe('field contexts keep has_workflow_actions in sync', () => {
       'database',
     ],
     methods: {
-      async saveWorkflowActions() {
+      async afterFieldSaved() {
         if (actionSaveError !== null) {
           throw actionSaveError
         }
       },
-      hasWorkflowActions() {
-        return reportedWorkflowActions
+      fieldValuesAfterSave() {
+        return reportedValuesAfterSave
       },
       reset() {},
       handleErrorByForm() {
@@ -81,7 +81,7 @@ describe('field contexts keep has_workflow_actions in sync', () => {
 
   beforeEach(async () => {
     testApp = new TestApp()
-    reportedWorkflowActions = null
+    reportedValuesAfterSave = null
     actionSaveError = null
     client = testApp.getApp().$client
     vi.spyOn(client, 'get').mockResolvedValue({ data: [] })
@@ -159,7 +159,7 @@ describe('field contexts keep has_workflow_actions in sync', () => {
     client.patch.mockResolvedValue({
       data: { ...field, has_workflow_actions: false },
     })
-    reportedWorkflowActions = true
+    reportedValuesAfterSave = { has_workflow_actions: true }
 
     await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
     await wrapper.emitted('update')[0][0].callback()
@@ -185,7 +185,7 @@ describe('field contexts keep has_workflow_actions in sync', () => {
     client.patch.mockResolvedValue({
       data: { ...field, has_workflow_actions: true },
     })
-    reportedWorkflowActions = false
+    reportedValuesAfterSave = { has_workflow_actions: false }
 
     await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
     await wrapper.emitted('update')[0][0].callback()
@@ -216,7 +216,7 @@ describe('field contexts keep has_workflow_actions in sync', () => {
     })
 
     client.patch.mockResolvedValue({ data: { ...field } })
-    reportedWorkflowActions = null
+    reportedValuesAfterSave = null
 
     await wrapper.vm.submit({ name: 'Name', type: 'text' })
     await wrapper.emitted('update')[0][0].callback()
@@ -237,7 +237,7 @@ describe('field contexts keep has_workflow_actions in sync', () => {
     client.post.mockResolvedValue({
       data: buttonField({ has_workflow_actions: false }),
     })
-    reportedWorkflowActions = true
+    reportedValuesAfterSave = { has_workflow_actions: true }
 
     await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
     await wrapper.emitted('field-created')[0][0].callback()

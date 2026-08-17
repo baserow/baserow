@@ -151,7 +151,7 @@ describe('FieldButtonSubForm', () => {
       const created = { data: { id: 55, type: 'local_baserow_create_row' } }
       wrapper.vm.$client.post.mockResolvedValueOnce(created)
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
         'database/field/7/workflow_actions/',
@@ -181,7 +181,7 @@ describe('FieldButtonSubForm', () => {
         },
       })
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
         'database/workflow_action/55/',
@@ -207,7 +207,7 @@ describe('FieldButtonSubForm', () => {
         data: { id: 55, type: 'open_url' },
       })
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
         'database/workflow_action/55/',
@@ -233,7 +233,7 @@ describe('FieldButtonSubForm', () => {
         data: { id: 88, type: 'open_url' },
       })
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
         'database/workflow_action/1/',
@@ -266,7 +266,7 @@ describe('FieldButtonSubForm', () => {
         },
       })
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.patch).toHaveBeenCalledTimes(1)
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
@@ -295,7 +295,7 @@ describe('FieldButtonSubForm', () => {
         },
       })
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.patch.mock.calls).toEqual([
         ['database/workflow_action/1/', { type: 'local_baserow_create_row' }],
@@ -344,7 +344,7 @@ describe('FieldButtonSubForm', () => {
         },
       ])
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       // An empty service says nothing, so it is dropped and the update has
       // nothing left to send. The server keeps its config and the re-fetch
@@ -368,7 +368,7 @@ describe('FieldButtonSubForm', () => {
         { id: 1, type: 'local_baserow_create_row', service: { table_id: 5 } },
       ]
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
         'database/workflow_action/1/',
@@ -388,7 +388,7 @@ describe('FieldButtonSubForm', () => {
 
       wrapper.vm.$client.post.mockClear()
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
       expect(wrapper.vm.$client.patch).not.toHaveBeenCalled()
@@ -405,7 +405,7 @@ describe('FieldButtonSubForm', () => {
         { id: 2, type: 'local_baserow_delete_row', service: {} },
       ]
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.delete).toHaveBeenCalledWith(
         'database/workflow_action/1/'
@@ -465,12 +465,14 @@ describe('FieldButtonSubForm', () => {
       })
     })
 
-    test('hasWorkflowActions follows what the save left on the server', async () => {
+    test('fieldValuesAfterSave follows what the save left on the server', async () => {
       // The field create/update response computes `has_workflow_actions`
       // before these calls, so the contexts patch the store from this instead.
       // It has to answer for what really persisted, in both directions.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
-      expect(wrapper.vm.hasWorkflowActions()).toBe(false)
+      expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
+        has_workflow_actions: false,
+      })
 
       wrapper.vm.serverActions = []
       wrapper.vm.localActions = [
@@ -483,16 +485,20 @@ describe('FieldButtonSubForm', () => {
         data: [{ id: 55, type: 'local_baserow_create_row', service: {} }],
       })
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
-      expect(wrapper.vm.hasWorkflowActions()).toBe(true)
+      expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
+        has_workflow_actions: true,
+      })
 
       wrapper.vm.localActions = []
       wrapper.vm.$client.get.mockResolvedValueOnce({ data: [] })
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
-      expect(wrapper.vm.hasWorkflowActions()).toBe(false)
+      expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
+        has_workflow_actions: false,
+      })
     })
 
     test('the action editor stays out of the field payload', async () => {
@@ -538,7 +544,7 @@ describe('FieldButtonSubForm', () => {
         data: [{ id: 55, type: 'open_url', url: { formula: "'one'" } }],
       })
 
-      await expect(wrapper.vm.saveWorkflowActions(7)).rejects.toThrow('boom')
+      await expect(wrapper.vm.afterFieldSaved(7)).rejects.toThrow('boom')
 
       // The edits are still there, and the one that saved now knows its id, so
       // a retry updates it rather than creating it again.
@@ -577,7 +583,7 @@ describe('FieldButtonSubForm', () => {
         data: [{ id: 55, type: 'open_url', url: { formula: "'one'" } }],
       })
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.localActions).toEqual([
         {
@@ -630,7 +636,7 @@ describe('FieldButtonSubForm', () => {
         ],
       })
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       // The re-sync picked up the real id: the buffer no longer has an
       // id-less action for the next reconciliation to treat as new.
@@ -653,7 +659,7 @@ describe('FieldButtonSubForm', () => {
         { type: 'local_baserow_create_row', service: {} },
       ]
 
-      await wrapper.vm.saveWorkflowActions(7)
+      await wrapper.vm.afterFieldSaved(7)
 
       const createCalls = wrapper.vm.$client.post.mock.calls.filter(
         ([url]) => url === 'database/field/7/workflow_actions/'

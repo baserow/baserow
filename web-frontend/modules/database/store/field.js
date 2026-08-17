@@ -36,10 +36,10 @@ export const mutations = {
     const fieldToUpdate = storedField || field
     fieldToUpdate.error = value
   },
-  SET_ITEM_HAS_WORKFLOW_ACTIONS(state, { id, value }) {
+  SET_ITEM_VALUES(state, { id, values }) {
     const storedField = state.items.find((item) => item.id === id)
     if (storedField) {
-      storedField.has_workflow_actions = value
+      Object.assign(storedField, values)
     }
   },
   SET_LOADED(state, value) {
@@ -87,12 +87,11 @@ export const actions = {
     commit('SET_ITEM_ERROR', { field, value })
   },
   /**
-   * Patches a field's `has_workflow_actions` locally. The create/update
-   * response computes the flag before the actions are saved, so without this
-   * the cell keeps rendering the stale value until the page reloads.
+   * Patches a stored field with values its save response could not carry,
+   * because the field type wrote more after the response was built.
    */
-  setItemHasWorkflowActions({ commit }, { id, value }) {
-    commit('SET_ITEM_HAS_WORKFLOW_ACTIONS', { id, value })
+  setItemValues({ commit }, { id, values }) {
+    commit('SET_ITEM_VALUES', { id, values })
   },
   /**
    * Refreshes computed field errors for the table cached in the field store.

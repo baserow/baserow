@@ -141,14 +141,14 @@ export default {
         const fieldId = this.field.id
         let actionsSaved = true
         try {
-          await this.$refs.form.saveWorkflowActions(fieldId)
+          await this.$refs.form.afterFieldSaved(fieldId)
         } catch (error) {
           actionsSaved = false
           notifyIf(error, 'field')
         }
         this.actionsFailed = !actionsSaved
         // Read after the save, so it reflects what actually persisted.
-        const hasWorkflowActions = this.$refs.form.hasWorkflowActions()
+        const valuesAfterSave = this.$refs.form.fieldValuesAfterSave()
 
         // The callback must be called as soon the parent page has refreshed the rows.
         // This is to prevent incompatible values when the field changes before the
@@ -158,10 +158,10 @@ export default {
           await forceUpdateCallback()
           // Only once the response is committed, since it overwrites the
           // stored field wholesale, stale flag included.
-          if (hasWorkflowActions !== null) {
-            await this.$store.dispatch('field/setItemHasWorkflowActions', {
+          if (valuesAfterSave !== null) {
+            await this.$store.dispatch('field/setItemValues', {
               id: fieldId,
-              value: hasWorkflowActions,
+              values: valuesAfterSave,
             })
           }
           this.loading = false

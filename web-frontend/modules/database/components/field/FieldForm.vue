@@ -460,23 +460,22 @@ export default {
       return this.showDescription
     },
     /**
-     * Delegates to the field-type sub-form's own `saveWorkflowActions`, if it
-     * has one. Only button fields do. Called by the create/update contexts
-     * once the field itself has been saved and its id is known.
+     * Lets a field type persist whatever it keeps outside the field itself,
+     * once the field is saved and its id is known. Called by the create and
+     * update contexts.
      */
-    async saveWorkflowActions(fieldId) {
-      if (typeof this.$refs.childForm?.saveWorkflowActions === 'function') {
-        await this.$refs.childForm.saveWorkflowActions(fieldId)
+    async afterFieldSaved(fieldId) {
+      if (typeof this.$refs.childForm?.afterFieldSaved === 'function') {
+        await this.$refs.childForm.afterFieldSaved(fieldId)
       }
     },
     /**
-     * Whether the field-type sub-form has workflow actions server side. Only
-     * button fields know about them, so `null` means "this field type has no
-     * such notion" and the caller must leave the flag alone.
+     * Field values the save response got wrong, because the field type wrote
+     * more after it was built. `null` when the type has nothing to correct.
      */
-    hasWorkflowActions() {
-      if (typeof this.$refs.childForm?.hasWorkflowActions === 'function') {
-        return this.$refs.childForm.hasWorkflowActions()
+    fieldValuesAfterSave() {
+      if (typeof this.$refs.childForm?.fieldValuesAfterSave === 'function') {
+        return this.$refs.childForm.fieldValuesAfterSave()
       }
       return null
     },

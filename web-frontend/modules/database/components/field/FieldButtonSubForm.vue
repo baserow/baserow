@@ -187,7 +187,7 @@ export default {
      * match: creates, updates, deletes, then order. Called by the field form
      * once the field is saved, since a new field has no id until then.
      */
-    async saveWorkflowActions(fieldId) {
+    async afterFieldSaved(fieldId) {
       const { toCreate, toUpdate, toDelete, order } = reconcileWorkflowActions(
         this.serverActions,
         this.localActions
@@ -267,12 +267,11 @@ export default {
       }
     },
     /**
-     * Whether the field has actions server side, as of the last sync. The
-     * field contexts patch the store with it, because the field response's
-     * `has_workflow_actions` predates `saveWorkflowActions`.
+     * The field response carries a `has_workflow_actions` computed before the
+     * actions were saved, so the store needs the flag as it ended up.
      */
-    hasWorkflowActions() {
-      return this.serverActions.length > 0
+    fieldValuesAfterSave() {
+      return { has_workflow_actions: this.serverActions.length > 0 }
     },
   },
   validations() {

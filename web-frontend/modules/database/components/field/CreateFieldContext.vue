@@ -118,21 +118,21 @@ export default {
         // The field has an id now, so its actions can be saved. A failure here
         // must not roll the field back, so it is only surfaced.
         try {
-          await this.$refs.form.saveWorkflowActions(newField.id)
+          await this.$refs.form.afterFieldSaved(newField.id)
         } catch (error) {
           notifyIf(error, 'field')
         }
         // Read after the save, so it reflects what actually persisted.
-        const hasWorkflowActions = this.$refs.form.hasWorkflowActions()
+        const valuesAfterSave = this.$refs.form.fieldValuesAfterSave()
 
         const callback = async () => {
           await forceCreateCallback()
           // Only once the response is committed, since it carries a
           // `has_workflow_actions` computed before the actions existed.
-          if (hasWorkflowActions !== null) {
-            await this.$store.dispatch('field/setItemHasWorkflowActions', {
+          if (valuesAfterSave !== null) {
+            await this.$store.dispatch('field/setItemValues', {
               id: newField.id,
-              value: hasWorkflowActions,
+              values: valuesAfterSave,
             })
           }
           this.createdId = null
