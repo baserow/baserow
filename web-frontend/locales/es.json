@@ -732,7 +732,8 @@
         "nullDescription": "Devuelve `null`, que puede usarse como valor o para comparación",
         "toDurationDescription": "Devuelve la duración correspondiente al argumento proporcionado.",
         "absDescription": "Devuelve el valor absoluto del argumento.",
-        "categoryUtility": "Utilidad"
+        "categoryUtility": "Utilidad",
+        "encodeUriComponentDescription": "Codifica el argumento en porcentaje para que pueda usarse de forma segura como una sola parte de una URL, como un segmento de ruta o un parámetro de consulta"
     },
     "formulaInputContext": {
         "useRegularInput": "Usa entrada regular",
