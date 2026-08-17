@@ -99,7 +99,7 @@
 
         <li class="context__menu-item">
           <a class="context__menu-item-link" @click="replayGuidedTour()">
-            <i class="context__menu-item-icon iconoir-help-square"></i>
+            <i class="context__menu-item-icon iconoir-help-circle"></i>
             {{ $t('sidebar.replayGuidedTour') }}
           </a>
         </li>
