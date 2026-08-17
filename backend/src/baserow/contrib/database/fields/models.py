@@ -1013,7 +1013,7 @@ class ButtonField(Field):
     HAS_WORKFLOW_ACTIONS_ANNOTATION = "has_workflow_actions_annotated"
 
     @property
-    def has_workflow_actions(self):
+    def has_workflow_actions(self) -> bool:
         # Falls back to its own query when the field wasn't fetched through
         # `enhance_field_queryset` and so carries no annotation.
         annotated = getattr(self, self.HAS_WORKFLOW_ACTIONS_ANNOTATION, None)

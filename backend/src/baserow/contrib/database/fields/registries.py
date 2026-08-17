@@ -1231,7 +1231,7 @@ class FieldType(
         original_field: Field,
         new_field: Field,
         serialized_field: Dict[str, Any],
-    ):
+    ) -> None:
         """
         Called after a single field has been duplicated, once the new field
         exists. `duplicate_field` does not go through the serialization import

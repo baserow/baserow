@@ -1,12 +1,14 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import receiver
 
+from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.workflow_actions import signals as workflow_action_signals
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
 from baserow.ws.registries import page_registry
 
 
-def _broadcast_field(field, user):
+def _broadcast_field(field: ButtonField, user: AbstractUser) -> None:
     """
     Sends the button field out again, so everyone else's copy of
     `has_workflow_actions` matches what the field now has. A cell renders an

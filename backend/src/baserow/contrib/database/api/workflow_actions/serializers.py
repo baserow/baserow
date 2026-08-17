@@ -1,3 +1,5 @@
+from typing import Any, Dict, List
+
 from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
@@ -18,7 +20,7 @@ class DatabaseWorkflowActionSerializer(WorkflowActionSerializer):
     """
 
     @extend_schema_field(OpenApiTypes.STR)
-    def get_type(self, instance):
+    def get_type(self, instance: DatabaseWorkflowAction) -> str:
         return instance.get_type().type
 
     class Meta:
@@ -99,5 +101,5 @@ class DispatchWorkflowActionsResponseSerializer(serializers.Serializer):
             many=True,
         )
     )
-    def get_client_actions(self, instance):
+    def get_client_actions(self, instance: Dict[str, Any]) -> List[Dict[str, Any]]:
         return instance.get("client_actions")

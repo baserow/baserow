@@ -154,7 +154,7 @@ class DatabaseWorkflowActionService:
 
     def delete_workflow_action(
         self, user: AbstractUser, workflow_action: DatabaseWorkflowAction
-    ):
+    ) -> None:
         field = workflow_action.field
         CoreHandler().check_permissions(
             user,

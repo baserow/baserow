@@ -7915,7 +7915,7 @@ class UnchangedIdMapping(dict[int, int]):
     def __missing__(self, key: int) -> int:
         return key
 
-    def get(self, key: int, default=None) -> int:
+    def get(self, key: int, default: Any = None) -> int:
         return key
 
 
@@ -8002,7 +8002,9 @@ class ButtonFieldType(ReadOnlyFieldType):
                 "The label of a button field can't be empty."
             )
 
-    def enhance_field_queryset(self, queryset, field):
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
         # `has_workflow_actions` is serialized for every button field, so
         # without this a table's field list costs one query per button.
         return queryset.annotate(
@@ -8032,7 +8034,9 @@ class ButtonFieldType(ReadOnlyFieldType):
     def random_value(self, instance, fake, cache):
         return None
 
-    def get_export_value(self, value, field_object, rich_value=False):
+    def get_export_value(
+        self, value: Any, field_object: "FieldObject", rich_value: bool = False
+    ) -> Any:
         # A button holds no cell data, so exports stay empty.
         return None if rich_value else ""
 
@@ -8074,7 +8078,7 @@ class ButtonFieldType(ReadOnlyFieldType):
 
     def after_import_serialized(
         self, field: ButtonField, field_cache: "FieldCache", id_mapping: Dict[str, Any]
-    ):
+    ) -> None:
         serialized_actions = getattr(field, "_serialized_workflow_actions", None) or []
         import_export_config = getattr(field, "_workflow_action_import_config", None)
 
@@ -8103,7 +8107,7 @@ class ButtonFieldType(ReadOnlyFieldType):
         original_field: ButtonField,
         new_field: ButtonField,
         serialized_field: Dict[str, Any],
-    ):
+    ) -> None:
         # Field duplication skips the serialization import path, so without
         # this the actions would be dropped (ADR 006 section 8).
         serialized_actions = serialized_field.get("workflow_actions") or []

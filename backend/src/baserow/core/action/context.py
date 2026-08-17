@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from typing import Iterator
 
 from django.contrib.auth.models import AbstractUser
 
@@ -11,7 +12,7 @@ from baserow.api.sessions import (
 
 
 @contextmanager
-def without_undo_redo_registration(user: AbstractUser):
+def without_undo_redo_registration(user: AbstractUser) -> Iterator[None]:
     """
     Runs undoable actions without them entering the user's undo stack.
 
