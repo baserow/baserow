@@ -7960,8 +7960,8 @@ class ButtonFieldType(ReadOnlyFieldType):
     _can_be_primary_field = False
     can_get_unique_values = False
     keep_data_on_duplication = False
-    # The cell column is always null, so there is nothing worth backing up when
-    # converting to another type; the label is enough to restore.
+    # The cell column is always null, so a type change has no data to back up.
+    # The configuration it must keep rides along in `export_prepared_values`.
     field_data_is_derived_from_attrs = True
 
     def before_create(
@@ -8110,12 +8110,50 @@ class ButtonFieldType(ReadOnlyFieldType):
     ) -> None:
         # Field duplication skips the serialization import path, so without
         # this the actions would be dropped (ADR 006 section 8).
-        serialized_actions = serialized_field.get("workflow_actions") or []
+        self._recreate_workflow_actions(
+            new_field, serialized_field.get("workflow_actions") or []
+        )
+
+    def export_prepared_values(self, field: ButtonField) -> Dict[str, Any]:
+        values = super().export_prepared_values(field)
+        # A type change deletes the row the actions cascade off, so only this
+        # backup can bring them back.
+        values["workflow_actions"] = [
+            action.get_type().export_serialized(action)
+            for action in DatabaseWorkflowActionHandler().get_workflow_actions(field)
+        ]
+        return values
+
+    def after_update(
+        self,
+        from_field,
+        to_field,
+        from_model,
+        to_model,
+        user,
+        connection,
+        altered_column,
+        before,
+        to_field_kwargs,
+    ):
+        # A button that stayed one kept its actions; importing would double them.
+        if isinstance(from_field, ButtonField):
+            return
+
+        self._recreate_workflow_actions(
+            to_field, to_field_kwargs.get("workflow_actions") or []
+        )
+
+    def _recreate_workflow_actions(
+        self, field: ButtonField, serialized_actions: List[Dict[str, Any]]
+    ) -> None:
+        """Recreates the serialized actions on the field, in order."""
+
         if not serialized_actions:
             return
 
-        # The copy lands beside the original, so every table and field its
-        # actions reference still exists under its own id and must be kept.
+        # The actions land beside the ones they came from, so every table and
+        # field they reference still exists under its own id.
         id_mapping = {
             "database_tables": UnchangedIdMapping(),
             "database_fields": UnchangedIdMapping(),
@@ -8128,4 +8166,4 @@ class ButtonFieldType(ReadOnlyFieldType):
                 action_type = database_workflow_action_type_registry.get(
                     serialized_action["type"]
                 )
-                action_type.import_serialized(new_field, serialized_action, id_mapping)
+                action_type.import_serialized(field, serialized_action, id_mapping)

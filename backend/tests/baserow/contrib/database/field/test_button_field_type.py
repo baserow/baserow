@@ -11,9 +11,16 @@ from rest_framework.status import (
     HTTP_403_FORBIDDEN,
 )
 
+from baserow.contrib.database.fields.actions import UpdateFieldActionType
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import ButtonField
-from baserow.contrib.database.workflow_actions.models import OpenUrlWorkflowAction
+from baserow.contrib.database.fields.models import ButtonField, Field
+from baserow.contrib.database.workflow_actions.models import (
+    DatabaseWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    OpenUrlWorkflowAction,
+)
+from baserow.core.action.handler import ActionHandler
+from baserow.core.action.registries import action_type_registry
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -201,6 +208,74 @@ def test_converting_to_and_from_a_button_field(data_fixture):
     assert text_model._meta.get_field(field.db_column).column == field.db_column
     # The button held no data, so the recreated column starts empty.
     assert getattr(text_model.objects.get(pk=row.id), field.db_column) is None
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_conversion_away_from_a_button_restores_its_actions(data_fixture):
+    """The actions cascade off the row a type change deletes, so the backup
+    has to carry them."""
+
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Open")
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={"mode": "simple", "version": "0.1", "formula": "'https://baserow.io'"},
+        target="blank",
+    )
+    data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+
+    action_type_registry.get_by_type(UpdateFieldActionType).do(
+        user, FieldHandler().get_specific_field_for_update(button_field.id), "text"
+    )
+    assert DatabaseWorkflowAction.objects.filter(field_id=button_field.id).count() == 0
+
+    ActionHandler.undo(user, [UpdateFieldActionType.scope(table.id)], session_id)
+
+    field = Field.objects.get(id=button_field.id).specific
+    assert isinstance(field, ButtonField)
+    assert field.label == "Open"
+
+    restored = list(DatabaseWorkflowAction.objects.filter(field_id=field.id))
+    assert [action.get_type().type for action in restored] == [
+        "open_url",
+        "local_baserow_create_row",
+    ]
+    open_url = restored[0].specific
+    assert open_url.url["formula"] == "'https://baserow.io'"
+    assert open_url.target == "blank"
+    # A create row action is useless without its service.
+    assert restored[1].specific.service_id is not None
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_label_change_leaves_the_actions_alone(data_fixture):
+    """A same type update never drops them, so restoring would duplicate."""
+
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Open")
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    action_type_registry.get_by_type(UpdateFieldActionType).do(
+        user,
+        FieldHandler().get_specific_field_for_update(button_field.id),
+        label="Renamed",
+    )
+    ActionHandler.undo(user, [UpdateFieldActionType.scope(table.id)], session_id)
+
+    field = Field.objects.get(id=button_field.id).specific
+    assert field.label == "Open"
+    assert DatabaseWorkflowAction.objects.filter(field_id=field.id).count() == 1
 
 
 @pytest.mark.django_db
