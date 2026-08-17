@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0116_abuse_report_and_allow_reporting_abuse'),
+        ('core', '0117_job_error_code'),
     ]
 
     operations = [

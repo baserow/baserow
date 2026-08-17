@@ -8,7 +8,11 @@ from django.db.models import Q
 
 from loguru import logger
 
-from baserow.core.ai_provider.constants import AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY,
+    PROVIDER_ENVIRONMENT_SETTINGS,
+)
+from baserow.core.ai_provider.exceptions import InvalidAIProviderSettings
 from baserow.core.ai_provider.models import (
     AIProviderConfig,
     AIProviderWorkspaceOverride,
@@ -405,8 +409,6 @@ class GenerativeAIModelType(Instance):
         credentials from another scope.
         """
 
-        from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
-
         providers_enabled = feature_flag_is_enabled(FF_AI_PROVIDERS)
         model_settings_override = None
         if settings_override is not None and key in settings_override:
@@ -494,18 +496,11 @@ class GenerativeAIModelType(Instance):
     def _get_database_provider_configuration(
         self, workspace: Optional[Workspace]
     ) -> tuple[dict[str, Any], dict[str, Any], set[int]]:
-        from baserow.core.ai_provider.models import (
-            AIProviderConfig,
-            AIProviderWorkspaceOverride,
-        )
-
         workspace_id = workspace.id if isinstance(workspace, Workspace) else None
 
         def load_provider_configuration():
             providers = AIProviderConfig.objects.prefetch_related("models")
             if workspace_id is not None:
-                from django.db.models import Q
-
                 providers = providers.filter(
                     Q(workspace_id=workspace_id) | Q(workspace__isnull=True)
                 )
@@ -547,8 +542,6 @@ class GenerativeAIModelType(Instance):
         return provider.extra_settings.get(key)
 
     def _get_provider_settings(self, provider: Any) -> dict[str, Any]:
-        from baserow.core.ai_provider.constants import PROVIDER_ENVIRONMENT_SETTINGS
-
         extra_setting_names = PROVIDER_ENVIRONMENT_SETTINGS[self.type]["extra_settings"]
         return {
             "api_key": provider.api_key,
@@ -574,7 +567,6 @@ class GenerativeAIModelType(Instance):
     def _get_complete_provider_settings(self, values: Any) -> Optional[dict[str, Any]]:
         """Validate and normalize one complete provider settings dictionary."""
 
-        from baserow.core.ai_provider.exceptions import InvalidAIProviderSettings
         from baserow.core.ai_provider.provider_types import (
             get_legacy_workspace_provider_values,
         )
@@ -600,8 +592,6 @@ class GenerativeAIModelType(Instance):
 
         if settings_override is not None:
             return settings_override
-
-        from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 
         if not feature_flag_is_enabled(FF_AI_PROVIDERS) or not isinstance(
             workspace, Workspace
