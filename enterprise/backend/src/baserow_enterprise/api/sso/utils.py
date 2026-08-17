@@ -156,7 +156,10 @@ def get_valid_frontend_url(
     else:
         found = False
         for allowed_url in default_frontend_urls_parsed:
-            if requested_url_parsed.hostname == allowed_url.hostname:
+            if (
+                requested_url_parsed.hostname == allowed_url.hostname
+                and requested_url_parsed.scheme in ("http", "https")
+            ):
                 matching_url = allowed_url
                 found = True
 

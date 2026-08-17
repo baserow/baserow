@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Enforce SAML response and assertion signature validation against IdP certificates, add URL scheme validation to SSO redirects, and add license checks to Builder SAML endpoints.",
+    "issue_origin": "github",
+    "issue_number": 5905,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-17"
+}

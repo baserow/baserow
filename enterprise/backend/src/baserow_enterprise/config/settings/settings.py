@@ -36,8 +36,8 @@ def setup(settings):
 
     # Set this to True to enable users to login with auth providers different than
     # the one they were originally created with.
-    settings.BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT = bool(
-        os.getenv("BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT", False)
+    settings.BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT = str_to_bool(
+        os.getenv("BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT") or "false"
     )
 
     settings.BASEROW_SSO_ALLOW_PRIVATE_ADDRESS = str_to_bool(
@@ -60,8 +60,8 @@ def setup(settings):
         or None
     )
 
-    serve_files_through_backend = bool(
-        os.getenv("BASEROW_SERVE_FILES_THROUGH_BACKEND", False)
+    serve_files_through_backend = str_to_bool(
+        os.getenv("BASEROW_SERVE_FILES_THROUGH_BACKEND") or "false"
     )
     if serve_files_through_backend:
         settings.STORAGES["default"]["BACKEND"] = (

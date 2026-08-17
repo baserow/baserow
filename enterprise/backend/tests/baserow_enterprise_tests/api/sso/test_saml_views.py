@@ -200,6 +200,125 @@ def test_user_can_initiate_saml_sso_with_enterprise_license(
     )
 
 
+def _build_unsigned_saml_response(issuer, email, acs_url):
+    """Build a well-formed but unsigned SAML Response for regression testing."""
+
+    now = "2022-11-23T14:28:24Z"
+    not_after = "2032-11-23T14:28:24Z"
+    xml = f"""<saml2p:Response
+        Destination="{acs_url}"
+        ID="_unsigned_test_response"
+        IssueInstant="{now}"
+        Version="2.0"
+        xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol">
+      <saml2:Issuer
+          xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">{issuer}</saml2:Issuer>
+      <saml2p:Status>
+        <saml2p:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>
+      </saml2p:Status>
+      <saml2:Assertion
+          ID="_unsigned_test_assertion"
+          IssueInstant="{now}"
+          Version="2.0"
+          xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+        <saml2:Issuer>{issuer}</saml2:Issuer>
+        <saml2:Subject>
+          <saml2:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">{email}</saml2:NameID>
+          <saml2:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+            <saml2:SubjectConfirmationData
+                NotOnOrAfter="{not_after}"
+                Recipient="{acs_url}"/>
+          </saml2:SubjectConfirmation>
+        </saml2:Subject>
+        <saml2:Conditions NotBefore="{now}" NotOnOrAfter="{not_after}">
+          <saml2:AudienceRestriction>
+            <saml2:Audience>{acs_url}</saml2:Audience>
+          </saml2:AudienceRestriction>
+        </saml2:Conditions>
+        <saml2:AuthnStatement AuthnInstant="{now}">
+          <saml2:AuthnContext>
+            <saml2:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport</saml2:AuthnContextClassRef>
+          </saml2:AuthnContext>
+        </saml2:AuthnStatement>
+        <saml2:AttributeStatement>
+          <saml2:Attribute Name="user.email">
+            <saml2:AttributeValue>{email}</saml2:AttributeValue>
+          </saml2:Attribute>
+          <saml2:Attribute Name="user.firstName">
+            <saml2:AttributeValue>Attacker</saml2:AttributeValue>
+          </saml2:Attribute>
+        </saml2:AttributeStatement>
+      </saml2:Assertion>
+    </saml2p:Response>"""
+    return base64.b64encode(xml.encode("utf-8")).decode("utf-8")
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_unsigned_saml_response_is_rejected(api_client, enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    sp_sso_saml_acs_url = reverse("api:enterprise_sso_saml:acs")
+
+    (
+        metadata,
+        _,
+    ) = enterprise_data_fixture.get_valid_saml_idp_metadata_and_response()
+
+    enterprise_data_fixture.create_saml_auth_provider(
+        domain="baserow.io", metadata=metadata
+    )
+
+    unsigned_response = _build_unsigned_saml_response(
+        issuer="http://www.okta.com/exk733qbn3l7bnIQh5d7",
+        email="victim@baserow.io",
+        acs_url=f"{settings.PUBLIC_BACKEND_URL}/api/sso/saml/acs/",
+    )
+
+    with freeze_time("2022-11-23T14:28:25.00Z"):
+        response = api_client.post(
+            sp_sso_saml_acs_url,
+            data={
+                "SAMLResponse": unsigned_response,
+                "RelayState": get_frontend_default_redirect_url(),
+            },
+        )
+        assert response.status_code == HTTP_302_FOUND
+        assert response.headers["Location"] == (
+            f"{get_frontend_login_error_url()}?error=errorInvalidSamlResponse"
+        )
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+def test_saml_acs_rejects_javascript_scheme_in_relay_state(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    sp_sso_saml_acs_url = reverse("api:enterprise_sso_saml:acs")
+
+    (
+        metadata,
+        saml_response,
+    ) = enterprise_data_fixture.get_valid_saml_idp_metadata_and_response()
+
+    enterprise_data_fixture.create_saml_auth_provider(
+        domain="baserow.io", metadata=metadata
+    )
+
+    with freeze_time("2022-11-23T14:23:25.00Z"):
+        response = api_client.post(
+            sp_sso_saml_acs_url,
+            data={
+                "SAMLResponse": saml_response,
+                "RelayState": "javascript://localhost:3000/%0aalert(1)//",
+            },
+        )
+        assert response.status_code == HTTP_302_FOUND
+        location = response.headers["Location"]
+        assert not location.startswith("javascript:")
+        assert location.startswith(get_frontend_default_redirect_url())
+
+
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
 def test_saml_assertion_consumer_service(api_client, enterprise_data_fixture):
