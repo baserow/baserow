@@ -761,7 +761,7 @@
         "ollamaHostDescription": "Proporciona el nombre del host a tu servidor [Ollama] (https://ollama.com/). Esto normalmente se ejecuta localmente en tu propio dispositivo.",
         "ollamaModelsLabel": "Modelos activados",
         "openaiApiKeyDescription": "Proporciona una clave de API de OpenAI si deseas activar la integración. [Instrucciones para obtener una clave de API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
-        "ollamaModelsDescription": "Proporciona una lista de [modelos instalados de Ollama] separados por comas (https://ollama.com/library). Ten en cuenta que el modelo debe ser descargado e instalado antes de que pueda ser utilizado. (por ejemplo, `llama2,mistral`)",
+        "ollamaModelsDescription": "Proporciona una lista separada por comas de [modelos instalados en Ollama](). Un modelo debe estar descargado e instalado antes de que Baserow pueda usarlo. Por ejemplo: gemma3,qwen3,llama3.3.",
         "anthropicApiKeyLabel": "Clave API",
         "mistralModelsLabel": "Modelos habilitados",
         "mistralApiKeyDescription": "Proporciona una clave API de Mistral si deseas habilitar la integración. [Instrucciones para obtener una clave API](https://docs.mistral.ai/getting-started/quickstart/).",
@@ -1310,5 +1310,8 @@
     },
     "editWorkspace": {
         "invalidNameTitle": "Nombre de espacio de trabajo no permitido"
+    },
+    "reportAbuseModal": {
+        "description": "¿Crees que esta página se está utilizando para «phishing», suplantación de identidad, estafas u otros fines abusivos? Haz saber a los administradores de esta instancia de Baseroy enviando el formulario a continuación."
     }
 }
