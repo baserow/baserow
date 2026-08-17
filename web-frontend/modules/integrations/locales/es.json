@@ -358,12 +358,12 @@
         "integrationDropdownLabel": "Integración"
     },
     "localBaserowUpdateRowsServiceForm": {
-        "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Cada objeto debe incluir una propiedad ID. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden actualizar hasta {limit} filas a la vez.",
+        "rowsHelper": "La expresión debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Cada objeto debe incluir una propiedad ID. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden actualizar hasta {limit} filas a la vez.",
         "rowsPlaceholder": "Elige una lista de objetos de fila con IDs",
         "rowsLabel": "Filas"
     },
     "localBaserowCreateRowsServiceForm": {
-        "rowsHelper": "La fórmula debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden crear hasta {limit} filas a la vez.",
+        "rowsHelper": "La expresión debe devolver una matriz de objetos de fila, o una cadena JSON que se procese como tal. Usa nombres de campo o IDs de campo como claves del objeto. Se pueden crear hasta {limit} filas a la vez.",
         "rowsPlaceholder": "Elige una lista de objetos de fila",
         "rowsLabel": "Filas"
     },
