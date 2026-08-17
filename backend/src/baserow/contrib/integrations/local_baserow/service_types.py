@@ -2155,8 +2155,6 @@ class LocalBaserowUpsertRowServiceType(
         used_field_names = self.get_used_field_names(service, dispatch_context)
 
         acting_user = self.get_acting_user(service, dispatch_context)
-        if service.integration_id:
-            service.integration = service.integration.specific
 
         row_id: Optional[int] = resolved_values.get("row_id", None)
 
@@ -2195,13 +2193,11 @@ class LocalBaserowUpsertRowServiceType(
 
         # Writable doesn't refer to the field type being writable, but rather if
         # the acting user has the correct permission.
-        authorized_user_writable_field_mappings = []
+        writable_field_mappings = []
         has_unwritable_fields = False
         for check, check_result in permission_check_results.items():
             if check_result:
-                authorized_user_writable_field_mappings.append(
-                    context_map[check.context]
-                )
+                writable_field_mappings.append(context_map[check.context])
             else:
                 has_unwritable_fields = True
 
@@ -2216,7 +2212,7 @@ class LocalBaserowUpsertRowServiceType(
                 "You don't have permission to write to the fields this action changes."
             )
 
-        for field_mapping in authorized_user_writable_field_mappings:
+        for field_mapping in writable_field_mappings:
             if field_mapping.id not in resolved_values:
                 continue
 
@@ -2489,8 +2485,6 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
         table = service.table
         used_field_names = self.get_used_field_names(service, dispatch_context)
         acting_user = self.get_acting_user(service, dispatch_context)
-        if service.integration_id:
-            service.integration = service.integration.specific
 
         rows = resolved_values.get("rows", [])
         if not rows:
