@@ -50,13 +50,13 @@ class PostgreSQLDataSyncType(BaserowPostgreSQLDataSyncType):
                     returning = cursor.fetchall()
                 cursor.connection.commit()
             except psycopg.OperationalError:
-                logger.exception("PostgreSQL data sync connection error")
+                logger.warning("PostgreSQL data sync connection error", exc_info=True)
                 raise SyncError(
                     "Could not connect to the PostgreSQL database. Please "
                     "verify the hostname, port, credentials, and SSL mode."
                 )
             except psycopg.Error:
-                logger.exception("PostgreSQL data sync query error")
+                logger.warning("PostgreSQL data sync query error", exc_info=True)
                 raise SyncError(
                     "A database error occurred while synchronizing. Please "
                     "verify the table name and column configuration."
