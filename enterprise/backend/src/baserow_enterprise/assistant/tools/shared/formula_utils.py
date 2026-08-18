@@ -1,16 +1,31 @@
+import logging
 import re
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 from typing import Any
 
-from baserow.core.formula.types import FormulaContext
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
+from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
+from baserow.core.formula.parser.parser import get_parse_tree_for_formula
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormulaMode,
+    BaserowFormulaObject,
+    FormulaContext,
+)
 from baserow.core.utils import to_path
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Formula Detection Constants and Helpers
 # =============================================================================
 
 FORMULA_PREFIX = "$formula:"
+
+# An empty string literal, used as a placeholder for values that are either
+# missing or resolved later on by the formula generator agent.
+EMPTY_FORMULA = "''"
 
 # Detects raw formula syntax the LLM might write instead of using $formula:.
 # Matches: get('...'), concat(...), {{ ... }}, comparison operators, if(...),
@@ -75,26 +90,109 @@ def literal_or_placeholder(value: str | None) -> str:
     """
 
     if not value or needs_formula(value):
-        return "''"
+        return EMPTY_FORMULA
     return wrap_static_string(value)
+
+
+def is_valid_formula(value: str) -> bool:
+    """
+    Check whether the given formula can be parsed.
+
+    :param value: The formula to parse.
+    :return: True if the formula is syntactically valid.
+    """
+
+    try:
+        get_parse_tree_for_formula(value)
+    except (BaserowFormulaException, RecursionError):
+        return False
+    return True
+
+
+def is_string_literal(value: str) -> bool:
+    """
+    Check whether the given formula is a single, complete string literal.
+
+    Used to detect values the LLM already quoted itself (e.g. ``'Submit'``).
+    Inspecting the first and last character isn't enough: ``'Managers' Week'``
+    looks quoted, but is invalid syntax.
+
+    :param value: The formula to parse.
+    :return: True if the formula is exactly one string literal.
+    """
+
+    try:
+        tree = get_parse_tree_for_formula(value)
+    except (BaserowFormulaException, RecursionError):
+        return False
+    return isinstance(tree.expr(), BaserowFormula.StringLiteralContext)
 
 
 def wrap_static_string(value: str) -> str:
     """
     Wrap a static string as a Baserow formula literal.
 
-    If the value is already a quoted formula literal (e.g. ``'Submit'``),
-    it is returned unchanged to avoid double-wrapping which would produce
-    escaped quotes visible in the UI (e.g. ``'\\'Submit\\''``).
+    If the value already *is* a valid string literal (e.g. ``'Submit'``), it is
+    returned unchanged to avoid double-wrapping which would produce escaped
+    quotes visible in the UI (e.g. ``'\\'Submit\\''``). Anything else is escaped
+    the same way the frontend does it, so that values containing apostrophes
+    (``Sales Managers' Week``) or backslashes still produce parsable formulas.
 
     :param value: Plain text string or already-quoted formula literal.
     :return: Formula-compatible string literal with proper escaping.
     """
 
-    if len(value) >= 2 and value[0] == "'" and value[-1] == "'":
+    if is_string_literal(value):
         return value
-    escaped = value.replace("'", "\\'")
+    escaped = value.replace("\\", "\\\\").replace("'", "\\'")
     return f"'{escaped}'"
+
+
+def ensure_valid_formula(formula: str) -> str:
+    """
+    Guarantee that a formula written by the assistant can be parsed.
+
+    Values coming from the LLM regularly contain unescaped apostrophes, and an
+    invalid formula can be persisted because the assistant writes through the
+    handlers instead of the API serializers. It only surfaces much later, when
+    the application is duplicated or exported and the formula importer fails to
+    parse it. Falling back to a static string literal keeps the value visible
+    and editable in the UI instead of breaking the whole application.
+
+    :param formula: The formula about to be persisted.
+    :return: The formula itself, or a string literal fallback.
+    """
+
+    if not formula or not isinstance(formula, str) or is_valid_formula(formula):
+        return formula
+
+    fallback = wrap_static_string(formula)
+    logger.warning(
+        "The assistant produced an invalid formula, storing it as a static "
+        "string literal instead: %s",
+        formula,
+    )
+    return fallback
+
+
+def formula_object(
+    formula: str = "",
+    mode: BaserowFormulaMode = BASEROW_FORMULA_MODE_SIMPLE,
+    version: str = "0.1",
+) -> BaserowFormulaObject:
+    """
+    Drop-in replacement of ``BaserowFormulaObject.create`` for assistant values.
+
+    Every formula the assistant persists must go through here so that an
+    invalid one can never reach the database. See :func:`ensure_valid_formula`.
+
+    :param formula: The formula to store.
+    :param mode: The formula mode.
+    :param version: The formula version.
+    :return: A ``BaserowFormulaObject`` holding a parsable formula.
+    """
+
+    return BaserowFormulaObject.create(ensure_valid_formula(formula), mode, version)
 
 
 # =============================================================================

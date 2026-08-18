@@ -47,9 +47,13 @@ from baserow_enterprise.assistant.tools.builder.types import (
     TypographyStyleOverride,
 )
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
+    ensure_valid_formula,
     formula_desc,
+    formula_object,
+    is_valid_formula,
     literal_or_placeholder,
     needs_formula,
+    wrap_static_string,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx
@@ -123,6 +127,57 @@ class TestFormulaUtils:
     def test_literal_or_placeholder_literal(self):
         assert literal_or_placeholder("Submit") == "'Submit'"
         assert literal_or_placeholder(None) == "''"
+
+    def test_wrap_static_string_escapes_apostrophes(self):
+        assert wrap_static_string("Sales Managers' Week") == (
+            "'Sales Managers\\' Week'"
+        )
+        assert wrap_static_string("Employees' Week") == "'Employees\\' Week'"
+
+    def test_wrap_static_string_escapes_backslashes(self):
+        assert wrap_static_string("C:\\") == "'C:\\\\'"
+
+    def test_wrap_static_string_keeps_valid_literals(self):
+        assert wrap_static_string("'Submit'") == "'Submit'"
+        assert wrap_static_string("'It\\'s'") == "'It\\'s'"
+
+    def test_wrap_static_string_rewraps_invalid_literals(self):
+        # Looks quoted, but the inner apostrophe makes it invalid syntax.
+        assert is_valid_formula(wrap_static_string("'Sales Managers' Week 3'"))
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "Sales Managers' Week 3",
+            "'Sales Managers' Week 3'",
+            "Submit",
+            "'Submit'",
+            "C:\\",
+            "",
+        ],
+    )
+    def test_wrap_static_string_always_parses(self, value):
+        assert is_valid_formula(wrap_static_string(value))
+
+    def test_literal_or_placeholder_escapes_apostrophes(self):
+        assert is_valid_formula(literal_or_placeholder("Sales Managers' Week 3"))
+
+    def test_ensure_valid_formula_keeps_valid_formulas(self):
+        assert ensure_valid_formula("get('page_parameter.id')") == (
+            "get('page_parameter.id')"
+        )
+        assert ensure_valid_formula("'Submit'") == "'Submit'"
+        assert ensure_valid_formula("") == ""
+
+    def test_ensure_valid_formula_falls_back_to_a_literal(self):
+        result = ensure_valid_formula("'Sales Managers' Week 3'")
+
+        assert is_valid_formula(result)
+
+    def test_formula_object_never_stores_an_invalid_formula(self):
+        formula = formula_object("'Sales Managers' Week 3'")
+
+        assert is_valid_formula(formula["formula"])
 
 
 # ===========================================================================

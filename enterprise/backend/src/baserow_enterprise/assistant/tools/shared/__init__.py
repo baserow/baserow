@@ -1,10 +1,15 @@
 from .agents import get_formula_generator
 from .formula_utils import (
+    EMPTY_FORMULA,
     FORMULA_PREFIX,
     RAW_FORMULA_RE,
     BaseFormulaContext,
     create_example_from_json_schema,
+    ensure_valid_formula,
     formula_desc,
+    formula_object,
+    is_string_literal,
+    is_valid_formula,
     literal_or_placeholder,
     minimize_json_schema,
     needs_formula,
@@ -12,12 +17,17 @@ from .formula_utils import (
 )
 
 __all__ = [
+    "EMPTY_FORMULA",
     "FORMULA_PREFIX",
     "RAW_FORMULA_RE",
     "needs_formula",
     "formula_desc",
     "literal_or_placeholder",
     "wrap_static_string",
+    "is_valid_formula",
+    "is_string_literal",
+    "ensure_valid_formula",
+    "formula_object",
     "minimize_json_schema",
     "create_example_from_json_schema",
     "BaseFormulaContext",

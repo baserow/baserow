@@ -22,14 +22,12 @@ from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.signals import workflow_action_updated
-from baserow.core.formula.types import (
-    BASEROW_FORMULA_MODE_ADVANCED,
-    BaserowFormulaObject,
-)
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.utils import to_path
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     create_example_from_json_schema,
+    formula_object,
     minimize_json_schema,
 )
 
@@ -502,11 +500,11 @@ def update_single_data_source_formulas(
             if generated:
                 service_kwargs: dict[str, Any] = {}
                 if "row_id" in generated:
-                    service_kwargs["row_id"] = BaserowFormulaObject.create(
+                    service_kwargs["row_id"] = formula_object(
                         generated["row_id"], mode=BASEROW_FORMULA_MODE_ADVANCED
                     )
                 if "search_query" in generated:
-                    service_kwargs["search_query"] = BaserowFormulaObject.create(
+                    service_kwargs["search_query"] = formula_object(
                         generated["search_query"],
                         mode=BASEROW_FORMULA_MODE_ADVANCED,
                     )
@@ -585,7 +583,7 @@ def update_single_element_formulas(
                             if "." not in field_name and hasattr(
                                 orm_element, field_name
                             ):
-                                kwargs[field_name] = BaserowFormulaObject.create(
+                                kwargs[field_name] = formula_object(
                                     formula,
                                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                                 )

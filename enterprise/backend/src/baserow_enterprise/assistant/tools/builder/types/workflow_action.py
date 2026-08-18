@@ -9,12 +9,10 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, model_validator
 
-from baserow.core.formula.types import (
-    BASEROW_FORMULA_MODE_ADVANCED,
-    BaserowFormulaObject,
-)
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
+    formula_object,
     literal_or_placeholder,
     needs_formula,
 )
@@ -91,11 +89,11 @@ def _strip_formula_prefix(value: str) -> str:
 
 def _notification_orm_kwargs(action: "ActionCreate") -> dict:
     return {
-        "title": BaserowFormulaObject.create(
+        "title": formula_object(
             literal_or_placeholder(action.title),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
-        "description": BaserowFormulaObject.create(
+        "description": formula_object(
             literal_or_placeholder(action.description),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
@@ -109,7 +107,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
         "page_parameters": [
             {
                 "name": p.name,
-                "value": BaserowFormulaObject.create(
+                "value": formula_object(
                     literal_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
@@ -119,7 +117,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
         "query_parameters": [
             {
                 "name": p.name,
-                "value": BaserowFormulaObject.create(
+                "value": formula_object(
                     literal_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
@@ -170,7 +168,7 @@ def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
     kwargs: dict[str, Any] = {"table": table}
 
     if action.type in ("update_row", "delete_row") and action.row_id:
-        kwargs["row_id"] = BaserowFormulaObject.create(
+        kwargs["row_id"] = formula_object(
             _strip_formula_prefix(action.row_id),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
@@ -198,7 +196,7 @@ def _field_mappings(action: "ActionCreate") -> list[dict] | None:
         mappings.append(
             {
                 "field_id": int(fv.field_id),
-                "value": BaserowFormulaObject.create(
+                "value": formula_object(
                     formula_value, mode=BASEROW_FORMULA_MODE_ADVANCED
                 ),
                 "enabled": True,
@@ -270,7 +268,7 @@ def _update_row_formulas(
 
     # Update row_id
     if "row_id" in formulas:
-        service.row_id = BaserowFormulaObject.create(
+        service.row_id = formula_object(
             formulas["row_id"], mode=BASEROW_FORMULA_MODE_ADVANCED
         )
         service.save(update_fields=["row_id"])
@@ -279,7 +277,7 @@ def _update_row_formulas(
     for mapping in service.field_mappings.all():
         key = f"field_{mapping.field_id}"
         if key in formulas:
-            mapping.value = BaserowFormulaObject.create(
+            mapping.value = formula_object(
                 formulas[key], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
             mapping.save(update_fields=["value"])
@@ -302,14 +300,14 @@ def _update_open_page_formulas(
     for i, p in enumerate(page_params):
         key = f"page_param_{i}"
         if key in formulas:
-            p["value"] = BaserowFormulaObject.create(
+            p["value"] = formula_object(
                 formulas[key], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
 
     for i, p in enumerate(query_params):
         key = f"query_param_{i}"
         if key in formulas:
-            p["value"] = BaserowFormulaObject.create(
+            p["value"] = formula_object(
                 formulas[key], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
 

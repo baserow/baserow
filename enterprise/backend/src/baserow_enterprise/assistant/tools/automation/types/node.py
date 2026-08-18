@@ -14,17 +14,17 @@ from django.conf import settings
 from pydantic import Field, PrivateAttr, model_serializer, model_validator
 
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.core.formula.types import (
-    BASEROW_FORMULA_MODE_ADVANCED,
-    BaserowFormulaObject,
-)
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     FORMULA_PREFIX,
+    ensure_valid_formula,
     formula_desc,
+    formula_object,
     literal_or_placeholder,
     needs_formula,
+    wrap_static_string,
 )
 from baserow_enterprise.assistant.types import BaseModel
 
@@ -57,6 +57,7 @@ def _upsert_field_mappings(
     to_create, to_update = [], []
 
     for field_id, (formula, enabled) in values.items():
+        formula = ensure_valid_formula(formula)
         if field_id in existing:
             mapping = existing[field_id]
             mapping.value = formula
@@ -532,7 +533,7 @@ def _default_update_formulas(service: Service, formulas: dict[str, str]):
     save = False
     for field_name, formula in formulas.items():
         if hasattr(service, field_name):
-            setattr(service, field_name, BaserowFormulaObject.create(formula=formula))
+            setattr(service, field_name, formula_object(formula=formula))
             save = True
     if save:
         ServiceHandler().update_service(service.get_type(), service)
@@ -569,7 +570,7 @@ def _row_action_update_formulas(
     )
 
     if row_id_formula:
-        service.row_id = row_id_formula
+        service.row_id = ensure_valid_formula(row_id_formula)
         ServiceHandler().update_service(service.get_type(), service)
 
 
@@ -592,14 +593,14 @@ def _row_action_apply_direct(n: ActionNodeCreate, service: Service):
     _upsert_field_mappings(
         service,
         {
-            fv.field_id: (f"'{fv.value}'", True)
+            fv.field_id: (wrap_static_string(fv.value), True)
             for fv in (n.values or [])
             if not needs_formula(fv.value)
         },
     )
 
     if n.row_id and not needs_formula(n.row_id):
-        service.row_id = f"'{n.row_id}'"
+        service.row_id = wrap_static_string(n.row_id)
         ServiceHandler().update_service(service.get_type(), service)
 
 
@@ -836,13 +837,13 @@ def _row_action_update_apply_direct(n: "NodeUpdate", service: Service):
     _upsert_field_mappings(
         service,
         {
-            fv.field_id: (f"'{fv.value}'", True)
+            fv.field_id: (wrap_static_string(fv.value), True)
             for fv in (n.values or [])
             if not needs_formula(fv.value)
         },
     )
     if n.row_id and not needs_formula(n.row_id):
-        service.row_id = f"'{n.row_id}'"
+        service.row_id = wrap_static_string(n.row_id)
         ServiceHandler().update_service(service.get_type(), service)
 
 

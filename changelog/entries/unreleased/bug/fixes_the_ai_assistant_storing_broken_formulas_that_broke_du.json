@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes the AI assistant storing broken formulas that broke duplicating and exporting.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-08-18"
+}

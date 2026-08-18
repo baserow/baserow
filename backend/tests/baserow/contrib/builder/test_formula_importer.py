@@ -88,3 +88,23 @@ def test_formula_import_formula_with_import(
     result = import_formula(BaserowFormulaObject.create(formula["input"]), id_mapping)
 
     assert result["formula"] == formula.get("output2", formula["output"])
+
+
+@pytest.mark.django_db
+def test_formula_import_ignores_unparsable_formula(
+    mutable_builder_data_provider_registry,
+):
+    """
+    An invalid formula can be persisted by code paths that bypass the API
+    serializers. It must not make the whole application impossible to
+    duplicate, export or import.
+    """
+
+    mutable_builder_data_provider_registry.register(TestDataProviderType())
+
+    id_mapping = defaultdict(lambda: MirrorDict())
+    invalid = "'Hello' World'"
+
+    result = import_formula(BaserowFormulaObject.create(invalid), id_mapping)
+
+    assert result["formula"] == invalid
