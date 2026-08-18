@@ -134,6 +134,7 @@ class PostgreSQLDataSyncType(DataSyncType):
         "postgresql_table",
         "postgresql_sslmode",
     ]
+    sensitive_fields = ["postgresql_password"]
     request_serializer_field_names = [
         "postgresql_host",
         "postgresql_username",

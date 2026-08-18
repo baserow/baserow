@@ -205,6 +205,7 @@ class GitLabIssuesDataSyncType(DataSyncType):
         "gitlab_project_id",
         "gitlab_access_token",
     ]
+    sensitive_fields = ["gitlab_access_token"]
     request_serializer_field_names = [
         "gitlab_url",
         "gitlab_project_id",

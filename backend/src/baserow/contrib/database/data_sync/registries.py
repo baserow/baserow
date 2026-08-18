@@ -125,6 +125,12 @@ class DataSyncType(
     Example: {"postgresql_password": ["postgresql_host", "postgresql_port"]}
     """
 
+    sensitive_fields: List[str] = []
+    """
+    Fields that contain secrets (passwords, tokens, API keys) and must be excluded
+    from workspace exports.
+    """
+
     def prepare_values(self, user: AbstractUser, values: Dict) -> Dict:
         """
         A hook that can validate or changes the provided values.
@@ -242,15 +248,27 @@ class DataSyncType(
             "A two-way data sync must implement the `delete_rows` method."
         )
 
-    def export_serialized(self, instance: "DataSync"):
+    def export_serialized(
+        self,
+        instance: "DataSync",
+        import_export_config: Optional[ImportExportConfig] = None,
+    ):
         """
         Exports the data sync properties and the `allowed_fields` to the serialized
         format.
         """
 
+        exclude_sensitive = getattr(
+            import_export_config, "exclude_sensitive_data", True
+        )
+
         properties = instance.synced_properties.filter(field__trashed=False)
         type_specific = {
-            field: getattr(instance, field)
+            field: (
+                None
+                if exclude_sensitive and field in self.sensitive_fields
+                else getattr(instance, field)
+            )
             for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields
         }
         last_sync_iso = instance.last_sync.isoformat() if instance.last_sync else None
@@ -286,11 +304,14 @@ class DataSyncType(
         original_id = serialized_copy.pop("id")
         properties = serialized_copy.pop("properties", [])
         serialized_copy.pop("type")
-        type_properties = {
-            field: serialized_copy.get(field)
-            for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields
-            if field in serialized_copy
-        }
+        type_properties = {}
+        for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields:
+            if field not in serialized_copy:
+                continue
+            value = serialized_copy.get(field)
+            if value is None and field in self.sensitive_fields:
+                value = ""
+            type_properties[field] = value
         data_sync = self.model_class.objects.create(
             table=table,
             last_sync=serialized_copy["last_sync"],

@@ -187,7 +187,9 @@ class DatabaseApplicationType(ApplicationType):
             if hasattr(table, "data_sync"):
                 data_sync = table.data_sync.specific
                 data_sync_type = data_sync_type_registry.get_by_model(data_sync)
-                serialized_data_sync = data_sync_type.export_serialized(data_sync)
+                serialized_data_sync = data_sync_type.export_serialized(
+                    data_sync, import_export_config
+                )
 
             if hasattr(table, "field_rules"):
                 field_rules_handler = FieldRuleHandler(table)

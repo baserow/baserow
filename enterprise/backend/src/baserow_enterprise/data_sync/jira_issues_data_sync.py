@@ -156,6 +156,7 @@ class JiraIssuesDataSyncType(DataSyncType):
         "jira_username",
         "jira_api_token",
     ]
+    sensitive_fields = ["jira_api_token"]
     request_serializer_field_names = [
         "jira_url",
         "jira_project_key",
