@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed the \"To personal\" / \"To collaborative\" button being visible to users without permission to change view ownership type.",
+    "issue_origin": "github",
+    "issue_number": 5804,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-30"
+}

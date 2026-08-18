@@ -16,6 +16,7 @@ import routeMountedStoreModule from '../store/routeMounted'
 import integrationStoreModule from '../store/integration'
 import presenceStoreModule from '../store/presence'
 import aiProviderStoreModule from '../store/aiProvider'
+import guidedTourStoreModule from '../store/guidedTour'
 
 export default defineNuxtPlugin({
   name: 'create-store',
@@ -38,6 +39,7 @@ export default defineNuxtPlugin({
         integration: integrationStoreModule,
         presence: presenceStoreModule,
         aiProvider: aiProviderStoreModule,
+        guidedTour: guidedTourStoreModule,
       },
     })
     nuxtApp.vueApp.use(store)

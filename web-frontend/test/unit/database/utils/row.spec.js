@@ -431,6 +431,116 @@ describe('Row utilities', () => {
       })
       expect(matchSortings).toBe(true)
     })
+
+    test('lookup (array formula) field sort correctly compares array values', () => {
+      const lookupField = {
+        id: 2,
+        name: 'Lookup',
+        type: 'formula',
+        formula_type: 'array',
+        array_formula_type: 'text',
+      }
+      const rows = [
+        {
+          id: 1,
+          order: '1.00000000000000000000',
+          field_2: [{ id: 20, value: 'Alpha' }],
+        },
+        {
+          id: 2,
+          order: '2.00000000000000000000',
+          field_2: [{ id: 20, value: 'Alpha' }],
+        },
+        {
+          id: 3,
+          order: '3.00000000000000000000',
+          field_2: [{ id: 10, value: 'Beta' }],
+        },
+      ]
+      const { matchSortings } = computeRowMatchFlags({
+        row: { id: 2, field_2: [{ id: 20, value: 'Alpha' }] },
+        view: baseView({
+          sortings: [{ field: 2, order: 'ASC', type: 'default' }],
+        }),
+        fields: [lookupField],
+        registry: store.$registry,
+        rowsInSortingGroup: rows,
+      })
+      expect(matchSortings).toBe(true)
+    })
+
+    test('lookup field sort detects row out of position', () => {
+      const lookupField = {
+        id: 2,
+        name: 'Lookup',
+        type: 'formula',
+        formula_type: 'array',
+        array_formula_type: 'text',
+      }
+      const rows = [
+        {
+          id: 1,
+          order: '1.00000000000000000000',
+          field_2: [{ id: 10, value: 'Beta' }],
+        },
+        {
+          id: 2,
+          order: '2.00000000000000000000',
+          field_2: [{ id: 20, value: 'Alpha' }],
+        },
+      ]
+      const { matchSortings } = computeRowMatchFlags({
+        row: { id: 2, field_2: [{ id: 20, value: 'Alpha' }] },
+        view: baseView({
+          sortings: [{ field: 2, order: 'ASC', type: 'default' }],
+        }),
+        fields: [lookupField],
+        registry: store.$registry,
+        rowsInSortingGroup: rows,
+      })
+      expect(matchSortings).toBe(false)
+    })
+
+    test('computeRowInsertPosition sorts lookup array values correctly', () => {
+      const lookupField = {
+        id: 2,
+        name: 'Lookup',
+        type: 'formula',
+        formula_type: 'array',
+        array_formula_type: 'text',
+      }
+      const existingRows = [
+        {
+          id: 1,
+          order: '1.00000000000000000000',
+          field_2: [{ id: 20, value: 'Alpha' }],
+        },
+        {
+          id: 3,
+          order: '3.00000000000000000000',
+          field_2: [{ id: 10, value: 'Beta' }],
+        },
+        {
+          id: 4,
+          order: '4.00000000000000000000',
+          field_2: [{ id: 30, value: 'Gamma' }],
+        },
+      ]
+      const newRow = {
+        id: 99,
+        order: '2.50000000000000000000',
+        field_2: [{ id: 20, value: 'Alpha' }],
+      }
+      const position = computeRowInsertPosition(
+        newRow,
+        existingRows,
+        [{ field: 2, order: 'ASC', type: 'default' }],
+        [lookupField],
+        store.$registry
+      )
+      expect(position.sortedIndex).toBe(1)
+      expect(position.anchorRowId).toBe(1)
+    })
   })
 
   describe('buildNewRowDefaults', () => {
@@ -553,21 +663,22 @@ describe('Row utilities', () => {
 
   describe('computeRowInsertPosition', () => {
     const makeSortRegistry = () => ({
-      get: (_, type) =>
-        type === 'text'
-          ? {
-              getSortTypes: () => ({
-                default: {
-                  function: (fieldName, order) => (a, b) => {
-                    const va = a[fieldName]
-                    const vb = b[fieldName]
-                    const cmp = va < vb ? -1 : va > vb ? 1 : 0
-                    return order === 'DESC' ? -cmp : cmp
-                  },
-                },
-              }),
-            }
-          : {},
+      get: (_, type) => {
+        if (type !== 'text') return {}
+        const sortFn = (fieldName, order) => (a, b) => {
+          const va = a[fieldName]
+          const vb = b[fieldName]
+          const cmp = va < vb ? -1 : va > vb ? 1 : 0
+          return order === 'DESC' ? -cmp : cmp
+        }
+        return {
+          getSortTypes: () => ({
+            default: { function: sortFn },
+          }),
+          getGroupBySort: (name, order, _field, _sortType) =>
+            sortFn(name, order),
+        }
+      },
     })
     const textField = { id: 1, type: 'text' }
     const ascSort = [{ field: 1, order: 'ASC', type: 'default' }]

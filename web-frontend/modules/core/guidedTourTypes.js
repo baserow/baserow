@@ -20,7 +20,17 @@ export class GuidedTourType extends Registerable {
 
   /**
    * Hook that is called when whole onboarding completes, and this one was included.
+   */
   completed() {}
+
+  /**
+   * Indicates whether this tour must be included when the user manually replays the
+   * guided tour. Tours that must only be seen the first time, like one-off
+   * announcements, can return false here.
+   */
+  get showOnReplay() {
+    return true
+  }
 
   /**
    * Should return true if the guided tour should is active and should be shown. This
@@ -100,6 +110,14 @@ export class GuidedTourStep {
 
   get highlightPadding() {
     return this._highlightPadding
+  }
+
+  /**
+   * Indicates whether this step must be included when the user manually replays the
+   * guided tour. Steps that must only be seen the first time can return false here.
+   */
+  get showOnReplay() {
+    return true
   }
 
   /**

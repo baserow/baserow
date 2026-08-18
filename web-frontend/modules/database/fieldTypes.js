@@ -621,6 +621,19 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Returns the sort function used when ordering group-by nodes. By default
+   * this dispatches through `getSortTypes` so the group-by type (e.g.
+   * "First → Last" for single select) is respected. Field types that need
+   * set-based ordering for group-by (e.g. multi-select, multiple
+   * collaborators) override this independently.
+   */
+  getGroupBySort(name, order, field, sortType) {
+    const types = this.getSortTypes(field)
+    const resolved = types[sortType] || types[DEFAULT_SORT_TYPE_KEY]
+    return resolved.function(name, order, field)
+  }
+
+  /**
    * Should return a visualisation of how the sort function is going to work. For
    * example ['text', 'A', 'Z'] will result in 'A -> Z' as ascending and 'Z -> A'
    * descending visualisation for the user. It is also possible to use a icon class name
@@ -2538,7 +2551,16 @@ class BaseDateFieldType extends FieldType {
   }
 
   prepareRichValueForCopy(field, value) {
-    return value
+    if (!value) {
+      return value
+    }
+    return {
+      type: 'date',
+      version: 1,
+      value,
+      includeTime: !!field.date_include_time,
+      timezone: getFieldTimezone(field) || null,
+    }
   }
 
   /**
@@ -2546,6 +2568,29 @@ class BaseDateFieldType extends FieldType {
    * correct format for the field. If it can't be parsed null is returned.
    */
   prepareValueForPaste(field, clipboardData, richClipboardData) {
+    if (richClipboardData) {
+      let isoValue = null
+      if (
+        typeof richClipboardData === 'object' &&
+        richClipboardData?.type === 'date'
+      ) {
+        isoValue = richClipboardData.value
+      } else if (
+        typeof richClipboardData === 'string' &&
+        /^\d{4}-\d{2}-\d{2}/.test(richClipboardData)
+      ) {
+        isoValue = richClipboardData
+      }
+      if (isoValue && moment.utc(isoValue, moment.ISO_8601, true).isValid()) {
+        if (
+          typeof richClipboardData === 'object' &&
+          richClipboardData.type === 'date'
+        ) {
+          return this._convertRichDateValue(field, richClipboardData)
+        }
+        return this.formatValue(field, isoValue)
+      }
+    }
     const dateValue = this.parseInputValue(field, clipboardData || '')
     return this.formatValue(field, dateValue)
   }
@@ -2572,10 +2617,12 @@ class BaseDateFieldType extends FieldType {
     const s = containsDash ? '-' : '/'
 
     const usFieldFormats = getDateTimeFormatsFor(
+      `MM${s}DD${s}YYYY`,
       `M${s}D${s}YYYY`,
       `YYYY${s}D${s}M`
     )
     const euFieldFormats = getDateTimeFormatsFor(
+      `DD${s}MM${s}YYYY`,
       `D${s}M${s}YYYY`,
       `YYYY${s}M${s}D`
     )
@@ -2616,6 +2663,39 @@ class BaseDateFieldType extends FieldType {
 
   parseFromLinkedRowItemValue(field, value) {
     return this.parseInputValue(field, value)
+  }
+
+  _convertRichDateValue(field, richPayload) {
+    const date = moment.utc(richPayload.value)
+    if (!date.isValid()) {
+      return null
+    }
+    const targetIncludeTime = !!field.date_include_time
+    const targetTimezone = getFieldTimezone(field)
+    const sourceTimezone = richPayload.timezone
+
+    if (targetIncludeTime && !richPayload.includeTime) {
+      // date-only → datetime: interpret source date as midnight in target timezone
+      if (targetTimezone) {
+        const localMidnight = moment.tz(
+          date.format('YYYY-MM-DD'),
+          'YYYY-MM-DD',
+          targetTimezone
+        )
+        return localMidnight.utc().format()
+      }
+      return date.format()
+    }
+
+    if (!targetIncludeTime && richPayload.includeTime) {
+      // datetime → date-only: convert to source timezone then extract calendar date
+      if (sourceTimezone) {
+        return date.tz(sourceTimezone).format('YYYY-MM-DD')
+      }
+      return date.format('YYYY-MM-DD')
+    }
+
+    return this.formatValue(field, richPayload.value)
   }
 
   formatValue(field, value) {
@@ -4106,6 +4186,33 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     }
   }
 
+  getGroupBySort(name, order, field) {
+    const optionOrders = new Map(
+      (field.select_options || []).map((option) => [option.id, option.order])
+    )
+
+    const sortKey = (values) => {
+      if (!values || values.length === 0) {
+        return []
+      }
+      return [...values]
+        .map(({ id }) => [optionOrders.get(id) ?? Infinity, id])
+        .sort(([orderA, idA], [orderB, idB]) => orderA - orderB || idA - idB)
+    }
+
+    const comparePairs = (pairsA, pairsB) => {
+      const len = Math.min(pairsA.length, pairsB.length)
+      for (let i = 0; i < len; i++) {
+        const d = pairsA[i][0] - pairsB[i][0] || pairsA[i][1] - pairsB[i][1]
+        if (d !== 0) return order === 'ASC' ? d : -d
+      }
+      const lenDiff = pairsA.length - pairsB.length
+      return order === 'ASC' ? lenDiff : -lenDiff
+    }
+
+    return (a, b) => comparePairs(sortKey(a[name]), sortKey(b[name]))
+  }
+
   parseDefaultRowValue(field, value) {
     if (!Array.isArray(value)) {
       return []
@@ -4902,6 +5009,43 @@ export class MultipleCollaboratorsFieldType extends FieldType {
 
       return collatedStringCompare(stringA, stringB, order)
     }
+  }
+
+  getGroupBySort(name, order, field) {
+    const resolveName = (obj) => {
+      const workspaces = this.app.$store.getters['workspace/getAll']
+      if (workspaces.length > 0) {
+        const user = this.app.$store.getters['workspace/getUserById'](obj.id)
+        return user?.name ?? obj.name ?? ''
+      }
+      return obj.name ?? ''
+    }
+
+    const sortKey = (values) => {
+      if (!values || values.length === 0) {
+        return []
+      }
+      return [...values]
+        .map((obj) => [resolveName(obj), obj.id])
+        .sort(
+          ([nameA, idA], [nameB, idB]) =>
+            collatedStringCompare(nameA, nameB, 'ASC') || idA - idB
+        )
+    }
+
+    const comparePairs = (pairsA, pairsB) => {
+      const len = Math.min(pairsA.length, pairsB.length)
+      for (let i = 0; i < len; i++) {
+        const d =
+          collatedStringCompare(pairsA[i][0], pairsB[i][0], 'ASC') ||
+          pairsA[i][1] - pairsB[i][1]
+        if (d !== 0) return order === 'ASC' ? d : -d
+      }
+      const lenDiff = pairsA.length - pairsB.length
+      return order === 'ASC' ? lenDiff : -lenDiff
+    }
+
+    return (a, b) => comparePairs(sortKey(a[name]), sortKey(b[name]))
   }
 
   prepareValueForCopy(field, value) {

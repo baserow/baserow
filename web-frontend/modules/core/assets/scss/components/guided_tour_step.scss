@@ -143,6 +143,18 @@
   overflow: hidden scroll;
 }
 
+.guided-tour-step__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  color: $palette-neutral-500;
+  font-size: 16px;
+
+  &:hover {
+    color: $palette-neutral-300;
+  }
+}
+
 .guided-tour-step__page {
   color: $palette-neutral-500;
   font-size: 11px;

@@ -201,6 +201,22 @@ class BuilderDispatchContext(DispatchContext):
 
         return self.cache["element_property_options"]
 
+    def is_adhoc_refinable(self, service) -> bool:
+        """
+        Adhoc refinements (search, filters and sortings) provided by the HTTP
+        request only apply to the data source the request targets. While that
+        data source is being dispatched, formulas (e.g. in its service
+        filters) can trigger nested dispatches of other data sources; the
+        request's refinements must not be applied to those, as e.g. the
+        searchable field ids of the requested data source's element don't
+        exist in the nested data source's table.
+
+        :param service: The service that is currently being dispatched.
+        :return: Whether adhoc refinements may be applied to this service.
+        """
+
+        return self.data_source is None or self.data_source.service_id == service.id
+
     @property
     def is_publicly_searchable(self) -> bool:
         """

@@ -828,6 +828,15 @@ export class BaserowFormulaArrayType extends mix(
     }
   }
 
+  getSortTypes(field) {
+    return {
+      [DEFAULT_SORT_TYPE_KEY]: {
+        function: this.getSort.bind(this),
+        indicator: this.getSortIndicator(field),
+      },
+    }
+  }
+
   getSortIndicator(field) {
     const underlyingFieldType = this.app.$registry.get(
       'field',

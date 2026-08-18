@@ -1,6 +1,9 @@
 import { useRuntimeConfig, useAppConfig, useRouter } from '#imports'
 import { makeFakeTransport } from './modules/core/utils/sentryFakeTransport'
-import { SILENCED_API_ERRORS } from './modules/core/utils/sentryErrors'
+import {
+  SILENCED_API_ERRORS,
+  SILENCED_ERROR_PATTERNS,
+} from './modules/core/utils/sentryErrors'
 import * as Sentry from '@sentry/nuxt'
 
 const config = useRuntimeConfig()
@@ -16,6 +19,7 @@ if (dsn && dsn !== '') {
     dsn,
     release: `baserow-web-frontend@${config.public.version}`,
     environment: config.public.sentryEnvironment || 'production',
+    ignoreErrors: SILENCED_ERROR_PATTERNS,
     integrations: [
       Sentry.browserTracingIntegration({
         router: useRouter(),

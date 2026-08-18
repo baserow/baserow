@@ -102,7 +102,7 @@
               <a
                 href="https://baserow.io/user-docs"
                 target="_new"
-                class="dashboard__resource dashboard__resource--large"
+                class="dashboard__resource"
               >
                 <div class="dashboard__resource-inner">
                   <span class="dashboard__resource-icon">
@@ -124,6 +124,27 @@
                 v-for="(component, index) in resourceLinksComponents"
                 :key="index"
               ></component>
+              <a
+                href="https://academy.baserow.io/"
+                target="_new"
+                rel="noopener noreferrer"
+                class="dashboard__resource"
+              >
+                <div class="dashboard__resource-inner">
+                  <span class="dashboard__resource-icon">
+                    <i class="iconoir-graduation-cap"></i
+                  ></span>
+
+                  <div class="dashboard__resource-content">
+                    <h4 class="dashboard__resource-title">
+                      {{ $t('dashboard.academy') }}
+                    </h4>
+                    <p class="dashboard__resource-text">
+                      {{ $t('dashboard.academyMessage') }}
+                    </p>
+                  </div>
+                </div>
+              </a>
               <a
                 href="https://baserow.io/blog/category/tutorials"
                 target="_new"

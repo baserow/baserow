@@ -12,7 +12,11 @@ from rest_framework.status import (
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.search.handler import ALL_SEARCH_MODES, SearchHandler
+from baserow.contrib.database.search.handler import (
+    ALL_SEARCH_MODES,
+    SearchHandler,
+    SearchMode,
+)
 
 
 @pytest.mark.django_db
@@ -642,6 +646,50 @@ def test_list_rows_search(api_client, data_fixture, search_mode):
     assert response_json["count"] == 2
     assert response_json["results"][0]["id"] == matching_row1.id
     assert response_json["results"][1]["id"] == matching_row2.id
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
+def test_list_rows_search_with_all_fields_hidden(api_client, data_fixture, search_mode):
+    """
+    A gallery view allows hiding every field, including the primary one. A
+    search request must not error when there are no visible fields left to
+    search in; it used to crash with an `IndexError` in full-text mode.
+    """
+
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Name", text_default="", primary=True
+    )
+    gallery = data_fixture.create_gallery_view(table=table, public=True)
+    data_fixture.create_gallery_view_field_option(gallery, text_field, hidden=True)
+
+    model = gallery.table.get_model()
+    model.objects.create(**{f"field_{text_field.id}": "Bob Smith"})
+
+    SearchHandler.update_search_data(table)
+
+    url = reverse("api:database:views:gallery:list", kwargs={"view_id": gallery.id})
+    response = api_client.get(
+        url,
+        {"search": "Bob", "search_mode": search_mode},
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+
+    public_url = reverse(
+        "api:database:views:gallery:public_rows", kwargs={"slug": gallery.slug}
+    )
+    response = api_client.get(public_url, {"search": "Bob", "search_mode": search_mode})
+    assert response.status_code == HTTP_200_OK, response.json()
+    if search_mode == SearchMode.FT_WITH_COUNT:
+        # With no searchable fields, a full-text search can't match anything.
+        # Compat mode ignores the search entirely in this situation, which is
+        # its pre-existing behaviour.
+        assert response.json()["results"] == []
 
 
 @pytest.mark.django_db

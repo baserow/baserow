@@ -37,22 +37,29 @@ const textField = (id) => ({ id, name: `field ${id}`, type: 'text' })
  */
 const makeRegistry = (overrides = {}) => ({
   get(_namespace, _type) {
-    return {
+    const defaultSortTypes = () => ({
+      default: {
+        function: (fieldName, order) => (a, b) => {
+          const va = a[fieldName]
+          const vb = b[fieldName]
+          const cmp = va < vb ? -1 : va > vb ? 1 : 0
+          return order === 'DESC' ? -cmp : cmp
+        },
+      },
+    })
+    const instance = {
       canWriteFieldValues: () => true,
       getRowValueFromGroupValue: (_field, groupValue) => groupValue,
       getGroupValueFromRowValue: (_field, rowValue) => rowValue,
-      getSortTypes: () => ({
-        default: {
-          function: (fieldName, order) => (a, b) => {
-            const va = a[fieldName]
-            const vb = b[fieldName]
-            const cmp = va < vb ? -1 : va > vb ? 1 : 0
-            return order === 'DESC' ? -cmp : cmp
-          },
-        },
-      }),
+      getSortTypes: defaultSortTypes,
+      getGroupBySort(name, order, _field, sortType) {
+        const types = this.getSortTypes()
+        const resolved = types[sortType] || types.default
+        return resolved.function(name, order)
+      },
       ...overrides,
     }
+    return instance
   },
 })
 

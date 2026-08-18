@@ -1,6 +1,16 @@
 <template>
   <div :class="`guided-tour-step guided-tour-step--${position}`">
     <div v-auto-overflow-scroll class="guided-tour-step__body">
+      <a
+        v-if="stoppable"
+        href="#"
+        class="guided-tour-step__close"
+        :title="$t('guidedTourStep.stopTour')"
+        :aria-label="$t('guidedTourStep.stopTour')"
+        @click.prevent="$emit('stop')"
+      >
+        <i class="iconoir-cancel"></i>
+      </a>
       <div class="guided-tour-step__page">
         {{ $t('guidedTourStep.step', { step, totalSteps }) }}
       </div>
@@ -117,8 +127,13 @@ export default {
       required: false,
       default: () => [],
     },
+    stoppable: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
-  emits: ['next', 'previous'],
+  emits: ['next', 'previous', 'stop'],
   data() {
     return {
       thumbnailFailed: false,

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed blank rows appearing in grid views grouped by a multiple select or multiple collaborators field.",
+    "issue_origin": "github",
+    "issue_number": 5782,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-07-27"
+}

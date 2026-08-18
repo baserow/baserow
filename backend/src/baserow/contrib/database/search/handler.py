@@ -226,6 +226,14 @@ class SearchHandler:
         :return: A filtered queryset containing the rows that match the search criteria.
         """
 
+        if not fields:
+            # Without any fields to search in, only an exact row id match can
+            # produce a result.
+            filter_builder = FilterBuilder(filter_type=FILTER_TYPE_OR)
+            filter_builder.filter(Q(id__in=[]))
+            cls.add_exact_id_search(filter_builder, input_search)
+            return filter_builder.apply_to_queryset(queryset)
+
         sanitized_search = cls.escape_postgres_query(input_search)
 
         if len(sanitized_search) == 0:

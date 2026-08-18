@@ -15,19 +15,60 @@ export const DEFAULT_VIEW_ID_COOKIE_NAME = 'defaultViewId'
 export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
   const { firstBy } = thenBy
   let sortFunction = firstBy()
+  const groupByCount = groupBys.length
   const combined = [...groupBys, ...sortings]
-  combined.forEach((sort) => {
-    // Find the field that is related to the sort.
+  combined.forEach((sort, index) => {
     const field = fields.find((f) => f.id === sort.field)
 
     if (field !== undefined) {
       const fieldName = `field_${field.id}`
       const fieldType = $registry.get('field', field.type)
-      const sortTypes = fieldType.getSortTypes(field)
-      const fieldSortFunction = sortTypes[sort.type].function(
+      let fieldSortFunction
+      if (index < groupByCount) {
+        fieldSortFunction = fieldType.getGroupBySort(
+          fieldName,
+          sort.order,
+          field,
+          sort.type
+        )
+      } else {
+        const sortTypes = fieldType.getSortTypes(field)
+        fieldSortFunction = sortTypes[sort.type].function(
+          fieldName,
+          sort.order,
+          field
+        )
+      }
+      sortFunction = sortFunction.thenBy(fieldSortFunction)
+    }
+  })
+
+  sortFunction = sortFunction.thenBy((a, b) =>
+    new BigNumber(a.order).minus(new BigNumber(b.order)).toNumber()
+  )
+  sortFunction = sortFunction.thenBy((a, b) => a.id - b.id)
+  return sortFunction
+}
+
+/**
+ * Like getRowSortFunction but uses getGroupBySort instead of getSort, so
+ * group-by node ordering can differ from row ordering (e.g. set-based
+ * ordering for multi-select fields).
+ */
+export function getGroupByRowSortFunction($registry, fields, groupBys) {
+  const { firstBy } = thenBy
+  let sortFunction = firstBy()
+  groupBys.forEach((sort) => {
+    const field = fields.find((f) => f.id === sort.field)
+
+    if (field !== undefined) {
+      const fieldName = `field_${field.id}`
+      const fieldType = $registry.get('field', field.type)
+      const fieldSortFunction = fieldType.getGroupBySort(
         fieldName,
         sort.order,
-        field
+        field,
+        sort.type
       )
       sortFunction = sortFunction.thenBy(fieldSortFunction)
     }

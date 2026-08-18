@@ -574,11 +574,19 @@ class ViewType(
                 cache,
             )
 
+        workspace = table.database.workspace
+        if not workspace:
+            if "_import_workspace_obj" not in id_mapping:
+                id_mapping["_import_workspace_obj"] = Workspace.objects.get(
+                    pk=id_mapping["import_workspace_id"]
+                )
+            workspace = id_mapping["_import_workspace_obj"]
+
         for (
             serialized_structure_processor
         ) in serialization_processor_registry.get_all():
             serialized_structure_processor.import_serialized(
-                table.database.workspace, view, serialized_copy, import_export_config
+                workspace, view, serialized_copy, import_export_config
             )
 
         return view

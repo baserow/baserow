@@ -583,6 +583,7 @@ def test_generate_formula_documentation_completeness(data_fixture):
         "jsonb_extract_path_text",
         "array_agg_no_nesting",
         "string_agg_many_to_many_values",
+        "string_agg_collaborator_values",
         "many_to_many_agg",
         "many_to_many_count",
         "array_length",

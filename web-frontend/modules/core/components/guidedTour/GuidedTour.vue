@@ -20,8 +20,10 @@
         :position="currentStep.position"
         :button-text="currentStep.buttonText"
         :videos="currentStep.videos"
+        :stoppable="forced"
         @previous="goto(stepIndex - 1)"
         @next="next"
+        @stop="stop"
       ></GuidedTourStep>
     </Highlight>
   </div>
@@ -49,6 +51,12 @@ export default {
           return this.authenticated
         })
         .filter((type) => {
+          if (this.forced) {
+            // A manually replayed tour must be shown even if it has already been
+            // completed, but tours that must only be seen the first time are
+            // excluded.
+            return type.showOnReplay
+          }
           return !this.completed.includes(type.getType())
         })
         .filter((type) => type.isActive(this.$route))
@@ -58,7 +66,9 @@ export default {
       return this.activeGuidedTours.length > 0
     },
     allSteps() {
-      return this.activeGuidedTours.flatMap((type) => type.steps)
+      return this.activeGuidedTours
+        .flatMap((type) => type.steps)
+        .filter((step) => !this.forced || step.showOnReplay)
     },
     currentStep() {
       return this.allSteps[this.stepIndex]
@@ -66,12 +76,23 @@ export default {
     ...mapGetters({
       authenticated: 'auth/isAuthenticated',
       completed: 'auth/getCompletedGuidedTour',
+      forced: 'guidedTour/isForced',
     }),
   },
   watch: {
     started(value) {
-      if (value) {
+      // A forced start is handled by the `forced` watcher, which can't be done here
+      // because the tour could already be started when it changes.
+      if (value && !this.forced) {
         this.show()
+      }
+    },
+    forced(value) {
+      if (value) {
+        this.stepIndex = 0
+        if (this.started) {
+          this.show()
+        }
       }
     },
     activeGuidedTours(value) {
@@ -110,7 +131,22 @@ export default {
       await this.$nextTick()
       this.$refs.highlight.show(step.selectors)
     },
+    async stop() {
+      const step = this.allSteps[this.stepIndex]
+      await step.afterShow()
+
+      this.$refs.highlight.hide()
+      this.stepIndex = 0
+      await this.$store.dispatch('guidedTour/stop')
+    },
     async finish() {
+      if (this.forced) {
+        // A manually restarted tour must not save the completed state because it has
+        // typically already been completed, and it must be possible to restart it
+        // again.
+        return await this.stop()
+      }
+
       const step = this.allSteps[this.stepIndex]
       await step.afterShow()
 

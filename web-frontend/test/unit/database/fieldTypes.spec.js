@@ -403,91 +403,515 @@ const datePrepareValueForCopy = [
 ]
 
 const datePrepareValueForPaste = [
-  // Date field with EU format
+  // --- Group 1: EU format text-only paste (external) ---
   {
     fieldValue: '04/12/2021',
-    field: {
-      date_format: 'EU',
-    },
+    field: { date_format: 'EU' },
     expectedValue: '2021-12-04',
   },
   {
     fieldValue: '04/12/2021 22:57',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '04/12/2021 10:57 PM',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '2021-12-04',
-    field: {
-      date_format: 'EU',
-    },
+    field: { date_format: 'EU' },
     expectedValue: '2021-12-04',
   },
   {
     fieldValue: '2021-12-04 22:57',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '2021-12-04 10:57 PM',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '2021-12-04T22:57:00Z',
-    field: {
-      date_format: 'EU',
-      date_include_time: true,
-    },
+    field: { date_format: 'EU', date_include_time: true },
     expectedValue: '2021-12-04T22:57:00Z',
   },
   {
-    fieldValue: '04/16/2021', // Explicit US date in EU field
-    field: {
-      date_format: 'EU',
-    },
+    fieldValue: '04/16/2021',
+    field: { date_format: 'EU' },
     expectedValue: '2021-04-16',
   },
-  // Date field with US format
+
+  // --- Group 2: US format text-only paste (external) ---
   {
     fieldValue: '12/04/2021',
-    field: {
-      date_format: 'US',
-    },
-    expectedValue: '2021-04-12',
+    field: { date_format: 'US' },
+    expectedValue: '2021-12-04',
   },
   {
     fieldValue: '12/04/2021 22:57',
-    field: {
-      date_format: 'US',
-      date_include_time: true,
-    },
-    expectedValue: '2021-04-12T22:57:00Z',
+    field: { date_format: 'US', date_include_time: true },
+    expectedValue: '2021-12-04T22:57:00Z',
   },
   {
     fieldValue: '12/04/2021 10:57 PM',
+    field: { date_format: 'US', date_include_time: true },
+    expectedValue: '2021-12-04T22:57:00Z',
+  },
+
+  // --- Group 3: Zero-padded ambiguous dates (core bug #5870) ---
+  {
+    fieldValue: '01/10/2026',
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '03/05/2026',
+    field: { date_format: 'US' },
+    expectedValue: '2026-03-05',
+  },
+  {
+    fieldValue: '09/12/2021',
+    field: { date_format: 'US' },
+    expectedValue: '2021-09-12',
+  },
+  {
+    fieldValue: '10/01/2026',
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '05/03/2026',
+    field: { date_format: 'EU' },
+    expectedValue: '2026-03-05',
+  },
+
+  // --- Group 4: Non-padded dates (external typed input) ---
+  {
+    fieldValue: '1/5/2024',
+    field: { date_format: 'US' },
+    expectedValue: '2024-01-05',
+  },
+  {
+    fieldValue: '5/1/2024',
+    field: { date_format: 'EU' },
+    expectedValue: '2024-01-05',
+  },
+
+  // --- Group 5: Unambiguous dates (day > 12) ---
+  {
+    fieldValue: '01/15/2026',
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-15',
+  },
+  {
+    fieldValue: '15/01/2026',
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-15',
+  },
+
+  // --- Group 6: ISO format text paste ---
+  {
+    fieldValue: '2026-01-10',
+    field: { date_format: 'ISO' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '2026-01-10',
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+
+  // --- Group 7: Rich clipboard typed payload — same format round-trip ---
+  {
+    fieldValue: '01/10/2026',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10',
+      includeTime: false,
+      timezone: null,
+    },
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '10/01/2026',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10',
+      includeTime: false,
+      timezone: null,
+    },
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-10',
+  },
+
+  // --- Group 8: Rich clipboard — cross-format paste ---
+  {
+    fieldValue: '01/10/2026',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10',
+      includeTime: false,
+      timezone: null,
+    },
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '10/01/2026',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10',
+      includeTime: false,
+      timezone: null,
+    },
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+
+  // --- Group 9: Rich clipboard — datetime with timezone preservation ---
+  {
+    fieldValue: '01/10/2026 14:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'UTC',
+    },
+    field: { date_format: 'US', date_include_time: true },
+    expectedValue: '2026-01-10T14:30:00Z',
+  },
+  {
+    fieldValue: '01/10/2026 15:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'Europe/Rome',
+    },
     field: {
       date_format: 'US',
       date_include_time: true,
+      date_force_timezone: 'Europe/Rome',
     },
-    expectedValue: '2021-04-12T22:57:00Z',
+    expectedValue: '2026-01-10T14:30:00Z',
+  },
+  // Key regression: Rome→Rome, absolute time preserved (not re-interpreted as wall-clock)
+  {
+    fieldValue: '10/01/2026 15:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'Europe/Rome',
+    },
+    field: {
+      date_format: 'EU',
+      date_include_time: true,
+      date_force_timezone: 'Europe/Rome',
+    },
+    expectedValue: '2026-01-10T14:30:00Z',
+  },
+
+  // --- Group 10: Rich clipboard — cross-timezone (absolute time preserved) ---
+  {
+    fieldValue: '01/10/2026 15:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'Europe/Rome',
+    },
+    field: {
+      date_format: 'US',
+      date_include_time: true,
+      date_force_timezone: 'America/New_York',
+    },
+    expectedValue: '2026-01-10T14:30:00Z',
+  },
+  {
+    fieldValue: '01/10/2026 14:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'UTC',
+    },
+    field: {
+      date_format: 'US',
+      date_include_time: true,
+      date_force_timezone: 'Europe/Rome',
+    },
+    expectedValue: '2026-01-10T14:30:00Z',
+  },
+
+  // --- Group 11: Rich clipboard — DST boundary ---
+  {
+    fieldValue: '03/08/2026 02:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-03-08T07:30:00Z',
+      includeTime: true,
+      timezone: 'America/New_York',
+    },
+    field: {
+      date_format: 'US',
+      date_include_time: true,
+      date_force_timezone: 'America/New_York',
+    },
+    expectedValue: '2026-03-08T07:30:00Z',
+  },
+
+  // --- Group 12: Rich clipboard — no forced timezone (null) ---
+  {
+    fieldValue: '01/10/2026 14:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: null,
+    },
+    field: {
+      date_format: 'US',
+      date_include_time: true,
+      date_force_timezone: null,
+    },
+    expectedValue: '2026-01-10T14:30:00Z',
+  },
+
+  // --- Group 13: Rich clipboard — date-only ↔ datetime conversion ---
+  {
+    fieldValue: '01/10/2026',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10',
+      includeTime: false,
+      timezone: null,
+    },
+    field: { date_format: 'US', date_include_time: true },
+    expectedValue: '2026-01-10T00:00:00Z',
+  },
+  // date-only → datetime with non-UTC timezone: midnight in target timezone
+  {
+    fieldValue: '10/01/2026',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10',
+      includeTime: false,
+      timezone: null,
+    },
+    field: {
+      date_format: 'EU',
+      date_include_time: true,
+      date_force_timezone: 'Europe/Rome',
+    },
+    expectedValue: '2026-01-09T23:00:00Z',
+  },
+  // datetime → date-only: extract calendar date in source timezone
+  {
+    fieldValue: '01/10/2026 14:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'UTC',
+    },
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+  // datetime → date when timezone shifts calendar day
+  {
+    fieldValue: '01/10/2026 23:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T23:30:00Z',
+      includeTime: true,
+      timezone: 'Europe/Rome',
+    },
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-11',
+  },
+  // datetime → date with America/New_York (UTC-5 in Jan)
+  {
+    fieldValue: '01/10/2026 22:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-11T03:30:00Z',
+      includeTime: true,
+      timezone: 'America/New_York',
+    },
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+  // datetime → date with null source timezone (falls back to UTC calendar date)
+  {
+    fieldValue: '01/10/2026 23:30',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T23:30:00Z',
+      includeTime: true,
+      timezone: null,
+    },
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+
+  // --- Group 14: Rich clipboard — 12h format target ---
+  {
+    fieldValue: '01/10/2026 02:30 PM',
+    richValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'UTC',
+    },
+    field: {
+      date_format: 'US',
+      date_include_time: true,
+      date_time_format: '12',
+    },
+    expectedValue: '2026-01-10T14:30:00Z',
+  },
+
+  // --- Group 15: Rich clipboard — legacy string format (backward compat) ---
+  {
+    fieldValue: '10/01/2026',
+    richValue: '2026-01-10',
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '01/10/2026 14:30',
+    richValue: '2026-01-10T14:30:00Z',
+    field: { date_format: 'US', date_include_time: true },
+    expectedValue: '2026-01-10T14:30:00Z',
+  },
+
+  // --- Group 16: Rich clipboard — invalid/garbage/locale payloads fall back to text ---
+  // Locale-formatted string as richClipboardData (ImportFileModal passes raw cell values)
+  {
+    fieldValue: '01/10/2026',
+    richValue: '01/10/2026',
+    field: { date_format: 'EU' },
+    expectedValue: '2026-10-01',
+  },
+  {
+    fieldValue: '01/10/2026',
+    richValue: '01/10/2026',
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '03/15/2026',
+    richValue: 'not-a-date',
+    field: { date_format: 'US' },
+    expectedValue: '2026-03-15',
+  },
+  {
+    fieldValue: '03/15/2026',
+    richValue: { type: 'date', version: 1, value: 'garbage' },
+    field: { date_format: 'US' },
+    expectedValue: '2026-03-15',
+  },
+  {
+    fieldValue: '03/15/2026',
+    richValue: 42,
+    field: { date_format: 'US' },
+    expectedValue: '2026-03-15',
+  },
+  {
+    fieldValue: '03/15/2026',
+    richValue: null,
+    field: { date_format: 'US' },
+    expectedValue: '2026-03-15',
+  },
+
+  // --- Group 17: Year-first slash input (no regression from develop) ---
+  {
+    fieldValue: '2026/01/10',
+    field: { date_format: 'US' },
+    expectedValue: '2026-01-10',
+  },
+  {
+    fieldValue: '2026/01/10',
+    field: { date_format: 'EU' },
+    expectedValue: '2026-01-10',
+  },
+]
+
+const datePrepareRichValueForCopy = [
+  {
+    fieldValue: '2026-01-10',
+    field: { date_format: 'US', date_include_time: false },
+    expectedValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10',
+      includeTime: false,
+      timezone: null,
+    },
+  },
+  {
+    fieldValue: '2026-01-10T14:30:00Z',
+    field: {
+      date_format: 'EU',
+      date_include_time: true,
+      date_force_timezone: 'Europe/Rome',
+    },
+    expectedValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'Europe/Rome',
+    },
+  },
+  {
+    fieldValue: '2026-01-10T14:30:00Z',
+    field: {
+      date_format: 'US',
+      date_include_time: true,
+      date_force_timezone: 'UTC',
+    },
+    expectedValue: {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'UTC',
+    },
+  },
+  {
+    fieldValue: null,
+    field: { date_format: 'US', date_include_time: false },
+    expectedValue: null,
+  },
+  {
+    fieldValue: '',
+    field: { date_format: 'US', date_include_time: false },
+    expectedValue: '',
   },
 ]
 
@@ -815,11 +1239,61 @@ describe('FieldType tests', () => {
     (value) => {
       const result = new DateFieldType().prepareValueForPaste(
         value.field,
-        value.fieldValue
+        value.fieldValue,
+        value.richValue
       )
       expect(result).toBe(value.expectedValue)
     }
   )
+  test.each(datePrepareRichValueForCopy)(
+    'Verify that prepareRichValueForCopy for DateFieldType for value $fieldValue returns expected typed payload',
+    (value) => {
+      const result = new DateFieldType().prepareRichValueForCopy(
+        value.field,
+        value.fieldValue
+      )
+      expect(result).toEqual(value.expectedValue)
+    }
+  )
+
+  test('prepareRichValueForCopy uses browser-guessed timezone when no forced timezone', () => {
+    const field = {
+      date_format: 'US',
+      date_include_time: true,
+      date_force_timezone: null,
+    }
+    const result = new DateFieldType().prepareRichValueForCopy(
+      field,
+      '2026-01-10T14:30:00Z'
+    )
+    expect(result.type).toBe('date')
+    expect(result.version).toBe(1)
+    expect(result.value).toBe('2026-01-10T14:30:00Z')
+    expect(result.includeTime).toBe(true)
+    expect(typeof result.timezone).toBe('string')
+    expect(result.timezone.length).toBeGreaterThan(0)
+  })
+
+  test('prepareValueForPaste with no forced timezone preserves absolute time via rich clipboard', () => {
+    const field = {
+      date_format: 'US',
+      date_include_time: true,
+      date_force_timezone: null,
+    }
+    const richValue = {
+      type: 'date',
+      version: 1,
+      value: '2026-01-10T14:30:00Z',
+      includeTime: true,
+      timezone: 'Europe/Rome',
+    }
+    const result = new DateFieldType().prepareValueForPaste(
+      field,
+      '01/10/2026 15:30',
+      richValue
+    )
+    expect(result).toBe('2026-01-10T14:30:00Z')
+  })
 
   test.each([
     '',

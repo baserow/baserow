@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed frontend sorting by lookup fields \u2014 rows no longer jump to wrong positions when created or updated in a view sorted by a lookup field.",
+    "issue_origin": "github",
+    "issue_number": 5893,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-12"
+}
