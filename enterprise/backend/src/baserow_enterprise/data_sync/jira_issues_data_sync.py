@@ -171,6 +171,9 @@ class JiraIssuesDataSyncType(DataSyncType):
         "jira_authentication",
         "jira_username",
     ]
+    secret_field_dependencies = {
+        "jira_api_token": ["jira_url"],
+    }
 
     def prepare_sync_job_values(self, instance):
         # Raise the error so that the job doesn't start and the user is informed with

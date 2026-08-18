@@ -10,7 +10,10 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
-from baserow.contrib.database.data_sync.exceptions import SyncError
+from baserow.contrib.database.data_sync.exceptions import (
+    DataSyncCredentialRequired,
+    SyncError,
+)
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import (
     DataSync,
@@ -928,3 +931,136 @@ def test_create_data_sync_with_negative_int_and_positive_baserow_number_field(
         job["human_readable_error"]
         == f"The value for field {fields[1].id} cannot be negative."
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_update_rejects_host_change_without_password(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    with pytest.raises(DataSyncCredentialRequired):
+        handler.update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=["id"],
+            postgresql_host="attacker.com",
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_update_rejects_port_change_without_password(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    with pytest.raises(DataSyncCredentialRequired):
+        handler.update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=["id"],
+            postgresql_port=9999,
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_update_allows_host_change_with_password(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    data_sync = handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_password=default_database["PASSWORD"],
+    )
+    assert data_sync.postgresql_host == default_database["HOST"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_update_allows_non_target_change_without_password(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    data_sync = handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["id"],
+        postgresql_schema="public",
+    )
+    assert data_sync.postgresql_schema == "public"

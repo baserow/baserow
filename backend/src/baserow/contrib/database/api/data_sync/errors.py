@@ -31,3 +31,8 @@ ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED = (
     HTTP_400_BAD_REQUEST,
     "Two-way sync is not supported for this data sync type.",
 )
+ERROR_DATA_SYNC_CREDENTIAL_REQUIRED = (
+    "ERROR_DATA_SYNC_CREDENTIAL_REQUIRED",
+    HTTP_400_BAD_REQUEST,
+    "When changing the connection target, the credential must be re-supplied.",
+)

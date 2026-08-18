@@ -116,6 +116,15 @@ class DataSyncType(
     one-way data sync is possible.
     """
 
+    secret_field_dependencies: dict[str, list[str]] = {}
+    """
+    Maps secret fields to the connection target fields they protect. If any
+    target field changes value, the secret must be re-supplied in the same
+    request.
+
+    Example: {"postgresql_password": ["postgresql_host", "postgresql_port"]}
+    """
+
     def prepare_values(self, user: AbstractUser, values: Dict) -> Dict:
         """
         A hook that can validate or changes the provided values.

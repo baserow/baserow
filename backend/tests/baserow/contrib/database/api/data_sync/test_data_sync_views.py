@@ -1581,3 +1581,45 @@ def test_cannot_delete_row_without_two_way_data_sync(
     response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {token}")
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_CANNOT_DELETE_ROWS_IN_TABLE"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_postgresql_data_sync_rejects_host_change_without_password_via_api(
+    data_fixture, api_client, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "postgresql",
+            "synced_properties": ["id"],
+            "postgresql_host": default_database["HOST"],
+            "postgresql_username": default_database["USER"],
+            "postgresql_password": default_database["PASSWORD"],
+            "postgresql_port": default_database["PORT"],
+            "postgresql_database": default_database["NAME"],
+            "postgresql_table": create_postgresql_test_table,
+            "postgresql_sslmode": default_database["OPTIONS"].get("sslmode", "prefer"),
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    data_sync_id = response.json()["data_sync"]["id"]
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync_id})
+    response = api_client.patch(
+        url,
+        {
+            "synced_properties": ["id"],
+            "postgresql_host": "attacker.com",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_DATA_SYNC_CREDENTIAL_REQUIRED"

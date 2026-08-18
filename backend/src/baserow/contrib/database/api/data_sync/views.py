@@ -28,6 +28,7 @@ from baserow.contrib.database.data_sync.actions import (
     UpdateDataSyncTableActionType,
 )
 from baserow.contrib.database.data_sync.exceptions import (
+    DataSyncCredentialRequired,
     DataSyncDoesNotExist,
     PropertyNotFound,
     SyncError,
@@ -52,6 +53,7 @@ from baserow.core.jobs.registries import job_type_registry
 from baserow.core.utils import extract_allowed
 
 from .errors import (
+    ERROR_DATA_SYNC_CREDENTIAL_REQUIRED,
     ERROR_DATA_SYNC_DOES_NOT_EXIST,
     ERROR_PROPERTY_NOT_FOUND,
     ERROR_SYNC_ERROR,
@@ -217,6 +219,7 @@ class DataSyncView(APIView):
                     "ERROR_PROPERTY_NOT_FOUND",
                     "ERROR_SYNC_ERROR",
                     "ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED",
+                    "ERROR_DATA_SYNC_CREDENTIAL_REQUIRED",
                 ]
             ),
             404: get_error_schema(["ERROR_DATA_SYNC_DOES_NOT_EXIST"]),
@@ -230,6 +233,7 @@ class DataSyncView(APIView):
             PropertyNotFound: ERROR_PROPERTY_NOT_FOUND,
             SyncError: ERROR_SYNC_ERROR,
             TwoWayDataSyncNotSupported: ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED,
+            DataSyncCredentialRequired: ERROR_DATA_SYNC_CREDENTIAL_REQUIRED,
         }
     )
     def patch(self, request, data_sync_id):

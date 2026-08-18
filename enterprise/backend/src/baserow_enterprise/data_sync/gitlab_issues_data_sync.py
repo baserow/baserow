@@ -216,6 +216,9 @@ class GitLabIssuesDataSyncType(DataSyncType):
         "gitlab_url",
         "gitlab_project_id",
     ]
+    secret_field_dependencies = {
+        "gitlab_access_token": ["gitlab_url"],
+    }
 
     def prepare_sync_job_values(self, instance):
         # Raise the error so that the job doesn't start and the user is informed with

@@ -153,6 +153,9 @@ class PostgreSQLDataSyncType(DataSyncType):
         "postgresql_table",
         "postgresql_sslmode",
     ]
+    secret_field_dependencies = {
+        "postgresql_password": ["postgresql_host", "postgresql_port"],
+    }
 
     @contextlib.contextmanager
     def _connection(self, instance):

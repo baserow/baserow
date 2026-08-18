@@ -9,6 +9,7 @@ import responses
 from freezegun import freeze_time
 
 from baserow.contrib.database.data_sync.exceptions import (
+    DataSyncCredentialRequired,
     PropertyNotFound,
     SyncDataSyncTableAlreadyRunning,
     UniquePrimaryPropertyNotFound,
@@ -552,6 +553,174 @@ def test_update_data_sync_table(send_mock, data_fixture):
     send_mock.assert_called_once()
     assert send_mock.call_args[1]["table"].id == data_sync.table_id
     assert send_mock.call_args[1]["user"] == user
+
+
+@pytest.mark.django_db
+def test_update_data_sync_table_rejects_target_change_without_credential(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    registry = DataSyncTypeRegistry()
+
+    class SecretICalCalendarDataSyncType(ICalCalendarDataSyncType):
+        allowed_fields = ["ical_url", "ical_secret"]
+        secret_field_dependencies = {
+            "ical_secret": ["ical_url"],
+        }
+
+    registry.register(SecretICalCalendarDataSyncType())
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart"],
+        ical_url="https://baserow.io",
+    )
+
+    with patch(
+        "baserow.contrib.database.data_sync.handler.data_sync_type_registry",
+        new=registry,
+    ):
+        with pytest.raises(DataSyncCredentialRequired):
+            handler.update_data_sync_table(
+                user=user,
+                data_sync=data_sync,
+                synced_properties=["uid", "dtstart"],
+                ical_url="https://attacker.com",
+            )
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.table.signals.table_updated.send")
+def test_update_data_sync_table_allows_target_change_with_credential(
+    send_mock, data_fixture
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    registry = DataSyncTypeRegistry()
+
+    class SecretICalCalendarDataSyncType(ICalCalendarDataSyncType):
+        allowed_fields = ["ical_url", "ical_secret"]
+        secret_field_dependencies = {
+            "ical_secret": ["ical_url"],
+        }
+
+    registry.register(SecretICalCalendarDataSyncType())
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart"],
+        ical_url="https://baserow.io",
+    )
+
+    with patch(
+        "baserow.contrib.database.data_sync.handler.data_sync_type_registry",
+        new=registry,
+    ):
+        data_sync = handler.update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=["uid", "dtstart"],
+            ical_url="https://new-host.com",
+            ical_secret="new-secret",
+        )
+
+    assert data_sync.ical_url == "https://new-host.com"
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.table.signals.table_updated.send")
+def test_update_data_sync_table_allows_non_target_change_without_credential(
+    send_mock, data_fixture
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    registry = DataSyncTypeRegistry()
+
+    class SecretICalCalendarDataSyncType(ICalCalendarDataSyncType):
+        allowed_fields = ["ical_url", "ical_secret"]
+        secret_field_dependencies = {
+            "ical_secret": ["ical_url"],
+        }
+
+    registry.register(SecretICalCalendarDataSyncType())
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart"],
+        ical_url="https://baserow.io",
+    )
+
+    with patch(
+        "baserow.contrib.database.data_sync.handler.data_sync_type_registry",
+        new=registry,
+    ):
+        data_sync = handler.update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=["uid", "dtstart", "dtend"],
+        )
+
+    assert data_sync.ical_url == "https://baserow.io"
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.table.signals.table_updated.send")
+def test_update_data_sync_table_allows_same_target_value_without_credential(
+    send_mock, data_fixture
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    registry = DataSyncTypeRegistry()
+
+    class SecretICalCalendarDataSyncType(ICalCalendarDataSyncType):
+        allowed_fields = ["ical_url", "ical_secret"]
+        secret_field_dependencies = {
+            "ical_secret": ["ical_url"],
+        }
+
+    registry.register(SecretICalCalendarDataSyncType())
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart"],
+        ical_url="https://baserow.io",
+    )
+
+    with patch(
+        "baserow.contrib.database.data_sync.handler.data_sync_type_registry",
+        new=registry,
+    ):
+        data_sync = handler.update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=["uid", "dtstart"],
+            ical_url="https://baserow.io",
+        )
+
+    assert data_sync.ical_url == "https://baserow.io"
 
 
 @pytest.mark.django_db
