@@ -20,8 +20,9 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.rows.operations import UpdateDatabaseRowOperationType
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -1054,6 +1055,120 @@ def test_import_rows(
 
     assert len(rows) == 1
     assert sorted(report.keys()) == sorted([1, 2])
+
+
+@pytest.mark.django_db
+def test_import_rows_upsert_checks_update_permission(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(
+        table=table, name="Name", text_default="", order=1
+    )
+
+    handler = RowHandler()
+    rows, _ = handler.import_rows(
+        user=user,
+        table=table,
+        data=[["Alice"], ["Bob"]],
+        send_realtime_update=False,
+    )
+    assert len(rows) == 2
+
+    model = table.get_model()
+    assert model.objects.count() == 2
+
+    def deny_update(actor, operation_name, **kwargs):
+        if operation_name == UpdateDatabaseRowOperationType.type:
+            raise PermissionDenied(actor)
+        return True
+
+    with patch(
+        "baserow.contrib.database.rows.handler.CoreHandler.check_permissions",
+        side_effect=deny_update,
+    ):
+        with pytest.raises(PermissionDenied):
+            handler.import_rows(
+                user=user,
+                table=table,
+                data=[["Alice"]],
+                configuration={
+                    "upsert_fields": [name_field.id],
+                    "upsert_values": [["Alice"]],
+                },
+                send_realtime_update=False,
+            )
+
+    assert model.objects.count() == 2
+    alice = model.objects.get(**{f"field_{name_field.id}": "Alice"})
+    assert alice is not None
+
+
+@pytest.mark.django_db
+def test_import_rows_upsert_allowed_with_update_permission(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(
+        table=table, name="Name", text_default="", order=1
+    )
+    value_field = data_fixture.create_text_field(
+        table=table, name="Value", text_default="", order=2
+    )
+
+    handler = RowHandler()
+    rows, _ = handler.import_rows(
+        user=user,
+        table=table,
+        data=[["Alice", "old"]],
+        send_realtime_update=False,
+    )
+    assert len(rows) == 1
+
+    rows, report = handler.import_rows(
+        user=user,
+        table=table,
+        data=[["Alice", "new"]],
+        configuration={
+            "upsert_fields": [name_field.id],
+            "upsert_values": [["Alice"]],
+        },
+        send_realtime_update=False,
+    )
+
+    model = table.get_model()
+    assert model.objects.count() == 1
+    alice = model.objects.get(**{f"field_{name_field.id}": "Alice"})
+    assert getattr(alice, f"field_{value_field.id}") == "new"
+
+
+@pytest.mark.django_db
+def test_import_rows_create_still_works_when_update_denied(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(
+        table=table, name="Name", text_default="", order=1
+    )
+
+    handler = RowHandler()
+
+    def deny_update(actor, operation_name, **kwargs):
+        if operation_name == UpdateDatabaseRowOperationType.type:
+            raise PermissionDenied(actor)
+        return True
+
+    with patch(
+        "baserow.contrib.database.rows.handler.CoreHandler.check_permissions",
+        side_effect=deny_update,
+    ):
+        rows, _ = handler.import_rows(
+            user=user,
+            table=table,
+            data=[["Charlie"]],
+            send_realtime_update=False,
+        )
+        assert len(rows) == 1
+
+    model = table.get_model()
+    assert model.objects.count() == 1
 
 
 @pytest.mark.django_db

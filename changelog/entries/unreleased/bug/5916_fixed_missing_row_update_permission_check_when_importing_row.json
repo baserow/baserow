@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed missing row update permission check when importing rows with upsert configuration.",
+    "issue_origin": "github",
+    "issue_number": 5916,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-18"
+}
