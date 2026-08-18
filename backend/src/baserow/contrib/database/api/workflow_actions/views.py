@@ -282,8 +282,12 @@ class DatabaseWorkflowActionView(APIView):
     def patch(self, request, workflow_action_id: int):
         feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
 
-        workflow_action = DatabaseWorkflowActionHandler().get_workflow_action(
-            workflow_action_id
+        # Locked for the request: a type change swaps the action's own row, so
+        # a concurrent update must not read it half way through.
+        workflow_action = (
+            DatabaseWorkflowActionHandler().get_workflow_action_for_update(
+                workflow_action_id
+            )
         )
         workflow_action_type = type_from_data_or_registry(
             request.data, database_workflow_action_type_registry, workflow_action

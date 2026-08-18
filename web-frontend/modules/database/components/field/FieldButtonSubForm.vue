@@ -143,17 +143,13 @@ export default {
      * belong to, so a save that stopped half way can be retried without
      * creating a second copy of everything the first attempt made.
      */
-    adoptAssignedIds(assignedIds, replacedIds) {
-      if (assignedIds.size === 0 && replacedIds.size === 0) {
+    adoptAssignedIds(assignedIds) {
+      if (assignedIds.size === 0) {
         return
       }
       this.localActions = this.localActions.map((action) => {
         const created = assignedIds.get(action[CLIENT_ID_KEY])
-        if (created !== undefined) {
-          return { ...action, id: created }
-        }
-        const replaced = replacedIds.get(action.id)
-        return replaced === undefined ? action : { ...action, id: replaced }
+        return created === undefined ? action : { ...action, id: created }
       })
     },
     /**
@@ -207,7 +203,6 @@ export default {
       )
       const service = WorkflowActionService(this.$client)
       const createdIds = []
-      const replacedIds = new Map()
       const assignedIds = new Map()
       let failed = false
       // Captured before the `finally` below re-fetches and replaces the list.
@@ -224,9 +219,9 @@ export default {
         }
 
         for (const { id, values } of toUpdate) {
-          // A type change recreates the action server side, so it goes on its
-          // own and the config follows against the new id. Otherwise the
-          // service may still be untyped, so type it from the server's copy.
+          // A type change builds a new service, so the config follows once the
+          // action is of the new type. Sending it along would type the service
+          // from the server's copy, which is still the old type.
           const defersConfig = values.type !== undefined && 'service' in values
           const payload = defersConfig
             ? _.omit(values, 'service')
@@ -236,10 +231,6 @@ export default {
             continue
           }
           const { data } = await service.update(id, payload)
-          // The recreate hands back a new id; the order below holds the old.
-          if (data?.id != null && data.id !== id) {
-            replacedIds.set(id, data.id)
-          }
           if (defersConfig) {
             const config = this.configPayload(values, data)
             if (Object.keys(config).length > 0) {
@@ -255,7 +246,7 @@ export default {
         // `order` holds null for creates; fill them in as they were made.
         const created = [...createdIds]
         const finalOrder = order.map((id) =>
-          id === null ? created.shift() : (replacedIds.get(id) ?? id)
+          id === null ? created.shift() : id
         )
 
         if (finalOrder.length > 0) {
@@ -269,7 +260,7 @@ export default {
         // the ids of whatever did get made. The server list is refreshed
         // either way, so the retry diffs against what is really there.
         if (failed) {
-          this.adoptAssignedIds(assignedIds, replacedIds)
+          this.adoptAssignedIds(assignedIds)
         }
         try {
           await this.fetchWorkflowActions(fieldId, { keepEdits: failed })

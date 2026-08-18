@@ -43,8 +43,9 @@ const BAD_LINK_FIELD_INDEX = 11;
 const REMOVE_FIELD_INDEX = 13;
 const SPAWN_FIELD_INDEX = 14;
 const MODIFIED_BY_FIELD_INDEX = 15;
+const RECONFIGURE_FIELD_INDEX = 18;
 // The field one test creates in the UI, which lands after all of the above.
-const CREATED_FIELD_INDEX = 18;
+const CREATED_FIELD_INDEX = 19;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
@@ -63,6 +64,7 @@ const BUTTON_FIELD_NAMES = [
   "Spawn",
   "Cross",
   "Prunable",
+  "Reconfigure",
 ];
 
 let g: GridSetupResult;
@@ -138,6 +140,11 @@ test.describe("Button field", () => {
         { name: "ModifiedBy", type: "last_modified_by" },
         { name: "Cross", type: "button", settings: { label: "Cross" } },
         { name: "Prunable", type: "button", settings: { label: "Prunable" } },
+        {
+          name: "Reconfigure",
+          type: "button",
+          settings: { label: "Reconfigure" },
+        },
       ],
     });
 
@@ -244,9 +251,15 @@ test.describe("Button field", () => {
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'x'" }],
     });
 
-    // "Retype" has two actions so that changing the first one's type, which
-    // the server implements as a delete plus a create, has to keep the second
-    // one behind it under a brand new id.
+    // "Reconfigure" starts as a link, so a test can retype it into a row
+    // action and configure the new type in the same save.
+    await createOpenUrlAction(g.user, g.fieldByName["Reconfigure"], {
+      url: "'/dashboard'",
+      target: "self",
+    });
+
+    // "Retype" has two actions so that changing the first one's type has to
+    // keep the second one behind it.
     await createRowAction(g.user, g.fieldByName["Retype"], {
       type: "local_baserow_update_row",
       table: g.table,
@@ -802,7 +815,7 @@ test.describe("Button field", () => {
     await expect(actionForm.locator(".loading-spinner")).toHaveCount(0);
   });
 
-  test("changing an action's type keeps the one after it in place", async ({
+  test("changing an action's type keeps its id and the one after it in place", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -815,8 +828,8 @@ test.describe("Button field", () => {
 
     const before = await listWorkflowActions(g.user, g.fieldByName["Retype"]);
 
-    // A type change is a delete plus a create server side, so the action comes
-    // back with a new id that the order call has to be told about.
+    // The server swaps the action's type in place, so the action the editor is
+    // holding is the one that comes back.
     await items.first().locator(".button-field-action-list__type").click();
     await page
       .locator(".dropdown__items:visible")
@@ -831,17 +844,16 @@ test.describe("Button field", () => {
         "open_url",
         "local_baserow_update_row",
       ]);
-      // The recreated action really is a new row, and the untouched one kept
-      // both its position and its configuration.
-      expect(after[0].id).not.toBe(before[0].id);
+      // The retyped action is the same row as before, and the untouched one
+      // kept both its position and its configuration.
+      expect(after[0].id).toBe(before[0].id);
       expect(after[1].id).toBe(before[1].id);
       expect(after[1].service.field_mappings[0].value.formula).toBe("'second'");
     }).toPass({ timeout: 15_000 });
 
-    // Retyping alone cannot prove the new id reaches the order call, because
-    // the recreate keeps the old action's `order` server side anyway. Moving
-    // the retyped action at the same time is what makes the order call matter:
-    // sent with the dead id it is refused, and the move is silently lost.
+    // Retyping alone leaves the order untouched, so it cannot show that the
+    // order call still lands. Moving the retyped action in the same save is
+    // what makes the order call matter.
     const beforeMove = await listWorkflowActions(
       g.user,
       g.fieldByName["Retype"],
@@ -873,12 +885,74 @@ test.describe("Button field", () => {
     await expect(async () => {
       const moved = await listWorkflowActions(g.user, g.fieldByName["Retype"]);
       expect(moved).toHaveLength(2);
-      // The retyped action moved to the front under an id that did not exist
-      // when the editor opened, and the other one dropped behind it.
-      expect(moved[0].id).not.toBe(beforeMove[0].id);
-      expect(moved[0].id).not.toBe(beforeMove[1].id);
+      // The retyped action moved to the front under the id it already had, and
+      // the other one dropped behind it.
+      expect(moved[0].id).toBe(beforeMove[1].id);
       expect(moved[1].id).toBe(beforeMove[0].id);
+      expect(moved[0].type).toBe("open_url");
     }).toPass({ timeout: 15_000 });
+  });
+
+  test("retyping an action and configuring it in one save lands on the same action", async ({
+    page,
+  }) => {
+    // Retyping and configuring take two calls, the second one against whatever
+    // the first answered with. This is the path that breaks if a type change
+    // hands back a different action than the editor asked about.
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    const before = await listWorkflowActions(
+      g.user,
+      g.fieldByName["Reconfigure"],
+    );
+    expect(before.map((action) => action.type)).toEqual(["open_url"]);
+
+    await openFieldEditor(page, "Reconfigure");
+    const actionList = page.locator(".button-field-action-list");
+    await actionList.locator(".button-field-action-list__type").click();
+    await page
+      .locator(".dropdown__items:visible")
+      .locator(".select__item-link", { hasText: "Create a row" })
+      .click();
+
+    // Database first, then table: the second dropdown of the pair.
+    const actionForm = page.locator(".button-field-action-list__form");
+    const pick = async (index: number, name: string) => {
+      await actionForm.locator(".dropdown").nth(index).click();
+      await page
+        .locator(".dropdown__items:visible")
+        .locator(".select__item-link", { hasText: name })
+        .click();
+    };
+    await pick(0, "Button DB");
+    await pick(1, "Tickets");
+
+    await page.locator(".field-context button", { hasText: "Save" }).click();
+
+    await expect(async () => {
+      const after = await listWorkflowActions(
+        g.user,
+        g.fieldByName["Reconfigure"],
+      );
+      expect(after.map((action) => action.type)).toEqual([
+        "local_baserow_create_row",
+      ]);
+      // Same action as before, now of a new type and carrying the config the
+      // second call sent.
+      expect(after[0].id).toBe(before[0].id);
+      expect(after[0].service.table_id).toBe(g.table.id);
+    }).toPass({ timeout: 15_000 });
+
+    // The proof it is really wired up: the reconfigured action runs, and the
+    // row it makes lands in the table the second call pointed it at.
+    await grid.fieldCellAt(0, RECONFIGURE_FIELD_INDEX).locator("button").click();
+
+    await expect(async () => {
+      expect(await listRows(g.user, g.table)).toHaveLength(2);
+    }).toPass({ timeout: 15_000 });
+    await expect(grid.leftRows()).toHaveCount(2, { timeout: 15_000 });
   });
 
   test("a delete action removes the clicked row from the grid", async ({

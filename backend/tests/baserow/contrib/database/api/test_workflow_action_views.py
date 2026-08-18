@@ -297,12 +297,12 @@ def test_update_workflow_action_type(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK, response.json()
     assert response.json()["type"] == "local_baserow_delete_row"
+    # An update answers with the action it was given, not a new one.
+    assert response.json()["id"] == action.id
 
-    (updated,) = [
-        a.specific
-        for a in DatabaseWorkflowAction.objects.filter(field=button_field)
-        if a.id != first.id
-    ]
+    updated = DatabaseWorkflowAction.objects.get(id=action.id).specific
+    assert DatabaseWorkflowAction.objects.filter(field=button_field).count() == 2
+    assert first.id != action.id
     assert isinstance(updated, LocalBaserowDeleteRowWorkflowAction)
     assert updated.service.specific.get_type().type == "local_baserow_delete_row"
     assert updated.field_id == button_field.id

@@ -12,7 +12,10 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registry import Registry
+from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.types import DispatchResult
+from baserow.core.utils import extract_allowed
+from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 from baserow.core.workflow_actions.handler import WorkflowActionHandler
 from baserow.core.workflow_actions.registries import WorkflowActionType
 
@@ -61,6 +64,63 @@ class DatabaseWorkflowActionHandler(WorkflowActionHandler):
             kwargs["order"] = DatabaseWorkflowAction.get_last_order(kwargs["field"])
 
         return super().create_workflow_action(workflow_action_type, **kwargs).specific
+
+    def get_workflow_action_for_update(
+        self, workflow_action_id: int
+    ) -> DatabaseWorkflowAction:
+        """
+        Returns an action with its row locked, so two writers cannot change the
+        same action's type at once.
+
+        :param workflow_action_id: The id of the workflow action.
+        :raises WorkflowActionDoesNotExist: When the id belongs to no action.
+        :return: The workflow action instance.
+        """
+
+        try:
+            return (
+                self.model.objects.select_for_update()
+                .get(id=workflow_action_id)
+                .specific
+            )
+        except self.model.DoesNotExist:
+            raise WorkflowActionDoesNotExist()
+
+    def change_workflow_action_type(
+        self,
+        workflow_action: DatabaseWorkflowAction,
+        workflow_action_type: WorkflowActionType,
+        **prepared_values,
+    ) -> DatabaseWorkflowAction:
+        """
+        Swaps an action's type in place, the way a field type change does, so
+        the action keeps its id and its place in the order.
+
+        :param workflow_action: The action whose type changes.
+        :param workflow_action_type: The type it becomes.
+        :return: The action, now an instance of the new type's model.
+        """
+
+        workflow_action = workflow_action.specific
+        # `pre_delete` disposes a deleted action's service, but it is connected
+        # to the root model and only the type's own row is deleted below.
+        old_service = getattr(workflow_action, "service", None)
+
+        workflow_action.change_polymorphic_type_to(workflow_action_type.model_class)
+
+        allowed_values = extract_allowed(
+            prepared_values, workflow_action_type.allowed_fields
+        )
+        for key, value in allowed_values.items():
+            setattr(workflow_action, key, value)
+
+        workflow_action.save()
+
+        if old_service is not None:
+            old_service = old_service.specific
+            ServiceHandler().delete_service(old_service.get_type(), old_service)
+
+        return workflow_action
 
     def order_workflow_actions(
         self,

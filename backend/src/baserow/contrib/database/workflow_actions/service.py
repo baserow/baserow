@@ -129,18 +129,14 @@ class DatabaseWorkflowActionService:
         )
 
         if has_type_changed:
-            # Polymorphism makes a type change a delete plus a create. Deleting
-            # first lets the `pre_delete` receiver dispose of the old service.
+            # Swapped in place rather than recreated, so an update answers with
+            # the action it was given rather than a different one.
             workflow_action_type = database_workflow_action_type_registry.get(
                 kwargs["type"]
             )
-            order = workflow_action.order
-            self.handler.delete_workflow_action(workflow_action)
             prepared_values = workflow_action_type.prepare_values(kwargs, user)
-            prepared_values["field"] = field
-            prepared_values["order"] = order
-            workflow_action = self.handler.create_workflow_action(
-                workflow_action_type, **prepared_values
+            workflow_action = self.handler.change_workflow_action_type(
+                workflow_action, workflow_action_type, **prepared_values
             )
         else:
             workflow_action_type = workflow_action.get_type()

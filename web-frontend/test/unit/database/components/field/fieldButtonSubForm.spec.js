@@ -216,10 +216,9 @@ describe('FieldButtonSubForm', () => {
       )
     })
 
-    test('a type change follows the new id the server hands back', async () => {
-      // A type change is a delete plus a create server side (it carries
-      // `field` and `order` across), so the PATCH response carries a new id.
-      // The order call has to use that one, not the id the editor still holds.
+    test('a type change keeps the id the editor already holds', async () => {
+      // The server swaps the action's type in place, so the PATCH answers with
+      // the same action and the order call uses the id the editor holds.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
         { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
@@ -231,7 +230,7 @@ describe('FieldButtonSubForm', () => {
       ]
 
       wrapper.vm.$client.patch.mockResolvedValueOnce({
-        data: { id: 88, type: 'open_url' },
+        data: { id: 1, type: 'open_url' },
       })
 
       await wrapper.vm.afterFieldSaved(7)
@@ -242,7 +241,7 @@ describe('FieldButtonSubForm', () => {
       )
       expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
         'database/field/7/workflow_actions/order/',
-        { workflow_action_ids: [88, 2] }
+        { workflow_action_ids: [1, 2] }
       )
     })
 
@@ -261,7 +260,7 @@ describe('FieldButtonSubForm', () => {
 
       wrapper.vm.$client.patch.mockResolvedValueOnce({
         data: {
-          id: 88,
+          id: 1,
           type: 'local_baserow_delete_row',
           service: { id: 9, type: 'local_baserow_delete_row' },
         },
@@ -278,8 +277,8 @@ describe('FieldButtonSubForm', () => {
 
     test('a type change into a service type types the service it then sends', async () => {
       // The user can change the type and configure the new form before saving.
-      // The type change goes on its own, then the config follows against the
-      // recreated action, typed from what it answered, just like a create.
+      // The type change goes on its own, then the config follows once the
+      // action is of the new type, typed from what it answered.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
         { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
@@ -290,7 +289,7 @@ describe('FieldButtonSubForm', () => {
 
       wrapper.vm.$client.patch.mockResolvedValueOnce({
         data: {
-          id: 88,
+          id: 1,
           type: 'local_baserow_create_row',
           service: { id: 9, type: 'local_baserow_upsert_row', table_id: null },
         },
@@ -301,14 +300,13 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.patch.mock.calls).toEqual([
         ['database/workflow_action/1/', { type: 'local_baserow_create_row' }],
         [
-          'database/workflow_action/88/',
+          'database/workflow_action/1/',
           { service: { type: 'local_baserow_upsert_row', table_id: 3 } },
         ],
       ])
-      // The follow-up went to the recreated action, and so does the order.
       expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
         'database/field/7/workflow_actions/order/',
-        { workflow_action_ids: [88] }
+        { workflow_action_ids: [1] }
       )
     })
 
