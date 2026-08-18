@@ -257,8 +257,9 @@ def test_two_way_sync_is_notified_after_retries(
     assert notification.data["table_name"] == data_sync.table.name
     assert notification.data["table_id"] == data_sync.table.id
     assert notification.data["database_id"] == data_sync.table.database_id
-    assert notification.data["error"].startswith(
-        """Database error: relation "public.test_table" does not exist"""
+    assert notification.data["error"] == (
+        "A database error occurred while synchronizing. Please "
+        "verify the table name and column configuration."
     )
 
     mock_task_context.retry.assert_not_called()

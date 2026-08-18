@@ -1,6 +1,8 @@
 from itertools import chain
 from typing import List
 
+from loguru import logger
+
 from baserow.contrib.database.data_sync.data_sync_types import (
     PostgreSQLDataSyncType as BaserowPostgreSQLDataSyncType,
 )
@@ -47,8 +49,18 @@ class PostgreSQLDataSyncType(BaserowPostgreSQLDataSyncType):
                 if fetch_all:
                     returning = cursor.fetchall()
                 cursor.connection.commit()
-            except psycopg.Error as e:
-                raise SyncError(f"Database error: {str(e)}")
+            except psycopg.OperationalError:
+                logger.exception("PostgreSQL data sync connection error")
+                raise SyncError(
+                    "Could not connect to the PostgreSQL database. Please "
+                    "verify the hostname, port, credentials, and SSL mode."
+                )
+            except psycopg.Error:
+                logger.exception("PostgreSQL data sync query error")
+                raise SyncError(
+                    "A database error occurred while synchronizing. Please "
+                    "verify the table name and column configuration."
+                )
 
         return returning
 

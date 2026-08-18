@@ -579,7 +579,10 @@ def test_postgresql_data_sync_connection_error(data_fixture):
         )
         handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
-    assert "failed" in str(e.value)
+    error_message = str(e.value)
+    assert "Could not connect" in error_message
+    assert "NOT_EXISTING_USER" not in error_message
+    assert default_database["HOST"] not in error_message
 
 
 @pytest.mark.django_db(transaction=True)

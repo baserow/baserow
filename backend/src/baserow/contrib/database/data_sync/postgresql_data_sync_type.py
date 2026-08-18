@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
 
+from loguru import logger
+
 from baserow.contrib.database.fields.models import (
     NUMBER_MAX_DECIMAL_PLACES,
     BooleanField,
@@ -186,8 +188,18 @@ class PostgreSQLDataSyncType(DataSyncType):
             )
             cursor = connection.cursor()
             yield cursor
-        except psycopg.Error as e:
-            raise SyncError(str(e))
+        except psycopg.OperationalError:
+            logger.exception("PostgreSQL data sync connection error")
+            raise SyncError(
+                "Could not connect to the PostgreSQL database. Please verify "
+                "the hostname, port, credentials, and SSL mode."
+            )
+        except psycopg.Error:
+            logger.exception("PostgreSQL data sync query error")
+            raise SyncError(
+                "A database error occurred while synchronizing. Please verify "
+                "the table name and column configuration."
+            )
         finally:
             if cursor:
                 cursor.close()
