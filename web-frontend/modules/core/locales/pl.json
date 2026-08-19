@@ -33,7 +33,8 @@
         "adminSettings": "Ustawienia administratora",
         "general": "Ogólne",
         "people": "Osoby",
-        "licenses": "Licencje"
+        "licenses": "Licencje",
+        "replayGuidedTour": "Powtórz wycieczkę po Baserow"
     },
     "accountForm": {
         "nameLabel": "Twoje imię",
@@ -309,7 +310,9 @@
         "emptyWorkspace": "Ten obszar roboczy jest pusty",
         "emptyWorkspaceMessage": "Zacznij od utworzenia nowej bazy danych lub aplikacji.",
         "noWorkspaceDescription": "Rozpocznij od utworzenia nowego obszaru roboczego",
-        "starOnGitHub": "Oceń nas na GitHub"
+        "starOnGitHub": "Oceń nas na GitHub",
+        "academy": "Akademia Baserow",
+        "academyMessage": "Weź udział w naszych kursach i zostań ekspertem"
     },
     "dashboardSidebar": {
         "workspaces": "Grupy",
@@ -404,7 +407,9 @@
         "baserowVersionDescription": "Wersja tej instancji.",
         "userSettings": "Użytkownik",
         "settingsVerifyImportSignatureDescription": "Aby upewnić się, że dane nie zostały sfałszowane, po włączeniu tej opcji sprawdzany jest podpis importowanych plików.",
-        "settingsVerifyImportSignature": "Zweryfikuj podpis importu"
+        "settingsVerifyImportSignature": "Zweryfikuj podpis importu",
+        "settingAllowReportingAbuseName": "Zezwól na zgłaszanie nadużyć",
+        "settingAllowReportingAbuseDescription": "Po włączeniu tej funkcji osoby odwiedzające publicznie udostępnione widoki i formularze mogą zgłaszać nadużycia. W takim przypadku wszyscy administratorzy otrzymają powiadomienia o zgłoszeniach."
     },
     "formSidebar": {
         "actions": {
@@ -544,6 +549,10 @@
                 "userAlreadyInWorkspace": {
                     "text": "Nie można wysłać zaproszenia, gdy użytkownik jest już członkiem danego obszaru roboczego.",
                     "title": "Użytkownik jest już zarejestrowany w tym obszarze roboczym."
+                },
+                "tooManyInvitations": {
+                    "title": "Wysłano zbyt wiele zaproszeń.",
+                    "text": "Wysłałeś zbyt wiele zaproszeń. Spróbuj ponownie później."
                 }
             },
             "title": "Zaproś członków do obszaru roboczego",
@@ -683,7 +692,8 @@
         "namePlaceholder": "Wprowadź nazwę integracji..."
     },
     "dropdown": {
-        "empty": "Brak elementów"
+        "empty": "Brak elementów",
+        "clearSearch": "Wyczyść wyszukiwanie"
     },
     "styleSidePanel": {
         "paddingTop": "Odstęp górny",
@@ -726,31 +736,36 @@
         "openaiApiKeyLabel": "Klucz API",
         "ollama": "Ollama",
         "ollamaHostLabel": "Host",
-        "openaiApiKeyDescription": "Jeśli chcesz włączyć tę integrację, podaj klucz API OpenAI. [Instrukcje dot. uzyskania klucza API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+        "openaiApiKeyDescription": "Podaj klucz API OpenAI. [Instrukcje dot. uzyskania klucza API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
         "openaiOrganization": "Organizacja (opcjonalnie)",
         "openaiModelsLabel": "Włączone modele",
-        "openaiModelsDescription": "Podaj [modele OpenAI](https://platform.openai.com/docs/models/continuous-model-upgrades), które mogą być używane w bazie Baserow. Poszczególne opcje oddziel przecinkami (np. `gpt-3.5-turbo,gpt-4`)",
+        "openaiModelsDescription": "Podaj [identyfikatory modeli OpenAI](https://developers.openai.com/api/docs/models), których będzie można używać w bazie danych Baserow. Poszczególne opcje oddziel przecinkami (np. `gpt-5.6,gpt-5.6-terra,gpt-5.6-luna`).",
         "ollamaHostDescription": "Podaj nazwę hosta serwera [Ollama](https://ollama.com/). Zazwyczaj działa on lokalnie na urządzeniu użytkownika.",
         "ollamaModelsLabel": "Włączone modele",
-        "ollamaModelsDescription": "Podaj listę [zainstalowanych modeli Ollama](https://ollama.com/library). Poszczególne opcje oddziel przecinkami (np. `llama2,mistral`). Należy pamiętać, że model musi zostać pobrany i zainstalowany, zanim będzie można go użyć.",
-        "anthropicApiKeyDescription": "Jeśli chcesz włączyć tę integrację, podaj klucz API Anthropic. [Instrukcje dot. uzyskania klucza API](https://docs.anthropic.com/en/api/getting-started).",
+        "ollamaModelsDescription": "Podaj listę [modeli zainstalowanych w Ollama](https://ollama.com/library). Poszczególne opcje oddziel przecinkami (np. `gemma3,qwen3,llama3.3`). Należy pamiętać, że wybrany model musi zostać pobrany i zainstalowany, zanim będzie można go użyć.",
+        "anthropicApiKeyDescription": "Wprowadź klucz API Anthropic. [Instrukcje dot. uzyskania klucza API](https://docs.anthropic.com/en/api/getting-started).",
         "mistralApiKeyLabel": "Klucz API",
-        "anthropicModelsDescription": "Podaj [modele Anthropic](https://docs.anthropic.com/en/docs/about-claude/models), które mogą być używane w bazie Baserow. Poszczególne opcje oddziel przecinkami (np. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "anthropicModelsDescription": "Podaj [identyfikatory modeli Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami (np. `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`).",
         "anthropicApiKeyLabel": "Klucz API",
         "anthropic": "Anthropic",
         "anthropicModelsLabel": "Włączone modele",
         "mistral": "Mistral",
         "mistralModelsLabel": "Włączone modele",
-        "mistralModelsDescription": "Podaj [modele Mistral](https://docs.mistral.ai/getting-started/models/models_overview/), które mogą być używane w bazie Baserow. Poszczególne opcje oddziel przecinkami (np. `mistral-large-latest,mistral-small-latest`)",
-        "mistralApiKeyDescription": "Jeśli chcesz włączyć tę integrację, podaj klucz API Mistral. [Instrukcje dot. uzyskania klucza API](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralModelsDescription": "Podaj [identyfikatory modeli Mistral](https://docs.mistral.ai/models/), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami (np. `mistral-large-latest,mistral-medium-latest,mistral-small-latest`).",
+        "mistralApiKeyDescription": "Wprowadź klucz API Mistral. [Instrukcje dot. uzyskania klucza API](https://docs.mistral.ai/getting-started/quickstart/).",
         "openRouterApiKeyLabel": "Klucz API",
-        "openRouterApiKeyDescription": "Jeśli chcesz włączyć tę integrację, podaj klucz API OpenRouter. [Instrukcje dot. uzyskania klucza API](https://openrouter.ai/settings/keys).",
+        "openRouterApiKeyDescription": "Wprowadź klucz API OpenRouter. [Instrukcje dot. uzyskania klucza API](https://openrouter.ai/settings/keys).",
         "openRouterOrganization": "Organizacja (opcjonalnie)",
         "openRouterModelsLabel": "Włączone modele",
-        "openRouterModelsDescription": "Podaj [modele OpenRouter](https://openrouter.ai/models), które mogą być używane w bazie Baserow. Poszczególne opcje oddziel przecinkami (np. `openai/gpt-4o,anthropic/claude-3-haiku`).",
+        "openRouterModelsDescription": "Podaj [identyfikatory modeli OpenRouter](https://openrouter.ai/models), których będzie można używać w bazie Baserow. Poszczególne opcje oddziel przecinkami (np. `openai/gpt-5.6,anthropic/claude-sonnet-5`).",
         "openRouter": "OpenRouter",
         "openaiBaseUrl": "Bazowy adres URL",
-        "openaiBaseUrlDescription": "Jeśli pole jest puste, zostanie użyty domyślny bazowy adres URL OpenAI. Można go zmienić na https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com lub inny endpoint API podany przez OpenAI."
+        "openaiBaseUrlDescription": "Jeśli pole jest puste, zostanie użyty domyślny bazowy adres URL OpenAI. Można go zmienić na https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com lub inny endpoint API podany przez OpenAI.",
+        "openaiModelIdentifierDescription": "Wprowadź [identyfikator modelu OpenAI](https://developers.openai.com/api/docs/models), np. `gpt-5.6`, `gpt-5.6-terra` lub `gpt-5.6-luna`.",
+        "anthropicModelIdentifierDescription": "Wprowadź [identyfikator modelu Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview), np. `claude-sonnet-5`, `claude-opus-4-8`lub `claude-haiku-4-5`.",
+        "mistralModelIdentifierDescription": "Wprowadź [identyfikator modelu Mistral](https://docs.mistral.ai/models/), np. `mistral-large-latest`, `mistral-medium-latest` lub `mistral-small-latest`.",
+        "ollamaModelIdentifierDescription": "Wprowadź identyfikator [modelu zainstalowanego w Ollama](https://ollama.com/library), np. `gemma3`, `qwen3` lub `llama3.3`.",
+        "openRouterModelIdentifierDescription": "Wprowadź [identyfikator modelu OpenRouter](https://openrouter.ai/models), np. `openai/gpt-5.6` lub `anthropic/claude-sonnet-5`."
     },
     "generativeAIWorkspaceSettings": {
         "changedTitle": "Ustawienia zostały poprawnie zaktualizowane",
@@ -817,7 +832,8 @@
         "AIModel": "Model AI",
         "fileField": "Pole pliku",
         "temperatureLabel": "Temperatura",
-        "temperatureDescription": "Temperatura LLM to parametr pomiędzy 0 a {max}, kontrolujący losowość odpowiedzi: niższa wartość zwróci odpowiedzi bardziej konkretne, wyższa bardziej kreatywne."
+        "temperatureDescription": "Temperatura LLM to parametr pomiędzy 0 a {max}, kontrolujący losowość odpowiedzi: niższa wartość zwróci odpowiedzi bardziej konkretne, wyższa bardziej kreatywne.",
+        "modelUnavailable": "Ten model jest wyłączony lub nie jest już dostępny."
     },
     "onboarding": {
         "title": "Wprowadzenie",
@@ -828,7 +844,8 @@
         "failedTryAgain": "Spróbuj ponownie",
         "continue": "Kontynuuj",
         "failedDescription": "Operacja nie została w pełni zakończona, ale niektóre elementy mogły zostać zrealizowane.",
-        "failedSkip": "Pomiń wprowadzenie"
+        "failedSkip": "Pomiń wprowadzenie",
+        "back": "Z powrotem"
     },
     "moreStep": {
         "people": "Ile osób liczy twój zespół?",
@@ -899,7 +916,8 @@
     "adminType": {
         "dashboard": "Pulpit",
         "users": "Użytkownicy",
-        "workspaces": "Obszary robocze"
+        "workspaces": "Obszary robocze",
+        "aiProviders": "Dostawcy AI"
     },
     "workspacesAdminTable": {
         "allWorkspaces": "Wszystkie obszary robocze",
@@ -1001,7 +1019,9 @@
         "step": "{step} z {totalSteps}",
         "gotIt": "Rozumiem",
         "back": "Powrót",
-        "next": "Następne"
+        "next": "Następne",
+        "watchVideo": "Obejrzyj film",
+        "stopTour": "Zatrzymaj oprowadzanie"
     },
     "welcomeGuidedTourStep": {
         "title": "Witaj w Baserow",
@@ -1292,5 +1312,89 @@
     },
     "editWorkspace": {
         "invalidNameTitle": "Ta nazwa obszaru roboczego nie jest dozwolona"
+    },
+    "groupedMenu": {
+        "core": "Rdzeń",
+        "files": "Pliki",
+        "http": "HTTP",
+        "workflow": "Proces"
+    },
+    "abuseReportCreatedNotification": {
+        "title": "{reporterEmail} zgłosił nadużycie dotyczące {resourceName}",
+        "openResource": "Otwórz stronę, której dotyczy zgłoszenie",
+        "showMore": "Pokaż więcej",
+        "detailsTitle": "Zgłoszenie nadużycia",
+        "reportedBy": "Zgłoszone przez {reporterName} ({reporterEmail})."
+    },
+    "reportAbuseModal": {
+        "title": "Zgłoszenie nadużycia",
+        "description": "Czy masz podstawy, aby uznać, że ta strona jest wykorzystywana do phishingu, podszywania się pod inne osoby, oszustw lub innych nadużyć? Wypełnij poniższy formularz i poinformuj o tym administratorów tej instancji Baserow.",
+        "submit": "Wyślij powiadomienie",
+        "close": "Zamknij",
+        "successTitle": "Dziękujemy za zgłoszenie",
+        "successDescription": "Zgłoszenie zostało wysłane i administratorzy tej instancji Baserow zostali o tym powiadomieni. Teraz będą mogli podjąć odpowiednie działania.",
+        "reportingDisabledTitle": "Zgłaszanie jest wyłączone",
+        "reportingDisabledDescription": "Zgłaszanie nadużyć zostało wyłączone przez administratorów tej instancji Baserow."
+    },
+    "reportAbuseForm": {
+        "nameLabel": "Twoje imię i nazwisko",
+        "emailLabel": "Twój adres e-mail",
+        "descriptionLabel": "Z jakiego powodu zgłaszasz nadużycie na tej stronie?",
+        "descriptionHelper": "Opisz szczegółowo, dlaczego uważasz, że z tą stroną mogą być związane nadużycia.",
+        "descriptionPlaceholder": "Na przykład: strona wygląda na fałszywą stronę logowania i odwiedzający proszeni są o podanie hasła."
+    },
+    "aiProviderAdmin": {
+        "title": "Dostawcy AI",
+        "description": "Skonfiguruj dostawców na poziomie instancji oraz modele dostępne w obszarach roboczych i automatyzacjach.",
+        "addProvider": "Dodaj dostawcę",
+        "editProvider": "Edytuj dostawcę",
+        "providerType": "Rodzaj dostawcy",
+        "apiKey": "Klucz API",
+        "changeApiKey": "Zmień klucz API",
+        "apiKeyUpdateHint": "Wprowadź nowy klucz API, który zastąpi obecny.",
+        "extraField_organization": "Organizacja",
+        "extraField_base_url": "URL bazowy",
+        "extraField_host": "Host",
+        "models": "Modele",
+        "addModel": "Dodaj model",
+        "removeModel": "Usuń model",
+        "editModel": "Edytuj model",
+        "modelIdentifier": "Identyfikator modelu",
+        "modelDiscoveryHelp": "Wybierz model z listy Pydantic AI lub wprowadź dowolny własny identyfikator.",
+        "modelDiscoveryUnavailable": "Lista modeli jest niedostępna. Wprowadź identyfikator ręcznie.",
+        "modelDiscoveryEmpty": "Na liście Pydantic AI nie ma modeli tego dostawcy. Wprowadź identyfikator ręcznie.",
+        "modelDiscoveryNoMatch": "Nie znaleziono pasujących modeli. Możesz użyć identyfikatora, który wprowadziłeś.",
+        "noProviders": "W tej instancji nie skonfigurowano jeszcze dostawców AI",
+        "noProvidersDescription": "Dodaj dostawcę ręcznie lub wyświetl podgląd i uruchom polecenie importu środowiska przed włączeniem tej funkcji dla użytkowników.",
+        "noModels": "Dla tego dostawcy nie skonfigurowano jeszcze żadnych modeli.",
+        "active": "Aktywny",
+        "inactive": "Nieaktywny",
+        "enable": "Włącz",
+        "disable": "Wyłącz",
+        "modelDisabled": "Wyłączony",
+        "test": "Test",
+        "testAllModelsButtonTitle": "Przetestuj wszystkie zdefiniowane modele",
+        "testModelButtonTitle": "Przetestuj ten model",
+        "testPassed": "Test zakończył się pozytywnie",
+        "testFailed": "Test nie powiódł się",
+        "notTested": "Nie przetestowano",
+        "deleteProviderTitle": "Usuń {name}?",
+        "deleteProviderDescription": "Dostawca i jego modele zostaną trwale usunięte.",
+        "deleteModelTitle": "Usunąć {name}?",
+        "deleteModelDescription": "Ten model zostanie trwale usunięty.",
+        "loadError": "Nie można było załadować ustawień dostawcy AI.",
+        "loadErrorDescription": "Sprawdź połączenie i spróbuj ponownie.",
+        "retry": "Spróbuj ponownie",
+        "saveError": "Dostawca AI nie został zapisany.",
+        "saveModelError": "Nie udało się zapisać dostawcy AI.",
+        "actionError": "Zmiana dostawcy AI nie powiodła się."
+    },
+    "academy": {
+        "learnMore": "Więcej o akademii Baserow"
+    },
+    "guidedTourVideoModal": {
+        "previous": "Poprzedni film",
+        "next": "Następny film",
+        "close": "Zamknij"
     }
 }
