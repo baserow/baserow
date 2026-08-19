@@ -38,6 +38,9 @@ from baserow.contrib.database.operations import (
     CreateTableDatabaseTableOperationType,
     ListTablesDatabaseTableOperationType,
 )
+from baserow.contrib.database.rows.operations import (
+    UpdateDatabaseRowOperationType,
+)
 from baserow.contrib.database.table.actions import (
     CreateTableActionType,
     DeleteTableActionType,
@@ -560,6 +563,13 @@ class AsyncTableImportView(APIView):
             context=table,
         )
         configuration = data.get("configuration")
+        if configuration and configuration.get("upsert_fields"):
+            CoreHandler().check_permissions(
+                request.user,
+                UpdateDatabaseRowOperationType.type,
+                workspace=table.database.workspace,
+                context=table,
+            )
         importer_type = data.get("importer_type", "")
         original_file_name = data.get("original_file_name", "")
         data = data["data"]
