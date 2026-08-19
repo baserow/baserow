@@ -64,7 +64,8 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     },
     TITLE: {
         "temperature": 0.7,
-        "timeout": 10,
+        # Gemini rejects deadlines under 10s, so stay clear of the floor.
+        "timeout": 15,
         "max_tokens": AssistantChat.TITLE_MAX_LENGTH,
     },
 }

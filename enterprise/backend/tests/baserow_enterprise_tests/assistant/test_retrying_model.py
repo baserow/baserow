@@ -519,6 +519,18 @@ class TestResolveCredentials:
         creds = _resolve_credentials("groq")
         assert creds["api_key"] == "udspy-key"
 
+    @pytest.mark.parametrize(
+        "provider", ["google", "google-gla", "google-cloud", "google-vertex"]
+    )
+    def test_google_key_takes_precedence_over_udspy(self, monkeypatch, provider):
+        """Without an explicit entry a stale UDSPY_LM_API_KEY (e.g. a Groq key)
+        would be handed to Google instead of GOOGLE_API_KEY."""
+
+        monkeypatch.setenv("GOOGLE_API_KEY", "google-key")
+        monkeypatch.setenv("UDSPY_LM_API_KEY", "udspy-key")
+
+        assert _resolve_credentials(provider)["api_key"] == "google-key"
+
     def test_provider_specific_base_url_takes_precedence(self, monkeypatch):
         monkeypatch.setenv("OPENAI_BASE_URL", "https://custom.openai.com")
         monkeypatch.setenv("UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL", "https://udspy.com")

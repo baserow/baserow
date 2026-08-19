@@ -197,6 +197,18 @@ _PROVIDER_ENV: dict[str, dict[str, str | None]] = {
     "ollama": {
         "base_url": "OLLAMA_BASE_URL",
     },
+    "google": {
+        "api_key": "GOOGLE_API_KEY",
+    },
+    "google-gla": {
+        "api_key": "GOOGLE_API_KEY",
+    },
+    "google-cloud": {
+        "api_key": "GOOGLE_API_KEY",
+    },
+    "google-vertex": {
+        "api_key": "GOOGLE_API_KEY",
+    },
 }
 
 
