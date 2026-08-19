@@ -36,14 +36,21 @@ import {
   IsEvenAndWholeViewFilterType,
   LengthIsLowerThanViewFilterType,
   LinkRowContainsFilterType,
+  LinkRowHasFilterType,
+  LinkRowHasNotFilterType,
   LinkRowNotContainsFilterType,
   LowerThanOrEqualViewFilterType,
   LowerThanViewFilterType,
+  MultipleCollaboratorsHasFilterType,
+  MultipleCollaboratorsHasNotFilterType,
   MultipleSelectHasFilterType,
   MultipleSelectHasNotFilterType,
   NotEmptyViewFilterType,
+  NotEqualViewFilterType,
+  SingleSelectEqualViewFilterType,
   SingleSelectIsAnyOfViewFilterType,
   SingleSelectIsNoneOfViewFilterType,
+  SingleSelectNotEqualViewFilterType,
 } from '@baserow/modules/database/viewFilters'
 import {
   DurationFieldType,
@@ -2955,4 +2962,150 @@ describe('Empty filter value tests', () => {
       expect(result).toBe(values.expected)
     }
   )
+})
+
+describe('Undefined rowValue guards', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test('EqualViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new EqualViewFilterType({ app: testApp._app })
+    expect(() =>
+      filter.matches(undefined, 'test', { type: 'text' }, { type: 'text' })
+    ).not.toThrow()
+  })
+
+  test('NotEqualViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new NotEqualViewFilterType({ app: testApp._app })
+    expect(() =>
+      filter.matches(undefined, 'test', { type: 'text' }, { type: 'text' })
+    ).not.toThrow()
+  })
+
+  test('BooleanViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new BooleanViewFilterType({ app: testApp._app })
+    expect(() =>
+      filter.matches(undefined, 'true', { type: 'boolean' }, {})
+    ).not.toThrow()
+  })
+
+  test('LengthIsLowerThanViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new LengthIsLowerThanViewFilterType({ app: testApp._app })
+    const result = filter.matches(undefined, 5, { type: 'text' }, {})
+    expect(result).toBe(true)
+  })
+
+  test('HasFileTypeViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new HasFileTypeViewFilterType({ app: testApp._app })
+    const result = filter.matches(undefined, 'image', { type: 'file' }, {})
+    expect(result).toBe(false)
+  })
+
+  test('FilesLowerThanViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new FilesLowerThanViewFilterType({ app: testApp._app })
+    const result = filter.matches(undefined, '5', { type: 'file' }, {})
+    expect(result).toBe(true)
+  })
+
+  test('SingleSelectEqualViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new SingleSelectEqualViewFilterType({ app: testApp._app })
+    const result = filter.matches(undefined, '1', { type: 'single_select' }, {})
+    expect(result).toBe(false)
+  })
+
+  test('SingleSelectNotEqualViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new SingleSelectNotEqualViewFilterType({ app: testApp._app })
+    const result = filter.matches(undefined, '1', { type: 'single_select' }, {})
+    expect(result).toBe(true)
+  })
+
+  test('MultipleSelectHasNotFilterType does not crash with undefined rowValue', () => {
+    const filter = new MultipleSelectHasNotFilterType({ app: testApp._app })
+    const result = filter.matches(
+      undefined,
+      '1',
+      { type: 'multiple_select' },
+      {}
+    )
+    expect(result).toBe(true)
+  })
+
+  test('MultipleCollaboratorsHasFilterType does not crash with undefined rowValue', () => {
+    const filter = new MultipleCollaboratorsHasFilterType({
+      app: testApp._app,
+    })
+    const result = filter.matches(
+      undefined,
+      '1',
+      { type: 'multiple_collaborators' },
+      {}
+    )
+    expect(result).toBe(false)
+  })
+
+  test('MultipleCollaboratorsHasNotFilterType does not crash with undefined rowValue', () => {
+    const filter = new MultipleCollaboratorsHasNotFilterType({
+      app: testApp._app,
+    })
+    const result = filter.matches(
+      undefined,
+      '1',
+      { type: 'multiple_collaborators' },
+      {}
+    )
+    expect(result).toBe(true)
+  })
+
+  test('LinkRowHasFilterType does not crash with undefined rowValue', () => {
+    const filter = new LinkRowHasFilterType({ app: testApp._app })
+    const result = filter.matches(undefined, '1', { type: 'link_row' }, {})
+    expect(result).toBe(false)
+  })
+
+  test('LinkRowHasNotFilterType does not crash with undefined rowValue', () => {
+    const filter = new LinkRowHasNotFilterType({ app: testApp._app })
+    const result = filter.matches(undefined, '1', { type: 'link_row' }, {})
+    expect(result).toBe(true)
+  })
+
+  test('LinkRowContainsFilterType does not crash with undefined rowValue', () => {
+    const filter = new LinkRowContainsFilterType({ app: testApp._app })
+    const result = filter.matches(undefined, 'test', { type: 'link_row' }, {})
+    expect(result).toBe(false)
+  })
+
+  test('LinkRowNotContainsFilterType does not crash with undefined rowValue', () => {
+    const filter = new LinkRowNotContainsFilterType({ app: testApp._app })
+    const result = filter.matches(undefined, 'test', { type: 'link_row' }, {})
+    expect(result).toBe(true)
+  })
+
+  test('DateEqualViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new DateEqualViewFilterType({ app: testApp })
+    const result = filter.matches(
+      undefined,
+      'Europe/Berlin?2021-08-11',
+      { date_include_time: true },
+      {}
+    )
+    expect(result).toBe(false)
+  })
+
+  test('DateNotEqualViewFilterType does not crash with undefined rowValue', () => {
+    const filter = new DateNotEqualViewFilterType({ app: testApp })
+    const result = filter.matches(
+      undefined,
+      'Europe/Berlin?2021-08-11',
+      { date_include_time: true },
+      {}
+    )
+    expect(result).toBe(true)
+  })
 })
