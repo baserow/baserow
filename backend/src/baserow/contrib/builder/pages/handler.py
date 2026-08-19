@@ -787,6 +787,16 @@ class PageHandler:
             page_instance.path = serialized_page["path"]
             page_instance.path_params = serialized_page["path_params"]
             page_instance.graph = serialized_page.get("graph", {})
+            # Persist the serialized graph now. Unlike the non-shared branch
+            # (which saves via Page.objects.create), the shared page is only
+            # mutated in memory here — but import_elements' migrate_graph takes
+            # a row lock that refreshes the in-memory graph from the committed
+            # row, which would otherwise reset it to the empty graph the shared
+            # page was created with and drop the whole serialized structure
+            # (e.g. a multi-page header's children).
+            page_instance.save(
+                update_fields=["name", "order", "path", "path_params", "graph"]
+            )
         else:
             # Note: serialized pages exported before the page visibility feature
             # will not contain the `visibility`, `role_type` or `roles` keys,

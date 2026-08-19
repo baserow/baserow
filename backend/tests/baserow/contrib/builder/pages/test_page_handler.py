@@ -5,8 +5,10 @@ from django.contrib.auth.models import AnonymousUser
 import pytest
 
 from baserow.contrib.builder.domains.handler import DomainHandler
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import ColumnElement, TextElement
 from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.constants import ILLEGAL_PATH_SAMPLE_CHARACTER
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
@@ -23,6 +25,7 @@ from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.graph.types import GraphPointPosition
+from baserow.core.handler import CoreHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
@@ -226,6 +229,61 @@ def test_duplicate_shared_page(data_fixture):
 
     with pytest.raises(SharedPageIsReadOnly):
         PageHandler().duplicate_page(shared_page)
+
+
+@pytest.mark.django_db
+def test_duplicate_application_preserves_multi_page_header_children(data_fixture):
+    # Regression: duplicating an app whose shared page has a multi-page header
+    # containing a child element must keep the child *inside* the header. The
+    # shared page's serialized graph is only set in memory during import, so
+    # migrate_graph's row-lock refresh reset it to the empty committed graph,
+    # dropping the header's children — the append fallback then re-attached the
+    # heading as a sibling (`next`) of the header instead of a child.
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    shared_page = builder.shared_page
+
+    header = ElementService().create_element(
+        user, element_type_registry.get("header"), page=shared_page
+    )
+    heading = ElementService().create_element(
+        user,
+        element_type_registry.get("heading"),
+        page=shared_page,
+        reference_element_id=header.id,
+        position=GraphPointPosition.CHILD,
+    )
+
+    # Sanity: in the source, the heading is a child of the header.
+    shared_page.refresh_from_db(fields=["graph"])
+    assert shared_page.graph == {
+        "0": header.id,
+        str(header.id): {"children": {"": [heading.id]}},
+        str(heading.id): {},
+    }
+
+    clone = CoreHandler().duplicate_application(user, builder)
+    clone_shared = clone.specific.shared_page
+    clone_shared.refresh_from_db(fields=["graph"])
+
+    graph = clone_shared.graph
+    root_id = str(graph["0"])
+    root_info = graph[root_id]
+
+    # The duplicated header is still the root, with the heading as its child —
+    # not a flat next-chain (the corruption).
+    assert "next" not in root_info, "header child was corrupted into a sibling"
+    assert list(root_info["children"].keys()) == [""]
+    (child_id,) = root_info["children"][""]
+    assert graph[str(child_id)] == {}
+
+    # The imported points are the header and its child heading, and ancestry
+    # resolves accordingly.
+    imported_header = ElementHandler().get_element(int(root_id))
+    imported_child = ElementHandler().get_element(int(child_id))
+    assert imported_header.get_type().type == "header"
+    assert imported_child.get_type().type == "heading"
+    assert imported_child.parent_element_id == imported_header.id
 
 
 def test_is_page_path_valid():

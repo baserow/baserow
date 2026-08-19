@@ -932,6 +932,45 @@ def test_corruption_prevented_place_validation_runs_after_lock(data_fixture):
     )
 
 
+@pytest.mark.django_db
+def test_heal_locked_recheck_reads_committed_graph_not_stale_cache(data_fixture):
+    # Regression: the fast-path pre-check seeds the request-cached graph
+    # handler with this request's in-memory graph. The under-lock re-check and
+    # every repair must run against the freshly locked *committed* row, not
+    # that cached graph — otherwise the heal reconciles against stale data and
+    # clobbers whatever is actually in the database (the lost-update class this
+    # PR closes). Reproduced by diverging the in-memory graph from the
+    # committed row, exactly as a concurrent writer would.
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    e1 = data_fixture.create_builder_heading_element(page=page)
+    e2 = data_fixture.create_builder_heading_element(page=page)
+
+    # The committed row: consistent, no drift (e2 is the root, e1 follows it).
+    committed_graph = {
+        "0": e2.id,
+        str(e2.id): {"next": {"": [e1.id]}},
+        str(e1.id): {},
+    }
+    page.graph = dict(committed_graph)
+    page.save(update_fields=["graph"])
+
+    # Diverge this request's in-memory graph so the fast-path pre-check sees
+    # drift (e2 is now an orphan) and enters the locked block — while the DB
+    # row still holds the consistent committed_graph.
+    page.graph = {"0": e1.id, str(e1.id): {}}
+
+    patch = PageHandler().heal_corrupted_graph(page)
+
+    # The lock refreshed from the committed row, which has no drift, so the
+    # heal is a no-op and the committed graph is untouched. (Before the fix the
+    # re-check ran on the stale cached graph, "healed" the phantom orphan and
+    # overwrote the committed row.)
+    assert patch == {}
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == committed_graph
+
+
 # ====================================================
 # -- Composites: several corruption classes at once --
 # ====================================================

@@ -1,5 +1,6 @@
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import Any, Dict, List
 
 from django.db import transaction
@@ -8,6 +9,48 @@ from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition
+
+
+@dataclass(frozen=True)
+class GraphDrift:
+    """
+    The divergence between a page's graph and the element rows that actually
+    exist, as computed by `PageHealingHandler`. Each field holds the ids (or
+    id pairs) for one corruption class; `has_drift` is True when any of them is
+    non-empty, i.e. there is something to reconcile.
+    """
+
+    # Rows present in the DB but absent from the graph.
+    orphan_ids: set
+    # Ids referenced by the graph whose row no longer exists.
+    stale_ids: set
+    # Points listing themselves as their own next/child.
+    self_ref_ids: set
+    # References to points with no serialized graph entry.
+    dangling_ids: set
+    # (from_id, target_id) references that close a cycle.
+    cycle_ref_pairs: set
+    # (from_id, target_id) surplus references converging on one point.
+    converging_ref_pairs: set
+    # (element_id, edge) children edges the element cannot have.
+    invalid_children_pairs: set
+    # Live points keyed in the graph but unreachable from the root.
+    detached_ids: set
+
+    @property
+    def has_drift(self) -> bool:
+        return any(
+            (
+                self.orphan_ids,
+                self.stale_ids,
+                self.self_ref_ids,
+                self.dangling_ids,
+                self.cycle_ref_pairs,
+                self.converging_ref_pairs,
+                self.invalid_children_pairs,
+                self.detached_ids,
+            )
+        )
 
 
 class PageHealingHandler:
@@ -216,75 +259,43 @@ class PageHealingHandler:
 
         root_key = page.get_graph().GRAPH_ROOT_KEY
 
-        def compute_drift(graph) -> tuple[set, set, set, set, set, set, set, set]:
+        def compute_drift(graph) -> GraphDrift:
             graph_ids = {int(k) for k in graph if k != root_key}
             db_ids = set(Element.objects.filter(page=page).values_list("id", flat=True))
-            # (orphans missing from the graph, stale points missing from the DB,
-            # points referencing themselves via next/children, references with
-            # no corresponding graph point, cycle-closing references, surplus
-            # converging references, children edges their element cannot have,
-            # live points keyed in the graph but unreachable from the root).
-            # All but the children-edge check are pure in-memory scans; that
-            # one resolves element rows through the request-cached
+            # All but the invalid-children-edge check are pure in-memory scans;
+            # that one resolves element rows through the request-cached
             # get_elements, which this request loads anyway.
-            return (
-                db_ids - graph_ids,
-                graph_ids - db_ids,
-                BaseGraphHandler.find_self_referencing_point_ids(graph),
-                BaseGraphHandler.find_dangling_reference_ids(graph),
-                BaseGraphHandler.find_cycle_reference_pairs(graph),
-                BaseGraphHandler.find_converging_reference_pairs(graph),
-                self.find_invalid_children_edge_pairs(page, graph),
-                BaseGraphHandler.find_unreachable_point_ids(graph) & db_ids,
+            return GraphDrift(
+                orphan_ids=db_ids - graph_ids,
+                stale_ids=graph_ids - db_ids,
+                self_ref_ids=BaseGraphHandler.find_self_referencing_point_ids(graph),
+                dangling_ids=BaseGraphHandler.find_dangling_reference_ids(graph),
+                cycle_ref_pairs=BaseGraphHandler.find_cycle_reference_pairs(graph),
+                converging_ref_pairs=BaseGraphHandler.find_converging_reference_pairs(
+                    graph
+                ),
+                invalid_children_pairs=self.find_invalid_children_edge_pairs(
+                    page, graph
+                ),
+                detached_ids=BaseGraphHandler.find_unreachable_point_ids(graph)
+                & db_ids,
             )
 
         # Fast path: nothing to reconcile (the steady state). Avoid locking/writes.
-        (
-            orphan_ids,
-            stale_ids,
-            self_ref_ids,
-            dangling_ids,
-            cycle_ref_pairs,
-            converging_ref_pairs,
-            invalid_children_pairs,
-            detached_ids,
-        ) = compute_drift(page.get_graph().graph)
-        if (
-            not orphan_ids
-            and not stale_ids
-            and not self_ref_ids
-            and not dangling_ids
-            and not cycle_ref_pairs
-            and not converging_ref_pairs
-            and not invalid_children_pairs
-            and not detached_ids
-        ):
+        if not compute_drift(page.get_graph().graph).has_drift:
             return {}
 
         # Re-check under a row lock so concurrent reads can't race on the same graph.
         with transaction.atomic():
-            locked_page = Page.objects.select_for_update().get(id=page.id)
-            graph_handler = locked_page.get_graph()
-            (
-                orphan_ids,
-                stale_ids,
-                self_ref_ids,
-                dangling_ids,
-                cycle_ref_pairs,
-                converging_ref_pairs,
-                invalid_children_pairs,
-                detached_ids,
-            ) = compute_drift(graph_handler.graph)
-            if (
-                not orphan_ids
-                and not stale_ids
-                and not self_ref_ids
-                and not dangling_ids
-                and not cycle_ref_pairs
-                and not converging_ref_pairs
-                and not invalid_children_pairs
-                and not detached_ids
-            ):
+            graph_handler = page.get_graph()
+            # Take the row lock and refresh the in-memory graph from the locked
+            # row, so the re-check and every repair below run against the latest
+            # committed state. get_graph() returns the request-cached handler
+            # (seeded by the unlocked fast-path read above), so its graph must
+            # be refreshed in place rather than trusted as-is.
+            graph_handler.lock_for_update()
+            drift = compute_drift(graph_handler.graph)
+            if not drift.has_drift:
                 return {}
 
             # Snapshot before mutating so we can return only what changed.
@@ -293,12 +304,12 @@ class PageHealingHandler:
             # Strip self-references first: a point that is its own next/child
             # violates the graph invariant and would otherwise stay corrupted
             # until a chain traversal happens to walk (and heal) that subtree.
-            if self_ref_ids:
+            if drift.self_ref_ids:
                 graph_handler.strip_self_references()
 
             # Drop references which cannot be traversed because the referenced
             # point has no serialized graph entry.
-            if dangling_ids:
+            if drift.dangling_ids:
                 graph_handler.strip_dangling_references()
 
             # Break cycles by stripping the references that close them, so
@@ -306,35 +317,35 @@ class PageHealingHandler:
             # transitive parent. Re-detected internally: stripping self
             # references above may already have broken some of the cycles
             # detected at drift time.
-            if cycle_ref_pairs:
+            if drift.cycle_ref_pairs:
                 graph_handler.strip_cycle_references()
 
             # Strip surplus converging references (after the cycle pass, whose
             # back-edges are also surplus incoming references and are usually
             # gone by now), leaving each element a single canonical incoming
             # position so the fail-closed write guards accept it again.
-            if converging_ref_pairs:
+            if drift.converging_ref_pairs:
                 graph_handler.strip_converging_references()
 
             # Prune stale points next so orphan placement (which traverses the
             # graph, e.g. append → get_last_position) can't walk into a missing
             # point part-way through.
-            if stale_ids:
-                graph_handler.prune_points(stale_ids)
+            if drift.stale_ids:
+                graph_handler.prune_points(drift.stale_ids)
 
             # Repair children stored under a place their element cannot have:
             # merge them into a surviving place (containers) or strip the edge
             # (non-containers) so the reattach pass below rescues the subtree.
             # Re-detected internally: the strips above may have changed the
             # graph since drift time.
-            if invalid_children_pairs:
-                self.element_handler.invalidate_element_cache(locked_page)
-                self._repair_invalid_children_edges(locked_page, graph_handler)
+            if drift.invalid_children_pairs:
+                self.element_handler.invalidate_element_cache(page)
+                self._repair_invalid_children_edges(page, graph_handler)
 
             # On a shared page, append orphans to the first shared element (the root
             # Header/Footer container); otherwise append to the end of the page.
             container = None
-            if locked_page.shared:
+            if page.shared:
                 root_id = graph_handler.graph.get(root_key)
                 container = (
                     graph_handler.get_point(root_id) if root_id is not None else None
@@ -350,7 +361,9 @@ class PageHealingHandler:
                 container=container
             )
 
-            for orphan in Element.objects.filter(id__in=orphan_ids).order_by("id"):
+            for orphan in Element.objects.filter(id__in=drift.orphan_ids).order_by(
+                "id"
+            ):
                 if container is not None:
                     graph_handler.insert(
                         orphan, container, GraphPointPosition.CHILD, ""
@@ -361,35 +374,18 @@ class PageHealingHandler:
             after = graph_handler.graph
             patch = {k: v for k, v in after.items() if before.get(k) != v}
 
-        # Reflect the healed graph on the caller's page and drop any cached elements.
-        page.graph = locked_page.graph
+        # The graph was refreshed and mutated in place on `page` under the lock
+        # above; just drop any cached elements so the reload sees the repaired graph.
         self.element_handler.invalidate_element_cache(page)
 
-        self._report_graph_heal(
-            page,
-            orphan_ids,
-            stale_ids,
-            self_ref_ids,
-            dangling_ids,
-            cycle_ref_pairs,
-            converging_ref_pairs,
-            invalid_children_pairs,
-            set(reattached_ids),
-            patch,
-        )
+        self._report_graph_heal(page, drift, set(reattached_ids), patch)
 
         return patch
 
     def _report_graph_heal(
         self,
         page: Page,
-        healed_ids: set,
-        pruned_ids: set,
-        self_ref_ids: set,
-        dangling_ids: set,
-        cycle_ref_pairs: set,
-        converging_ref_pairs: set,
-        invalid_children_pairs: set,
+        drift: GraphDrift,
         reattached_ids: set,
         graph_patch: Dict[str, Any],
     ) -> None:
@@ -411,34 +407,42 @@ class PageHealingHandler:
                     "page_id": page.id,
                     "builder_id": page.builder_id,
                     "shared": page.shared,
-                    "healed_element_count": len(healed_ids),
-                    "healed_element_ids": sorted(healed_ids),
-                    "pruned_stale_count": len(pruned_ids),
-                    "pruned_stale_ids": sorted(pruned_ids),
-                    "stripped_self_reference_count": len(self_ref_ids),
-                    "stripped_self_reference_ids": sorted(self_ref_ids),
-                    "stripped_dangling_reference_count": len(dangling_ids),
-                    "stripped_dangling_reference_ids": sorted(dangling_ids),
-                    "stripped_cycle_reference_count": len(cycle_ref_pairs),
-                    "stripped_cycle_reference_pairs": sorted(cycle_ref_pairs),
-                    "stripped_converging_reference_count": len(converging_ref_pairs),
-                    "stripped_converging_reference_pairs": sorted(converging_ref_pairs),
-                    "repaired_invalid_children_edge_count": len(invalid_children_pairs),
-                    "repaired_invalid_children_edges": sorted(invalid_children_pairs),
+                    "healed_element_count": len(drift.orphan_ids),
+                    "healed_element_ids": sorted(drift.orphan_ids),
+                    "pruned_stale_count": len(drift.stale_ids),
+                    "pruned_stale_ids": sorted(drift.stale_ids),
+                    "stripped_self_reference_count": len(drift.self_ref_ids),
+                    "stripped_self_reference_ids": sorted(drift.self_ref_ids),
+                    "stripped_dangling_reference_count": len(drift.dangling_ids),
+                    "stripped_dangling_reference_ids": sorted(drift.dangling_ids),
+                    "stripped_cycle_reference_count": len(drift.cycle_ref_pairs),
+                    "stripped_cycle_reference_pairs": sorted(drift.cycle_ref_pairs),
+                    "stripped_converging_reference_count": len(
+                        drift.converging_ref_pairs
+                    ),
+                    "stripped_converging_reference_pairs": sorted(
+                        drift.converging_ref_pairs
+                    ),
+                    "repaired_invalid_children_edge_count": len(
+                        drift.invalid_children_pairs
+                    ),
+                    "repaired_invalid_children_edges": sorted(
+                        drift.invalid_children_pairs
+                    ),
                     "reattached_detached_count": len(reattached_ids),
                     "reattached_detached_ids": sorted(reattached_ids),
                     "graph_patch": graph_patch,
                 },
             )
             sentry_sdk.capture_message(
-                f"Healed {len(healed_ids)} orphan element(s), pruned "
-                f"{len(pruned_ids)} stale point(s), stripped "
-                f"{len(self_ref_ids)} self-reference(s), stripped "
-                f"{len(dangling_ids)} dangling reference(s), stripped "
-                f"{len(cycle_ref_pairs)} cycle reference(s), stripped "
-                f"{len(converging_ref_pairs)} converging reference(s), repaired "
-                f"{len(invalid_children_pairs)} invalid children edge(s) and re-attached "
-                f"{len(reattached_ids)} detached point(s) in the graph of "
-                f"builder page {page.id}.",
+                f"Healed {len(drift.orphan_ids)} orphan element(s), pruned "
+                f"{len(drift.stale_ids)} stale point(s), stripped "
+                f"{len(drift.self_ref_ids)} self-reference(s), stripped "
+                f"{len(drift.dangling_ids)} dangling reference(s), stripped "
+                f"{len(drift.cycle_ref_pairs)} cycle reference(s), stripped "
+                f"{len(drift.converging_ref_pairs)} converging reference(s), repaired "
+                f"{len(drift.invalid_children_pairs)} invalid children edge(s) and "
+                f"re-attached {len(reattached_ids)} detached point(s) in the graph "
+                f"of builder page {page.id}.",
                 level="warning",
             )
