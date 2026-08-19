@@ -34,6 +34,12 @@
   font-size: 40px;
 }
 
+.history-side-panel__items {
+  // Keeps the last (possibly expanded) run from sitting flush against the
+  // bottom of the scrollable side panel.
+  padding-bottom: 32px;
+}
+
 .history-side-panel__counts {
   display: flex;
   gap: 16px;

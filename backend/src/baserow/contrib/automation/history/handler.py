@@ -1,13 +1,16 @@
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Union
 
+from django.contrib.auth.models import AbstractUser
 from django.db.models import Prefetch, QuerySet
+from django.utils import timezone
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
+    AutomationWorkflowHistoryNotRunning,
 )
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
@@ -56,9 +59,9 @@ class AutomationHistoryHandler:
             base_queryset = AutomationWorkflowHistory.objects.all()
 
         try:
-            return base_queryset.select_related("workflow__automation__workspace").get(
-                id=history_id
-            )
+            return base_queryset.select_related(
+                "workflow__automation__workspace", "cancellation_requested_by"
+            ).get(id=history_id)
         except AutomationWorkflowHistory.DoesNotExist:
             raise AutomationWorkflowHistoryDoesNotExist(history_id)
 
@@ -87,6 +90,76 @@ class AutomationHistoryHandler:
             completed_on=completed_on,
             message=message,
         )
+
+    def request_workflow_history_cancellation(
+        self, workflow_history: AutomationWorkflowHistory, user: AbstractUser
+    ) -> AutomationWorkflowHistory:
+        """
+        Records that `user` asked for the given run to be cancelled.
+
+        This is the first phase of a cooperative cancellation: nothing is stopped
+        here. The runner reads the request fields before dispatching every node and
+        finalizes the run itself, see `finalize_workflow_history_cancellation`.
+
+        The update is conditional so that it never clobbers a run that has just
+        reached a terminal status, and so that a second request is an idempotent
+        no-op which keeps the attribution of the first requester.
+
+        :param workflow_history: The run to cancel.
+        :param user: The user requesting the cancellation.
+        :raises AutomationWorkflowHistoryNotRunning: If the run already resolved.
+        :return: The refreshed workflow history.
+        """
+
+        AutomationWorkflowHistory.objects.filter(
+            id=workflow_history.id,
+            status=HistoryStatusChoices.STARTED,
+            cancellation_requested_on__isnull=True,
+        ).update(
+            cancellation_requested_by=user,
+            cancellation_requested_on=timezone.now(),
+        )
+
+        # Whether we won the update or not, the row decides the outcome: a run that
+        # was already flagged is a no-op, a run that already resolved is an error.
+        workflow_history = self.get_workflow_history(workflow_history.id)
+        if workflow_history.status != HistoryStatusChoices.STARTED:
+            raise AutomationWorkflowHistoryNotRunning(workflow_history.id)
+
+        return workflow_history
+
+    def finalize_workflow_history_cancellation(
+        self, workflow_history: AutomationWorkflowHistory
+    ) -> bool:
+        """
+        Marks a run whose cancellation was requested as `CANCELLED`.
+
+        Called by the runner when it notices the cancellation request before
+        dispatching a node. The update is guarded on the run still being `STARTED`
+        so that it is idempotent: it never overwrites a run that was resolved in
+        the meantime (e.g. by the timeout sweep or the dispatch-done handler), and
+        it stays safe if dispatches within a run ever execute concurrently.
+
+        :param workflow_history: The run to finalize.
+        :return: True if this call performed the finalization.
+        """
+
+        # requester can be None if the user's account was deleted.
+        requester = workflow_history.cancellation_requested_by
+        if requester is not None:
+            message = f"Cancelled by {requester.first_name}."
+        else:
+            message = "Cancelled."
+
+        updated = AutomationWorkflowHistory.objects.filter(
+            id=workflow_history.id,
+            status=HistoryStatusChoices.STARTED,
+        ).update(
+            status=HistoryStatusChoices.CANCELLED,
+            completed_on=timezone.now(),
+            message=message,
+        )
+        return updated == 1
 
     def create_node_history(
         self,

@@ -54,6 +54,22 @@
         <div class="workflow-history__run-time">
           {{ totalRunTimeMessage }}
         </div>
+        <div
+          v-if="item.cancellation_requested_on"
+          class="workflow-history__cancel"
+        >
+          {{ $t('historySidePanel.cancelling') }}
+        </div>
+        <div v-else-if="canCancel" class="workflow-history__cancel">
+          <a
+            role="button"
+            class="workflow-history__cancel-link"
+            :class="{ 'workflow-history__cancel-link--disabled': cancelling }"
+            @click="cancelRun()"
+          >
+            {{ $t('historySidePanel.cancelRun') }}
+          </a>
+        </div>
       </template>
       <div
         v-if="workflowHistoryComponents.length"
@@ -74,6 +90,7 @@
 import { useStore } from 'vuex'
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 import historySuccessIcon from '@baserow/modules/core/assets/images/history-success.svg?url'
 import historyFailedIcon from '@baserow/modules/core/assets/images/history-failed.svg?url'
@@ -82,6 +99,9 @@ import NodeHistory from '@baserow/modules/automation/components/workflow/sidePan
 
 const app = useNuxtApp()
 const store = useStore()
+
+const workspace = inject('workspace')
+const workflow = inject('workflow')
 
 const props = defineProps({
   item: {
@@ -92,6 +112,45 @@ const props = defineProps({
 
 const now = ref(new Date())
 let timer = null
+
+const cancelling = ref(false)
+
+/**
+ * Whoever can update the workflow can cancel its runs.
+ */
+const canCancel = computed(() =>
+  app.$hasPermission(
+    'automation.workflow.update',
+    workflow.value,
+    workspace.value.id
+  )
+)
+
+/**
+ * Cancellation is cooperative: the backend records the request and the run
+ * stops before its next node is dispatched. Until then the entry shows
+ * "Cancelling..." and keeps its running timer. If the run finishes before the
+ * cancellation takes effect, the backend answers that it is not running
+ * anymore; the refetch then simply shows the terminal state.
+ */
+const cancelRun = async () => {
+  if (cancelling.value) return
+  cancelling.value = true
+  try {
+    await store.dispatch('automationHistory/cancelWorkflowRun', {
+      workflowId: workflow.value.id,
+      workflowHistoryId: props.item.id,
+    })
+  } catch (error) {
+    if (
+      error.handler?.code !== 'ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING'
+    ) {
+      notifyIf(error, 'automationWorkflow')
+    }
+  } finally {
+    cancelling.value = false
+  }
+}
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -136,6 +195,8 @@ const statusTitle = computed(() => {
       return app.$i18n.t('historySidePanel.statusError')
     case 'started':
       return app.$i18n.t('historySidePanel.statusStarted')
+    case 'cancelled':
+      return app.$i18n.t('historySidePanel.statusCancelled')
     default:
       return app.$i18n.t('historySidePanel.statusDisabled')
   }

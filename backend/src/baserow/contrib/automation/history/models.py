@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
@@ -11,7 +12,7 @@ class AutomationHistory(models.Model):
 
     status = models.CharField(
         choices=HistoryStatusChoices.choices,
-        max_length=8,
+        max_length=16,
     )
 
     class Meta:
@@ -48,6 +49,22 @@ class AutomationWorkflowHistory(AutomationHistory):
         null=True,
         blank=True,
         help_text="Event payload received by the workflow.",
+    )
+
+    cancellation_requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        db_default=None,
+        help_text="The user who requested the cancellation of this run.",
+    )
+    cancellation_requested_on = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_default=None,
+        help_text="When the cancellation of this run was requested.",
     )
 
     class Meta(AutomationHistory.Meta):
