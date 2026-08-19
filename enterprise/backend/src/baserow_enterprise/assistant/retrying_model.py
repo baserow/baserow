@@ -262,24 +262,26 @@ def _make_ollama(name: str, creds: dict[str, str | None]) -> Model:
 
 def _make_google(name: str, creds: dict[str, str | None]) -> Model:
     """Google models need a fresh httpx client per call to avoid event-loop
-    binding issues in Django async views.
+    binding issues in Django async views.  The client must come from
+    ``create_async_http_client``: a bare ``httpx.AsyncClient`` defaults to a 5s
+    timeout, which Google rejects as below its 10s minimum deadline.
     See: https://github.com/pydantic/pydantic-ai/issues/3240
     """
 
-    import httpx
+    from pydantic_ai.models import create_async_http_client
     from pydantic_ai.models.google import GoogleModel
     from pydantic_ai.providers.google import GoogleProvider
 
     return GoogleModel(
         name,
         provider=GoogleProvider(
-            api_key=creds["api_key"], http_client=httpx.AsyncClient()
+            api_key=creds["api_key"], http_client=create_async_http_client()
         ),
     )
 
 
 def _make_google_vertex(name: str, creds: dict[str, str | None]) -> Model:
-    import httpx
+    from pydantic_ai.models import create_async_http_client
     from pydantic_ai.models.google import GoogleModel
     from pydantic_ai.providers.google_cloud import GoogleCloudProvider
 
@@ -287,7 +289,7 @@ def _make_google_vertex(name: str, creds: dict[str, str | None]) -> Model:
         name,
         provider=GoogleCloudProvider(
             api_key=creds["api_key"],
-            http_client=httpx.AsyncClient(),
+            http_client=create_async_http_client(),
         ),
     )
 

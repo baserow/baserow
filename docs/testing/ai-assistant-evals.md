@@ -47,6 +47,7 @@ All configuration is via environment variables:
 | `GROQ_API_KEY` | — | Required when using a Groq model. |
 | `OPENAI_API_KEY` | — | Required when using an OpenAI model. |
 | `ANTHROPIC_API_KEY` | — | Required when using an Anthropic model. |
+| `GOOGLE_API_KEY` | — | Required when using a Google (Gemini) model. |
 
 ### API keys from a file
 

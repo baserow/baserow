@@ -13,7 +13,12 @@ from baserow.config.settings.test import TEST_ENV_VARS
 # test.py already parses TEST_ENV_FILE via dotenv_values but deliberately
 # does NOT inject non-allowlisted keys into os.environ.  We bridge that
 # gap here for the small set of keys the eval suite needs.
-_API_KEY_NAMES = ("GROQ_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY")
+_API_KEY_NAMES = (
+    "GROQ_API_KEY",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GOOGLE_API_KEY",
+)
 for _k in _API_KEY_NAMES:
     if (_v := TEST_ENV_VARS.get(_k)) and not os.environ.get(_k):
         os.environ[_k] = _v

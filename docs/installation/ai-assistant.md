@@ -87,6 +87,17 @@ BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=groq:openai/gpt-oss-120b
 GROQ_API_KEY=your_api_key
 ```
 
+### Google (Gemini)
+
+```dotenv
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=google:gemini-3.6-flash
+GOOGLE_API_KEY=your_api_key
+```
+
+Create the key in [Google AI Studio](https://aistudio.google.com/apikey). For Vertex AI,
+use the `google-cloud` prefix instead: `GOOGLE_API_KEY` is then treated as a Vertex AI
+Express Mode key, while project-based access uses Application Default Credentials.
+
 ### Ollama
 
 ```dotenv

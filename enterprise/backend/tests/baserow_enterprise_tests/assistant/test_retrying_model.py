@@ -646,3 +646,13 @@ class TestResolveModel:
             model = _resolve_model(f"{prefix}:gemini-2.0-flash")
             assert isinstance(model, GoogleModel)
             assert isinstance(model._provider, GoogleProvider)
+
+    @pytest.mark.parametrize("prefix", ["google", "google-cloud"])
+    def test_google_client_deadline_clears_the_api_minimum(self, monkeypatch, prefix):
+        """A bare httpx.AsyncClient defaults to 5s and the provider forwards it
+        as an explicit deadline, which Gemini rejects below its 10s minimum."""
+
+        monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+        model = _resolve_model(f"{prefix}:gemini-2.0-flash")
+        http_options = model._provider.client._api_client._http_options
+        assert http_options.timeout >= 10_000
