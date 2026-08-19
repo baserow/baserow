@@ -1,3 +1,5 @@
+from django.db import transaction
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
@@ -10,15 +12,20 @@ from baserow.contrib.automation.api.history.errors import (
     ERROR_AUTOMATION_NODE_HISTORY_DOES_NOT_EXIST,
     ERROR_AUTOMATION_NODE_RESULT_DOES_NOT_EXIST,
     ERROR_AUTOMATION_WORKFLOW_HISTORY_DOES_NOT_EXIST,
+    ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING,
 )
 from baserow.contrib.automation.api.history.serializers import (
     AutomationNodeHistorySerializer,
     AutomationNodeResultSerializer,
 )
+from baserow.contrib.automation.api.workflows.serializers import (
+    AutomationWorkflowHistorySerializer,
+)
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
+    AutomationWorkflowHistoryNotRunning,
 )
 from baserow.contrib.automation.history.service import AutomationHistoryService
 
@@ -66,6 +73,58 @@ class AutomationNodeHistoriesView(APIView):
                 "destinations": destinations,
             },
         )
+        return Response(serializer.data)
+
+
+class CancelAutomationWorkflowHistoryView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workflow_history_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the workflow history to cancel.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_HISTORY_TAG],
+        operation_id="cancel_automation_workflow_history",
+        description=(
+            "Requests the cancellation of a running workflow. The run stops before "
+            "the next node is dispatched; the node currently running is not "
+            "interrupted. If the run completes before the cancellation takes "
+            "effect, it resolves as completed."
+        ),
+        request=None,
+        responses={
+            200: AutomationWorkflowHistorySerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING",
+                ]
+            ),
+            404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_HISTORY_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationWorkflowHistoryDoesNotExist: (
+                ERROR_AUTOMATION_WORKFLOW_HISTORY_DOES_NOT_EXIST
+            ),
+            AutomationWorkflowHistoryNotRunning: (
+                ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING
+            ),
+        }
+    )
+    def post(self, request, workflow_history_id: int):
+        workflow_history = AutomationHistoryService().request_cancellation(
+            request.user, workflow_history_id
+        )
+        serializer = AutomationWorkflowHistorySerializer(workflow_history)
         return Response(serializer.data)
 
 

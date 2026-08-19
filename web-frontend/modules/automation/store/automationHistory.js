@@ -53,6 +53,15 @@ const actions = {
     ).getNodeResult(nodeHistoryId)
     commit('SET_NODE_RESULT', { nodeHistoryId, data: data.result })
   },
+  async cancelWorkflowRun({ dispatch }, { workflowId, workflowHistoryId }) {
+    try {
+      await AutomationHistoryService(
+        useNuxtApp().$client
+      ).cancelWorkflowHistory(workflowHistoryId)
+    } finally {
+      await dispatch('fetchWorkflowHistory', { workflowId })
+    }
+  },
   invalidate({ commit }) {
     commit('CLEAR_HISTORY_CACHES')
   },
