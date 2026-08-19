@@ -5,6 +5,7 @@ from django.db import connection
 from django.db.utils import IntegrityError
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
@@ -1723,6 +1724,75 @@ def test_mark_failure_for_timed_out_history(data_fixture):
     assert node_history.status == HistoryStatusChoices.ERROR
     assert node_history.message == error_message
     assert node_history.completed_on == timed_out_history.completed_on
+
+
+@override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
+@pytest.mark.django_db
+def test_mark_failure_for_timed_out_history_with_cancellation_requested(
+    data_fixture,
+):
+    """
+    A timed-out run whose cancellation was requested but never noticed by the
+    runner (hung node, dead worker) resolves as cancelled, not as a generic
+    timeout error. Other timed-out runs still resolve as errors.
+    """
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    with freeze_time("2026-04-16 12:00:00"):
+        cancelled_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+            cancellation_requested_by=user,
+            cancellation_requested_on=timezone.now(),
+        )
+        cancelled_node_history = AutomationNodeHistory.objects.create(
+            workflow_history=cancelled_history,
+            node=workflow.get_trigger(),
+            started_on=cancelled_history.started_on,
+            status=HistoryStatusChoices.STARTED,
+        )
+        timed_out_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+        )
+
+    with freeze_time("2026-04-16 12:59:00"):
+        # Cancellation requested, but the run hasn't timed out yet.
+        running_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+            cancellation_requested_by=user,
+            cancellation_requested_on=timezone.now(),
+        )
+
+    with freeze_time("2026-04-16 13:00:01"):
+        AutomationWorkflowHandler().mark_failure_for_timed_out_history()
+
+    error_message = "This workflow took too long and was timed out."
+
+    cancelled_history.refresh_from_db()
+    assert cancelled_history.status == HistoryStatusChoices.CANCELLED
+    assert cancelled_history.message == (
+        "Cancellation was requested and the run was force-stopped after timing out."
+    )
+    assert cancelled_history.completed_on is not None
+
+    # The hung node itself is still reported as timed out.
+    cancelled_node_history.refresh_from_db()
+    assert cancelled_node_history.status == HistoryStatusChoices.ERROR
+    assert cancelled_node_history.message == error_message
+    assert cancelled_node_history.completed_on == cancelled_history.completed_on
+
+    timed_out_history.refresh_from_db()
+    assert timed_out_history.status == HistoryStatusChoices.ERROR
+    assert timed_out_history.message == error_message
+    assert timed_out_history.completed_on == cancelled_history.completed_on
+
+    running_history.refresh_from_db()
+    assert running_history.status == HistoryStatusChoices.STARTED
+    assert running_history.completed_on is None
 
 
 @pytest.mark.django_db

@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added the ability to cancel a running automation workflow.",
+    "issue_origin": "github",
+    "issue_number": 5587,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-08-19"
+}
