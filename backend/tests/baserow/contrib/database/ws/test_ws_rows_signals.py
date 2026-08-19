@@ -16,7 +16,11 @@ from baserow.contrib.database.rows.registries import (
     RowMetadataType,
     row_metadata_registry,
 )
-from baserow.test_utils.helpers import AnyInt, register_instance_temporarily
+from baserow.test_utils.helpers import (
+    AnyInt,
+    register_instance_temporarily,
+    setup_interesting_test_table,
+)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -125,12 +129,15 @@ def test_row_updated(mock_broadcast_to_channel_group, data_fixture):
     assert args[0][0] == f"table-{table.id}"
     assert args[0][1]["type"] == "rows_updated"
     assert args[0][1]["table_id"] == table.id
+    # before_return still contains all fields (before_rows_update signal
+    # does not pass serialize_only_updated_fields)
     assert args[0][1]["rows_before_update"][0]["id"] == row.id
     assert args[0][1]["rows_before_update"][0][f"field_{field.id}"] is None
     assert args[0][1]["rows_before_update"][0][f"field_{field_2.id}"] is None
+    # rows payload contains only the updated field (serialize_only_updated_fields=True)
     assert args[0][1]["rows"][0]["id"] == row.id
     assert args[0][1]["rows"][0][f"field_{field.id}"] == "Test"
-    assert args[0][1]["rows"][0][f"field_{field_2.id}"] is None
+    assert f"field_{field_2.id}" not in args[0][1]["rows"][0]
     assert args[0][1]["metadata"] == {}
 
     row.refresh_from_db()
@@ -146,7 +153,8 @@ def test_row_updated(mock_broadcast_to_channel_group, data_fixture):
     assert args[0][1]["table_id"] == table.id
     assert args[0][1]["rows"][0]["id"] == row.id
     assert args[0][1]["rows"][0][f"field_{field.id}"] == "First"
-    assert args[0][1]["rows"][0][f"field_{field_2.id}"] == "Second"
+    # field_2 not in payload — only field_1 was updated
+    assert f"field_{field_2.id}" not in args[0][1]["rows"][0]
     assert args[0][1]["metadata"] == {}
 
 
@@ -198,8 +206,94 @@ def test_row_updated_with_metadata(mock_broadcast_to_channel_group, data_fixture
     assert args[0][1]["rows_before_update"][0][f"field_{field_2.id}"] is None
     assert args[0][1]["rows"][0]["id"] == row.id
     assert args[0][1]["rows"][0][f"field_{field.id}"] == "Test"
-    assert args[0][1]["rows"][0][f"field_{field_2.id}"] is None
+    assert f"field_{field_2.id}" not in args[0][1]["rows"][0]
     assert args[0][1]["metadata"] == {"1": {"row_id": row.id}}
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_row_updated_serializes_only_updated_fields(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    table, user, row, _, context = setup_interesting_test_table(data_fixture)
+    n2id = context["name_to_field_id"]
+    text_field_id = n2id["text"]
+
+    mock_broadcast_to_channel_group.reset_mock()
+    RowHandler().update_row_by_id(
+        user=user,
+        table=table,
+        row_id=row.id,
+        values={f"field_{text_field_id}": "changed"},
+    )
+
+    args = mock_broadcast_to_channel_group.delay.call_args
+    payload = args[0][1]
+    assert payload["type"] == "rows_updated"
+
+    row_data = payload["rows"][0]
+    updated_ids = set(payload["updated_field_ids"])
+    row_field_keys = {k for k in row_data if k.startswith("field_")}
+
+    assert row_data[f"field_{text_field_id}"] == "changed"
+    assert f"field_{n2id['last_modified_datetime_us']}" in row_data
+    for key in row_field_keys:
+        fid = int(key.split("_", 1)[1])
+        assert fid in updated_ids, f"{key} in payload but not in updated_field_ids"
+
+    unrelated_keys = {
+        f"field_{n2id[name]}"
+        for name in ("long_text", "url", "email", "boolean", "phone_number")
+    }
+    for key in unrelated_keys:
+        assert key not in row_data, f"{key} should not be in partial payload"
+
+    before_data = payload["rows_before_update"][0]
+    for key in unrelated_keys:
+        assert key in before_data, f"{key} missing from before_rows_update"
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_batch_row_updated_serializes_only_updated_fields(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    table, user, row, blank_row, context = setup_interesting_test_table(data_fixture)
+    n2id = context["name_to_field_id"]
+    text_field_id = n2id["text"]
+
+    mock_broadcast_to_channel_group.reset_mock()
+    with transaction.atomic():
+        RowHandler().update_rows(
+            user,
+            table,
+            [
+                {"id": row.id, f"field_{text_field_id}": "batch1"},
+                {"id": blank_row.id, f"field_{text_field_id}": "batch2"},
+            ],
+        )
+
+    args = mock_broadcast_to_channel_group.delay.call_args
+    payload = args[0][1]
+    assert payload["type"] == "rows_updated"
+
+    updated_ids = set(payload["updated_field_ids"])
+    unrelated_keys = {
+        f"field_{n2id[name]}"
+        for name in ("long_text", "url", "email", "boolean", "phone_number")
+    }
+
+    for row_data in payload["rows"]:
+        row_field_keys = {k for k in row_data if k.startswith("field_")}
+        for key in row_field_keys:
+            fid = int(key.split("_", 1)[1])
+            assert fid in updated_ids, f"{key} in payload but not in updated_field_ids"
+        for key in unrelated_keys:
+            assert key not in row_data
+
+    for before_data in payload["rows_before_update"]:
+        for key in unrelated_keys:
+            assert key in before_data
 
 
 @pytest.mark.django_db(transaction=True)
