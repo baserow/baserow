@@ -2079,13 +2079,6 @@ class RowHandler:
         )
 
         configuration = configuration or {}
-        if configuration.get("upsert_fields"):
-            CoreHandler().check_permissions(
-                user,
-                UpdateDatabaseRowOperationType.type,
-                workspace=workspace,
-                context=table,
-            )
 
         model = table.get_model()
 
@@ -2208,6 +2201,14 @@ class RowHandler:
                     rows_values_to_create.append(row)
         else:
             rows_values_to_create = valid_rows
+
+        if rows_values_to_update:
+            CoreHandler().check_permissions(
+                user,
+                UpdateDatabaseRowOperationType.type,
+                workspace=workspace,
+                context=table,
+            )
 
         changed_rows = len(rows_values_to_create) + len(rows_values_to_update)
         full_field_search_update = self._should_use_full_field_search_update_for_import(

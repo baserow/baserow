@@ -1172,6 +1172,41 @@ def test_import_rows_create_still_works_when_update_denied(data_fixture):
 
 
 @pytest.mark.django_db
+def test_import_rows_upsert_insert_only_works_when_update_denied(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(
+        table=table, name="Name", text_default="", order=1
+    )
+
+    handler = RowHandler()
+
+    def deny_update(actor, operation_name, **kwargs):
+        if operation_name == UpdateDatabaseRowOperationType.type:
+            raise PermissionDenied(actor)
+        return True
+
+    with patch(
+        "baserow.contrib.database.rows.handler.CoreHandler.check_permissions",
+        side_effect=deny_update,
+    ):
+        rows, _ = handler.import_rows(
+            user=user,
+            table=table,
+            data=[["Alice"], ["Bob"]],
+            configuration={
+                "upsert_fields": [name_field.id],
+                "upsert_values": [["Alice"], ["Bob"]],
+            },
+            send_realtime_update=False,
+        )
+        assert len(rows) == 2
+
+    model = table.get_model()
+    assert model.objects.count() == 2
+
+
+@pytest.mark.django_db
 @patch(
     "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
 )
