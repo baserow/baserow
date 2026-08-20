@@ -232,53 +232,26 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         else:
             return field
 
-    def order_by_fields_string(
-        self, order_string, user_field_names=False, only_order_by_field_ids=None
+    def _parse_order_fields(
+        self,
+        order_string,
+        user_field_names,
+        field_object_dict,
+        only_order_by_field_ids,
     ):
         """
-        Orders the query by the given field order string. This string is often
-        directly forwarded from a GET, POST or other user provided parameter.
-        Multiple fields can be provided by separating the values by a comma. When
-        user_field_names is False the order_string must contain a comma separated
-        list of field ids. The field id is extracted from the string so it can either
-        be provided as field_1, 1, id_1, etc. When user_field_names is True the
-        order_string is treated as a comma separated list of the actual field names,
-        use quotes to wrap field names containing commas.
-
-        :param order_string: The field ids to order the queryset by separated by a
-            comma. For example `field_1,2` which will order by field with id 1 first
-            and then by field with id 2 second.
-        :type order_string: str
-        :param user_field_names: If true then the order_string is instead treated as
-        a comma separated list of actual field names and not field ids.
-        :type user_field_names: bool
-        :param only_order_by_field_ids: Only field ids in this iterable will be
-            ordered by. Other fields not in the iterable will be ignored and not be
-            filtered.
-        :type only_order_by_field_ids: Optional[Iterable[int]]
-        :raises OrderByFieldNotFound: when the provided field id is not found in the
-            model.
-        :raises OrderByFieldNotPossible: when it is not possible to order by the
-            field's type.
-        :return: The queryset ordered by the provided order_string.
-        :rtype: QuerySet
+        Parses a comma-separated order string into a list of
+        ``(field_object, order_direction, sort_type)`` tuples, validating each
+        entry against the model's field objects.
         """
 
         try:
-            order_by_fields = split_comma_separated_string(order_string)
+            raw_fields = split_comma_separated_string(order_string)
         except ValueError:
             raise OrderByFieldNotFound(order_string)
 
-        if user_field_names:
-            field_object_dict = {
-                o["field"].name: o for o in self.model._field_objects.values()
-            }
-        else:
-            field_object_dict = self.model._field_objects
-
-        annotations = {}
-        order_by = []
-        for order in order_by_fields:
+        parsed = []
+        for order in raw_fields:
             if user_field_names:
                 field_name_or_id = self._get_field_name(order)
             else:
@@ -296,13 +269,10 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
             field_object = field_object_dict[field_name_or_id]
             field_type = field_object["type"]
             field_name = field_object["name"]
-            field = field_object["field"]
             user_field_name = field_object["field"].name
             error_display_name = user_field_name if user_field_names else field_name
 
-            if not field_object["type"].check_can_order_by(
-                field_object["field"], sort_type
-            ):
+            if not field_type.check_can_order_by(field_object["field"], sort_type):
                 raise OrderByFieldNotPossible(
                     error_display_name,
                     field_type.type,
@@ -310,15 +280,102 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
                     f"It is not possible to order by field type {field_type.type} using sort type {sort_type}.",
                 )
 
-            field_annotated_order_by = field_type.get_order(
-                field, field_name, order_direction, sort_type, table_model=self.model
-            )
+            parsed.append((field_object, order_direction, sort_type))
+        return parsed
 
-            if field_annotated_order_by.annotation is not None:
-                annotations = {**annotations, **field_annotated_order_by.annotation}
-            field_order_bys = field_annotated_order_by.order_bys
-            for field_order_by in field_order_bys:
-                order_by.append(field_order_by)
+    def order_by_fields_string(
+        self,
+        order_string,
+        user_field_names=False,
+        only_order_by_field_ids=None,
+        group_by_string=None,
+    ):
+        """
+        Orders the query by the given field order string. This string is often
+        directly forwarded from a GET, POST or other user provided parameter.
+        Multiple fields can be provided by separating the values by a comma. When
+        user_field_names is False the order_string must contain a comma separated
+        list of field ids. The field id is extracted from the string so it can either
+        be provided as field_1, 1, id_1, etc. When user_field_names is True the
+        order_string is treated as a comma separated list of the actual field names,
+        use quotes to wrap field names containing commas.
+
+        When ``group_by_string`` is provided, those fields are ordered first using
+        ``get_group_by_sort_order`` (set-based ordering for M2M fields), followed
+        by the regular sort fields from ``order_string`` using ``get_order``.
+
+        :param order_string: The field ids to order the queryset by separated by a
+            comma. For example `field_1,2` which will order by field with id 1 first
+            and then by field with id 2 second.
+        :type order_string: str
+        :param user_field_names: If true then the order_string is instead treated as
+        a comma separated list of actual field names and not field ids.
+        :type user_field_names: bool
+        :param only_order_by_field_ids: Only field ids in this iterable will be
+            ordered by. Other fields not in the iterable will be ignored and not be
+            filtered.
+        :type only_order_by_field_ids: Optional[Iterable[int]]
+        :param group_by_string: Optional comma-separated field string (same format
+            as ``order_string``) whose fields use ``get_group_by_sort_order``
+            instead of ``get_order``. Group-by fields are ordered before sort
+            fields.
+        :type group_by_string: Optional[str]
+        :raises OrderByFieldNotFound: when the provided field id is not found in the
+            model.
+        :raises OrderByFieldNotPossible: when it is not possible to order by the
+            field's type.
+        :return: The queryset ordered by the provided order_string.
+        :rtype: QuerySet
+        """
+
+        if user_field_names:
+            field_object_dict = {
+                o["field"].name: o for o in self.model._field_objects.values()
+            }
+        else:
+            field_object_dict = self.model._field_objects
+
+        annotations = {}
+        order_by = []
+
+        # Group-by fields first — use get_group_by_sort_order for set-based
+        # ordering (e.g. ArrayAgg for M2M fields).
+        if group_by_string:
+            for field_object, direction, sort_type in self._parse_order_fields(
+                group_by_string,
+                user_field_names,
+                field_object_dict,
+                only_order_by_field_ids,
+            ):
+                annotated = field_object["type"].get_group_by_sort_order(
+                    field_object["field"],
+                    field_object["name"],
+                    direction,
+                    sort_type,
+                    table_model=self.model,
+                )
+                if annotated.annotation is not None:
+                    annotations = {**annotations, **annotated.annotation}
+                order_by.extend(annotated.order_bys)
+
+        # Sort fields — use get_order for regular ordering.
+        if order_string:
+            for field_object, direction, sort_type in self._parse_order_fields(
+                order_string,
+                user_field_names,
+                field_object_dict,
+                only_order_by_field_ids,
+            ):
+                annotated = field_object["type"].get_order(
+                    field_object["field"],
+                    field_object["name"],
+                    direction,
+                    sort_type,
+                    table_model=self.model,
+                )
+                if annotated.annotation is not None:
+                    annotations = {**annotations, **annotated.annotation}
+                order_by.extend(annotated.order_bys)
 
         order_by.append("order")
         order_by.append("id")

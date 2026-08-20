@@ -9,6 +9,7 @@ import {
   getFilters,
   getOrderBy,
   getRowSortFunction,
+  serializeGroupBys,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
 import ViewService from '@baserow/modules/database/services/view'
@@ -337,6 +338,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
         orderBy: getOrderBy(view, adhocSorting),
+        groupBy: serializeGroupBys(view),
         filters: getFilters(view, adhocFiltering),
         ...initialRowArguments,
       })
@@ -422,6 +424,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           publicUrl: rootGetters['page/view/public/getIsPublic'],
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
           orderBy: getOrderBy(view, getters.getAdhocSorting),
+          groupBy: serializeGroupBys(view),
           filters: getFilters(view, getters.getAdhocFiltering),
         })
         // Don't do anything if the viewId does not match the current view viewId
@@ -532,6 +535,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
             publicUrl: rootGetters['page/view/public/getIsPublic'],
             publicAuthToken: rootGetters['page/view/public/getAuthToken'],
             orderBy: getOrderBy(view, adhocSorting),
+            groupBy: serializeGroupBys(view),
             filters: getFilters(view, adhocFiltering),
           })
 
@@ -602,7 +606,12 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      */
     findIndexOfNotExistingRow({ getters }, { view, fields, row }) {
       const { $registry } = this
-      const sortFunction = getRowSortFunction($registry, view.sortings, fields)
+      const sortFunction = getRowSortFunction(
+        $registry,
+        view.sortings,
+        fields,
+        view.group_bys || []
+      )
       const allRows = getters.getRows
       let index = allRows.findIndex((existingRow) => {
         return existingRow !== null && sortFunction(row, existingRow) < 0
@@ -636,7 +645,12 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      */
     findIndexOfExistingRow({ dispatch, getters }, { view, fields, row }) {
       const { $registry } = this
-      const sortFunction = getRowSortFunction($registry, view.sortings, fields)
+      const sortFunction = getRowSortFunction(
+        $registry,
+        view.sortings,
+        fields,
+        view.group_bys || []
+      )
       const allRows = getters.getRows
       let index = allRows.findIndex((existingRow) => {
         return existingRow !== null && existingRow.id === row.id

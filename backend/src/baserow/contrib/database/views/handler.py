@@ -398,7 +398,7 @@ class ViewIndexingHandler:
 
         field_order_bys = []
 
-        for view_sort_or_group_by in view.get_all_sorts():
+        for view_sort_or_group_by in view.get_all_ordering():
             field_object = model._field_objects[view_sort_or_group_by.field_id]
             annotated_order_by = field_object["type"].get_order(
                 field_object["field"],
@@ -2095,7 +2095,7 @@ class ViewHandler:
         """
 
         order_by = []
-        for view_sort_or_group_by in view.get_all_sorts(restrict_to_field_ids):
+        for view_sort_or_group_by in view.get_all_ordering(restrict_to_field_ids):
             # If the to be sort field is not present in the `_field_objects` we
             # cannot filter so we raise a ValueError.
             if view_sort_or_group_by.field_id not in model._field_objects:
@@ -2137,7 +2137,7 @@ class ViewHandler:
 
         return order_by, queryset
 
-    def apply_sorting(
+    def apply_ordering(
         self,
         view: View,
         queryset: QuerySet,
@@ -3099,7 +3099,7 @@ class ViewHandler:
         if view_type.can_filter and apply_filters:
             queryset = self.apply_filters(view, queryset)
         if view_type.can_sort and apply_sorts:
-            queryset = self.apply_sorting(
+            queryset = self.apply_ordering(
                 view,
                 queryset,
                 only_sort_by_field_ids,
@@ -3909,23 +3909,17 @@ class ViewHandler:
         queryset = table_model.objects.all().enhance_by_fields()
         queryset = self.apply_filters(view, queryset)
 
-        if view_type.can_group_by:
-            has_group_by = group_by is not None and group_by != ""
-            has_order_by = order_by is not None and order_by != ""
-            # If both the group by and order by string is set, then we must merge the
-            # two so that it will be sorted the right way because the grouping is
-            # basically just sorting for the backend. However, the group by will take
-            # precedence.
-            if has_group_by and has_order_by:
-                order_by = f"{group_by},{order_by}"
-            # If only the group_by is set, then we can simply replace the order_by
-            # because that must be applied to the queryset.
-            elif has_group_by:
-                order_by = group_by
+        group_by_for_ordering = group_by if view_type.can_group_by else None
+        has_adhoc_ordering = (order_by is not None and order_by != "") or (
+            group_by_for_ordering is not None and group_by_for_ordering != ""
+        )
 
-        if order_by is not None and order_by != "":
+        if has_adhoc_ordering:
             queryset = queryset.order_by_fields_string(
-                order_by, False, visible_field_ids
+                order_by or "",
+                False,
+                visible_field_ids,
+                group_by_string=group_by_for_ordering,
             )
 
         if adhoc_filters.has_any_filters:

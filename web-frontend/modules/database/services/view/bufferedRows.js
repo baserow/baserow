@@ -18,6 +18,7 @@ export default (client, storePrefix) => {
       publicUrl = false,
       publicAuthToken = null,
       orderBy = null,
+      groupBy = null,
       filters = {},
       includeFields = [],
       excludeFields = [],
@@ -54,6 +55,10 @@ export default (client, storePrefix) => {
 
       if (orderBy || orderBy === '') {
         params.append('order_by', orderBy)
+      }
+
+      if (groupBy) {
+        params.append('group_by', groupBy)
       }
 
       if (includeFields.length > 0) {

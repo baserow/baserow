@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed blank rows appearing in grouped grid views for Editor-role users when grouping by a multiple select or multiple collaborators field. Separated group-by from order-by in frontend API calls so each uses the correct sort semantics.",
+    "issue_origin": "github",
+    "issue_number": 5937,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-20"
+}

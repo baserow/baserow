@@ -8,6 +8,7 @@ import {
   getFilters,
   getOrderBy,
   getRowSortFunction,
+  serializeGroupBys,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
@@ -250,6 +251,7 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       orderBy: getOrderBy(view, adhocSorting),
+      groupBy: serializeGroupBys(view),
       filters: getFilters(view, adhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
@@ -295,6 +297,7 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       orderBy: getOrderBy(view, getters.getAdhocSorting),
+      groupBy: serializeGroupBys(view),
       filters: getFilters(view, getters.getAdhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
@@ -490,7 +493,9 @@ export const actions = {
 
     const sortedRows = clone(stack.results)
     sortedRows.push(row)
-    sortedRows.sort(getRowSortFunction($registry, view.sortings, fields))
+    sortedRows.sort(
+      getRowSortFunction($registry, view.sortings, fields, view.group_bys || [])
+    )
     const index = sortedRows.findIndex((r) => r.id === row.id)
     const isLast = index === sortedRows.length - 1
 
@@ -654,7 +659,9 @@ export const actions = {
     }
     newStackResults.push(newRow)
     newStackCount++
-    newStackResults.sort(getRowSortFunction($registry, view.sortings, fields))
+    newStackResults.sort(
+      getRowSortFunction($registry, view.sortings, fields, view.group_bys || [])
+    )
     const newIndex = newStackResults.findIndex((r) => r.id === newRow.id)
     const newIsLast = newIndex === newStackResults.length - 1
     const newExists =
@@ -881,7 +888,9 @@ export const actions = {
       }
       const { $registry } = this
       const sortings = view?.sortings || []
-      sortedRows.sort(getRowSortFunction($registry, sortings, fields))
+      sortedRows.sort(
+        getRowSortFunction($registry, sortings, fields, view?.group_bys || [])
+      )
       const targetIndex = sortedRows.findIndex((r) => r.id === row.id)
 
       dispatch('forceMoveRowTo', {

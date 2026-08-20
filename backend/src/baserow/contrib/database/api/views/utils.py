@@ -76,6 +76,7 @@ def get_view_filtered_queryset(
     query_params: Optional[Dict[str, Any]] = None,
     model: Optional[GeneratedTableModel] = None,
     hidden_field_ids: Optional[Set[int]] = None,
+    group_by: Optional[str] = None,
 ) -> QuerySet:
     """
     Returns a queryset that is filtered based on the provided view, adhoc filters, and
@@ -90,6 +91,9 @@ def get_view_filtered_queryset(
     :param model: The model to filter the queryset by.
     :param hidden_field_ids: Optional set of field IDs hidden from the user. When
         provided, search will be restricted to visible fields only.
+    :param group_by: The raw ``group_by`` query parameter string. Fields listed
+        here will use ``get_group_by_sort_order`` instead of ``get_order`` so
+        that their row ordering matches the group tree.
     :return: The filtered queryset.
     """
 
@@ -100,9 +104,12 @@ def get_view_filtered_queryset(
         query_params = {}
 
     has_adhoc_filters = filters is not None and filters.has_any_filters
-    has_adhoc_sorts = order_by is not None
     search_value = query_params.get("search")
     search_mode = query_params.get("search_mode")
+
+    has_adhoc_ordering = (order_by is not None and order_by != "") or (
+        group_by is not None and group_by != ""
+    )
 
     only_search_by_field_ids = None
     if hidden_field_ids:
@@ -115,7 +122,7 @@ def get_view_filtered_queryset(
     queryset = ViewHandler().get_queryset(
         user,
         view,
-        apply_sorts=not has_adhoc_sorts,
+        apply_sorts=not has_adhoc_ordering,
         apply_filters=not has_adhoc_filters,
         search=search_value,
         search_mode=search_mode,
@@ -123,8 +130,10 @@ def get_view_filtered_queryset(
         only_search_by_field_ids=only_search_by_field_ids,
     )
 
-    if has_adhoc_sorts:
-        queryset = queryset.order_by_fields_string(order_by, False)
+    if has_adhoc_ordering:
+        queryset = queryset.order_by_fields_string(
+            order_by or "", False, group_by_string=group_by
+        )
 
     if has_adhoc_filters:
         queryset = filters.apply_to_queryset(model, queryset)

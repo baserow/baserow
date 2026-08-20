@@ -21,6 +21,7 @@ from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
     ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION,
     ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION_NO_COMBINE,
+    ADHOC_GROUP_BY_API_PARAM,
     ADHOC_SORTING_API_PARAM,
     EXCLUDE_COUNT_API_PARAM,
     EXCLUDE_FIELDS_API_PARAM,
@@ -231,6 +232,7 @@ class GridViewView(APIView):
             *PAGINATION_API_PARAMS,
             *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
             ADHOC_SORTING_API_PARAM,
+            ADHOC_GROUP_BY_API_PARAM,
             INCLUDE_FIELDS_API_PARAM,
             EXCLUDE_FIELDS_API_PARAM,
             SEARCH_VALUE_API_PARAM,
@@ -321,6 +323,7 @@ class GridViewView(APIView):
         exclude_fields = request.GET.get("exclude_fields")
         adhoc_filters = AdHocFilters.from_request(request)
         order_by = request.GET.get("order_by")
+        group_by = request.GET.get("group_by")
 
         view_handler = ViewHandler()
         view = view_handler.get_view_as_user(
@@ -353,6 +356,7 @@ class GridViewView(APIView):
             order_by,
             query_params,
             hidden_field_ids=hidden_field_ids,
+            group_by=group_by,
         )
         model = queryset.model
 

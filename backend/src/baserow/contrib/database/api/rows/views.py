@@ -442,7 +442,7 @@ class RowsView(APIView):
             model = table.get_model()
             queryset = model.objects.all().enhance_by_fields(**field_kwargs)
             queryset = view_handler.apply_filters(view, queryset)
-            queryset = view_handler.apply_sorting(view, queryset)
+            queryset = view_handler.apply_ordering(view, queryset)
         else:
             model = table.get_model(
                 fields=fields,

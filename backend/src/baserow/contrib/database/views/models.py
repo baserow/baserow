@@ -238,7 +238,7 @@ class View(
             ),
         ]
 
-    def get_all_sorts(
+    def get_all_ordering(
         self, restrict_to_field_ids: Optional[Iterable[int]] = None
     ) -> Iterable["Union[ViewGroupBy, ViewSort]"]:
         """
