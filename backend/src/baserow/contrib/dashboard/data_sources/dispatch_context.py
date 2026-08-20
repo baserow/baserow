@@ -29,6 +29,7 @@ class DashboardDispatchContext(DispatchContext):
         offset, count = 0, None
         return [offset, count]
 
+    @property
     def is_publicly_searchable(self):
         return False
 
@@ -38,18 +39,21 @@ class DashboardDispatchContext(DispatchContext):
     def searchable_fields(self):
         return []
 
+    @property
     def is_publicly_filterable(self):
         return False
 
     def filters(self):
         return None
 
+    @property
     def is_publicly_sortable(self):
         return False
 
     def sortings(self):
         return None
 
+    @property
     def public_allowed_properties(self):
         return None
 
