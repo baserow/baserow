@@ -517,6 +517,9 @@ export class FilenameContainsViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
+    if (rowValue == null) {
+      return filterValue === ''
+    }
     return fieldType.containsFilter(rowValue, filterValue, field)
   }
 }
@@ -593,10 +596,7 @@ export class FilesLowerThanViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (rowValue == null) {
-      return true
-    }
-    return rowValue.length < parseInt(filterValue)
+    return (rowValue ?? []).length < parseInt(filterValue)
   }
 }
 
@@ -2336,10 +2336,7 @@ export class SingleSelectNotEqualViewFilterType extends ViewFilterType {
       return null
     }
 
-    return (
-      rowValue == null ||
-      (rowValue != null && rowValue.id !== parseInt(filterValue))
-    )
+    return rowValue == null || rowValue.id !== parseInt(filterValue)
   }
 }
 
