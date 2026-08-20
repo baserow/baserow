@@ -54,5 +54,10 @@ export default defineNuxtModule({
         locales,
       })
     })
+
+    // Database specific styles. Added as its own entry rather than replacing
+    // core's, so it lands after whichever default.scss premium or enterprise
+    // has put in first place.
+    nuxt.options.css.push(resolve('./assets/scss/default.scss'))
   },
 })
