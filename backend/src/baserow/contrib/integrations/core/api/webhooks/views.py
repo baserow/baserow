@@ -1,6 +1,9 @@
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
+from django.utils.datastructures import MultiValueDict
 
 from drf_spectacular.utils import extend_schema
+from rest_framework.exceptions import ParseError, UnsupportedMediaType
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT
@@ -52,8 +55,34 @@ class CoreHTTPTriggerView(APIView):
     def handle_request_data(self, request):
         headers = {key: value for key, value in request.headers.items()}
         query_params = dict(request.GET.items())
-        raw_body = request.body.decode("utf-8") if request.body else ""
-        body = request.data if hasattr(request, "data") else {}
+
+        # The sender is an arbitrary third-party system, so the body can
+        # arrive in any encoding; it must never cause a 500. `request.body`
+        # must be accessed before `request.data`, because multipart parsing
+        # consumes the request stream.
+        raw_body = ""
+        if request.body:
+            charset = (request.content_params or {}).get("charset")
+            try:
+                raw_body = request.body.decode(charset or "utf-8")
+            except (UnicodeDecodeError, LookupError):
+                raw_body = request.body.decode("utf-8", errors="replace")
+
+        try:
+            body = request.data
+        except (UnsupportedMediaType, ParseError):
+            body = {}
+
+        if isinstance(body, MultiValueDict):
+            # Form and multipart bodies can contain `UploadedFile` values,
+            # which wouldn't survive the JSON serialization towards the
+            # workflow's Celery task; keep only the plain form fields.
+            fields = {}
+            for key, values in body.lists():
+                values = [v for v in values if not isinstance(v, UploadedFile)]
+                if values:
+                    fields[key] = values[0] if len(values) == 1 else values
+            body = fields
 
         return {
             "method": request.method,
