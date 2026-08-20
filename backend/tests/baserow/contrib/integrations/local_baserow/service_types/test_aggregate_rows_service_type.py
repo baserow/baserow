@@ -681,3 +681,27 @@ def test_create_local_baserow_aggregate_rows_service_with_unsupported_aggregatio
         match=f"The {unsupported_agg_type} aggregation type is not currently supported.",
     ):
         service_type.prepare_values({"aggregation_type": unsupported_agg_type}, user)
+
+
+def test_local_baserow_aggregate_rows_extract_properties_with_empty_path():
+    """
+    When path is empty, e.g. `get('data_source.606')`, extract_properties should
+    return all properties instead of raising an IndexError.
+    """
+
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+
+    assert service_type.extract_properties(Mock(), []) == ["result"]
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        (["result"], ["result"]),
+        (["field_123"], []),
+    ],
+)
+def test_local_baserow_aggregate_rows_extract_properties(path, expected):
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+
+    assert service_type.extract_properties(Mock(), path) == expected
