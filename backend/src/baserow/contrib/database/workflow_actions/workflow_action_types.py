@@ -8,7 +8,7 @@ from django.db.models import Prefetch, QuerySet
 from rest_framework.fields import empty
 
 from baserow.api.services.serializers import PolymorphicServiceRequestSerializer
-from baserow.contrib.database.api.workflow_actions.service_serializers import (
+from baserow.contrib.database.api.workflow_actions.serializers import (
     DatabasePolymorphicServiceSerializer,
 )
 from baserow.contrib.database.workflow_actions.models import (

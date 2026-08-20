@@ -1,8 +1,9 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from django.http import HttpRequest
 
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.utils import ServiceAdhocRefinements
 
 if TYPE_CHECKING:
     from baserow.contrib.dashboard.widgets.models import Widget
@@ -10,6 +11,7 @@ if TYPE_CHECKING:
 
 class DashboardDispatchContext(DispatchContext):
     own_properties = [
+        "request",
         "widget",
     ]
 
@@ -51,4 +53,6 @@ class DashboardDispatchContext(DispatchContext):
     def public_allowed_properties(self):
         return None
 
-    def validate_filter_search_sort_fields(self): ...
+    def validate_filter_search_sort_fields(
+        self, fields: List[str], refinement: ServiceAdhocRefinements
+    ): ...
