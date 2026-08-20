@@ -199,7 +199,7 @@ class PageHandler:
             self.is_page_path_unique(
                 page.builder,
                 path,
-                base_queryset=Page.objects.exclude(
+                base_queryset=Page.objects_and_trash.exclude(
                     id=page.id
                 ),  # We don't want to conflict with the current page
                 raises=True,
@@ -372,7 +372,11 @@ class PageHandler:
         :return: A unique name to use.
         """
 
-        existing_pages_names = list(builder.page_set.values_list("name", flat=True))
+        existing_pages_names = list(
+            Page.objects_and_trash.filter(builder=builder).values_list(
+                "name", flat=True
+            )
+        )
         return find_unused_name([proposed_name], existing_pages_names, max_length=255)
 
     def find_unused_page_path(self, builder: Builder, proposed_path: str) -> str:
@@ -388,7 +392,11 @@ class PageHandler:
         if page_path.endswith("/"):
             page_path = page_path[:-1]
 
-        existing_paths = list(builder.page_set.values_list("path", flat=True))
+        existing_paths = list(
+            Page.objects_and_trash.filter(builder=builder).values_list(
+                "path", flat=True
+            )
+        )
         return find_unused_name(
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
@@ -499,7 +507,7 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects if base_queryset is None else base_queryset
+        queryset = Page.objects_and_trash if base_queryset is None else base_queryset
 
         existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
 

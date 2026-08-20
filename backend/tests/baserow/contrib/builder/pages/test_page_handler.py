@@ -26,6 +26,7 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
@@ -286,6 +287,23 @@ def test_duplicate_application_preserves_multi_page_header_children(data_fixture
     assert imported_child.parent_element_id == imported_header.id
 
 
+@pytest.mark.django_db
+def test_duplicate_page_when_previous_duplicate_is_trashed(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder, path="/test")
+
+    first_clone = PageHandler().duplicate_page(page)
+    assert first_clone.path == "/test/2"
+
+    TrashHandler.trash(user, builder.workspace, builder, first_clone)
+
+    # The trashed clone still holds /test/2 under the (builder, path) unique
+    # constraint, so the next duplicate must skip to the next free path.
+    second_clone = PageHandler().duplicate_page(page)
+    assert second_clone.path == "/test/3"
+
+
 def test_is_page_path_valid():
     assert PageHandler().is_page_path_valid("test/", []) is True
     assert PageHandler().is_page_path_valid("test/:id", []) is False
@@ -344,6 +362,18 @@ def test_find_unused_page_path(data_fixture):
 
 
 @pytest.mark.django_db
+def test_find_unused_page_path_with_trashed_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    data_fixture.create_builder_page(builder=builder, path="/test")
+    trashed_page = data_fixture.create_builder_page(builder=builder, path="/test/2")
+
+    TrashHandler.trash(user, builder.workspace, builder, trashed_page)
+
+    assert PageHandler().find_unused_page_path(builder, "/test") == "/test/3"
+
+
+@pytest.mark.django_db
 def test_is_page_path_unique(data_fixture):
     builder = data_fixture.create_builder_application()
 
@@ -373,6 +403,42 @@ def test_is_page_path_unique_raises(data_fixture):
 
     with pytest.raises(PagePathNotUnique):
         PageHandler().is_page_path_unique(builder, "/test/:id", raises=True)
+
+
+@pytest.mark.django_db
+def test_is_page_path_unique_with_trashed_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    trashed_page = data_fixture.create_builder_page(builder=builder, path="/test")
+
+    TrashHandler.trash(user, builder.workspace, builder, trashed_page)
+
+    assert PageHandler().is_page_path_unique(builder, "/test") is False
+
+
+@pytest.mark.django_db
+def test_create_page_page_path_not_unique_with_trashed_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    trashed_page = data_fixture.create_builder_page(builder=builder, path="/test")
+
+    TrashHandler.trash(user, builder.workspace, builder, trashed_page)
+
+    with pytest.raises(PagePathNotUnique):
+        PageHandler().create_page(builder, name="test", path="/test")
+
+
+@pytest.mark.django_db
+def test_update_page_page_path_not_unique_with_trashed_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    trashed_page = data_fixture.create_builder_page(builder=builder, path="/taken")
+    page = data_fixture.create_builder_page(builder=builder, path="/test")
+
+    TrashHandler.trash(user, builder.workspace, builder, trashed_page)
+
+    with pytest.raises(PagePathNotUnique):
+        PageHandler().update_page(page, path="/taken")
 
 
 def test_generalise_path():
