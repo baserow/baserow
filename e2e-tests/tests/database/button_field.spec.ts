@@ -47,13 +47,14 @@ const RECONFIGURE_FIELD_INDEX = 18;
 // Phase 3: an action reading what an earlier one returned.
 const CHAINED_FIELD_INDEX = 19;
 const CHAINED_LINK_FIELD_INDEX = 20;
-const BUILDABLE_FIELD_INDEX = 21;
 const STALE_FIELD_INDEX = 22;
 const CHAINED_CROSS_FIELD_INDEX = 23;
 const INSERTABLE_FIELD_INDEX = 24;
 const BROKEN_CHAIN_FIELD_INDEX = 25;
+const DEEP_FIELD_INDEX = 26;
+const CHAINABLE_FIELD_INDEX = 27;
 // The field one test creates in the UI, which lands after all of the above.
-const CREATED_FIELD_INDEX = 26;
+const CREATED_FIELD_INDEX = 28;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
@@ -80,6 +81,8 @@ const BUTTON_FIELD_NAMES = [
   "ChainedCross",
   "Insertable",
   "BrokenChain",
+  "Deep",
+  "Chainable",
 ];
 
 let g: GridSetupResult;
@@ -309,6 +312,8 @@ test.describe("Button field", () => {
           type: "button",
           settings: { label: "BrokenChain" },
         },
+        { name: "Deep", type: "button", settings: { label: "Deep" } },
+        { name: "Chainable", type: "button", settings: { label: "Chainable" } },
       ],
     });
 
@@ -489,14 +494,18 @@ test.describe("Button field", () => {
       target: "self",
     });
 
-    // "Buildable" has one action; the editor tests add the second by hand.
-    await createRowAction(g.user, g.fieldByName["Buildable"], {
-      type: "local_baserow_create_row",
-      table: g.table,
-      fieldMappings: [
-        { field: g.fieldByName["Name"], value: "'Buildable child'" },
-      ],
-    });
+    // "Buildable" has one action; the explorer test adds a second by hand and
+    // never saves it. "Chainable" is the same shape but for the test that does
+    // save, so the two cannot tread on each other.
+    for (const name of ["Buildable", "Chainable"]) {
+      await createRowAction(g.user, g.fieldByName[name], {
+        type: "local_baserow_create_row",
+        table: g.table,
+        fieldMappings: [
+          { field: g.fieldByName["Name"], value: `'${name} child'` },
+        ],
+      });
+    }
 
     // "Stale" starts already stale: its URL action sits first and reads an
     // action that runs after it, which is the state a reorder leaves behind.
@@ -559,6 +568,37 @@ test.describe("Button field", () => {
     await createOpenUrlAction(g.user, g.fieldByName["BrokenChain"], {
       url: `concat('/never-',get('previous_action.${brokenCreate.id}.id'))`,
       target: "self",
+    });
+
+    // "Deep" is three actions, and the last reads the first, skipping the one
+    // between. An off-by-one in the scoping still satisfies a two-action chain.
+    const deepFirst = await createRowAction(g.user, g.fieldByName["Deep"], {
+      type: "local_baserow_create_row",
+      table: g.table,
+      fieldMappings: [{ field: g.fieldByName["Name"], value: "'Deep one'" }],
+    });
+    const deepSecond = await createRowAction(g.user, g.fieldByName["Deep"], {
+      type: "local_baserow_create_row",
+      table: g.table,
+      fieldMappings: [
+        {
+          field: g.fieldByName["Name"],
+          value: `concat('Deep two via ',get('previous_action.${deepFirst.id}.id'))`,
+        },
+      ],
+    });
+    await createRowAction(g.user, g.fieldByName["Deep"], {
+      type: "local_baserow_update_row",
+      table: g.table,
+      rowId: "get('row.id')",
+      fieldMappings: [
+        {
+          field: g.fieldByName["Status"],
+          value:
+            `concat(get('previous_action.${deepFirst.id}.id'),'-',` +
+            `get('previous_action.${deepSecond.id}.id'))`,
+        },
+      ],
     });
 
     // A second member of the workspace, who clicks the same buttons as the
@@ -1376,6 +1416,42 @@ test.describe("Button field", () => {
 
     const crossActions = await listWorkflowActions(g.user, fieldNamed("Cross"));
     expect(crossActions[0].service.table_id).toBe(otherTable.id);
+
+    // A chained reference names an action by id, so the copy's URL action has
+    // to point at the copy's create row action rather than the original's.
+    const copyLink = await listWorkflowActions(
+      g.user,
+      fieldNamed("ChainedLink"),
+    );
+    const originalLink = await listWorkflowActions(
+      g.user,
+      g.fieldByName["ChainedLink"],
+    );
+    expect(copyLink[0].service.table_id).toBe(copy.id);
+    expect(copyLink[1].url.formula).toContain(
+      `previous_action.${copyLink[0].id}.`,
+    );
+    // A missed remap leaves the original's id behind, which still resolves at
+    // click time and writes into the wrong table.
+    expect(copyLink[1].url.formula).not.toContain(
+      `previous_action.${originalLink[0].id}.`,
+    );
+
+    // Remapped is not the same as working, so click it on the copy.
+    await grid.goTo(g.database, copy);
+    const rowsBefore = await listRows(g.user, g.table);
+    await grid
+      .fieldCellAt(0, CHAINED_LINK_FIELD_INDEX)
+      .locator("button")
+      .click();
+    await expect(page).toHaveURL(/\/chained-\d+$/);
+
+    // The row landed in the copy, and the original was left alone.
+    const copyRows = await listRows(g.user, copy);
+    expect(
+      copyRows.filter((row) => row.Name === "Linked child").length,
+    ).toBeGreaterThan(0);
+    expect(await listRows(g.user, g.table)).toHaveLength(rowsBefore.length);
   });
 
   test("a button field made in the UI renders disabled until it has an action", async ({
@@ -1554,7 +1630,7 @@ test.describe("Button field", () => {
       }
     });
 
-    await openFieldEditor(page, "Buildable");
+    await openFieldEditor(page, "Chainable");
     await addAction(page, "Create a row");
     await pickTableOn(page, 1, "Button DB", "Tickets");
     const linkAction = await addAction(page, "Open URL");
@@ -1574,7 +1650,7 @@ test.describe("Button field", () => {
     await expect(async () => {
       const actions = await listWorkflowActions(
         g.user,
-        g.fieldByName["Buildable"],
+        g.fieldByName["Chainable"],
       );
       expect(actions.map((action) => action.type)).toEqual([
         "local_baserow_create_row",
@@ -1590,7 +1666,10 @@ test.describe("Button field", () => {
     expect(clientIdSent).toEqual([]);
 
     await grid.goTo(g.database, g.table);
-    await grid.fieldCellAt(0, BUILDABLE_FIELD_INDEX).locator("button").click();
+    await grid
+      .fieldCellAt(0, CHAINABLE_FIELD_INDEX)
+      .locator("button")
+      .click();
     await expect(page).toHaveURL(/\/fresh-\d+$/);
   });
 
@@ -1682,6 +1761,27 @@ test.describe("Button field", () => {
       const child = rows.find((row) => row.Name === "Chained child");
       expect(rows.find((row) => row.Name === "Ada").Status).toBe(
         `child ${child.id}`,
+      );
+    }).toPass({ timeout: 15_000 });
+  });
+
+  test("the third action can read the first, skipping the second", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await grid.fieldCellAt(0, DEEP_FIELD_INDEX).locator("button").click();
+
+    await expect(async () => {
+      const rows = await listRows(g.user, g.table);
+      const one = rows.find((row) => row.Name === "Deep one");
+      const two = rows.find((row) => row.Name === `Deep two via ${one.id}`);
+      expect(two).toBeDefined();
+      // Both ids at once, so the last action reached past the one before it.
+      expect(rows.find((row) => row.Name === "Ada").Status).toBe(
+        `${one.id}-${two.id}`,
       );
     }).toPass({ timeout: 15_000 });
   });
