@@ -61,8 +61,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     def range(self, service: Service) -> tuple[int, int | None]:
         """
         Should return the pagination requested for the given service. Defaults to
-        no pagination, which suits every context that doesn't dispatch a paginated
-        list service.
+        the first page at the service's own default size, which suits every
+        context that has no pagination surface of its own.
 
         :params service: The service we want the pagination for.
         :return: a tuple were the first value is the offset to apply and the second

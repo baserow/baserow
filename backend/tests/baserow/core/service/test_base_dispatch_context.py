@@ -8,7 +8,8 @@ class MinimalDispatchContext(DispatchContext):
     """A context that implements nothing but what the base class requires."""
 
 
-def test_the_default_range_is_unpaginated():
+def test_the_default_range_is_the_first_page_at_the_default_size():
+    # A `None` count leaves the page size to the service itself.
     assert MinimalDispatchContext().range(None) == (0, None)
 
 
