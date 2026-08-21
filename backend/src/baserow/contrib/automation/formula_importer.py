@@ -4,9 +4,10 @@ from typing import Dict, Union
 from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
 )
+from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula import (
+    BaserowFormulaException,
     BaserowFormulaObject,
-    BaserowFormulaSyntaxError,
     get_parse_tree_for_formula,
 )
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
@@ -48,12 +49,20 @@ def import_formula(
     try:
         tree = get_parse_tree_for_formula(formula["formula"])
         new_formula = AutomationFormulaImporter(id_mapping, **kwargs).visit(tree)
-    except BaserowFormulaSyntaxError:
-        # The formula can't be parsed, so there is nothing to migrate. It was
-        # already invalid before the import, and failing here would make the
-        # whole automation impossible to duplicate, export or import.
+    except (
+        BaserowFormulaException,
+        RecursionError,
+        InstanceTypeDoesNotExist,
+        ValueError,
+    ) as exc:
+        # The formula can't be parsed, references an unknown data provider, or
+        # contains a bogus path, so there is nothing to migrate. It was already
+        # invalid before the import, and failing here would make the whole
+        # automation impossible to duplicate, export or import.
         logger.warning(
-            "Skipping the import of an unparsable formula: %s", formula["formula"]
+            "Skipping the import of an invalid formula %r: %s",
+            formula["formula"],
+            exc,
         )
         return formula
 

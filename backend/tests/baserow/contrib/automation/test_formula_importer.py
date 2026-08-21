@@ -66,3 +66,34 @@ def test_formula_import_ignores_unparsable_formula(
     result = import_formula(BaserowFormulaObject.create(invalid), id_mapping)
 
     assert result["formula"] == invalid
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "invalid_formula",
+    [
+        pytest.param("get('unknown_provider.x')", id="InstanceTypeDoesNotExist"),
+        pytest.param(
+            "get('test_provider.abc.field_10')", id="ValueError-non-numeric-id"
+        ),
+        pytest.param("get('')", id="ValueError-empty-path"),
+        pytest.param("field_by_id(1)", id="FieldByIdReferencesAreDeprecated"),
+        pytest.param("(" * 5000 + "1" + ")" * 5000, id="RecursionError"),
+    ],
+)
+def test_formula_import_ignores_parseable_but_invalid_formula(
+    invalid_formula, mutable_automation_data_provider_registry
+):
+    """
+    A formula that parses but references an unknown data provider, a bogus
+    path, or deprecated syntax must not make the whole automation impossible
+    to duplicate, export or import either.
+    """
+
+    mutable_automation_data_provider_registry.register(TestDataProviderType())
+
+    id_mapping = defaultdict(lambda: MirrorDict())
+
+    result = import_formula(BaserowFormulaObject.create(invalid_formula), id_mapping)
+
+    assert result["formula"] == invalid_formula
