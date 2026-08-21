@@ -12,6 +12,39 @@ import {
   encodeUrlWhitespace,
   urlWithAllowedProtocol,
 } from '@baserow/modules/database/utils/buttonField'
+import { referencedActionIds } from '@baserow/modules/database/utils/workflowActionFormulas'
+import {
+  workflowActionConfig,
+  workflowActionKey,
+} from '@baserow/modules/database/utils/workflowActionReconciliation'
+
+/**
+ * Whether an action references one that no longer precedes it, which a reorder
+ * or a delete can leave behind. The reference is kept rather than cleared, so
+ * moving the action back makes it valid again.
+ */
+function staleReferenceError(app, workflowAction, applicationContext) {
+  const actions = applicationContext?.workflowActions
+  if (!Array.isArray(actions)) {
+    return null
+  }
+  const index = actions.findIndex(
+    (action) => workflowActionKey(action) === workflowActionKey(workflowAction)
+  )
+  if (index === -1) {
+    return null
+  }
+  const available = new Set(
+    actions.slice(0, index).map((action) => String(workflowActionKey(action)))
+  )
+  const missing = referencedActionIds(
+    workflowActionConfig(workflowAction)
+  ).filter((id) => !available.has(String(id)))
+
+  return missing.length > 0
+    ? app.$i18n.t('databaseWorkflowActionType.staleReference')
+    : null
+}
 
 /**
  * Base for a database workflow action backed by a service. No `execute`: a
@@ -44,6 +77,17 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
 
   getFormProps({ workflowAction, database }) {
     return { workflowAction, database }
+  }
+
+  getErrorMessage(workflowAction, applicationContext) {
+    const inherited = super.getErrorMessage(workflowAction, applicationContext)
+    if (inherited) {
+      return inherited
+    }
+    if (!workflowAction.service?.table_id) {
+      return this.app.$i18n.t('databaseWorkflowActionType.noTable')
+    }
+    return staleReferenceError(this.app, workflowAction, applicationContext)
   }
 
   getNewActionValues() {
@@ -149,6 +193,17 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
    */
   getDataSchema() {
     return null
+  }
+
+  getErrorMessage(workflowAction, applicationContext) {
+    const inherited = super.getErrorMessage(workflowAction, applicationContext)
+    if (inherited) {
+      return inherited
+    }
+    if (!workflowAction.url?.formula) {
+      return this.app.$i18n.t('databaseWorkflowActionType.noUrl')
+    }
+    return staleReferenceError(this.app, workflowAction, applicationContext)
   }
 
   /**

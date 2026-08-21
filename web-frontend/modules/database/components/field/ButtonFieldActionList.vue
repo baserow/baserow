@@ -10,6 +10,10 @@
       </ButtonText>
     </div>
 
+    <Alert v-if="misconfigured" type="warning" class="margin-bottom-2">
+      {{ $t('buttonFieldActionList.misconfigured') }}
+    </Alert>
+
     <!--
       The sortable directive reads the new order off every element child of
       this wrapper, so anything that is not an action stays outside it.
@@ -51,6 +55,13 @@
             @click="removeAction(index)"
           ></ButtonIcon>
         </div>
+        <div
+          v-if="errorFor(action)"
+          class="button-field-action-list__error"
+          data-action-error
+        >
+          {{ errorFor(action) }}
+        </div>
         <template v-if="action.type">
           <div class="button-field-action-list__separator"></div>
           <div class="button-field-action-list__form">
@@ -83,6 +94,9 @@ import {
 export default {
   name: 'ButtonFieldActionList',
   components: { ButtonFieldActionForm },
+  inject: {
+    workspace: { from: 'workspace', default: null },
+  },
   props: {
     value: {
       type: Array,
@@ -98,10 +112,28 @@ export default {
     availableActionTypes() {
       return this.$registry.getOrderedList('databaseWorkflowActionType')
     },
+    misconfigured() {
+      return this.value.some((action) => this.errorFor(action))
+    },
   },
   methods: {
     actionKey(action) {
       return workflowActionKey(action)
+    },
+    /**
+     * A warning rather than a validation gate: a half configured action is a
+     * normal state while editing, and the field saves either way.
+     */
+    errorFor(action) {
+      if (!action.type) {
+        return null
+      }
+      return this.$registry
+        .get('databaseWorkflowActionType', action.type)
+        .getErrorMessage(action, {
+          workspace: this.workspace,
+          workflowActions: this.value,
+        })
     },
     /**
      * No type until the user picks one, and no `id` until the field is saved.

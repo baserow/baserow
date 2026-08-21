@@ -47,6 +47,27 @@ export function rewriteActionFormulaIds(value, idMap) {
 }
 
 /**
+ * Every action a value's formulas reference, anywhere inside it.
+ *
+ * @param {*} value An action, or any part of one.
+ * @returns {Array<String>} The referenced ids, as they appear in the formula.
+ */
+export function referencedActionIds(value, found = new Set()) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => referencedActionIds(item, found))
+  } else if (value !== null && typeof value === 'object') {
+    if (typeof value.formula === 'string') {
+      for (const [, id] of value.formula.matchAll(PREVIOUS_ACTION_ID)) {
+        found.add(id)
+      }
+    } else {
+      Object.values(value).forEach((item) => referencedActionIds(item, found))
+    }
+  }
+  return [...found]
+}
+
+/**
  * The client ids a payload still carries after the rewrite.
  *
  * References only ever point backwards, so everything an action names is

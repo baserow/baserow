@@ -321,4 +321,110 @@ describe('ButtonFieldActionList', () => {
       wrapper.findAllComponents({ name: 'DatabaseWorkflowActionWithService' })
     ).toHaveLength(2)
   })
+
+  describe('misconfiguration', () => {
+    const CREATE = (over = {}) => ({
+      id: 1,
+      type: 'local_baserow_create_row',
+      service: { table_id: 7 },
+      ...over,
+    })
+    const OPEN_URL = (over = {}) => ({
+      id: 2,
+      type: 'open_url',
+      url: { formula: "'https://x.test'", mode: 'simple' },
+      target: 'self',
+      ...over,
+    })
+
+    const errors = (wrapper) =>
+      wrapper.findAll('[data-action-error]').map((node) => node.text())
+
+    test('a fully configured list is not marked', async () => {
+      const wrapper = await mountList([CREATE(), OPEN_URL()])
+
+      expect(errors(wrapper)).toEqual([])
+      expect(wrapper.text()).not.toContain(
+        'buttonFieldActionList.misconfigured'
+      )
+    })
+
+    test('an action with no type chosen is not marked', async () => {
+      // Half configured is a normal state while editing.
+      const wrapper = await mountList([{ [CLIENT_ID_KEY]: 'a', type: null }])
+
+      expect(errors(wrapper)).toEqual([])
+    })
+
+    test('an action with no table is marked', async () => {
+      const wrapper = await mountList([CREATE({ service: {} })])
+
+      expect(errors(wrapper)).toEqual(['databaseWorkflowActionType.noTable'])
+      expect(wrapper.text()).toContain('buttonFieldActionList.misconfigured')
+      // The copy the key resolves to, so a rename of either is caught.
+      expect(en.buttonFieldActionList.misconfigured).toBe(
+        'At least one action is misconfigured'
+      )
+    })
+
+    test('a url action with no url is marked', async () => {
+      const wrapper = await mountList([
+        OPEN_URL({ url: { formula: '', mode: 'simple' } }),
+      ])
+
+      expect(errors(wrapper)).toEqual(['databaseWorkflowActionType.noUrl'])
+    })
+
+    test('a reference to an earlier action is fine', async () => {
+      const wrapper = await mountList([
+        CREATE(),
+        OPEN_URL({
+          url: { formula: "get('previous_action.1.id')", mode: 'simple' },
+        }),
+      ])
+
+      expect(errors(wrapper)).toEqual([])
+    })
+
+    test('a reference to an action that no longer precedes it is marked', async () => {
+      // The same two actions, dragged the other way round.
+      const wrapper = await mountList([
+        OPEN_URL({
+          url: { formula: "get('previous_action.1.id')", mode: 'simple' },
+        }),
+        CREATE(),
+      ])
+
+      expect(errors(wrapper)).toEqual([
+        'databaseWorkflowActionType.staleReference',
+      ])
+    })
+
+    test('dragging it back clears the mark, with nothing retyped', async () => {
+      const chained = OPEN_URL({
+        url: { formula: "get('previous_action.1.id')", mode: 'simple' },
+      })
+      const wrapper = await mountList([chained, CREATE()])
+      expect(errors(wrapper)).toHaveLength(1)
+
+      await wrapper.setProps({ value: [CREATE(), chained] })
+
+      expect(errors(wrapper)).toEqual([])
+      // The reference is kept rather than cleared, which is what makes the
+      // reorder reversible at all.
+      expect(chained.url.formula).toBe("get('previous_action.1.id')")
+    })
+
+    test('a reference to a deleted action is marked', async () => {
+      const wrapper = await mountList([
+        OPEN_URL({
+          url: { formula: "get('previous_action.99.id')", mode: 'simple' },
+        }),
+      ])
+
+      expect(errors(wrapper)).toEqual([
+        'databaseWorkflowActionType.staleReference',
+      ])
+    })
+  })
 })

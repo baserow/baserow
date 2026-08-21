@@ -70,3 +70,11 @@
 .button-field-action-list__item .segment-control {
   background: $palette-neutral-200;
 }
+
+.button-field-action-list__error {
+  @extend %ellipsis;
+
+  color: $palette-red-600;
+  font-size: 12px;
+  padding: 0 12px 8px;
+}

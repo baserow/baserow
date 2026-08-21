@@ -1283,7 +1283,10 @@
     "labelPlaceholder": "Open"
   },
   "databaseWorkflowActionType": {
-    "openUrl": "Open URL"
+    "openUrl": "Open URL",
+    "noTable": "Choose a table for this action.",
+    "noUrl": "Enter a URL to open.",
+    "staleReference": "This action uses a result from an action that no longer runs before it."
   },
   "openUrlWorkflowActionForm": {
     "url": "URL",
@@ -1300,7 +1303,8 @@
     "actions": "Actions",
     "addAction": "Add action",
     "chooseAction": "Choose action...",
-    "searchActions": "Search actions"
+    "searchActions": "Search actions",
+    "misconfigured": "At least one action is misconfigured"
   },
   "buttonField": {
     "dispatchErrorTitle": "Could not run the actions",
