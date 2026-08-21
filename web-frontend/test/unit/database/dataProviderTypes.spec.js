@@ -118,6 +118,11 @@ describe('Database data provider types', () => {
       'field_10',
       'field_11',
     ])
+    // Named as the backend names it, so saving the action does not rename
+    // the node under the user.
+    expect(schema.properties.abc.properties.id.title).toBe(
+      'dataProviderTypes.previousActionRowId'
+    )
   })
 
   test('open_url contributes nothing, having no result', () => {

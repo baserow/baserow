@@ -44,8 +44,16 @@ const REMOVE_FIELD_INDEX = 13;
 const SPAWN_FIELD_INDEX = 14;
 const MODIFIED_BY_FIELD_INDEX = 15;
 const RECONFIGURE_FIELD_INDEX = 18;
+// Phase 3: an action reading what an earlier one returned.
+const CHAINED_FIELD_INDEX = 19;
+const CHAINED_LINK_FIELD_INDEX = 20;
+const BUILDABLE_FIELD_INDEX = 21;
+const STALE_FIELD_INDEX = 22;
+const CHAINED_CROSS_FIELD_INDEX = 23;
+const INSERTABLE_FIELD_INDEX = 24;
+const BROKEN_CHAIN_FIELD_INDEX = 25;
 // The field one test creates in the UI, which lands after all of the above.
-const CREATED_FIELD_INDEX = 19;
+const CREATED_FIELD_INDEX = 26;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
@@ -65,6 +73,13 @@ const BUTTON_FIELD_NAMES = [
   "Cross",
   "Prunable",
   "Reconfigure",
+  "Chained",
+  "ChainedLink",
+  "Buildable",
+  "Stale",
+  "ChainedCross",
+  "Insertable",
+  "BrokenChain",
 ];
 
 let g: GridSetupResult;
@@ -112,10 +127,136 @@ async function openFieldEditor(page: Page, name: string) {
   await expect(page.locator(".button-field-action-list")).toBeVisible();
 }
 
+/** The data explorer that opens under a formula input. */
+function explorer(page: Page) {
+  return page.locator("[data-formula-input-context]:visible");
+}
+
+/** Walks the explorer, opening each node in turn and picking the last. */
+async function pickExplorerNode(page: Page, ...names: string[]) {
+  for (const name of names) {
+    await explorer(page)
+      .locator(".node-explorer-content__name", {
+        hasText: new RegExp(`^\\s*${name}\\s*$`),
+      })
+      .first()
+      .click();
+  }
+}
+
+/** One action's row in the editor's list. */
+function actionItem(page: Page, index: number) {
+  return page
+    .locator(".button-field-action-list .button-field-action-list__item")
+    .nth(index);
+}
+
+/** Adds an action of `type` at the end of the list. */
+async function addAction(page: Page, type: string) {
+  const list = page.locator(".button-field-action-list");
+  const before = await list
+    .locator(".button-field-action-list__item")
+    .count();
+  await list.getByText("Add action").click();
+  const added = actionItem(page, before);
+  await added.locator(".button-field-action-list__type").click();
+  await page
+    .locator(".dropdown__items:visible")
+    .locator(".select__item-link", { hasText: type })
+    .click();
+  return added;
+}
+
+/**
+ * Points an action at a table. The database has to be chosen first: until it
+ * is, the table dropdown has nothing to offer.
+ */
+async function pickTableOn(
+  page: Page,
+  index: number,
+  database: string,
+  table: string,
+) {
+  const dropdowns = actionItem(page, index).locator(
+    ".button-field-action-list__form .dropdown",
+  );
+  for (const [position, name] of [
+    [0, database],
+    [1, table],
+  ] as [number, string][]) {
+    await dropdowns.nth(position).click();
+    await page
+      .locator(".dropdown__items:visible")
+      .locator(".select__item-link", { hasText: name })
+      .click();
+  }
+}
+
+/**
+ * Drags one action onto another's position. The sortable directive tracks
+ * mousemove, so a single jump does not register as a drag.
+ */
+/** The action type shown on each row of the list, in order. */
+async function actionOrder(page: Page) {
+  return await page
+    .locator(".button-field-action-list .button-field-action-list__type")
+    .allTextContents();
+}
+
+/**
+ * Moves one action to another's position.
+ *
+ * The sortable directive tracks mousemove, so a single jump does not register
+ * as a drag, and how far the pointer has to travel depends on how tall the
+ * target action's form is. Rather than guess, this drops once and checks
+ * whether the order actually changed, trying a different landing point if not.
+ */
+async function dragAction(page: Page, from: number, to: number) {
+  const before = await actionOrder(page);
+  let attempt = 0;
+
+  await expect(async () => {
+    const handles = page.locator(
+      ".button-field-action-list [data-sortable-handle]",
+    );
+    await handles.nth(from).scrollIntoViewIfNeeded();
+    const source = await handles.nth(from).boundingBox();
+    // Alternates between the target's handle and the far edge of its whole
+    // row, which is what a tall form needs.
+    const useItem = attempt % 2 === 1;
+    const target = useItem
+      ? await actionItem(page, to).boundingBox()
+      : await handles.nth(to).boundingBox();
+    attempt += 1;
+    if (!source || !target) throw new Error("action handles are not rendered");
+
+    const y = useItem
+      ? to > from
+        ? target.y + target.height - 8
+        : target.y + 8
+      : target.y + target.height / 2 + (to > from ? 8 : -8);
+
+    await page.mouse.move(
+      source.x + source.width / 2,
+      source.y + source.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(target.x + target.width / 2, y, { steps: 12 });
+    await page.mouse.up();
+
+    expect(await actionOrder(page)).not.toEqual(before);
+  }).toPass({ timeout: 20_000 });
+}
+
+async function saveField(page: Page) {
+  await page.locator(".field-context button", { hasText: "Save" }).click();
+}
+
 test.describe("Button field", () => {
   // The grid only renders the columns that fit, and this suite needs one
   // button field per behaviour, so every column has to be on screen at once.
-  test.use({ viewport: { width: 4600, height: 900 } });
+  // Widen this whenever a field is added, or the new column never renders.
+  test.use({ viewport: { width: 6400, height: 900 } });
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -144,6 +285,29 @@ test.describe("Button field", () => {
           name: "Reconfigure",
           type: "button",
           settings: { label: "Reconfigure" },
+        },
+        { name: "Chained", type: "button", settings: { label: "Chained" } },
+        {
+          name: "ChainedLink",
+          type: "button",
+          settings: { label: "ChainedLink" },
+        },
+        { name: "Buildable", type: "button", settings: { label: "Buildable" } },
+        { name: "Stale", type: "button", settings: { label: "Stale" } },
+        {
+          name: "ChainedCross",
+          type: "button",
+          settings: { label: "ChainedCross" },
+        },
+        {
+          name: "Insertable",
+          type: "button",
+          settings: { label: "Insertable" },
+        },
+        {
+          name: "BrokenChain",
+          type: "button",
+          settings: { label: "BrokenChain" },
         },
       ],
     });
@@ -285,6 +449,116 @@ test.describe("Button field", () => {
       type: "local_baserow_create_row",
       table: g.table,
       fieldMappings: [{ field: g.fieldByName["Name"], value: "'Spawned'" }],
+    });
+
+    // Phase 3. Every seed below writes a reference the same shape the editor
+    // produces after it rewrites a client id: `previous_action.<id>.<path>`.
+
+    // "Chained" creates a row, then stamps the created row's id onto the
+    // clicked one, so the second action can only be right by reading the first.
+    const chainedCreate = await createRowAction(g.user, g.fieldByName["Chained"], {
+      type: "local_baserow_create_row",
+      table: g.table,
+      fieldMappings: [{ field: g.fieldByName["Name"], value: "'Chained child'" }],
+    });
+    await createRowAction(g.user, g.fieldByName["Chained"], {
+      type: "local_baserow_update_row",
+      table: g.table,
+      rowId: "get('row.id')",
+      fieldMappings: [
+        {
+          field: g.fieldByName["Status"],
+          value: `concat('child ',get('previous_action.${chainedCreate.id}.id'))`,
+        },
+      ],
+    });
+
+    // "ChainedLink" is the one case that spans the dispatch response, the
+    // field names it carries, and the browser's own formula resolution.
+    const linkCreate = await createRowAction(
+      g.user,
+      g.fieldByName["ChainedLink"],
+      {
+        type: "local_baserow_create_row",
+        table: g.table,
+        fieldMappings: [{ field: g.fieldByName["Name"], value: "'Linked child'" }],
+      },
+    );
+    await createOpenUrlAction(g.user, g.fieldByName["ChainedLink"], {
+      url: `concat('/chained-',get('previous_action.${linkCreate.id}.id'))`,
+      target: "self",
+    });
+
+    // "Buildable" has one action; the editor tests add the second by hand.
+    await createRowAction(g.user, g.fieldByName["Buildable"], {
+      type: "local_baserow_create_row",
+      table: g.table,
+      fieldMappings: [
+        { field: g.fieldByName["Name"], value: "'Buildable child'" },
+      ],
+    });
+
+    // "Stale" starts already stale: its URL action sits first and reads an
+    // action that runs after it, which is the state a reorder leaves behind.
+    // Created in this order so no drag is needed to get there.
+    const staleLink = await createOpenUrlAction(g.user, g.fieldByName["Stale"], {
+      url: "'/stale-unset'",
+      target: "self",
+    });
+    const staleCreate = await createRowAction(g.user, g.fieldByName["Stale"], {
+      type: "local_baserow_create_row",
+      table: g.table,
+      fieldMappings: [{ field: g.fieldByName["Name"], value: "'Stale child'" }],
+    });
+    await getClient(g.user).patch(
+      `database/workflow_action/${staleLink.id}/`,
+      {
+        url: `concat('/stale-',get('previous_action.${staleCreate.id}.id'))`,
+      },
+    );
+
+    // "ChainedCross" reads a row in a table the clicked row's grid has no
+    // fields for, which is why each result carries its own field names.
+    const crossCreate = await createRowAction(
+      g.user,
+      g.fieldByName["ChainedCross"],
+      {
+        type: "local_baserow_create_row",
+        table: otherTable,
+        fieldMappings: [{ field: otherOnly, value: "'crossed child'" }],
+      },
+    );
+    await createRowAction(g.user, g.fieldByName["ChainedCross"], {
+      type: "local_baserow_update_row",
+      table: g.table,
+      rowId: "get('row.id')",
+      fieldMappings: [
+        {
+          field: g.fieldByName["Note"],
+          value: `get('previous_action.${crossCreate.id}.field_${otherOnly.id}')`,
+        },
+      ],
+    });
+
+    // "Insertable" has one saved action, for the test that inserts another
+    // above it and points the saved one at the new one.
+    await createRowAction(g.user, g.fieldByName["Insertable"], {
+      type: "local_baserow_update_row",
+      table: g.table,
+      rowId: "get('row.id')",
+      fieldMappings: [{ field: g.fieldByName["Status"], value: "'untouched'" }],
+    });
+
+    // "BrokenChain" fails first and would navigate second, which is the
+    // combination the builder gets wrong.
+    const brokenCreate = await createWorkflowAction(
+      g.user,
+      g.fieldByName["BrokenChain"],
+      "local_baserow_create_row",
+    );
+    await createOpenUrlAction(g.user, g.fieldByName["BrokenChain"], {
+      url: `concat('/never-',get('previous_action.${brokenCreate.id}.id'))`,
+      target: "self",
     });
 
     // A second member of the workspace, who clicks the same buttons as the
@@ -1142,5 +1416,273 @@ test.describe("Button field", () => {
       .locator(".context__menu-item-link", { hasText: "Delete field" })
       .click();
     await expect(fieldHeader(page, "Made")).toHaveCount(0);
+  });
+
+  // Phase 3: an action reading what an earlier one returned.
+
+  test("a later action uses the row an earlier one created", async ({
+    page,
+  }) => {
+    await resetRows(g, [
+      { Name: "Ada", Status: "todo" },
+      { Name: "Grace", Status: "todo" },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await grid.fieldCellAt(0, CHAINED_FIELD_INDEX).locator("button").click();
+
+    await expect(async () => {
+      const rows = await listRows(g.user, g.table);
+      const child = rows.find((row) => row.Name === "Chained child");
+      expect(child).toBeDefined();
+      // Only the first action knows this id, so the second can be right only
+      // by having read its result.
+      expect(rows.find((row) => row.Name === "Ada").Status).toBe(
+        `child ${child.id}`,
+      );
+      // The untouched row proves the write was targeted, not blanket.
+      expect(rows.find((row) => row.Name === "Grace").Status).toBe("todo");
+    }).toPass({ timeout: 15_000 });
+  });
+
+  test("a URL opens carrying the id of the row just created", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await grid
+      .fieldCellAt(0, CHAINED_LINK_FIELD_INDEX)
+      .locator("button")
+      .click();
+
+    // The only test spanning the dispatch response, the field names it
+    // carries, and the browser resolving a formula against them.
+    await expect(page).toHaveURL(/\/chained-\d+$/);
+
+    const rows = await listRows(g.user, g.table);
+    const child = rows.find((row) => row.Name === "Linked child");
+    expect(new URL(page.url()).pathname).toBe(`/chained-${child.id}`);
+  });
+
+  test("a chained reference reads a row in another table", async ({ page }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await grid
+      .fieldCellAt(0, CHAINED_CROSS_FIELD_INDEX)
+      .locator("button")
+      .click();
+
+    // The grid holds no fields for "Others", so the value can only arrive
+    // through the names the result carries with it.
+    await expect(grid.fieldCellAt(0, NOTE_FIELD_INDEX)).toHaveText(
+      "crossed child",
+    );
+  });
+
+  test("a failing action stops the chain before it navigates", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    const pathBefore = new URL(page.url()).pathname;
+
+    await grid
+      .fieldCellAt(0, BROKEN_CHAIN_FIELD_INDEX)
+      .locator("button")
+      .click();
+
+    await expect(page.locator(".toast__message")).toContainText("Action 1");
+    // The builder navigates here with the failed action's id missing from the
+    // URL. The dispatch raises before `client_actions` is built, so it cannot.
+    expect(new URL(page.url()).pathname).toBe(pathBefore);
+  });
+
+  test("the explorer offers earlier actions, and only earlier ones", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    // The first action in a list has nothing before it.
+    await openFieldEditor(page, "Insertable");
+    await actionItem(page, 0)
+      .locator(".formula-input-field__editor")
+      .first()
+      .click();
+    await expect(explorer(page)).toBeVisible();
+    await expect(
+      explorer(page).locator(".node-explorer-content__name", {
+        hasText: "Create a row",
+      }),
+    ).toHaveCount(0);
+    // Reloaded rather than cancelled, so the next editor opens clean.
+    await grid.goTo(g.database, g.table);
+
+    // The second action is offered the first, through the whole provide chain
+    // from the sub-form down to the formula input.
+    await openFieldEditor(page, "Buildable");
+    const added = await addAction(page, "Open URL");
+    await added.locator(".formula-input-field__editor").first().click();
+    await expect(
+      explorer(page).locator(".node-explorer-content__name", {
+        hasText: "Create a row",
+      }),
+    ).toHaveCount(1);
+  });
+
+  test("two brand new actions can be chained in one save", async ({ page }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    // Nothing that reaches the API may carry the editor's own client id.
+    const clientIdSent: string[] = [];
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        request.url().includes("/workflow_actions/") &&
+        (request.postData() ?? "").includes("_clientId")
+      ) {
+        clientIdSent.push(request.url());
+      }
+    });
+
+    await openFieldEditor(page, "Buildable");
+    await addAction(page, "Create a row");
+    await pickTableOn(page, 1, "Button DB", "Tickets");
+    const linkAction = await addAction(page, "Open URL");
+
+    await linkAction.locator(".formula-input-field__editor").first().click();
+    await page.keyboard.type("/fresh-");
+    // The second of the two "Create a row" nodes is the one added above, which
+    // has no id yet and is referenced by its client id until the save.
+    await explorer(page)
+      .locator(".node-explorer-content__name", { hasText: "Create a row" })
+      .nth(1)
+      .click();
+    await pickExplorerNode(page, "Id");
+
+    await saveField(page);
+
+    await expect(async () => {
+      const actions = await listWorkflowActions(
+        g.user,
+        g.fieldByName["Buildable"],
+      );
+      expect(actions.map((action) => action.type)).toEqual([
+        "local_baserow_create_row",
+        "local_baserow_create_row",
+        "open_url",
+      ]);
+      // Rewritten to the id the server handed the action created before it.
+      expect(actions[2].url.formula).toContain(
+        `previous_action.${actions[1].id}.`,
+      );
+    }).toPass({ timeout: 15_000 });
+
+    expect(clientIdSent).toEqual([]);
+
+    await grid.goTo(g.database, g.table);
+    await grid.fieldCellAt(0, BUILDABLE_FIELD_INDEX).locator("button").click();
+    await expect(page).toHaveURL(/\/fresh-\d+$/);
+  });
+
+  test("a saved action can be pointed at one inserted above it", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await openFieldEditor(page, "Insertable");
+    // The new action is added at the end, then the saved one is moved after
+    // it, so the saved action reconciles as an update that references
+    // something created in the same save.
+    await addAction(page, "Create a row");
+    await pickTableOn(page, 1, "Button DB", "Tickets");
+    await dragAction(page, 0, 1);
+
+    await actionItem(page, 1)
+      .locator(".formula-input-field__editor")
+      .first()
+      .click();
+    await pickExplorerNode(page, "Create a row", "Id");
+    await saveField(page);
+
+    await expect(async () => {
+      const actions = await listWorkflowActions(
+        g.user,
+        g.fieldByName["Insertable"],
+      );
+      expect(actions.map((action) => action.type)).toEqual([
+        "local_baserow_create_row",
+        "local_baserow_update_row",
+      ]);
+      // The update path of the rewrite: the referring action already existed.
+      expect(actions[1].service.row_id.formula).toContain(
+        `previous_action.${actions[0].id}.`,
+      );
+    }).toPass({ timeout: 15_000 });
+  });
+
+  test("a forward reference is marked, and moving it back heals it", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await openFieldEditor(page, "Stale");
+    const list = page.locator(".button-field-action-list");
+
+    // The URL action reads one that runs after it, so it can never resolve.
+    await expect(list.locator("[data-action-error]")).toHaveCount(1);
+    await expect(list).toContainText("At least one action is misconfigured");
+
+    // Moved after the action it reads, with nothing retyped. The reference was
+    // marked rather than cleared, which is what makes this reversible at all
+    // (ADR 006 section 8).
+    await dragAction(page, 0, 1);
+
+    await expect(list.locator("[data-action-error]")).toHaveCount(0);
+    await saveField(page);
+
+    await grid.goTo(g.database, g.table);
+    await grid.fieldCellAt(0, STALE_FIELD_INDEX).locator("button").click();
+    await expect(page).toHaveURL(/\/stale-\d+$/);
+  });
+
+  test("a reordered chain still resolves after saving", async ({ page }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await openFieldEditor(page, "Chained");
+    // An unrelated action is added, then the chain's second half is moved
+    // after it. `order` and the formulas are rewritten in the same save and
+    // have to agree, and the reference still points backwards.
+    const added = await addAction(page, "Open URL");
+    await added.locator(".formula-input-field__editor").first().click();
+    await page.keyboard.type("/reordered");
+    await dragAction(page, 1, 2);
+    await saveField(page);
+
+    await grid.goTo(g.database, g.table);
+    await grid.fieldCellAt(0, CHAINED_FIELD_INDEX).locator("button").click();
+
+    await expect(async () => {
+      const rows = await listRows(g.user, g.table);
+      const child = rows.find((row) => row.Name === "Chained child");
+      expect(rows.find((row) => row.Name === "Ada").Status).toBe(
+        `child ${child.id}`,
+      );
+    }).toPass({ timeout: 15_000 });
   });
 });

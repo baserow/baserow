@@ -123,7 +123,9 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
       properties: {
         id: {
           type: 'number',
-          title: this.app.$i18n.t('dataProviderTypes.rowId'),
+          // "Id", matching the schema the backend builds, so the node does
+          // not rename itself the first time the action is saved.
+          title: this.app.$i18n.t('dataProviderTypes.previousActionRowId'),
         },
         ...Object.fromEntries(
           fields

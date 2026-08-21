@@ -1061,7 +1061,8 @@
     "fieldsName": "Fields",
     "rowName": "Clicked row",
     "rowId": "Row ID",
-    "previousActionName": "Previous action"
+    "previousActionName": "Previous action",
+    "previousActionRowId": "Id"
   },
   "userMentionInRichTextFieldNotification": {
     "title": "{sender} mentioned you in field {fieldName} of row {rowId} in {tableName}",

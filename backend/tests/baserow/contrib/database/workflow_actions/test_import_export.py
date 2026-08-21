@@ -699,3 +699,78 @@ def test_a_previous_action_reference_outside_the_import_is_left_alone(data_fixtu
     (action,) = OpenUrlWorkflowAction.objects.filter(field=duplicated_field)
 
     assert action.url["formula"] == "get('previous_action.999999.id')"
+
+
+@pytest.mark.django_db
+def test_duplicating_a_reference_to_an_unconfigured_action(data_fixture):
+    """`BrokenChain` in the e2e suite: the referenced action has no table, so
+    its service can offer nothing to remap the rest of the path with."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+
+    unconfigured = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={
+            "formula": f"get('previous_action.{unconfigured.id}.id')",
+            "mode": "simple",
+        },
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (duplicated_unconfigured,) = LocalBaserowCreateRowWorkflowAction.objects.filter(
+        field=duplicated_field
+    )
+    (duplicated_open_url,) = OpenUrlWorkflowAction.objects.filter(
+        field=duplicated_field
+    )
+
+    assert duplicated_open_url.url["formula"] == (
+        f"get('previous_action.{duplicated_unconfigured.id}.id')"
+    )
+
+
+@pytest.mark.django_db
+def test_duplicating_a_forward_reference(data_fixture):
+    """`Stale` in the e2e suite: the reference points at an action that runs
+    after it, which the editor marks but does not refuse to save."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+
+    later = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = later.service.specific
+    service.table = table
+    service.save()
+    earlier = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={"formula": f"get('previous_action.{later.id}.id')", "mode": "simple"},
+    )
+    # Ordered so the URL action runs first, as a reorder would leave it.
+    earlier.order = 1
+    earlier.save()
+    later.order = 2
+    later.save()
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (duplicated_later,) = LocalBaserowCreateRowWorkflowAction.objects.filter(
+        field=duplicated_field
+    )
+    (duplicated_open_url,) = OpenUrlWorkflowAction.objects.filter(
+        field=duplicated_field
+    )
+
+    assert duplicated_open_url.url["formula"] == (
+        f"get('previous_action.{duplicated_later.id}.id')"
+    )
