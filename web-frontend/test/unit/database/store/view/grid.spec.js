@@ -930,6 +930,244 @@ describe('Grid view store', () => {
     expect(flatStore.getters['grid/getAllRows'][0].field_1).toBe('99')
   })
 
+  test('updateRowValue shows optimistic value immediately even when queue has pending tasks and view has filters', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+      {
+        id: 2,
+        name: 'Date',
+        type: 'date',
+        _: { type: { type: 'date' } },
+      },
+    ]
+    const flatStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+            fetchAllFieldAggregationData: vi.fn(),
+          },
+        },
+      },
+    })
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r1',
+    }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      count: 1,
+      bufferStartIndex: 0,
+      bufferLimit: 10,
+      rows: [
+        {
+          id: 1,
+          order: '1.00',
+          field_1: 'old text',
+          field_2: null,
+          _: { ...rowMetadata },
+        },
+      ],
+    })
+    flatStore.replaceState({ ...flatStore.state, grid: state })
+
+    // View with active filter — triggers hasViewRulesThatCanMoveOrHideRows
+    const view = {
+      id: 1,
+      filters: [{ id: 1, field: 1, type: 'contains', value: '' }],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: [],
+    }
+
+    // Hold the first PATCH so the second update queues behind it
+    let finishFirstPatch
+    let patchCount = 0
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(
+      () =>
+        new Promise((resolve) => {
+          patchCount++
+          if (patchCount === 1) {
+            finishFirstPatch = () =>
+              resolve([
+                200,
+                {
+                  items: [
+                    {
+                      id: 1,
+                      order: '1.00',
+                      field_1: 'new text',
+                      field_2: null,
+                    },
+                  ],
+                  metadata: { updated_field_ids: [1] },
+                },
+              ])
+          } else {
+            resolve([
+              200,
+              {
+                items: [
+                  {
+                    id: 1,
+                    order: '1.00',
+                    field_1: 'new text',
+                    field_2: '2025-06-15',
+                  },
+                ],
+                metadata: { updated_field_ids: [2] },
+              },
+            ])
+          }
+        })
+    )
+
+    // First update: text field — starts PATCH, holds
+    const firstUpdate = flatStore.dispatch('grid/updateRowValue', {
+      table: { id: 1 },
+      view,
+      fields,
+      row: flatStore.getters['grid/getAllRows'][0],
+      field: fields[0],
+      value: 'new text',
+      oldValue: 'old text',
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+
+    // First PATCH is in flight. Now update date field — queued behind first.
+    const secondUpdate = flatStore.dispatch('grid/updateRowValue', {
+      table: { id: 1 },
+      view,
+      fields,
+      row: flatStore.getters['grid/getAllRows'][0],
+      field: fields[1],
+      value: '2025-06-15',
+      oldValue: null,
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+
+    // The date value should be visible in the store immediately, even though
+    // the queue task hasn't run yet.
+    const rowAfterQueue = flatStore.getters['grid/getAllRows'][0]
+    expect(rowAfterQueue.field_2).toBe('2025-06-15')
+
+    // Finish first PATCH and let everything settle
+    finishFirstPatch()
+    await Promise.all([firstUpdate, secondUpdate])
+
+    // After both complete, value should still be correct
+    const finalRow = flatStore.getters['grid/getAllRows'][0]
+    expect(finalRow.field_2).toBe('2025-06-15')
+    expect(finalRow.field_1).toBe('new text')
+  })
+
+  test('updateRowValue with optimistic commit still hides row that violates filter', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const flatStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+            fetchAllFieldAggregationData: vi.fn(),
+          },
+        },
+      },
+    })
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r1',
+    }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      count: 2,
+      bufferStartIndex: 0,
+      bufferLimit: 10,
+      rows: [
+        {
+          id: 1,
+          order: '1.00',
+          field_1: 'hello',
+          _: { ...rowMetadata },
+        },
+        {
+          id: 2,
+          order: '2.00',
+          field_1: 'world',
+          _: { ...rowMetadata, persistentId: 'r2' },
+        },
+      ],
+    })
+    flatStore.replaceState({ ...flatStore.state, grid: state })
+
+    // Filter: field_1 must contain "hello" — changing to "bye" should hide row
+    const view = {
+      id: 1,
+      filters: [{ id: 1, field: 1, type: 'contains', value: 'hello' }],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: [],
+    }
+
+    mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(() => [
+      200,
+      {
+        items: [{ id: 1, order: '1.00', field_1: 'bye' }],
+        metadata: { updated_field_ids: [1] },
+      },
+    ])
+
+    await flatStore.dispatch('grid/updateRowValue', {
+      table: { id: 1 },
+      view,
+      fields,
+      row: flatStore.getters['grid/getAllRows'][0],
+      field: fields[0],
+      value: 'bye',
+      oldValue: 'hello',
+    })
+
+    // Row 1 should be removed from buffer — it no longer matches the filter
+    const remainingRows = flatStore.getters['grid/getAllRows']
+    const row1 = remainingRows.find((r) => r.id === 1)
+    expect(row1).toBeUndefined()
+  })
+
   test('updateRowValue discards a save for a row without an id (row modal closed mid-edit)', async () => {
     const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
     const view = { id: 1, filters: [], sortings: [], group_bys: [] }
