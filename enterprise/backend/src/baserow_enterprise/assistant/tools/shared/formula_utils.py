@@ -159,6 +159,16 @@ def ensure_valid_formula(formula: str) -> str:
     parse it. Falling back to a static string literal keeps the value visible
     and editable in the UI instead of breaking the whole application.
 
+    This is a deliberate trade-off: the write succeeds with only the warning
+    below, so a value that was meant to be a formula degrades silently.
+    Typed targets such as ``row_id`` then fail later with a handled dispatch
+    error (via the ensurers in ``resolve_service_formulas``), while text
+    targets render the raw formula text verbatim. We accept this because the
+    formula generator already resolves its output against example context
+    before it is persisted, making the fallback rare for generated formulas;
+    the common trigger is static text with apostrophes, where the quoted
+    literal is exactly the intended value.
+
     :param formula: The formula about to be persisted.
     :return: The formula itself, or a string literal fallback.
     """
