@@ -122,8 +122,9 @@ Phase 1's `url_formula` field attribute was scaffolding, not part of the end sta
 existed because the button shipped before the action layer. That layer has since arrived:
 opening a URL is a frontend-only `open_url` action like any other, a data migration turns
 every existing `url_formula` into one, and nothing reads the attribute any more. The
-column itself stays on `ButtonField` as deprecated under the zero-downtime rule, to be
-dropped in a later release. A button never carries both a `url_formula` and an action
+column was dropped in phase 3: the zero-downtime rule protects the previously released
+version, and no released version carries a button field at all, so no older process is
+left writing it during a rolling deploy. A button never carries both a `url_formula` and an action
 list, and nothing is designed around them coexisting.
 
 The builder's `open_page` is the working precedent, not just an analogy. Its `custom`
@@ -144,6 +145,13 @@ response is built, so `client_actions` never reaches the browser and the navigat
 not happen, leaving the user on the error toast rather than carrying them away from it.
 The cost is that a frontend-only action always runs after every service-backed one,
 whatever its position in the list.
+
+Phase 3 makes that cost safe rather than removing it. The data explorer offers an
+action only what precedes it in the list, so a frontend-only action can only ever
+name a service-backed one that has already run, and a service-backed action is never
+offered a frontend-only one, which produces no result to read. The execution split
+therefore stays as it is, and no ordering a user can configure resolves against an
+action that has not run.
 
 Public views are not part of that reasoning. An earlier draft of this section argued the
 client-side path preserved the phase-1 behaviour of a URL button working in a publicly
@@ -221,6 +229,22 @@ The database module registers two data providers for button dispatch:
 - **A previous-action provider** modeled on the builder's `PreviousActionProviderType`
   and automation's `PreviousNodeProviderType`, with identifier remapping on import, so
   all three modules keep the same design.
+
+Where those results live diverges, and deliberately. The builder keys them into the
+cache under a client-supplied dispatch id, because its browser dispatches one action
+at a time and a result would otherwise have to be trusted from the request body.
+Automation reads them back from workflow history, because History is a product
+feature there. A button runs its whole sequence inside one request (section 3), so
+its results are a plain dict on the dispatch context: nothing outlives the request,
+nothing is keyed by anything a caller supplies, and a fabricated result cannot be
+fed to a later action. This is the concrete payoff of the per-click endpoint.
+
+One consequence reaches the API. A dispatch result is serialized with
+`user_field_names`, so it is keyed by field name, while a formula path holds
+`field_<id>`. The server bridges the two itself when it resolves a path, but the
+browser cannot: a frontend-only action may reference a row in a table it has no
+fields for. Each result therefore carries the names of the fields it returned, built
+only when the click has a frontend-only action to read them.
 
 The raw row provider reads the row again as each action starts, so an action sees what
 the actions before it did to it. Reading the row after an earlier action deleted it
