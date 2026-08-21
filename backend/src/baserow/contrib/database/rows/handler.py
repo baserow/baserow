@@ -2064,10 +2064,9 @@ class RowHandler:
             import.
         :param send_realtime_update: The parameter passed to the rows_created
             signal indicating if a realtime update should be send.
-
-        :raises InvalidRowLength:
-
         :return: The created row instances and the error report.
+        :raises FieldNotInTable: If a configured skipped field is missing, or an
+            upsert field is absent from the import schema or cannot be written.
         """
 
         workspace = table.database.workspace
@@ -2083,13 +2082,12 @@ class RowHandler:
         model = table.get_model()
 
         error_report = RowErrorReport(data)
+        upsert_field_ids = configuration.get("upsert_fields") or []
         update_handler = UpsertRowsMappingHandler(
             table=table,
-            upsert_fields=configuration.get("upsert_fields") or [],
+            upsert_fields=upsert_field_ids,
             upsert_values=configuration.get("upsert_values") or [],
         )
-        # Pre-run upsert configuration validation.
-        # Can raise InvalidRowLength
         update_handler.validate()
 
         skipped_field_ids = configuration.get("skipped_fields", []) or []
@@ -2101,15 +2099,24 @@ class RowHandler:
         except ValueError:
             raise FieldNotInTable("The field ID is not found in the table.")
 
-        fields = [
-            field_object["field"]
-            for field_object in model._field_objects.values()
-            if not field_object["type"].read_only
-            and not field_object["field"].read_only
-        ]
-
-        # Sort by primary first (descending), then by order, then by id
-        fields.sort(key=lambda f: (not f.primary, f.order, f.id))
+        fields = self.get_import_fields(
+            user,
+            table,
+            model=model,
+            import_field_ids=configuration.get("import_fields"),
+        )
+        initially_unwritable_field_ids = {
+            field.id for field in self._get_unwritable_fields(user, model, fields)
+        }
+        import_field_ids = {field.id for field in fields}
+        if any(
+            field_id not in import_field_ids
+            or field_id in initially_unwritable_field_ids
+            for field_id in upsert_field_ids
+        ):
+            raise FieldNotInTable(
+                "An upsert field is missing from the import schema or not writable."
+            )
 
         for index, row in enumerate(data):
             # Check row length
@@ -2129,6 +2136,7 @@ class RowHandler:
                     {
                         f"field_{fields[index].id}": value
                         for index, value in enumerate(new_row)
+                        if fields[index].id not in initially_unwritable_field_ids
                     },
                 )
 
@@ -2258,6 +2266,58 @@ class RowHandler:
 
         return created_rows, error_report.to_dict()
 
+    def get_import_fields(
+        self,
+        user: AbstractUser,
+        table: Table,
+        model: Optional[GeneratedTableModel] = None,
+        import_field_ids: Optional[List[int]] = None,
+    ) -> List["Field"]:
+        """
+        Returns the ordered fields represented by positional file-import values.
+
+        When ``import_field_ids`` is provided, its order is authoritative and is
+        preserved even if write permissions changed after the import was queued. The
+        write-permission check immediately before persistence still removes values the
+        user can no longer write. Without an explicit snapshot, fields the user cannot
+        currently write are omitted just like structurally read-only fields.
+
+        :param user: The user whose field write permissions should be applied when no
+            explicit import schema is provided.
+        :param table: The table receiving the imported rows.
+        :param model: An optional generated table model to reuse.
+        :param import_field_ids: An optional ordered snapshot of the field IDs
+            represented by each positional row value.
+        :return: The ordered fields represented by the positional import schema.
+        :raises FieldNotInTable: If an explicit field ID is duplicated, missing from
+            the table, or belongs to a structurally read-only field.
+        """
+
+        if model is None:
+            model = table.get_model()
+
+        fields = [
+            field_object["field"]
+            for field_object in model._field_objects.values()
+            if not field_object["type"].read_only
+            and not field_object["field"].read_only
+        ]
+        fields.sort(key=lambda field: (not field.primary, field.order, field.id))
+
+        if import_field_ids is not None:
+            fields_by_id = {field.id: field for field in fields}
+            if len(import_field_ids) != len(set(import_field_ids)) or any(
+                field_id not in fields_by_id for field_id in import_field_ids
+            ):
+                raise FieldNotInTable(
+                    "An import field is duplicated, missing, or not writable."
+                )
+            return [fields_by_id[field_id] for field_id in import_field_ids]
+
+        unwritable_fields = self._get_unwritable_fields(user, model, fields)
+        unwritable_field_ids = {field.id for field in unwritable_fields}
+        return [field for field in fields if field.id not in unwritable_field_ids]
+
     def get_fields_metadata_for_row_history(
         self,
         row: GeneratedTableModelForUpdate,
@@ -2337,22 +2397,39 @@ class RowHandler:
             for fo in model.get_field_objects(include_trash=True)
             if fo["field"].id in field_ids
         ]
-        table = model.baserow_table
-        perm_checks = [
-            PermissionCheck(user, WriteFieldValuesOperationType.type, field)
-            for field in fields
-        ]
-        results = CoreHandler().check_multiple_permissions(
-            perm_checks, table.database.workspace
-        )
-        unwritable_fields = [
-            c.context for (c, has_permissions) in results.items() if not has_permissions
-        ]
+        unwritable_fields = self._get_unwritable_fields(user, model, fields)
         if unwritable_fields and raise_if_not_permitted:
             raise PermissionDenied(
                 f"You don't have permission to update the following fields: {', '.join([f.name for f in unwritable_fields])}"
             )
         return unwritable_fields
+
+    def _get_unwritable_fields(
+        self,
+        user: AbstractUser,
+        model: GeneratedTableModel,
+        fields: List["Field"],
+    ) -> List["Field"]:
+        """Return the fields whose values the user cannot write.
+
+        :param user: The user whose field write permissions should be checked.
+        :param model: The generated table model containing the fields.
+        :param fields: The fields to check.
+        :return: The fields whose values the user cannot write.
+        """
+
+        permission_checks = [
+            PermissionCheck(user, WriteFieldValuesOperationType.type, field)
+            for field in fields
+        ]
+        results = CoreHandler().check_multiple_permissions(
+            permission_checks, model.baserow_table.database.workspace
+        )
+        return [
+            check.context
+            for check, has_permission in results.items()
+            if not has_permission
+        ]
 
     def _raise_if_values_contain_hidden_fields(
         self,

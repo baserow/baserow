@@ -18,6 +18,7 @@ RowsForUpdate = NewType("RowsForUpdate", QuerySet)
 
 
 class FileImportConfiguration(TypedDict):
+    import_fields: list[int]
     upsert_fields: list[int]
     upsert_values: list[list[Any]]
     skipped_fields: list[int]

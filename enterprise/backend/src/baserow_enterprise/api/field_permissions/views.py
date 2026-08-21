@@ -1,5 +1,4 @@
 from django.db import transaction
-from django.db.models import Case, CharField, Count, F, IntegerField, Q, Value, When
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -22,8 +21,6 @@ from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
-from baserow.core.models import WorkspaceUser
-from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.api.errors import (
     ERROR_SUBJECT_DOES_NOT_EXIST,
     ERROR_SUBJECT_TYPE_UNSUPPORTED,
@@ -37,8 +34,6 @@ from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
 from baserow_enterprise.field_permissions.operations import (
     ReadFieldPermissionsOperationType,
 )
-from baserow_enterprise.teams.models import Team
-from baserow_enterprise.teams.subjects import TeamSubjectType
 from baserow_premium.license.handler import LicenseHandler
 
 from .serializers import (
@@ -219,6 +214,14 @@ class FieldPermissionSubjectOptionsView(APIView):
     )
     @validate_query_parameters(FieldPermissionSubjectOptionsRequestSerializer)
     def get(self, request, field_id, query_params) -> Response:
+        """Return paginated users and teams selectable for a field permission.
+
+        :param request: The authenticated API request.
+        :param field_id: The field whose permission subjects are being selected.
+        :param query_params: The validated pagination, search, and exclusion filters.
+        :return: A paginated response containing selectable users and teams.
+        """
+
         field = FieldHandler().get_field(field_id)
         workspace = field.table.database.workspace
         CoreHandler().check_permissions(
@@ -231,42 +234,11 @@ class FieldPermissionSubjectOptionsView(APIView):
             FIELD_LEVEL_PERMISSIONS, request.user, workspace
         )
 
-        search = (query_params.get("search") or "").strip()
-        users = WorkspaceUser.objects.filter(
-            workspace=workspace,
-            user__is_active=True,
-            user__profile__to_be_deleted=False,
-        ).exclude(user_id__in=query_params["exclude_user_ids"])
-        teams = Team.objects.filter(workspace=workspace).exclude(
-            id__in=query_params["exclude_team_ids"]
-        )
-        if search:
-            users = users.filter(
-                Q(user__first_name__icontains=search)
-                | Q(user__username__icontains=search)
-                | Q(user__email__icontains=search)
-            )
-            teams = teams.filter(name__icontains=search)
-
-        user_options = users.annotate(
-            subject_id=F("user_id"),
-            subject_type=Value(UserSubjectType.type, output_field=CharField()),
-            name=Case(
-                When(user__first_name="", then=F("user__email")),
-                default=F("user__first_name"),
-                output_field=CharField(),
-            ),
-            email=F("user__email"),
-            subject_count=Value(None, output_field=IntegerField()),
-        ).values("subject_id", "subject_type", "name", "email", "subject_count")
-        team_options = teams.annotate(
-            subject_id=F("id"),
-            subject_type=Value(TeamSubjectType.type, output_field=CharField()),
-            email=Value(None, output_field=CharField()),
-            subject_count=Count("subjects"),
-        ).values("subject_id", "subject_type", "name", "email", "subject_count")
-        options = user_options.union(team_options, all=True).order_by(
-            "name", "subject_type", "subject_id"
+        options = FieldPermissionsHandler.get_subject_options(
+            workspace,
+            search=query_params.get("search") or "",
+            exclude_user_ids=query_params["exclude_user_ids"],
+            exclude_team_ids=query_params["exclude_team_ids"],
         )
 
         paginator = PageNumberPagination(limit_page_size=100)

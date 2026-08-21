@@ -29,6 +29,12 @@ class CommaSeparatedIntegerListField(serializers.ListField):
     child = serializers.IntegerField(min_value=1)
 
     def to_internal_value(self, data):
+        """Convert a comma-separated query parameter into a validated integer list.
+
+        :param data: The comma-separated string or list value to validate.
+        :return: The validated list of integer IDs.
+        """
+
         if isinstance(data, str):
             data = data.split(",") if data else []
         return super().to_internal_value(data)
@@ -78,6 +84,14 @@ class UpdateFieldPermissionsRequestSerializer(serializers.Serializer):
     subjects = FieldPermissionSubjectRequestSerializer(many=True, required=False)
 
     def validate(self, attrs):
+        """Validate that CUSTOM permissions contain unique subjects.
+
+        :param attrs: The deserialized field-permission request data.
+        :return: The validated request data.
+        :raises serializers.ValidationError: If non-CUSTOM permissions contain
+            subjects or the same subject is included more than once.
+        """
+
         subjects = attrs.get("subjects", [])
         if attrs["role"] != FieldPermissionsRoleEnum.CUSTOM.value and subjects:
             raise serializers.ValidationError(

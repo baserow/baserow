@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from baserow.contrib.database.file_import.job_types import FileImportJobType
@@ -9,6 +11,37 @@ from baserow.core.jobs.exceptions import MaxJobCountExceeded
 @pytest.fixture
 def job_type():
     return FileImportJobType()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("explicit_import_fields", [False, True])
+def test_after_job_creation_snapshots_import_fields(
+    data_fixture, job_type, patch_filefield_storage, explicit_import_fields
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    active_field = data_fixture.create_boolean_field(table=table, name="Active")
+    expected_import_fields = [name_field.id, active_field.id]
+    configuration = None
+    if explicit_import_fields:
+        expected_import_fields.reverse()
+        configuration = {"import_fields": expected_import_fields}
+
+    with patch_filefield_storage():
+        job = FileImportJob.objects.create(user=user, database=database, table=table)
+        job_type.after_job_creation(
+            job,
+            {
+                "data": [["Ada", True]],
+                "configuration": configuration,
+            },
+        )
+        with job.data_file.open("r") as data_file:
+            import_data = json.load(data_file)
+
+    assert import_data["configuration"]["import_fields"] == expected_import_fields
 
 
 @pytest.mark.django_db

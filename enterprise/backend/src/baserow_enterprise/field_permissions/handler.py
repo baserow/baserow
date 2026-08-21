@@ -5,11 +5,23 @@ from typing import TypedDict
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from django.db.models import (
+    Case,
+    CharField,
+    Count,
+    F,
+    IntegerField,
+    Q,
+    QuerySet,
+    Value,
+    When,
+)
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Workspace, WorkspaceUser
 from baserow.core.registries import (
     permission_manager_type_registry,
     subject_type_registry,
@@ -31,12 +43,21 @@ from baserow_enterprise.role.constants import FIELD_PERMISSION_EDITOR_ROLE_UID
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import RoleAssignment
 from baserow_enterprise.signals import field_permissions_updated
+from baserow_enterprise.teams.models import Team
 from baserow_enterprise.teams.subjects import TeamSubjectType
 
 
 class FieldPermissionSubjectIdentifier(TypedDict):
     subject_id: int
     subject_type: str
+
+
+@dataclass
+class FieldPermissionRead:
+    field: Field
+    role: str
+    allow_in_forms: bool
+    subjects: list[RoleAssignment]
 
 
 @dataclass
@@ -51,6 +72,65 @@ class FieldPermissionUpdated:
 
 class FieldPermissionsHandler:
     allowed_subject_types = {UserSubjectType.type, TeamSubjectType.type}
+
+    @classmethod
+    def get_subject_options(
+        cls,
+        workspace: Workspace,
+        search: str = "",
+        exclude_user_ids: list[int] | None = None,
+        exclude_team_ids: list[int] | None = None,
+    ) -> QuerySet:
+        """Return selectable workspace users and teams for field permissions.
+
+        The returned dictionaries share the response shape expected by the field
+        permission subject-options API and are ordered consistently across both
+        subject types.
+
+        :param workspace: The workspace whose users and teams can be selected.
+        :param search: An optional case-insensitive name, username, or email search.
+        :param exclude_user_ids: User IDs to omit from the result.
+        :param exclude_team_ids: Team IDs to omit from the result.
+        :return: A queryset of user and team option dictionaries.
+        """
+
+        search = (search or "").strip()
+        users = WorkspaceUser.objects.filter(
+            workspace=workspace,
+            user__is_active=True,
+            user__profile__to_be_deleted=False,
+        ).exclude(user_id__in=exclude_user_ids or [])
+        teams = Team.objects.filter(workspace=workspace).exclude(
+            id__in=exclude_team_ids or []
+        )
+        if search:
+            users = users.filter(
+                Q(user__first_name__icontains=search)
+                | Q(user__username__icontains=search)
+                | Q(user__email__icontains=search)
+            )
+            teams = teams.filter(name__icontains=search)
+
+        user_options = users.annotate(
+            subject_id=F("user_id"),
+            subject_type=Value(UserSubjectType.type, output_field=CharField()),
+            name=Case(
+                When(user__first_name="", then=F("user__email")),
+                default=F("user__first_name"),
+                output_field=CharField(),
+            ),
+            email=F("user__email"),
+            subject_count=Value(None, output_field=IntegerField()),
+        ).values("subject_id", "subject_type", "name", "email", "subject_count")
+        team_options = teams.annotate(
+            subject_id=F("id"),
+            subject_type=Value(TeamSubjectType.type, output_field=CharField()),
+            email=Value(None, output_field=CharField()),
+            subject_count=Count("subjects"),
+        ).values("subject_id", "subject_type", "name", "email", "subject_count")
+        return user_options.union(team_options, all=True).order_by(
+            "name", "subject_type", "subject_id"
+        )
 
     @classmethod
     def _check_valid_role_value_or_raise(cls, role: str):
@@ -71,11 +151,15 @@ class FieldPermissionsHandler:
 
     @classmethod
     def _get_field_permission_subjects(cls, field: Field) -> list[RoleAssignment]:
-        """Returns the users and teams explicitly allowed to edit the field."""
+        """Return the marker assignments selecting editors for a field.
 
-        # Field subclasses use multi-table inheritance. Always scope assignments to
-        # the base Field model so that the same assignments are found regardless of
-        # whether the caller has a specific or base field instance.
+        Field subclasses use multi-table inheritance, so assignments are always
+        scoped to the base :class:`Field` content type.
+
+        :param field: The field whose selected subjects should be returned.
+        :return: Ordered user and team role assignments for the field.
+        """
+
         field_content_type = ContentType.objects.get_for_model(Field)
         return list(
             RoleAssignment.objects.filter(
@@ -93,6 +177,12 @@ class FieldPermissionsHandler:
     def _get_field_permission_subject_identifiers(
         cls, field: Field
     ) -> list[FieldPermissionSubjectIdentifier]:
+        """Return serializable identifiers for a field's selected subjects.
+
+        :param field: The field whose selected subjects should be identified.
+        :return: Subject IDs paired with their registered subject-type names.
+        """
+
         return [
             {
                 "subject_id": assignment.subject_id,
@@ -106,9 +196,21 @@ class FieldPermissionsHandler:
     @classmethod
     def _resolve_subjects(
         cls,
-        workspace,
+        workspace: Workspace,
         subject_identifiers: list[FieldPermissionSubjectIdentifier],
-    ):
+    ) -> list[AbstractUser | Team]:
+        """Resolve supported subject identifiers within a workspace.
+
+        Missing subjects and subjects outside the workspace intentionally produce
+        the same exception so callers cannot use this operation to enumerate them.
+
+        :param workspace: The workspace every resolved subject must belong to.
+        :param subject_identifiers: User and team identifiers to resolve.
+        :return: Unique subjects in deterministic type-and-ID order.
+        :raises SubjectUnsupported: If an identifier uses an unsupported type.
+        :raises SubjectNotExist: If a subject is missing or outside the workspace.
+        """
+
         identifiers_by_type = defaultdict(set)
         for identifier in subject_identifiers:
             subject_type_name = identifier["subject_type"]
@@ -139,9 +241,29 @@ class FieldPermissionsHandler:
         field: Field,
         subject_identifiers: list[FieldPermissionSubjectIdentifier],
     ) -> list[RoleAssignment]:
+        """Synchronize the subjects explicitly allowed to edit a field.
+
+        An empty desired set takes a direct deletion path and avoids resolving or
+        reading assignments that will all be removed.
+
+        :param field: The field whose marker assignments should be synchronized.
+        :param subject_identifiers: The complete desired user and team selection.
+        :return: The synchronized marker assignments in deterministic order.
+        """
+
         workspace = field.table.database.workspace
-        subjects = cls._resolve_subjects(workspace, subject_identifiers)
         field_content_type = ContentType.objects.get_for_model(Field)
+        field_assignments = RoleAssignment.objects.filter(
+            workspace=workspace,
+            scope_id=field.id,
+            scope_type=field_content_type,
+            role__uid=FIELD_PERMISSION_EDITOR_ROLE_UID,
+        )
+        if not subject_identifiers:
+            field_assignments.delete()
+            return []
+
+        subjects = cls._resolve_subjects(workspace, subject_identifiers)
         content_types = ContentType.objects.get_for_models(
             *{type(subject) for subject in subjects}
         )
@@ -149,14 +271,7 @@ class FieldPermissionsHandler:
             (content_types[type(subject)].id, subject.id): subject
             for subject in subjects
         }
-        existing = list(
-            RoleAssignment.objects.filter(
-                workspace=workspace,
-                scope_id=field.id,
-                scope_type=field_content_type,
-                role__uid=FIELD_PERMISSION_EDITOR_ROLE_UID,
-            )
-        )
+        existing = list(field_assignments)
         existing_keys = {
             (assignment.subject_type_id, assignment.subject_id): assignment
             for assignment in existing
@@ -216,8 +331,6 @@ class FieldPermissionsHandler:
         :return: A FieldPermissionUpdated object containing the updated permissions and
             wether the user can write values to the field, which requires computing the
             roles on the field.
-        :raises: ValueError if the role provided as string is not a valid
-            FieldPermissionsRoleEnum.
         """
 
         if isinstance(role, FieldPermissionsRoleEnum):
@@ -307,14 +420,15 @@ class FieldPermissionsHandler:
         return field_permissions
 
     @classmethod
-    def get_field_permissions(cls, user, field: Field) -> FieldPermissions:
+    def get_field_permissions(cls, user, field: Field) -> FieldPermissionRead:
         """
         Check permissions for the user and retrieves the field permissions.
         See _get_field_permissions for more details.
 
         :param user: The user requesting the field permissions.
         :param field: The field for which permissions are retrieved.
-        :return: The field's permissions.
+        :return: A typed read result containing the field's permission settings and
+            selected subjects.
         """
 
         CoreHandler().check_permissions(
@@ -325,9 +439,14 @@ class FieldPermissionsHandler:
         )
 
         field_permissions = cls._get_field_permissions(field)
-        field_permissions.subjects = (
+        subjects = (
             cls._get_field_permission_subjects(field)
             if field_permissions.role == FieldPermissionsRoleEnum.CUSTOM.value
             else []
         )
-        return field_permissions
+        return FieldPermissionRead(
+            field=field,
+            role=field_permissions.role,
+            allow_in_forms=field_permissions.allow_in_forms,
+            subjects=subjects,
+        )

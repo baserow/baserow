@@ -30,6 +30,7 @@ from baserow.contrib.database.fields.exceptions import (
 )
 from baserow.contrib.database.rows.actions import ImportRowsActionType
 from baserow.contrib.database.rows.exceptions import ReportMaxErrorCountExceeded
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.types import FileImportDict
 from baserow.contrib.database.table.actions import CreateTableActionType
 from baserow.contrib.database.table.exceptions import (
@@ -157,9 +158,19 @@ class FileImportJobType(JobType):
         Save the data file for the newly created job.
         """
 
+        configuration = dict(values.get("configuration") or {})
+        if job.table is not None and configuration.get("import_fields") is None:
+            configuration["import_fields"] = [
+                field.id
+                for field in RowHandler().get_import_fields(job.user, job.table)
+            ]
+
         data_file = ContentFile(
             json.dumps(
-                {"data": values["data"], "configuration": values.get("configuration")},
+                {
+                    "data": values["data"],
+                    "configuration": configuration or None,
+                },
                 ensure_ascii=False,
             ).encode("utf8")
         )

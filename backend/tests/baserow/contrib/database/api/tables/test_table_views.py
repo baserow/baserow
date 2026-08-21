@@ -940,8 +940,8 @@ def test_import_table_call(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(database=database)
-    data_fixture.create_text_field(table=table, user=user)
-    data_fixture.create_number_field(table=table, user=user)
+    text_field = data_fixture.create_text_field(table=table, user=user)
+    number_field = data_fixture.create_number_field(table=table, user=user)
 
     url = reverse("api:database:tables:import_async", kwargs={"table_id": table.id})
 
@@ -960,7 +960,12 @@ def test_import_table_call(api_client, data_fixture):
     assert rdata.get("type") == "file_import"
     Job.objects.all().delete()
 
-    valid_data_with_configuration = {"data": [["1", 1], ["2", 1]], "configuration": {}}
+    valid_data_with_configuration = {
+        "data": [["1", 1], ["2", 1]],
+        "configuration": {
+            "import_fields": [text_field.id, number_field.id],
+        },
+    }
     response = api_client.post(
         url,
         HTTP_AUTHORIZATION=f"JWT {token}",

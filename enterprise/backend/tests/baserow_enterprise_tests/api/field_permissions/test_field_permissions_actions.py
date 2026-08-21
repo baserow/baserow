@@ -12,7 +12,10 @@ from baserow_enterprise.field_permissions.actions import (
     UpdateFieldPermissionsActionType,
 )
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
-from baserow_enterprise.field_permissions.models import FieldPermissionsRoleEnum
+from baserow_enterprise.field_permissions.models import (
+    FieldPermissions,
+    FieldPermissionsRoleEnum,
+)
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -73,7 +76,7 @@ def test_can_undo_redo_updating_field_permissions(
     )
 
     original_permissions = FieldPermissionsHandler.get_field_permissions(user, field)
-    assert original_permissions.id is None
+    assert not FieldPermissions.objects.filter(field=field).exists()
     assert original_permissions.role == FieldPermissionsRoleEnum.EDITOR.value
     assert original_permissions.allow_in_forms is True
 

@@ -13,6 +13,17 @@ class TableImportConfiguration(serializers.Serializer):
     Additional table import configuration.
     """
 
+    import_fields = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        min_length=1,
+        allow_null=True,
+        default=None,
+        help_text=(
+            "The ordered field IDs corresponding to the values in each imported "
+            "row. This snapshots the import schema so field reordering or permission "
+            "changes cannot reinterpret positional values while the job is queued."
+        ),
+    )
     upsert_fields = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
         min_length=1,
@@ -158,7 +169,7 @@ class TableImportSerializer(serializers.Serializer):
             "A list of rows you want to add to the specified table. "
             "Each row is a list of values, one for each **writable** field. "
             "The field values must be ordered according to the field order in the "
-            "table. "
+            "table, or according to `configuration.import_fields` when provided. "
             "All values must be compatible with the corresponding field type.\n\n"
             'Ex: \n```json\n[\n  ["row1_field1_value", "row1_field2_value"],\n'
             '  ["row2_field1_value", "row2_field2_value"],\n]\n```\n'

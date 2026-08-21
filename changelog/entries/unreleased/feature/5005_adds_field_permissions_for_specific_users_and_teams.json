@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Adds field permissions for specific users and teams",
+    "issue_origin": "github",
+    "issue_number": 5005,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-21"
+}
