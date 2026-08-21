@@ -130,6 +130,11 @@ async function openFieldEditor(page: Page, name: string) {
   await expect(page.locator(".button-field-action-list")).toBeVisible();
 }
 
+/** Matches a whole label, so one name cannot select another that contains it. */
+function exactly(name: string) {
+  return new RegExp(`^\\s*${name}\\s*$`);
+}
+
 /** The data explorer that opens under a formula input. */
 function explorer(page: Page) {
   return page.locator("[data-formula-input-context]:visible");
@@ -165,7 +170,7 @@ async function addAction(page: Page, type: string) {
   await added.locator(".button-field-action-list__type").click();
   await page
     .locator(".dropdown__items:visible")
-    .locator(".select__item-link", { hasText: type })
+    .locator(".select__item-link", { hasText: exactly(type) })
     .click();
   return added;
 }
@@ -188,9 +193,11 @@ async function pickTableOn(
     [1, table],
   ] as [number, string][]) {
     await dropdowns.nth(position).click();
+    // Matched whole, or "Tickets" also picks up the "Tickets 2" the
+    // duplication test leaves behind.
     await page
       .locator(".dropdown__items:visible")
-      .locator(".select__item-link", { hasText: name })
+      .locator(".select__item-link", { hasText: exactly(name) })
       .click();
   }
 }
