@@ -1034,7 +1034,7 @@ class FakeDispatchContext(DispatchContext):
         return self._sortings
 
     def range(self, service):
-        return [0, self._count]
+        return 0, self._count
 
     def __getitem__(self, key: str) -> Any:
         if key == "test":
@@ -1055,6 +1055,8 @@ class FakeDispatchContext(DispatchContext):
     def validate_filter_search_sort_fields(
         self, fields: List[str], refinement: ServiceAdhocRefinements
     ):
+        # The fake context declares itself publicly refinable, so it has to
+        # accept the fields the tests refine on.
         pass
 
 

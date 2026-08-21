@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
@@ -58,16 +58,19 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         self.actor = actor
         super().__init__()
 
-    @abstractmethod
     def range(self, service: Service) -> tuple[int, int | None]:
         """
-        Should return the pagination requested for the given service.
+        Should return the pagination requested for the given service. Defaults to
+        no pagination, which suits every context that doesn't dispatch a paginated
+        list service.
 
         :params service: The service we want the pagination for.
         :return: a tuple were the first value is the offset to apply and the second
           value is the count of records to return. The count can be None it which case
           the default number of record should be returned.
         """
+
+        return 0, None
 
     def clone(self, **kwargs) -> RuntimeFormulaContextSubClass:
         """
@@ -107,22 +110,24 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         return True
 
     @property
-    @abstractmethod
     def is_publicly_searchable(self) -> bool:
         """
         Responsible for returning whether external service visitors
-        can apply search or not.
+        can apply search or not. Defaults to False, only contexts with a public
+        surface can opt in.
         """
 
-    @abstractmethod
+        return False
+
     def search_query(self) -> Optional[str]:
         """
         Responsible for returning the on-demand search query, depending
         on which module the `DispatchContext` is used by.
         """
 
-    @abstractmethod
-    def searchable_fields(self) -> Optional[List[str]]:
+        return None
+
+    def searchable_fields(self) -> List[str]:
         """
         Responsible for returning the on-demand searchable fields, depending
         on which module the `DispatchContext` is used by.
@@ -131,37 +136,42 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         return []
 
     @property
-    @abstractmethod
     def is_publicly_filterable(self) -> bool:
         """
         Responsible for returning whether external service visitors
-        can apply filters or not.
+        can apply filters or not. Defaults to False, only contexts with a public
+        surface can opt in.
         """
 
-    @abstractmethod
+        return False
+
     def filters(self) -> Optional[str]:
         """
         Responsible for returning the on-demand filters, depending
         on which module the `DispatchContext` is used by.
         """
 
+        return None
+
     @property
-    @abstractmethod
     def is_publicly_sortable(self) -> bool:
         """
         Responsible for returning whether external service visitors
-        can apply sortings or not.
+        can apply sortings or not. Defaults to False, only contexts with a public
+        surface can opt in.
         """
 
-    @abstractmethod
+        return False
+
     def sortings(self) -> Optional[str]:
         """
         Responsible for returning the on-demand sortings, depending
         on which module the `DispatchContext` is used by.
         """
 
+        return None
+
     @property
-    @abstractmethod
     def public_allowed_properties(self) -> Optional[Dict[str, Dict[int, List[str]]]]:
         """
         Return a Dict where keys are ["all", "external", "internal"] and values
@@ -179,7 +189,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         sensitive (required only by the backend).
         """
 
-    @abstractmethod
+        return None
+
     def validate_filter_search_sort_fields(
         self, fields: List[str], refinement: ServiceAdhocRefinements
     ):
@@ -189,6 +200,16 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         if the `refinement` is `FILTER`, then all fields in `fields` need
         to be filterable.
 
+        Only reachable when the context declares itself publicly filterable,
+        sortable or searchable, so the default raises: a context that opts into
+        ad hoc refinements has to say which fields are allowed rather than
+        silently accepting every field.
+
         :param fields: The fields to validate.
         :param refinement: The refinement to validate.
         """
+
+        raise NotImplementedError(
+            f"{self.__class__.__name__} allows ad hoc refinements but doesn't "
+            "validate the fields they point at."
+        )

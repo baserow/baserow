@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -9,8 +9,6 @@ from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.rows.data_providers import RowDataProviderType
 from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.models import Service
-from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class DatabaseDispatchContext(DispatchContext):
@@ -20,6 +18,10 @@ class DatabaseDispatchContext(DispatchContext):
     It carries the clicked row so actions can read its values, and the acting
     user so Local Baserow services can authorise as the clicker rather than as
     an integration's `authorized_user` (ADR 006 section 5).
+
+    Search, filter, sort and pagination stay at the base class defaults: button
+    fields are absent from public views, so no anonymous caller reaches this
+    context, and nothing dispatched by a click is a paginated list service.
     """
 
     own_properties = ["field", "row"]
@@ -68,44 +70,3 @@ class DatabaseDispatchContext(DispatchContext):
     @property
     def data_provider_registry(self) -> DataProviderTypeRegistry:
         return database_data_provider_type_registry
-
-    def range(self, service: Service) -> tuple[int, int | None]:
-        # Nothing dispatched by a button click is a paginated list service.
-        return 0, None
-
-    @property
-    def is_publicly_searchable(self) -> bool:
-        # Button fields are absent from public views, so no anonymous caller
-        # reaches this context. Same for every hook below.
-        return False
-
-    def search_query(self) -> Optional[str]:
-        return None
-
-    def searchable_fields(self) -> List[str]:
-        return []
-
-    @property
-    def is_publicly_filterable(self) -> bool:
-        return False
-
-    def filters(self) -> Optional[str]:
-        return None
-
-    @property
-    def is_publicly_sortable(self) -> bool:
-        return False
-
-    def sortings(self) -> Optional[str]:
-        return None
-
-    @property
-    def public_allowed_properties(self) -> Optional[Dict[str, Dict[int, List[str]]]]:
-        return None
-
-    def validate_filter_search_sort_fields(
-        self, fields: List[str], refinement: ServiceAdhocRefinements
-    ):
-        raise NotImplementedError(
-            "A button dispatch has no ad hoc refinement surface to validate."
-        )

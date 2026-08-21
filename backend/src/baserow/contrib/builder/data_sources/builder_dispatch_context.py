@@ -166,10 +166,10 @@ class BuilderDispatchContext(DispatchContext):
                     pass
 
         # max prevent negative values
-        return [
+        return (
             max(0, offset),
             max(0, count) if count is not None else None,
-        ]
+        )
 
     def get_element_property_options(self) -> Dict[str, Dict[str, bool]]:
         """

@@ -11,8 +11,6 @@ from baserow.contrib.automation.nodes.models import AutomationActionNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.cache import local_cache
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.models import Service
-from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class AutomationDispatchContext(DispatchContext):
@@ -107,38 +105,3 @@ class AutomationDispatchContext(DispatchContext):
         """
 
         return super().get_timezone_name()
-
-    def range(self, service: Service):
-        return [0, None]
-
-    def sortings(self) -> Optional[str]:
-        return None
-
-    def filters(self) -> Optional[str]:
-        return None
-
-    @property
-    def is_publicly_sortable(self) -> bool:
-        return False
-
-    @property
-    def is_publicly_filterable(self) -> bool:
-        return False
-
-    @property
-    def is_publicly_searchable(self) -> bool:
-        return False
-
-    @property
-    def public_allowed_properties(self) -> Optional[Dict[str, Dict[int, List[str]]]]:
-        return None
-
-    def search_query(self) -> Optional[str]:
-        return None
-
-    def searchable_fields(self):
-        return []
-
-    def validate_filter_search_sort_fields(
-        self, fields: List[str], refinement: ServiceAdhocRefinements
-    ): ...
