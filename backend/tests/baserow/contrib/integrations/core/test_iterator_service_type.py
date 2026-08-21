@@ -82,3 +82,18 @@ def test_core_iterator_service_type_empty_schema(data_fixture):
 
     service_type = service.get_type()
     assert service_type.generate_schema(service) is None
+
+
+@pytest.mark.django_db
+def test_core_iterator_service_type_error_sample_data_schema(data_fixture):
+    """
+    A failed simulated dispatch stores an `{"_error": ...}` sentinel as sample
+    data. Generating the schema should return `None` instead of raising.
+    """
+
+    service = data_fixture.create_core_iterator_service(
+        sample_data={"_error": "Value error for 'source' property"}
+    )
+
+    service_type = service.get_type()
+    assert service_type.generate_schema(service) is None

@@ -239,6 +239,32 @@ def test_get_nodes(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_nodes_with_failed_simulated_dispatch_sample_data(api_client, data_fixture):
+    """
+    A failed simulated dispatch stores an `{"_error": ...}` sentinel as the
+    service's sample data. Listing the workflow's nodes must still work, with a
+    `None` schema and the sentinel exposed so the frontend can display it.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_core_iterator_action_node(workflow=workflow)
+    service = node.service.specific
+    service.sample_data = {"_error": "Value error for 'source' property"}
+    service.save()
+
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    iterator_node = next(n for n in response.json() if n["id"] == node.id)
+    assert iterator_node["service"]["schema"] is None
+    assert iterator_node["service"]["sample_data"] == {
+        "_error": "Value error for 'source' property"
+    }
+
+
+@pytest.mark.django_db
 def test_get_node_invalid_workflow(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
 

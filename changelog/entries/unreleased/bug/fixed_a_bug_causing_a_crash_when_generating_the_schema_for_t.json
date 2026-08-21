@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug causing a crash when generating the schema for the Iterator service type.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-08-21"
+}

@@ -2048,8 +2048,11 @@ class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
         service: CoreIteratorService,
         allowed_fields: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
-        if service.sample_data and (
-            allowed_fields is None or "items" in allowed_fields
+        if (
+            service.sample_data
+            and "data" in service.sample_data
+            and "results" in service.sample_data["data"]
+            and (allowed_fields is None or "items" in allowed_fields)
         ):
             schema_builder = SchemaBuilder()
             schema_builder.add_object(service.sample_data["data"]["results"])
@@ -2061,10 +2064,8 @@ class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
                     **schema,
                     "title": self.get_schema_name(service),
                 }
-            else:
-                return None
-        else:
-            return None
+
+        return None
 
     def formulas_to_resolve(self, service: CoreRouterService) -> list[FormulaToResolve]:
         """

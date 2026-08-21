@@ -240,9 +240,17 @@ class ServiceType(
     def get_sample_data(
         self, service: ServiceSubClass, dispatch_context: DispatchContext
     ) -> Optional[Dict[Any, Any]]:
-        """Return the sample data for this service."""
+        """Return the usable sample data for this service, if any."""
 
-        return service.sample_data
+        sample_data = service.sample_data
+
+        # A failed simulated dispatch stores an `{"_error": ...}` sentinel so
+        # the frontend can display the failure. It doesn't hold `DispatchResult`
+        # fields, so it can't be replayed and counts as no sample data.
+        if sample_data is not None and "_error" in sample_data:
+            return None
+
+        return sample_data
 
     def get_context_data_schema(self, service: ServiceSubClass):
         """Return the schema for the context data."""
