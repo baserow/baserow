@@ -64,7 +64,6 @@ The Docker dev environment runs these services:
 | `mailhog` | Email testing UI | 8025 |
 | `mjml-email-compiler` | MJML to HTML email compiler | 28101 |
 | `otel-collector` | OpenTelemetry OTLP/HTTP telemetry | 4318 |
-| `phoenix` | LLM tracing & evals UI for the AI assistant (`ai` profile) | 6060 |
 | `volume-permissions-fixer` | Fixes media file permissions on startup | - |
 | `web-frontend-storybook` | Component development UI | 6006 |
 | `celery-flower` | Celery task monitoring | 5555 |

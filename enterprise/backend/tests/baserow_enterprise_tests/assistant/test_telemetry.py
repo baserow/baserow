@@ -1,4 +1,5 @@
 import json
+import sys
 from unittest.mock import MagicMock, patch
 
 from django.test import override_settings
@@ -702,3 +703,20 @@ class TestSetupInstrumentation:
         added = [c.args[0] for c in provider.add_span_processor.call_args_list]
         assert len(added) == 3
         assert added[0] is mock_posthog.return_value
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_import_error_does_not_activate_instrumentation(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        with patch.dict(
+            sys.modules, {"openinference.instrumentation.pydantic_ai": None}
+        ):
+            telemetry.setup_instrumentation()
+
+        mock_instrument.assert_not_called()
+        assert telemetry._instrumentation_ready is False

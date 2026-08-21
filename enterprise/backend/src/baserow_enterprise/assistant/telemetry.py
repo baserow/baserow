@@ -3,7 +3,9 @@ Posthog telemetry integration for the Baserow Assistant.
 
 Hooks into pydantic-ai's OpenTelemetry instrumentation to capture LLM
 generation and tool call events, mapping them to PostHog's AI analytics
-event schema (``$ai_trace``, ``$ai_generation``, ``$ai_span``).
+event schema (``$ai_trace``, ``$ai_generation``, ``$ai_span``). Spans can
+additionally be exported via OpenInference + OTLP to a self-hosted Phoenix
+instance when ``BASEROW_ASSISTANT_PHOENIX_URL`` is set.
 
 Architecture:
 
@@ -22,8 +24,10 @@ Architecture:
                               their parent remapped to the grandparent
                               (typically the ``agent run`` span).
 
-    setup_instrumentation() -- one-time wiring of the span processor into a
-                              ``TracerProvider`` + ``Agent.instrument_all()``.
+    setup_instrumentation() -- one-time wiring of the span processor (and,
+                              when configured, the Phoenix OpenInference/OTLP
+                              exporter) into a ``TracerProvider`` +
+                              ``Agent.instrument_all()``.
 """
 
 from __future__ import annotations
@@ -448,7 +452,7 @@ def setup_instrumentation():
     """Activate pydantic-ai's OTel instrumentation with PostHog and/or Phoenix export.
 
     Safe to call multiple times (subsequent calls are no-ops).
-    Does nothing when neither PostHog nor Phoenix is configured.
+    Does nothing when neither PostHog nor Phoenix ends up wiring a processor.
     """
 
     global _instrumentation_ready
@@ -466,11 +470,18 @@ def setup_instrumentation():
 
     # Prevent environment OTEL_TRACES_SAMPLER config from dropping assistant traces.
     tracer_provider = TracerProvider(sampler=ALWAYS_ON)
+    processor_added = False
     if posthog_enabled:
         # PostHog must map spans before OpenInference rewrites their attributes.
         tracer_provider.add_span_processor(PosthogSpanProcessor())
+        processor_added = True
     if phoenix_url:
-        _add_phoenix_processors(tracer_provider, phoenix_url)
+        processor_added = (
+            _add_phoenix_processors(tracer_provider, phoenix_url) or processor_added
+        )
+
+    if not processor_added:
+        return
 
     Agent.instrument_all(
         InstrumentationSettings(
@@ -482,7 +493,7 @@ def setup_instrumentation():
     _instrumentation_ready = True
 
 
-def _add_phoenix_processors(tracer_provider: TracerProvider, phoenix_url: str) -> None:
+def _add_phoenix_processors(tracer_provider: TracerProvider, phoenix_url: str) -> bool:
     """Export assistant spans to a self-hosted Phoenix instance (dev tooling)."""
 
     try:
@@ -498,13 +509,14 @@ def _add_phoenix_processors(tracer_provider: TracerProvider, phoenix_url: str) -
             "BASEROW_ASSISTANT_PHOENIX_URL is set but the OpenInference "
             "instrumentation packages are not installed; skipping Phoenix export."
         )
-        return
+        return False
 
     endpoint = phoenix_url.rstrip("/") + "/v1/traces"
     tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
     tracer_provider.add_span_processor(
         BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
     )
+    return True
 
 
 # ---------------------------------------------------------------------------
