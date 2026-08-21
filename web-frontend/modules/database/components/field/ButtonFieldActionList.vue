@@ -54,21 +54,9 @@
         <template v-if="action.type">
           <div class="button-field-action-list__separator"></div>
           <div class="button-field-action-list__form">
-            <!--
-              Keyed by type because `create_row` and `update_row` share a form
-              component, so otherwise Vue reuses the instance on a type swap
-              and keeps the old type's values.
-            -->
-            <component
-              :is="actionTypeOf(action).form"
-              :key="action.type"
-              v-bind="
-                actionTypeOf(action).getFormProps({
-                  workflowAction: action,
-                  database,
-                })
-              "
-              :default-values="action"
+            <ButtonFieldActionForm
+              :action="action"
+              :database="database"
               @values-changed="onActionValuesChanged(index, $event)"
             />
           </div>
@@ -81,7 +69,11 @@
 <script>
 import _ from 'lodash'
 import { uuid } from '@baserow/modules/core/utils/string'
-import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionReconciliation'
+import ButtonFieldActionForm from '@baserow/modules/database/components/field/ButtonFieldActionForm'
+import {
+  CLIENT_ID_KEY,
+  workflowActionKey,
+} from '@baserow/modules/database/utils/workflowActionReconciliation'
 
 /**
  * Controlled editor for a button field's ordered action list. Owns no state
@@ -90,6 +82,7 @@ import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionRec
  */
 export default {
   name: 'ButtonFieldActionList',
+  components: { ButtonFieldActionForm },
   props: {
     value: {
       type: Array,
@@ -107,16 +100,8 @@ export default {
     },
   },
   methods: {
-    actionTypeOf(action) {
-      return this.$registry.get('databaseWorkflowActionType', action.type)
-    },
-    /**
-     * What identifies a row of this list. An unsaved action has no id, and
-     * its position cannot stand in for one: deleting the action above would
-     * hand its identity, and so its form state, to the one below.
-     */
     actionKey(action) {
-      return action.id ?? action[CLIENT_ID_KEY]
+      return workflowActionKey(action)
     },
     /**
      * No type until the user picks one, and no `id` until the field is saved.

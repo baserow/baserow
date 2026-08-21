@@ -40,6 +40,10 @@ import {
   reconcileWorkflowActions,
   workflowActionConfig,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
+import {
+  rewriteActionFormulaIds,
+  unresolvedActionIds,
+} from '@baserow/modules/database/utils/workflowActionFormulas'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
@@ -52,11 +56,13 @@ export default {
       workspace: this.database.workspace,
       // `InjectedFormulaInput` resolves what to render from this injection.
       formulaComponent: markRaw(DatabaseFormulaInput),
-      // An action's arguments can only resolve the clicked row; the dispatch
-      // context carries no human readable values (ADR 006 section 4).
-      dataProvidersAllowed: ['row'],
+      // An action's arguments resolve the clicked row and what the actions
+      // before them returned (ADR 006 section 4). Human readable values are
+      // absent from the dispatch context, so `fields` is not offered.
+      dataProvidersAllowed: ['row', 'previous_action'],
       // Lazy, so the explorer picks up the table's fields as they load.
       databaseFormulaContext: computed(() => this.applicationContext),
+      registerTableFields: this.registerTableFields,
     }
   },
   setup() {
@@ -73,6 +79,10 @@ export default {
       serverActions: [],
       localActions: [],
       loadingActions: false,
+      // Target table fields, by table id, reported by the action forms that
+      // fetched them. An action that has never been saved carries no service
+      // schema, so this is the only description of what it will return.
+      tableFields: {},
     }
   },
   computed: {
@@ -88,6 +98,14 @@ export default {
               f.id !== this.defaultValues.id &&
               !this.$registry.get('field', f.type).isWriteOnlyField(f)
           ),
+      })
+      Object.defineProperty(context, 'workflowActions', {
+        enumerable: true,
+        get: () => this.localActions,
+      })
+      Object.defineProperty(context, 'tableFields', {
+        enumerable: true,
+        get: () => this.tableFields,
       })
       return context
     },
@@ -107,6 +125,24 @@ export default {
     }
   },
   methods: {
+    registerTableFields(tableId, fields) {
+      this.tableFields = { ...this.tableFields, [tableId]: fields }
+    },
+    /**
+     * Rewrites the client ids in a payload's formulas to the real ones. A
+     * client id left over means an action referenced one that had not been
+     * created, so it is raised rather than sent.
+     */
+    resolveActionIds(payload, idMap) {
+      const resolved = rewriteActionFormulaIds(payload, idMap)
+      const unresolved = unresolvedActionIds(resolved)
+      if (unresolved.length > 0) {
+        throw new Error(
+          `Unresolved workflow action reference: ${unresolved.join(', ')}`
+        )
+      }
+      return resolved
+    },
     /**
      * Only the field's own values. The nested service forms register up this
      * chain, and their values go to the workflow action endpoints instead.
@@ -208,14 +244,22 @@ export default {
       // Captured before the `finally` below re-fetches and replaces the list.
       const serverById = new Map(this.serverActions.map((a) => [a.id, a]))
 
+      // An unsaved action is referenced by its client id until the server
+      // gives it a real one. References only ever point backwards, so creating
+      // in list order means everything an action names already has its id.
+      const idMap = {}
+
       try {
         for (const action of toCreate) {
           const { data } = await service.create(
             fieldId,
-            this.createPayload(action)
+            this.resolveActionIds(this.createPayload(action), idMap)
           )
           createdIds.push(data.id)
           assignedIds.set(action[CLIENT_ID_KEY], data.id)
+          if (action[CLIENT_ID_KEY] != null) {
+            idMap[action[CLIENT_ID_KEY]] = data.id
+          }
         }
 
         for (const { id, values } of toUpdate) {
@@ -223,16 +267,22 @@ export default {
           // action is of the new type. Sending it along would type the service
           // from the server's copy, which is still the old type.
           const defersConfig = values.type !== undefined && 'service' in values
-          const payload = defersConfig
-            ? _.omit(values, 'service')
-            : this.withTypedService(values, serverById.get(id))
+          const payload = this.resolveActionIds(
+            defersConfig
+              ? _.omit(values, 'service')
+              : this.withTypedService(values, serverById.get(id)),
+            idMap
+          )
           // Skip rather than send an empty PATCH.
           if (Object.keys(payload).length === 0) {
             continue
           }
           const { data } = await service.update(id, payload)
           if (defersConfig) {
-            const config = this.configPayload(values, data)
+            const config = this.resolveActionIds(
+              this.configPayload(values, data),
+              idMap
+            )
             if (Object.keys(config).length > 0) {
               await service.update(data?.id ?? id, config)
             }

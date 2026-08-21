@@ -40,6 +40,18 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}
 
+    def get_result_field_names(self, workflow_action: WorkflowAction) -> Dict[str, str]:
+        """
+        Maps `field_<id>` to the name the dispatch result is keyed by, since it
+        is serialized with `user_field_names`. The browser needs it to resolve
+        a `previous_action` path in a frontend-only action.
+
+        :param workflow_action: The action whose result this describes.
+        :return: The mapping, empty for an action that returns no row.
+        """
+
+        return {}
+
     def dispatch(
         self,
         workflow_action: WorkflowAction,

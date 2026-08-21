@@ -230,6 +230,17 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             )
         )
 
+    def get_result_field_names(self, workflow_action: WorkflowAction) -> Dict[str, str]:
+        service = workflow_action.service.specific
+        service_type = service.get_type()
+        get_field_objects = getattr(service_type, "get_table_field_objects", None)
+        if get_field_objects is None:
+            return {}
+        return {
+            field_object["field"].db_column: field_object["field"].name
+            for field_object in get_field_objects(service) or []
+        }
+
     def dispatch(
         self,
         workflow_action: WorkflowAction,

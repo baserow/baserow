@@ -8,6 +8,15 @@ const API_OWNED_KEYS = ['id', 'type', 'order', 'field_id']
 export const CLIENT_ID_KEY = '_clientId'
 
 /**
+ * What identifies an action in the editor, saved or not. Its position cannot
+ * stand in for one: deleting the action above would hand its identity, and so
+ * its form state and any reference to it, to the one below.
+ */
+export function workflowActionKey(action) {
+  return action.id ?? action[CLIENT_ID_KEY]
+}
+
+/**
  * The type specific config of an action, without the keys the API owns. Used
  * both to diff two actions and to build the payload that persists one.
  */

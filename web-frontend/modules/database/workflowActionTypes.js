@@ -49,6 +49,66 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
   getNewActionValues() {
     return { service: {} }
   }
+
+  /**
+   * Describes the row this action returns, so a later action can reference it.
+   *
+   * A saved action carries the schema the backend built. One that has never
+   * been saved has none, so it is derived from the target table's fields,
+   * which the action forms report up to the sub-form.
+   */
+  getDataSchema(workflowAction, applicationContext) {
+    const service = workflowAction.service
+    const saved = service?.schema
+    if (saved?.properties) {
+      return {
+        ...saved,
+        title: this.label,
+        properties: this.withoutWriteOnly(saved.properties),
+      }
+    }
+
+    const fields = applicationContext?.tableFields?.[service?.table_id]
+    if (!fields) {
+      return null
+    }
+
+    return {
+      type: 'object',
+      title: this.label,
+      properties: {
+        id: {
+          type: 'number',
+          title: this.app.$i18n.t('dataProviderTypes.rowId'),
+        },
+        ...Object.fromEntries(
+          fields
+            .filter((field) => !this.isWriteOnly(field))
+            .map((field) => [
+              `field_${field.id}`,
+              { type: 'string', title: field.name, metadata: field },
+            ])
+        ),
+      },
+    }
+  }
+
+  isWriteOnly(field) {
+    return this.app.$registry.get('field', field.type).isWriteOnlyField(field)
+  }
+
+  /**
+   * The dispatch refuses to read a write only field, so offering one would
+   * only build a formula that fails on click.
+   */
+  withoutWriteOnly(properties) {
+    return Object.fromEntries(
+      Object.entries(properties).filter(
+        ([, property]) =>
+          !property.metadata?.type || !this.isWriteOnly(property.metadata)
+      )
+    )
+  }
 }
 
 /**
@@ -84,6 +144,14 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
   }
 
   /**
+   * Opening a URL produces nothing later actions can read, so it contributes
+   * no node to the data explorer.
+   */
+  getDataSchema() {
+    return null
+  }
+
+  /**
    * Nothing to seed: the form emits its own defaults on mount.
    */
   getNewActionValues() {
@@ -93,20 +161,28 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
   /**
    * Resolves the action's URL formula for the clicked row.
    *
-   * Only the `fields` provider is offered: it stringifies every value, which
-   * is what a URL needs. `row` returns raw types and is for action arguments
-   * (ADR 006 section 4). A resolution failure comes back as an empty string.
+   * `fields` stringifies every value, which is what a URL needs; `row` returns
+   * raw types and is for action arguments (ADR 006 section 4). A resolution
+   * failure comes back as an empty string.
    */
-  resolveUrl(workflowAction, { row, fields }) {
+  resolveUrl(workflowAction, { row, fields, previousActionResults = {} }) {
     const formulaObject = workflowAction.url
     if (!formulaObject?.formula) {
       return ''
     }
     const dataProviders = {
       fields: this.app.$registry.get('databaseDataProvider', 'fields'),
+      previous_action: this.app.$registry.get(
+        'databaseDataProvider',
+        'previous_action'
+      ),
     }
     const runtimeFormulaContext = new Proxy(
-      new RuntimeFormulaContext(dataProviders, { row, fields }),
+      new RuntimeFormulaContext(dataProviders, {
+        row,
+        fields,
+        previousActionResults,
+      }),
       {
         get(target, prop) {
           return target.get(prop)
@@ -203,6 +279,13 @@ export class LocalBaserowDeleteRowWorkflowActionType extends DatabaseWorkflowAct
 
   getOrder() {
     return 30
+  }
+
+  /**
+   * The row is gone, so there is nothing for a later action to read.
+   */
+  getDataSchema() {
+    return null
   }
 
   get serviceType() {

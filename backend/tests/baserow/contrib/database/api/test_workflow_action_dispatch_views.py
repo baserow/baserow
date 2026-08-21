@@ -339,3 +339,30 @@ def test_a_failed_action_stops_the_client_actions(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
     assert "client_actions" not in response.json()
+
+
+@pytest.mark.django_db
+def test_a_result_names_the_fields_it_returned(api_client, data_fixture):
+    """The result is keyed by field name, so the browser needs the ids to
+    resolve a `previous_action.<id>.field_<id>` path in an `open_url`."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, action = _button_with_create_action(
+        data_fixture, user
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    (result,) = response.json()["results"]
+    assert result["workflow_action_id"] == action.id
+    assert result["field_names"][f"field_{name_field.id}"] == "Name"
+    assert result["data"]["Name"] == "Ada"

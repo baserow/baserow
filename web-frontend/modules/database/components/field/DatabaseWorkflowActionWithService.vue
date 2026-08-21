@@ -15,6 +15,11 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 export default {
   name: 'DatabaseWorkflowActionWithService',
   mixins: [form],
+  inject: {
+    // The sub-form collects these so the data explorer can describe what an
+    // unsaved action will return.
+    registerTableFields: { from: 'registerTableFields', default: null },
+  },
   props: {
     workflowAction: {
       type: Object,
@@ -117,8 +122,10 @@ export default {
         if (token !== this.fetchToken) {
           return
         }
-        // The same filter the schema applies.
+        // The same filter the schema applies. Unfiltered for the explorer,
+        // which can read a created row's read only fields.
         this.mappableFields = data.filter((field) => !field.read_only)
+        this.registerTableFields?.(tableId, data)
       } catch (error) {
         if (token !== this.fetchToken) {
           return

@@ -432,6 +432,9 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 # is here so an async one can report "dispatched" later.
                 "status": "completed",
                 "data": dispatched.result.data,
+                "field_names": dispatched.workflow_action.get_type().get_result_field_names(
+                    dispatched.workflow_action
+                ),
             }
             for dispatched in dispatch.dispatched
         ]

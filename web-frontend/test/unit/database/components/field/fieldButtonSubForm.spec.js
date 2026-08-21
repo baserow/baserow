@@ -686,8 +686,9 @@ describe('FieldButtonSubForm', () => {
       const provides = wrapper.vm.$.provides
 
       expect(provides.formulaComponent).toBeTruthy()
-      // Only the clicked row resolves in a button action's arguments.
-      expect(provides.dataProvidersAllowed).toEqual(['row'])
+      // The clicked row and what the earlier actions returned. Human readable
+      // values are absent from the dispatch context, so `fields` is not one.
+      expect(provides.dataProvidersAllowed).toEqual(['row', 'previous_action'])
     })
 
     test('InjectedFormulaInput renders a real input under the sub-form', async () => {

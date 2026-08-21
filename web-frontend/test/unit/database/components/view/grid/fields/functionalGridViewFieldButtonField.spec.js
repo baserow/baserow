@@ -71,6 +71,7 @@ describe('FunctionalGridViewFieldButtonField', () => {
       applicationContext: {
         row: { id: 1, field_1: 'ada' },
         fields: storeFields,
+        previousActionResults: {},
       },
     })
   })

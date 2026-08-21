@@ -1060,7 +1060,8 @@
   "dataProviderTypes": {
     "fieldsName": "Fields",
     "rowName": "Clicked row",
-    "rowId": "Row ID"
+    "rowId": "Row ID",
+    "previousActionName": "Previous action"
   },
   "userMentionInRichTextFieldNotification": {
     "title": "{sender} mentioned you in field {fieldName} of row {rowId} in {tableName}",

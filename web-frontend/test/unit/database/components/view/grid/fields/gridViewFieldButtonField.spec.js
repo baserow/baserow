@@ -95,6 +95,7 @@ describe('GridViewFieldButtonField', () => {
       applicationContext: {
         row: { id: 1, field_1: 'ada' },
         fields: [{ id: 1, type: 'text', name: 'Slug' }, field],
+        previousActionResults: {},
       },
     })
   })

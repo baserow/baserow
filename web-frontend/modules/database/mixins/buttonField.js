@@ -48,7 +48,11 @@ export default {
           this.field.id,
           this.row.id
         )
-        await this.runClientActions(data?.client_actions || [], clickedRow)
+        await this.runClientActions(
+          data?.client_actions || [],
+          clickedRow,
+          this.previousActionResults(data)
+        )
       } catch (error) {
         // A handled error already carries its own message. Anything else, a
         // network failure for instance, still needs a toast of its own.
@@ -65,11 +69,25 @@ export default {
       }
     },
     /**
+     * What the server side actions returned, for a client action to reference.
+     * The result is keyed by field name, so the ids it came with travel with
+     * it: the browser has no other way to map a `field_<id>` in a formula onto
+     * a row of a table that is not this one.
+     */
+    previousActionResults(data) {
+      return Object.fromEntries(
+        (data?.results || []).map((result) => [
+          String(result.workflow_action_id),
+          { data: result.data, fieldNames: result.field_names || {} },
+        ])
+      )
+    },
+    /**
      * Runs the actions the backend hands back for the browser, in the order it
      * returned them. It only sends them when every server side action
      * succeeded, so a failed row action never navigates away.
      */
-    async runClientActions(clientActions, row) {
+    async runClientActions(clientActions, row, previousActionResults = {}) {
       const fields =
         this.allFieldsInTable?.length > 0
           ? this.allFieldsInTable
@@ -79,7 +97,7 @@ export default {
           .get('databaseWorkflowActionType', workflowAction.type)
           .execute({
             workflowAction,
-            applicationContext: { row, fields },
+            applicationContext: { row, fields, previousActionResults },
           })
       }
     },

@@ -90,6 +90,13 @@ class DispatchResultSerializer(serializers.Serializer):
     data = serializers.JSONField(
         allow_null=True, help_text="The action's result, if it produced one."
     )
+    field_names = serializers.DictField(
+        child=serializers.CharField(),
+        help_text=(
+            "Maps `field_<id>` to the name the result is keyed by, so a "
+            "frontend-only action can resolve a `previous_action` path."
+        ),
+    )
 
 
 class DispatchWorkflowActionsResponseSerializer(serializers.Serializer):

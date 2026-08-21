@@ -337,6 +337,7 @@ import { HistoryRowModalSidebarType } from '@baserow/modules/database/rowModalSi
 import {
   FieldsDataProviderType,
   RowDataProviderType,
+  PreviousActionDataProviderType,
 } from '@baserow/modules/database/dataProviderTypes'
 
 import {
@@ -1000,6 +1001,10 @@ export default defineNuxtPlugin({
       new FieldsDataProviderType(context)
     )
     $registry.register('databaseDataProvider', new RowDataProviderType(context))
+    $registry.register(
+      'databaseDataProvider',
+      new PreviousActionDataProviderType(context)
+    )
 
     // notifications
     $registry.register(
