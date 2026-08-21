@@ -29,7 +29,6 @@ from baserow.contrib.database.table.constants import (
     get_tsv_vector_field_name,
 )
 from baserow.core.constants import RatingStyleChoices
-from baserow.core.formula.field import FormulaField as CoreFormulaModelField
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -998,15 +997,6 @@ class ButtonField(Field):
     """
 
     label = models.CharField(max_length=255, blank=True, default="", db_default="")
-    # TODO ZDM: remove this field in the next version
-    url_formula = CoreFormulaModelField(
-        default="",
-        db_default="",
-        help_text=(
-            "Deprecated legacy field retained for compatibility. A button's "
-            "URL is an `open_url` workflow action."
-        ),
-    )
 
     # Set by `ButtonFieldType.enhance_field_queryset` when fields are fetched in
     # bulk, so `has_workflow_actions` costs no query of its own there.
