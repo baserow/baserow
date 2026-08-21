@@ -353,3 +353,62 @@ def test_literal_values_with_apostrophes_stay_valid_formulas(data_fixture):
     duplicated = AutomationWorkflowService().duplicate_workflow(user, workflow)
 
     assert duplicated.id != workflow.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_router_edge_conditions_stay_valid_formulas(data_fixture):
+    """
+    Generated router edge conditions are written into the edge's JSON
+    ``condition`` instead of a service field, so they must go through
+    ``ensure_valid_formula`` like every other assistant-written formula. An
+    unparsable condition falls back to a string literal so the workflow stays
+    duplicable, exportable and importable.
+    """
+
+    from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+    from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+    from baserow_enterprise.assistant.tools.automation.types.node import (
+        RouterEdgeCreate,
+    )
+    from baserow_enterprise.assistant.tools.shared.formula_utils import is_valid_formula
+
+    user = data_fixture.create_user()
+    router_node = data_fixture.create_core_router_action_node_with_edges(
+        user=user
+    ).router
+
+    node_create = ActionNodeCreate(
+        ref="router1",
+        label="Router",
+        previous_node_ref="trigger1",
+        type="router",
+        edges=[
+            RouterEdgeCreate(label="Do this", condition="High priority"),
+            RouterEdgeCreate(label="Do that", condition="Low priority"),
+        ],
+    )
+    node_create.update_service_with_formulas(
+        router_node.service,
+        {
+            "Do this": "get('previous_node.1.field')",
+            "Do that": "Managers' pick",  # unparsable: unterminated string literal
+        },
+    )
+
+    edges = router_node.service.specific.edges
+    valid_edge = edges.get(label="Do this")
+    assert valid_edge.condition["formula"] == "get('previous_node.1.field')"
+    assert valid_edge.condition["mode"] == BASEROW_FORMULA_MODE_ADVANCED
+
+    fallback_edge = edges.get(label="Do that")
+    assert fallback_edge.condition["formula"] == "'Managers\\' pick'"
+    assert is_valid_formula(fallback_edge.condition["formula"])
+    assert fallback_edge.condition["mode"] == BASEROW_FORMULA_MODE_ADVANCED
+
+    # The workflow must remain duplicable, which is where an unparsable
+    # condition would surface in the formula importer.
+    duplicated = AutomationWorkflowService().duplicate_workflow(
+        user, router_node.workflow
+    )
+
+    assert duplicated.id != router_node.workflow.id

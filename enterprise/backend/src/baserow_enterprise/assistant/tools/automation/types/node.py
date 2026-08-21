@@ -551,7 +551,7 @@ def _router_update_formulas(
         label = orm_edge.label.lower()
         if label in formulas_lower:
             orm_edge.condition["mode"] = BASEROW_FORMULA_MODE_ADVANCED
-            orm_edge.condition["formula"] = formulas_lower[label]
+            orm_edge.condition["formula"] = ensure_valid_formula(formulas_lower[label])
             updates.append(orm_edge)
     if updates:
         EdgeModel.objects.bulk_update(updates, ["condition"])
