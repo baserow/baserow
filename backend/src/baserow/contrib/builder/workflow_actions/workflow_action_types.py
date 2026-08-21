@@ -247,13 +247,6 @@ class RefreshDataSourceWorkflowActionType(BuilderWorkflowActionType):
 class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
     service_type = None  # Must be implemented by subclasses.
     serializer_field_names = ["service"]
-    request_serializer_field_overrides = {
-        "service": PolymorphicServiceRequestSerializer(
-            default=None,
-            required=False,
-            help_text="The service which this workflow action is associated with.",
-        )
-    }
     is_server_workflow = True
     serializer_field_overrides = {
         "service": PolymorphicServiceSerializer(
@@ -267,6 +260,26 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
             help_text="The service which this workflow action is associated with."
         )
     }
+
+    def get_field_overrides(
+        self, request_serializer: bool, extra_params: Dict, **kwargs
+    ) -> Dict:
+        # Built per type rather than declared, so the request serializer can
+        # fall back to the service type this action carries when the caller
+        # leaves `type` out of the service payload.
+        public = (extra_params or {}).get("public", False)
+        if request_serializer and not public:
+            return {
+                "service": PolymorphicServiceRequestSerializer(
+                    default_type_name=self.service_type,
+                    default=None,
+                    required=False,
+                    help_text="The service which this workflow action is "
+                    "associated with.",
+                )
+            }
+
+        return super().get_field_overrides(request_serializer, extra_params, **kwargs)
 
     class SerializedDict(BuilderWorkflowActionDict):
         service: Dict
