@@ -64,6 +64,7 @@ The Docker dev environment runs these services:
 | `mailhog` | Email testing UI | 8025 |
 | `mjml-email-compiler` | MJML to HTML email compiler | 28101 |
 | `otel-collector` | OpenTelemetry OTLP/HTTP telemetry | 4318 |
+| `phoenix` | LLM tracing & evals UI for the AI assistant (`ai` profile) | 6060 |
 | `volume-permissions-fixer` | Fixes media file permissions on startup | - |
 | `web-frontend-storybook` | Component development UI | 6006 |
 | `celery-flower` | Celery task monitoring | 5555 |
@@ -180,8 +181,9 @@ By default, all services including optional ones are started:
 |---------|-------------|------|
 | `web-frontend-storybook` | Component development UI | 6006 |
 | `celery-flower` | Celery task monitoring | 5555 |
+| `phoenix` | LLM tracing & evals UI for the AI assistant (`ai` profile) | 6060 |
 
-This is controlled by the `COMPOSE_PROFILES` variable in `.env.docker-dev`:
+This is controlled by the `COMPOSE_PROFILES` variable in `.env.docker-dev`. The `ai` profile starts `embeddings` and `phoenix`; set `BASEROW_ASSISTANT_PHOENIX_URL=http://phoenix:6006` to export assistant traces.
 
 ```bash
 # Default: start all services including optional ones

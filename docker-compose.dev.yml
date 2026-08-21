@@ -31,6 +31,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL}
+      - BASEROW_ASSISTANT_PHOENIX_URL=${BASEROW_ASSISTANT_PHOENIX_URL:-}
     build:
       dockerfile: ./backend/Dockerfile
       context: .
@@ -127,6 +128,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
+      - BASEROW_ASSISTANT_PHOENIX_URL=${BASEROW_ASSISTANT_PHOENIX_URL:-}
     volumes:
       - ./docs:/baserow/docs
       - ./backend:/baserow/backend
@@ -292,9 +294,23 @@ services:
       timeout: 10s
       retries: 3
 
+  phoenix:
+    profiles: ["ai"]
+    image: arizephoenix/phoenix:version-20.3.0
+    environment:
+      - PHOENIX_WORKING_DIR=/mnt/data
+    ports:
+      - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_PHOENIX_PORT:-6060}:6006"
+    networks:
+      local:
+    restart: unless-stopped
+    volumes:
+      - phoenix_data:/mnt/data
+
 volumes:
   pgdatadev:
   node_modules:
   nuxt:
   storybook:
   cache:
+  phoenix_data:
