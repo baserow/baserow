@@ -1,9 +1,10 @@
-from typing import TYPE_CHECKING, Any, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from baserow.core.formula.exceptions import InvalidFormulaContext
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import get_value_at_path
+from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 from baserow.core.workflow_actions.models import WorkflowAction
 
 if TYPE_CHECKING:
@@ -25,15 +26,13 @@ class PreviousActionDataProviderType(DataProviderType):
 
     type = "previous_action"
 
-    # The dispatch context holds each action's result under this key, keyed by
-    # action id. Placed in `self.cache` rather than on the context itself
-    # because `clone()` rebuilds the context through `__init__` and only copies
-    # the cache dict, so this is what every clone ends up sharing.
+    # In the context's cache rather than on the context itself: `clone()`
+    # rebuilds through `__init__` and only copies the cache dict, so this is
+    # what every clone shares.
     CACHE_KEY = "previous_action_results"
 
-    # The actions those results came from, keyed the same way. Kept so a path
-    # can be prepared through the action's own service without looking the
-    # action up again, which would be a query per formula reference.
+    # The actions those results came from, so a path can be prepared without
+    # looking the action up again.
     ACTIONS_CACHE_KEY = "previous_action_instances"
 
     def post_dispatch(
@@ -52,14 +51,50 @@ class PreviousActionDataProviderType(DataProviderType):
 
         results = dispatch_context.cache.get(self.CACHE_KEY)
         if results is None:
-            # A context that never made a holder, such as an AI prompt's, has
-            # no sequence to chain and nothing to keep.
+            # A context with no holder, such as an AI prompt's, has no sequence.
             return
 
         results[workflow_action.id] = dispatch_result.data
         dispatch_context.cache[self.ACTIONS_CACHE_KEY][workflow_action.id] = (
             workflow_action
         )
+
+    def import_path(
+        self, path: List[str], id_mapping: Dict[str, Any], **kwargs
+    ) -> List[str]:
+        """
+        Points a reference at the imported copy of the action it names, and
+        hands the rest of the path to that action's service.
+
+        :param path: The action id, then the path into its result.
+        :param id_mapping: The mapping built by the import.
+        :return: The updated path.
+        """
+
+        from baserow.contrib.database.workflow_actions.handler import (
+            DatabaseWorkflowActionHandler,
+        )
+
+        action_id, *rest = path
+
+        if "database_workflow_actions" not in id_mapping:
+            return [str(action_id), *rest]
+
+        try:
+            action_id = id_mapping["database_workflow_actions"][int(action_id)]
+            workflow_action = DatabaseWorkflowActionHandler().get_workflow_action(
+                action_id
+            )
+        except (KeyError, ValueError, WorkflowActionDoesNotExist):
+            # An action outside this import. Left as it is, like the builder
+            # and automation leave theirs.
+            return [str(action_id), *rest]
+
+        service = getattr(workflow_action, "service", None)
+        if service is not None:
+            rest = service.specific.get_type().import_path(rest, id_mapping)
+
+        return [str(action_id), *rest]
 
     def get_data_chunk(
         self, dispatch_context: "DatabaseDispatchContext", path: List[str]
@@ -79,8 +114,7 @@ class PreviousActionDataProviderType(DataProviderType):
         try:
             action_id = int(action_id)
         except (TypeError, ValueError):
-            # A client id that escaped the editor's substitution, or a path
-            # written by hand.
+            # A client id that escaped the editor's substitution.
             raise InvalidFormulaContext(
                 f'"{action_id}" is not a workflow action id.'
             ) from None
@@ -88,9 +122,8 @@ class PreviousActionDataProviderType(DataProviderType):
         results = dispatch_context.cache.get(self.CACHE_KEY) or {}
 
         if action_id not in results:
-            # Either the action does not belong to this button, or it sits
-            # after this one and has not run. Both are configuration errors,
-            # so fail the click rather than resolve to nothing.
+            # Not this button's action, or it sits after this one. Fail the
+            # click rather than resolve to nothing.
             raise InvalidFormulaContext(
                 "The previous action has not run in this click."
             )

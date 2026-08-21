@@ -62,10 +62,8 @@ class DatabaseDispatchContext(DispatchContext):
         # dict placed here is shared by reference with every clone.
         self.cache[RowDataProviderType.CACHE_KEY] = {}
 
-        # Each dispatched action's result, keyed by action id, for the actions
-        # after it to read, and the actions themselves so a path can be
-        # prepared without another query. Placed here for the same reason as
-        # the holder above.
+        # What each action returned, for the actions after it. Placed here for
+        # the same reason as the holder above.
         self.cache[PreviousActionDataProviderType.CACHE_KEY] = {}
         self.cache[PreviousActionDataProviderType.ACTIONS_CACHE_KEY] = {}
 

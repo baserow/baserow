@@ -588,3 +588,114 @@ def test_a_field_mapping_formula_survives_an_application_export_import(data_fixt
 
     assert imported_name_field.id != name_field.id
     assert mapping.value["formula"] == f"get('row.field_{imported_name_field.id}')"
+
+
+@pytest.mark.django_db
+def test_duplicate_table_remaps_a_previous_action_reference(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+
+    create_row = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = create_row.service.specific
+    service.table = table
+    service.save()
+
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={
+            "formula": (
+                f"get('previous_action.{create_row.id}.field_{text_field.id}')"
+            ),
+            "mode": "simple",
+        },
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (duplicated_create_row,) = LocalBaserowCreateRowWorkflowAction.objects.filter(
+        field=duplicated_field
+    )
+    (duplicated_open_url,) = OpenUrlWorkflowAction.objects.filter(
+        field=duplicated_field
+    )
+    new_text_field_id = (
+        duplicated_table.field_set.exclude(id=duplicated_field.id).get().id
+    )
+
+    assert duplicated_open_url.url["formula"] == (
+        f"get('previous_action.{duplicated_create_row.id}.field_{new_text_field_id}')"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_previous_action_reference_survives_an_application_export_import(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=None, table=table
+    )
+    create_row = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
+    )
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={
+            "formula": (
+                f"get('previous_action.{create_row.id}.field_{name_field.id}')"
+            ),
+            "mode": "simple",
+        },
+    )
+
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    imported_table = imported[0].table_set.get(name=table.name)
+    imported_name_field = imported_table.field_set.get(name="Name")
+    imported_button = imported_table.field_set.get(name="btn").specific
+    (imported_create_row,) = LocalBaserowCreateRowWorkflowAction.objects.filter(
+        field=imported_button
+    )
+    (imported_open_url,) = OpenUrlWorkflowAction.objects.filter(field=imported_button)
+
+    assert imported_create_row.id != create_row.id
+    assert imported_name_field.id != name_field.id
+    assert imported_open_url.url["formula"] == (
+        f"get('previous_action.{imported_create_row.id}"
+        f".field_{imported_name_field.id}')"
+    )
+
+
+@pytest.mark.django_db
+def test_a_previous_action_reference_outside_the_import_is_left_alone(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={"formula": "get('previous_action.999999.id')", "mode": "simple"},
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_field = duplicated_table.field_set.get(name="btn").specific
+    (action,) = OpenUrlWorkflowAction.objects.filter(field=duplicated_field)
+
+    assert action.url["formula"] == "get('previous_action.999999.id')"
