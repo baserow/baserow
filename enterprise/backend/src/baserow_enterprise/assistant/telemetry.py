@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from loguru import logger
 from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 from opentelemetry.trace import SpanKind
@@ -444,10 +445,10 @@ _instrumentation_ready = False
 
 
 def setup_instrumentation():
-    """Activate pydantic-ai's OTel instrumentation with PostHog export.
+    """Activate pydantic-ai's OTel instrumentation with PostHog and/or Phoenix export.
 
     Safe to call multiple times (subsequent calls are no-ops).
-    Does nothing when PostHog is disabled.
+    Does nothing when neither PostHog nor Phoenix is configured.
     """
 
     global _instrumentation_ready
@@ -457,14 +458,19 @@ def setup_instrumentation():
     from django.conf import settings as django_settings
 
     posthog_enabled = getattr(django_settings, "POSTHOG_ENABLED", False)
-    if not posthog_enabled:
+    phoenix_url = getattr(django_settings, "BASEROW_ASSISTANT_PHOENIX_URL", "")
+    if not posthog_enabled and not phoenix_url:
         return
 
     from pydantic_ai import Agent, InstrumentationSettings
 
     # Prevent environment OTEL_TRACES_SAMPLER config from dropping assistant traces.
     tracer_provider = TracerProvider(sampler=ALWAYS_ON)
-    tracer_provider.add_span_processor(PosthogSpanProcessor())
+    if posthog_enabled:
+        # PostHog must map spans before OpenInference rewrites their attributes.
+        tracer_provider.add_span_processor(PosthogSpanProcessor())
+    if phoenix_url:
+        _add_phoenix_processors(tracer_provider, phoenix_url)
 
     Agent.instrument_all(
         InstrumentationSettings(
@@ -474,6 +480,31 @@ def setup_instrumentation():
     )
 
     _instrumentation_ready = True
+
+
+def _add_phoenix_processors(tracer_provider: TracerProvider, phoenix_url: str) -> None:
+    """Export assistant spans to a self-hosted Phoenix instance (dev tooling)."""
+
+    try:
+        from openinference.instrumentation.pydantic_ai import (
+            OpenInferenceSpanProcessor,
+        )
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+            OTLPSpanExporter,
+        )
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    except ImportError:
+        logger.warning(
+            "BASEROW_ASSISTANT_PHOENIX_URL is set but the OpenInference "
+            "instrumentation packages are not installed; skipping Phoenix export."
+        )
+        return
+
+    endpoint = phoenix_url.rstrip("/") + "/v1/traces"
+    tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+    )
 
 
 # ---------------------------------------------------------------------------

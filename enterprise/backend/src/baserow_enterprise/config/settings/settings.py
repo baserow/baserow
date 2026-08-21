@@ -104,6 +104,9 @@ def setup(settings):
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = os.getenv(
         "BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL", ""
     )
+    settings.BASEROW_ASSISTANT_PHOENIX_URL = os.getenv(
+        "BASEROW_ASSISTANT_PHOENIX_URL", ""
+    )
     _temp_raw = os.getenv("BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE", "")
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE = (
         float(_temp_raw) if _temp_raw else None
