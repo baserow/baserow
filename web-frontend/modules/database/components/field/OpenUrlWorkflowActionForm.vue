@@ -7,7 +7,7 @@
       <div class="open-url-workflow-action-form__control">
         <DatabaseFormulaInput
           :value="values.url"
-          :data-providers-allowed="['fields']"
+          :data-providers-allowed="['fields', 'previous_action']"
           :placeholder="$t('openUrlWorkflowActionForm.urlPlaceholder')"
           @input="values.url = $event"
           @update:invalid="urlInvalid = $event"

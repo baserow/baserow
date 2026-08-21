@@ -350,6 +350,12 @@ def test_a_result_names_the_fields_it_returned(api_client, data_fixture):
     table, name_field, button_field, row, action = _button_with_create_action(
         data_fixture, user
     )
+    # Only a client action reads a result, so only then are the names built.
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={"formula": "'https://example.com'", "mode": "simple"},
+    )
 
     response = api_client.post(
         reverse(
@@ -366,3 +372,24 @@ def test_a_result_names_the_fields_it_returned(api_client, data_fixture):
     assert result["workflow_action_id"] == action.id
     assert result["field_names"][f"field_{name_field.id}"] == "Name"
     assert result["data"]["Name"] == "Ada"
+
+
+@pytest.mark.django_db
+def test_no_client_action_means_no_field_names(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, action = _button_with_create_action(
+        data_fixture, user
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    (result,) = response.json()["results"]
+    assert result["field_names"] == {}

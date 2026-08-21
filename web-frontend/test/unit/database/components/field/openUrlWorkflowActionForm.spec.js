@@ -81,13 +81,19 @@ describe('OpenUrlWorkflowActionForm', () => {
     expect(emitted[emitted.length - 1][0].target).toBe('self')
   })
 
-  test('the url input resolves against the fields data provider only', async () => {
+  test('the url input resolves fields and earlier action results', async () => {
     const wrapper = await mountForm({
       url: { formula: "'https://x.test'", mode: 'simple' },
     })
 
     const input = wrapper.findComponent(DatabaseFormulaInput)
-    expect(input.props('dataProvidersAllowed')).toEqual(['fields'])
+    // The prop overrides what the sub-form injects, so `previous_action` has
+    // to be named here or a URL cannot reference an earlier action at all.
+    // `row` is absent on purpose: a URL wants the stringified value.
+    expect(input.props('dataProvidersAllowed')).toEqual([
+      'fields',
+      'previous_action',
+    ])
     expect(input.vm.$attrs.placeholder).toBe(
       'openUrlWorkflowActionForm.urlPlaceholder'
     )

@@ -425,6 +425,10 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             request.user, field, row
         )
 
+        # Only a client action reads a result, and naming the fields costs a
+        # table model per action.
+        names_wanted = bool(dispatch.client_actions)
+
         results = [
             {
                 "workflow_action_id": dispatched.workflow_action.id,
@@ -432,8 +436,12 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 # is here so an async one can report "dispatched" later.
                 "status": "completed",
                 "data": dispatched.result.data,
-                "field_names": dispatched.workflow_action.get_type().get_result_field_names(
-                    dispatched.workflow_action
+                "field_names": (
+                    dispatched.workflow_action.get_type().get_result_field_names(
+                        dispatched.workflow_action
+                    )
+                    if names_wanted
+                    else {}
                 ),
             }
             for dispatched in dispatch.dispatched
