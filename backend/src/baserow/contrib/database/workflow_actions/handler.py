@@ -2,6 +2,9 @@ from typing import TYPE_CHECKING, Iterable, List, Optional, Type
 
 from django.db.models import QuerySet
 
+from baserow.contrib.database.data_providers.registries import (
+    database_data_provider_type_registry,
+)
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionNotInField,
@@ -160,4 +163,15 @@ class DatabaseWorkflowActionHandler(WorkflowActionHandler):
         :return: The result of dispatching the action.
         """
 
-        return workflow_action.get_type().dispatch(workflow_action, dispatch_context)
+        dispatch_result = workflow_action.get_type().dispatch(
+            workflow_action, dispatch_context
+        )
+
+        # Where `previous_action` keeps this result for the actions after it
+        # (ADR 006 section 3).
+        for data_provider in database_data_provider_type_registry.get_all():
+            data_provider.post_dispatch(
+                dispatch_context, workflow_action, dispatch_result
+            )
+
+        return dispatch_result

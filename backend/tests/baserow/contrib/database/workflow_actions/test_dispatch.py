@@ -844,3 +844,75 @@ def test_undoing_a_save_restores_the_field_but_not_its_actions(data_fixture):
     button_field.refresh_from_db()
     assert button_field.label == "Before"
     assert button_field.workflow_actions.count() == 1
+
+
+@pytest.mark.django_db
+def test_a_chained_action_never_reads_a_failed_action(data_fixture):
+    """The sequence stops at the first failure, so a later action cannot see a
+    half result. Phase 3 relies on this: it is why chaining into `open_url` is
+    safe here and produces a truncated URL in the builder."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    # A delete-row action with no table configured fails at dispatch.
+    broken = data_fixture.create_database_workflow_action(
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
+    )
+    chained = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = chained.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(
+        field=name_field,
+        value=f"concat('row ',get('previous_action.{broken.id}.id'))",
+        enabled=True,
+    )
+
+    with pytest.raises(WorkflowActionDispatchError) as exc:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    # The error names the action that actually failed, not the one that would
+    # have read it.
+    assert exc.value.workflow_action_id == broken.id
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
+
+
+@pytest.mark.django_db
+def test_a_later_action_reads_an_earlier_action_result(data_fixture):
+    """ADR 006 section 4: "create a row, then update another row with the new
+    id"."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    first = _create_row_action(data_fixture, button_field, table, name_field, "Ada")
+
+    second = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = second.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(
+        field=name_field,
+        value=(
+            f"concat(get('previous_action.{first.id}.field_{name_field.id}'),"
+            f"' ',get('previous_action.{first.id}.id'))"
+        ),
+        enabled=True,
+    )
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(user, button_field, row)
+
+    created = list(table.get_model().objects.exclude(id=row.id).order_by("id"))
+    assert getattr(created[0], f"field_{name_field.id}") == "Ada"
+    assert getattr(created[1], f"field_{name_field.id}") == f"Ada {created[0].id}"

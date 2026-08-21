@@ -1103,11 +1103,13 @@ class DatabaseConfig(AppConfig):
             HumanReadableFieldsDataProviderType,
             RowDataProviderType,
         )
+        from .workflow_actions.data_providers import PreviousActionDataProviderType
 
         database_data_provider_type_registry.register(
             HumanReadableFieldsDataProviderType()
         )
         database_data_provider_type_registry.register(RowDataProviderType())
+        database_data_provider_type_registry.register(PreviousActionDataProviderType())
 
         # notification_types
         from baserow.contrib.database.fields.notification_types import (

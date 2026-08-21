@@ -7,6 +7,9 @@ from baserow.contrib.database.data_providers.registries import (
 )
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.rows.data_providers import RowDataProviderType
+from baserow.contrib.database.workflow_actions.data_providers import (
+    PreviousActionDataProviderType,
+)
 from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.services.dispatch_context import DispatchContext
 
@@ -59,10 +62,20 @@ class DatabaseDispatchContext(DispatchContext):
         # dict placed here is shared by reference with every clone.
         self.cache[RowDataProviderType.CACHE_KEY] = {}
 
+        # Each dispatched action's result, keyed by action id, for the actions
+        # after it to read, and the actions themselves so a path can be
+        # prepared without another query. Placed here for the same reason as
+        # the holder above.
+        self.cache[PreviousActionDataProviderType.CACHE_KEY] = {}
+        self.cache[PreviousActionDataProviderType.ACTIONS_CACHE_KEY] = {}
+
     def start_action(self) -> None:
         """
         Drops the row read by the action that just finished, so the next one
         reads the row as it is when it starts (ADR 006 section 4).
+
+        Previous action results are deliberately kept: they are what the rest
+        of the sequence chains from.
         """
 
         self.cache[RowDataProviderType.CACHE_KEY].clear()

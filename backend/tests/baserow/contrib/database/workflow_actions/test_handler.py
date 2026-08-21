@@ -146,3 +146,43 @@ def test_base_action_type_dispatch_refuses():
 
     with pytest.raises(InvalidServiceTypeDispatchSource):
         FrontendOnlyWorkflowActionType().dispatch(None, None)
+
+
+@pytest.mark.django_db
+def test_dispatching_stores_the_result_for_later_actions(data_fixture):
+    from baserow.contrib.database.table.handler import TableHandler
+    from baserow.contrib.database.workflow_actions.data_providers import (
+        PreviousActionDataProviderType,
+    )
+    from baserow.contrib.database.workflow_actions.dispatch_context import (
+        DatabaseDispatchContext,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    action.service.specific.table = table
+    action.service.specific.save()
+    action.service.specific.field_mappings.create(
+        field=name_field, value="'Ada'", enabled=True
+    )
+
+    dispatch_context = DatabaseDispatchContext(user, button_field, row)
+
+    DatabaseWorkflowActionHandler().dispatch_workflow_action(action, dispatch_context)
+
+    results = dispatch_context.cache[PreviousActionDataProviderType.CACHE_KEY]
+    created = table.get_model().objects.exclude(id=row.id).get()
+
+    # Keyed by action id, so a later action can name this one.
+    assert results[action.id]["id"] == created.id
+    assert results[action.id]["Name"] == "Ada"
