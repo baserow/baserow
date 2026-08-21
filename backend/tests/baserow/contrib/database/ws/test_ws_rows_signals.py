@@ -285,6 +285,7 @@ def test_batch_row_updated_serializes_only_updated_fields(
 
     for row_data in payload["rows"]:
         row_field_keys = {k for k in row_data if k.startswith("field_")}
+        assert f"field_{n2id['last_modified_datetime_us']}" in row_data
         for key in row_field_keys:
             fid = int(key.split("_", 1)[1])
             assert fid in updated_ids, f"{key} in payload but not in updated_field_ids"

@@ -1262,6 +1262,9 @@ class RowHandler:
             row_ids=[row.id],
         )
 
+        # rows_before_update is serialized in full so the frontend can
+        # reconstruct the pre-update state for filter/sort/search transitions.
+        # rows can be partial because the frontend merges it onto the existing row.
         rows_updated.send(
             self,
             rows=rows,
@@ -2734,6 +2737,9 @@ class RowHandler:
             # replace updated rows with fresh versions with formula values
             cascade_updated.updated_rows = cascade_updated_rows
 
+        # rows_before_update is serialized in full so the frontend can
+        # reconstruct the pre-update state for filter/sort/search transitions.
+        # rows can be partial because the frontend merges it onto the existing row.
         rows_updated.send(
             self,
             rows=updated_rows_to_return,
