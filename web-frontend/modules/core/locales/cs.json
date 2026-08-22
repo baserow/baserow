@@ -32,7 +32,8 @@
         "adminSettings": "Nastavení správce",
         "general": "Obecné",
         "people": "Lidé",
-        "licenses": "Licence"
+        "licenses": "Licence",
+        "replayGuidedTour": "Znovu spustit průvodce"
     },
     "accountForm": {
         "nameLabel": "Vaše jméno",
@@ -257,7 +258,9 @@
         "addNew": "Přidat nové...",
         "noWorkspace": "Žádný pracovní prostor",
         "noWorkspaceDescription": "Začněte vytvořením nového pracovního prostoru",
-        "starOnGitHub": "Označte nás hvězdičkou na GitHubu"
+        "starOnGitHub": "Označte nás hvězdičkou na GitHubu",
+        "academy": "Akademie Baserow",
+        "academyMessage": "Absolvujte kurzy a staňte se odborníky"
     },
     "login": {
         "title": "Vítejte zpět",
@@ -1004,7 +1007,8 @@
         "gotIt": "Rozumím",
         "next": "Další",
         "back": "Zpět",
-        "watchVideo": "Přehrát video"
+        "watchVideo": "Přehrát video",
+        "stopTour": "Ukončit průvodce"
     },
     "welcomeGuidedTourStep": {
         "title": "Vítejte v Baserow",
