@@ -125,6 +125,45 @@ describe('Database data provider types', () => {
     )
   })
 
+  test('the third action is offered the first two, and not itself', () => {
+    const third = { ...CREATE_ROW, id: 5 }
+    const context = editorContext([CREATE_ROW, UPDATE_ROW, third], third)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties)).toStrictEqual(['1', '2'])
+  })
+
+  test('reordering changes what each action is offered, with no save', () => {
+    // The same three actions, the third moved to the front.
+    const third = { ...CREATE_ROW, id: 5 }
+    const moved = previousProvider().getDataSchema(
+      editorContext([third, CREATE_ROW, UPDATE_ROW], third)
+    )
+
+    expect(Object.keys(moved.properties)).toStrictEqual([])
+  })
+
+  test('deleting a middle action removes it from what follows', () => {
+    const third = { ...CREATE_ROW, id: 5 }
+    const context = editorContext([CREATE_ROW, third], third)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    // UPDATE_ROW is gone from the list, so it is gone from the tree.
+    expect(Object.keys(schema.properties)).toStrictEqual(['1'])
+  })
+
+  test('an action after an open_url is not offered the open_url', () => {
+    const after = { ...CREATE_ROW, id: 5 }
+    const context = editorContext([CREATE_ROW, OPEN_URL, after], after)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    // The create row before it, and nothing for the URL action between them.
+    expect(Object.keys(schema.properties)).toStrictEqual(['1'])
+  })
+
   test('a write only field is not offered out of a created row', () => {
     const unsaved = {
       _clientId: 'pw',
