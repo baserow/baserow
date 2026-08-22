@@ -113,6 +113,50 @@ def test_an_action_that_has_not_run_raises(data_fixture):
 
 
 @pytest.mark.django_db
+def test_a_field_missing_from_the_result_raises(chained):
+    """A field deleted after the reference was written. Resolving it to nothing
+    would write a blank over whatever the target row already held."""
+
+    provider = PreviousActionDataProviderType()
+
+    with pytest.raises(InvalidFormulaContext):
+        provider.get_data_chunk(
+            chained["context"], [str(chained["action"].id), "field_999999"]
+        )
+
+
+@pytest.mark.django_db
+def test_a_field_left_empty_still_resolves(data_fixture):
+    """An empty cell is a value, not a missing field, so it stays null."""
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name="People",
+        fields=[("Name", "text", {}), ("Note", "text", {})],
+    )
+    name_field = table.field_set.get(name="Name")
+    note_field = table.field_set.get(name="Note")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    action = _create_row_action(data_fixture, user, button_field, table, name_field)
+    dispatch_context = DatabaseDispatchContext(user, button_field, row)
+    DatabaseWorkflowActionHandler().dispatch_workflow_action(action, dispatch_context)
+
+    provider = PreviousActionDataProviderType()
+
+    assert (
+        provider.get_data_chunk(
+            dispatch_context, [str(action.id), f"field_{note_field.id}"]
+        )
+        is None
+    )
+
+
+@pytest.mark.django_db
 def test_a_non_numeric_action_id_raises(chained):
     """A client id that escaped the editor's substitution must not resolve."""
 

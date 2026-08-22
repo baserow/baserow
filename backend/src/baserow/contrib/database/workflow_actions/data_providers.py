@@ -132,6 +132,9 @@ class PreviousActionDataProviderType(DataProviderType):
         workflow_action = (
             dispatch_context.cache.get(self.ACTIONS_CACHE_KEY) or {}
         ).get(action_id)
+        if not rest:
+            return result
+
         service = getattr(workflow_action, "service", None)
 
         if service is None:
@@ -151,9 +154,22 @@ class PreviousActionDataProviderType(DataProviderType):
                 ]
             else:
                 prepared_path = rest
-        else:
-            # Turns `field_<id>` into the field name the result is keyed by,
-            # since it was serialized with `user_field_names`.
-            prepared_path = service_type.prepare_value_path(service, rest)
+            return get_value_at_path(result, prepared_path)
+
+        # Turns `field_<id>` into the field name the result is keyed by, since
+        # it was serialized with `user_field_names`.
+        prepared_path = service_type.prepare_value_path(service, rest)
+
+        if not isinstance(result, dict):
+            # An action that produced no row, a delete for instance. Reading a
+            # path out of it is a configuration error, not an empty value.
+            raise InvalidFormulaContext("The previous action returned nothing to read.")
+
+        if prepared_path[0] not in result:
+            # The field was deleted after the reference was written. Failing
+            # here is what stops the click writing a blank over real data.
+            raise InvalidFormulaContext(
+                f'"{rest[0]}" is not in the previous action\'s result.'
+            )
 
         return get_value_at_path(result, prepared_path)
