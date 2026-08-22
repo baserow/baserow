@@ -125,6 +125,33 @@ describe('Database data provider types', () => {
     )
   })
 
+  test('a write only field is not offered out of a created row', () => {
+    const unsaved = {
+      _clientId: 'pw',
+      type: 'local_baserow_create_row',
+      service: { table_id: 9 },
+    }
+    const context = {
+      workflowActions: [unsaved, OPEN_URL],
+      workflowAction: OPEN_URL,
+      tableFields: {
+        9: [
+          { id: 20, name: 'Name', type: 'text', read_only: false },
+          { id: 21, name: 'Secret', type: 'password', read_only: false },
+        ],
+      },
+    }
+
+    const schema = previousProvider().getDataSchema(context)
+
+    // The dispatch refuses to read one, and the response masks it, so offering
+    // it would only build a formula that resolves to nothing useful.
+    expect(Object.keys(schema.properties.pw.properties)).toStrictEqual([
+      'id',
+      'field_20',
+    ])
+  })
+
   test('open_url contributes nothing, having no result', () => {
     const context = editorContext([OPEN_URL, CREATE_ROW], CREATE_ROW)
 
