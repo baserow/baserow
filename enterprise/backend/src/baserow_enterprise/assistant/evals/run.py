@@ -16,6 +16,9 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
 
+from opentelemetry import trace
+from opentelemetry.context import Context
+
 from baserow_enterprise.assistant.evals.harness import run_case
 from baserow_enterprise.assistant.evals.phoenix import get_phoenix_client
 from baserow_enterprise.assistant.evals.registry import get_case, load_all
@@ -143,7 +146,7 @@ def _run_case_subset(
                 client, experiment, example, case, model, kb_available, repetition
             )
 
-    return experiment
+    return client.experiments.get_experiment(experiment_id=experiment["id"])
 
 
 def _log_case_run(
@@ -155,9 +158,17 @@ def _log_case_run(
     kb_available: bool,
     repetition: int,
 ) -> None:
+    tracer = trace.get_tracer(__name__)
     start = datetime.now(timezone.utc)
-    result = run_case_for_experiment(case, model, kb_available)
+    # Fresh Context() per case so each root span starts its own trace.
+    with tracer.start_as_current_span(f"Task: {case.id}", context=Context()) as span:
+        result = run_case_for_experiment(case, model, kb_available)
+        span_context = span.get_span_context()
     end = datetime.now(timezone.utc)
+
+    trace_id = None
+    if span_context is not None and span_context.trace_id:
+        trace_id = format(span_context.trace_id, "032x")
 
     run = client.experiments.log_run(
         experiment_id=experiment["id"],
@@ -166,6 +177,7 @@ def _log_case_run(
         start_time=start,
         end_time=end,
         repetition_number=repetition,
+        trace_id=trace_id,
     )
 
     score, explanation = checklist(result)

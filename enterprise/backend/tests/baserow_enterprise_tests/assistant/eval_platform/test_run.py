@@ -4,6 +4,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals import registry
@@ -204,6 +205,7 @@ class _FakeExperimentsAPI:
         self.create_calls: list[dict] = []
         self.log_run_calls: list[dict] = []
         self.log_evaluation_calls: list[dict] = []
+        self.get_experiment_calls: list[dict] = []
         self._run_id_counter = 0
 
     def run_experiment(self, **kwargs):
@@ -221,6 +223,10 @@ class _FakeExperimentsAPI:
 
     def log_evaluation(self, **kwargs):
         self.log_evaluation_calls.append(kwargs)
+
+    def get_experiment(self, **kwargs):
+        self.get_experiment_calls.append(kwargs)
+        return {"experiment_id": kwargs["experiment_id"], "dataset_id": "ds-1"}
 
     def get_experiment_url(self, **kwargs):
         return f"http://phoenix/datasets/{kwargs['dataset_id']}/experiments/{kwargs['experiment_id']}"
@@ -399,6 +405,10 @@ class TestRunExperimentForCaseSubset:
                 "baserow_enterprise.assistant.evals.run.run_case",
                 return_value=(_make_output(), []),
             ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.trace.get_tracer",
+                return_value=TracerProvider().get_tracer("test"),
+            ),
         ):
             mock_kb_cls.return_value.can_search.return_value = True
 
@@ -421,13 +431,21 @@ class TestRunExperimentForCaseSubset:
         assert run_kwargs["repetition_number"] == 1
         assert run_kwargs["experiment_id"] == "exp-2"
 
+        trace_id = run_kwargs["trace_id"]
+        assert isinstance(trace_id, str)
+        assert len(trace_id) == 32
+        int(trace_id, 16)
+
         assert len(client.experiments.log_evaluation_calls) == 2
         eval_names = {c["name"] for c in client.experiments.log_evaluation_calls}
         assert eval_names == {"checklist", "passed"}
         for evaluation in client.experiments.log_evaluation_calls:
             assert evaluation["experiment_run_id"] == "run-1"
 
-        assert result == {"id": "exp-2", "dataset_id": "ds-1"}
+        # Result is the re-fetched experiment, not the create() snapshot.
+        assert len(client.experiments.get_experiment_calls) == 1
+        assert client.experiments.get_experiment_calls[0]["experiment_id"] == "exp-2"
+        assert result == {"experiment_id": "exp-2", "dataset_id": "ds-1"}
 
     def test_runs_multiple_repetitions(self):
         registry.register_case(_make_case("db/case-1"))
