@@ -30,7 +30,7 @@ def build_database_ui_context(
     database: Database | None = None,
     table: Table | None = None,
 ) -> str:
-    """Build a UIContext for a database/table, formatted as JSON (ported from eval_utils.py)."""
+    """Build a UIContext for a database/table, formatted as JSON."""
 
     ctx = UIContext(
         workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),

@@ -1,10 +1,4 @@
-"""Eval run engine: build a scenario, run ``main_agent``, execute checks.
-
-``format_message_history``, ``get_tool_call_sequence`` and
-``count_tool_errors`` are ported verbatim from the legacy pytest-only
-``eval_utils.py`` so they can run outside pytest too. The legacy file keeps
-its own copies for now; a later task deletes them.
-"""
+"""Eval run engine: build a scenario, run ``main_agent``, execute checks."""
 
 from __future__ import annotations
 
