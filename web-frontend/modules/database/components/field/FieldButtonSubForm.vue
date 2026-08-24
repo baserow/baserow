@@ -137,11 +137,29 @@ export default {
       const resolved = rewriteActionFormulaIds(payload, idMap)
       const unresolved = unresolvedActionIds(resolved)
       if (unresolved.length > 0) {
-        throw new Error(
-          `Unresolved workflow action reference: ${unresolved.join(', ')}`
-        )
+        throw this.unresolvedReferenceError(unresolved)
       }
       return resolved
+    },
+    /**
+     * `notifyIf` presents an error only when it carries a handler, and rethrows
+     * anything else. A rethrow here would escape the caller before it can flag
+     * the failure, and the editor would then close and discard the very edits
+     * the user has to fix. Carrying a handler keeps it a normal failed save.
+     */
+    unresolvedReferenceError(unresolved) {
+      const error = new Error(
+        `Unresolved workflow action reference: ${unresolved.join(', ')}`
+      )
+      error.handler = {
+        notifyIf: () => {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('fieldButtonSubForm.unresolvedReferenceTitle'),
+            message: this.$t('fieldButtonSubForm.unresolvedReferenceMessage'),
+          })
+        },
+      }
+      return error
     },
     /**
      * Only the field's own values. The nested service forms register up this
@@ -183,9 +201,15 @@ export default {
       if (assignedIds.size === 0) {
         return
       }
+      const idMap = Object.fromEntries(assignedIds)
       this.localActions = this.localActions.map((action) => {
         const created = assignedIds.get(action[CLIENT_ID_KEY])
-        return created === undefined ? action : { ...action, id: created }
+        const adopted =
+          created === undefined ? action : { ...action, id: created }
+        // References to the actions that did get made have to follow them too.
+        // Without this a retry sees a client id whose action is no longer in
+        // `toCreate`, so nothing maps it and the save can never succeed.
+        return rewriteActionFormulaIds(adopted, idMap)
       })
     },
     /**

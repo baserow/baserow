@@ -1281,7 +1281,9 @@
   },
   "fieldButtonSubForm": {
     "label": "Label",
-    "labelPlaceholder": "Open"
+    "labelPlaceholder": "Open",
+    "unresolvedReferenceTitle": "Action not saved",
+    "unresolvedReferenceMessage": "An action uses a result from an action that does not run before it. Move it back or remove the reference, then save again."
   },
   "databaseWorkflowActionType": {
     "openUrl": "Open URL",

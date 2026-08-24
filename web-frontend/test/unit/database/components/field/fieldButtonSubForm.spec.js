@@ -141,6 +141,51 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
     })
 
+    test('an unresolved reference is presentable, so the edits survive', async () => {
+      // `notifyIf` rethrows an error with no handler, which would skip the flag
+      // that keeps the editor open, and the buffered edits would be discarded
+      // with nothing on screen to say why.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [
+        {
+          _clientId: 'later',
+          type: 'open_url',
+          url: { formula: "get('previous_action.earlier.id')", mode: 'simple' },
+        },
+      ]
+
+      await expect(wrapper.vm.afterFieldSaved(7)).rejects.toMatchObject({
+        handler: expect.any(Object),
+      })
+      expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
+
+      // The buffered action is still there to be fixed.
+      expect(wrapper.vm.localActions).toHaveLength(1)
+    })
+
+    test('ids handed out before a failure are adopted by the references too', async () => {
+      // A save that stops part way leaves the created actions carrying real
+      // ids. Anything pointing at them has to follow, or the retry finds a
+      // client id that nothing maps and can never succeed.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.localActions = [
+        { _clientId: 'first', type: 'local_baserow_create_row', service: {} },
+        {
+          _clientId: 'second',
+          type: 'open_url',
+          url: { formula: "get('previous_action.first.id')", mode: 'simple' },
+        },
+      ]
+
+      wrapper.vm.adoptAssignedIds(new Map([['first', 91]]))
+
+      expect(wrapper.vm.localActions[0].id).toBe(91)
+      expect(wrapper.vm.localActions[1].url.formula).toBe(
+        "get('previous_action.91.id')"
+      )
+    })
+
     test('saving creates a new action with its config in one call', async () => {
       // One call, so a failure cannot leave an action behind with none of the
       // config the user filled in.
