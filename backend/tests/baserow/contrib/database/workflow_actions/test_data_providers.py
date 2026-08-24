@@ -1,5 +1,8 @@
 import pytest
 
+from baserow.contrib.database.rows.runtime_formula_contexts import (
+    HumanReadableRowContext,
+)
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.data_providers import (
     PreviousActionDataProviderType,
@@ -164,3 +167,26 @@ def test_a_non_numeric_action_id_raises(chained):
 
     with pytest.raises(InvalidFormulaContext):
         provider.get_data_chunk(chained["context"], ["abc-123", "id"])
+
+
+@pytest.mark.django_db
+def test_a_context_with_no_click_raises(data_fixture):
+    """
+    An AI prompt resolves its formula through a context that runs no sequence,
+    and both providers share a registry, so a `previous_action` path lands here
+    against it. It must fail as a formula error, not as an attribute error.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    row = table.get_model().objects.create()
+    context = HumanReadableRowContext(row)
+
+    provider = PreviousActionDataProviderType()
+
+    assert not hasattr(context, "cache")
+    with pytest.raises(InvalidFormulaContext):
+        provider.get_data_chunk(context, ["1", "id"])

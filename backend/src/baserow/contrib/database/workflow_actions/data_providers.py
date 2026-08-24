@@ -119,7 +119,16 @@ class PreviousActionDataProviderType(DataProviderType):
                 f'"{action_id}" is not a workflow action id.'
             ) from None
 
-        results = dispatch_context.cache.get(self.CACHE_KEY) or {}
+        # Both providers share a registry, so an AI prompt's
+        # `get('previous_action.…')` lands here against a context that runs no
+        # sequence and carries no cache to read.
+        cache = getattr(dispatch_context, "cache", None)
+        if cache is None:
+            raise InvalidFormulaContext(
+                "A previous action can only be read while a button is clicked."
+            )
+
+        results = cache.get(self.CACHE_KEY) or {}
 
         if action_id not in results:
             # Not this button's action, or it sits after this one. Fail the
@@ -129,9 +138,7 @@ class PreviousActionDataProviderType(DataProviderType):
             )
 
         result = results[action_id]
-        workflow_action = (
-            dispatch_context.cache.get(self.ACTIONS_CACHE_KEY) or {}
-        ).get(action_id)
+        workflow_action = (cache.get(self.ACTIONS_CACHE_KEY) or {}).get(action_id)
         if not rest:
             return result
 
