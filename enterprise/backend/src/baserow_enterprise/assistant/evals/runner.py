@@ -9,6 +9,7 @@ the durable record.
 
 from __future__ import annotations
 
+import os
 import queue
 import threading
 import uuid
@@ -48,6 +49,7 @@ class RunnerState:
     status: RunStatus = "queued"
     error: str | None = None
     experiment_info: Any = None
+    phoenix_link: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -182,14 +184,46 @@ def _submit_from_form(form: dict[str, list[str]]) -> RunnerState:
     )
 
 
+def _phoenix_public_url() -> str:
+    """The browser-reachable Phoenix URL, distinct from the (container-internal)
+    client URL used to talk to Phoenix from inside the compose network."""
+
+    return os.environ.get("BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL") or getattr(
+        settings, "BASEROW_ASSISTANT_PHOENIX_URL", ""
+    )
+
+
+def _phoenix_link(experiment_info: Any, phoenix_public_url: str) -> str | None:
+    """Deep-link a finished run's experiment when its ids are known, else the
+    datasets list; ``None`` when no public Phoenix URL is configured."""
+
+    if not phoenix_public_url:
+        return None
+    dataset_id = experiment_id = None
+    if hasattr(experiment_info, "get"):
+        dataset_id = experiment_info.get("dataset_id")
+        experiment_id = experiment_info.get("experiment_id") or experiment_info.get(
+            "id"
+        )
+    if dataset_id and experiment_id:
+        return f"{phoenix_public_url}/datasets/{dataset_id}/compare?experimentId={experiment_id}"
+    return f"{phoenix_public_url}/datasets"
+
+
 def _render_index() -> str:
     grouped = cases_by_dataset()
+    phoenix_public_url = _phoenix_public_url()
+    runs = recent_runs()
+    for state in runs:
+        if state.status == "done":
+            state.phoenix_link = _phoenix_link(
+                state.experiment_info, phoenix_public_url
+            )
     context = {
         "datasets": [{"name": name, "cases": cases} for name, cases in grouped.items()],
         "models": available_models(),
         "default_model": DEFAULT_EVAL_MODEL,
-        "phoenix_url": getattr(settings, "BASEROW_ASSISTANT_PHOENIX_URL", ""),
-        "runs": recent_runs(),
+        "runs": runs,
     }
     return render_to_string("baserow_enterprise/eval_runner.html", context)
 

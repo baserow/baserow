@@ -102,8 +102,8 @@
           <td>{{ run.started_at|default:"" }}</td>
           <td>{{ run.finished_at|default:"" }}</td>
           <td>
-            {% if run.status == "done" and phoenix_url %}
-              <a href="{{ phoenix_url }}/datasets" target="_blank" rel="noopener">Phoenix</a>
+            {% if run.phoenix_link %}
+              <a href="{{ run.phoenix_link }}" target="_blank" rel="noopener">Phoenix</a>
             {% elif run.status == "failed" %}
               {{ run.error }}
             {% endif %}

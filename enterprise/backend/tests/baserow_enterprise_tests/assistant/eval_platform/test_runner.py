@@ -90,6 +90,62 @@ class TestIndexPage:
 
         assert b"queued" in body
 
+    def test_index_deep_links_finished_run_when_experiment_info_has_ids(
+        self, settings, monkeypatch
+    ):
+        settings.BASEROW_ASSISTANT_PHOENIX_URL = "http://phoenix:6006"
+        monkeypatch.setenv(
+            "BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL", "http://localhost:6060"
+        )
+        _register_case("database/list-tables")
+        state = runner.submit_run(dataset="kuma-database", model="m")
+        stub = MagicMock(
+            return_value={
+                "dataset_id": "RGF0YXNldDoz",
+                "experiment_id": "RXhwZXJpbWVudDoz",
+            }
+        )
+        runner._run_one(state, stub)
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        assert (
+            b'href="http://localhost:6060/datasets/RGF0YXNldDoz/'
+            b'compare?experimentId=RXhwZXJpbWVudDoz"' in body
+        )
+        assert b"http://phoenix:6006" not in body
+
+    def test_index_falls_back_to_datasets_list_without_experiment_ids(
+        self, settings, monkeypatch
+    ):
+        settings.BASEROW_ASSISTANT_PHOENIX_URL = "http://phoenix:6006"
+        monkeypatch.setenv(
+            "BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL", "http://localhost:6060"
+        )
+        _register_case("database/list-tables")
+        state = runner.submit_run(dataset="kuma-database", model="m")
+        runner._run_one(state, MagicMock(return_value={"unrelated": "shape"}))
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        assert b'href="http://localhost:6060/datasets"' in body
+
+    def test_index_link_falls_back_to_settings_url_when_public_url_env_unset(
+        self, settings, monkeypatch
+    ):
+        settings.BASEROW_ASSISTANT_PHOENIX_URL = "http://phoenix-fallback:6006"
+        monkeypatch.delenv("BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL", raising=False)
+        _register_case("database/list-tables")
+        state = runner.submit_run(dataset="kuma-database", model="m")
+        runner._run_one(state, MagicMock(return_value={}))
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        assert b'href="http://phoenix-fallback:6006/datasets"' in body
+
 
 class TestHealthz:
     def test_healthz_returns_200(self):

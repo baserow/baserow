@@ -339,8 +339,15 @@ services:
     restart: unless-stopped
     command: "watch-py manage assistant_eval_runner"
     environment:
+      - SECRET_KEY=${SECRET_KEY:?}
       - DATABASE_NAME=baserow_evals
+      - DATABASE_USER=${DATABASE_USER:-baserow}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:?}
+      - DATABASE_HOST=db
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?}
       - BASEROW_ASSISTANT_PHOENIX_URL=${BASEROW_ASSISTANT_PHOENIX_URL:-http://phoenix:6006}
+      - BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL=${BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL:-http://localhost:${BASEROW_PHOENIX_PORT:-6060}}
       - BASEROW_ASSISTANT_PHOENIX_API_KEY=${BASEROW_ASSISTANT_PHOENIX_API_KEY:-}
       - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL:-}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
