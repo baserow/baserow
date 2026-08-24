@@ -155,6 +155,7 @@ dev = [
     "rust-just>=1.46.0",
     "syrupy==5.1.0",
     "openinference-instrumentation-pydantic-ai==0.1.20",
+    "arize-phoenix-client==3.3.0",
 ]
 changelog = [
     "typer==0.24.1",
