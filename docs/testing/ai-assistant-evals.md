@@ -3,6 +3,13 @@
 The assistant eval suite runs the real agent against a live LLM to verify
 end-to-end behaviour: tool selection, schema compatibility, row creation, etc.
 
+> This pytest suite is being migrated to a Phoenix-based eval platform
+> (shared runs, model comparison, cost/latency tracking) — see
+> [ADR 007](../decisions/007-ai-assistant-eval-platform.md). Until the
+> migration lands, this document is the way to run evals. For inspecting
+> assistant traces, see
+> [AI assistant tracing](../development/ai-assistant-tracing.md).
+
 All eval tests live under
 `enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/` and are
 marked with `@pytest.mark.eval` so they are **skipped by default** in CI and
