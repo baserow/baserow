@@ -113,27 +113,39 @@ export default {
       return this.$registry.getOrderedList('databaseWorkflowActionType')
     },
     misconfigured() {
-      return this.value.some((action) => this.errorFor(action))
+      return Object.values(this.errorsByAction).some((error) => error)
+    },
+    /**
+     * A warning rather than a validation gate: a half configured action is a
+     * normal state while editing, and the field saves either way.
+     *
+     * Built once per list rather than per action: checking a reference walks
+     * the whole config, which on a wide table is thousands of properties, and
+     * the template asks for each action's error more than once.
+     */
+    errorsByAction() {
+      const context = {
+        workspace: this.workspace,
+        workflowActions: this.value,
+      }
+      return Object.fromEntries(
+        this.value.map((action) => [
+          workflowActionKey(action),
+          action.type
+            ? this.$registry
+                .get('databaseWorkflowActionType', action.type)
+                .getErrorMessage(action, context)
+            : null,
+        ])
+      )
     },
   },
   methods: {
     actionKey(action) {
       return workflowActionKey(action)
     },
-    /**
-     * A warning rather than a validation gate: a half configured action is a
-     * normal state while editing, and the field saves either way.
-     */
     errorFor(action) {
-      if (!action.type) {
-        return null
-      }
-      return this.$registry
-        .get('databaseWorkflowActionType', action.type)
-        .getErrorMessage(action, {
-          workspace: this.workspace,
-          workflowActions: this.value,
-        })
+      return this.errorsByAction[workflowActionKey(action)] ?? null
     },
     /**
      * No type until the user picks one, and no `id` until the field is saved.
