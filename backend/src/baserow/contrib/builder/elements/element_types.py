@@ -314,9 +314,22 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         self, place_in_container: str, instance: ColumnElement
     ):
         max_place_in_container = instance.column_amount - 1
-        if int(place_in_container) > max_place_in_container:
+        try:
+            place_in_container_casted = int(place_in_container)
+        except (TypeError, ValueError) as exc:
             raise DRFValidationError(
-                f"place_in_container can at most be {max_place_in_container}, ({place_in_container}, was given)"
+                f"place_in_container must be an integer between 0 and "
+                f"{max_place_in_container}, ({place_in_container!r} was given)"
+            ) from exc
+        if place_in_container_casted < 0:
+            raise DRFValidationError(
+                f"place_in_container must be at least 0, "
+                f"({place_in_container} was given)"
+            )
+        if place_in_container_casted > max_place_in_container:
+            raise DRFValidationError(
+                f"place_in_container can at most be {max_place_in_container}, "
+                f"({place_in_container}, was given)"
             )
 
     @property

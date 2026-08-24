@@ -44,8 +44,11 @@ def test_get_places_in_container_removed(data_fixture):
 def test_validate_position_as_child(data_fixture):
     column_element = data_fixture.create_builder_column_element(column_amount=2)
 
-    with pytest.raises(ValidationError):
-        ColumnElementType().validate_position_as_child("5", column_element)
+    for invalid_place in ["5", "", "abc", "-1", None]:
+        with pytest.raises(ValidationError):
+            ColumnElementType().validate_position_as_child(
+                invalid_place, column_element
+            )
 
     try:
         ColumnElementType().validate_position_as_child("1", column_element)
