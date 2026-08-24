@@ -29,7 +29,7 @@
       :node-selected="nodeSelected"
       :loading="loading"
       :mode="mode"
-      :has-value="value.length > 0"
+      :has-value="Boolean(value && value.length)"
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
       :enabled-modes="enabledModes"
@@ -547,7 +547,9 @@ export default {
       // this.wrapperContent can be stale content, so get the data
       // directly from the editor.
       const editorContent = this.editor.getJSON()
-      const formula = this.toFormula(editorContent)
+      // `toFormula` returns null when the content cannot be serialized; never
+      // emit null upstream, parents store it and feed it back as `value`.
+      const formula = this.toFormula(editorContent) ?? ''
 
       if (this.validateFormula(formula)) {
         this.$emit('input', formula)

@@ -199,3 +199,44 @@ describe('FormulaInputField validates on display', () => {
     expect(wrapper.emitted('update:invalid').at(-1)).toEqual([true])
   })
 })
+
+// ── Null value tolerance ────────────────────────────────────────────
+// Legacy stored data can contain `formula: null`, which parents used to pass
+// straight through as the `value` prop. Focusing the field then rendered the
+// explorer context, whose `:has-value="value.length > 0"` binding threw
+// "Cannot read properties of null (reading 'length')".
+
+describe('FormulaInputField tolerates a null value', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  it('opens the explorer context on focus instead of crashing', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: null, mode: 'simple' },
+    })
+    wrapper.vm.isFocused = true
+    await wrapper.vm.$nextTick()
+
+    expect(
+      wrapper.findComponent({ name: 'FormulaInputExplorerContext' }).exists()
+    ).toBe(true)
+  })
+
+  it('emits an empty string instead of null when serialization fails', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: '', mode: 'simple' },
+    })
+    vi.spyOn(wrapper.vm, 'toFormula').mockReturnValue(null)
+
+    wrapper.vm.emitChange()
+
+    expect(wrapper.emitted('input').at(-1)).toEqual([''])
+  })
+})

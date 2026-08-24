@@ -77,7 +77,9 @@ const nodesHierarchy = computed(() => {
  * @returns {String} The formula string.
  */
 const formulaStr = computed(() => {
-  return props.modelValue?.formula
+  // Legacy stored values can contain `formula: null`; `FormulaInputField`
+  // expects a string.
+  return props.modelValue?.formula || ''
 })
 
 /**
