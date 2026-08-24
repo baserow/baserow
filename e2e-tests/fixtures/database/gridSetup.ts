@@ -342,8 +342,12 @@ export async function resetRows(
   g: GridSetupResult,
   newRows: Record<string, unknown>[],
 ): Promise<void> {
-  const existing = await listRows(g.user, g.table);
-  if (existing.length > 0) {
+  // Drained in pages: `listRows` caps at 200, so one pass leaves a backlog
+  // behind on a table the suite's own actions have grown, and later lookups
+  // then return old rows instead of the ones a test just created.
+  for (let pass = 0; pass < 50; pass += 1) {
+    const existing = await listRows(g.user, g.table);
+    if (existing.length === 0) break;
     await deleteRows(
       g.user,
       g.table,

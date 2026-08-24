@@ -53,8 +53,9 @@ const INSERTABLE_FIELD_INDEX = 24;
 const BROKEN_CHAIN_FIELD_INDEX = 25;
 const DEEP_FIELD_INDEX = 26;
 const CHAINABLE_FIELD_INDEX = 27;
+const REORDERABLE_FIELD_INDEX = 28;
 // The field one test creates in the UI, which lands after all of the above.
-const CREATED_FIELD_INDEX = 28;
+const CREATED_FIELD_INDEX = 29;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
@@ -83,6 +84,7 @@ const BUTTON_FIELD_NAMES = [
   "BrokenChain",
   "Deep",
   "Chainable",
+  "Reorderable",
 ];
 
 let g: GridSetupResult;
@@ -266,7 +268,7 @@ test.describe("Button field", () => {
   // The grid only renders the columns that fit, and this suite needs one
   // button field per behaviour, so every column has to be on screen at once.
   // Widen this whenever a field is added, or the new column never renders.
-  test.use({ viewport: { width: 6400, height: 900 } });
+  test.use({ viewport: { width: 7400, height: 900 } });
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -321,6 +323,11 @@ test.describe("Button field", () => {
         },
         { name: "Deep", type: "button", settings: { label: "Deep" } },
         { name: "Chainable", type: "button", settings: { label: "Chainable" } },
+        {
+          name: "Reorderable",
+          type: "button",
+          settings: { label: "Reorderable" },
+        },
       ],
     });
 
@@ -1791,5 +1798,59 @@ test.describe("Button field", () => {
         `${one.id}-${two.id}`,
       );
     }).toPass({ timeout: 15_000 });
+  });
+
+  test("unsaved actions reordered before saving keep their references", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    // Three actions built in one go, none of them saved: a row to reference,
+    // a URL that references it, and a third dragged in front of both. Creates
+    // then go out in an order the list no longer matches, which is what makes
+    // the client id map worth testing.
+    await openFieldEditor(page, "Reorderable");
+    await addAction(page, "Create a row");
+    await pickTableOn(page, 0, "Button DB", "Tickets");
+
+    const link = await addAction(page, "Open URL");
+    await link.locator(".formula-input-field__editor").first().click();
+    await page.keyboard.type("/ord-");
+    await pickExplorerNode(page, "Create a row", "Id");
+
+    await addAction(page, "Create a row");
+    await pickTableOn(page, 2, "Button DB", "Tickets");
+    await dragAction(page, 2, 0);
+
+    await saveField(page);
+
+    await expect(async () => {
+      const actions = await listWorkflowActions(
+        g.user,
+        g.fieldByName["Reorderable"],
+      );
+      expect(actions.map((action) => action.type)).toEqual([
+        "local_baserow_create_row",
+        "local_baserow_create_row",
+        "open_url",
+      ]);
+      // The middle one, which is the action the URL was pointed at, and not
+      // the one dragged in front of it.
+      expect(actions[2].url.formula).toContain(
+        `previous_action.${actions[1].id}.`,
+      );
+      expect(actions[2].url.formula).not.toContain(
+        `previous_action.${actions[0].id}.`,
+      );
+    }).toPass({ timeout: 15_000 });
+
+    await grid.goTo(g.database, g.table);
+    await grid
+      .fieldCellAt(0, REORDERABLE_FIELD_INDEX)
+      .locator("button")
+      .click();
+    await expect(page).toHaveURL(/\/ord-\d+$/);
   });
 });
