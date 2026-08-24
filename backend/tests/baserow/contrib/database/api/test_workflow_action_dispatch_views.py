@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.core.cache import cache
 from django.urls import reverse
 
@@ -15,6 +17,9 @@ from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     OpenUrlWorkflowAction,
+)
+from baserow.contrib.database.workflow_actions.workflow_action_types import (
+    DatabaseWorkflowServiceActionType,
 )
 
 
@@ -433,3 +438,49 @@ def test_no_client_action_means_no_field_names(api_client, data_fixture):
 
     (result,) = response.json()["results"]
     assert result["field_names"] == {}
+
+
+@pytest.mark.django_db
+def test_two_actions_on_one_table_name_its_fields_once(api_client, data_fixture):
+    """Naming the fields builds the table model, so a second action against the
+    same table must not build it again."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, action = _button_with_create_action(
+        data_fixture, user
+    )
+    second = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = second.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(field=name_field, value="'Grace'", enabled=True)
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={"formula": "'https://example.com'", "mode": "simple"},
+    )
+
+    with patch(
+        "baserow.contrib.database.workflow_actions.workflow_action_types"
+        ".DatabaseWorkflowServiceActionType.get_result_field_names",
+        wraps=DatabaseWorkflowServiceActionType.get_result_field_names,
+        autospec=True,
+    ) as names:
+        response = api_client.post(
+            reverse(
+                "api:database:workflow_actions:dispatch",
+                kwargs={"field_id": button_field.id},
+            ),
+            {"row_id": row.id},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    results = response.json()["results"]
+    assert len(results) == 2
+    # Both results are named, from the one lookup.
+    assert all(r["field_names"][f"field_{name_field.id}"] == "Name" for r in results)
+    assert names.call_count == 1
