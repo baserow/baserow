@@ -32,6 +32,11 @@ start — the same storage backend the team instance uses.
 | `BASEROW_ASSISTANT_PHOENIX_URL` | Phoenix base URL. Empty (default) disables the export entirely. |
 | `BASEROW_ASSISTANT_PHOENIX_API_KEY` | Only needed for auth-enabled instances (see below). Sent as `Authorization: Bearer` on trace ingest. |
 
+Phoenix export runs **alongside** PostHog LLM analytics, not instead of it:
+when both are configured the same spans feed both. Production keeps exporting
+to PostHog; pointing it additionally at the team Phoenix instance is a
+config-only change.
+
 ## Reading a trace
 
 In the Phoenix UI, open the `default` project and click a trace. Each chat
@@ -79,10 +84,9 @@ variants side by side with output, latency, token, and cost differences.
   so regression cases can be collected straight from traces.
 
 The playground exercises a **single prompt**, not the full agent-plus-tools
-loop. To run the real eval suite across models today, use `EVAL_LLM_MODEL`
-(see [AI assistant evals](../testing/ai-assistant-evals.md)); one-click runs
-of the full suite from Phoenix arrive with the eval runner
-([ADR 007](../decisions/007-ai-assistant-eval-platform.md)).
+loop. To run the real eval suite across models, use the eval runner's page on
+`http://localhost:8090` or `just b eval-run --model ...` — see
+[AI assistant evals](../testing/ai-assistant-evals.md).
 
 ## Deploying the shared team instance
 

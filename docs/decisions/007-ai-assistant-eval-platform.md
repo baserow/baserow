@@ -1,7 +1,8 @@
 # 007: AI assistant eval and observability platform
 
-**Status:** accepted (2026-08-21). Tracing is shipped; the eval framework,
-runner, and judge evaluators are in progress.
+**Status:** accepted (2026-08-21). Tracing, the eval framework (65 cases in 5
+datasets), and the runner are shipped (2026-08-24); the pytest harness is
+retired. Judge evaluators are still in progress.
 
 ## The problem
 
@@ -21,10 +22,8 @@ LLM-observability platform, plus a small **eval runner** service we own:
    See [AI assistant tracing](../development/ai-assistant-tracing.md).
 2. **Evals as code**: eval cases live in the codebase as declarative dataset
    items with code evaluators, and are synced idempotently into Phoenix
-   (stable case ids, append-only). The pytest harness is retired once all
-   cases are migrated; until then
-   [AI assistant evals](../testing/ai-assistant-evals.md) documents the
-   current way to run them.
+   (stable case ids, append-only). The former pytest harness is retired;
+   [AI assistant evals](../testing/ai-assistant-evals.md) is the runbook.
 3. **Runner**: a dev-stack service that executes the real agent against a
    dataset (from a minimal run page, a management command, or CI later) and
    records results as Phoenix experiments — scores, cost, latency, traces.
@@ -51,14 +50,15 @@ and makes footprint, licensing, and integration quality decisive.
 ## Key choices
 
 - **Storage**: Postgres everywhere — locally a `phoenix` database in the dev
-  stack's existing Postgres (created by the one-shot `phoenix-db-init`
+  stack's existing Postgres (created by the one-shot `ai-evals-db-init`
   service), a dedicated Postgres for the shared team instance. No storage
   drift between dev and team.
 - **Compose profile**: Phoenix runs under `ai-evals`, separate from `ai`
   (assistant prerequisites), so using the assistant never requires Phoenix.
-- **Off by default**: `BASEROW_ASSISTANT_PHOENIX_URL` empty disables the
-  export entirely; production tracing to PostHog LLM analytics is unchanged
-  and unaffected.
+- **Off by default, additive to PostHog**: `BASEROW_ASSISTANT_PHOENIX_URL`
+  empty disables the export entirely; PostHog LLM analytics stays the
+  production path (dual export is a config-only change — see
+  [AI assistant tracing](../development/ai-assistant-tracing.md)).
 - **Auth**: team instances enable Phoenix auth; ingest authenticates with a
   system API key via `BASEROW_ASSISTANT_PHOENIX_API_KEY`.
 - **Dependencies** are dev-group only (`openinference-instrumentation-pydantic-ai`,
