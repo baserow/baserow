@@ -636,8 +636,10 @@ class TestEndToEndOtelPipeline:
 @pytest.fixture
 def reset_instrumentation():
     telemetry._instrumentation_ready = False
+    telemetry._tracer_provider = None
     yield
     telemetry._instrumentation_ready = False
+    telemetry._tracer_provider = None
 
 
 class TestSetupInstrumentation:
@@ -650,6 +652,32 @@ class TestSetupInstrumentation:
 
         mock_instrument.assert_not_called()
         assert telemetry._instrumentation_ready is False
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_get_assistant_tracer_provider_returns_provider_after_setup(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        assert telemetry.get_assistant_tracer_provider() is None
+
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ),
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        ):
+            telemetry.setup_instrumentation()
+
+        assert (
+            telemetry.get_assistant_tracer_provider() is mock_provider_cls.return_value
+        )
 
     @override_settings(
         POSTHOG_ENABLED=False,

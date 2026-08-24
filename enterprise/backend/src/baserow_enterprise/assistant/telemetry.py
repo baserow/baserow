@@ -446,6 +446,13 @@ class PosthogSpanProcessor(SpanProcessor):
 # ---------------------------------------------------------------------------
 
 _instrumentation_ready = False
+_tracer_provider: TracerProvider | None = None
+
+
+def get_assistant_tracer_provider() -> TracerProvider | None:
+    """The provider set up by ``setup_instrumentation``, or None if never activated."""
+
+    return _tracer_provider
 
 
 def setup_instrumentation():
@@ -494,6 +501,8 @@ def setup_instrumentation():
         )
     )
 
+    global _tracer_provider
+    _tracer_provider = tracer_provider
     _instrumentation_ready = True
 
 

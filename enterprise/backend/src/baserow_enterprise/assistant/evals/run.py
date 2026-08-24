@@ -23,6 +23,7 @@ from baserow_enterprise.assistant.evals.harness import run_case
 from baserow_enterprise.assistant.evals.phoenix import get_phoenix_client
 from baserow_enterprise.assistant.evals.registry import get_case, load_all
 from baserow_enterprise.assistant.evals.types import EvalCase
+from baserow_enterprise.assistant.telemetry import get_assistant_tracer_provider
 from baserow_enterprise.assistant.tools.search_user_docs.handler import (
     KnowledgeBaseHandler,
 )
@@ -158,7 +159,8 @@ def _log_case_run(
     kb_available: bool,
     repetition: int,
 ) -> None:
-    tracer = trace.get_tracer(__name__)
+    provider = get_assistant_tracer_provider()
+    tracer = provider.get_tracer(__name__) if provider else trace.get_tracer(__name__)
     start = datetime.now(timezone.utc)
     # Fresh Context() per case so each root span starts its own trace.
     with tracer.start_as_current_span(f"Task: {case.id}", context=Context()) as span:

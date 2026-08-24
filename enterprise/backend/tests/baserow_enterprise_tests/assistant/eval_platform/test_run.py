@@ -409,6 +409,10 @@ class TestRunExperimentForCaseSubset:
                 "baserow_enterprise.assistant.evals.run.trace.get_tracer",
                 return_value=TracerProvider().get_tracer("test"),
             ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_assistant_tracer_provider",
+                return_value=None,
+            ),
         ):
             mock_kb_cls.return_value.can_search.return_value = True
 
@@ -446,6 +450,55 @@ class TestRunExperimentForCaseSubset:
         assert len(client.experiments.get_experiment_calls) == 1
         assert client.experiments.get_experiment_calls[0]["experiment_id"] == "exp-2"
         assert result == {"experiment_id": "exp-2", "dataset_id": "ds-1"}
+
+    def test_uses_assistant_tracer_provider_when_available(self):
+        """Root spans nest under the agent's own spans, not a throwaway tracer."""
+
+        registry.register_case(_make_case("db/case-1"))
+        examples = [
+            {
+                "id": "database/creates-simple-table",
+                "node_id": "RGF0YXNldEV4YW1wbGU6MQ==",
+                "input": {},
+                "output": {},
+                "metadata": {"case_id": "db/case-1"},
+            }
+        ]
+        dataset = _FakeDataset(examples)
+        client = _FakeClient(dataset)
+        assistant_provider = TracerProvider()
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+            patch(
+                "baserow_enterprise.assistant.evals.run.run_case",
+                return_value=(_make_output(), []),
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_assistant_tracer_provider",
+                return_value=assistant_provider,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.trace.get_tracer"
+            ) as mock_global_get_tracer,
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+
+            run_experiment_for(
+                "kuma-database", "groq:test-model", case_ids=["db/case-1"]
+            )
+
+        mock_global_get_tracer.assert_not_called()
+        trace_id = client.experiments.log_run_calls[0]["trace_id"]
+        assert isinstance(trace_id, str)
+        assert len(trace_id) == 32
+        int(trace_id, 16)
 
     def test_runs_multiple_repetitions(self):
         registry.register_case(_make_case("db/case-1"))
