@@ -18,6 +18,7 @@ from baserow.core.app_auth_providers.registries import app_auth_provider_type_re
 from baserow.core.auth_provider.exceptions import (
     AuthProviderModelNotFound,
     DifferentAuthProvider,
+    UnverifiedEmailFromProvider,
 )
 from baserow.core.user.exceptions import DeactivatedUserException
 from baserow.core.user_sources.exceptions import UserSourceDoesNotExist
@@ -228,6 +229,7 @@ class OAuth2CallbackView(APIView):
                 AuthFlowError: SsoErrorCode.AUTH_FLOW_ERROR,
                 DeactivatedUserException: SsoErrorCode.USER_DEACTIVATED,
                 DifferentAuthProvider: SsoErrorCode.DIFFERENT_PROVIDER,
+                UnverifiedEmailFromProvider: SsoErrorCode.UNVERIFIED_EMAIL,
             },
             on_error=on_error,
         ):

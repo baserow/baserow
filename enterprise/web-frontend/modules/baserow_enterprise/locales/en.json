@@ -283,6 +283,7 @@
     "errorProviderDoesNotExist": "this authentication provider doesn't exist or is not available.",
     "errorAuthFlowError": "an error occurred during the authentication flow with the selected provider.",
     "errorDifferentProvider": "please use the provider that you originally signed up with.",
+    "errorUnverifiedEmail": "the identity provider has not verified your email address. Please verify your email with the provider and try again.",
     "errorWorkspaceInvitationEmailMismatch": "your email address does not match with the invitation.",
     "errorSignupDisabled": "sign up has been disabled by the administrator."
   },

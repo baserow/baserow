@@ -184,6 +184,7 @@ class SamlAuthProviderHandler:
             name = email
 
         logger.debug("Extracted user info: {0} {1} {2}", email, name, saml_request_data)
+        # SAML assertions are IdP-signed; email is implicitly verified.
         return UserInfo(email, name, **saml_request_data)
 
     @classmethod

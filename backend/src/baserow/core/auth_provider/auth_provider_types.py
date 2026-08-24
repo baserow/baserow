@@ -3,12 +3,14 @@ from typing import Any, Dict, Optional
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 
+from loguru import logger
 from rest_framework import serializers
 
 from baserow.core.action.registries import action_type_registry
 from baserow.core.auth_provider.exceptions import (
     CannotDisableLastAuthProvider,
     DifferentAuthProvider,
+    UnverifiedEmailFromProvider,
 )
 from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.auth_provider.models import (
@@ -83,6 +85,11 @@ class AuthProviderType(BaseAuthProviderType):
             to the UserHandler().create_user() method.
         :raises DeactivatedUserException: If the user exists but has been
             disabled from an admin.
+        :raises UnverifiedEmailFromProvider: If the provider reports the
+            email as unverified and the user is not yet bound to this
+            provider.
+        :raises DifferentAuthProvider: If the user exists but has been
+            created using a different auth provider.
         :return: The user that was created or retrieved and a boolean flag set
             to True if the user has been created, False otherwise.
         """
@@ -107,6 +114,9 @@ class AuthProviderType(BaseAuthProviderType):
         :param user_info: The user info to use to get the user.
         :raises DeactivatedUserException: If the user exists but has been
             disabled from an admin.
+        :raises UnverifiedEmailFromProvider: If the provider reports the
+            email as unverified and the user is not yet bound to this
+            provider.
         :raises DifferentAuthProvider: If the user exists but has been
             created using a different auth provider.
         :return: a user instance.
@@ -118,14 +128,29 @@ class AuthProviderType(BaseAuthProviderType):
 
         user = UserHandler().get_active_user(email=user_info.email)
 
+        is_first_login_with_this_provider = not auth_provider.users.filter(
+            id=user.id
+        ).exists()
+
+        if is_first_login_with_this_provider and not user_info.email_verified:
+            logger.warning(
+                "Rejecting SSO binding — provider reported email as unverified "
+                "(provider_id={})",
+                auth_provider.id,
+            )
+            raise UnverifiedEmailFromProvider()
+
         is_original_provider_check_needed = (
             not settings.BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT
         )
-        if (
-            is_original_provider_check_needed
-            and not auth_provider.users.filter(id=user.id).exists()
-        ):
+        if is_original_provider_check_needed and is_first_login_with_this_provider:
             raise DifferentAuthProvider()
+
+        if user_info.email_verified:
+            profile = user.profile
+            if not profile.email_verified:
+                profile.email_verified = True
+                profile.save(update_fields=["email_verified"])
 
         action_type_registry.get(SignInUserActionType.type).do(user, auth_provider)
 

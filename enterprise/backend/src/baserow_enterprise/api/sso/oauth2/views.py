@@ -15,6 +15,7 @@ from baserow.api.decorators import validate_query_parameters
 from baserow.core.auth_provider.exceptions import (
     AuthProviderModelNotFound,
     DifferentAuthProvider,
+    UnverifiedEmailFromProvider,
 )
 from baserow.core.auth_provider.handler import AuthProviderHandler
 from baserow.core.exceptions import WorkspaceInvitationEmailMismatch
@@ -130,6 +131,7 @@ class OAuth2CallbackView(APIView):
             AuthFlowError: SsoErrorCode.AUTH_FLOW_ERROR,
             DeactivatedUserException: SsoErrorCode.USER_DEACTIVATED,
             DifferentAuthProvider: SsoErrorCode.DIFFERENT_PROVIDER,
+            UnverifiedEmailFromProvider: SsoErrorCode.UNVERIFIED_EMAIL,
             WorkspaceInvitationEmailMismatch: SsoErrorCode.GROUP_INVITATION_EMAIL_MISMATCH,
             DisabledSignupError: SsoErrorCode.SIGNUP_DISABLED,
         }

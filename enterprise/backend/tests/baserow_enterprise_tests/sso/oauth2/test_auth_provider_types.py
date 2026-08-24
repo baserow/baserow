@@ -366,6 +366,122 @@ def test_get_user_info(provider_type, extra_params, enterprise_data_fixture):
     )
     assert user_info.language == query_params["language"]
     assert original == query_params["original"]
+    assert user_info.email_verified is True
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(DEBUG=True)
+def test_oidc_id_token_propagates_email_verified_false(enterprise_data_fixture):
+    client_id = "test_client_id"
+    kid = "testkey123"
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="openid_connect",
+        client_id=client_id,
+        secret="test_secret",
+        name="oidc1",
+        base_url="https://example.com",
+        authorization_url="https://example.com/oauth/authorize",
+        access_token_url="https://example.com/oauth/token",
+        user_info_url="https://example.com/userinfo",
+        jwks_url="https://example.com/jwks",
+        issuer="https://example.com",
+        use_id_token=True,
+    )
+    pt = auth_provider_type_registry.get_by_model(provider)
+    session = SessionBase()
+    pt.push_request_data_to_session(session, {"original": "/"})
+
+    responses.add(
+        responses.GET,
+        pt.get_user_info_url(provider),
+        json={"email": "test@example.com", "name": "Test User"},
+        status=200,
+    )
+
+    payload = {
+        "iss": "https://example.com",
+        "aud": client_id,
+        "sub": "user123",
+        "email": "test@example.com",
+        "name": "Test User",
+        "email_verified": False,
+    }
+
+    access_token_response = {
+        "id_token": jwt.encode(
+            payload, PRIVATE_KEY, algorithm="RS256", headers={"kid": kid}
+        ),
+        "access_token": "testtoken",
+        "token_type": "Bearer",
+    }
+    responses.add(
+        responses.POST,
+        pt.get_access_token_url(provider),
+        json=access_token_response,
+        status=200,
+    )
+
+    jwk = pem_to_jwk(PUBLIC_KEY, kid)
+    responses.add(
+        responses.GET,
+        provider.jwks_url,
+        json={"keys": [jwk]},
+        status=200,
+    )
+
+    user_info, _ = pt.get_user_info(provider, "testcode", session)
+    assert user_info.email == "test@example.com"
+    assert user_info.email_verified is False
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(DEBUG=True)
+def test_oidc_user_info_endpoint_propagates_email_verified_false(
+    enterprise_data_fixture,
+):
+    client_id = "test_client_id"
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="openid_connect",
+        client_id=client_id,
+        secret="test_secret",
+        name="oidc2",
+        base_url="https://example.com",
+        authorization_url="https://example.com/oauth/authorize",
+        access_token_url="https://example.com/oauth/token",
+        user_info_url="https://example.com/userinfo",
+        issuer="https://example.com",
+    )
+    pt = auth_provider_type_registry.get_by_model(provider)
+    session = SessionBase()
+    pt.push_request_data_to_session(session, {"original": "/"})
+
+    access_token_response = {
+        "access_token": "testtoken",
+        "token_type": "Bearer",
+    }
+    responses.add(
+        responses.POST,
+        pt.get_access_token_url(provider),
+        json=access_token_response,
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        pt.get_user_info_url(provider),
+        json={
+            "email": "test@example.com",
+            "name": "Test User",
+            "email_verified": False,
+        },
+        status=200,
+    )
+
+    user_info, _ = pt.get_user_info(provider, "testcode", session)
+    assert user_info.email == "test@example.com"
+    assert user_info.email_verified is False
 
 
 @pytest.mark.parametrize(
@@ -551,3 +667,132 @@ def test_get_oauth_session_only_guarded_for_admin_configurable_urls(
         )
         is guarded
     )
+
+
+@pytest.mark.django_db
+def test_google_email_verified_extraction(enterprise_data_fixture):
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="google",
+        client_id="cid",
+        secret="secret",
+        name="google1",
+    )
+    pt = auth_provider_type_registry.get_by_model(provider)
+
+    assert pt._extract_email_verified({"verified_email": True}) is True
+    assert pt._extract_email_verified({"verified_email": False}) is False
+    # Missing field → trusted
+    assert pt._extract_email_verified({}) is True
+
+
+@pytest.mark.django_db
+def test_github_email_verified_extraction(enterprise_data_fixture):
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="github",
+        client_id="cid",
+        secret="secret",
+        name="github1",
+    )
+    pt = auth_provider_type_registry.get_by_model(provider)
+
+    assert pt._extract_email_verified({"email_verified": True}) is True
+    assert pt._extract_email_verified({"email_verified": False}) is False
+    # Missing field → trusted
+    assert pt._extract_email_verified({}) is True
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_github_get_email_returns_verified_status(enterprise_data_fixture):
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="github",
+        client_id="cid",
+        secret="secret",
+        name="github1",
+    )
+    pt = auth_provider_type_registry.get_by_model(provider)
+
+    responses.add(
+        responses.GET,
+        pt.EMAILS_URL,
+        json=[
+            {"email": "user@example.com", "primary": True, "verified": True},
+            {"email": "alt@example.com", "primary": False, "verified": False},
+        ],
+        status=200,
+    )
+
+    email, verified = pt.get_email({"Authorization": "token abc"})
+    assert email == "user@example.com"
+    assert verified is True
+
+    responses.replace(
+        responses.GET,
+        pt.EMAILS_URL,
+        json=[
+            {"email": "unverified@example.com", "primary": True, "verified": False},
+        ],
+        status=200,
+    )
+
+    email, verified = pt.get_email({"Authorization": "token abc"})
+    assert email == "unverified@example.com"
+    assert verified is False
+
+
+@pytest.mark.django_db
+def test_gitlab_email_verified_extraction(enterprise_data_fixture):
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="gitlab",
+        client_id="cid",
+        secret="secret",
+        name="gitlab1",
+        base_url="https://gitlab.com",
+    )
+    pt = auth_provider_type_registry.get_by_model(provider)
+
+    assert pt._extract_email_verified({"confirmed_at": "2024-01-01T00:00:00Z"}) is True
+    assert pt._extract_email_verified({"confirmed_at": None}) is False
+    # Missing field → trusted
+    assert pt._extract_email_verified({}) is True
+
+
+@pytest.mark.django_db
+def test_facebook_email_verified_defaults_true(enterprise_data_fixture):
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="facebook",
+        client_id="cid",
+        secret="secret",
+        name="facebook1",
+    )
+    pt = auth_provider_type_registry.get_by_model(provider)
+
+    # Facebook never sends email_verified, base implementation returns True
+    assert pt._extract_email_verified({}) is True
+    assert pt._extract_email_verified({"some_field": "value"}) is True
+
+
+@pytest.mark.django_db
+def test_google_email_verified_in_user_info_response(enterprise_data_fixture):
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="google",
+        client_id="cid",
+        secret="secret",
+        name="google1",
+    )
+    pt = auth_provider_type_registry.get_by_model(provider)
+    session = SessionBase()
+    pt.push_request_data_to_session(session, {"original": "/"})
+
+    user_info, _ = pt.get_user_info_from_oauth_json_response(
+        {"email": "test@example.com", "name": "Test", "verified_email": False},
+        session,
+    )
+    assert user_info.email_verified is False
+
+    pt.push_request_data_to_session(session, {"original": "/"})
+    user_info, _ = pt.get_user_info_from_oauth_json_response(
+        {"email": "test@example.com", "name": "Test", "verified_email": True},
+        session,
+    )
+    assert user_info.email_verified is True
