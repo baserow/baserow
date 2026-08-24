@@ -32,9 +32,26 @@ const JSON_TYPE_BY_FIELD_TYPE = {
 }
 
 /**
- * Whether an action references one that no longer precedes it, which a reorder
- * or a delete can leave behind. The reference is kept rather than cleared, so
- * moving the action back makes it valid again.
+ * Whether an action can be read by a later one. A type that returns nothing
+ * contributes no node to the data explorer, and the dispatch fails the whole
+ * click on a reference to one, so changing an action's type breaks every
+ * reference to it just as moving it does.
+ */
+function producesResult(app, action) {
+  if (!action?.type) {
+    return false
+  }
+  return (
+    app.$registry.get('databaseWorkflowActionType', action.type)
+      .producesResult === true
+  )
+}
+
+/**
+ * Whether an action references one that no longer precedes it or no longer
+ * returns anything, which a reorder, a delete or a type change can leave
+ * behind. The reference is kept rather than cleared, so putting the other
+ * action back makes it valid again.
  */
 function staleReferenceError(app, workflowAction, applicationContext) {
   const actions = applicationContext?.workflowActions
@@ -47,16 +64,22 @@ function staleReferenceError(app, workflowAction, applicationContext) {
   if (index === -1) {
     return null
   }
-  const available = new Set(
-    actions.slice(0, index).map((action) => String(workflowActionKey(action)))
+  const before = new Map(
+    actions
+      .slice(0, index)
+      .map((action) => [String(workflowActionKey(action)), action])
   )
-  const missing = referencedActionIds(
+  const referenced = referencedActionIds(
     workflowActionConfig(workflowAction)
-  ).filter((id) => !available.has(String(id)))
+  ).map(String)
 
-  return missing.length > 0
-    ? app.$i18n.t('databaseWorkflowActionType.staleReference')
-    : null
+  if (referenced.some((id) => !before.has(id))) {
+    return app.$i18n.t('databaseWorkflowActionType.staleReference')
+  }
+  if (referenced.some((id) => !producesResult(app, before.get(id)))) {
+    return app.$i18n.t('databaseWorkflowActionType.unreadableReference')
+  }
+  return null
 }
 
 /**
@@ -78,6 +101,13 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
 
   get serviceType() {
     throw new Error('Must be set on the type.')
+  }
+
+  /**
+   * A row action returns the row it wrote, which a later action can read.
+   */
+  get producesResult() {
+    return true
   }
 
   /**
@@ -217,6 +247,10 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
    */
   getDataSchema() {
     return null
+  }
+
+  get producesResult() {
+    return false
   }
 
   getErrorMessage(workflowAction, applicationContext) {
@@ -365,6 +399,10 @@ export class LocalBaserowDeleteRowWorkflowActionType extends DatabaseWorkflowAct
    */
   getDataSchema() {
     return null
+  }
+
+  get producesResult() {
+    return false
   }
 
   get serviceType() {

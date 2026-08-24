@@ -426,5 +426,42 @@ describe('ButtonFieldActionList', () => {
         'databaseWorkflowActionType.staleReference',
       ])
     })
+
+    test('a reference to an earlier action that returns nothing is marked', async () => {
+      // The referenced action kept its place and its id, but a delete returns
+      // no row, so the dispatch would fail the whole click on it.
+      const wrapper = await mountList([
+        { id: 1, type: 'local_baserow_delete_row', service: { table_id: 7 } },
+        OPEN_URL({
+          url: { formula: "get('previous_action.1.id')", mode: 'simple' },
+        }),
+      ])
+
+      expect(errors(wrapper)).toEqual([
+        'databaseWorkflowActionType.unreadableReference',
+      ])
+      expect(en.databaseWorkflowActionType.unreadableReference).toBe(
+        'This action uses a result from an action that no longer returns one.'
+      )
+    })
+
+    test('changing an earlier action to one that returns nothing marks the reference', async () => {
+      const chained = OPEN_URL({
+        url: { formula: "get('previous_action.1.id')", mode: 'simple' },
+      })
+      const wrapper = await mountList([CREATE(), chained])
+      expect(errors(wrapper)).toEqual([])
+
+      // The type dropdown keeps the action's id and its place, so nothing
+      // about the reference itself changes.
+      await wrapper.vm.onActionTypeChanged(0, 'open_url')
+      await wrapper.setProps({ value: lastEmitted(wrapper) })
+
+      // The retyped action has no url of its own yet, hence the first mark.
+      expect(errors(wrapper)).toEqual([
+        'databaseWorkflowActionType.noUrl',
+        'databaseWorkflowActionType.unreadableReference',
+      ])
+    })
   })
 })
