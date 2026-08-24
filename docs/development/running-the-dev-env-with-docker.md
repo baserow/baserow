@@ -181,6 +181,7 @@ By default, all services including optional ones are started:
 | `web-frontend-storybook` | Component development UI | 6006 |
 | `celery-flower` | Celery task monitoring | 5555 |
 | `phoenix` | LLM tracing & evals UI for the AI assistant (`ai-evals` profile) | 6060 |
+| `assistant-eval-runner` | Web page to run the AI assistant evals (`ai-evals` profile) | 8090 |
 
 This is controlled by the `COMPOSE_PROFILES` variable in `.env.docker-dev`. The `ai` profile starts what the AI assistant needs (`embeddings`); the `ai-evals` profile additionally starts `phoenix` — set `BASEROW_ASSISTANT_PHOENIX_URL=http://phoenix:6006` to export assistant traces (see [AI assistant tracing](./ai-assistant-tracing.md)).
 

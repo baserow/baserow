@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Assistant Eval Runner</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #222; max-width: 60rem; }
+    h1 { font-size: 1.4rem; }
+    fieldset { margin-bottom: 1.5rem; }
+    .dataset-group { margin-bottom: 0.5rem; }
+    .dataset-group summary { font-weight: 600; cursor: pointer; }
+    label { display: block; margin: 0.3rem 0; }
+    input[type="text"], input[type="number"], select { padding: 0.2rem 0.4rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; }
+    .status-done { color: #1a7f37; }
+    .status-failed { color: #b3261e; }
+    .status-running, .status-queued { color: #8a6d00; }
+  </style>
+</head>
+<body>
+  <h1>Assistant Eval Runner</h1>
+
+  <form method="post" action="/run">
+    <fieldset>
+      <legend>Dataset &amp; cases</legend>
+      {% for group in datasets %}
+        <details class="dataset-group" open>
+          <summary>{{ group.name }} ({{ group.cases|length }} cases)</summary>
+          {% for case in group.cases %}
+            <label>
+              <input type="checkbox" name="case_ids" value="{{ case.id }}">
+              {{ case.id }}
+            </label>
+          {% endfor %}
+        </details>
+      {% empty %}
+        <p>No eval cases registered.</p>
+      {% endfor %}
+      <label>
+        Dataset (used when no individual cases are checked above)
+        <select name="dataset">
+          {% for group in datasets %}
+            <option value="{{ group.name }}">{{ group.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Model</legend>
+      <label>
+        <select name="model">
+          {% for model in models %}
+            <option value="{{ model.id }}" {% if model.id == default_model %}selected{% endif %}>{{ model.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Or override with a free-text model id
+        <input type="text" name="model_custom" placeholder="e.g. groq:openai/gpt-oss-120b">
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Run options</legend>
+      <label>
+        Runs (repetitions)
+        <input type="number" name="runs" value="1" min="1">
+      </label>
+      <label>
+        Experiment name (optional)
+        <input type="text" name="experiment_name">
+      </label>
+    </fieldset>
+
+    <button type="submit">Run</button>
+  </form>
+
+  <h2>Recent runs</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Dataset</th>
+        <th>Cases</th>
+        <th>Model</th>
+        <th>Runs</th>
+        <th>Status</th>
+        <th>Started</th>
+        <th>Finished</th>
+        <th>Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in runs %}
+        <tr>
+          <td>{{ run.dataset }}</td>
+          <td>{% if run.case_ids %}{{ run.case_ids|join:", " }}{% else %}(all){% endif %}</td>
+          <td>{{ run.model }}</td>
+          <td>{{ run.runs }}</td>
+          <td class="status-{{ run.status }}">{{ run.status }}</td>
+          <td>{{ run.started_at|default:"" }}</td>
+          <td>{{ run.finished_at|default:"" }}</td>
+          <td>
+            {% if run.status == "done" and phoenix_url %}
+              <a href="{{ phoenix_url }}/datasets" target="_blank" rel="noopener">Phoenix</a>
+            {% elif run.status == "failed" %}
+              {{ run.error }}
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8">No runs yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
