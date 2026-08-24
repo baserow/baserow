@@ -49,11 +49,13 @@ def _call_wsgi(
     path: str,
     body: bytes = b"",
     content_type: str = "application/x-www-form-urlencoded",
+    extra_environ: dict | None = None,
 ):
     environ = {}
     setup_testing_defaults(environ)
     environ["REQUEST_METHOD"] = method
     environ["PATH_INFO"] = path
+    environ.update(extra_environ or {})
     if body:
         environ["CONTENT_LENGTH"] = str(len(body))
         environ["CONTENT_TYPE"] = content_type
@@ -145,6 +147,48 @@ class TestIndexPage:
         _status, _headers, body = _call_wsgi(app, "GET", "/")
 
         assert b'href="http://phoenix-fallback:6006/datasets"' in body
+
+
+class TestGitLabelOnSubmit:
+    def test_submit_run_captures_branch_and_commit(self, monkeypatch):
+        monkeypatch.setattr(
+            runner,
+            "get_git_info",
+            lambda: {"git_branch": "feature/x", "git_commit": "abc1234"},
+        )
+
+        state = runner.submit_run(dataset="kuma-database", model="m")
+
+        assert state.git_label == "feature/x@abc1234"
+
+    def test_submit_run_uses_whichever_single_value_resolved(self, monkeypatch):
+        monkeypatch.setattr(runner, "get_git_info", lambda: {"git_branch": "feature/x"})
+
+        state = runner.submit_run(dataset="kuma-database", model="m")
+
+        assert state.git_label == "feature/x"
+
+    def test_submit_run_git_label_none_when_unresolved(self, monkeypatch):
+        monkeypatch.setattr(runner, "get_git_info", lambda: {})
+
+        state = runner.submit_run(dataset="kuma-database", model="m")
+
+        assert state.git_label is None
+
+    def test_index_shows_git_label_next_to_model(self, monkeypatch):
+        monkeypatch.setattr(
+            runner,
+            "get_git_info",
+            lambda: {"git_branch": "feature/x", "git_commit": "abc1234"},
+        )
+        _register_case("database/list-tables")
+        runner.submit_run(dataset="kuma-database", model="groq:test-model")
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        assert b"groq:test-model" in body
+        assert b"feature/x@abc1234" in body
 
 
 class TestHealthz:
@@ -248,6 +292,57 @@ class TestSubmitRunRoute:
         assert status == "400 Bad Request"
         assert runner.recent_runs() == []
 
+    def test_post_run_rejects_forged_origin(self):
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+        body = urlencode({"dataset": "kuma-database", "model": "m"}).encode()
+
+        status, _headers, _body = _call_wsgi(
+            app,
+            "POST",
+            "/run",
+            body=body,
+            extra_environ={"HTTP_ORIGIN": "http://evil.example.com"},
+        )
+
+        assert status == "403 Forbidden"
+        assert runner.recent_runs() == []
+
+    def test_post_run_rejects_non_loopback_host(self):
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+        body = urlencode({"dataset": "kuma-database", "model": "m"}).encode()
+
+        status, _headers, _body = _call_wsgi(
+            app,
+            "POST",
+            "/run",
+            body=body,
+            extra_environ={"HTTP_HOST": "evil.example.com"},
+        )
+
+        assert status == "403 Forbidden"
+        assert runner.recent_runs() == []
+
+    def test_post_run_allows_loopback_origin_with_port(self):
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+        body = urlencode({"dataset": "kuma-database", "model": "m"}).encode()
+
+        status, _headers, _body = _call_wsgi(
+            app,
+            "POST",
+            "/run",
+            body=body,
+            extra_environ={
+                "HTTP_HOST": "localhost:8090",
+                "HTTP_ORIGIN": "http://localhost:8090",
+            },
+        )
+
+        assert status == "303 See Other"
+        assert len(runner.recent_runs()) == 1
+
 
 class TestSubmitRunWorker:
     def test_state_transitions_to_done_with_stubbed_executor(self):
@@ -318,6 +413,10 @@ class TestAssistantEvalRunnerCommand:
             ) as mock_sync,
             patch(
                 "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_prompts"
+            ) as mock_sync_prompts,
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
                 "start_worker"
             ) as mock_start_worker,
             patch(
@@ -334,9 +433,10 @@ class TestAssistantEvalRunnerCommand:
         mock_setup.assert_called_once()
         mock_load_all.assert_called_once()
         mock_sync.assert_called_once_with(mock_get_client.return_value)
+        mock_sync_prompts.assert_called_once_with(mock_get_client.return_value)
         mock_start_worker.assert_called_once()
         mock_make_server.assert_called_once()
-        assert mock_make_server.call_args[0][0] == "0.0.0.0"  # noqa: S104
+        assert mock_make_server.call_args[0][0] == "127.0.0.1"
         mock_server.serve_forever.assert_called_once()
 
     def test_migrates_unless_skipped(self):
@@ -359,6 +459,10 @@ class TestAssistantEvalRunnerCommand:
             patch(
                 "baserow_enterprise.management.commands.assistant_eval_runner."
                 "sync_datasets"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_prompts"
             ),
             patch(
                 "baserow_enterprise.management.commands.assistant_eval_runner."
@@ -401,6 +505,51 @@ class TestAssistantEvalRunnerCommand:
             ),
             patch(
                 "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_prompts"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "start_worker"
+            ) as mock_start_worker,
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "make_server"
+            ) as mock_make_server,
+        ):
+            mock_make_server.return_value = MagicMock()
+
+            call_command("assistant_eval_runner", "--skip-migrate")
+
+        mock_start_worker.assert_called_once()
+
+    def test_prompt_sync_failure_is_logged_and_does_not_raise(self):
+        with (
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "call_command"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "setup_instrumentation"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner.load_all"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "get_phoenix_client"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_datasets"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_prompts",
+                side_effect=RuntimeError("phoenix unreachable"),
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
                 "start_worker"
             ) as mock_start_worker,
             patch(
@@ -438,6 +587,10 @@ class TestAssistantEvalRunnerCommand:
             ),
             patch(
                 "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_prompts"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
                 "start_worker"
             ),
             patch(
@@ -450,3 +603,44 @@ class TestAssistantEvalRunnerCommand:
             call_command("assistant_eval_runner", "--skip-migrate")
 
         assert mock_make_server.call_args[0][1] == 9123
+
+    def test_host_can_be_opened_up_explicitly(self):
+        with (
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "call_command"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "setup_instrumentation"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner.load_all"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "get_phoenix_client"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_datasets"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_prompts"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "start_worker"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "make_server"
+            ) as mock_make_server,
+        ):
+            mock_make_server.return_value = MagicMock()
+            bind_all = "0.0.0.0"  # noqa: S104
+
+            call_command("assistant_eval_runner", "--skip-migrate", "--host", bind_all)
+
+        assert mock_make_server.call_args[0][0] == bind_all

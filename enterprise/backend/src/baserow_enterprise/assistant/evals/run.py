@@ -16,11 +16,15 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
 
+from loguru import logger
 from opentelemetry import trace
 from opentelemetry.context import Context
 
+from baserow_enterprise.assistant.evals.gitinfo import get_git_info
 from baserow_enterprise.assistant.evals.harness import run_case
+from baserow_enterprise.assistant.evals.judge import get_judge_model, judge_docs_answer
 from baserow_enterprise.assistant.evals.phoenix import get_phoenix_client
+from baserow_enterprise.assistant.evals.prompt_sync import prompt_hashes
 from baserow_enterprise.assistant.evals.registry import get_case, load_all
 from baserow_enterprise.assistant.evals.types import EvalCase
 from baserow_enterprise.assistant.telemetry import get_assistant_tracer_provider
@@ -40,15 +44,31 @@ def _score_and_explanation(checks: list[dict[str, Any]]) -> tuple[float, str]:
     return passed_count / total, explanation
 
 
-def checklist(output: dict[str, Any]) -> tuple[float, str]:
-    """Evaluator: fraction of checks that passed, plus failure detail."""
+def checklist(output: dict[str, Any]) -> dict[str, Any]:
+    """Evaluator: fraction of checks that passed, plus failure detail.
 
-    return _score_and_explanation(output.get("checks", []))
+    Skipped outputs (no ``checks`` were ever run) score an empty result — the
+    Phoenix-valid way to record "no score" — so they don't count as 0.0 in
+    aggregates. ``None`` is not an option: the installed phoenix-client
+    scorer (``_default_eval_scorer``) raises ``ValueError`` on it.
+    """
+
+    if "skipped" in output:
+        return {}
+    score, explanation = _score_and_explanation(output.get("checks", []))
+    # 2-tuples map position 1 to the LABEL in the phoenix client; 3-tuples don't.
+    return {"score": score, "explanation": explanation or None}
 
 
-def passed(output: dict[str, Any]) -> bool:
-    """Evaluator: whether every check (incl. the tool-error budget) passed."""
+def passed(output: dict[str, Any]) -> bool | dict[str, Any]:
+    """Evaluator: whether every check (incl. the tool-error budget) passed.
 
+    Skipped outputs score an empty result instead of the vacuous ``all([])
+    is True``, so they don't count as passing in aggregates.
+    """
+
+    if "skipped" in output:
+        return {}
     return all(c["passed"] for c in output.get("checks", []))
 
 
@@ -72,11 +92,62 @@ def run_case_for_experiment(
         "tool_calls": output.tool_calls,
         "tool_error_count": output.tool_error_count,
         "checks": check_dicts,
-        "score": checklist(partial)[0],
+        "score": _score_and_explanation(check_dicts)[0],
         "passed": passed(partial),
+        "sources": [str(s) for s in output.sources],
         "sources_count": len(output.sources),
         "request_count": output.request_count,
         "duration_s": output.duration_s,
+    }
+
+
+def answer_quality(output: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+    """LLM-judge evaluator: scores a kuma-docs answer's correctness and groundedness.
+
+    Runs only for docs cases (case id under ``docs/`` or the example's
+    ``requires_knowledge_base`` metadata flag) with a non-skipped output.
+    A judge failure — missing case, LLM error, anything — is logged and
+    scores an empty result, the same as a skipped case, so it never poisons
+    aggregates.
+    """
+
+    if "skipped" in output:
+        return {}
+
+    case_id = metadata.get("case_id") or ""
+    is_docs_case = case_id.startswith("docs/") or metadata.get(
+        "requires_knowledge_base", False
+    )
+    if not is_docs_case:
+        return {}
+
+    try:
+        case = get_case(case_id)
+        verdict = judge_docs_answer(
+            question=case.prompt,
+            answer=output["answer"],
+            sources=output.get("sources", []),
+            keywords=metadata.get("expected_keywords", []),
+        )
+    except Exception:
+        logger.warning("answer_quality judge failed for case {}", case_id)
+        return {}
+
+    return {"score": verdict.score, "explanation": verdict.explanation}
+
+
+def _experiment_metadata(model: str, **extra: Any) -> dict[str, Any]:
+    """Metadata every experiment gets: model, judge model, prompt hashes, git info.
+
+    Lets branch/model/prompt-version comparisons be filtered in Phoenix.
+    """
+
+    return {
+        "model": model,
+        "judge_model": get_judge_model(),
+        **extra,
+        "prompts": prompt_hashes(),
+        **get_git_info(),
     }
 
 
@@ -99,16 +170,19 @@ def run_experiment_for(
         )
 
     def task(example: Any) -> dict[str, Any]:
-        case = get_case(example.metadata["case_id"])
+        try:
+            case = get_case(example.metadata.get("case_id"))
+        except KeyError:
+            return {"skipped": "ui example not yet promoted to code"}
         return run_case_for_experiment(case, model, kb_available)
 
     dataset = client.datasets.get_dataset(dataset=dataset_name)
     return client.experiments.run_experiment(
         dataset=dataset,
         task=task,
-        evaluators=[checklist, passed],
+        evaluators=[checklist, passed, answer_quality],
         experiment_name=experiment_name,
-        experiment_metadata={"model": model},
+        experiment_metadata=_experiment_metadata(model),
         repetitions=runs,
     )
 
@@ -123,7 +197,12 @@ def _run_case_subset(
     kb_available: bool,
 ) -> Any:
     dataset = client.datasets.get_dataset(dataset=dataset_name)
-    examples_by_case_id = {ex["metadata"]["case_id"]: ex for ex in dataset.examples}
+    # UI-added examples carry no case_id and are skipped here, not KeyError'd.
+    examples_by_case_id = {
+        case_id: ex
+        for ex in dataset.examples
+        if (case_id := ex.get("metadata", {}).get("case_id"))
+    }
     try:
         selected = [examples_by_case_id[case_id] for case_id in case_ids]
     except KeyError as e:
@@ -136,7 +215,7 @@ def _run_case_subset(
         dataset_id=dataset.id,
         dataset_version_id=dataset.version_id,
         experiment_name=experiment_name,
-        experiment_metadata={"model": model, "case_ids": case_ids},
+        experiment_metadata=_experiment_metadata(model, case_ids=case_ids),
         repetitions=runs,
     )
 
@@ -182,7 +261,10 @@ def _log_case_run(
         trace_id=trace_id,
     )
 
-    score, explanation = checklist(result)
+    if "skipped" in result:
+        return
+
+    score, explanation = _score_and_explanation(result.get("checks", []))
     client.experiments.log_evaluation(
         experiment_run_id=run["id"],
         name="checklist",
@@ -196,3 +278,12 @@ def _log_case_run(
         score=float(case_passed),
         label=str(case_passed),
     )
+
+    quality = answer_quality(result, example["metadata"])
+    if quality:
+        client.experiments.log_evaluation(
+            experiment_run_id=run["id"],
+            name="answer_quality",
+            score=quality["score"],
+            explanation=quality["explanation"],
+        )

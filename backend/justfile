@@ -369,6 +369,14 @@ eval-run *ARGS: _check-dev
     {{ _load_env }}
     {{ uv_run }} baserow run_assistant_evals {{ ARGS }}
 
+# Export UI-added Phoenix dataset examples as ready-to-paste eval code
+[group('3 - testing')]
+eval-export *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow export_assistant_evals {{ ARGS }}
+
 # =============================================================================
 # CI Commands (used by docker-entrypoint.sh in CI pipelines)
 # =============================================================================

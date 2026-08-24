@@ -26,14 +26,7 @@ from baserow_enterprise.assistant.evals.types import (
     EvalScenario,
 )
 
-# ---------------------------------------------------------------------------
-# Prompts — verbatim from the legacy file, except PROMPT_LISTS_WORKFLOWS: the
-# original embedded a live DB id ("automation ID {automation_id}"), which the
-# platform's static, sync-once prompts can't reproduce (case prompts are
-# fixed at registration time, before any automation row exists). Rephrased to
-# name the automation instead, matching every other prompt in this file.
-# ---------------------------------------------------------------------------
-
+# Names the automation instead of a live DB id, since prompts are fixed before creation.
 PROMPT_LISTS_WORKFLOWS = "List the workflows in automation '{automation_name}'."
 
 PROMPT_CREATES_WORKFLOW = (

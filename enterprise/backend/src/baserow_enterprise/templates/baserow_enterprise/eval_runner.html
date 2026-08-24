@@ -96,7 +96,7 @@
         <tr>
           <td>{{ run.dataset }}</td>
           <td>{% if run.case_ids %}{{ run.case_ids|join:", " }}{% else %}(all){% endif %}</td>
-          <td>{{ run.model }}</td>
+          <td>{{ run.model }}{% if run.git_label %} <small>({{ run.git_label }})</small>{% endif %}</td>
           <td>{{ run.runs }}</td>
           <td class="status-{{ run.status }}">{{ run.status }}</td>
           <td>{{ run.started_at|default:"" }}</td>

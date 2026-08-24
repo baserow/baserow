@@ -18,13 +18,14 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 
 from django.conf import settings
 from django.template.loader import render_to_string
 
 from loguru import logger
 
+from baserow_enterprise.assistant.evals.gitinfo import get_git_info
 from baserow_enterprise.assistant.evals.models import (
     DEFAULT_EVAL_MODEL,
     available_models,
@@ -50,6 +51,7 @@ class RunnerState:
     error: str | None = None
     experiment_info: Any = None
     phoenix_link: str | None = None
+    git_label: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -69,6 +71,16 @@ def recent_runs() -> list[RunnerState]:
         return list(reversed(_history))
 
 
+def _git_label() -> str | None:
+    """Compact "branch@commit" for the runs table, or just whichever resolved."""
+
+    info = get_git_info()
+    branch, commit = info.get("git_branch"), info.get("git_commit")
+    if branch and commit:
+        return f"{branch}@{commit}"
+    return branch or commit or None
+
+
 def submit_run(
     dataset: str,
     model: str,
@@ -83,6 +95,7 @@ def submit_run(
         model=model,
         runs=runs,
         experiment_name=experiment_name,
+        git_label=_git_label(),
     )
     with _history_lock:
         _history.append(state)
@@ -129,6 +142,27 @@ def start_worker(executor: Callable[..., Any] | None = None) -> None:
         target = executor or run_experiment_for
         threading.Thread(target=_worker_loop, args=(target,), daemon=True).start()
         _worker_started = True
+
+
+_ALLOWED_HOSTNAMES = {"localhost", "127.0.0.1"}
+
+
+def _is_allowed_hostname(hostname: str | None) -> bool:
+    return hostname in _ALLOWED_HOSTNAMES
+
+
+def _request_is_local(environ: dict) -> bool:
+    """CSRF guard: reject POSTs whose Host/Origin aren't loopback names.
+
+    Headers are client-supplied, so this stops cross-site browser requests
+    only; network exposure is limited by the loopback port publish and the
+    server's 127.0.0.1 default bind, not by this check.
+    """
+
+    if not _is_allowed_hostname(urlsplit(f"//{environ.get('HTTP_HOST', '')}").hostname):
+        return False
+    origin = environ.get("HTTP_ORIGIN")
+    return not origin or _is_allowed_hostname(urlsplit(origin).hostname)
 
 
 class _FormTooLarge(Exception):
@@ -251,6 +285,9 @@ def make_wsgi_app() -> Callable[[dict, Callable], Iterable[bytes]]:
             return [body]
 
         if method == "POST" and path == "/run":
+            if not _request_is_local(environ):
+                start_response("403 Forbidden", [("Content-Type", "text/plain")])
+                return [b"forbidden"]
             try:
                 form = _parse_form(environ)
             except _FormTooLarge:

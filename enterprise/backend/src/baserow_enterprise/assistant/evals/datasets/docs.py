@@ -96,6 +96,7 @@ def _register_docs_case(
             checks=_make_docs_checks(expected_source_patterns, expected_keywords),
             max_iters=10,
             requires_knowledge_base=True,
+            metadata={"expected_keywords": expected_keywords},
         )
     )
 

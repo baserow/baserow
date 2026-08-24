@@ -337,7 +337,7 @@ services:
     user: "${UID}:${GID}"
     profiles: ["ai-evals"]
     restart: unless-stopped
-    command: "watch-py manage assistant_eval_runner"
+    command: "watch-py manage assistant_eval_runner --host 0.0.0.0"
     environment:
       - SECRET_KEY=${SECRET_KEY:?}
       - DATABASE_NAME=baserow_evals
@@ -354,6 +354,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - BASEROW_EVAL_GIT_BRANCH=${BASEROW_EVAL_GIT_BRANCH:-}
+      - BASEROW_EVAL_GIT_COMMIT=${BASEROW_EVAL_GIT_COMMIT:-}
     ports:
       - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_EVAL_RUNNER_PORT:-8090}:8090"
     volumes:
@@ -369,6 +371,8 @@ services:
         condition: service_healthy
       ai-evals-db-init:
         condition: service_completed_successfully
+      phoenix:
+        condition: service_started
     stdin_open: true
     tty: true
 

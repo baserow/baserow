@@ -2,7 +2,8 @@
 
 **Status:** accepted (2026-08-21). Tracing, the eval framework (65 cases in 5
 datasets), and the runner are shipped (2026-08-24); the pytest harness is
-retired. Judge evaluators are still in progress.
+retired. Judge evaluators are shipped for `kuma-docs` (`answer_quality`);
+other datasets don't have a judge yet.
 
 ## The problem
 
@@ -22,8 +23,12 @@ LLM-observability platform, plus a small **eval runner** service we own:
    See [AI assistant tracing](../development/ai-assistant-tracing.md).
 2. **Evals as code**: eval cases live in the codebase as declarative dataset
    items with code evaluators, and are synced idempotently into Phoenix
-   (stable case ids, append-only). The former pytest harness is retired;
-   [AI assistant evals](../testing/ai-assistant-evals.md) is the runbook.
+   (stable case ids; the codebase is authoritative for code-owned cases —
+   removed cases are removed from the dataset, so ids must never be renamed).
+   Examples added from the Phoenix UI are preserved across syncs until
+   promoted to code (matched and adopted by prompt) or deleted in the UI. The
+   former pytest harness is retired; [AI assistant
+   evals](../testing/ai-assistant-evals.md) is the runbook.
 3. **Runner**: a dev-stack service that executes the real agent against a
    dataset (from a minimal run page, a management command, or CI later) and
    records results as Phoenix experiments — scores, cost, latency, traces.

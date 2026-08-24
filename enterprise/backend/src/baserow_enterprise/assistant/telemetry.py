@@ -447,6 +447,7 @@ class PosthogSpanProcessor(SpanProcessor):
 
 _instrumentation_ready = False
 _tracer_provider: TracerProvider | None = None
+_phoenix_import_error_warned = False
 
 
 def get_assistant_tracer_provider() -> TracerProvider | None:
@@ -511,6 +512,7 @@ def _add_phoenix_processors(
 ) -> bool:
     """Export assistant spans to a self-hosted Phoenix instance (dev or team)."""
 
+    global _phoenix_import_error_warned
     try:
         from openinference.instrumentation.pydantic_ai import (
             OpenInferenceSpanProcessor,
@@ -520,10 +522,12 @@ def _add_phoenix_processors(
         )
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
     except ImportError:
-        logger.warning(
-            "BASEROW_ASSISTANT_PHOENIX_URL is set but the OpenInference "
-            "instrumentation packages are not installed; skipping Phoenix export."
-        )
+        if not _phoenix_import_error_warned:
+            logger.warning(
+                "BASEROW_ASSISTANT_PHOENIX_URL is set but the OpenInference "
+                "instrumentation packages are not installed; skipping Phoenix export."
+            )
+            _phoenix_import_error_warned = True
         return False
 
     exporter_kwargs = {"endpoint": phoenix_url.rstrip("/") + "/v1/traces"}

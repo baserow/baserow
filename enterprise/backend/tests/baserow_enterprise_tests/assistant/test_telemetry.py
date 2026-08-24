@@ -637,9 +637,11 @@ class TestEndToEndOtelPipeline:
 def reset_instrumentation():
     telemetry._instrumentation_ready = False
     telemetry._tracer_provider = None
+    telemetry._phoenix_import_error_warned = False
     yield
     telemetry._instrumentation_ready = False
     telemetry._tracer_provider = None
+    telemetry._phoenix_import_error_warned = False
 
 
 class TestSetupInstrumentation:
@@ -748,6 +750,27 @@ class TestSetupInstrumentation:
 
         mock_instrument.assert_not_called()
         assert telemetry._instrumentation_ready is False
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_import_error_warns_once_per_process(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        with (
+            patch.dict(
+                sys.modules, {"openinference.instrumentation.pydantic_ai": None}
+            ),
+            patch("baserow_enterprise.assistant.telemetry.logger") as mock_logger,
+        ):
+            telemetry.setup_instrumentation()
+            telemetry._instrumentation_ready = False
+            telemetry.setup_instrumentation()
+
+        assert mock_logger.warning.call_count == 1
 
     @override_settings(
         POSTHOG_ENABLED=False,

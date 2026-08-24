@@ -23,7 +23,12 @@ trace. Why this platform: [ADR 007](../decisions/007-ai-assistant-eval-platform.
 ## Running evals from the CLI
 
 The CLI uses your host env (`.env.local`): the database it points at and
-`BASEROW_ASSISTANT_PHOENIX_URL` (or `PHOENIX_ENDPOINT`) for Phoenix.
+`BASEROW_ASSISTANT_PHOENIX_URL` for Phoenix.
+
+> **Warning:** CLI runs create real scenario data (users, workspaces, apps) in
+> whatever database `DATABASE_NAME` points at, with no teardown. The runner
+> service uses its own disposable `baserow_evals` database, so prefer it for
+> bulk runs, or point `DATABASE_NAME` at a disposable database first.
 
 ```bash
 # Sync the datasets defined in code into Phoenix (idempotent)
@@ -32,8 +37,8 @@ just b eval-sync
 # Run a whole dataset
 just b eval-run --dataset kuma-core
 
-# Run selected cases
-just b eval-run --case database/creates-simple-table --case core/creates-database
+# Run selected cases (must all belong to the same dataset)
+just b eval-run --case database/creates-simple-table --case database/creates-view-kanban
 
 # Compare models / measure flakiness
 just b eval-run --dataset kuma-builder --model groq:openai/gpt-oss-20b --runs 3 --name builder-20b
@@ -41,7 +46,9 @@ just b eval-run --dataset kuma-builder --model groq:openai/gpt-oss-20b --runs 3 
 
 `--runs N` repeats every case N times in one experiment — the score spread
 across repetitions is the flake signal. Compare experiments (models, prompt
-changes, repeat runs) side by side in the Phoenix dataset view.
+changes, repeat runs) side by side in the Phoenix dataset view. Every
+experiment is auto-stamped with its model, git branch and commit, and prompt
+hashes, so branch/model comparisons are filterable in Phoenix.
 
 ## The datasets
 
@@ -130,6 +137,34 @@ Rules that keep results comparable over time:
 - A case's score is `passed_checks / total_checks`; it passes only when every
   check passes.
 
+## Contributing cases from the Phoenix UI
+
+You don't need a PR to add a case: from the dataset editor, or from a trace
+span's "Add Example to Dataset", add an example directly in Phoenix. `just b
+eval-sync` preserves it — it no longer wipes examples that aren't in the
+codebase, only code-owned ones (identified by a `case_id` in their metadata)
+are replaced wholesale.
+
+To promote a UI-added example to code:
+
+```bash
+just b eval-export --dataset kuma-docs
+```
+
+This prints a ready-to-paste `_register_docs_case(...)` snippet per UI-added
+`kuma-docs` example (question from the example, keywords/source patterns from
+its metadata if the UI author set them, else `TODO` placeholders to fill in).
+Paste it into `datasets/docs.py`, pick a real id and keywords, then `just b
+eval-sync` — the UI copy is dropped automatically because its prompt now
+matches the code case (matched by exact prompt text, so no duplicate).
+Non-`kuma-docs` datasets have no registration helper to generate from, so
+`eval-export` prints a commented JSON block instead; write the scenario and
+checks by hand.
+
+A UI-added example is still part of the dataset, so it runs alongside code
+cases — but with no code case to resolve, the runner records it as `skipped`
+rather than crashing or scoring it.
+
 ## Models and providers
 
 The dropdown/default list is `EVAL_MODELS` in
@@ -138,6 +173,17 @@ it there. Any pydantic-ai `provider:model` string works via `--model` or the
 free-text field, given the matching `*_API_KEY` env var. The model applies to
 the whole agent, sub-agents included.
 
+## Prompts
+
+Kuma's load-bearing prompts (the main system prompt and each sub-agent's
+instructions — see `SYNCED_PROMPTS` in
+`enterprise/backend/src/baserow_enterprise/assistant/evals/prompt_sync.py`)
+are synced to Phoenix's Prompts tab as versioned prompts on every eval-sync.
+To experiment with a prompt change: edit the constant in code (the runner
+hot-reloads), run an experiment, and compare — the experiment's `prompts`
+metadata records the content hash of every synced prompt, so you can see
+exactly which prompt version produced which scores.
+
 ## Reading results
 
 Every experiment run links to its trace (agent → LLM calls → tool calls, with
@@ -145,3 +191,11 @@ token counts and cost). What to look for when a case fails:
 [reading a trace](../development/ai-assistant-tracing.md#reading-a-trace).
 Failed checks appear in the experiment's `checklist` evaluator explanation
 with their hints.
+
+`kuma-docs` runs get a third score, `answer_quality`, from an LLM judge (the
+judge prompt lives in `evals/judge.py`) that grades the answer's correctness,
+helpfulness, and groundedness against the sources the assistant cited. The
+judge model is `BASEROW_EVAL_JUDGE_MODEL`, defaulting to
+`groq:openai/gpt-oss-120b`, and is stamped into every experiment's metadata.
+A judge failure (LLM error, missing case, ...) records no `answer_quality`
+score rather than a 0, so it doesn't skew aggregates.

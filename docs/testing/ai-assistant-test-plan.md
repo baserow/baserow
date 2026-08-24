@@ -7,8 +7,7 @@
 Run the unit test suite (no LLM needed):
 
 ```bash
-just b test -n auto ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ \
-  -v --ignore=enterprise/backend/tests/baserow_enterprise_tests/assistant/evals
+just b test -n auto ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ -v
 ```
 
 All tests must pass. These cover: assistant orchestrator, all tool modules,
