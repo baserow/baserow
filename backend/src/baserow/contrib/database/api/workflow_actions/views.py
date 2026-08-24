@@ -426,8 +426,16 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         )
 
         # Only a client action reads a result, and naming the fields costs a
-        # table model per action.
+        # table model per action. An action that returned no row, a delete for
+        # instance, has no names to give either.
         names_wanted = bool(dispatch.client_actions)
+
+        def field_names_for(dispatched):
+            if not names_wanted or not isinstance(dispatched.result.data, dict):
+                return {}
+            return dispatched.workflow_action.get_type().get_result_field_names(
+                dispatched.workflow_action
+            )
 
         results = [
             {
@@ -436,13 +444,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 # is here so an async one can report "dispatched" later.
                 "status": "completed",
                 "data": dispatched.result.data,
-                "field_names": (
-                    dispatched.workflow_action.get_type().get_result_field_names(
-                        dispatched.workflow_action
-                    )
-                    if names_wanted
-                    else {}
-                ),
+                "field_names": field_names_for(dispatched),
             }
             for dispatched in dispatch.dispatched
         ]

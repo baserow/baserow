@@ -183,18 +183,38 @@ export class PreviousActionDataProviderType extends DataProviderType {
     return { type: 'object', properties }
   }
 
+  /**
+   * Mirrors the backend provider, which raises rather than resolving a broken
+   * reference to nothing. Resolving to nothing here would leave a hole in a URL
+   * and open it anyway, which is the whole failure this phase avoids.
+   */
   getDataChunk(applicationContext, path) {
     const [actionId, ...rest] = path
-    const entry = this.getDataContent(applicationContext)[actionId]
-    if (entry === undefined) {
+    const results = applicationContext.previousActionResults
+    if (results === undefined) {
+      // The editor resolves formulas for its own preview long before anything
+      // has run, so there is nothing to read yet and nothing wrong with that.
+      // Only a real click carries results, and only there is a broken
+      // reference a failure.
       return null
+    }
+    const entry = results[actionId]
+    if (entry === undefined) {
+      throw new Error(`Action ${actionId} did not run in this click.`)
     }
     if (rest.length === 0) {
       return entry.data
     }
+    if (entry.data === null || typeof entry.data !== 'object') {
+      throw new Error('The previous action returned nothing to read.')
+    }
     const [fieldRef, ...tail] = rest
-    // The result is keyed by field name, the path by `field_<id>`.
-    const key = entry.fieldNames?.[fieldRef] ?? fieldRef
-    return getValueAtPath(entry.data, [key, ...tail])
+    // The result is keyed by field name, the path by `field_<id>`. A field the
+    // result did not carry was deleted after the reference was written.
+    const key = entry.fieldNames?.[fieldRef]
+    if (key === undefined && fieldRef.startsWith('field_')) {
+      throw new Error(`${fieldRef} is not in the previous action's result.`)
+    }
+    return getValueAtPath(entry.data, [key ?? fieldRef, ...tail])
   }
 }

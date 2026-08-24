@@ -222,9 +222,43 @@ describe('Database data provider types', () => {
     )
   })
 
-  test('an action that produced nothing resolves to null', () => {
+  test('an action that did not run raises, rather than resolving empty', () => {
+    // The backend raises for the same reference. Coming back empty here would
+    // leave a hole in a URL and open it anyway.
     const context = { previousActionResults: {} }
 
-    expect(previousProvider().getDataChunk(context, ['1', 'id'])).toBe(null)
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'id'])
+    ).toThrow()
+  })
+
+  test('the editor resolves to null, having no results yet', () => {
+    // Formulas are resolved for preview while the editor is open, before any
+    // click. Throwing there would break the input the user is typing into.
+    expect(previousProvider().getDataChunk({}, ['1', 'id'])).toBe(null)
+  })
+
+  test('a field missing from the result raises', () => {
+    const context = {
+      previousActionResults: {
+        1: { data: { id: 99, Name: 'Ada' }, fieldNames: { field_10: 'Name' } },
+      },
+    }
+
+    // Deleted after the reference was written, so it is not among the names
+    // the result carried.
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'field_777'])
+    ).toThrow()
+  })
+
+  test('an action that returned no row at all raises', () => {
+    const context = {
+      previousActionResults: { 1: { data: null, fieldNames: {} } },
+    }
+
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'id'])
+    ).toThrow()
   })
 })

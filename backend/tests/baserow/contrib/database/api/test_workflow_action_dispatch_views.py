@@ -375,6 +375,46 @@ def test_a_result_names_the_fields_it_returned(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_an_action_returning_no_row_names_no_fields(api_client, data_fixture):
+    """A delete produces no row, so there is nothing for the browser to resolve
+    a name against and no reason to build a table model for it."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, action = _button_with_create_action(
+        data_fixture, user
+    )
+    target = table.get_model().objects.create()
+    delete_action = data_fixture.create_database_workflow_action(
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
+    )
+    service = delete_action.service.specific
+    service.table = table
+    service.row_id = str(target.id)
+    service.save()
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={"formula": "'https://example.com'", "mode": "simple"},
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    results = {r["workflow_action_id"]: r for r in response.json()["results"]}
+    # The create still names its fields; the delete has none to name.
+    assert results[action.id]["field_names"] != {}
+    assert results[delete_action.id]["field_names"] == {}
+
+
+@pytest.mark.django_db
 def test_no_client_action_means_no_field_names(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table, name_field, button_field, row, action = _button_with_create_action(
