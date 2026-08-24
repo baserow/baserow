@@ -162,7 +162,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
         action.type
           ? this.app.$registry
               .get('databaseWorkflowActionType', action.type)
-              .getDataSchema(action, applicationContext)
+              .getDataSchema(applicationContext, action)
           : null,
       ])
       .filter(([, schema]) => schema)

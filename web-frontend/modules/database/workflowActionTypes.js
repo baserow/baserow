@@ -18,6 +18,19 @@ import {
   workflowActionKey,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
 
+// What the backend's own schema calls these, taken from a generated one rather
+// than guessed. Only the shapes that change how a node renders are worth
+// deriving: an array or an object can have children, everything else is a leaf.
+// A number field really is a string, since the API returns it as one.
+const JSON_TYPE_BY_FIELD_TYPE = {
+  boolean: 'boolean',
+  single_select: 'object',
+  file: 'array',
+  link_row: 'array',
+  multiple_select: 'array',
+  multiple_collaborators: 'array',
+}
+
 /**
  * Whether an action references one that no longer precedes it, which a reorder
  * or a delete can leave behind. The reference is kept rather than cleared, so
@@ -101,7 +114,7 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
    * been saved has none, so it is derived from the target table's fields,
    * which the action forms report up to the sub-form.
    */
-  getDataSchema(workflowAction, applicationContext) {
+  getDataSchema(applicationContext, workflowAction) {
     const service = workflowAction.service
     const fields = applicationContext?.tableFields?.[service?.table_id]
 
@@ -137,7 +150,11 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
             .filter((field) => !this.isWriteOnly(field))
             .map((field) => [
               `field_${field.id}`,
-              { type: 'string', title: field.name, metadata: field },
+              {
+                type: JSON_TYPE_BY_FIELD_TYPE[field.type] ?? 'string',
+                title: field.name,
+                metadata: field,
+              },
             ])
         ),
       },

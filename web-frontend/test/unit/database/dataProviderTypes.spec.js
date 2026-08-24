@@ -72,6 +72,10 @@ describe('Database data provider types', () => {
       7: [
         { id: 10, name: 'Name', type: 'text', read_only: false },
         { id: 11, name: 'Created on', type: 'created_on', read_only: true },
+        { id: 12, name: 'Files', type: 'file', read_only: false },
+        { id: 13, name: 'Stage', type: 'single_select', read_only: false },
+        { id: 14, name: 'Done', type: 'boolean', read_only: false },
+        { id: 15, name: 'Amount', type: 'number', read_only: false },
       ],
     },
   })
@@ -117,6 +121,10 @@ describe('Database data provider types', () => {
       'id',
       'field_10',
       'field_11',
+      'field_12',
+      'field_13',
+      'field_14',
+      'field_15',
     ])
     // Named as the backend names it, so saving the action does not rename
     // the node under the user.
@@ -216,7 +224,32 @@ describe('Database data provider types', () => {
       'id',
       'field_10',
       'field_11',
+      'field_12',
+      'field_13',
+      'field_14',
+      'field_15',
     ])
+  })
+
+  test('a field is typed as the backend types it', () => {
+    const unsaved = {
+      _clientId: 'abc',
+      type: 'local_baserow_create_row',
+      service: { table_id: 7 },
+    }
+    const context = editorContext([unsaved, OPEN_URL], OPEN_URL)
+
+    const { properties } =
+      previousProvider().getDataSchema(context).properties.abc
+
+    // Only the shapes that decide whether a node can have children.
+    expect(properties.field_12.type).toBe('array')
+    expect(properties.field_13.type).toBe('object')
+    expect(properties.field_14.type).toBe('boolean')
+    // A number field comes back from the API as a string, and the backend's
+    // own schema says so too.
+    expect(properties.field_15.type).toBe('string')
+    expect(properties.field_10.type).toBe('string')
   })
 
   test('open_url contributes nothing, having no result', () => {
