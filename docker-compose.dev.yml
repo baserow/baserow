@@ -32,6 +32,7 @@ services:
       - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL}
       - BASEROW_ASSISTANT_PHOENIX_URL=${BASEROW_ASSISTANT_PHOENIX_URL:-}
+      - BASEROW_ASSISTANT_PHOENIX_API_KEY=${BASEROW_ASSISTANT_PHOENIX_API_KEY:-}
     build:
       dockerfile: ./backend/Dockerfile
       context: .
@@ -129,6 +130,7 @@ services:
       - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
       - BASEROW_ASSISTANT_PHOENIX_URL=${BASEROW_ASSISTANT_PHOENIX_URL:-}
+      - BASEROW_ASSISTANT_PHOENIX_API_KEY=${BASEROW_ASSISTANT_PHOENIX_API_KEY:-}
     volumes:
       - ./docs:/baserow/docs
       - ./backend:/baserow/backend
@@ -294,18 +296,41 @@ services:
       timeout: 10s
       retries: 3
 
+  phoenix-db-init:
+    profiles: ["ai-evals"]
+    image: pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}
+    environment:
+      - PGHOST=db
+      - PGUSER=${DATABASE_USER:-baserow}
+      - PGPASSWORD=${DATABASE_PASSWORD:?}
+    command: sh -c "createdb phoenix || true"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      local:
+    restart: "no"
+
   phoenix:
-    profiles: ["ai"]
+    profiles: ["ai-evals"]
     image: arizephoenix/phoenix:version-20.3.0
     environment:
-      - PHOENIX_WORKING_DIR=/mnt/data
+      - PHOENIX_SQL_DATABASE_URL=postgresql://${DATABASE_USER:-baserow}:${DATABASE_PASSWORD:?}@db:5432/phoenix
+      # Provider keys for the Phoenix prompt playground (same vars the evals use).
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     ports:
       - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_PHOENIX_PORT:-6060}:6006"
     networks:
       local:
     restart: unless-stopped
-    volumes:
-      - phoenix_data:/mnt/data
+    depends_on:
+      db:
+        condition: service_healthy
+      phoenix-db-init:
+        condition: service_completed_successfully
 
 volumes:
   pgdatadev:
@@ -313,4 +338,3 @@ volumes:
   nuxt:
   storybook:
   cache:
-  phoenix_data:

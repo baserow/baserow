@@ -476,8 +476,12 @@ def setup_instrumentation():
         tracer_provider.add_span_processor(PosthogSpanProcessor())
         processor_added = True
     if phoenix_url:
+        phoenix_api_key = getattr(
+            django_settings, "BASEROW_ASSISTANT_PHOENIX_API_KEY", ""
+        )
         processor_added = (
-            _add_phoenix_processors(tracer_provider, phoenix_url) or processor_added
+            _add_phoenix_processors(tracer_provider, phoenix_url, phoenix_api_key)
+            or processor_added
         )
 
     if not processor_added:
@@ -493,8 +497,10 @@ def setup_instrumentation():
     _instrumentation_ready = True
 
 
-def _add_phoenix_processors(tracer_provider: TracerProvider, phoenix_url: str) -> bool:
-    """Export assistant spans to a self-hosted Phoenix instance (dev tooling)."""
+def _add_phoenix_processors(
+    tracer_provider: TracerProvider, phoenix_url: str, api_key: str = ""
+) -> bool:
+    """Export assistant spans to a self-hosted Phoenix instance (dev or team)."""
 
     try:
         from openinference.instrumentation.pydantic_ai import (
@@ -511,10 +517,13 @@ def _add_phoenix_processors(tracer_provider: TracerProvider, phoenix_url: str) -
         )
         return False
 
-    endpoint = phoenix_url.rstrip("/") + "/v1/traces"
+    exporter_kwargs = {"endpoint": phoenix_url.rstrip("/") + "/v1/traces"}
+    if api_key:
+        # Auth-enabled (team) Phoenix instances require a bearer API key on ingest.
+        exporter_kwargs["headers"] = {"authorization": f"Bearer {api_key}"}
     tracer_provider.add_span_processor(OpenInferenceSpanProcessor())
     tracer_provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+        BatchSpanProcessor(OTLPSpanExporter(**exporter_kwargs))
     )
     return True
 

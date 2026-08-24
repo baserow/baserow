@@ -720,3 +720,29 @@ class TestSetupInstrumentation:
 
         mock_instrument.assert_not_called()
         assert telemetry._instrumentation_ready is False
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+        BASEROW_ASSISTANT_PHOENIX_API_KEY="team-key",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_api_key_sent_as_bearer_header(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ) as mock_exporter,
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        ):
+            telemetry.setup_instrumentation()
+
+        mock_exporter.assert_called_once_with(
+            endpoint="http://phoenix:6006/v1/traces",
+            headers={"authorization": "Bearer team-key"},
+        )
