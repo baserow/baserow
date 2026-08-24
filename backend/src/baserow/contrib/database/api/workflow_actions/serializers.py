@@ -81,6 +81,12 @@ class DispatchResultSerializer(serializers.Serializer):
     workflow_action_id = serializers.IntegerField(
         help_text="The workflow action this result belongs to."
     )
+    order = serializers.IntegerField(
+        help_text=(
+            "The action's place in the button's list, so the browser can tell "
+            "which results a frontend-only action ran after."
+        )
+    )
     status = serializers.CharField(
         help_text=(
             "`completed` when the action finished during this request. Reserved "

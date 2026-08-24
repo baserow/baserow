@@ -454,6 +454,9 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         results = [
             {
                 "workflow_action_id": dispatched.workflow_action.id,
+                # The browser only lets a client action read what ran before
+                # it, and it has no other way to tell where an action sat.
+                "order": dispatched.workflow_action.order,
                 # Every action runs synchronously inside the request. The field
                 # is here so an async one can report "dispatched" later.
                 "status": "completed",

@@ -78,8 +78,29 @@ export default {
       return Object.fromEntries(
         (data?.results || []).map((result) => [
           String(result.workflow_action_id),
-          { data: result.data, fieldNames: result.field_names || {} },
+          {
+            data: result.data,
+            fieldNames: result.field_names || {},
+            order: result.order,
+          },
         ])
+      )
+    },
+    /**
+     * The results of the actions that ran before this one. Client actions run
+     * last whatever their place in the list, so without this a reference to an
+     * action ordered after them would resolve here while the dispatch would
+     * have refused it.
+     */
+    resultsBefore(previousActionResults, workflowAction) {
+      const order = workflowAction.order
+      if (order === undefined || order === null) {
+        return previousActionResults
+      }
+      return Object.fromEntries(
+        Object.entries(previousActionResults).filter(
+          ([, result]) => result.order === undefined || result.order < order
+        )
       )
     },
     /**
@@ -97,7 +118,14 @@ export default {
           .get('databaseWorkflowActionType', workflowAction.type)
           .execute({
             workflowAction,
-            applicationContext: { row, fields, previousActionResults },
+            applicationContext: {
+              row,
+              fields,
+              previousActionResults: this.resultsBefore(
+                previousActionResults,
+                workflowAction
+              ),
+            },
           })
       }
     },

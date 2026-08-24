@@ -441,6 +441,39 @@ def test_no_client_action_means_no_field_names(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_a_result_carries_the_action_order(api_client, data_fixture):
+    """A client action always runs last, so its own place in the list is the
+    only thing that says which results it may read."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, action = _button_with_create_action(
+        data_fixture, user
+    )
+    client_action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={"formula": "'https://example.com'", "mode": "simple"},
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    body = response.json()
+    (result,) = body["results"]
+    assert result["order"] == action.order
+    # Both sides of the comparison the browser makes are in the response.
+    assert body["client_actions"][0]["order"] == client_action.order
+
+
+@pytest.mark.django_db
 def test_two_actions_on_one_table_name_its_fields_once(api_client, data_fixture):
     """Naming the fields builds the table model, so a second action against the
     same table must not build it again."""
