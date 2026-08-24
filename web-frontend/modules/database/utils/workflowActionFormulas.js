@@ -1,6 +1,8 @@
-// The id segment of `get('previous_action.<id>.field_1')`, matched as a whole
-// segment so a literal that happens to contain the same characters is safe.
-const PREVIOUS_ACTION_ID = /previous_action\.([^.'"\s)]+)/g
+// The id segment of `get('previous_action.<id>.field_1')`. A path always opens
+// straight after the quote, so requiring one keeps the match off ordinary text
+// that merely contains the same word, such as a URL ending
+// `/docs/previous_action.html`.
+const PREVIOUS_ACTION_ID = /(['"])previous_action\.([^.'"\s)]+)/g
 
 /**
  * Points a formula's `previous_action` references at the ids the server just
@@ -14,9 +16,9 @@ export function rewriteFormulaActionIds(formula, idMap) {
   if (typeof formula !== 'string' || !formula.includes('previous_action.')) {
     return formula
   }
-  return formula.replace(PREVIOUS_ACTION_ID, (match, id) =>
+  return formula.replace(PREVIOUS_ACTION_ID, (match, quote, id) =>
     Object.prototype.hasOwnProperty.call(idMap, id)
-      ? `previous_action.${idMap[id]}`
+      ? `${quote}previous_action.${idMap[id]}`
       : match
   )
 }
@@ -57,7 +59,7 @@ export function referencedActionIds(value, found = new Set()) {
     value.forEach((item) => referencedActionIds(item, found))
   } else if (value !== null && typeof value === 'object') {
     if (typeof value.formula === 'string') {
-      for (const [, id] of value.formula.matchAll(PREVIOUS_ACTION_ID)) {
+      for (const [, , id] of value.formula.matchAll(PREVIOUS_ACTION_ID)) {
         found.add(id)
       }
     } else {
@@ -79,7 +81,7 @@ export function unresolvedActionIds(value, found = new Set()) {
     value.forEach((item) => unresolvedActionIds(item, found))
   } else if (value !== null && typeof value === 'object') {
     if (typeof value.formula === 'string') {
-      for (const [, id] of value.formula.matchAll(PREVIOUS_ACTION_ID)) {
+      for (const [, , id] of value.formula.matchAll(PREVIOUS_ACTION_ID)) {
         if (!/^\d+$/.test(id)) {
           found.add(id)
         }

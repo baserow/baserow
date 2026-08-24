@@ -103,17 +103,22 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
    */
   getDataSchema(workflowAction, applicationContext) {
     const service = workflowAction.service
-    const saved = service?.schema
-    if (saved?.properties) {
-      return {
-        ...saved,
-        title: this.label,
-        properties: this.withoutWriteOnly(saved.properties),
-      }
-    }
-
     const fields = applicationContext?.tableFields?.[service?.table_id]
+
+    // The saved schema describes whichever table the action pointed at when it
+    // was last saved. The editor buffers a table change without clearing it, so
+    // it goes stale the moment the user repoints the action, and the explorer
+    // would offer fields of a table this action no longer writes to. The
+    // fetched fields always describe the table selected right now.
     if (!fields) {
+      const saved = service?.schema
+      if (saved?.properties) {
+        return {
+          ...saved,
+          title: this.label,
+          properties: this.withoutWriteOnly(saved.properties),
+        }
+      }
       return null
     }
 

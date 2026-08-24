@@ -191,6 +191,34 @@ describe('Database data provider types', () => {
     ])
   })
 
+  test('a repointed table wins over the schema saved before it', () => {
+    // The editor buffers a table change without clearing the schema the API
+    // returned, so preferring that schema would offer fields of a table this
+    // action no longer writes to.
+    const repointed = {
+      id: 1,
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 7,
+        schema: {
+          type: 'object',
+          properties: {
+            field_99: { title: 'Old table field', type: 'string' },
+          },
+        },
+      },
+    }
+    const context = editorContext([repointed, OPEN_URL], OPEN_URL)
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties['1'].properties)).toStrictEqual([
+      'id',
+      'field_10',
+      'field_11',
+    ])
+  })
+
   test('open_url contributes nothing, having no result', () => {
     const context = editorContext([OPEN_URL, CREATE_ROW], CREATE_ROW)
 

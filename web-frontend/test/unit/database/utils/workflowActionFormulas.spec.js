@@ -1,4 +1,5 @@
 import {
+  referencedActionIds,
   rewriteActionFormulaIds,
   rewriteFormulaActionIds,
   unresolvedActionIds,
@@ -32,6 +33,25 @@ describe('workflowActionFormulas', () => {
         abc: 7,
       })
     ).toBe("concat('abc',get('previous_action.7.id'))")
+  })
+
+  test('ordinary text containing the word is not a reference', () => {
+    // A URL that merely ends in the same word used to capture "html", which
+    // failed the numeric check and made the field impossible to save.
+    const url = "'https://example.com/docs/previous_action.html'"
+
+    expect(referencedActionIds({ url: { formula: url } })).toEqual([])
+    expect(unresolvedActionIds({ url: { formula: url } })).toEqual([])
+    expect(rewriteFormulaActionIds(url, { html: 7 })).toBe(url)
+  })
+
+  test('a reference beside such text is still found', () => {
+    const formula =
+      "concat('see previous_action.notes', get('previous_action.abc.id'))"
+
+    expect(rewriteFormulaActionIds(formula, { abc: 7, notes: 9 })).toBe(
+      "concat('see previous_action.notes', get('previous_action.7.id'))"
+    )
   })
 
   test('a formula with no reference comes back unchanged', () => {

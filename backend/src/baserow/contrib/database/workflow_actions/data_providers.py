@@ -145,6 +145,10 @@ class PreviousActionDataProviderType(DataProviderType):
         service_type = service.get_type()
 
         if service_type.returns_list:
+            if not isinstance(result, dict) or "results" not in result:
+                raise InvalidFormulaContext(
+                    "The previous action returned nothing to read."
+                )
             result = result["results"]
             if len(rest) >= 2:
                 index, *after = rest
