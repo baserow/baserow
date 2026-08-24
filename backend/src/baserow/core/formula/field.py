@@ -90,7 +90,10 @@ class FormulaField(models.TextField):
             if context := self._deserialize_baserow_object(value):
                 # If we have, then we can parse it and return the `BaserowFormulaObject`
                 return BaserowFormulaObject(
-                    mode=context["m"], version=context["v"], formula=context["f"]
+                    mode=context["m"],
+                    version=context["v"],
+                    # Raw DB values can hold `"f": null`; clients expect a string.
+                    formula=context["f"] or "",
                 )
             elif isinstance(value, str):
                 # Otherwise, it's a raw formula string, which we can wrap in a
@@ -129,7 +132,7 @@ class FormulaField(models.TextField):
                 )
 
             return BaserowFormulaObject(
-                mode=value["m"], version=value["v"], formula=value["f"]
+                mode=value["m"], version=value["v"], formula=value["f"] or ""
             )
 
     def contribute_to_class(self, cls, name, **kwargs):
@@ -293,16 +296,20 @@ class JSONFormulaField(models.JSONField):
         :return: A `BaserowFormulaObject`.
         """
 
+        # Legacy rows written before the formula-object migration can hold
+        # `null` (or dicts with missing/null keys) at a formula path; clients
+        # expect `formula` to always be a string, so coerce while reading.
         if not isinstance(value, dict):
             return BaserowFormulaObject(
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
-                formula=value,
+                formula=value or "",
             )
         return BaserowFormulaObject(
-            mode=value.get("m", value.get("mode")),
-            version=value.get("v", value.get("version")),
-            formula=value.get("f", value.get("formula")),
+            mode=value.get("m", value.get("mode")) or BASEROW_FORMULA_MODE_SIMPLE,
+            version=value.get("v", value.get("version"))
+            or BASEROW_FORMULA_VERSION_INITIAL,
+            formula=value.get("f", value.get("formula")) or "",
         )
 
     def _transform_db_properties(
@@ -414,16 +421,18 @@ class JSONFormulaField(models.JSONField):
         :return: A `BaserowFormulaMinified`.
         """
 
+        # Coerce `None` values so that non-serializer write paths (direct ORM
+        # saves, application import) can never persist a null formula.
         if not isinstance(value, dict):
             return BaserowFormulaMinified(
                 m=BASEROW_FORMULA_MODE_SIMPLE,
                 v=BASEROW_FORMULA_VERSION_INITIAL,
-                f=value,
+                f=value or "",
             )
         return BaserowFormulaMinified(
-            m=value.get("mode", BASEROW_FORMULA_MODE_SIMPLE),
-            v=value.get("version", BASEROW_FORMULA_VERSION_INITIAL),
-            f=value.get("formula", ""),
+            m=value.get("mode") or BASEROW_FORMULA_MODE_SIMPLE,
+            v=value.get("version") or BASEROW_FORMULA_VERSION_INITIAL,
+            f=value.get("formula") or "",
         )
 
     def get_prep_value(

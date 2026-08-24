@@ -58,7 +58,9 @@ export default {
       )
     },
     formulaStr() {
-      return this.currentValue.formula
+      // Legacy stored values can contain `formula: null`; `FormulaInputField`
+      // expects a string.
+      return this.currentValue.formula || ''
     },
     applicationContext() {
       return this.databaseFormulaContext || {}
