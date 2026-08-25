@@ -377,6 +377,14 @@ eval-export *ARGS: _check-dev
     {{ _load_env }}
     {{ uv_run }} baserow export_assistant_evals {{ ARGS }}
 
+# Capture or import the committed eval baseline snapshot (capture|import)
+[group('3 - testing')]
+eval-baseline *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow assistant_eval_baseline {{ ARGS }}
+
 # =============================================================================
 # CI Commands (used by docker-entrypoint.sh in CI pipelines)
 # =============================================================================

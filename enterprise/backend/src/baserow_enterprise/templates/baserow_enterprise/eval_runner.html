@@ -23,7 +23,7 @@
     header { padding: 1rem 1.5rem 0.5rem; }
     h1 { font-size: 1.25rem; margin: 0; }
     header p { margin: 0.2rem 0 0; color: var(--muted); font-size: 0.85rem; }
-    main { padding: 0 1.5rem 2rem; max-width: 80rem; }
+    main { padding: 0 1.5rem 2rem; max-width: 120rem; }
     .layout { display: flex; gap: 1rem; align-items: flex-start; }
     .panel {
       background: #fff;
@@ -35,7 +35,7 @@
     .tabbar {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.6rem;
+      gap: 0.35rem;
       padding: 0.6rem 0.75rem 0;
       border-bottom: 1px solid var(--border);
     }
@@ -43,7 +43,7 @@
       border: 1px solid transparent;
       border-bottom: none;
       background: none;
-      padding: 0.5rem 1.1rem;
+      padding: 0.45rem 0.85rem;
       font-size: 0.9rem;
       cursor: pointer;
       border-radius: 6px 6px 0 0;
@@ -105,7 +105,7 @@
     }
     .panel-tools a { color: var(--accent); margin-right: 0.5rem; font-size: 0.8rem; }
     .cases {
-      columns: 3 16rem;
+      columns: 15rem;
       column-gap: 1.5rem;
       padding: 0 0.9rem 0.9rem;
     }
@@ -157,6 +157,51 @@
     .status-failed { color: var(--bad); font-weight: 600; }
     .status-running, .status-queued { color: var(--warn); font-weight: 600; }
     .run-panel button[type="submit"]:disabled { opacity: 0.5; cursor: default; }
+    .ui-cases-head {
+      margin: 0.4rem 0.9rem 0;
+      padding-top: 0.5rem;
+      border-top: 1px dashed var(--border);
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .cases--ui { padding-top: 0.3rem; }
+    .cases--ui label { font-family: inherit; }
+    .prompt-overrides { margin: 0 0 0.8rem; font-size: 0.85rem; }
+    .prompt-overrides summary { cursor: pointer; color: var(--muted); }
+    .prompt-option {
+      display: block;
+      margin: 0.25rem 0;
+      font-family: ui-monospace, monospace;
+      font-size: 0.75rem;
+      overflow-wrap: anywhere;
+    }
+    .prompt-hint { font-size: 0.75rem; color: var(--muted); margin: 0.4rem 0 0; }
+    .prompt-hint a { color: var(--accent); }
+    .results { padding: 0 0.9rem 0.9rem; }
+    .results table { border: none; }
+    .results td.score { min-width: 9rem; }
+    .score-cell { position: relative; display: block; padding: 0.1rem 0.3rem; }
+    .score-bar {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      background: var(--accent-soft);
+      border-radius: 3px;
+    }
+    .score-cell > span { position: relative; }
+    .delta { font-size: 0.75rem; margin-left: 0.3rem; }
+    .delta.up { color: var(--ok); }
+    .delta.down { color: var(--bad); }
+    .delta.flat { color: var(--muted); }
+    #results-experiment {
+      padding: 0.15rem 0.3rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.8rem;
+      max-width: 16rem;
+    }
+    .results-note { font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
     .doc-switch button.active {
       background: var(--accent-soft);
       color: var(--accent);
@@ -211,10 +256,11 @@
         <section class="panel cases-panel">
           <nav class="tabbar" id="tabbar">
             {% for group in datasets %}
-              <button type="button" data-tab="{{ group.name }}">
-                {{ group.name }} ({{ group.cases|length }})<span class="badge" data-badge="{{ group.name }}"></span>
+              <button type="button" data-tab="{{ group.name }}" title="{{ group.name }}">
+                {{ group.label }} ({{ group.cases|length }})<span class="badge" data-badge="{{ group.name }}"></span>
               </button>
             {% endfor %}
+            <button type="button" data-tab="__results">Results</button>
             <button type="button" data-tab="__help">Help</button>
             <span class="tabbar-global">
               <button type="button" data-check-all="on">all</button>
@@ -241,10 +287,32 @@
                   </label>
                 {% endfor %}
               </div>
+              {% if group.ui_cases %}
+                <div class="ui-cases-head">Added in the Phoenix UI</div>
+                <div class="cases cases--ui">
+                  {% for case in group.ui_cases %}
+                    <label title="{{ case.label }}">
+                      <input type="checkbox" name="case_ids" value="{{ case.value }}">
+                      {{ case.label }}
+                    </label>
+                  {% endfor %}
+                </div>
+              {% endif %}
             </div>
           {% empty %}
             <p class="panel-tools">No eval cases registered.</p>
           {% endfor %}
+          <div class="tab-panel" data-panel="__results" hidden>
+            <div class="panel-tools">
+              <span>
+                Experiment
+                <select id="results-experiment"></select>
+                compared to <strong>baseline</strong>
+              </span>
+              <span>All datasets in one view; click a dataset for the per-case compare.</span>
+            </div>
+            <div class="results" id="results-body">Loading…</div>
+          </div>
           <div class="tab-panel" data-panel="__help" hidden>
             <div class="panel-tools">
               <span class="doc-switch" id="doc-switch"></span>
@@ -276,6 +344,27 @@
             Experiment name (optional)
             <input type="text" name="experiment_name">
           </label>
+          <details class="prompt-overrides">
+            <summary>Prompt overrides</summary>
+            <div id="prompt-list">
+              {% for prompt in prompts %}
+                <label class="prompt-option" data-prompt="{{ prompt }}">
+                  <input type="checkbox" name="prompt_overrides" value="{{ prompt }}">
+                  {{ prompt }}
+                </label>
+              {% endfor %}
+            </div>
+            <p class="prompt-hint">
+              Checked prompts run with their latest
+              {% if phoenix_prompts_link %}
+                <a href="{{ phoenix_prompts_link }}" target="_blank" rel="noopener">Phoenix version ↗</a>
+              {% else %}
+                Phoenix version
+              {% endif %}
+              instead of the code version. Overriding a prompt the selected
+              cases never use has no effect.
+            </p>
+          </details>
           <button type="submit">Run</button>
           <p id="run-hint"></p>
         </aside>
@@ -301,7 +390,7 @@
           <tr data-run-id="{{ run.id }}">
             <td>{{ run.dataset }}</td>
             <td>{% if run.case_ids %}{{ run.case_ids|join:", " }}{% else %}(all){% endif %}</td>
-            <td>{{ run.model }}{% if run.git_label %} <small>({{ run.git_label }})</small>{% endif %}</td>
+            <td>{{ run.model }}{% if run.git_label %} <small>({{ run.git_label }})</small>{% endif %}{% if run.prompt_overrides %} <small>[prompts: {{ run.prompt_overrides|join:", " }}]</small>{% endif %}</td>
             <td>{{ run.runs }}</td>
             <td class="status-{{ run.status }}">{{ run.status }}</td>
             <td>{{ run.started_at|date:"M d, H:i:s"|default:"" }}</td>
@@ -336,6 +425,10 @@
     }
 
     var HELP_TAB = "__help";
+    var RESULTS_TAB = "__results";
+    var META_TABS = {};
+    META_TABS[HELP_TAB] = true;
+    META_TABS[RESULTS_TAB] = true;
 
     function selectTab(name) {
       tabbar.querySelectorAll("button").forEach(function (button) {
@@ -344,9 +437,29 @@
       document.querySelectorAll(".tab-panel").forEach(function (panel) {
         panel.hidden = panel.dataset.panel !== name;
       });
-      if (name !== HELP_TAB) datasetInput.value = name;
+      if (!META_TABS[name]) {
+        datasetInput.value = name;
+        reorderPrompts(name);
+      }
       if (name === HELP_TAB) loadDocs();
+      if (name === RESULTS_TAB) loadResults();
       updateSelectionUi();
+    }
+
+    function reorderPrompts(datasetName) {
+      var list = document.getElementById("prompt-list");
+      if (!list) return;
+      var token = datasetName.replace(/^kuma-/, "");
+      var weight = function (prompt) {
+        if (prompt === "kuma-system-prompt") return 0;
+        return prompt.indexOf(token) !== -1 ? 1 : 2;
+      };
+      [].slice.call(list.querySelectorAll(".prompt-option"))
+        .sort(function (a, b) {
+          var delta = weight(a.dataset.prompt) - weight(b.dataset.prompt);
+          return delta !== 0 ? delta : a.dataset.prompt.localeCompare(b.dataset.prompt);
+        })
+        .forEach(function (option) { list.appendChild(option); });
     }
 
     function updateSelectionUi() {
@@ -368,7 +481,7 @@
         return sum + totals[name];
       }, 0);
       var submitButton = document.querySelector('button[type="submit"]');
-      submitButton.disabled = !totalSelected && activeTab() === HELP_TAB;
+      submitButton.disabled = !totalSelected && !!META_TABS[activeTab()];
       if (submitButton.disabled) {
         runHint.textContent = "Open a dataset tab or tick cases to run.";
       } else if (!totalSelected) {
@@ -414,6 +527,167 @@
 
     var firstTab = tabbar.querySelector("button[data-tab]");
     if (firstTab) selectTab(firstTab.dataset.tab);
+
+    var METRICS = ["checklist", "passed", "answer_quality"];
+    var resultsData = null;
+
+    function loadResults() {
+      fetch("/results.json")
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          resultsData = data.datasets;
+          buildExperimentOptions();
+          renderResults();
+        })
+        .catch(function () {
+          document.getElementById("results-body").textContent = "Could not load results from Phoenix.";
+        });
+    }
+
+    function experimentsByName(dataset) {
+      var byName = {};
+      dataset.experiments.forEach(function (experiment) {
+        if (!byName[experiment.name]) byName[experiment.name] = experiment;
+      });
+      return byName;
+    }
+
+    function buildExperimentOptions() {
+      var select = document.getElementById("results-experiment");
+      var previous = select.value;
+      var seen = {};
+      var names = [];
+      resultsData.forEach(function (dataset) {
+        dataset.experiments.forEach(function (experiment) {
+          if (experiment.name === "baseline" || seen[experiment.name]) return;
+          seen[experiment.name] = true;
+          names.push({ name: experiment.name, created_at: experiment.created_at });
+        });
+      });
+      names.sort(function (a, b) { return b.created_at.localeCompare(a.created_at); });
+      select.textContent = "";
+      names.forEach(function (entry) {
+        var option = document.createElement("option");
+        option.value = entry.name;
+        option.textContent = entry.name || "(unnamed)";
+        select.appendChild(option);
+      });
+      if (previous && seen[previous]) select.value = previous;
+    }
+
+    function scoreCell(row, value, baselineValue) {
+      var cell = document.createElement("td");
+      cell.className = "score";
+      if (value == null) {
+        cell.textContent = "–";
+        row.appendChild(cell);
+        return;
+      }
+      var wrap = document.createElement("span");
+      wrap.className = "score-cell";
+      var bar = document.createElement("span");
+      bar.className = "score-bar";
+      bar.style.width = Math.round(value * 100) + "%";
+      wrap.appendChild(bar);
+      var val = document.createElement("span");
+      val.textContent = value.toFixed(2);
+      wrap.appendChild(val);
+      if (baselineValue != null) {
+        var delta = value - baselineValue;
+        var badge = document.createElement("span");
+        badge.className = "delta " + (delta >= 0.02 ? "up" : delta <= -0.02 ? "down" : "flat");
+        badge.textContent = (delta >= 0 ? "+" : "") + delta.toFixed(2);
+        wrap.appendChild(badge);
+      }
+      cell.appendChild(wrap);
+      row.appendChild(cell);
+    }
+
+    function renderResults() {
+      var body = document.getElementById("results-body");
+      var selected = document.getElementById("results-experiment").value;
+      if (!selected) {
+        body.textContent = "No experiments yet — run something first.";
+        return;
+      }
+      var table = document.createElement("table");
+      var head = document.createElement("tr");
+      ["Dataset", "Cases", "Model"].concat(METRICS).forEach(function (label) {
+        var th = document.createElement("th");
+        th.textContent = label;
+        head.appendChild(th);
+      });
+      table.appendChild(head);
+
+      var totals = { casesRun: 0, scores: {}, weights: {}, baseline: {}, baselineWeights: {} };
+      resultsData.forEach(function (dataset) {
+        var byName = experimentsByName(dataset);
+        var experiment = byName[selected];
+        var baseline = byName["baseline"];
+        var row = document.createElement("tr");
+        var nameCell = document.createElement("td");
+        if (experiment && experiment.link) {
+          var link = document.createElement("a");
+          link.href = experiment.link;
+          link.target = "_blank";
+          link.rel = "noopener";
+          link.textContent = dataset.name;
+          nameCell.appendChild(link);
+        } else {
+          nameCell.textContent = dataset.name;
+        }
+        row.appendChild(nameCell);
+        var casesCell = document.createElement("td");
+        casesCell.textContent = String(dataset.case_count);
+        row.appendChild(casesCell);
+        var modelCell = document.createElement("td");
+        modelCell.textContent = experiment
+          ? (experiment.model || "") + (experiment.git_label ? " (" + experiment.git_label + ")" : "")
+          : "not run";
+        row.appendChild(modelCell);
+        METRICS.forEach(function (metric) {
+          var value = experiment ? experiment.scores[metric] : null;
+          var baseValue = baseline ? baseline.scores[metric] : null;
+          scoreCell(row, value == null ? null : value, baseValue == null ? null : baseValue);
+          if (value != null) {
+            totals.scores[metric] = (totals.scores[metric] || 0) + value * dataset.case_count;
+            totals.weights[metric] = (totals.weights[metric] || 0) + dataset.case_count;
+          }
+          if (baseValue != null) {
+            totals.baseline[metric] = (totals.baseline[metric] || 0) + baseValue * dataset.case_count;
+            totals.baselineWeights[metric] = (totals.baselineWeights[metric] || 0) + dataset.case_count;
+          }
+        });
+        if (experiment) totals.casesRun += dataset.case_count;
+        table.appendChild(row);
+      });
+
+      if (totals.casesRun) {
+        var totalRow = document.createElement("tr");
+        ["Overall (case-weighted)", String(totals.casesRun), ""].forEach(function (label) {
+          var cell = document.createElement("td");
+          cell.textContent = label;
+          if (label === "Overall (case-weighted)") cell.style.fontWeight = "600";
+          totalRow.appendChild(cell);
+        });
+        METRICS.forEach(function (metric) {
+          var value = totals.weights[metric] ? totals.scores[metric] / totals.weights[metric] : null;
+          var baseValue = totals.baselineWeights[metric]
+            ? totals.baseline[metric] / totals.baselineWeights[metric] : null;
+          scoreCell(totalRow, value, baseValue);
+        });
+        table.appendChild(totalRow);
+      }
+
+      body.textContent = "";
+      body.appendChild(table);
+      var note = document.createElement("p");
+      note.className = "results-note";
+      note.textContent = "Scores are experiment means per dataset; answer_quality exists only where a judge ran. Overall weighs datasets by case count.";
+      body.appendChild(note);
+    }
+
+    document.getElementById("results-experiment").addEventListener("change", renderResults);
 
     var docsCache = null;
 
@@ -615,7 +889,9 @@
       var values = [
         run.dataset,
         run.case_ids && run.case_ids.length ? run.case_ids.join(", ") : "(all)",
-        run.model + (run.git_label ? " (" + run.git_label + ")" : ""),
+        run.model + (run.git_label ? " (" + run.git_label + ")" : "") +
+          (run.prompt_overrides && run.prompt_overrides.length
+            ? " [prompts: " + run.prompt_overrides.join(", ") + "]" : ""),
         String(run.runs), "", "", "", "",
       ];
       values.forEach(function (value) {

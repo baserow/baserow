@@ -26,6 +26,10 @@ def _isolated_runner_state(monkeypatch):
     monkeypatch.setattr(runner, "_history", runner.deque(maxlen=runner.MAX_HISTORY))
     monkeypatch.setattr(runner, "_run_queue", queue_module.Queue())
     monkeypatch.setattr(runner, "_worker_started", False)
+    monkeypatch.setattr(runner, "_phoenix_client", None)
+    monkeypatch.setattr(runner, "_dataset_links", {})
+    monkeypatch.setattr(runner, "_dataset_ids", {})
+    monkeypatch.setattr(runner, "_ui_cases", {})
 
 
 def _noop_checks(case, scenario, output):
@@ -201,6 +205,132 @@ class TestHealthz:
         assert status == "200 OK"
 
 
+class TestUiExampleSupport:
+    def test_ui_ids_group_by_their_encoded_dataset(self):
+        _register_case("database/list-tables")
+
+        grouped = runner._group_case_ids_by_dataset(
+            ["ui:kuma-docs:ex-1", "database/list-tables", "ui:kuma-database:ex-2"]
+        )
+
+        assert grouped == {
+            "kuma-docs": ["ui:kuma-docs:ex-1"],
+            "kuma-database": ["database/list-tables", "ui:kuma-database:ex-2"],
+        }
+
+    def test_index_lists_ui_cases_for_their_dataset(self, monkeypatch):
+        _register_case("database/list-tables")
+        monkeypatch.setattr(
+            runner,
+            "_ui_cases",
+            {
+                "kuma-database": [
+                    {"value": "ui:kuma-database:ex-1", "label": "create a Tasks table"}
+                ]
+            },
+        )
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        assert b"Added in the Phoenix UI" in body
+        assert b'value="ui:kuma-database:ex-1"' in body
+        assert b"create a Tasks table" in body
+
+    def test_refresh_dataset_state_collects_links_and_ui_examples(self, monkeypatch):
+        _register_case("database/list-tables")
+        monkeypatch.setenv(
+            "BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL", "http://localhost:6060"
+        )
+        monkeypatch.setattr(runner, "_dataset_links", {})
+        monkeypatch.setattr(runner, "_ui_cases", {})
+        monkeypatch.setattr(runner, "_phoenix_client", None)
+        dataset = MagicMock(id="ds-1")
+        dataset.examples = [
+            {
+                "id": "code-1",
+                "input": {"prompt": "p"},
+                "metadata": {"case_id": "database/list-tables"},
+            },
+            {"id": "ex-1", "input": {"prompt": "try something new"}, "metadata": {}},
+        ]
+        client = MagicMock()
+        client.datasets.get_dataset.return_value = dataset
+
+        runner.refresh_dataset_state(client)
+
+        assert runner._dataset_links == {
+            "kuma-database": "http://localhost:6060/datasets/ds-1/examples"
+        }
+        assert runner._ui_cases["kuma-database"] == [
+            {"value": "ui:kuma-database:ex-1", "label": "try something new"}
+        ]
+
+    def test_index_rerefreshes_state_when_a_client_is_known(self, monkeypatch):
+        _register_case("database/list-tables")
+        refreshed = []
+        monkeypatch.setattr(runner, "_phoenix_client", object())
+        monkeypatch.setattr(
+            runner, "refresh_dataset_state", lambda client: refreshed.append(client)
+        )
+        app = runner.make_wsgi_app()
+
+        _call_wsgi(app, "GET", "/")
+
+        assert len(refreshed) == 1
+
+
+class TestResultsEndpoint:
+    def test_results_json_aggregates_experiment_summaries(self, monkeypatch):
+        _register_case("database/list-tables")
+        monkeypatch.setattr(runner, "_dataset_ids", {"kuma-database": "ds-node-1"})
+        monkeypatch.setenv(
+            "BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL", "http://localhost:6060"
+        )
+        summaries = [
+            {
+                "id": "exp-1",
+                "name": "baseline",
+                "createdAt": "2026-08-25T10:00:00Z",
+                "metadata": {"model": "m", "git_branch": "b", "git_commit": "c"},
+                "annotationSummaries": [
+                    {"annotationName": "passed", "meanScore": 0.8},
+                    {"annotationName": "answer_quality", "meanScore": None},
+                ],
+            }
+        ]
+        monkeypatch.setattr(runner, "_experiment_summaries", lambda node_id: summaries)
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/results.json")
+
+        dataset = json.loads(body)["datasets"][0]
+        assert dataset["name"] == "kuma-database"
+        assert dataset["case_count"] == 1
+        experiment = dataset["experiments"][0]
+        assert experiment["scores"] == {"passed": 0.8}
+        assert experiment["git_label"] == "b@c"
+        assert experiment["link"] == (
+            "http://localhost:6060/datasets/ds-node-1/compare?experimentId=exp-1"
+        )
+
+    def test_results_json_is_empty_without_known_dataset_ids(self):
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/results.json")
+
+        assert json.loads(body)["datasets"][0]["experiments"] == []
+
+    def test_index_has_results_tab(self):
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        assert b'data-tab="__results"' in body
+
+
 class TestDocsEndpoint:
     def test_docs_json_serves_the_help_docs(self):
         app = runner.make_wsgi_app()
@@ -210,9 +340,10 @@ class TestDocsEndpoint:
         assert status == "200 OK"
         assert headers["Content-Type"] == "application/json"
         docs = json.loads(body)["docs"]
-        assert [doc["slug"] for doc in docs] == ["evals", "tracing"]
+        assert [doc["slug"] for doc in docs] == ["evals", "analysis", "tracing"]
         assert "# AI Assistant Evals" in docs[0]["markdown"]
-        assert docs[1]["path"] == "docs/development/ai-assistant-tracing.md"
+        assert "baseline" in docs[1]["markdown"]
+        assert docs[2]["path"] == "docs/development/ai-assistant-tracing.md"
 
     def test_docs_json_degrades_to_empty_markdown_when_files_missing(
         self, tmp_path, monkeypatch
@@ -437,6 +568,7 @@ class TestSubmitRunWorker:
             case_ids=None,
             runs=1,
             experiment_name=None,
+            prompt_overrides=None,
         )
 
     def test_state_transitions_to_failed_on_exception(self):
@@ -465,6 +597,55 @@ class TestSubmitRunWorker:
 
 @pytest.mark.django_db
 class TestAssistantEvalRunnerCommand:
+    @pytest.fixture(autouse=True)
+    def _no_baseline_import(self):
+        with patch(
+            "baserow_enterprise.management.commands.assistant_eval_runner."
+            "import_baseline"
+        ) as mock_import:
+            self.mock_import_baseline = mock_import
+            yield
+
+    def test_startup_imports_the_baseline(self):
+        with (
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "call_command"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "setup_instrumentation"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner.load_all"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "get_phoenix_client"
+            ) as mock_get_client,
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_datasets"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_prompts"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "start_worker"
+            ),
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "make_server"
+            ) as mock_make_server,
+        ):
+            mock_make_server.return_value = MagicMock()
+
+            call_command("assistant_eval_runner", "--skip-migrate")
+
+        self.mock_import_baseline.assert_called_once_with(mock_get_client.return_value)
+
     def test_skip_migrate_calls_sync_and_starts_server(self):
         with (
             patch(
@@ -719,3 +900,43 @@ class TestAssistantEvalRunnerCommand:
             call_command("assistant_eval_runner", "--skip-migrate", "--host", bind_all)
 
         assert mock_make_server.call_args[0][0] == bind_all
+
+
+class TestPromptOverridesForm:
+    def test_post_run_passes_valid_prompt_overrides_and_filters_unknown(self):
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+        body = urlencode(
+            {
+                "dataset": "kuma-database",
+                "model": "m",
+                "prompt_overrides": ["kuma-system-prompt", "not-a-prompt"],
+            },
+            doseq=True,
+        ).encode()
+
+        _call_wsgi(app, "POST", "/run", body=body)
+
+        assert runner.recent_runs()[0].prompt_overrides == ["kuma-system-prompt"]
+
+    def test_runs_json_includes_prompt_overrides(self):
+        _register_case("database/list-tables")
+        runner.submit_run(
+            dataset="kuma-database",
+            model="m",
+            prompt_overrides=["kuma-system-prompt"],
+        )
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/runs.json")
+
+        assert json.loads(body)["runs"][0]["prompt_overrides"] == ["kuma-system-prompt"]
+
+    def test_index_renders_prompt_override_checkboxes(self):
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        assert b'value="kuma-system-prompt"' in body
+        assert b"Prompt overrides" in body

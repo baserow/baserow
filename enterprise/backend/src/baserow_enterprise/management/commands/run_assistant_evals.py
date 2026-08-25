@@ -31,6 +31,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--name", dest="experiment_name", default=None, help="Experiment name."
         )
+        parser.add_argument(
+            "--override-prompt",
+            dest="prompt_overrides",
+            action="append",
+            default=None,
+            help="Synced prompt name to run with its latest Phoenix version "
+            "instead of the code constant (repeatable).",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         dataset_name = options["dataset"]
@@ -57,6 +65,7 @@ class Command(BaseCommand):
             case_ids=case_ids,
             runs=options["runs"],
             experiment_name=options["experiment_name"],
+            prompt_overrides=options["prompt_overrides"],
         )
 
         self.stdout.write(self.style.SUCCESS(f"Experiment complete: {result}"))

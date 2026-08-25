@@ -12,9 +12,14 @@ from baserow_enterprise.assistant.evals import gitinfo, registry
 from baserow_enterprise.assistant.evals.judge import JudgeVerdict
 from baserow_enterprise.assistant.evals.models import DEFAULT_EVAL_MODEL
 from baserow_enterprise.assistant.evals.run import (
+    _adhoc_checks,
+    _experiment_metadata,
+    _fetch_prompt_overrides,
     answer_quality,
+    case_for_example,
     checklist,
     passed,
+    prompt_from_example_input,
     run_case_for_experiment,
     run_experiment_for,
 )
@@ -266,6 +271,8 @@ class TestRunCaseForExperiment:
             result = run_case_for_experiment(case, "groq:test-model", kb_available=True)
 
         assert result == {
+            "question": "do the thing",
+            "judge_docs": False,
             "answer": "the answer",
             "tool_calls": ["list_tables"],
             "tool_error_count": 0,
@@ -298,27 +305,39 @@ class TestRunCaseForExperiment:
         assert result["sources"] == ["{'url': 'https://x'}", "https://y"]
 
 
-class TestAnswerQualityEvaluator:
-    def test_non_docs_case_scores_empty(self):
-        registry.register_case(_make_case("db/case-1"))
-        output = {"answer": "the answer", "sources": []}
+def _docs_output(**overrides):
+    output = {
+        "question": "How do I share a view?",
+        "judge_docs": True,
+        "answer": "the answer",
+        "sources": ["https://x"],
+    }
+    output.update(overrides)
+    return output
 
-        result = answer_quality(output, {"case_id": "db/case-1"})
+
+class TestAnswerQualityEvaluator:
+    def test_non_docs_output_scores_empty(self):
+        result = answer_quality(_docs_output(judge_docs=False), {})
+
+        assert result == {}
+
+    def test_output_without_judge_docs_flag_scores_empty(self):
+        result = answer_quality(
+            {"answer": "a", "sources": []}, {"expected_keywords": ["x"]}
+        )
 
         assert result == {}
 
     def test_skipped_output_scores_empty(self):
         result = answer_quality(
             {"skipped": "knowledge base unavailable"},
-            {"case_id": "docs/case-1", "expected_keywords": ["x"]},
+            {"expected_keywords": ["x"]},
         )
 
         assert result == {}
 
     def test_judge_exception_scores_empty_and_warns(self):
-        registry.register_case(_make_case("docs/case-1", requires_knowledge_base=True))
-        output = {"answer": "the answer", "sources": []}
-
         with (
             patch(
                 "baserow_enterprise.assistant.evals.run.judge_docs_answer",
@@ -326,38 +345,19 @@ class TestAnswerQualityEvaluator:
             ),
             patch("baserow_enterprise.assistant.evals.run.logger") as mock_logger,
         ):
-            result = answer_quality(
-                output, {"case_id": "docs/case-1", "expected_keywords": ["x"]}
-            )
-
-        assert result == {}
-        mock_logger.warning.assert_called_once()
-
-    def test_unknown_case_id_scores_empty_and_warns(self):
-        """A judge failure includes the case being missing from the registry."""
-
-        output = {"answer": "the answer", "sources": []}
-
-        with patch("baserow_enterprise.assistant.evals.run.logger") as mock_logger:
-            result = answer_quality(output, {"case_id": "docs/does-not-exist"})
+            result = answer_quality(_docs_output(), {"expected_keywords": ["x"]})
 
         assert result == {}
         mock_logger.warning.assert_called_once()
 
     def test_success_returns_score_and_explanation(self):
-        registry.register_case(
-            _make_case("docs/case-1", prompt="How do I share a view?")
-        )
-        output = {"answer": "the answer", "sources": ["https://x"]}
         verdict = JudgeVerdict(score=0.75, explanation="Mostly right.")
 
         with patch(
             "baserow_enterprise.assistant.evals.run.judge_docs_answer",
             return_value=verdict,
         ) as mock_judge:
-            result = answer_quality(
-                output, {"case_id": "docs/case-1", "expected_keywords": ["share"]}
-            )
+            result = answer_quality(_docs_output(), {"expected_keywords": ["share"]})
 
         mock_judge.assert_called_once_with(
             question="How do I share a view?",
@@ -376,10 +376,6 @@ class TestAnswerQualityEvaluator:
         assert "expected" in inspect.signature(answer_quality).parameters
 
     def test_passes_reference_answer_from_expected_output(self):
-        registry.register_case(
-            _make_case("docs/case-1", prompt="How do I share a view?")
-        )
-        output = {"answer": "the answer", "sources": ["https://x"]}
         verdict = JudgeVerdict(score=0.9, explanation="Matches the reference.")
 
         with patch(
@@ -387,8 +383,8 @@ class TestAnswerQualityEvaluator:
             return_value=verdict,
         ) as mock_judge:
             result = answer_quality(
-                output,
-                {"case_id": "docs/case-1", "expected_keywords": ["share"]},
+                _docs_output(),
+                {"expected_keywords": ["share"]},
                 {"reference_answer": "Use the share button."},
             )
 
@@ -402,30 +398,30 @@ class TestAnswerQualityEvaluator:
         assert result == {"score": 0.9, "explanation": "Matches the reference."}
 
     def test_missing_reference_answer_in_expected_passes_none(self):
-        registry.register_case(_make_case("docs/case-1", prompt="q"))
-        output = {"answer": "a", "sources": []}
         verdict = JudgeVerdict(score=0.5, explanation="ok")
 
         with patch(
             "baserow_enterprise.assistant.evals.run.judge_docs_answer",
             return_value=verdict,
         ) as mock_judge:
-            answer_quality(output, {"case_id": "docs/case-1"}, {})
+            answer_quality(_docs_output(question="q", answer="a", sources=[]), {}, {})
 
         mock_judge.assert_called_once_with(
             question="q", answer="a", sources=[], keywords=[], reference_answer=None
         )
 
     def test_empty_reference_answer_string_passes_none(self):
-        registry.register_case(_make_case("docs/case-1", prompt="q"))
-        output = {"answer": "a", "sources": []}
         verdict = JudgeVerdict(score=0.5, explanation="ok")
 
         with patch(
             "baserow_enterprise.assistant.evals.run.judge_docs_answer",
             return_value=verdict,
         ) as mock_judge:
-            answer_quality(output, {"case_id": "docs/case-1"}, {"reference_answer": ""})
+            answer_quality(
+                _docs_output(question="q", answer="a", sources=[]),
+                {},
+                {"reference_answer": ""},
+            )
 
         mock_judge.assert_called_once_with(
             question="q", answer="a", sources=[], keywords=[], reference_answer=None
@@ -434,41 +430,17 @@ class TestAnswerQualityEvaluator:
     def test_no_expected_arg_defaults_to_none_reference(self):
         """`expected` is absent when called outside Phoenix's evaluator binding."""
 
-        registry.register_case(_make_case("docs/case-1", prompt="q"))
-        output = {"answer": "a", "sources": []}
         verdict = JudgeVerdict(score=0.5, explanation="ok")
 
         with patch(
             "baserow_enterprise.assistant.evals.run.judge_docs_answer",
             return_value=verdict,
         ) as mock_judge:
-            answer_quality(output, {"case_id": "docs/case-1"})
+            answer_quality(_docs_output(question="q", answer="a", sources=[]), {})
 
         mock_judge.assert_called_once_with(
             question="q", answer="a", sources=[], keywords=[], reference_answer=None
         )
-
-    def test_requires_knowledge_base_flag_gates_non_docs_prefixed_case(self):
-        registry.register_case(
-            _make_case("kb/case-1", prompt="q", requires_knowledge_base=True)
-        )
-        output = {"answer": "the answer", "sources": []}
-        verdict = JudgeVerdict(score=1.0, explanation="Good.")
-
-        with patch(
-            "baserow_enterprise.assistant.evals.run.judge_docs_answer",
-            return_value=verdict,
-        ):
-            result = answer_quality(
-                output,
-                {
-                    "case_id": "kb/case-1",
-                    "requires_knowledge_base": True,
-                    "expected_keywords": [],
-                },
-            )
-
-        assert result == {"score": 1.0, "explanation": "Good."}
 
 
 class _FakeExperimentsAPI:
@@ -528,8 +500,10 @@ class _FakeClient:
 
 
 class _ExampleStub:
-    def __init__(self, case_id):
-        self.metadata = {"case_id": case_id}
+    def __init__(self, case_id, input=None, example_id="ex-1"):
+        self.metadata = {"case_id": case_id} if case_id else {}
+        self.input = input if input is not None else {"prompt": "do the thing"}
+        self.id = example_id
 
 
 class TestRunExperimentForFullDataset:
@@ -696,9 +670,40 @@ class TestRunExperimentForFullDataset:
 
         mock_kb_cls.return_value.can_search.assert_called_once()
 
-    def test_foreign_example_without_case_id_is_skipped(self):
-        """A UI-added example carries no `case_id`; the task must not KeyError."""
+    def test_foreign_example_without_case_id_runs_as_adhoc_case(self):
+        """A UI-added example runs against the default scenario, not skipped."""
 
+        registry.register_case(_make_case("db/case-1"))
+        registry.register_scenario("empty-workspace")(lambda fx: None)
+        dataset = _FakeDataset([])
+        client = _FakeClient(dataset)
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+            patch(
+                "baserow_enterprise.assistant.evals.run.run_case",
+                return_value=(_make_output(), []),
+            ) as mock_run_case,
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+
+            run_experiment_for("kuma-database", "groq:test-model")
+            task = client.experiments.run_experiment_calls[0]["task"]
+            result = task(_ExampleStub(None, input={"prompt": "create a Tasks table"}))
+
+        adhoc_case = mock_run_case.call_args[0][0]
+        assert adhoc_case.id == "ui/ex-1"
+        assert adhoc_case.prompt == "create a Tasks table"
+        assert adhoc_case.scenario == "empty-workspace"
+        assert result["answer"] == "the answer"
+
+    def test_foreign_example_without_prompt_is_skipped(self):
         registry.register_case(_make_case("db/case-1"))
         dataset = _FakeDataset([])
         client = _FakeClient(dataset)
@@ -717,10 +722,10 @@ class TestRunExperimentForFullDataset:
 
             run_experiment_for("kuma-database", "groq:test-model")
             task = client.experiments.run_experiment_calls[0]["task"]
-            result = task(_ExampleStub(None))
+            result = task(_ExampleStub(None, input={}))
 
         mock_run_case.assert_not_called()
-        assert result == {"skipped": "ui example not yet promoted to code"}
+        assert result == {"skipped": "ui example has no prompt in its input"}
 
     def test_example_with_unregistered_case_id_is_skipped_not_crashed(self):
         """A stale/removed case_id must not crash the task via a KeyError."""
@@ -746,7 +751,218 @@ class TestRunExperimentForFullDataset:
             result = task(_ExampleStub("db/does-not-exist"))
 
         mock_run_case.assert_not_called()
-        assert result == {"skipped": "ui example not yet promoted to code"}
+        assert result == {
+            "skipped": "unknown case id 'db/does-not-exist' — run eval-sync"
+        }
+
+
+class TestPromptFromExampleInput:
+    def test_bare_string(self):
+        assert prompt_from_example_input("  make a table  ") == "make a table"
+
+    def test_conventional_keys_take_priority(self):
+        assert prompt_from_example_input({"prompt": "p", "extra": "x"}) == "p"
+        assert prompt_from_example_input({"question": "q"}) == "q"
+
+    def test_single_string_valued_dict_is_accepted(self):
+        assert prompt_from_example_input({"whatever": "x"}) == "x"
+
+    def test_ambiguous_dict_returns_none(self):
+        assert prompt_from_example_input({"a": "x", "b": "y"}) is None
+
+    def test_empty_input_returns_none(self):
+        assert prompt_from_example_input({}) is None
+        assert prompt_from_example_input(None) is None
+        assert prompt_from_example_input("   ") is None
+
+
+class TestCaseForExample:
+    def test_code_owned_example_resolves_via_registry(self):
+        case = _make_case("db/case-1")
+        registry.register_case(case)
+
+        resolved = case_for_example(
+            {"prompt": "x"}, {"case_id": "db/case-1"}, "kuma-database", "e1"
+        )
+
+        assert resolved is case
+
+    def test_stale_case_id_returns_skip(self):
+        result = case_for_example({}, {"case_id": "db/gone"}, "kuma-database", "e1")
+
+        assert result == {"skipped": "unknown case id 'db/gone' — run eval-sync"}
+
+    def test_adhoc_docs_example_gets_docs_defaults(self):
+        registry.register_scenario("docs-question")(lambda fx: None)
+
+        case = case_for_example({"question": "How do I X?"}, {}, "kuma-docs", "e1")
+
+        assert case.id == "ui/e1"
+        assert case.scenario == "docs-question"
+        assert case.requires_knowledge_base is True
+
+    def test_adhoc_metadata_scenario_and_declarative_checks(self):
+        registry.register_scenario("database-view-grid")(lambda fx: None)
+
+        case = case_for_example(
+            {"prompt": "add a filter"},
+            {
+                "scenario": "database-view-grid",
+                "expected_tools": ["create_view_filter"],
+                "max_iters": 5,
+            },
+            "kuma-database",
+            "e2",
+        )
+
+        assert case.scenario == "database-view-grid"
+        assert case.max_iters == 5
+        output = _make_output(tool_calls=["create_view_filter"])
+        checks = case.checks(case, None, output)
+        assert [c.name for c in checks] == ["called create_view_filter"]
+        assert checks[0].passed
+
+    def test_adhoc_unknown_scenario_returns_skip(self):
+        result = case_for_example(
+            {"prompt": "x"}, {"scenario": "nope"}, "kuma-database", "e1"
+        )
+
+        assert result == {"skipped": "unknown scenario 'nope'"}
+
+    def test_adhoc_mode_defaults_to_the_dataset_mode(self):
+        registry.register_case(
+            _make_case("b/case", dataset="kuma-builder", mode=AgentMode.APPLICATION)
+        )
+        registry.register_scenario("empty-workspace")(lambda fx: None)
+
+        case = case_for_example({"prompt": "x"}, {}, "kuma-builder", "e1")
+
+        assert case.mode == AgentMode.APPLICATION
+
+
+class TestAdhocChecks:
+    def test_docs_checks_include_keywords_when_provided(self):
+        checks_fn = _adhoc_checks(
+            {"expected_keywords": ["grid"]}, requires_knowledge_base=True
+        )
+        output = _make_output(
+            tool_calls=["search_user_docs"],
+            sources=["https://x"],
+            answer="Use the grid view",
+        )
+
+        results = checks_fn(None, None, output)
+
+        assert [c.name for c in results] == [
+            "called search_user_docs",
+            "returned at least one source URL",
+            "answer mentions one of ['grid']",
+        ]
+        assert all(c.passed for c in results)
+
+    def test_answer_contains_is_case_insensitive(self):
+        checks_fn = _adhoc_checks(
+            {"answer_contains": ["Tasks"]}, requires_knowledge_base=False
+        )
+
+        results = checks_fn(None, None, _make_output(answer="created the tasks table"))
+
+        assert [c.name for c in results] == ["answer contains 'Tasks'"]
+        assert results[0].passed
+
+    def test_non_list_metadata_values_are_ignored(self):
+        checks_fn = _adhoc_checks(
+            {"expected_tools": "create_table"}, requires_knowledge_base=False
+        )
+
+        assert checks_fn(None, None, _make_output()) == []
+
+
+class TestRunExperimentForUiExampleSubset:
+    def test_ui_id_resolves_example_and_runs_adhoc_case(self):
+        registry.register_scenario("empty-workspace")(lambda fx: None)
+        example = {
+            "id": "ex-9",
+            "node_id": "RGF0YXNldEV4YW1wbGU6OQ==",
+            "input": {"prompt": "create a Tasks table"},
+            "output": {},
+            "metadata": {},
+        }
+        client = _FakeClient(_FakeDataset([example]))
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+            patch(
+                "baserow_enterprise.assistant.evals.run.run_case",
+                return_value=(_make_output(), []),
+            ) as mock_run_case,
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+
+            run_experiment_for(
+                "kuma-database",
+                "groq:test-model",
+                case_ids=["ui:kuma-database:ex-9"],
+            )
+
+        adhoc_case = mock_run_case.call_args[0][0]
+        assert adhoc_case.id == "ui/ex-9"
+        assert adhoc_case.prompt == "create a Tasks table"
+        log_run = client.experiments.log_run_calls[0]
+        assert log_run["dataset_example_id"] == "RGF0YXNldEV4YW1wbGU6OQ=="
+        evaluation_names = [
+            call["name"] for call in client.experiments.log_evaluation_calls
+        ]
+        assert evaluation_names == ["checklist", "passed"]
+        metadata = client.experiments.create_calls[0]["experiment_metadata"]
+        assert metadata["case_ids"] == ["ui:kuma-database:ex-9"]
+
+    def test_unknown_ui_example_raises_clear_error(self):
+        client = _FakeClient(_FakeDataset([]))
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+            pytest.raises(ValueError, match="was not found in Phoenix dataset"),
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+
+            run_experiment_for("kuma-database", "m", case_ids=["ui:kuma-database:gone"])
+
+    def test_unresolvable_ui_example_is_logged_as_skipped(self):
+        example = {"id": "ex-9", "input": {}, "output": {}, "metadata": {}}
+        client = _FakeClient(_FakeDataset([example]))
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+            patch("baserow_enterprise.assistant.evals.run.run_case") as mock_run_case,
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+
+            run_experiment_for("kuma-database", "m", case_ids=["ui:kuma-database:ex-9"])
+
+        mock_run_case.assert_not_called()
+        assert client.experiments.log_run_calls[0]["output"] == {
+            "skipped": "ui example has no prompt in its input"
+        }
+        assert client.experiments.log_evaluation_calls == []
 
 
 class TestRunExperimentForCaseSubset:
@@ -1273,6 +1489,7 @@ class TestRunAssistantEvalsCommand:
             case_ids=None,
             runs=1,
             experiment_name=None,
+            prompt_overrides=None,
         )
 
     def test_model_runs_and_name_are_forwarded(self):
@@ -1309,6 +1526,7 @@ class TestRunAssistantEvalsCommand:
             case_ids=None,
             runs=3,
             experiment_name="my-experiment",
+            prompt_overrides=None,
         )
 
     def test_case_repeatable_and_resolves_dataset_from_registry(self):
@@ -1344,6 +1562,7 @@ class TestRunAssistantEvalsCommand:
             case_ids=["db/case-1", "db/case-2"],
             runs=1,
             experiment_name=None,
+            prompt_overrides=None,
         )
 
     def test_case_ids_spanning_multiple_datasets_without_dataset_raises(self):
@@ -1397,4 +1616,139 @@ class TestRunAssistantEvalsCommand:
             case_ids=["db/case-1"],
             runs=1,
             experiment_name=None,
+            prompt_overrides=None,
         )
+
+
+class _FakePromptVersion:
+    def __init__(self, text: str):
+        self._template = {"messages": [{"role": "system", "content": text}]}
+
+
+class _FakePromptsAPI:
+    def __init__(self, texts: dict):
+        self._texts = texts
+        self.get_calls: list[dict] = []
+
+    def get(self, **kwargs):
+        self.get_calls.append(kwargs)
+        return _FakePromptVersion(self._texts[kwargs["prompt_identifier"]])
+
+
+class TestPromptOverrides:
+    def test_fetch_unknown_prompt_name_raises(self):
+        client = _FakeClient(_FakeDataset([]))
+
+        with pytest.raises(ValueError, match="Unknown assistant prompt"):
+            _fetch_prompt_overrides(client, ["nope"])
+
+    def test_fetch_reads_latest_phoenix_version_text(self):
+        client = _FakeClient(_FakeDataset([]))
+        client.prompts = _FakePromptsAPI({"kuma-system-prompt": "edited text"})
+
+        texts = _fetch_prompt_overrides(client, ["kuma-system-prompt"])
+
+        assert texts == {"kuma-system-prompt": "edited text"}
+        assert client.prompts.get_calls == [{"prompt_identifier": "kuma-system-prompt"}]
+
+    def test_fetch_with_no_names_is_empty(self):
+        assert _fetch_prompt_overrides(_FakeClient(_FakeDataset([])), None) == {}
+
+    def test_metadata_stamps_effective_hash_and_override_list(self):
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.prompt_hashes",
+                return_value={"kuma-system-prompt": "codehash1234"},
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_git_info",
+                return_value={},
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_judge_model",
+                return_value="judge",
+            ),
+        ):
+            metadata = _experiment_metadata(
+                "groq:test-model", {"kuma-system-prompt": "edited text"}
+            )
+
+        assert metadata["prompts"]["kuma-system-prompt"] != "codehash1234"
+        assert len(metadata["prompts"]["kuma-system-prompt"]) == 12
+        assert metadata["prompt_overrides"] == ["kuma-system-prompt"]
+
+    def test_metadata_has_no_override_list_without_overrides(self):
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.prompt_hashes",
+                return_value={"kuma-system-prompt": "codehash1234"},
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_git_info",
+                return_value={},
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_judge_model",
+                return_value="judge",
+            ),
+        ):
+            metadata = _experiment_metadata("groq:test-model")
+
+        assert "prompt_overrides" not in metadata
+        assert metadata["prompts"] == {"kuma-system-prompt": "codehash1234"}
+
+    def test_run_case_for_experiment_applies_prompt_overrides(self):
+        case = _make_case("db/case-1")
+        applied: list[dict] = []
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _spy(prompt_texts):
+            applied.append(prompt_texts)
+            yield
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.override_assistant_prompts",
+                _spy,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.run_case",
+                return_value=(_make_output(), []),
+            ),
+        ):
+            run_case_for_experiment(
+                case,
+                "groq:test-model",
+                kb_available=True,
+                prompt_texts={"kuma-system-prompt": "edited"},
+            )
+
+        assert applied == [{"kuma-system-prompt": "edited"}]
+
+    def test_full_dataset_run_fetches_overrides_and_stamps_metadata(self):
+        registry.register_case(_make_case("db/case-1"))
+        dataset = _FakeDataset([])
+        client = _FakeClient(dataset)
+        client.prompts = _FakePromptsAPI({"kuma-system-prompt": "edited text"})
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+
+            run_experiment_for(
+                "kuma-database",
+                "groq:test-model",
+                prompt_overrides=["kuma-system-prompt"],
+            )
+
+        metadata = client.experiments.run_experiment_calls[0]["experiment_metadata"]
+        assert metadata["prompt_overrides"] == ["kuma-system-prompt"]

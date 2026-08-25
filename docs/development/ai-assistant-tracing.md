@@ -45,6 +45,12 @@ spans (one per LLM call, with the full prompt/response, token counts, and
 cost), and `execute_tool <name>` spans (tool arguments and results). A
 separate short `invoke_agent title_agent` trace generates the chat title.
 
+Eval traces are collected too, but routed differently: whole-dataset
+experiment traces live in a hidden per-experiment project — open them by
+clicking the run inside the experiment, not from the Tracing tab — while
+subset runs land in `default`, and the LLM judge's own calls in the
+`evaluators` project.
+
 What to look for when something is off:
 
 - **Errored spans**: filter on `status_code == 'ERROR'` — a red tool span

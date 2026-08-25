@@ -22,6 +22,10 @@ trace. Why this platform: [ADR 007](../decisions/007-ai-assistant-eval-platform.
 5. The page's **Help** tab renders this guide and the
    [tracing guide](../development/ai-assistant-tracing.md) inline.
 
+> **Warning:** the runner hot-reloads on any mounted `.py` change (including
+> a lint/format pass), which kills queued and running experiments — don't
+> edit backend Python while a run is in flight.
+
 ## Running evals from the CLI
 
 The CLI uses your host env (`.env.local`): the database it points at and
@@ -147,6 +151,45 @@ eval-sync` preserves it — it no longer wipes examples that aren't in the
 codebase, only code-owned ones (identified by a `case_id` in their metadata)
 are replaced wholesale.
 
+UI-added examples are **runnable**: they appear on the runner page under
+"Added in the Phoenix UI" in their dataset's tab (reload the page after
+adding one), and they run with the rest of the dataset too. The example's
+`input` needs a `{"prompt": "..."}` (or `"question"`) and everything else is
+optional metadata:
+
+### Docs questions
+
+Add the example to `kuma-docs`. It runs against the standard docs scenario
+with the standard checks (`search_user_docs` called, at least one source),
+and the LLM judge scores `answer_quality`. Optional fields:
+
+- `output` → `{"reference_answer": "..."}` — the ideal answer the judge
+  grades against.
+- metadata `expected_keywords` — list of strings; adds an
+  "answer mentions one of" check and informs the judge.
+
+### Tool use cases
+
+Add the example to the matching dataset (`kuma-database`, `kuma-builder`,
+`kuma-automation`, `kuma-core`) and declare what to exercise in its metadata:
+
+- `scenario` — name of a registered starting state (the
+  `register_scenario("...")` ids in `evals/datasets/*.py` and
+  `evals/scenarios.py`). Defaults to `empty-workspace`, a bare workspace —
+  enough for "create a table called X"-style prompts. Pick a richer scenario
+  when the prompt references existing objects; its object names must match
+  what the prompt mentions.
+- `expected_tools` — list of tool names; each adds a "called `<tool>`" check.
+- `answer_contains` — list of strings; each adds a case-insensitive
+  "answer contains" check.
+- `mode` (agent mode, defaults to the dataset's usual one), `max_iters`,
+  `max_tool_errors` — same meaning as on a code case.
+
+Checks that assert on **database state** (rows really created, field types
+correct) can't be expressed in metadata — promote the example to code for
+those. The tool-error budget check always runs, and the full trace is linked
+from every run, so even a check-less example is useful for experimenting.
+
 To promote a UI-added example to code:
 
 ```bash
@@ -163,10 +206,6 @@ now matches the code case (matched by exact prompt text, so no duplicate).
 Non-`kuma-docs` datasets have no registration helper to generate from, so
 `eval-export` prints a commented JSON block instead; write the scenario and
 checks by hand.
-
-A UI-added example is still part of the dataset, so it runs alongside code
-cases — but with no code case to resolve, the runner records it as `skipped`
-rather than crashing or scoring it.
 
 ### Reference answers for docs cases
 
@@ -192,19 +231,36 @@ the whole agent, sub-agents included.
 Kuma's load-bearing prompts (the main system prompt and each sub-agent's
 instructions — see `SYNCED_PROMPTS` in
 `enterprise/backend/src/baserow_enterprise/assistant/evals/prompt_sync.py`)
-are synced to Phoenix's Prompts tab as versioned prompts on every eval-sync.
-To experiment with a prompt change: edit the constant in code (the runner
-hot-reloads), run an experiment, and compare — the experiment's `prompts`
-metadata records the content hash of every synced prompt, so you can see
-exactly which prompt version produced which scores.
+are synced to Phoenix's **Prompts** tab as versioned prompts on every
+eval-sync. Every experiment's `prompts` metadata records the content hash of
+each prompt as it ran, so prompt-version comparisons are filterable in
+Phoenix.
+
+To experiment with a prompt change **without touching code**:
+
+1. Edit the prompt in Phoenix's Prompts tab and save — that's a new version
+   (Phoenix prompts are append-only, nothing is lost).
+2. In the runner page's **Prompt overrides** section, tick that prompt —
+   checked prompts run with their latest Phoenix version instead of the code
+   constant. CLI equivalent: `--override-prompt <name>` (repeatable). The
+   list sorts the active tab's likely-relevant prompts first, but any prompt
+   can be overridden — one the selected cases never exercise is just a no-op.
+3. Run and compare: the experiment is stamped with the effective prompt
+   hashes plus a `prompt_overrides` list naming what was overridden.
+4. To promote a winning prompt, paste its text into the code constant — the
+   next eval-sync records it as the new latest version.
+
+Editing the constant in code directly still works too (the runner
+hot-reloads .py changes).
 
 ## Reading results
 
 Every experiment run links to its trace (agent → LLM calls → tool calls, with
-token counts and cost). What to look for when a case fails:
-[reading a trace](../development/ai-assistant-tracing.md#reading-a-trace).
-Failed checks appear in the experiment's `checklist` evaluator explanation
-with their hints.
+token counts and cost). Failed checks appear in the experiment's `checklist`
+evaluator explanation with their hints. How to compare against the committed
+baseline, classify outcomes (improvement / regression / gap / flake), and
+diagnose failures through traces:
+[evaluating results](./ai-assistant-eval-analysis.md).
 
 `kuma-docs` runs get a third score, `answer_quality`, from an LLM judge (the
 judge prompt lives in `evals/judge.py`) that grades the answer's correctness,

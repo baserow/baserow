@@ -25,25 +25,33 @@ from urllib.parse import parse_qs, urlsplit
 from django.conf import settings
 from django.template.loader import render_to_string
 
+import httpx
 from loguru import logger
 
+from baserow_enterprise.assistant.evals.baseline import _api_base, _headers
 from baserow_enterprise.assistant.evals.gitinfo import get_git_info
 from baserow_enterprise.assistant.evals.models import (
     DEFAULT_EVAL_MODEL,
     available_models,
 )
+from baserow_enterprise.assistant.evals.prompt_sync import SYNCED_PROMPTS
 from baserow_enterprise.assistant.evals.registry import (
     cases_by_dataset,
     get_case,
     load_all,
 )
-from baserow_enterprise.assistant.evals.run import run_experiment_for
+from baserow_enterprise.assistant.evals.run import (
+    UI_CASE_PREFIX,
+    prompt_from_example_input,
+    run_experiment_for,
+)
 
 MAX_HISTORY = 50
 MAX_FORM_BYTES = 64 * 1024
 
 HELP_DOCS = (
     ("evals", "Running evals", "docs/testing/ai-assistant-evals.md"),
+    ("analysis", "Evaluating results", "docs/testing/ai-assistant-eval-analysis.md"),
     ("tracing", "Phoenix & tracing", "docs/development/ai-assistant-tracing.md"),
 )
 
@@ -58,6 +66,7 @@ class RunnerState:
     model: str
     runs: int
     experiment_name: str | None = None
+    prompt_overrides: list[str] | None = None
     status: RunStatus = "queued"
     error: str | None = None
     experiment_info: Any = None
@@ -86,6 +95,7 @@ _PERSISTED_FIELDS = (
     "model",
     "runs",
     "experiment_name",
+    "prompt_overrides",
     "status",
     "error",
     "phoenix_link",
@@ -164,6 +174,7 @@ def submit_run(
     case_ids: list[str] | None = None,
     runs: int = 1,
     experiment_name: str | None = None,
+    prompt_overrides: list[str] | None = None,
 ) -> RunnerState:
     state = RunnerState(
         id=uuid.uuid4().hex,
@@ -172,6 +183,7 @@ def submit_run(
         model=model,
         runs=runs,
         experiment_name=experiment_name,
+        prompt_overrides=prompt_overrides or None,
         git_label=_git_label(),
     )
     with _history_lock:
@@ -192,6 +204,7 @@ def _run_one(state: RunnerState, executor: Callable[..., Any]) -> None:
             case_ids=state.case_ids,
             runs=state.runs,
             experiment_name=state.experiment_name,
+            prompt_overrides=state.prompt_overrides,
         )
         state.status = "done"
     except Exception as exc:
@@ -286,10 +299,13 @@ def _group_case_ids_by_dataset(case_ids: list[str]) -> dict[str, list[str]]:
     load_all()
     grouped: dict[str, list[str]] = {}
     for case_id in case_ids:
-        try:
-            dataset = get_case(case_id).dataset
-        except KeyError:
-            continue
+        if case_id.startswith(UI_CASE_PREFIX):
+            dataset = case_id.split(":", 2)[1]
+        else:
+            try:
+                dataset = get_case(case_id).dataset
+            except KeyError:
+                continue
         grouped.setdefault(dataset, []).append(case_id)
     return grouped
 
@@ -305,6 +321,10 @@ def _submit_from_form(form: dict[str, list[str]]) -> list[RunnerState]:
     except ValueError:
         runs = 1
     experiment_name = _first(form, "experiment_name").strip() or None
+
+    prompt_overrides = [
+        name for name in form.get("prompt_overrides", []) if name in SYNCED_PROMPTS
+    ]
 
     case_ids = form.get("case_ids") or []
     if case_ids:
@@ -322,6 +342,7 @@ def _submit_from_form(form: dict[str, list[str]]) -> list[RunnerState]:
             case_ids=ids,
             runs=runs,
             experiment_name=experiment_name,
+            prompt_overrides=prompt_overrides,
         )
         for dataset, ids in submissions
     ]
@@ -354,24 +375,138 @@ def _phoenix_link(experiment_info: Any, phoenix_public_url: str) -> str | None:
 
 
 _dataset_links: dict[str, str] = {}
+_dataset_ids: dict[str, str] = {}
+_ui_cases: dict[str, list[dict[str, str]]] = {}
+_phoenix_client: Any = None
+
+MAX_UI_CASE_LABEL = 60
 
 
-def refresh_dataset_links(client: Any) -> None:
-    """Resolve Phoenix dataset ids into browser deep links, best-effort."""
+def _ui_case_label(example: dict[str, Any]) -> str:
+    prompt = prompt_from_example_input(example.get("input", {})) or "(no prompt)"
+    if len(prompt) > MAX_UI_CASE_LABEL:
+        return prompt[: MAX_UI_CASE_LABEL - 1] + "…"
+    return prompt
 
+
+def refresh_dataset_state(client: Any) -> None:
+    """Resolve Phoenix deep links and UI-added examples per dataset, best-effort.
+
+    Remembers the client so every page render can refresh — a UI-added example
+    shows up on the next reload without a runner restart.
+    """
+
+    global _phoenix_client
+    _phoenix_client = client
     public_url = _phoenix_public_url()
-    if not public_url:
-        return
     for name in cases_by_dataset():
         try:
             dataset = client.datasets.get_dataset(dataset=name)
-            _dataset_links[name] = f"{public_url}/datasets/{dataset.id}/examples"
         except Exception as exc:
-            logger.warning("Could not resolve Phoenix link for {}: {}", name, exc)
+            logger.warning("Could not fetch Phoenix dataset {}: {}", name, exc)
+            continue
+        _dataset_ids[name] = dataset.id
+        if public_url:
+            _dataset_links[name] = f"{public_url}/datasets/{dataset.id}/examples"
+        _ui_cases[name] = [
+            {"value": f"{UI_CASE_PREFIX}{name}:{ex['id']}", "label": _ui_case_label(ex)}
+            for ex in dataset.examples
+            if not ex.get("metadata", {}).get("case_id")
+        ]
+
+
+_EXPERIMENT_SUMMARIES_QUERY = """
+query ($datasetId: ID!) {
+  node(id: $datasetId) {
+    ... on Dataset {
+      experiments(first: 50) {
+        edges {
+          node {
+            id
+            name
+            createdAt
+            metadata
+            annotationSummaries { annotationName meanScore }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def _experiment_summaries(dataset_node_id: str) -> list[dict[str, Any]]:
+    """Per-experiment mean scores for a dataset, newest first, via GraphQL."""
+
+    response = httpx.post(
+        f"{_api_base()}/graphql",
+        json={
+            "query": _EXPERIMENT_SUMMARIES_QUERY,
+            "variables": {"datasetId": dataset_node_id},
+        },
+        headers=_headers(),
+        timeout=30,
+    )
+    response.raise_for_status()
+    edges = response.json()["data"]["node"]["experiments"]["edges"]
+    return [edge["node"] for edge in edges]
+
+
+def _results_json() -> bytes:
+    """Cross-dataset results: every experiment's mean scores, per dataset."""
+
+    public_url = _phoenix_public_url()
+    datasets = []
+    for name, cases in cases_by_dataset().items():
+        experiments: list[dict[str, Any]] = []
+        node_id = _dataset_ids.get(name)
+        if node_id:
+            try:
+                summaries = _experiment_summaries(node_id)
+            except Exception as exc:
+                logger.warning("Could not fetch results for {}: {}", name, exc)
+                summaries = []
+            for node in summaries:
+                metadata = node.get("metadata") or {}
+                git_label = "@".join(
+                    part
+                    for part in (
+                        metadata.get("git_branch"),
+                        metadata.get("git_commit"),
+                    )
+                    if part
+                )
+                experiments.append(
+                    {
+                        "id": node["id"],
+                        "name": node.get("name") or "",
+                        "created_at": node.get("createdAt"),
+                        "model": metadata.get("model"),
+                        "git_label": git_label or None,
+                        "scores": {
+                            s["annotationName"]: s["meanScore"]
+                            for s in node.get("annotationSummaries", [])
+                            if s.get("meanScore") is not None
+                        },
+                        "link": (
+                            f"{public_url}/datasets/{node_id}/compare"
+                            f"?experimentId={node['id']}"
+                            if public_url
+                            else None
+                        ),
+                    }
+                )
+        datasets.append(
+            {"name": name, "case_count": len(cases), "experiments": experiments}
+        )
+    return json.dumps({"datasets": datasets}).encode("utf-8")
 
 
 def _render_index() -> str:
     grouped = cases_by_dataset()
+    if _phoenix_client is not None:
+        refresh_dataset_state(_phoenix_client)
     phoenix_public_url = _phoenix_public_url()
     runs = recent_runs()
     for state in runs:
@@ -383,16 +518,22 @@ def _render_index() -> str:
         "datasets": [
             {
                 "name": name,
+                "label": name.removeprefix("kuma-"),
                 "link": _dataset_links.get(name),
                 "cases": [
                     {"id": case.id, "label": case.id.split("/", 1)[-1]}
                     for case in cases
                 ],
+                "ui_cases": _ui_cases.get(name, []),
             }
             for name, cases in grouped.items()
         ],
         "models": available_models(),
         "default_model": DEFAULT_EVAL_MODEL,
+        "prompts": sorted(SYNCED_PROMPTS),
+        "phoenix_prompts_link": (
+            f"{phoenix_public_url}/prompts" if phoenix_public_url else None
+        ),
         "runs": runs,
     }
     return render_to_string("baserow_enterprise/eval_runner.html", context)
@@ -410,6 +551,7 @@ def _runs_json() -> bytes:
             "case_ids": run.case_ids,
             "model": run.model,
             "git_label": run.git_label,
+            "prompt_overrides": run.prompt_overrides,
             "runs": run.runs,
             "status": run.status,
             "started_at": _fmt_ts(run.started_at),
@@ -452,6 +594,17 @@ def make_wsgi_app() -> Callable[[dict, Callable], Iterable[bytes]]:
         if method == "GET" and path == "/healthz":
             start_response("200 OK", [("Content-Type", "text/plain")])
             return [b"ok"]
+
+        if method == "GET" and path == "/results.json":
+            body = _results_json()
+            start_response(
+                "200 OK",
+                [
+                    ("Content-Type", "application/json"),
+                    ("Content-Length", str(len(body))),
+                ],
+            )
+            return [body]
 
         if method == "GET" and path == "/docs.json":
             body = _docs_json()

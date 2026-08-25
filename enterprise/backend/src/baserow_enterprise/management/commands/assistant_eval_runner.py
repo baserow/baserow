@@ -8,13 +8,14 @@ from django.core.management.base import BaseCommand
 
 from loguru import logger
 
+from baserow_enterprise.assistant.evals.baseline import import_baseline
 from baserow_enterprise.assistant.evals.phoenix import get_phoenix_client
 from baserow_enterprise.assistant.evals.prompt_sync import sync_prompts
 from baserow_enterprise.assistant.evals.registry import load_all
 from baserow_enterprise.assistant.evals.runner import (
     load_history,
     make_wsgi_app,
-    refresh_dataset_links,
+    refresh_dataset_state,
     start_worker,
 )
 from baserow_enterprise.assistant.evals.sync import sync_datasets
@@ -56,9 +57,14 @@ class Command(BaseCommand):
             logger.exception("Failed to sync eval prompts to Phoenix on startup")
 
         try:
-            refresh_dataset_links(get_phoenix_client())
+            import_baseline(get_phoenix_client())
         except Exception:
-            logger.exception("Failed to resolve Phoenix dataset links on startup")
+            logger.exception("Failed to import the eval baseline on startup")
+
+        try:
+            refresh_dataset_state(get_phoenix_client())
+        except Exception:
+            logger.exception("Failed to resolve Phoenix dataset state on startup")
 
         load_history()
         start_worker()

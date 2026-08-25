@@ -9,6 +9,8 @@ from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.models import Table
 from baserow.core.models import Workspace
 from baserow.test_utils.fixtures import Fixtures
+from baserow_enterprise.assistant.evals.registry import register_scenario
+from baserow_enterprise.assistant.evals.types import EvalScenario
 from baserow_enterprise.assistant.types import (
     ApplicationUIContext,
     TableUIContext,
@@ -68,3 +70,16 @@ def build_workspace_ui_context(user: AbstractUser, workspace: Workspace) -> str:
         user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
     )
     return ctx.format()
+
+
+@register_scenario("empty-workspace")
+def _empty_workspace_scenario(fx: Fixtures) -> EvalScenario:
+    """Bare workspace: the default starting state for UI-added examples."""
+
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_workspace_ui_context(user, workspace),
+    )

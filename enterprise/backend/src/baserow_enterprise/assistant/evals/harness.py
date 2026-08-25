@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
+from types import ModuleType
 from typing import Any
 
 from django.conf import settings
 
+from pydantic_ai import Agent
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
@@ -24,6 +26,65 @@ from baserow_enterprise.assistant.evals.types import (
     EvalCase,
     EvalRunOutput,
 )
+from baserow_enterprise.assistant.onboarding import onboarding_suggestions_agent
+from baserow_enterprise.assistant.tools.automation import agents as automation_agents
+from baserow_enterprise.assistant.tools.builder import agents as builder_agents
+from baserow_enterprise.assistant.tools.database import agents as database_agents
+from baserow_enterprise.assistant.tools.database.agents import formula_generation_agent
+from baserow_enterprise.assistant.tools.search_user_docs.tools import search_docs_agent
+
+# Prompts bound into Agent singletons at import time: swapped via Agent.override.
+PROMPT_AGENT_TARGETS: dict[str, Agent] = {
+    "kuma-system-prompt": main_agent,
+    "kuma-database-formula-agent": formula_generation_agent,
+    "kuma-search-docs-agent": search_docs_agent,
+    "kuma-onboarding-suggestions-agent": onboarding_suggestions_agent,
+}
+
+# Prompts read from their consumer module at call time: swapped by attribute patch.
+PROMPT_ATTR_TARGETS: dict[str, tuple[ModuleType, str]] = {
+    "kuma-database-sample-rows-agent": (
+        database_agents,
+        "SAMPLE_ROW_AGENT_INSTRUCTIONS",
+    ),
+    "kuma-builder-formula-agent": (builder_agents, "BUILDER_FORMULA_PROMPT"),
+    "kuma-automation-formula-agent": (automation_agents, "GENERATE_FORMULA_PROMPT"),
+}
+
+
+@contextmanager
+def _patched_module_attr(module: ModuleType, attr: str, value: str) -> Iterator[None]:
+    previous = getattr(module, attr)
+    setattr(module, attr, value)
+    try:
+        yield
+    finally:
+        setattr(module, attr, previous)
+
+
+@contextmanager
+def override_assistant_prompts(prompt_texts: dict[str, str]) -> Iterator[None]:
+    """Scoped prompt swaps for an eval run (single-worker only).
+
+    Agent-singleton prompts keep their dynamic ``@instructions`` functions:
+    only the static string entries are replaced.
+    """
+
+    with ExitStack() as stack:
+        for name, text in prompt_texts.items():
+            agent = PROMPT_AGENT_TARGETS.get(name)
+            if agent is not None:
+                instructions = [
+                    text if isinstance(entry, str) else entry
+                    for entry in agent._instructions
+                ]
+                stack.enter_context(agent.override(instructions=instructions))
+            elif name in PROMPT_ATTR_TARGETS:
+                module, attr = PROMPT_ATTR_TARGETS[name]
+                stack.enter_context(_patched_module_attr(module, attr, text))
+            else:
+                raise ValueError(f"Unknown assistant prompt '{name}'")
+        yield
 
 
 @contextmanager

@@ -1,13 +1,20 @@
+import asyncio
+
 import pytest
+from pydantic_ai import Agent
 from pydantic_ai.models.test import TestModel
 
 from baserow_enterprise.assistant.assistant import build_agent_run_context
 from baserow_enterprise.assistant.deps import ToolHelpers
 from baserow_enterprise.assistant.evals import registry
 from baserow_enterprise.assistant.evals.harness import (
+    PROMPT_AGENT_TARGETS,
+    PROMPT_ATTR_TARGETS,
     override_assistant_model,
+    override_assistant_prompts,
     run_case,
 )
+from baserow_enterprise.assistant.evals.prompt_sync import SYNCED_PROMPTS
 from baserow_enterprise.assistant.evals.scenarios import make_fixtures
 from baserow_enterprise.assistant.evals.types import CheckResult, EvalCase, EvalScenario
 
@@ -151,3 +158,72 @@ class TestRunCase:
         )
 
         assert output.answer == "hi"
+
+
+class _InstructionSpyModel(TestModel):
+    def __init__(self, captured: dict):
+        super().__init__()
+        self._captured = captured
+
+    async def request(self, messages, model_settings, model_request_parameters):
+        self._captured["instructions"] = messages[0].instructions
+        return await super().request(messages, model_settings, model_request_parameters)
+
+
+class TestOverrideAssistantPrompts:
+    def test_targets_cover_every_synced_prompt_exactly(self):
+        assert set(PROMPT_AGENT_TARGETS) | set(PROMPT_ATTR_TARGETS) == set(
+            SYNCED_PROMPTS
+        )
+        assert not set(PROMPT_AGENT_TARGETS) & set(PROMPT_ATTR_TARGETS)
+
+    def test_agent_target_swaps_static_text_and_keeps_dynamic_instructions(
+        self, monkeypatch
+    ):
+        captured: dict = {}
+        agent = Agent(model=_InstructionSpyModel(captured), instructions="STATIC")
+
+        @agent.instructions
+        def _dynamic(ctx) -> str:
+            return "DYNAMIC"
+
+        monkeypatch.setitem(PROMPT_AGENT_TARGETS, "kuma-system-prompt", agent)
+
+        with override_assistant_prompts({"kuma-system-prompt": "OVERRIDDEN"}):
+            asyncio.run(agent.run("hi"))
+        assert captured["instructions"] == "OVERRIDDEN\n\nDYNAMIC"
+
+        asyncio.run(agent.run("hi"))
+        assert captured["instructions"] == "STATIC\n\nDYNAMIC"
+
+    def test_attr_target_patches_module_constant_and_restores_it(self):
+        module, attr = PROMPT_ATTR_TARGETS["kuma-database-sample-rows-agent"]
+        original = getattr(module, attr)
+
+        with override_assistant_prompts(
+            {"kuma-database-sample-rows-agent": "OVERRIDDEN"}
+        ):
+            assert getattr(module, attr) == "OVERRIDDEN"
+
+        assert getattr(module, attr) is original
+
+    def test_restores_attr_even_when_body_raises(self):
+        module, attr = PROMPT_ATTR_TARGETS["kuma-builder-formula-agent"]
+        original = getattr(module, attr)
+
+        with pytest.raises(RuntimeError):
+            with override_assistant_prompts(
+                {"kuma-builder-formula-agent": "OVERRIDDEN"}
+            ):
+                raise RuntimeError("boom")
+
+        assert getattr(module, attr) is original
+
+    def test_unknown_prompt_name_raises(self):
+        with pytest.raises(ValueError, match="Unknown assistant prompt"):
+            with override_assistant_prompts({"nope": "text"}):
+                pass
+
+    def test_empty_overrides_is_a_noop(self):
+        with override_assistant_prompts({}):
+            pass
