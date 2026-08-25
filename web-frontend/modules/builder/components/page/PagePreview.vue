@@ -252,11 +252,11 @@ export default {
         : null
     },
     maxWidth() {
-      const maxWidth = this.getDeviceMaxWidth(this.deviceType)
+      const maxWidth = this.deviceType.getMaxWidth(this.builder)
       return maxWidth ? `${maxWidth}px` : 'unset'
     },
     devicePreviewWidth() {
-      return this.getDeviceMinWidth(this.deviceType)
+      return this.deviceType.getPreviewWidth(this.builder)
     },
     parentOfElementSelected() {
       return this.$store.getters['element/getParent'](
@@ -358,18 +358,6 @@ export default {
       this.$nextTick(() => {
         this.updatePreviewScale()
       })
-    },
-    getDeviceMinWidth(deviceType) {
-      if (deviceType?.getMinWidth) {
-        return deviceType.getMinWidth(this.builder)
-      }
-      return deviceType?.minWidth
-    },
-    getDeviceMaxWidth(deviceType) {
-      if (deviceType?.getMaxWidth) {
-        return deviceType.getMaxWidth(this.builder)
-      }
-      return deviceType?.maxWidth
     },
     updatePreviewScale() {
       // The widths are the minimum width the preview must have. If the preview dom

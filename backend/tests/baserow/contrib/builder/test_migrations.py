@@ -7,34 +7,6 @@ import pytest
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0076_builder_breakpoints_preserves_existing_applications(
-    migrator, teardown_table_metadata
-):
-    migrate_from = [("builder", "0075_container_element_positioning_behaviour")]
-    migrate_to = [("builder", "0076_builder_breakpoints")]
-
-    old_state = migrator.migrate(migrate_from)
-
-    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
-    Workspace = old_state.apps.get_model("core", "Workspace")
-    Builder = old_state.apps.get_model("builder", "Builder")
-
-    workspace = Workspace.objects.create(name="Workspace")
-    builder = Builder.objects.create(
-        order=1,
-        name="Builder",
-        workspace=workspace,
-        content_type=ContentType.objects.get_for_model(Builder),
-    )
-
-    new_state = migrator.migrate(migrate_to)
-    Builder = new_state.apps.get_model("builder", "Builder")
-    builder = Builder.objects.get(id=builder.id)
-
-    assert builder.breakpoints == {"mobile": 500, "tablet": 768}
-
-
-@pytest.mark.once_per_day_in_ci
 def test_0010_remove_orphan_collection_fields_forwards(
     migrator, teardown_table_metadata
 ):
@@ -841,3 +813,31 @@ def test_0071_migrate_element_hierarchy_to_graph_performance(
     assert all(p.graph for p in migrated), (
         "All pages must have a non-empty graph after migration"
     )
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0077_builder_breakpoints_preserves_existing_applications(
+    migrator, teardown_table_metadata
+):
+    migrate_from = [("builder", "0076_iframeelement_allow_same_origin")]
+    migrate_to = [("builder", "0077_builder_breakpoints")]
+
+    old_state = migrator.migrate(migrate_from)
+
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Builder = old_state.apps.get_model("builder", "Builder")
+
+    workspace = Workspace.objects.create(name="Workspace")
+    builder = Builder.objects.create(
+        order=1,
+        name="Builder",
+        workspace=workspace,
+        content_type=ContentType.objects.get_for_model(Builder),
+    )
+
+    new_state = migrator.migrate(migrate_to)
+    Builder = new_state.apps.get_model("builder", "Builder")
+    builder = Builder.objects.get(id=builder.id)
+
+    assert builder.breakpoints == {"mobile": 500, "tablet": 768}

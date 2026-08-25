@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import PagePreview from '@baserow/modules/builder/components/page/PagePreview'
 import {
+  DesktopDeviceType,
+  SmartphoneDeviceType,
+  TabletDeviceType,
+} from '@baserow/modules/builder/deviceTypes'
+import {
   PAGE_PLACES,
   PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
@@ -55,6 +60,8 @@ describe('PagePreview', () => {
     sharedElements = [],
     selectedElement = null,
     ancestorsByElementId = {},
+    breakpoints = { mobile: 640, tablet: 1024 },
+    deviceTypeSelected = 'desktop',
   } = {}) => {
     const currentPage = createPage({ elements })
     const sharedPage = createPage({
@@ -66,8 +73,14 @@ describe('PagePreview', () => {
       id: 1,
       pages: [currentPage, sharedPage],
       theme: {},
+      breakpoints,
     }
     const workspace = { id: 1 }
+    const deviceTypes = {
+      desktop: new DesktopDeviceType(),
+      tablet: new TabletDeviceType(),
+      smartphone: new SmartphoneDeviceType(),
+    }
 
     const wrapper = mount(PagePreview, {
       attachTo: document.body,
@@ -94,7 +107,7 @@ describe('PagePreview', () => {
             },
             get: (registryName, type) => {
               if (registryName === 'device') {
-                return { type: 'desktop', maxWidth: null }
+                return deviceTypes[type]
               }
               if (registryName === 'element') {
                 return {
@@ -148,7 +161,7 @@ describe('PagePreview', () => {
               'element/getSelected': () => selectedElement,
               'page/getById': (builder, pageId) =>
                 builder.pages.find((page) => page.id === pageId),
-              'page/getDeviceTypeSelected': 'desktop',
+              'page/getDeviceTypeSelected': deviceTypeSelected,
               'page/getSharedPage': () => sharedPage,
             },
           },
@@ -416,5 +429,27 @@ describe('PagePreview', () => {
       'page__fixed-stack--element-selected'
     )
     expect(header.classes()).toContain('page__header--element-selected')
+  })
+
+  test('uses configured device widths for the editor preview', async () => {
+    const { wrapper } = await mountComponent({
+      deviceTypeSelected: 'tablet',
+      breakpoints: { mobile: 640, tablet: 1024 },
+    })
+    const preview = wrapper.find('.page-preview')
+    const previewScaled = wrapper.find('.page-preview__scaled')
+
+    Object.defineProperty(preview.element, 'clientWidth', {
+      configurable: true,
+      value: 512,
+    })
+    Object.defineProperty(preview.element, 'clientHeight', {
+      configurable: true,
+      value: 500,
+    })
+    wrapper.vm.updatePreviewScale()
+
+    expect(preview.attributes('style')).toContain('max-width: 1024px')
+    expect(previewScaled.element.style.transform).toBe('scale(0.5)')
   })
 })

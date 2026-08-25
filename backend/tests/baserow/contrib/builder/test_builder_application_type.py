@@ -23,7 +23,10 @@ from baserow.contrib.builder.elements.models import (
     TableElement,
     TextElement,
 )
-from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.models import (
+    Builder,
+    BuilderBreakpointsValidationError,
+)
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.handler import ThemeHandler
 from baserow.contrib.builder.workflow_actions.handler import (
@@ -1132,6 +1135,7 @@ def test_builder_application_import(data_fixture):
     )
 
     assert builder.id != serialized_values["id"]
+    assert builder.breakpoints == {"mobile": 500, "tablet": 768}
     assert builder.visible_pages.count() == 2
     # ensure we have the shared page even if it's not in the reference
     assert builder.page_set.filter(shared=True).count() == 1
@@ -1208,6 +1212,38 @@ def test_builder_application_import(data_fixture):
     assert workflow_action.element_id == element1.id
     assert workflow_action.description["formula"] == "'hello'"
     assert workflow_action.title["formula"] == "'there'"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("breakpoints", "error_field"),
+    [
+        (None, "non_field_errors"),
+        ({"mobile": 640}, "tablet"),
+        ({"mobile": 640, "tablet": "1024"}, "tablet"),
+        ({"mobile": 319, "tablet": 1024}, "mobile"),
+        ({"mobile": 1024, "tablet": 640}, "tablet"),
+        ({"mobile": 640, "tablet": 1024, "laptop": []}, "laptop"),
+    ],
+)
+def test_builder_application_import_rejects_invalid_breakpoints(
+    data_fixture, breakpoints, error_field
+):
+    user = data_fixture.create_user(email="test@baserow.io")
+    workspace = data_fixture.create_workspace(user=user)
+    serialized_values = deepcopy(IMPORT_REFERENCE)
+    serialized_values["breakpoints"] = breakpoints
+
+    with pytest.raises(BuilderBreakpointsValidationError) as exc_info:
+        BuilderApplicationType().import_serialized(
+            workspace,
+            serialized_values,
+            ImportExportConfig(include_permission_data=True),
+            {},
+        )
+
+    assert error_field in exc_info.value.errors
+    assert not Builder.objects.filter(workspace=workspace).exists()
 
 
 COMPAT_PAGE_2_IMPORT_REFERENCE = {

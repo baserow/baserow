@@ -20,7 +20,13 @@ from baserow.contrib.builder.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
-from baserow.contrib.builder.models import LEGACY_BUILDER_BREAKPOINTS, Builder
+from baserow.contrib.builder.models import (
+    LEGACY_BUILDER_BREAKPOINTS,
+    MAX_BUILDER_BREAKPOINT,
+    MIN_BUILDER_BREAKPOINT,
+    Builder,
+    validate_builder_breakpoints,
+)
 from baserow.contrib.builder.operations import ListPagesBuilderOperationType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
@@ -51,14 +57,6 @@ def lazy_get_instance_public_serializer_class():
     from baserow.contrib.builder.api.domains.serializers import PublicBuilderSerializer
 
     return PublicBuilderSerializer
-
-
-def lazy_get_request_serializer_mixin():
-    from baserow.contrib.builder.api.serializers import (
-        BuilderBreakpointsSerializerMixin,
-    )
-
-    return BuilderBreakpointsSerializerMixin
 
 
 class BuilderApplicationType(ApplicationType):
@@ -95,7 +93,7 @@ class BuilderApplicationType(ApplicationType):
 
     serializer_mixins = [lazy_get_instance_serializer_class]
     public_serializer_mixins = [lazy_get_instance_public_serializer_class]
-    request_serializer_mixins = [lazy_get_request_serializer_mixin]
+    request_serializer_mixins = []
     data_provider_type_registry = builder_data_provider_type_registry
 
     # Builder applications are imported second.
@@ -105,6 +103,7 @@ class BuilderApplicationType(ApplicationType):
     def serializer_field_overrides(self):
         from baserow.api.user_files.serializers import UserFileField
         from baserow.contrib.builder.api.validators import (
+            breakpoints_validator,
             image_file_validation,
             login_page_id_validator,
         )
@@ -125,11 +124,17 @@ class BuilderApplicationType(ApplicationType):
                 validators=[login_page_id_validator],
             ),
             "breakpoints": serializers.DictField(
-                child=serializers.IntegerField(),
+                child=serializers.IntegerField(
+                    min_value=MIN_BUILDER_BREAKPOINT,
+                    max_value=MAX_BUILDER_BREAKPOINT,
+                ),
+                validators=[breakpoints_validator],
                 required=False,
                 help_text=(
-                    "The maximum widths in pixels for the responsive layouts. "
-                    "Mobile and tablet breakpoints are required."
+                    "The maximum widths in pixels for the responsive layouts, "
+                    f"between {MIN_BUILDER_BREAKPOINT} and "
+                    f"{MAX_BUILDER_BREAKPOINT} pixels. Mobile and tablet "
+                    "breakpoints are required."
                 ),
             ),
         }
@@ -390,8 +395,8 @@ class BuilderApplicationType(ApplicationType):
         serialized_integrations = serialized_values.pop("integrations")
         serialized_user_sources = serialized_values.pop("user_sources")
         serialized_theme = serialized_values.pop("theme")
-        breakpoints = serialized_values.pop(
-            "breakpoints", LEGACY_BUILDER_BREAKPOINTS.copy()
+        breakpoints = validate_builder_breakpoints(
+            serialized_values.pop("breakpoints", LEGACY_BUILDER_BREAKPOINTS.copy())
         )
 
         (

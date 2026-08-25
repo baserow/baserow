@@ -8,52 +8,10 @@ from baserow.contrib.builder.api.theme.serializers import (
     CombinedThemeConfigBlocksSerializer,
     serialize_builder_theme,
 )
-from baserow.contrib.builder.models import Builder, default_builder_breakpoints
+from baserow.contrib.builder.models import Builder
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.application_types import BuilderApplicationType
-
-
-class BuilderBreakpointsSerializerMixin:
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-
-        breakpoints = attrs.get("breakpoints")
-        if not isinstance(self.instance, Builder) and not breakpoints:
-            attrs["breakpoints"] = default_builder_breakpoints()
-            return attrs
-
-        if breakpoints is None:
-            breakpoints = getattr(self.instance, "breakpoints", {})
-        mobile_breakpoint = breakpoints.get("mobile")
-        tablet_breakpoint = breakpoints.get("tablet")
-
-        if mobile_breakpoint is None or tablet_breakpoint is None:
-            raise serializers.ValidationError(
-                {
-                    "breakpoints": {
-                        "mobile": [
-                            "The mobile and tablet breakpoints must be configured together."
-                        ],
-                        "tablet": [
-                            "The mobile and tablet breakpoints must be configured together."
-                        ],
-                    }
-                }
-            )
-
-        if mobile_breakpoint >= tablet_breakpoint:
-            raise serializers.ValidationError(
-                {
-                    "breakpoints": {
-                        "tablet": [
-                            "The tablet breakpoint must be greater than the mobile breakpoint."
-                        ]
-                    }
-                }
-            )
-
-        return attrs
 
 
 class BuilderSerializer(serializers.Serializer):

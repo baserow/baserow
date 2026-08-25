@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import PageContent from '@baserow/modules/builder/components/page/PageContent'
 import {
+  DesktopDeviceType,
+  SmartphoneDeviceType,
+  TabletDeviceType,
+} from '@baserow/modules/builder/deviceTypes'
+import {
   PAGE_ELEMENT_BEHAVIOURS,
   PAGE_PLACES,
 } from '@baserow/modules/builder/enums'
@@ -38,9 +43,20 @@ describe('PageContent', () => {
     ...overrides,
   })
 
-  const mountComponent = ({ elements = [], sharedElements = [] } = {}) => {
+  const createDeviceTypes = () => ({
+    desktop: new DesktopDeviceType(),
+    tablet: new TabletDeviceType(),
+    smartphone: new SmartphoneDeviceType(),
+  })
+
+  const mountComponent = ({
+    elements = [],
+    sharedElements = [],
+    breakpoints = { mobile: 640, tablet: 1024 },
+  } = {}) => {
     const currentPage = { id: 1, path: '/' }
-    const builder = { id: 1, pages: [currentPage] }
+    const builder = { id: 1, pages: [currentPage], breakpoints }
+    const deviceTypes = createDeviceTypes()
 
     const wrapper = mount(PageContent, {
       props: {
@@ -59,13 +75,7 @@ describe('PageContent', () => {
           $registry: {
             getAll: (registryName) => {
               if (registryName === 'device') {
-                return {
-                  desktop: {
-                    getOrder: () => 1,
-                    getType: () => 'desktop',
-                    maxWidth: null,
-                  },
-                }
+                return deviceTypes
               }
               return {}
             },
@@ -174,5 +184,17 @@ describe('PageContent', () => {
     expect(getRenderedIds(content)).toEqual(['42', '43', '46'])
     expect(getRenderedIds(footer)).toEqual(['48'])
     expect(getRenderedIds(bottomStack)).toEqual(['47'])
+  })
+
+  test('selects devices using the configured breakpoint boundaries', () => {
+    const wrapper = mountComponent({
+      breakpoints: { mobile: 640, tablet: 1024 },
+    })
+
+    expect(
+      [640, 641, 1024, 1025].map((width) =>
+        wrapper.vm.closestDeviceType(width).getType()
+      )
+    ).toEqual(['smartphone', 'tablet', 'tablet', 'desktop'])
   })
 })

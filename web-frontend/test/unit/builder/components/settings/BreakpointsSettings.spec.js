@@ -75,14 +75,12 @@ describe('BreakpointsSettings', () => {
     await firstUpdate
   })
 
-  test('saves the values entered in the breakpoint inputs', async () => {
+  test('saves the values entered in the breakpoint inputs through Save', async () => {
     const [mobileInput, tabletInput] = wrapper.findAll('input')
 
     await mobileInput.setValue('700')
     await tabletInput.setValue('1100')
-    wrapper
-      .findComponent({ name: 'BuilderBreakpointsSettingsForm' })
-      .vm.submit()
+    await wrapper.findComponent({ name: 'Button' }).trigger('click')
 
     expect(dispatch).toHaveBeenCalledWith('application/update', {
       application: builder,

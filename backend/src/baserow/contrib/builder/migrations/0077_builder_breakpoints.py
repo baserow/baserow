@@ -7,7 +7,7 @@ from baserow.contrib.builder.models import default_builder_breakpoints
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("builder", "0075_container_element_positioning_behaviour"),
+        ("builder", "0076_iframeelement_allow_same_origin"),
     ]
 
     operations = [

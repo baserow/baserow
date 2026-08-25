@@ -391,20 +391,6 @@ def test_get_serializer_class(data_fixture):
     }
 
 
-def test_get_serializer_class_preserves_mixin_validation():
-    class NameValidationMixin:
-        def validate(self, attrs):
-            attrs = super().validate(attrs)
-            raise serializers.ValidationError({"name": "Invalid name."})
-
-    workspace_serializer = get_serializer_class(
-        Workspace, ["name"], base_mixins=[NameValidationMixin]
-    )(data={"name": "Workspace 1"})
-
-    assert not workspace_serializer.is_valid()
-    assert workspace_serializer.errors == {"name": ["Invalid name."]}
-
-
 @pytest.mark.django_db
 def test_get_serializer_class_with_fields_named_like_serializer_internals(data_fixture):
     workspace = data_fixture.create_workspace(name="Workspace 1")

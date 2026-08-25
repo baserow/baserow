@@ -77,9 +77,7 @@ export default {
         .sort((deviceA, deviceB) => deviceA.getOrder() - deviceB.getOrder())
         .reverse()
       for (const device of deviceTypes) {
-        const maxWidth = device.getMaxWidth
-          ? device.getMaxWidth(this.builder)
-          : device.maxWidth
+        const maxWidth = device.getMaxWidth(this.builder)
         if (maxWidth === null || observerWidth <= maxWidth) {
           return device
         }

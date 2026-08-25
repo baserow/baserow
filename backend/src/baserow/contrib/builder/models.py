@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from functools import cached_property
 
 from django.db import models
@@ -25,6 +26,63 @@ __all__ = [
 
 DEFAULT_BUILDER_BREAKPOINTS = {"mobile": 640, "tablet": 1024}
 LEGACY_BUILDER_BREAKPOINTS = {"mobile": 500, "tablet": 768}
+MIN_BUILDER_BREAKPOINT = 320
+MAX_BUILDER_BREAKPOINT = 1920
+
+
+class BuilderBreakpointsValidationError(ValueError):
+    """Raised when a Builder breakpoint configuration is invalid."""
+
+    def __init__(self, errors: dict[str, list[str]]):
+        self.errors = errors
+        super().__init__("Invalid builder breakpoints.")
+
+
+def validate_builder_breakpoints(breakpoints: object) -> dict[str, int]:
+    """
+    Validates the persisted Builder breakpoint configuration.
+
+    The mobile and tablet breakpoints define the responsive layout boundaries. Extra
+    named breakpoints are supported, but every persisted breakpoint must be an integer
+    within the same supported range.
+    """
+
+    if not isinstance(breakpoints, Mapping):
+        raise BuilderBreakpointsValidationError(
+            {"non_field_errors": ["The breakpoints must be an object."]}
+        )
+
+    errors: dict[str, list[str]] = {}
+    if "mobile" not in breakpoints or "tablet" not in breakpoints:
+        message = "The mobile and tablet breakpoints must be configured together."
+        errors = {"mobile": [message], "tablet": [message]}
+
+    for name, value in breakpoints.items():
+        if not isinstance(name, str):
+            errors.setdefault("non_field_errors", []).append(
+                "Breakpoint names must be strings."
+            )
+        elif not isinstance(value, int) or isinstance(value, bool):
+            errors[name] = ["A breakpoint must be an integer."]
+        elif not MIN_BUILDER_BREAKPOINT <= value <= MAX_BUILDER_BREAKPOINT:
+            errors[name] = [
+                "A breakpoint must be between "
+                f"{MIN_BUILDER_BREAKPOINT} and {MAX_BUILDER_BREAKPOINT} pixels."
+            ]
+
+    if errors:
+        raise BuilderBreakpointsValidationError(errors)
+
+    if breakpoints["mobile"] >= breakpoints["tablet"]:
+        raise BuilderBreakpointsValidationError(
+            {
+                "tablet": [
+                    "The tablet breakpoint must be greater than the mobile breakpoint."
+                ]
+            }
+        )
+
+    return dict(breakpoints)
 
 
 def default_builder_breakpoints():

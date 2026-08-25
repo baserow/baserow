@@ -20,6 +20,9 @@
         v-model="v$.values.breakpoints.mobile.$model"
         class="builder-breakpoints-settings-form__input"
         type="number"
+        :min="minimumBreakpoint"
+        :max="maximumBreakpoint"
+        :step="1"
         :to-value="toBreakpointValue"
       >
         <template #suffix>px</template>
@@ -42,6 +45,9 @@
         v-model="v$.values.breakpoints.tablet.$model"
         class="builder-breakpoints-settings-form__input"
         type="number"
+        :min="minimumBreakpoint"
+        :max="maximumBreakpoint"
+        :step="1"
         :to-value="toBreakpointValue"
       >
         <template #suffix>px</template>
@@ -68,8 +74,18 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import { helpers, integer, required } from '@vuelidate/validators'
+import {
+  helpers,
+  integer,
+  maxValue,
+  minValue,
+  required,
+} from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
+import {
+  MAX_BUILDER_BREAKPOINT,
+  MIN_BUILDER_BREAKPOINT,
+} from '@baserow/modules/builder/utils/breakpoints'
 
 export default {
   name: 'BuilderBreakpointsSettingsForm',
@@ -79,6 +95,8 @@ export default {
   },
   data() {
     return {
+      minimumBreakpoint: MIN_BUILDER_BREAKPOINT,
+      maximumBreakpoint: MAX_BUILDER_BREAKPOINT,
       values: {
         breakpoints: {
           mobile: null,
@@ -109,6 +127,18 @@ export default {
               this.$t('error.integerField'),
               integer
             ),
+            minValue: helpers.withMessage(
+              this.$t('error.minValueField', {
+                min: MIN_BUILDER_BREAKPOINT,
+              }),
+              minValue(MIN_BUILDER_BREAKPOINT)
+            ),
+            maxValue: helpers.withMessage(
+              this.$t('error.maxValueField', {
+                max: MAX_BUILDER_BREAKPOINT,
+              }),
+              maxValue(MAX_BUILDER_BREAKPOINT)
+            ),
             lessThanTablet: helpers.withMessage(
               this.$t('breakpointSettings.mobileMustBeLessThanTablet'),
               (value) => value < this.values.breakpoints.tablet
@@ -122,6 +152,18 @@ export default {
             integer: helpers.withMessage(
               this.$t('error.integerField'),
               integer
+            ),
+            minValue: helpers.withMessage(
+              this.$t('error.minValueField', {
+                min: MIN_BUILDER_BREAKPOINT,
+              }),
+              minValue(MIN_BUILDER_BREAKPOINT)
+            ),
+            maxValue: helpers.withMessage(
+              this.$t('error.maxValueField', {
+                max: MAX_BUILDER_BREAKPOINT,
+              }),
+              maxValue(MAX_BUILDER_BREAKPOINT)
             ),
             greaterThanMobile: helpers.withMessage(
               this.$t('breakpointSettings.tabletMustBeGreaterThanMobile'),

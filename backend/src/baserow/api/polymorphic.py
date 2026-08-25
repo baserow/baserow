@@ -170,17 +170,12 @@ class BasePolymorphicSerializer(serializers.Serializer):
             else:
                 instance_type = self.get_type_from_mapping(self.initial_data)
 
-            # ``self.data`` serializes the current instance once ``super().is_valid``
-            # has run. Use the request payload here so PATCH values are not replaced
-            # with the persisted representation.
             serializer = instance_type.get_serializer(
-                self.instance
-                if self.instance is not None
-                else instance_type.model_class,
+                instance_type.model_class,
                 base_class=self.base_class,
                 request=self.request,
                 context=self.context,
-                data=self.initial_data,
+                data=self.data,
                 partial=self.partial,
                 extra_params=self.extra_params,
             )
@@ -202,7 +197,7 @@ class BasePolymorphicSerializer(serializers.Serializer):
             instance_type = self.get_type_from_mapping(data)
 
         serializer = instance_type.get_serializer(
-            self.instance if self.instance is not None else instance_type.model_class,
+            instance_type.model_class,
             base_class=self.base_class,
             request=self.request,
             context=self.context,

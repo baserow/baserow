@@ -3,6 +3,9 @@ export const LEGACY_BUILDER_BREAKPOINTS = Object.freeze({
   tablet: 768,
 })
 
+export const MIN_BUILDER_BREAKPOINT = 320
+export const MAX_BUILDER_BREAKPOINT = 1920
+
 export function getBuilderBreakpoints(builder) {
   const { mobile, tablet } = builder.breakpoints || {}
 
