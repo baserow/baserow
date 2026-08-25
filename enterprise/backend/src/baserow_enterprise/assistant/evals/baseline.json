@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-08-25T15:08:01.939042+00:00",
+  "captured_at": "2026-08-25T16:22:44.396565+00:00",
   "datasets": {
     "kuma-automation": {
       "experiment_name": "baseline-candidate",
@@ -17,6 +17,12 @@
         "git_branch": "claude/kuma-self-hosted-evals-5d2a69",
         "git_commit": "78f86b7f1",
         "judge_model": "groq:openai/gpt-oss-120b"
+      },
+      "totals": {
+        "run_count": 7,
+        "average_run_latency_ms": 7442.542857142857,
+        "total_cost": 0.03427725,
+        "total_tokens": 246928.0
       },
       "runs": [
         {
@@ -626,6 +632,12 @@
         "git_branch": "claude/kuma-self-hosted-evals-5d2a69",
         "git_commit": "78f86b7f1",
         "judge_model": "groq:openai/gpt-oss-120b"
+      },
+      "totals": {
+        "run_count": 16,
+        "average_run_latency_ms": 8368.46875,
+        "total_cost": 0.14629364999999997,
+        "total_tokens": 1169962.0
       },
       "runs": [
         {
@@ -1808,6 +1820,12 @@
         "git_commit": "78f86b7f1",
         "judge_model": "groq:openai/gpt-oss-120b"
       },
+      "totals": {
+        "run_count": 3,
+        "average_run_latency_ms": 3030.266666666667,
+        "total_cost": 0.007823400000000001,
+        "total_tokens": 66272.0
+      },
       "runs": [
         {
           "case_id": "core/lists-databases",
@@ -2001,6 +2019,12 @@
         "git_branch": "claude/kuma-self-hosted-evals-5d2a69",
         "git_commit": "78f86b7f1",
         "judge_model": "groq:openai/gpt-oss-120b"
+      },
+      "totals": {
+        "run_count": 22,
+        "average_run_latency_ms": 4391.35,
+        "total_cost": 0.06957974999999998,
+        "total_tokens": 643472.0
       },
       "runs": [
         {
@@ -3375,6 +3399,12 @@
         "git_branch": "claude/kuma-self-hosted-evals-5d2a69",
         "git_commit": "78f86b7f1",
         "judge_model": "groq:openai/gpt-oss-120b"
+      },
+      "totals": {
+        "run_count": 66,
+        "average_run_latency_ms": 6490.018181818182,
+        "total_cost": 0.33258360000000026,
+        "total_tokens": 2402268.0
       },
       "runs": [
         {

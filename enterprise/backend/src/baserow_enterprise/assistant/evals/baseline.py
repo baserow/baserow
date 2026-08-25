@@ -33,6 +33,24 @@ query ($runId: ID!) {
 }
 """
 
+_EXPERIMENT_TOTALS_QUERY = """
+query ($experimentId: ID!) {
+  node(id: $experimentId) {
+    ... on Experiment {
+      runCount
+      averageRunLatencyMs
+      costSummary { total { cost tokens } }
+    }
+  }
+}
+"""
+
+_DELETE_EXPERIMENTS_MUTATION = """
+mutation ($ids: [ID!]!) {
+  deleteExperiments(input: {experimentIds: $ids}) { __typename }
+}
+"""
+
 
 def _api_base() -> str:
     base = os.getenv("PHOENIX_ENDPOINT") or getattr(
@@ -67,15 +85,38 @@ def _run_annotations(run_id: str) -> list[dict[str, Any]]:
     for non-applicable evaluators) are dropped — they carry no information
     and Phoenix refuses to log them back."""
 
+    data = _graphql(_ANNOTATIONS_QUERY, {"runId": run_id})
+    edges = data["node"]["annotations"]["edges"]
+    return [edge["node"] for edge in edges if _has_result(edge["node"])]
+
+
+def _graphql(query: str, variables: dict[str, Any]) -> dict[str, Any]:
     response = httpx.post(
         f"{_api_base()}/graphql",
-        json={"query": _ANNOTATIONS_QUERY, "variables": {"runId": run_id}},
+        json={"query": query, "variables": variables},
         headers=_headers(),
         timeout=30,
     )
     response.raise_for_status()
-    edges = response.json()["data"]["node"]["annotations"]["edges"]
-    return [edge["node"] for edge in edges if _has_result(edge["node"])]
+    return response.json()["data"]
+
+
+def _experiment_totals(experiment_id: str) -> dict[str, Any]:
+    """Run-time and cost totals for an experiment, for freezing into the
+    snapshot — imported baselines carry no traces to derive them from."""
+
+    node = _graphql(_EXPERIMENT_TOTALS_QUERY, {"experimentId": experiment_id})["node"]
+    cost_total = (node.get("costSummary") or {}).get("total") or {}
+    return {
+        "run_count": node.get("runCount"),
+        "average_run_latency_ms": node.get("averageRunLatencyMs"),
+        "total_cost": cost_total.get("cost"),
+        "total_tokens": cost_total.get("tokens"),
+    }
+
+
+def _delete_experiments(experiment_ids: list[str]) -> None:
+    _graphql(_DELETE_EXPERIMENTS_MUTATION, {"ids": experiment_ids})
 
 
 def _snapshot_hash(snapshot: dict[str, Any]) -> str:
@@ -134,6 +175,7 @@ def capture_baseline(client: Any, experiment_name: str | None = None) -> dict[st
         snapshot["datasets"][dataset_name] = {
             "experiment_name": experiment.get("name"),
             "metadata": experiment.get("metadata") or {},
+            "totals": _experiment_totals(experiment["id"]),
             "runs": runs,
         }
         results[dataset_name] = (
@@ -178,6 +220,22 @@ def import_baseline(client: Any) -> dict[str, str]:
             results[dataset_name] = "already imported"
             continue
 
+        stale_ids = [
+            e["id"] for e in experiments if e.get("name") == BASELINE_EXPERIMENT_NAME
+        ]
+        if stale_ids:
+            try:
+                _delete_experiments(stale_ids)
+                logger.info(
+                    "Superseded {} stale baseline experiment(s) for '{}'",
+                    len(stale_ids),
+                    dataset_name,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Could not delete stale baseline for '{}': {}", dataset_name, exc
+                )
+
         node_by_case_id = {
             example["metadata"]["case_id"]: example.get("node_id") or example["id"]
             for example in dataset.examples
@@ -192,6 +250,7 @@ def import_baseline(client: Any) -> dict[str, str]:
                 **data.get("metadata", {}),
                 "baseline": True,
                 "baseline_snapshot_hash": content_hash,
+                "baseline_totals": data.get("totals") or {},
                 "captured_at": snapshot.get("captured_at"),
             },
             repetitions=max(

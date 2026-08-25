@@ -41,7 +41,16 @@ Phoenix compares within one dataset. For **all datasets in one view**, use
 the runner page's **Results** tab: pick an experiment name (a run started
 from the page lands under the same name in every dataset it touched) and see
 each dataset's mean scores with deltas against the baseline, plus a
-case-weighted overall row; each dataset links to the per-case compare. Note
+case-weighted overall row; each dataset links to the per-case compare.
+
+The tab also shows **time and cost** per dataset and in total: time is the
+sum of run latencies (the runner executes sequentially, so it approximates
+wall clock), cost and tokens come from Phoenix's per-model token prices
+(Settings → Models for unknown models). A quality-neutral change that halves
+cost or latency is a win too — and a score improvement that triples cost is
+a trade-off to state explicitly. The baseline's time/cost are frozen into
+the snapshot at capture time, since imported baselines carry no traces to
+price. Note
 that whole-dataset experiments include UI-added examples in their mean while
 the baseline holds code cases only, so a small delta on such datasets can be
 composition, not regression — the per-case compare settles it.

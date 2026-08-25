@@ -426,6 +426,9 @@ query ($datasetId: ID!) {
             name
             createdAt
             metadata
+            runCount
+            averageRunLatencyMs
+            costSummary { total { cost tokens } }
             annotationSummaries { annotationName meanScore }
           }
         }
@@ -477,6 +480,20 @@ def _results_json() -> bytes:
                     )
                     if part
                 )
+                # Imported baselines carry no traces, so live latency/cost
+                # fall back to the totals frozen at capture time.
+                totals = metadata.get("baseline_totals") or {}
+                run_count = node.get("runCount") or totals.get("run_count")
+                avg_latency_ms = node.get("averageRunLatencyMs") or totals.get(
+                    "average_run_latency_ms"
+                )
+                cost_total = (node.get("costSummary") or {}).get("total") or {}
+                cost = cost_total.get("cost")
+                if cost is None:
+                    cost = totals.get("total_cost")
+                tokens = cost_total.get("tokens")
+                if tokens is None:
+                    tokens = totals.get("total_tokens")
                 experiments.append(
                     {
                         "id": node["id"],
@@ -489,6 +506,13 @@ def _results_json() -> bytes:
                             for s in node.get("annotationSummaries", [])
                             if s.get("meanScore") is not None
                         },
+                        "time_s": (
+                            avg_latency_ms * run_count / 1000
+                            if avg_latency_ms and run_count
+                            else None
+                        ),
+                        "cost": cost,
+                        "tokens": tokens,
                         "link": (
                             f"{public_url}/datasets/{node_id}/compare"
                             f"?experimentId={node['id']}"

@@ -575,6 +575,54 @@
       if (previous && seen[previous]) select.value = previous;
     }
 
+    function fmtDuration(seconds) {
+      if (seconds >= 60) {
+        return Math.floor(seconds / 60) + "m " + String(Math.round(seconds % 60)).padStart(2, "0") + "s";
+      }
+      return seconds.toFixed(seconds < 10 ? 1 : 0) + "s";
+    }
+
+    function fmtTokens(tokens) {
+      if (tokens >= 1e6) return (tokens / 1e6).toFixed(1) + "M tok";
+      if (tokens >= 1e3) return Math.round(tokens / 1e3) + "k tok";
+      return tokens + " tok";
+    }
+
+    function deltaBadge(delta, formatted, lowerIsBetter) {
+      var badge = document.createElement("span");
+      var good = lowerIsBetter ? delta < 0 : delta > 0;
+      var flat = Math.abs(delta) < 1e-9;
+      badge.className = "delta " + (flat ? "flat" : good ? "up" : "down");
+      badge.textContent = (delta >= 0 ? "+" : "−") + formatted;
+      return badge;
+    }
+
+    function usageCell(row, value, baselineValue, formatter, subText) {
+      var cell = document.createElement("td");
+      if (value == null) {
+        cell.textContent = "–";
+        row.appendChild(cell);
+        return;
+      }
+      var val = document.createElement("span");
+      val.textContent = formatter(value);
+      cell.appendChild(val);
+      if (baselineValue != null) {
+        cell.appendChild(document.createTextNode(" "));
+        cell.appendChild(
+          deltaBadge(value - baselineValue, formatter(Math.abs(value - baselineValue)), true)
+        );
+      }
+      if (subText) {
+        var sub = document.createElement("small");
+        sub.style.display = "block";
+        sub.style.color = "var(--muted)";
+        sub.textContent = subText;
+        cell.appendChild(sub);
+      }
+      row.appendChild(cell);
+    }
+
     function scoreCell(row, value, baselineValue) {
       var cell = document.createElement("td");
       cell.className = "score";
@@ -612,7 +660,7 @@
       }
       var table = document.createElement("table");
       var head = document.createElement("tr");
-      ["Dataset", "Cases", "Model"].concat(METRICS).forEach(function (label) {
+      ["Dataset", "Cases", "Model"].concat(METRICS).concat(["time", "cost"]).forEach(function (label) {
         var th = document.createElement("th");
         th.textContent = label;
         head.appendChild(th);
@@ -658,6 +706,27 @@
             totals.baselineWeights[metric] = (totals.baselineWeights[metric] || 0) + dataset.case_count;
           }
         });
+        var time = experiment ? experiment.time_s : null;
+        var baseTime = baseline ? baseline.time_s : null;
+        usageCell(row, time, baseTime, fmtDuration);
+        var cost = experiment ? experiment.cost : null;
+        var baseCost = baseline ? baseline.cost : null;
+        usageCell(
+          row, cost, baseCost,
+          function (value) { return "$" + value.toFixed(2); },
+          experiment && experiment.tokens != null ? fmtTokens(experiment.tokens) : null
+        );
+        ["time_s", "cost"].forEach(function (key) {
+          if (experiment && experiment[key] != null) {
+            totals[key] = (totals[key] || 0) + experiment[key];
+          }
+          if (baseline && baseline[key] != null) {
+            totals["baseline_" + key] = (totals["baseline_" + key] || 0) + baseline[key];
+          }
+        });
+        if (experiment && experiment.tokens != null) {
+          totals.tokens = (totals.tokens || 0) + experiment.tokens;
+        }
         if (experiment) totals.casesRun += dataset.case_count;
         table.appendChild(row);
       });
@@ -676,6 +745,19 @@
             ? totals.baseline[metric] / totals.baselineWeights[metric] : null;
           scoreCell(totalRow, value, baseValue);
         });
+        usageCell(
+          totalRow,
+          totals.time_s != null ? totals.time_s : null,
+          totals.baseline_time_s != null ? totals.baseline_time_s : null,
+          fmtDuration
+        );
+        usageCell(
+          totalRow,
+          totals.cost != null ? totals.cost : null,
+          totals.baseline_cost != null ? totals.baseline_cost : null,
+          function (value) { return "$" + value.toFixed(2); },
+          totals.tokens != null ? fmtTokens(totals.tokens) : null
+        );
         table.appendChild(totalRow);
       }
 
@@ -683,7 +765,7 @@
       body.appendChild(table);
       var note = document.createElement("p");
       note.className = "results-note";
-      note.textContent = "Scores are experiment means per dataset; answer_quality exists only where a judge ran. Overall weighs datasets by case count.";
+      note.textContent = "Scores are experiment means per dataset; answer_quality exists only where a judge ran. Overall weighs scores by case count and sums time/cost. Time is the sum of run latencies; cost comes from Phoenix's token prices (baseline values are frozen at capture time).";
       body.appendChild(note);
     }
 

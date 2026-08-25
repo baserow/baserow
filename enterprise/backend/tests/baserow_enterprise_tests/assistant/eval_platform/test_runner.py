@@ -293,6 +293,9 @@ class TestResultsEndpoint:
                 "name": "baseline",
                 "createdAt": "2026-08-25T10:00:00Z",
                 "metadata": {"model": "m", "git_branch": "b", "git_commit": "c"},
+                "runCount": 2,
+                "averageRunLatencyMs": 6000.0,
+                "costSummary": {"total": {"cost": 0.05, "tokens": 120000}},
                 "annotationSummaries": [
                     {"annotationName": "passed", "meanScore": 0.8},
                     {"annotationName": "answer_quality", "meanScore": None},
@@ -310,9 +313,44 @@ class TestResultsEndpoint:
         experiment = dataset["experiments"][0]
         assert experiment["scores"] == {"passed": 0.8}
         assert experiment["git_label"] == "b@c"
+        assert experiment["time_s"] == 12.0
+        assert experiment["cost"] == 0.05
+        assert experiment["tokens"] == 120000
         assert experiment["link"] == (
             "http://localhost:6060/datasets/ds-node-1/compare?experimentId=exp-1"
         )
+
+    def test_results_json_falls_back_to_frozen_baseline_totals(self, monkeypatch):
+        _register_case("database/list-tables")
+        monkeypatch.setattr(runner, "_dataset_ids", {"kuma-database": "ds-node-1"})
+        summaries = [
+            {
+                "id": "exp-1",
+                "name": "baseline",
+                "createdAt": "2026-08-25T10:00:00Z",
+                "metadata": {
+                    "baseline_totals": {
+                        "run_count": 2,
+                        "average_run_latency_ms": 3000.0,
+                        "total_cost": 0.02,
+                        "total_tokens": 50000,
+                    }
+                },
+                "runCount": 2,
+                "averageRunLatencyMs": None,
+                "costSummary": {"total": {"cost": None, "tokens": None}},
+                "annotationSummaries": [],
+            }
+        ]
+        monkeypatch.setattr(runner, "_experiment_summaries", lambda node_id: summaries)
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/results.json")
+
+        experiment = json.loads(body)["datasets"][0]["experiments"][0]
+        assert experiment["time_s"] == 6.0
+        assert experiment["cost"] == 0.02
+        assert experiment["tokens"] == 50000
 
     def test_results_json_is_empty_without_known_dataset_ids(self):
         _register_case("database/list-tables")

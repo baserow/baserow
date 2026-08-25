@@ -100,6 +100,12 @@ class TestCaptureBaseline:
             ],
         }
 
+        totals = {
+            "run_count": 2,
+            "average_run_latency_ms": 6000.0,
+            "total_cost": 0.05,
+            "total_tokens": 120000,
+        }
         with (
             patch.object(baseline, "_get", side_effect=lambda path: rest[path]),
             patch.object(
@@ -107,15 +113,18 @@ class TestCaptureBaseline:
                 "_run_annotations",
                 return_value=[{"name": "passed", "score": 1.0}],
             ),
+            patch.object(baseline, "_experiment_totals", return_value=totals),
         ):
             results = capture_baseline(client)
 
         assert "captured 1 runs from 'latest'" in results["kuma-database"]
         assert "1 non-code runs skipped" in results["kuma-database"]
         snapshot = json.loads(baseline.BASELINE_PATH.read_text())
-        run = snapshot["datasets"]["kuma-database"]["runs"][0]
+        dataset_entry = snapshot["datasets"]["kuma-database"]
+        run = dataset_entry["runs"][0]
         assert run["case_id"] == "database/list-tables"
         assert run["annotations"] == [{"name": "passed", "score": 1.0}]
+        assert dataset_entry["totals"] == totals
 
     def test_experiment_name_filter_and_missing_experiment(self):
         client = _FakeClient([_CODE_EXAMPLE])
@@ -140,6 +149,7 @@ def _snapshot(runs):
             "kuma-database": {
                 "experiment_name": "latest",
                 "metadata": {"model": "m"},
+                "totals": {"total_cost": 0.05, "total_tokens": 120000},
                 "runs": runs,
             }
         },
@@ -177,8 +187,33 @@ class TestImportBaseline:
         assert create["experiment_name"] == "baseline"
         assert create["experiment_metadata"]["baseline"] is True
         assert create["experiment_metadata"]["model"] == "m"
+        assert create["experiment_metadata"]["baseline_totals"] == {
+            "total_cost": 0.05,
+            "total_tokens": 120000,
+        }
         assert client.experiments.log_run_calls[0]["dataset_example_id"] == "node-1"
         assert client.experiments.log_evaluation_calls[0]["name"] == "passed"
+
+    def test_import_supersedes_stale_named_baseline_experiments(self):
+        baseline.BASELINE_PATH.write_text(json.dumps(_snapshot([_snapshot_run()])))
+        client = _FakeClient([_CODE_EXAMPLE])
+        existing = [
+            {
+                "id": "exp-old-baseline",
+                "name": "baseline",
+                "metadata": {"baseline_snapshot_hash": "oldhash123456"},
+                "successful_run_count": 1,
+            }
+        ]
+
+        with (
+            patch.object(baseline, "_get", return_value=existing),
+            patch.object(baseline, "_delete_experiments") as mock_delete,
+        ):
+            results = import_baseline(client)
+
+        mock_delete.assert_called_once_with(["exp-old-baseline"])
+        assert results["kuma-database"] == "imported 1 runs"
 
     def test_import_is_idempotent_by_snapshot_hash(self):
         snapshot = _snapshot([_snapshot_run()])
