@@ -19,12 +19,27 @@ export class CopyViewConfigurationOptionType extends Registerable {
   }
 
   /**
+   * The backend checks the same operations on both views, so without them the
+   * copy request would be rejected, and the ownership managers hide
+   * configuration from users that lack these write operations, restricted
+   * views hide the filters from users without `create_filter` for example.
+   * Must mirror the backend category type's `operation_types`.
+   */
+  getPermissionOperations() {
+    return []
+  }
+
+  /**
    * Additional check on top of both view types declaring the option, for
    * constraints that depend on the concrete source and destination view or
    * the workspace, a required license for example.
    */
   isEnabled(sourceView, destView, workspaceId) {
-    return true
+    return this.getPermissionOperations().every(
+      (operation) =>
+        this.app.$hasPermission(operation, sourceView, workspaceId) &&
+        this.app.$hasPermission(operation, destView, workspaceId)
+    )
   }
 
   /**
@@ -49,6 +64,10 @@ export class FieldVisibilityCopyOptionType extends CopyViewConfigurationOptionTy
     return 'field_visibility'
   }
 
+  getPermissionOperations() {
+    return ['database.table.view.update_field_options']
+  }
+
   getOrder() {
     return 10
   }
@@ -69,6 +88,10 @@ export class FieldVisibilityCopyOptionType extends CopyViewConfigurationOptionTy
 export class FieldOrderCopyOptionType extends CopyViewConfigurationOptionType {
   static getType() {
     return 'field_order'
+  }
+
+  getPermissionOperations() {
+    return ['database.table.view.update_field_options']
   }
 
   getOrder() {
@@ -93,6 +116,10 @@ export class FieldWidthsCopyOptionType extends CopyViewConfigurationOptionType {
     return 'field_widths'
   }
 
+  getPermissionOperations() {
+    return ['database.table.view.update_field_options']
+  }
+
   getOrder() {
     return 30
   }
@@ -113,6 +140,10 @@ export class FieldWidthsCopyOptionType extends CopyViewConfigurationOptionType {
 export class ViewSettingsCopyOptionType extends CopyViewConfigurationOptionType {
   static getType() {
     return 'view_settings'
+  }
+
+  getPermissionOperations() {
+    return ['database.table.view.update']
   }
 
   getOrder() {
@@ -153,16 +184,27 @@ export class ViewSettingsCopyOptionType extends CopyViewConfigurationOptionType 
     const sourceSettings = registry
       .get('view', sourceView.type)
       .getCopyableViewSettings()
-    return registry
-      .get('view', destView.type)
-      .getCopyableViewSettings()
-      .some((attribute) => sourceSettings.includes(attribute))
+    return (
+      super.isEnabled(sourceView, destView, workspaceId) &&
+      registry
+        .get('view', destView.type)
+        .getCopyableViewSettings()
+        .some((attribute) => sourceSettings.includes(attribute))
+    )
   }
 }
 
 export class FiltersCopyOptionType extends CopyViewConfigurationOptionType {
   static getType() {
     return 'filters'
+  }
+
+  getPermissionOperations() {
+    return [
+      'database.table.view.create_filter',
+      'database.table.view.create_filter_group',
+      'database.table.view.update',
+    ]
   }
 
   getOrder() {
@@ -179,6 +221,10 @@ export class SortsCopyOptionType extends CopyViewConfigurationOptionType {
     return 'sorts'
   }
 
+  getPermissionOperations() {
+    return ['database.table.view.create_sort']
+  }
+
   getOrder() {
     return 60
   }
@@ -193,6 +239,10 @@ export class GroupBysCopyOptionType extends CopyViewConfigurationOptionType {
     return 'group_bys'
   }
 
+  getPermissionOperations() {
+    return ['database.table.view.create_group_by']
+  }
+
   getOrder() {
     return 70
   }
@@ -205,6 +255,10 @@ export class GroupBysCopyOptionType extends CopyViewConfigurationOptionType {
 export class DecorationsCopyOptionType extends CopyViewConfigurationOptionType {
   static getType() {
     return 'decorations'
+  }
+
+  getPermissionOperations() {
+    return ['database.table.view.create_decoration']
   }
 
   getOrder() {
@@ -224,11 +278,14 @@ export class DecorationsCopyOptionType extends CopyViewConfigurationOptionType {
     // Deactivated decorator types, because the workspace has no premium
     // license for example, are excluded so that the copy can't fail on the
     // backend's license check.
-    return Object.values(this.app.$registry.getAll('viewDecorator')).some(
-      (decoratorType) =>
-        !decoratorType.isDeactivated(workspaceId) &&
-        decoratorType.isCompatible(sourceView) &&
-        decoratorType.isCompatible(destView)
+    return (
+      super.isEnabled(sourceView, destView, workspaceId) &&
+      Object.values(this.app.$registry.getAll('viewDecorator')).some(
+        (decoratorType) =>
+          !decoratorType.isDeactivated(workspaceId) &&
+          decoratorType.isCompatible(sourceView) &&
+          decoratorType.isCompatible(destView)
+      )
     )
   }
 }
@@ -236,6 +293,13 @@ export class DecorationsCopyOptionType extends CopyViewConfigurationOptionType {
 export class DefaultRowValuesCopyOptionType extends CopyViewConfigurationOptionType {
   static getType() {
     return 'default_row_values'
+  }
+
+  getPermissionOperations() {
+    return [
+      'database.table.view.read_default_values',
+      'database.table.view.update_default_values',
+    ]
   }
 
   getOrder() {

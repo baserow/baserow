@@ -105,7 +105,6 @@ from baserow.contrib.database.views.operations import (
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
     UpdateViewGroupByOperationType,
-    UpdateViewOperationType,
     UpdateViewPublicOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
@@ -122,6 +121,7 @@ from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import (
     MirrorDict,
     atomic_if_not_already,
@@ -1170,6 +1170,30 @@ class ViewHandler:
 
         return duplicated_view
 
+    def _check_view_configuration_permissions(
+        self, user: AbstractUser, view: View, categories: Iterable[str]
+    ):
+        """
+        Checks in one batch that the user is allowed to configure all the requested
+        categories on the given view. The same check is applied to the source and
+        the destination of a copy because the ownership managers hide configuration
+        from users that lack these write operations, so a read check alone would
+        leak configuration that the interface hides.
+        """
+
+        checks = [
+            PermissionCheck(user, operation_type.type, view)
+            for category in categories
+            for operation_type in view_configuration_copy_category_type_registry.get(
+                category
+            ).operation_types
+        ]
+        CoreHandler().check_multiple_permissions(
+            checks,
+            workspace=view.table.database.workspace,
+            raise_exception=True,
+        )
+
     def export_view_configuration(
         self, view: View, categories: List[str]
     ) -> Dict[str, Any]:
@@ -1204,12 +1228,7 @@ class ViewHandler:
         relies on so that other clients keep referencing valid ids.
         """
 
-        CoreHandler().check_permissions(
-            user,
-            UpdateViewOperationType.type,
-            workspace=view.table.database.workspace,
-            context=view,
-        )
+        self._check_view_configuration_permissions(user, view, configuration.keys())
 
         cache = {}
         merged_field_options = {}
@@ -1309,6 +1328,7 @@ class ViewHandler:
             workspace=dest_view.table.database.workspace,
             context=source_view,
         )
+        self._check_view_configuration_permissions(user, source_view, categories)
 
         configuration = self.export_view_configuration(source_view, categories)
         self.apply_view_configuration(user, dest_view, configuration)

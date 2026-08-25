@@ -7,6 +7,11 @@ import {
   getEnabledCopyOptionKeys,
   copyViewConfiguration,
 } from '@baserow/modules/database/utils/copyViewConfiguration'
+import {
+  FiltersCopyOptionType,
+  SortsCopyOptionType,
+  ViewSettingsCopyOptionType,
+} from '@baserow/modules/database/copyViewConfigurationOptionTypes'
 
 describe('getEnabledCopyOptionKeys', () => {
   let testApp = null
@@ -87,6 +92,43 @@ describe('getEnabledCopyOptionKeys', () => {
     // with a single view has no compatible sources at all.
     expect(getCompatibleSourceViews(registry, [grid, form], form)).toEqual([])
     expect(getCompatibleSourceViews(registry, [grid], grid)).toEqual([])
+  })
+
+  test('options are disabled without the required permissions', () => {
+    // The backend checks the same operations on both the source and the
+    // destination, so the switch must be disabled when one of them is missing.
+    const appWithout = (deniedOperation) => ({
+      $hasPermission: (operation) => operation !== deniedOperation,
+    })
+
+    const filtersOption = new FiltersCopyOptionType({
+      app: appWithout('database.table.view.create_filter'),
+    })
+    expect(filtersOption.isEnabled(view('grid'), view('grid'), 1)).toBe(false)
+
+    const sortsOption = new SortsCopyOptionType({
+      app: appWithout('database.table.view.create_filter'),
+    })
+    expect(sortsOption.isEnabled(view('grid'), view('grid'), 1)).toBe(true)
+
+    const deniedSortsOption = new SortsCopyOptionType({
+      app: appWithout('database.table.view.create_sort'),
+    })
+    expect(deniedSortsOption.isEnabled(view('grid'), view('grid'), 1)).toBe(
+      false
+    )
+
+    // The view settings option has its own attribute overlap check, but must
+    // still respect the permission check of the base class.
+    const viewSettingsOption = new ViewSettingsCopyOptionType({
+      app: {
+        ...appWithout('database.table.view.update'),
+        $registry: testApp.getRegistry(),
+      },
+    })
+    expect(viewSettingsOption.isEnabled(view('grid'), view('grid'), 1)).toBe(
+      false
+    )
   })
 
   test('destination options are sorted by order', () => {
