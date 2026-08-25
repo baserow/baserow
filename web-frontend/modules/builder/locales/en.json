@@ -889,7 +889,10 @@
   },
   "textFieldForm": {
     "fieldValueLabel": "Value",
-    "fieldValuePlaceholder": "Enter value..."
+    "fieldValuePlaceholder": "Enter value...",
+    "fieldFormatLabel": "Format",
+    "fieldFormatPlain": "Plain text",
+    "fieldFormatMarkdown": "Markdown"
   },
   "linkFieldForm": {
     "fieldValueLabel": "Url",

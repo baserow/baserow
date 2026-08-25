@@ -115,6 +115,13 @@
   align-items: var(--table-cell-alignment, flex-start);
   padding: var(--table-cell-vertical-padding, 10px)
     var(--table-cell-horizontal-padding, 20px);
+
+  // Markdown paragraphs would otherwise pick up the global `p { line-height }`
+  // and make rows taller than the plain `<span class="ab-text">` rendering,
+  // which simply inherits the page line-height.
+  .markdown > .ab-text {
+    line-height: inherit;
+  }
 }
 
 .ab-table__empty-state {

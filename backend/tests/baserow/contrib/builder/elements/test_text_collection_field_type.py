@@ -5,11 +5,13 @@ Test the TextCollectionFieldType class.
 from unittest.mock import patch
 
 import pytest
+from rest_framework import serializers
 
 from baserow.contrib.builder.elements.collection_field_types import (
     TextCollectionFieldType,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.models import TextElement
 from baserow.contrib.builder.pages.service import PageService
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
@@ -30,8 +32,8 @@ def test_class_properties_are_set():
     field_type = TextCollectionFieldType()
 
     assert field_type.type == "text"
-    assert field_type.allowed_fields == ["value"]
-    assert field_type.serializer_field_names == ["value"]
+    assert field_type.allowed_fields == ["value", "format"]
+    assert field_type.serializer_field_names == ["value", "format"]
     assert field_type.simple_formula_fields == ["value"]
 
 
@@ -47,6 +49,15 @@ def test_serializer_field_overrides_returns_expected_value():
     assert isinstance(field.default, dict)
     assert field.required is False
     assert field.help_text == "The formula for the text."
+
+    format_field = result["format"]
+
+    assert type(format_field) is serializers.ChoiceField
+    assert format_field.required is False
+    assert format_field.default == TextElement.TEXT_FORMATS.PLAIN
+    assert format_field.default == "plain"
+    assert list(format_field.choices.items()) == TextElement.TEXT_FORMATS.choices
+    assert format_field.help_text == "The format of the text."
 
 
 @patch(f"{MODULE_PATH}.CollectionFieldType.deserialize_property")
@@ -124,7 +135,8 @@ def test_import_export_text_collection_field_type(data_fixture):
                 "name": "Foo Field",
                 "type": "text",
                 "config": {
-                    "value": f"get('data_source.{data_source.id}.0.{text_field.db_column}')"
+                    "value": f"get('data_source.{data_source.id}.0.{text_field.db_column}')",
+                    "format": "markdown",
                 },
             },
         ],
@@ -136,6 +148,8 @@ def test_import_export_text_collection_field_type(data_fixture):
     id_mapping = {"builder_data_sources": {data_source.id: data_source2.id}}
 
     exported = table_element.get_type().export_serialized(table_element)
+    assert exported["fields"][0]["config"]["format"] == "markdown"
+
     imported_table_element = ElementHandler().import_element(page, exported, id_mapping)
 
     imported_field = imported_table_element.fields.get(name="Foo Field")
@@ -144,5 +158,51 @@ def test_import_export_text_collection_field_type(data_fixture):
             formula=f"get('data_source.{data_source2.id}.0.{text_field.db_column}')",
             version=BASEROW_FORMULA_VERSION_INITIAL,
             mode=BASEROW_FORMULA_MODE_SIMPLE,
-        )
+        ),
+        "format": "markdown",
+    }
+
+
+@pytest.mark.django_db
+def test_import_text_collection_field_type_without_format_defaults_to_plain(
+    data_fixture,
+):
+    """
+    Ensure that a serialized text collection field exported before the `format`
+    option existed (i.e. without a `format` key) is imported with the `plain`
+    format.
+    """
+
+    user, _ = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+    table_element = data_fixture.create_builder_table_element(
+        page=page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "Foo Field",
+                "type": "text",
+                "config": {"value": "'foo'"},
+            },
+        ],
+    )
+
+    exported = table_element.get_type().export_serialized(table_element)
+    assert "format" not in exported["fields"][0]["config"]
+
+    imported_table_element = ElementHandler().import_element(
+        page, exported, {"builder_data_sources": {data_source.id: data_source.id}}
+    )
+
+    imported_field = imported_table_element.fields.get(name="Foo Field")
+    assert imported_field.config == {
+        "value": BaserowFormulaObject(
+            formula="'foo'",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
+        "format": "plain",
     }

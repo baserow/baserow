@@ -65,6 +65,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
                     "name": "Name",
                     "type": "text",
                     "value": "get('data_source.123')",
+                    "format": "markdown",
                     "uid": uuids[0],
                 },
                 {
@@ -101,6 +102,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
+            "format": "markdown",
             "uid": uuids[0],
             "styles": {},
         },
@@ -134,10 +136,103 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
+            "format": "plain",
             "uid": uuids[2],
             "styles": {},
         },
     ]
+
+    text_fields = [f for f in table_element.fields.all() if f.type == "text"]
+    assert text_fields[0].config["format"] == "markdown"
+    # The `plain` default is stored when `format` is omitted from the payload.
+    assert text_fields[1].config["format"] == "plain"
+
+
+@pytest.mark.django_db
+def test_text_field_format_defaults_to_plain(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table_element = data_fixture.create_builder_table_element(user=user)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": table_element.id})
+
+    response = api_client.patch(
+        url,
+        {
+            "fields": [
+                {
+                    "name": "Name",
+                    "type": "text",
+                    "value": "get('data_source.123')",
+                    "uid": str(uuid.uuid4()),
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    [field] = response.json()["fields"]
+    assert field["format"] == "plain"
+
+
+@pytest.mark.django_db
+def test_cant_update_text_field_with_invalid_format(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table_element = data_fixture.create_builder_table_element(user=user)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": table_element.id})
+
+    response = api_client.patch(
+        url,
+        {
+            "fields": [
+                {
+                    "name": "Name",
+                    "type": "text",
+                    "value": "get('data_source.123')",
+                    "format": "html",
+                    "uid": str(uuid.uuid4()),
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"]["fields"][0]["format"][0]["code"] == (
+        "invalid_choice"
+    )
+
+
+@pytest.mark.django_db
+def test_get_text_field_without_stored_format_returns_plain(api_client, data_fixture):
+    """
+    Text collection fields created before the `format` option existed have no
+    `format` key in their stored config. They must be returned as `plain`
+    without any migration.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table_element = data_fixture.create_builder_table_element(
+        user=user,
+        fields=[{"name": "Name", "type": "text", "config": {"value": "'x'"}}],
+    )
+    assert "format" not in table_element.fields.get().config
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": table_element.page.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    [table_element_returned] = response.json()
+    [field] = table_element_returned["fields"]
+    assert field["format"] == "plain"
 
 
 @pytest.mark.django_db

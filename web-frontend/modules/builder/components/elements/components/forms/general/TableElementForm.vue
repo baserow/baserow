@@ -266,7 +266,7 @@ import {
   helpers,
 } from '@vuelidate/validators'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
-import { ORIENTATIONS } from '@baserow/modules/builder/enums'
+import { ORIENTATIONS, TEXT_FORMAT_TYPES } from '@baserow/modules/builder/enums'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
@@ -351,6 +351,7 @@ export default {
           this.v$.values.fields.$model.map(({ name }) => name)
         ),
         value: {},
+        format: TEXT_FORMAT_TYPES.PLAIN,
         type: 'text',
         id: uuid(), // Temporary id
         uid: uuid(),

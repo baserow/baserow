@@ -231,7 +231,8 @@ def test_duplicate_table_element_with_current_record_formulas(data_fixture):
                 formula=f"get('current_record.field_{fields[0].id}')",
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
-            )
+            ),
+            "format": "plain",
         },
         {
             "page_parameters": [],
@@ -342,7 +343,8 @@ def test_import_table_element_with_current_record_formulas_with_update(data_fixt
                 formula=f"get('current_record.field_{fields[0].id}')",
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
-            )
+            ),
+            "format": "plain",
         },
         {
             "page_parameters": [],
