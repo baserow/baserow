@@ -18,12 +18,16 @@ DEFAULT_JUDGE_MODEL = "groq:openai/gpt-oss-120b"
 JUDGE_INSTRUCTIONS = """\
 You are grading an AI assistant's answer to a Baserow end-user documentation
 question. You are given the question, the assistant's answer, the
-documentation sources it cited, and topic keywords a good answer should
-touch.
+documentation sources it cited, topic keywords a good answer should touch,
+and — when available — a reference answer.
 
 Score from 0.0 to 1.0 for factual correctness, helpfulness, and groundedness
 in the cited sources. Penalize confident claims that are not supported by
 the sources.
+
+When a reference answer is given, weigh factual agreement with it heavily:
+it is the ideal answer, not the only acceptable phrasing, so score down only
+for real factual or completeness gaps against it, not wording differences.
 
 Write a 1-3 sentence explanation naming what's wrong or missing, or why the
 answer is good.
@@ -51,7 +55,11 @@ def get_judge_model() -> str:
 
 
 def judge_docs_answer(
-    question: str, answer: str, sources: list[str], keywords: list[str]
+    question: str,
+    answer: str,
+    sources: list[str],
+    keywords: list[str],
+    reference_answer: str | None = None,
 ) -> JudgeVerdict:
     """Score a kuma-docs answer for correctness, helpfulness, and groundedness.
 
@@ -65,5 +73,7 @@ def judge_docs_answer(
         f"Cited sources: {sources}\n\n"
         f"Topic keywords a good answer should touch: {keywords}"
     )
+    if reference_answer:
+        prompt += f"\n\nReference answer (ideal, not the only correct phrasing):\n{reference_answer}"
     result = docs_answer_judge.run_sync(prompt, model=get_judge_model())
     return result.output

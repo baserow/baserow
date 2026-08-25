@@ -95,6 +95,20 @@ class TestBuildDatasetExamples:
 
         assert [e["id"] for e in examples] == ["db/case-a", "db/case-b"]
 
+    def test_output_includes_reference_answer_when_case_sets_one(self):
+        case = _make_case("docs/case-1", reference_answer="Use date_diff().")
+
+        examples = build_dataset_examples([case])
+
+        assert examples[0]["output"] == {"reference_answer": "Use date_diff()."}
+
+    def test_output_is_empty_dict_when_no_reference_answer(self):
+        case = _make_case("docs/case-1")
+
+        examples = build_dataset_examples([case])
+
+        assert examples[0]["output"] == {}
+
     def test_case_metadata_is_merged_into_example_metadata(self):
         case = _make_case(
             "docs/case-1", metadata={"expected_keywords": ["share", "public"]}
@@ -267,8 +281,103 @@ class TestSyncDatasetsMergesForeignExamples:
         message = mock_logger.info.call_args[0][0]
         assert message == (
             "Synced Phoenix dataset 'kuma-database': 1 code cases, "
-            "1 foreign kept, 1 adopted (2 total)"
+            "1 foreign kept, 1 adopted, 0 references preserved (2 total)"
         )
+
+
+class TestSyncDatasetsPreservesLiveReferenceAnswers:
+    """A UI-curated `output.reference_answer` must survive a resync."""
+
+    def test_live_reference_answer_preserved_when_code_case_has_none(self):
+        registry.register_case(_make_case("docs/case-a", dataset="kuma-docs"))
+        live_example = {
+            "id": "docs/case-a",
+            "node_id": "RGF0YXNldEV4YW1wbGU6NQ==",
+            "input": {"prompt": "do the thing"},
+            "output": {"reference_answer": "Curated in the UI."},
+            "metadata": {"case_id": "docs/case-a"},
+        }
+        client = _FakeClient({"kuma-docs": [live_example]})
+
+        sync_datasets(client)
+
+        _, examples = client.datasets.calls[0]
+        synced = next(e for e in examples if e["id"] == "docs/case-a")
+        assert synced["output"] == {"reference_answer": "Curated in the UI."}
+
+    def test_code_reference_answer_wins_over_live_output(self):
+        registry.register_case(
+            _make_case(
+                "docs/case-a", dataset="kuma-docs", reference_answer="Code says this."
+            )
+        )
+        live_example = {
+            "id": "docs/case-a",
+            "node_id": "RGF0YXNldEV4YW1wbGU6NQ==",
+            "input": {"prompt": "do the thing"},
+            "output": {"reference_answer": "Curated in the UI."},
+            "metadata": {"case_id": "docs/case-a"},
+        }
+        client = _FakeClient({"kuma-docs": [live_example]})
+
+        sync_datasets(client)
+
+        _, examples = client.datasets.calls[0]
+        synced = next(e for e in examples if e["id"] == "docs/case-a")
+        assert synced["output"] == {"reference_answer": "Code says this."}
+
+    def test_live_empty_output_is_not_preserved(self):
+        registry.register_case(_make_case("docs/case-a", dataset="kuma-docs"))
+        live_example = {
+            "id": "docs/case-a",
+            "node_id": "RGF0YXNldEV4YW1wbGU6NQ==",
+            "input": {"prompt": "do the thing"},
+            "output": {},
+            "metadata": {"case_id": "docs/case-a"},
+        }
+        client = _FakeClient({"kuma-docs": [live_example]})
+
+        sync_datasets(client)
+
+        _, examples = client.datasets.calls[0]
+        synced = next(e for e in examples if e["id"] == "docs/case-a")
+        assert synced["output"] == {}
+
+    def test_foreign_example_output_is_unaffected(self):
+        """The preserve rule only applies to code-owned examples."""
+
+        registry.register_case(_make_case("docs/case-a", dataset="kuma-docs"))
+        foreign_example = {
+            "id": "RGF0YXNldEV4YW1wbGU6OQ==",
+            "node_id": "RGF0YXNldEV4YW1wbGU6OQ==",
+            "input": {"prompt": "a UI-added question"},
+            "output": {"reference_answer": "Should not leak onto code case."},
+            "metadata": {},
+        }
+        client = _FakeClient({"kuma-docs": [foreign_example]})
+
+        sync_datasets(client)
+
+        _, examples = client.datasets.calls[0]
+        synced = next(e for e in examples if e["id"] == "docs/case-a")
+        assert synced["output"] == {}
+
+    def test_logs_preserved_count(self):
+        registry.register_case(_make_case("docs/case-a", dataset="kuma-docs"))
+        live_example = {
+            "id": "docs/case-a",
+            "node_id": "RGF0YXNldEV4YW1wbGU6NQ==",
+            "input": {"prompt": "do the thing"},
+            "output": {"reference_answer": "Curated in the UI."},
+            "metadata": {"case_id": "docs/case-a"},
+        }
+        client = _FakeClient({"kuma-docs": [live_example]})
+
+        with patch("baserow_enterprise.assistant.evals.sync.logger") as mock_logger:
+            sync_datasets(client)
+
+        message = mock_logger.info.call_args[0][0]
+        assert "1 references preserved" in message
 
 
 @pytest.mark.django_db

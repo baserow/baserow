@@ -37,12 +37,14 @@ def _code_owned_example(case_id: str) -> dict:
     }
 
 
-def _foreign_example(prompt: str, metadata: dict | None = None) -> dict:
+def _foreign_example(
+    prompt: str, metadata: dict | None = None, output: dict | None = None
+) -> dict:
     return {
         "id": "RGF0YXNldEV4YW1wbGU6NQ==",
         "node_id": "RGF0YXNldEV4YW1wbGU6NQ==",
         "input": {"prompt": prompt},
-        "output": {},
+        "output": output or {},
         "metadata": metadata or {},
     }
 
@@ -140,6 +142,24 @@ class TestExportForeignExamplesDocs:
 
         assert "datasets/docs.py" in output
         assert "just b eval-sync" in output
+
+    def test_reference_answer_included_when_output_carries_one(self):
+        dataset = _FakeDataset(
+            [_foreign_example("q", output={"reference_answer": "Use date_diff()."})]
+        )
+        client = _FakeClient(dataset)
+
+        output = export_foreign_examples(client, "kuma-docs")
+
+        assert "reference_answer='Use date_diff().'" in output
+
+    def test_reference_answer_omitted_when_output_has_none(self):
+        dataset = _FakeDataset([_foreign_example("q")])
+        client = _FakeClient(dataset)
+
+        output = export_foreign_examples(client, "kuma-docs")
+
+        assert "reference_answer" not in output
 
     def test_multiple_foreign_examples_each_get_a_snippet(self):
         dataset = _FakeDataset(

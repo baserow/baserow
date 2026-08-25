@@ -19,6 +19,8 @@ trace. Why this platform: [ADR 007](../decisions/007-ai-assistant-eval-platform.
    models whose provider key is configured are listed; the free-text field
    accepts any pydantic-ai model string), a repeat count, and Run.
 4. The run row links to the experiment in Phoenix when done.
+5. The page's **Help** tab renders this guide and the
+   [tracing guide](../development/ai-assistant-tracing.md) inline.
 
 ## Running evals from the CLI
 
@@ -58,7 +60,7 @@ hashes, so branch/model comparisons are filterable in Phoenix.
 | `kuma-database` | 21 | tables, fields, views, filters, rows |
 | `kuma-builder` | 16 | pages, elements, data sources, themes, user sources |
 | `kuma-automation` | 7 | workflows, triggers, nodes |
-| `kuma-docs` | 18 | the `search_user_docs` RAG tool |
+| `kuma-docs` | 64 | docs Q&A via `search_user_docs`, incl. cannot-do guardrail cases |
 
 `kuma-docs` needs the knowledge base: the `embeddings` service (`ai` profile)
 plus a synced KB. When unavailable, those cases are recorded as skipped, not
@@ -153,10 +155,11 @@ just b eval-export --dataset kuma-docs
 
 This prints a ready-to-paste `_register_docs_case(...)` snippet per UI-added
 `kuma-docs` example (question from the example, keywords/source patterns from
-its metadata if the UI author set them, else `TODO` placeholders to fill in).
-Paste it into `datasets/docs.py`, pick a real id and keywords, then `just b
-eval-sync` — the UI copy is dropped automatically because its prompt now
-matches the code case (matched by exact prompt text, so no duplicate).
+its metadata if the UI author set them, else `TODO` placeholders to fill in;
+a `reference_answer` kwarg is included too if the example's `output` carries
+one). Paste it into `datasets/docs.py`, pick a real id and keywords, then
+`just b eval-sync` — the UI copy is dropped automatically because its prompt
+now matches the code case (matched by exact prompt text, so no duplicate).
 Non-`kuma-docs` datasets have no registration helper to generate from, so
 `eval-export` prints a commented JSON block instead; write the scenario and
 checks by hand.
@@ -164,6 +167,17 @@ checks by hand.
 A UI-added example is still part of the dataset, so it runs alongside code
 cases — but with no code case to resolve, the runner records it as `skipped`
 rather than crashing or scoring it.
+
+### Reference answers for docs cases
+
+A `kuma-docs` case can carry an ideal "reference answer" that the LLM judge
+grades Kuma's answer against (see below). Add one in code with
+`_register_docs_case(..., reference_answer="...")`, or curate it directly on
+a synced example in the Phoenix UI by editing its `output` field to
+`{"reference_answer": "..."}` — that's a normal, versioned edit to the
+example, so it survives `just b eval-sync`: a code case with no
+`reference_answer` never overwrites a live one, it only adopts it, and a
+code-set `reference_answer` always wins over whatever is live.
 
 ## Models and providers
 
@@ -194,8 +208,11 @@ with their hints.
 
 `kuma-docs` runs get a third score, `answer_quality`, from an LLM judge (the
 judge prompt lives in `evals/judge.py`) that grades the answer's correctness,
-helpfulness, and groundedness against the sources the assistant cited. The
-judge model is `BASEROW_EVAL_JUDGE_MODEL`, defaulting to
-`groq:openai/gpt-oss-120b`, and is stamped into every experiment's metadata.
-A judge failure (LLM error, missing case, ...) records no `answer_quality`
-score rather than a 0, so it doesn't skew aggregates.
+helpfulness, and groundedness against the sources the assistant cited. When
+the case (or its synced example) carries a `reference_answer`, the judge is
+also given it and told to weigh factual agreement with it heavily — it's the
+ideal answer, not the only acceptable phrasing, so wording differences alone
+don't cost points. The judge model is `BASEROW_EVAL_JUDGE_MODEL`, defaulting
+to `groq:openai/gpt-oss-120b`, and is stamped into every experiment's
+metadata. A judge failure (LLM error, missing case, ...) records no
+`answer_quality` score rather than a 0, so it doesn't skew aggregates.

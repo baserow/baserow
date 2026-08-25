@@ -9,6 +9,7 @@ the durable record.
 
 from __future__ import annotations
 
+import json
 import os
 import queue
 import threading
@@ -17,6 +18,7 @@ from collections import deque
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import parse_qs, urlsplit
 
@@ -30,11 +32,20 @@ from baserow_enterprise.assistant.evals.models import (
     DEFAULT_EVAL_MODEL,
     available_models,
 )
-from baserow_enterprise.assistant.evals.registry import cases_by_dataset
+from baserow_enterprise.assistant.evals.registry import (
+    cases_by_dataset,
+    get_case,
+    load_all,
+)
 from baserow_enterprise.assistant.evals.run import run_experiment_for
 
 MAX_HISTORY = 50
 MAX_FORM_BYTES = 64 * 1024
+
+HELP_DOCS = (
+    ("evals", "Running evals", "docs/testing/ai-assistant-evals.md"),
+    ("tracing", "Phoenix & tracing", "docs/development/ai-assistant-tracing.md"),
+)
 
 RunStatus = Literal["queued", "running", "done", "failed"]
 
@@ -63,12 +74,78 @@ _run_queue: queue.Queue[RunnerState] = queue.Queue()
 _worker_started = False
 _worker_lock = threading.Lock()
 
+# Survives watch-py process restarts (every .py edit); dies with the container.
+_HISTORY_FILE = os.environ.get(
+    "BASEROW_EVAL_RUNNER_HISTORY_FILE",
+    "/tmp/baserow-eval-runner-history.json",  # noqa: S108 single-user container
+)
+_PERSISTED_FIELDS = (
+    "id",
+    "dataset",
+    "case_ids",
+    "model",
+    "runs",
+    "experiment_name",
+    "status",
+    "error",
+    "phoenix_link",
+    "git_label",
+)
+_TS_FIELDS = ("created_at", "started_at", "finished_at")
+
 
 def recent_runs() -> list[RunnerState]:
     """Most recent run first."""
 
     with _history_lock:
         return list(reversed(_history))
+
+
+def _save_history() -> None:
+    try:
+        with _history_lock:
+            payload = [
+                {
+                    **{name: getattr(state, name) for name in _PERSISTED_FIELDS},
+                    **{
+                        name: value.isoformat()
+                        if (value := getattr(state, name))
+                        else None
+                        for name in _TS_FIELDS
+                    },
+                }
+                for state in _history
+            ]
+        with open(_HISTORY_FILE, "w") as handle:
+            json.dump(payload, handle)
+    except OSError as exc:
+        logger.warning("Could not persist eval runner history: {}", exc)
+
+
+def load_history() -> None:
+    """Restore past runs on startup; mid-flight ones are marked interrupted."""
+
+    try:
+        with open(_HISTORY_FILE) as handle:
+            payload = json.load(handle)
+    except (OSError, ValueError):
+        return
+    with _history_lock:
+        _history.clear()
+        for entry in payload:
+            state = RunnerState(
+                **{name: entry.get(name) for name in _PERSISTED_FIELDS},
+                **{
+                    name: datetime.fromisoformat(value)
+                    if (value := entry.get(name))
+                    else None
+                    for name in _TS_FIELDS
+                },
+            )
+            if state.status in ("queued", "running"):
+                state.status = "failed"
+                state.error = "interrupted by runner restart"
+            _history.append(state)
 
 
 def _git_label() -> str | None:
@@ -99,6 +176,7 @@ def submit_run(
     )
     with _history_lock:
         _history.append(state)
+    _save_history()
     _run_queue.put(state)
     return state
 
@@ -106,6 +184,7 @@ def submit_run(
 def _run_one(state: RunnerState, executor: Callable[..., Any]) -> None:
     state.status = "running"
     state.started_at = datetime.now(timezone.utc)
+    _save_history()
     try:
         state.experiment_info = executor(
             dataset_name=state.dataset,
@@ -121,6 +200,11 @@ def _run_one(state: RunnerState, executor: Callable[..., Any]) -> None:
         logger.exception(f"Eval run {state.id} ({state.dataset}) failed")
     finally:
         state.finished_at = datetime.now(timezone.utc)
+        if state.status == "done":
+            state.phoenix_link = _phoenix_link(
+                state.experiment_info, _phoenix_public_url()
+            )
+        _save_history()
 
 
 def _worker_loop(executor: Callable[..., Any]) -> None:
@@ -198,24 +282,49 @@ def _first(form: dict[str, list[str]], key: str, default: str = "") -> str:
     return values[0] if values else default
 
 
-def _submit_from_form(form: dict[str, list[str]]) -> RunnerState:
-    dataset = _first(form, "dataset")
+def _group_case_ids_by_dataset(case_ids: list[str]) -> dict[str, list[str]]:
+    load_all()
+    grouped: dict[str, list[str]] = {}
+    for case_id in case_ids:
+        try:
+            dataset = get_case(case_id).dataset
+        except KeyError:
+            continue
+        grouped.setdefault(dataset, []).append(case_id)
+    return grouped
+
+
+def _submit_from_form(form: dict[str, list[str]]) -> list[RunnerState]:
+    """One queued run per dataset: selections spanning datasets fan out."""
+
     model = _first(form, "model_custom").strip() or _first(
         form, "model", DEFAULT_EVAL_MODEL
     )
-    case_ids = form.get("case_ids") or None
     try:
         runs = max(1, int(_first(form, "runs", "1")))
     except ValueError:
         runs = 1
     experiment_name = _first(form, "experiment_name").strip() or None
-    return submit_run(
-        dataset=dataset,
-        model=model,
-        case_ids=case_ids,
-        runs=runs,
-        experiment_name=experiment_name,
-    )
+
+    case_ids = form.get("case_ids") or []
+    if case_ids:
+        submissions = [
+            (dataset, ids)
+            for dataset, ids in sorted(_group_case_ids_by_dataset(case_ids).items())
+        ]
+    else:
+        submissions = [(_first(form, "dataset"), None)]
+
+    return [
+        submit_run(
+            dataset=dataset,
+            model=model,
+            case_ids=ids,
+            runs=runs,
+            experiment_name=experiment_name,
+        )
+        for dataset, ids in submissions
+    ]
 
 
 def _phoenix_public_url() -> str:
@@ -244,6 +353,23 @@ def _phoenix_link(experiment_info: Any, phoenix_public_url: str) -> str | None:
     return f"{phoenix_public_url}/datasets"
 
 
+_dataset_links: dict[str, str] = {}
+
+
+def refresh_dataset_links(client: Any) -> None:
+    """Resolve Phoenix dataset ids into browser deep links, best-effort."""
+
+    public_url = _phoenix_public_url()
+    if not public_url:
+        return
+    for name in cases_by_dataset():
+        try:
+            dataset = client.datasets.get_dataset(dataset=name)
+            _dataset_links[name] = f"{public_url}/datasets/{dataset.id}/examples"
+        except Exception as exc:
+            logger.warning("Could not resolve Phoenix link for {}: {}", name, exc)
+
+
 def _render_index() -> str:
     grouped = cases_by_dataset()
     phoenix_public_url = _phoenix_public_url()
@@ -254,12 +380,66 @@ def _render_index() -> str:
                 state.experiment_info, phoenix_public_url
             )
     context = {
-        "datasets": [{"name": name, "cases": cases} for name, cases in grouped.items()],
+        "datasets": [
+            {
+                "name": name,
+                "link": _dataset_links.get(name),
+                "cases": [
+                    {"id": case.id, "label": case.id.split("/", 1)[-1]}
+                    for case in cases
+                ],
+            }
+            for name, cases in grouped.items()
+        ],
         "models": available_models(),
         "default_model": DEFAULT_EVAL_MODEL,
         "runs": runs,
     }
     return render_to_string("baserow_enterprise/eval_runner.html", context)
+
+
+def _fmt_ts(value: datetime | None) -> str:
+    return value.strftime("%b %d, %H:%M:%S") if value else ""
+
+
+def _runs_json() -> bytes:
+    payload = [
+        {
+            "id": run.id,
+            "dataset": run.dataset,
+            "case_ids": run.case_ids,
+            "model": run.model,
+            "git_label": run.git_label,
+            "runs": run.runs,
+            "status": run.status,
+            "started_at": _fmt_ts(run.started_at),
+            "finished_at": _fmt_ts(run.finished_at),
+            "phoenix_link": run.phoenix_link,
+            "error": run.error,
+        }
+        for run in recent_runs()
+    ]
+    return json.dumps({"runs": payload}).encode("utf-8")
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[6]
+
+
+def _docs_json() -> bytes:
+    """The Help tab's docs, read fresh per request so edits show immediately."""
+
+    root = _repo_root()
+    docs = []
+    for slug, title, rel_path in HELP_DOCS:
+        try:
+            markdown = (root / rel_path).read_text(encoding="utf-8")
+        except OSError:
+            markdown = ""
+        docs.append(
+            {"slug": slug, "title": title, "path": rel_path, "markdown": markdown}
+        )
+    return json.dumps({"docs": docs}).encode("utf-8")
 
 
 def make_wsgi_app() -> Callable[[dict, Callable], Iterable[bytes]]:
@@ -272,6 +452,28 @@ def make_wsgi_app() -> Callable[[dict, Callable], Iterable[bytes]]:
         if method == "GET" and path == "/healthz":
             start_response("200 OK", [("Content-Type", "text/plain")])
             return [b"ok"]
+
+        if method == "GET" and path == "/docs.json":
+            body = _docs_json()
+            start_response(
+                "200 OK",
+                [
+                    ("Content-Type", "application/json"),
+                    ("Content-Length", str(len(body))),
+                ],
+            )
+            return [body]
+
+        if method == "GET" and path == "/runs.json":
+            body = _runs_json()
+            start_response(
+                "200 OK",
+                [
+                    ("Content-Type", "application/json"),
+                    ("Content-Length", str(len(body))),
+                ],
+            )
+            return [body]
 
         if method == "GET" and path == "/":
             body = _render_index().encode("utf-8")

@@ -48,6 +48,10 @@ def _docs_snippet(example: dict[str, Any]) -> str:
         "TODO-source-pattern"
     ]
     slug = _kebab_slug(prompt)
+    reference_answer = example.get("output", {}).get("reference_answer")
+    reference_line = (
+        f"    reference_answer={reference_answer!r},\n" if reference_answer else ""
+    )
 
     return (
         "_register_docs_case(\n"
@@ -57,6 +61,7 @@ def _docs_snippet(example: dict[str, Any]) -> str:
         "    ),\n"
         f"    {source_patterns!r},\n"
         f"    {keywords!r},\n"
+        f"{reference_line}"
         ")\n"
     )
 

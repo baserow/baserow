@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import queue as queue_module
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlencode
@@ -200,6 +201,39 @@ class TestHealthz:
         assert status == "200 OK"
 
 
+class TestDocsEndpoint:
+    def test_docs_json_serves_the_help_docs(self):
+        app = runner.make_wsgi_app()
+
+        status, headers, body = _call_wsgi(app, "GET", "/docs.json")
+
+        assert status == "200 OK"
+        assert headers["Content-Type"] == "application/json"
+        docs = json.loads(body)["docs"]
+        assert [doc["slug"] for doc in docs] == ["evals", "tracing"]
+        assert "# AI Assistant Evals" in docs[0]["markdown"]
+        assert docs[1]["path"] == "docs/development/ai-assistant-tracing.md"
+
+    def test_docs_json_degrades_to_empty_markdown_when_files_missing(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(runner, "_repo_root", lambda: tmp_path)
+        app = runner.make_wsgi_app()
+
+        status, _headers, body = _call_wsgi(app, "GET", "/docs.json")
+
+        assert status == "200 OK"
+        assert all(doc["markdown"] == "" for doc in json.loads(body)["docs"])
+
+    def test_index_page_has_help_tab(self):
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        assert b'data-tab="__help"' in body
+
+
 class TestSubmitRunRoute:
     def test_post_run_enqueues_and_redirects(self):
         _register_case("database/list-tables")
@@ -217,6 +251,47 @@ class TestSubmitRunRoute:
         assert history[0].dataset == "kuma-database"
         assert history[0].model == "groq:test-model"
         assert history[0].status == "queued"
+
+    @pytest.fixture(autouse=True)
+    def _isolated_history_file(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(runner, "_HISTORY_FILE", str(tmp_path / "history.json"))
+
+    def test_history_survives_restart_and_marks_inflight_interrupted(self):
+        _register_case("database/persist-a")
+        done = runner.submit_run(dataset="kuma-database", model="groq:test-model")
+        done.status = "done"
+        done.phoenix_link = "http://localhost:6060/datasets/x"
+        running = runner.submit_run(dataset="kuma-core", model="groq:test-model")
+        running.status = "running"
+        runner._save_history()
+
+        with runner._history_lock:
+            runner._history.clear()
+        runner.load_history()
+
+        by_id = {state.id: state for state in runner.recent_runs()}
+        assert by_id[done.id].status == "done"
+        assert by_id[done.id].phoenix_link == "http://localhost:6060/datasets/x"
+        assert by_id[running.id].status == "failed"
+        assert by_id[running.id].error == "interrupted by runner restart"
+
+    def test_cross_dataset_selection_fans_out_one_run_per_dataset(self):
+        _register_case("database/fanout-a")
+        _register_case("core/fanout-b", dataset="kuma-core")
+        app = runner.make_wsgi_app()
+        body = urlencode(
+            {"dataset": "kuma-database", "model": "groq:test-model", "runs": "1"},
+        ).encode()
+        body += b"&case_ids=database%2Ffanout-a&case_ids=core%2Ffanout-b"
+
+        status, _headers, _body = _call_wsgi(app, "POST", "/run", body=body)
+
+        assert status == "303 See Other"
+        history = runner.recent_runs()
+        assert {(run.dataset, tuple(run.case_ids)) for run in history} == {
+            ("kuma-core", ("core/fanout-b",)),
+            ("kuma-database", ("database/fanout-a",)),
+        }
 
     def test_post_run_collects_repeated_case_ids(self):
         _register_case("database/list-tables")

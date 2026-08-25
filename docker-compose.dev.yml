@@ -338,6 +338,12 @@ services:
     profiles: ["ai-evals"]
     restart: unless-stopped
     command: "watch-py manage assistant_eval_runner --host 0.0.0.0"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8090/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 3m
     environment:
       - SECRET_KEY=${SECRET_KEY:?}
       - DATABASE_NAME=baserow_evals
@@ -354,6 +360,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       - BASEROW_EVAL_GIT_BRANCH=${BASEROW_EVAL_GIT_BRANCH:-}
       - BASEROW_EVAL_GIT_COMMIT=${BASEROW_EVAL_GIT_COMMIT:-}
     ports:

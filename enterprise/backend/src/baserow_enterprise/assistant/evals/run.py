@@ -101,7 +101,11 @@ def run_case_for_experiment(
     }
 
 
-def answer_quality(output: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+def answer_quality(
+    output: dict[str, Any],
+    metadata: dict[str, Any],
+    expected: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """LLM-judge evaluator: scores a kuma-docs answer's correctness and groundedness.
 
     Runs only for docs cases (case id under ``docs/`` or the example's
@@ -109,6 +113,9 @@ def answer_quality(output: dict[str, Any], metadata: dict[str, Any]) -> dict[str
     A judge failure — missing case, LLM error, anything — is logged and
     scores an empty result, the same as a skipped case, so it never poisons
     aggregates.
+
+    ``expected`` is the dataset example's ``output`` — Phoenix's evaluator
+    binder passes it by that name (an alias, ``reference``, also exists).
     """
 
     if "skipped" in output:
@@ -121,6 +128,8 @@ def answer_quality(output: dict[str, Any], metadata: dict[str, Any]) -> dict[str
     if not is_docs_case:
         return {}
 
+    reference_answer = (expected or {}).get("reference_answer") or None
+
     try:
         case = get_case(case_id)
         verdict = judge_docs_answer(
@@ -128,6 +137,7 @@ def answer_quality(output: dict[str, Any], metadata: dict[str, Any]) -> dict[str
             answer=output["answer"],
             sources=output.get("sources", []),
             keywords=metadata.get("expected_keywords", []),
+            reference_answer=reference_answer,
         )
     except Exception:
         logger.warning("answer_quality judge failed for case {}", case_id)
@@ -279,7 +289,7 @@ def _log_case_run(
         label=str(case_passed),
     )
 
-    quality = answer_quality(result, example["metadata"])
+    quality = answer_quality(result, example["metadata"], example.get("output"))
     if quality:
         client.experiments.log_evaluation(
             experiment_run_id=run["id"],

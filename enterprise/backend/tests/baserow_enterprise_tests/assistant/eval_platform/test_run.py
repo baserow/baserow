@@ -364,8 +364,89 @@ class TestAnswerQualityEvaluator:
             answer="the answer",
             sources=["https://x"],
             keywords=["share"],
+            reference_answer=None,
         )
         assert result == {"score": 0.75, "explanation": "Mostly right."}
+
+    def test_accepts_expected_param_for_phoenix_binding(self):
+        """Phoenix's evaluator binder passes the example's output as `expected`."""
+
+        import inspect
+
+        assert "expected" in inspect.signature(answer_quality).parameters
+
+    def test_passes_reference_answer_from_expected_output(self):
+        registry.register_case(
+            _make_case("docs/case-1", prompt="How do I share a view?")
+        )
+        output = {"answer": "the answer", "sources": ["https://x"]}
+        verdict = JudgeVerdict(score=0.9, explanation="Matches the reference.")
+
+        with patch(
+            "baserow_enterprise.assistant.evals.run.judge_docs_answer",
+            return_value=verdict,
+        ) as mock_judge:
+            result = answer_quality(
+                output,
+                {"case_id": "docs/case-1", "expected_keywords": ["share"]},
+                {"reference_answer": "Use the share button."},
+            )
+
+        mock_judge.assert_called_once_with(
+            question="How do I share a view?",
+            answer="the answer",
+            sources=["https://x"],
+            keywords=["share"],
+            reference_answer="Use the share button.",
+        )
+        assert result == {"score": 0.9, "explanation": "Matches the reference."}
+
+    def test_missing_reference_answer_in_expected_passes_none(self):
+        registry.register_case(_make_case("docs/case-1", prompt="q"))
+        output = {"answer": "a", "sources": []}
+        verdict = JudgeVerdict(score=0.5, explanation="ok")
+
+        with patch(
+            "baserow_enterprise.assistant.evals.run.judge_docs_answer",
+            return_value=verdict,
+        ) as mock_judge:
+            answer_quality(output, {"case_id": "docs/case-1"}, {})
+
+        mock_judge.assert_called_once_with(
+            question="q", answer="a", sources=[], keywords=[], reference_answer=None
+        )
+
+    def test_empty_reference_answer_string_passes_none(self):
+        registry.register_case(_make_case("docs/case-1", prompt="q"))
+        output = {"answer": "a", "sources": []}
+        verdict = JudgeVerdict(score=0.5, explanation="ok")
+
+        with patch(
+            "baserow_enterprise.assistant.evals.run.judge_docs_answer",
+            return_value=verdict,
+        ) as mock_judge:
+            answer_quality(output, {"case_id": "docs/case-1"}, {"reference_answer": ""})
+
+        mock_judge.assert_called_once_with(
+            question="q", answer="a", sources=[], keywords=[], reference_answer=None
+        )
+
+    def test_no_expected_arg_defaults_to_none_reference(self):
+        """`expected` is absent when called outside Phoenix's evaluator binding."""
+
+        registry.register_case(_make_case("docs/case-1", prompt="q"))
+        output = {"answer": "a", "sources": []}
+        verdict = JudgeVerdict(score=0.5, explanation="ok")
+
+        with patch(
+            "baserow_enterprise.assistant.evals.run.judge_docs_answer",
+            return_value=verdict,
+        ) as mock_judge:
+            answer_quality(output, {"case_id": "docs/case-1"})
+
+        mock_judge.assert_called_once_with(
+            question="q", answer="a", sources=[], keywords=[], reference_answer=None
+        )
 
     def test_requires_knowledge_base_flag_gates_non_docs_prefixed_case(self):
         registry.register_case(
@@ -1058,6 +1139,63 @@ class TestRunExperimentForCaseSubset:
         )
         assert aq_call["score"] == 0.9
         assert aq_call["explanation"] == "Good and grounded."
+
+    def test_reference_answer_from_example_output_passed_to_judge(self):
+        """The subset path must bind the example's `output`, same as `run_experiment`."""
+
+        registry.register_case(
+            _make_case(
+                "docs/case-1",
+                dataset="kuma-docs",
+                requires_knowledge_base=True,
+                prompt="How do I share a view?",
+            )
+        )
+        examples = [
+            {
+                "id": "docs/case-1",
+                "node_id": "RGF0YXNldEV4YW1wbGU6MQ==",
+                "input": {},
+                "output": {"reference_answer": "Use the share button."},
+                "metadata": {
+                    "case_id": "docs/case-1",
+                    "requires_knowledge_base": True,
+                    "expected_keywords": ["share"],
+                },
+            }
+        ]
+        dataset = _FakeDataset(examples)
+        client = _FakeClient(dataset)
+        verdict = JudgeVerdict(score=0.9, explanation="Matches the reference.")
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+            patch(
+                "baserow_enterprise.assistant.evals.run.run_case",
+                return_value=(_make_output(answer="Use the share button."), []),
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.judge_docs_answer",
+                return_value=verdict,
+            ) as mock_judge,
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+
+            run_experiment_for("kuma-docs", "groq:test-model", case_ids=["docs/case-1"])
+
+        mock_judge.assert_called_once_with(
+            question="How do I share a view?",
+            answer="Use the share button.",
+            sources=[],
+            keywords=["share"],
+            reference_answer="Use the share button.",
+        )
 
     def test_non_docs_case_in_subset_does_not_log_answer_quality(self):
         registry.register_case(_make_case("db/case-1"))

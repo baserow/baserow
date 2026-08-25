@@ -54,6 +54,7 @@ class EvalCase:
     max_tool_errors: int = 0
     requires_knowledge_base: bool = False
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    reference_answer: str | None = None
 
 
 CheckSuite = Callable[["EvalCase", EvalScenario, EvalRunOutput], list[CheckResult]]

@@ -4,115 +4,647 @@
   <meta charset="utf-8">
   <title>Assistant Eval Runner</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 2rem; color: #222; max-width: 60rem; }
-    h1 { font-size: 1.4rem; }
-    fieldset { margin-bottom: 1.5rem; }
-    .dataset-group { margin-bottom: 0.5rem; }
-    .dataset-group summary { font-weight: 600; cursor: pointer; }
-    label { display: block; margin: 0.3rem 0; }
-    input[type="text"], input[type="number"], select { padding: 0.2rem 0.4rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; }
-    .status-done { color: #1a7f37; }
-    .status-failed { color: #b3261e; }
-    .status-running, .status-queued { color: #8a6d00; }
+    :root {
+      --border: #d0d4da;
+      --muted: #6a7079;
+      --accent: #2e5cd6;
+      --accent-soft: #e8eefc;
+      --ok: #1a7f37;
+      --bad: #b3261e;
+      --warn: #8a6d00;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      color: #1c1f23;
+      background: #f6f7f9;
+    }
+    header { padding: 1rem 1.5rem 0.5rem; }
+    h1 { font-size: 1.25rem; margin: 0; }
+    header p { margin: 0.2rem 0 0; color: var(--muted); font-size: 0.85rem; }
+    main { padding: 0 1.5rem 2rem; max-width: 80rem; }
+    .layout { display: flex; gap: 1rem; align-items: flex-start; }
+    .panel {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .cases-panel { flex: 1 1 auto; min-width: 0; }
+    .run-panel { flex: 0 0 17rem; padding: 1rem; position: sticky; top: 1rem; }
+    .tabbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      padding: 0.6rem 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .tabbar button {
+      border: 1px solid transparent;
+      border-bottom: none;
+      background: none;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-radius: 6px 6px 0 0;
+      color: var(--muted);
+    }
+    .tabbar button:hover { background: #f0f1f3; }
+    .tabbar-global {
+      margin-left: auto;
+      align-self: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+      padding-bottom: 0.4rem;
+    }
+    .tabbar-global button {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.1rem 0.5rem;
+      font-size: 0.75rem;
+    }
+    .tabbar-global button:hover { background: #f0f1f3; }
+    .tabbar button.active {
+      background: var(--accent-soft);
+      border-color: var(--border);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .tabbar .badge {
+      display: inline-block;
+      min-width: 1.2rem;
+      margin-left: 0.35rem;
+      padding: 0 0.3rem;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.7rem;
+      line-height: 1.2rem;
+    }
+    .tabbar .badge:empty { display: none; }
+    .panel-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .panel-tools > span:last-child { white-space: nowrap; }
+    .panel-tools button {
+      font-size: 0.75rem;
+      padding: 0.1rem 0.5rem;
+      margin-left: 0.3rem;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .panel-tools a { color: var(--accent); margin-right: 0.5rem; font-size: 0.8rem; }
+    .cases {
+      columns: 3 16rem;
+      column-gap: 1.5rem;
+      padding: 0 0.9rem 0.9rem;
+    }
+    .cases label {
+      display: block;
+      break-inside: avoid;
+      margin: 0.15rem 0;
+      font-size: 0.85rem;
+      font-family: ui-monospace, monospace;
+      overflow-wrap: anywhere;
+    }
+    .run-panel label { display: block; margin: 0 0 0.8rem; font-size: 0.85rem; color: var(--muted); }
+    .run-panel input[type="text"], .run-panel input[type="number"], .run-panel select {
+      display: block;
+      width: 100%;
+      margin-top: 0.2rem;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.9rem;
+      color: #1c1f23;
+    }
+    .run-panel button[type="submit"] {
+      width: 100%;
+      padding: 0.55rem;
+      border: none;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #run-hint { font-size: 0.8rem; color: var(--muted); margin: 0.6rem 0 0; }
+    h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 0.85rem;
+    }
+    th, td { border-bottom: 1px solid var(--border); padding: 0.45rem 0.7rem; text-align: left; }
+    th { background: #fbfbfc; color: var(--muted); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .status-done { color: var(--ok); font-weight: 600; }
+    .status-failed { color: var(--bad); font-weight: 600; }
+    .status-running, .status-queued { color: var(--warn); font-weight: 600; }
+    .run-panel button[type="submit"]:disabled { opacity: 0.5; cursor: default; }
+    .doc-switch button.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .docs {
+      max-width: 50rem;
+      padding: 0 1.2rem 1.2rem;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+    .docs h1 { font-size: 1.15rem; margin: 0.8rem 0 0.4rem; }
+    .docs h2 { font-size: 1rem; margin: 1.4rem 0 0.4rem; }
+    .docs h3 { font-size: 0.9rem; margin: 1.1rem 0 0.3rem; }
+    .docs p { margin: 0.5rem 0; }
+    .docs ul, .docs ol { margin: 0.5rem 0; padding-left: 1.4rem; }
+    .docs li { margin: 0.25rem 0; }
+    .docs a { color: var(--accent); }
+    .docs code {
+      background: #eceef1;
+      border-radius: 3px;
+      padding: 0 0.25rem;
+      font-size: 0.85em;
+      font-family: ui-monospace, monospace;
+    }
+    .docs pre {
+      background: #f0f1f3;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      overflow-x: auto;
+      font-size: 0.8rem;
+    }
+    .docs pre code { background: none; padding: 0; font-size: 1em; }
+    .docs blockquote {
+      border-left: 3px solid var(--border);
+      margin: 0.6rem 0;
+      padding: 0.1rem 0.8rem;
+      color: var(--muted);
+    }
+    .docs table { width: auto; margin: 0.6rem 0; }
   </style>
 </head>
 <body>
-  <h1>Assistant Eval Runner</h1>
-
-  <form method="post" action="/run">
-    <fieldset>
-      <legend>Dataset &amp; cases</legend>
-      {% for group in datasets %}
-        <details class="dataset-group" open>
-          <summary>{{ group.name }} ({{ group.cases|length }} cases)</summary>
-          {% for case in group.cases %}
-            <label>
-              <input type="checkbox" name="case_ids" value="{{ case.id }}">
-              {{ case.id }}
-            </label>
-          {% endfor %}
-        </details>
-      {% empty %}
-        <p>No eval cases registered.</p>
-      {% endfor %}
-      <label>
-        Dataset (used when no individual cases are checked above)
-        <select name="dataset">
+  <header>
+    <h1>Assistant Eval Runner</h1>
+    <p>Pick cases in the active dataset tab (or none to run the whole dataset), choose a model, run — results land in Phoenix. The Help tab explains the workflow.</p>
+  </header>
+  <main>
+    <form method="post" action="/run" id="run-form">
+      <div class="layout">
+        <section class="panel cases-panel">
+          <nav class="tabbar" id="tabbar">
+            {% for group in datasets %}
+              <button type="button" data-tab="{{ group.name }}">
+                {{ group.name }} ({{ group.cases|length }})<span class="badge" data-badge="{{ group.name }}"></span>
+              </button>
+            {% endfor %}
+            <button type="button" data-tab="__help">Help</button>
+            <span class="tabbar-global">
+              <button type="button" data-check-all="on">all</button>
+              <button type="button" data-check-all="off">none</button>
+            </span>
+          </nav>
           {% for group in datasets %}
-            <option value="{{ group.name }}">{{ group.name }}</option>
+            <div class="tab-panel" data-panel="{{ group.name }}" hidden>
+              <div class="panel-tools">
+                <span data-selected-note="{{ group.name }}">Whole dataset will run.</span>
+                <span>
+                  {% if group.link %}
+                    <a href="{{ group.link }}" target="_blank" rel="noopener">Open in Phoenix ↗</a>
+                  {% endif %}
+                  <button type="button" data-check="on">all</button>
+                  <button type="button" data-check="off">none</button>
+                </span>
+              </div>
+              <div class="cases">
+                {% for case in group.cases %}
+                  <label title="{{ case.id }}">
+                    <input type="checkbox" name="case_ids" value="{{ case.id }}">
+                    {{ case.label }}
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+          {% empty %}
+            <p class="panel-tools">No eval cases registered.</p>
           {% endfor %}
-        </select>
-      </label>
-    </fieldset>
+          <div class="tab-panel" data-panel="__help" hidden>
+            <div class="panel-tools">
+              <span class="doc-switch" id="doc-switch"></span>
+              <span id="doc-path"></span>
+            </div>
+            <article class="docs" id="docs-body">Loading…</article>
+          </div>
+          <input type="hidden" name="dataset" id="dataset-input" value="">
+        </section>
 
-    <fieldset>
-      <legend>Model</legend>
-      <label>
-        <select name="model">
-          {% for model in models %}
-            <option value="{{ model.id }}" {% if model.id == default_model %}selected{% endif %}>{{ model.label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>
-        Or override with a free-text model id
-        <input type="text" name="model_custom" placeholder="e.g. groq:openai/gpt-oss-120b">
-      </label>
-    </fieldset>
+        <aside class="panel run-panel">
+          <label>
+            Model
+            <select name="model">
+              {% for model in models %}
+                <option value="{{ model.id }}" {% if model.id == default_model %}selected{% endif %}>{{ model.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Custom model id (overrides)
+            <input type="text" name="model_custom" placeholder="provider:model">
+          </label>
+          <label>
+            Runs (repetitions)
+            <input type="number" name="runs" value="1" min="1">
+          </label>
+          <label>
+            Experiment name (optional)
+            <input type="text" name="experiment_name">
+          </label>
+          <button type="submit">Run</button>
+          <p id="run-hint"></p>
+        </aside>
+      </div>
+    </form>
 
-    <fieldset>
-      <legend>Run options</legend>
-      <label>
-        Runs (repetitions)
-        <input type="number" name="runs" value="1" min="1">
-      </label>
-      <label>
-        Experiment name (optional)
-        <input type="text" name="experiment_name">
-      </label>
-    </fieldset>
-
-    <button type="submit">Run</button>
-  </form>
-
-  <h2>Recent runs</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Dataset</th>
-        <th>Cases</th>
-        <th>Model</th>
-        <th>Runs</th>
-        <th>Status</th>
-        <th>Started</th>
-        <th>Finished</th>
-        <th>Result</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for run in runs %}
+    <h2>Recent runs</h2>
+    <table>
+      <thead>
         <tr>
-          <td>{{ run.dataset }}</td>
-          <td>{% if run.case_ids %}{{ run.case_ids|join:", " }}{% else %}(all){% endif %}</td>
-          <td>{{ run.model }}{% if run.git_label %} <small>({{ run.git_label }})</small>{% endif %}</td>
-          <td>{{ run.runs }}</td>
-          <td class="status-{{ run.status }}">{{ run.status }}</td>
-          <td>{{ run.started_at|default:"" }}</td>
-          <td>{{ run.finished_at|default:"" }}</td>
-          <td>
-            {% if run.phoenix_link %}
-              <a href="{{ run.phoenix_link }}" target="_blank" rel="noopener">Phoenix</a>
-            {% elif run.status == "failed" %}
-              {{ run.error }}
-            {% endif %}
-          </td>
+          <th>Dataset</th>
+          <th>Cases</th>
+          <th>Model</th>
+          <th>Runs</th>
+          <th>Status</th>
+          <th>Started</th>
+          <th>Finished</th>
+          <th>Result</th>
         </tr>
-      {% empty %}
-        <tr><td colspan="8">No runs yet.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody id="runs-body">
+        {% for run in runs %}
+          <tr data-run-id="{{ run.id }}">
+            <td>{{ run.dataset }}</td>
+            <td>{% if run.case_ids %}{{ run.case_ids|join:", " }}{% else %}(all){% endif %}</td>
+            <td>{{ run.model }}{% if run.git_label %} <small>({{ run.git_label }})</small>{% endif %}</td>
+            <td>{{ run.runs }}</td>
+            <td class="status-{{ run.status }}">{{ run.status }}</td>
+            <td>{{ run.started_at|date:"M d, H:i:s"|default:"" }}</td>
+            <td>{{ run.finished_at|date:"M d, H:i:s"|default:"" }}</td>
+            <td>
+              {% if run.phoenix_link %}
+                <a href="{{ run.phoenix_link }}" target="_blank" rel="noopener">Phoenix</a>
+              {% elif run.status == "failed" %}
+                {{ run.error }}
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8">No runs yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    var tabbar = document.getElementById("tabbar");
+    var datasetInput = document.getElementById("dataset-input");
+    var runHint = document.getElementById("run-hint");
+
+    function activeTab() {
+      var button = tabbar.querySelector("button.active");
+      return button ? button.dataset.tab : "";
+    }
+
+    function panelFor(name) {
+      return document.querySelector('[data-panel="' + name + '"]');
+    }
+
+    var HELP_TAB = "__help";
+
+    function selectTab(name) {
+      tabbar.querySelectorAll("button").forEach(function (button) {
+        button.classList.toggle("active", button.dataset.tab === name);
+      });
+      document.querySelectorAll(".tab-panel").forEach(function (panel) {
+        panel.hidden = panel.dataset.panel !== name;
+      });
+      if (name !== HELP_TAB) datasetInput.value = name;
+      if (name === HELP_TAB) loadDocs();
+      updateSelectionUi();
+    }
+
+    function updateSelectionUi() {
+      document.querySelectorAll(".tab-panel").forEach(function (panel) {
+        var name = panel.dataset.panel;
+        var count = panel.querySelectorAll('input[name="case_ids"]:checked').length;
+        var badge = tabbar.querySelector('[data-badge="' + name + '"]');
+        if (badge) badge.textContent = count ? String(count) : "";
+        var note = panel.querySelector("[data-selected-note]");
+        if (note) note.textContent = count ? count + " case(s) selected." : "Whole dataset will run.";
+      });
+      var totals = {};
+      document.querySelectorAll('input[name="case_ids"]:checked').forEach(function (box) {
+        var name = box.closest(".tab-panel").dataset.panel;
+        totals[name] = (totals[name] || 0) + 1;
+      });
+      var datasetsSelected = Object.keys(totals);
+      var totalSelected = datasetsSelected.reduce(function (sum, name) {
+        return sum + totals[name];
+      }, 0);
+      var submitButton = document.querySelector('button[type="submit"]');
+      submitButton.disabled = !totalSelected && activeTab() === HELP_TAB;
+      if (submitButton.disabled) {
+        runHint.textContent = "Open a dataset tab or tick cases to run.";
+      } else if (!totalSelected) {
+        runHint.textContent = "Runs the whole " + activeTab() + " dataset.";
+      } else if (datasetsSelected.length === 1) {
+        runHint.textContent =
+          "Runs " + totalSelected + " selected case(s) from " + datasetsSelected[0] + ".";
+      } else {
+        runHint.textContent =
+          "Runs " + totalSelected + " case(s) across " + datasetsSelected.length +
+          " datasets — one experiment per dataset.";
+      }
+    }
+
+    tabbar.addEventListener("click", function (event) {
+      var button = event.target.closest("button[data-tab]");
+      if (button) selectTab(button.dataset.tab);
+    });
+
+    document.querySelectorAll("[data-check]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var checked = button.dataset.check === "on";
+        button.closest(".tab-panel").querySelectorAll('input[name="case_ids"]').forEach(function (box) {
+          box.checked = checked;
+        });
+        updateSelectionUi();
+      });
+    });
+
+    document.addEventListener("change", function (event) {
+      if (event.target.name === "case_ids") updateSelectionUi();
+    });
+
+    document.querySelectorAll("[data-check-all]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var checked = button.dataset.checkAll === "on";
+        document.querySelectorAll('input[name="case_ids"]').forEach(function (box) {
+          box.checked = checked;
+        });
+        updateSelectionUi();
+      });
+    });
+
+    var firstTab = tabbar.querySelector("button[data-tab]");
+    if (firstTab) selectTab(firstTab.dataset.tab);
+
+    var docsCache = null;
+
+    function loadDocs() {
+      if (docsCache) return;
+      docsCache = [];
+      fetch("/docs.json")
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          docsCache = data.docs;
+          var docSwitch = document.getElementById("doc-switch");
+          docsCache.forEach(function (doc) {
+            var pill = document.createElement("button");
+            pill.type = "button";
+            pill.dataset.doc = doc.slug;
+            pill.textContent = doc.title;
+            pill.addEventListener("click", function () { showDoc(doc.slug); });
+            docSwitch.appendChild(pill);
+          });
+          if (docsCache.length) showDoc(docsCache[0].slug);
+        })
+        .catch(function () {
+          document.getElementById("docs-body").textContent = "Could not load the docs.";
+          docsCache = null;
+        });
+    }
+
+    function showDoc(slug, anchor) {
+      var doc = (docsCache || []).filter(function (d) { return d.slug === slug; })[0];
+      if (!doc) return;
+      document.querySelectorAll("#doc-switch button").forEach(function (pill) {
+        pill.classList.toggle("active", pill.dataset.doc === slug);
+      });
+      document.getElementById("doc-path").textContent = doc.path;
+      var body = document.getElementById("docs-body");
+      if (!doc.markdown) {
+        body.textContent = "Doc not found in this container — see " + doc.path + " in the repo.";
+        return;
+      }
+      body.innerHTML = renderMarkdown(doc.markdown);
+      if (anchor) {
+        var target = body.querySelector("#doc-" + anchor);
+        if (target) target.scrollIntoView();
+      }
+    }
+
+    document.getElementById("docs-body").addEventListener("click", function (event) {
+      var link = event.target.closest("[data-doc-link]");
+      if (!link) return;
+      event.preventDefault();
+      showDoc(link.dataset.docLink, link.dataset.anchor || null);
+    });
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function slugify(text) {
+      return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    }
+
+    function inline(text) {
+      var html = escapeHtml(text);
+      html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+      html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      html = html.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (_match, label, url) {
+        if (/^https?:\/\//.test(url)) {
+          return '<a href="' + url + '" target="_blank" rel="noopener">' + label + "</a>";
+        }
+        var docMatch = null;
+        (docsCache || []).forEach(function (doc) {
+          if (url.indexOf(doc.path.split("/").pop()) !== -1) docMatch = doc.slug;
+        });
+        if (docMatch) {
+          var anchor = url.indexOf("#") !== -1 ? slugify(url.split("#")[1]) : "";
+          return '<a href="#" data-doc-link="' + docMatch + '" data-anchor="' + anchor + '">' + label + "</a>";
+        }
+        return label;
+      });
+      return html;
+    }
+
+    function renderTable(rows) {
+      function cellsOf(row) {
+        return row.replace(/^\|/, "").replace(/\|\s*$/, "").split("|").map(function (cell) {
+          return cell.trim();
+        });
+      }
+      var html = ["<table>"];
+      rows.forEach(function (row, index) {
+        if (index === 1 && /^[\s\-|:]+$/.test(row)) return;
+        var tag = index === 0 ? "th" : "td";
+        var cells = cellsOf(row).map(function (cell) {
+          return "<" + tag + ">" + inline(cell) + "</" + tag + ">";
+        });
+        html.push("<tr>" + cells.join("") + "</tr>");
+      });
+      html.push("</table>");
+      return html.join("");
+    }
+
+    function renderMarkdown(md) {
+      var lines = md.split("\n");
+      var out = [];
+      var i = 0;
+      while (i < lines.length) {
+        var line = lines[i];
+        if (/^```/.test(line)) {
+          var code = [];
+          i += 1;
+          while (i < lines.length && !/^```/.test(lines[i])) { code.push(lines[i]); i += 1; }
+          i += 1;
+          out.push("<pre><code>" + escapeHtml(code.join("\n")) + "</code></pre>");
+          continue;
+        }
+        var heading = line.match(/^(#{1,3})\s+(.*)$/);
+        if (heading) {
+          var level = heading[1].length;
+          out.push(
+            "<h" + level + ' id="doc-' + slugify(heading[2]) + '">' +
+            inline(heading[2]) + "</h" + level + ">"
+          );
+          i += 1;
+          continue;
+        }
+        if (/^\|/.test(line)) {
+          var rows = [];
+          while (i < lines.length && /^\|/.test(lines[i])) { rows.push(lines[i]); i += 1; }
+          out.push(renderTable(rows));
+          continue;
+        }
+        if (/^>\s?/.test(line)) {
+          var quoted = [];
+          while (i < lines.length && /^>\s?/.test(lines[i])) {
+            quoted.push(lines[i].replace(/^>\s?/, ""));
+            i += 1;
+          }
+          out.push("<blockquote>" + renderMarkdown(quoted.join("\n")) + "</blockquote>");
+          continue;
+        }
+        var listMatch = line.match(/^(-|\d+\.)\s+/);
+        if (listMatch) {
+          var ordered = listMatch[1] !== "-";
+          var itemRe = ordered ? /^\d+\.\s+/ : /^-\s+/;
+          var items = [];
+          while (i < lines.length && itemRe.test(lines[i])) {
+            var item = lines[i].replace(itemRe, "");
+            i += 1;
+            while (i < lines.length && /^\s{2,}\S/.test(lines[i])) {
+              item += " " + lines[i].trim();
+              i += 1;
+            }
+            items.push("<li>" + inline(item) + "</li>");
+          }
+          out.push((ordered ? "<ol>" : "<ul>") + items.join("") + (ordered ? "</ol>" : "</ul>"));
+          continue;
+        }
+        if (!line.trim()) { i += 1; continue; }
+        var para = [line.trim()];
+        i += 1;
+        while (
+          i < lines.length && lines[i].trim() &&
+          !/^(#{1,3}\s|```|\||>\s?|-\s|\d+\.\s)/.test(lines[i])
+        ) {
+          para.push(lines[i].trim());
+          i += 1;
+        }
+        out.push("<p>" + inline(para.join(" ")) + "</p>");
+      }
+      return out.join("\n");
+    }
+
+    function renderRun(row, run) {
+      var cells = row.querySelectorAll("td");
+      cells[4].textContent = run.status;
+      cells[4].className = "status-" + run.status;
+      cells[5].textContent = run.started_at || "";
+      cells[6].textContent = run.finished_at || "";
+      cells[7].textContent = "";
+      if (run.phoenix_link) {
+        var link = document.createElement("a");
+        link.href = run.phoenix_link;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = "Phoenix";
+        cells[7].appendChild(link);
+      } else if (run.status === "failed" && run.error) {
+        cells[7].textContent = run.error;
+      }
+    }
+
+    function newRow(run) {
+      var row = document.createElement("tr");
+      row.dataset.runId = run.id;
+      var values = [
+        run.dataset,
+        run.case_ids && run.case_ids.length ? run.case_ids.join(", ") : "(all)",
+        run.model + (run.git_label ? " (" + run.git_label + ")" : ""),
+        String(run.runs), "", "", "", "",
+      ];
+      values.forEach(function (value) {
+        var cell = document.createElement("td");
+        cell.textContent = value;
+        row.appendChild(cell);
+      });
+      return row;
+    }
+
+    async function refreshRuns() {
+      try {
+        var response = await fetch("/runs.json");
+        if (!response.ok) return;
+        var data = await response.json();
+        var body = document.getElementById("runs-body");
+        var placeholder = body.querySelector("td[colspan]");
+        if (placeholder && data.runs.length) placeholder.parentElement.remove();
+        data.runs.slice().reverse().forEach(function (run) {
+          var row = body.querySelector('[data-run-id="' + run.id + '"]');
+          if (!row) {
+            row = newRow(run);
+            body.prepend(row);
+          }
+          renderRun(row, run);
+        });
+      } catch (e) { /* transient network errors: retry next tick */ }
+    }
+    setInterval(refreshRuns, 5000);
+  </script>
 </body>
 </html>

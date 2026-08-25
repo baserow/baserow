@@ -65,6 +65,39 @@ class TestJudgeDocsAnswer:
         assert "https://baserow.io/docs/x" in prompt
         assert "share" in prompt
 
+    def test_includes_reference_answer_when_given(self, monkeypatch):
+        monkeypatch.delenv("BASEROW_EVAL_JUDGE_MODEL", raising=False)
+        verdict = JudgeVerdict(score=0.9, explanation="Matches the reference.")
+
+        with patch(
+            "baserow_enterprise.assistant.evals.judge.docs_answer_judge.run_sync",
+            return_value=MagicMock(output=verdict),
+        ) as mock_run_sync:
+            judge_docs_answer(
+                question="How do I compute a date diff?",
+                answer="Use date_diff('day', [Start], [End]).",
+                sources=[],
+                keywords=["date_diff"],
+                reference_answer="Use the date_diff function.",
+            )
+
+        prompt = mock_run_sync.call_args[0][0]
+        assert "Use the date_diff function." in prompt
+        assert "reference" in prompt.lower()
+
+    def test_omits_reference_section_when_not_given(self, monkeypatch):
+        monkeypatch.delenv("BASEROW_EVAL_JUDGE_MODEL", raising=False)
+        verdict = JudgeVerdict(score=0.5, explanation="ok")
+
+        with patch(
+            "baserow_enterprise.assistant.evals.judge.docs_answer_judge.run_sync",
+            return_value=MagicMock(output=verdict),
+        ) as mock_run_sync:
+            judge_docs_answer(question="q", answer="a", sources=[], keywords=[])
+
+        prompt = mock_run_sync.call_args[0][0]
+        assert "reference" not in prompt.lower()
+
     def test_propagates_agent_exceptions(self, monkeypatch):
         monkeypatch.delenv("BASEROW_EVAL_JUDGE_MODEL", raising=False)
 

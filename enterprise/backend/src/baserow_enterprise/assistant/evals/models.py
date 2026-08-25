@@ -19,6 +19,11 @@ EVAL_MODELS: tuple[EvalModel, ...] = (
     EvalModel("groq:llama-3.3-70b-versatile", "Llama 3.3 70B (Groq)", "GROQ_API_KEY"),
     EvalModel("openai:gpt-5-mini", "GPT-5 mini (OpenAI)", "OPENAI_API_KEY"),
     EvalModel(
+        "google:gemini-3.6-flash",
+        "Gemini 3.6 Flash (Google)",
+        "GOOGLE_API_KEY",
+    ),
+    EvalModel(
         "anthropic:claude-haiku-4-5",
         "Claude Haiku 4.5 (Anthropic)",
         "ANTHROPIC_API_KEY",

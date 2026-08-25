@@ -11,7 +11,12 @@ from loguru import logger
 from baserow_enterprise.assistant.evals.phoenix import get_phoenix_client
 from baserow_enterprise.assistant.evals.prompt_sync import sync_prompts
 from baserow_enterprise.assistant.evals.registry import load_all
-from baserow_enterprise.assistant.evals.runner import make_wsgi_app, start_worker
+from baserow_enterprise.assistant.evals.runner import (
+    load_history,
+    make_wsgi_app,
+    refresh_dataset_links,
+    start_worker,
+)
 from baserow_enterprise.assistant.evals.sync import sync_datasets
 from baserow_enterprise.assistant.telemetry import setup_instrumentation
 
@@ -50,6 +55,12 @@ class Command(BaseCommand):
         except Exception:
             logger.exception("Failed to sync eval prompts to Phoenix on startup")
 
+        try:
+            refresh_dataset_links(get_phoenix_client())
+        except Exception:
+            logger.exception("Failed to resolve Phoenix dataset links on startup")
+
+        load_history()
         start_worker()
 
         host = options["host"]
