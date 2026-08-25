@@ -103,6 +103,12 @@ export default (client) => {
     duplicate(viewId) {
       return client.post(`/database/views/${viewId}/duplicate/`)
     },
+    copyConfiguration(viewId, { sourceViewId, categories }) {
+      return client.post(`/database/views/${viewId}/copy-configuration/`, {
+        source_view_id: sourceViewId,
+        categories,
+      })
+    },
     order(tableId, ownershipType, order) {
       return client.post(`/database/views/table/${tableId}/order/`, {
         view_ids: order,

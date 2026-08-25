@@ -20,6 +20,17 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING } from '@baserow/modules/database/constants'
 import { waitFor } from '@baserow/modules/core/utils/queue'
+import {
+  DecorationsCopyOptionType,
+  DefaultRowValuesCopyOptionType,
+  FieldOrderCopyOptionType,
+  FieldVisibilityCopyOptionType,
+  FieldWidthsCopyOptionType,
+  FiltersCopyOptionType,
+  GroupBysCopyOptionType,
+  SortsCopyOptionType,
+  ViewSettingsCopyOptionType,
+} from '@baserow/modules/database/copyViewConfigurationOptionTypes'
 
 export class ViewType extends Registerable {
   /**
@@ -82,6 +93,55 @@ export class ViewType extends Registerable {
    */
   canShowRowModal() {
     return false
+  }
+
+  /**
+   * The copy view configuration options, registered in the
+   * `copyViewConfigurationOption` registry, that this view type supports as
+   * the source or destination of the "copy view configuration" feature. An
+   * option is only offered in the modal when both the source and destination
+   * view type return an option with the same type. Subclasses can append
+   * their own registered options, the way the grid view adds the field
+   * widths, and other modules can do the same for their own view types.
+   *
+   * Must only be called at runtime because the `canFilter`, `canSort`,
+   * `canGroupBy` and `canSetDefaultValues` properties are snapshotted in the
+   * constructor.
+   */
+  getCopyableViewConfigurationOptions() {
+    const keys = [
+      FieldVisibilityCopyOptionType.getType(),
+      FieldOrderCopyOptionType.getType(),
+      DecorationsCopyOptionType.getType(),
+    ]
+    if (this.canFilter) {
+      keys.push(FiltersCopyOptionType.getType())
+    }
+    if (this.canSort) {
+      keys.push(SortsCopyOptionType.getType())
+    }
+    if (this.canGroupBy) {
+      keys.push(GroupBysCopyOptionType.getType())
+    }
+    if (this.canSetDefaultValues) {
+      keys.push(DefaultRowValuesCopyOptionType.getType())
+    }
+    if (this.getCopyableViewSettings().length > 0) {
+      keys.push(ViewSettingsCopyOptionType.getType())
+    }
+    return keys.map((key) =>
+      this.app.$registry.get('copyViewConfigurationOption', key)
+    )
+  }
+
+  /**
+   * The plain view attributes that the `view_settings` copy option copies from
+   * one view into another. Must mirror the backend view type's
+   * `copyable_view_attributes`, and only attributes that both the source and
+   * destination view type declare are copied.
+   */
+  getCopyableViewSettings() {
+    return []
   }
 
   /**
@@ -540,6 +600,21 @@ export class GridViewType extends ViewType {
 
   canGroupBy() {
     return true
+  }
+
+  getCopyableViewConfigurationOptions() {
+    const registry = this.app.$registry
+    return [
+      ...super.getCopyableViewConfigurationOptions(),
+      registry.get(
+        'copyViewConfigurationOption',
+        FieldWidthsCopyOptionType.getType()
+      ),
+    ]
+  }
+
+  getCopyableViewSettings() {
+    return ['row_height_size', 'frozen_column_count', 'row_identifier_type']
   }
 
   getName() {
@@ -1284,6 +1359,10 @@ export class FormViewType extends ViewType {
 
   canSort() {
     return false
+  }
+
+  getCopyableViewConfigurationOptions() {
+    return []
   }
 
   canShare() {

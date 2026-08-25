@@ -20,6 +20,9 @@ from baserow.contrib.database.fields.field_filters import (
 )
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.views.configuration_copy import (
+    view_configuration_copy_category_type_registry,
+)
 from baserow.contrib.database.views.exceptions import ViewOwnershipTypeDoesNotExist
 from baserow.contrib.database.views.models import (
     OWNERSHIP_TYPE_COLLABORATIVE,
@@ -618,6 +621,25 @@ class OrderViewsSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text="View ids in the desired order.",
         min_length=1,
+    )
+
+
+class CopyViewConfigurationSerializer(serializers.Serializer):
+    source_view_id = serializers.IntegerField(
+        min_value=1,
+        help_text="The id of the view in the same table to copy the "
+        "configuration from.",
+    )
+    categories = serializers.ListField(
+        child=serializers.ChoiceField(
+            choices=lazy(
+                view_configuration_copy_category_type_registry.get_types, list
+            )()
+        ),
+        allow_empty=False,
+        help_text="The configuration categories that must be copied. Only "
+        "categories supported by both the source and destination view type "
+        "are accepted.",
     )
 
 

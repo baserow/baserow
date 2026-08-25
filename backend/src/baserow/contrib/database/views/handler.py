@@ -59,6 +59,9 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.views.configuration_copy import (
+    view_configuration_copy_category_type_registry,
+)
 from baserow.contrib.database.views.exceptions import (
     ViewOwnershipTypeDoesNotExist,
     ViewOwnershipTypeNotCompatibleWithViewType,
@@ -102,6 +105,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
     UpdateViewGroupByOperationType,
+    UpdateViewOperationType,
     UpdateViewPublicOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
@@ -131,11 +135,13 @@ from baserow.core.utils import (
 
 from .constants import GROUP_BY_DATA_DEFAULT_LIMIT
 from .exceptions import (
+    CannotCopyViewConfigurationToSameView,
     CannotShareViewTypeError,
     DecoratorValueProviderTypeNotCompatible,
     FieldAggregationNotSupported,
     NoAuthorizationToPubliclySharedView,
     UnrelatedFieldError,
+    ViewConfigurationCopyCategoryNotSupported,
     ViewDecorationDoesNotExist,
     ViewDecorationNotSupported,
     ViewDoesNotExist,
@@ -184,6 +190,7 @@ from .signals import (
     form_submitted,
     rows_entered_view,
     rows_exited_view,
+    view_configuration_changed,
     view_created,
     view_decoration_created,
     view_decoration_deleted,
@@ -1163,6 +1170,151 @@ class ViewHandler:
 
         return duplicated_view
 
+    def export_view_configuration(
+        self, view: View, categories: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Returns a JSON serializable snapshot of the requested configuration categories
+        of the given view, including primary keys so that an undo can restore the exact
+        same objects via `apply_view_configuration`.
+        """
+
+        cache = {}
+        return {
+            category: view_configuration_copy_category_type_registry.get(
+                category
+            ).export_configuration(view, cache=cache)
+            for category in categories
+        }
+
+    def apply_view_configuration(
+        self,
+        user: AbstractUser,
+        view: View,
+        configuration: Dict[str, Any],
+        preserve_ids: bool = False,
+    ):
+        """
+        Replaces the view's configuration with one previously exported with
+        `export_view_configuration`. All categories are applied with bulk operations
+        and a single `view_configuration_changed` signal is sent afterwards, instead of
+        a granular signal per created or deleted object, so that connected clients
+        receive one event with the complete new view state. `preserve_ids` recreates
+        the objects with the primary keys from the configuration, which undo/redo
+        relies on so that other clients keep referencing valid ids.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            UpdateViewOperationType.type,
+            workspace=view.table.database.workspace,
+            context=view,
+        )
+
+        cache = {}
+        merged_field_options = {}
+        applied_category_types = []
+        for category, category_configuration in configuration.items():
+            category_type = view_configuration_copy_category_type_registry.get(category)
+            field_options = category_type.apply_configuration(
+                view,
+                category_configuration,
+                user=user,
+                preserve_ids=preserve_ids,
+                cache=cache,
+            )
+            for field_id, values in (field_options or {}).items():
+                merged_field_options.setdefault(int(field_id), {}).update(values)
+            applied_category_types.append(category_type)
+
+        if merged_field_options:
+            fields = Field.objects_and_trash.filter(table_id=view.table_id)
+            existing_field_ids = {field.id for field in fields}
+            # The `view_configuration_changed` signal sent below covers the
+            # field options change, so the granular signal is suppressed to
+            # keep this a single broadcast.
+            self.update_field_options(
+                view=view,
+                field_options={
+                    field_id: values
+                    for field_id, values in merged_field_options.items()
+                    if field_id in existing_field_ids
+                },
+                user=user,
+                fields=fields,
+                send_signal=False,
+            )
+
+        for category_type in applied_category_types:
+            category_type.after_applied(view)
+
+        view_configuration_changed.send(
+            self, view=view, user=user, categories=list(configuration.keys())
+        )
+
+    def validate_view_configuration_copy(
+        self,
+        source_view: View,
+        dest_view: View,
+        categories: List[str],
+    ):
+        """
+        :raises ViewNotInTable: When the source view belongs to another table.
+        :raises CannotCopyViewConfigurationToSameView: When the source and
+            destination view are the same view.
+        :raises ViewConfigurationCopyCategoryNotSupported: When a requested
+            category is not supported by both view types.
+        """
+
+        if source_view.id == dest_view.id:
+            raise CannotCopyViewConfigurationToSameView(
+                "The source and destination view of a configuration copy must "
+                "be different views."
+            )
+
+        if source_view.table_id != dest_view.table_id:
+            raise ViewNotInTable(source_view.id)
+
+        source_view_type = view_type_registry.get_by_model(source_view.specific_class)
+        dest_view_type = view_type_registry.get_by_model(dest_view.specific_class)
+        supported_categories = (
+            source_view_type.get_copyable_configuration_categories()
+            & dest_view_type.get_copyable_configuration_categories()
+        )
+        unsupported_categories = set(categories) - supported_categories
+        if unsupported_categories:
+            raise ViewConfigurationCopyCategoryNotSupported(
+                sorted(unsupported_categories)
+            )
+
+    def copy_view_configuration(
+        self,
+        user: AbstractUser,
+        source_view: View,
+        dest_view: View,
+        categories: List[str],
+    ) -> View:
+        """
+        Copies the requested configuration categories of the source view into
+        the destination view of the same table, replacing the destination's
+        existing configuration of those categories. See
+        `validate_view_configuration_copy` for the raised exceptions.
+        """
+
+        self.validate_view_configuration_copy(source_view, dest_view, categories)
+
+        CoreHandler().check_permissions(
+            user,
+            ReadViewOperationType.type,
+            workspace=dest_view.table.database.workspace,
+            context=source_view,
+        )
+
+        configuration = self.export_view_configuration(source_view, categories)
+        self.apply_view_configuration(user, dest_view, configuration)
+
+        return dest_view
+
     def update_view(
         self, user: AbstractUser, view: View, **data: Dict[str, Any]
     ) -> UpdatedViewWithChangedAttributes:
@@ -1391,6 +1543,7 @@ class ViewHandler:
         field_options: FieldOptionsDict,
         user: Optional[AbstractUser] = None,
         fields: Optional[QuerySet[Field]] = None,
+        send_signal: bool = True,
     ):
         """
         Updates the field options with the provided values if the field id exists in
@@ -1508,7 +1661,8 @@ class ViewHandler:
             view, field_options, fields, updated_instances
         )
 
-        view_field_options_updated.send(self, view=view, user=user)
+        if send_signal:
+            view_field_options_updated.send(self, view=view, user=user)
 
     def after_field_moved_between_tables(self, field: Field, original_table_id: int):
         """

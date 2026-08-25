@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Copy the configuration of another view, filters and sorts for example, into a view.",
+    "issue_origin": "github",
+    "issue_number": 2762,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-25"
+}

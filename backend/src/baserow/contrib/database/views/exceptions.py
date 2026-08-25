@@ -24,6 +24,29 @@ class ViewNotInTable(Exception):
         )
 
 
+class ViewConfigurationCopyCategoryNotSupported(Exception):
+    """
+    Raised when a view configuration copy category is not supported by both the
+    source and the destination view type.
+    """
+
+    def __init__(self, categories=None, *args, **kwargs):
+        self.categories = categories or []
+        super().__init__(
+            f"The categories {self.categories} cannot be copied between the "
+            "provided views.",
+            *args,
+            **kwargs,
+        )
+
+
+class CannotCopyViewConfigurationToSameView(Exception):
+    """
+    Raised when the source and destination view of a view configuration copy
+    are the same view.
+    """
+
+
 class UnrelatedFieldError(Exception):
     """
     Raised when a field is not related to the view. For example when someone tries to

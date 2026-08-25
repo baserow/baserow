@@ -1632,6 +1632,107 @@ class DuplicateViewActionType(UndoableActionType):
         TrashHandler.restore_item(user, "view", params.view_id)
 
 
+class CopyViewConfigurationActionType(UndoableActionType):
+    type = "copy_view_configuration"
+    description = ActionTypeDescription(
+        _("Copy view configuration"),
+        _(
+            'Configuration of view "%(source_view_name)s" (%(source_view_id)s) '
+            'copied into view "%(view_name)s" (%(view_id)s)'
+        ),
+        TABLE_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "view_id",
+        "table_id",
+        "database_id",
+        "source_view_id",
+        "categories",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        view_id: int
+        view_name: str
+        table_id: int
+        table_name: str
+        database_id: int
+        database_name: str
+        source_view_id: int
+        source_view_name: str
+        categories: List[str]
+        original_configuration: Dict[str, Any]
+        new_configuration: Dict[str, Any]
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        source_view: View,
+        dest_view: View,
+        categories: List[str],
+    ) -> View:
+        """
+        Copies the requested configuration categories of the source view into the
+        destination view of the same table. Undoing this action restores the destination
+        view's previous configuration of those categories, redoing it applies the
+        copied configuration again.
+        """
+
+        view_handler = ViewHandler()
+        view_handler.validate_view_configuration_copy(
+            source_view, dest_view, categories
+        )
+        original_configuration = view_handler.export_view_configuration(
+            dest_view, categories
+        )
+        dest_view = view_handler.copy_view_configuration(
+            user, source_view, dest_view, categories
+        )
+        new_configuration = view_handler.export_view_configuration(
+            dest_view, categories
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                dest_view.id,
+                dest_view.name,
+                dest_view.table.id,
+                dest_view.table.name,
+                dest_view.table.database.id,
+                dest_view.table.database.name,
+                source_view.id,
+                source_view.name,
+                categories,
+                original_configuration,
+                new_configuration,
+            ),
+            scope=cls.scope(dest_view.id),
+            workspace=dest_view.table.database.workspace,
+        )
+
+        return dest_view
+
+    @classmethod
+    def scope(cls, view_id: int) -> ActionScopeStr:
+        return ViewActionScopeType.value(view_id)
+
+    @classmethod
+    def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
+        view = ViewHandler().get_view_for_update(user, params.view_id).specific
+        ViewHandler().apply_view_configuration(
+            user, view, params.original_configuration, preserve_ids=True
+        )
+
+    @classmethod
+    def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
+        view = ViewHandler().get_view_for_update(user, params.view_id).specific
+        ViewHandler().apply_view_configuration(
+            user, view, params.new_configuration, preserve_ids=True
+        )
+
+
 class DeleteViewActionType(UndoableActionType):
     type = "delete_view"
     description = ActionTypeDescription(

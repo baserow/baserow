@@ -53,7 +53,13 @@ exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
       </span>
     </button>
     <!--v-if-->
+    <!--v-if-->
   </div>
+  <teleport-stub
+    to="body"
+  >
+    <!--v-if-->
+  </teleport-stub>
 </div>
 `;
 
@@ -1170,6 +1176,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
         
       </span>
     </button>
+    <!--v-if-->
     <div
       class="margin-left-auto"
     >
@@ -1186,6 +1193,11 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
       </div>
     </div>
   </div>
+  <teleport-stub
+    to="body"
+  >
+    <!--v-if-->
+  </teleport-stub>
 </div>
 `;
 
@@ -1671,6 +1683,7 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
         
       </span>
     </button>
+    <!--v-if-->
     <div
       class="margin-left-auto"
     >
@@ -1687,5 +1700,10 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
       </div>
     </div>
   </div>
+  <teleport-stub
+    to="body"
+  >
+    <!--v-if-->
+  </teleport-stub>
 </div>
 `;

@@ -97,7 +97,7 @@ const view = {
   ownership_type: 'collaborative',
 }
 
-const database = { id: 1, workspace_id: 1 }
+const database = { id: 1, workspace_id: 1, workspace: { id: 1 } }
 
 describe('ViewFilterForm match snapshots', () => {
   let testApp = null

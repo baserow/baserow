@@ -197,6 +197,34 @@ class ViewType(
     options
     """
 
+    copyable_view_attributes = []
+    """
+    The view attributes that the `view_settings` configuration copy category copies
+    from one view into another. Only attributes that both the source and the
+    destination view type declare are copied, so a view type can safely declare its
+    own specific attributes here.
+    """
+
+    def get_copyable_configuration_categories(self) -> Set[str]:
+        """
+        A configuration category can only be copied between two views when both view
+        types support it.
+        """
+
+        # Imported here because `configuration_copy` imports this module at the top
+        # level, which would otherwise be a circular import.
+        from baserow.contrib.database.views.configuration_copy import (
+            view_configuration_copy_category_type_registry,
+        )
+
+        return {
+            category_type.type
+            for category_type in (
+                view_configuration_copy_category_type_registry.get_all()
+            )
+            if category_type.is_supported(self)
+        }
+
     def get_public_url_path(self, view: "View") -> str:
         """
         Returns the web frontend path where the publicly shared view can be visited.

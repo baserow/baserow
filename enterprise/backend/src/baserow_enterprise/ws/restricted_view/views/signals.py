@@ -61,3 +61,8 @@ def restricted_view_filter_updated(sender, view_filter, user, **kwargs):
 @receiver(view_signals.view_filter_deleted)
 def restricted_view_filter_deleted(sender, view_filter_id, view_filter, user, **kwargs):
     _send_force_rows_refresh_if_view_restricted(view_filter.view)
+
+
+@receiver(view_signals.view_configuration_changed)
+def restricted_view_configuration_changed(sender, view, user, **kwargs):
+    _send_force_rows_refresh_if_view_restricted(view)

@@ -100,6 +100,7 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(UpdateRowsActionType())
 
         from baserow.contrib.database.views.actions import (
+            CopyViewConfigurationActionType,
             CreateDecorationActionType,
             CreateViewActionType,
             CreateViewFilterActionType,
@@ -131,6 +132,7 @@ class DatabaseConfig(AppConfig):
 
         action_type_registry.register(CreateViewActionType())
         action_type_registry.register(DuplicateViewActionType())
+        action_type_registry.register(CopyViewConfigurationActionType())
         action_type_registry.register(DeleteViewActionType())
         action_type_registry.register(OrderViewsActionType())
         action_type_registry.register(UpdateViewActionType())
@@ -376,6 +378,47 @@ class DatabaseConfig(AppConfig):
         view_type_registry.register(GridViewType())
         view_type_registry.register(GalleryViewType())
         view_type_registry.register(FormViewType())
+
+        from .views.configuration_copy import (
+            DecorationsViewConfigurationCopyCategoryType,
+            DefaultRowValuesViewConfigurationCopyCategoryType,
+            FieldOrderViewConfigurationCopyCategoryType,
+            FieldVisibilityViewConfigurationCopyCategoryType,
+            FieldWidthsViewConfigurationCopyCategoryType,
+            FiltersViewConfigurationCopyCategoryType,
+            GroupBysViewConfigurationCopyCategoryType,
+            SortsViewConfigurationCopyCategoryType,
+            ViewSettingsViewConfigurationCopyCategoryType,
+            view_configuration_copy_category_type_registry,
+        )
+
+        view_configuration_copy_category_type_registry.register(
+            FieldVisibilityViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            FieldOrderViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            FieldWidthsViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            ViewSettingsViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            FiltersViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            SortsViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            GroupBysViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            DecorationsViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            DefaultRowValuesViewConfigurationCopyCategoryType()
+        )
 
         from .views.view_filters import (
             BooleanViewFilterType,

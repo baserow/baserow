@@ -150,3 +150,13 @@ ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE = (
     "The ownership type {e.ownership_type} is not compatible with "
     "view type {e.view_type}.",
 )
+ERROR_VIEW_CONFIGURATION_COPY_CATEGORY_NOT_SUPPORTED = (
+    "ERROR_VIEW_CONFIGURATION_COPY_CATEGORY_NOT_SUPPORTED",
+    HTTP_400_BAD_REQUEST,
+    "The categories {e.categories} cannot be copied between the provided views.",
+)
+ERROR_CANNOT_COPY_VIEW_CONFIGURATION_TO_SAME_VIEW = (
+    "ERROR_CANNOT_COPY_VIEW_CONFIGURATION_TO_SAME_VIEW",
+    HTTP_400_BAD_REQUEST,
+    "The source and destination view of a configuration copy must be different views.",
+)

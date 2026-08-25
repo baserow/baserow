@@ -94,6 +94,10 @@
     margin-right: 10px;
   }
 
+  &.header__filter-item--only-margin-right {
+    margin-right: 10px;
+  }
+
   &.header__filter-item--full-width {
     flex-grow: 1;
     display: flex;
@@ -109,10 +113,6 @@
 
   &.header__filter-item--no-margin-left {
     margin-left: 0;
-  }
-
-  &:last-child {
-    margin-right: 10px;
   }
 }
 

@@ -33,7 +33,10 @@
     <li
       :class="[
         'header__filter-item',
-        { 'header__filter-item--right': !presenceEnabled },
+        {
+          'header__filter-item--right': !presenceEnabled,
+          'header__filter-item--only-margin-right': presenceEnabled,
+        },
       ]"
     >
       <ViewSearch

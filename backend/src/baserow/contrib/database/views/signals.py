@@ -33,6 +33,12 @@ view_decoration_deleted = Signal()
 
 view_field_options_updated = Signal()
 
+# Sent when multiple parts of a view's configuration have been replaced at once, for
+# example when the configuration of another view is copied into it. Granular signals
+# are deliberately not sent in that case so that connected clients receive a single
+# event with the complete new view state.
+view_configuration_changed = Signal()
+
 rows_entered_view = Signal()
 rows_exited_view = Signal()
 

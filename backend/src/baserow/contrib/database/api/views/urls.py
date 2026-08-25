@@ -3,6 +3,7 @@ from django.urls import re_path
 from baserow.contrib.database.views.registries import view_type_registry
 
 from .views import (
+    CopyViewConfigurationView,
     DuplicateViewView,
     OrderViewsView,
     PrioritizeViewGroupBysView,
@@ -68,6 +69,11 @@ urlpatterns = view_type_registry.api_urls + [
         r"(?P<view_id>[0-9]+)/duplicate/$",
         DuplicateViewView.as_view(),
         name="duplicate",
+    ),
+    re_path(
+        r"(?P<view_id>[0-9]+)/copy-configuration/$",
+        CopyViewConfigurationView.as_view(),
+        name="copy_configuration",
     ),
     re_path(
         r"(?P<view_id>[0-9]+)/filters/$", ViewFiltersView.as_view(), name="list_filters"

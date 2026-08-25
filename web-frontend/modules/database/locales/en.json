@@ -583,7 +583,29 @@
     "relatedFieldNotFound": "The related field is not found.",
     "filterTypeNotFound": "The filter type is not compatible.",
     "noCompatibleFilterTypesErrorTitle": "No compatible filter types",
-    "noCompatibleFilterTypesErrorMessage": "None of your fields have any compatible filter types"
+    "noCompatibleFilterTypesErrorMessage": "None of your fields have any compatible filter types",
+    "copyFromView": "Copy from another view"
+  },
+  "copyViewConfigurationModal": {
+    "title": "Copy configuration to {name}",
+    "sourceView": "Copy from view",
+    "selectAll": "Select all",
+    "clearAll": "Clear all",
+    "copy": "Copy configuration"
+  },
+  "copyViewConfigurationOption": {
+    "fieldVisibility": "Field visibility",
+    "fieldOrder": "Field order",
+    "fieldWidths": "Field widths",
+    "viewSettings": "Settings ({settings})",
+    "viewSettingsRowHeightSize": "row height",
+    "viewSettingsFrozenColumnCount": "frozen columns",
+    "viewSettingsRowIdentifierType": "row identifier",
+    "filters": "Filters",
+    "sorts": "Sorts",
+    "groupBys": "Groups",
+    "decorations": "Decorations",
+    "defaultRowValues": "Default row values"
   },
   "viewFilterTypeFileTypeDropdown": {
     "image": "image",
@@ -698,6 +720,7 @@
   "viewContext": {
     "exportView": "Export view",
     "duplicateView": "Duplicate view",
+    "copyConfiguration": "Copy configuration from view",
     "defaultRowValues": "Default row values",
     "renameView": "Rename view",
     "toPersonal": "To personal",

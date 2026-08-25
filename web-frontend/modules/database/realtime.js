@@ -1,6 +1,10 @@
 import { clone } from '@baserow/modules/core/utils/object'
 import { anyFieldsNeedFetch } from '@baserow/modules/database/store/field'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
+import {
+  forceUpdateViewConfiguration,
+  getRefreshFlags,
+} from '@baserow/modules/database/utils/copyViewConfiguration'
 
 /**
  * Registers the real time events related to the database module. When a message comes
@@ -366,6 +370,21 @@ export const registerRealtimeEvents = (realtime) => {
       }
     }
   })
+
+  realtime.registerEvent(
+    'view_configuration_changed',
+    async ({ store, app }, data) => {
+      const view = store.getters['view/get'](data.view_id)
+      if (view !== undefined) {
+        await forceUpdateViewConfiguration(
+          { $store: store, $bus: app.$bus },
+          view,
+          data.view,
+          getRefreshFlags(app.$registry, view, data.categories)
+        )
+      }
+    }
+  )
 
   realtime.registerEvent(
     'force_view_refresh_and_default_values',

@@ -86,6 +86,11 @@ class GridViewType(ViewType):
     can_group_by = True
     when_shared_publicly_requires_realtime_events = True
     allowed_fields = ["row_identifier_type", "row_height_size", "frozen_column_count"]
+    copyable_view_attributes = [
+        "row_height_size",
+        "frozen_column_count",
+        "row_identifier_type",
+    ]
     field_options_allowed_fields = [
         "width",
         "hidden",
@@ -673,6 +678,12 @@ class FormViewType(ViewType):
         FormViewFieldOptionsConditionGroupDoesNotExist: ERROR_FORM_VIEW_FIELD_OPTIONS_CONDITION_GROUP_DOES_NOT_EXIST,
         SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     }
+
+    def get_copyable_configuration_categories(self) -> Set[str]:
+        # Even though the form view has an `order` field option, none of its
+        # configuration is interchangeable with the other view types, its field
+        # options describe form fields instead of table columns.
+        return set()
 
     def get_api_urls(self):
         from baserow.contrib.database.api.views.form import urls as api_urls
