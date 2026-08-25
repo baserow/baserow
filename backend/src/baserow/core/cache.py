@@ -215,6 +215,7 @@ class GlobalCache:
         default: T | Callable[[], T] | None = None,
         invalidate_key: None | str = None,
         timeout: int = 60,
+        lock_timeout: int = 10,
     ) -> T:
         """
         Retrieves a value from the cache if it exists; otherwise, sets it using the
@@ -234,6 +235,10 @@ class GlobalCache:
                         the function is called to retrieve the default value.
         :param timeout: The cache timeout in seconds for newly set values.
            Defaults to 60.
+        :param lock_timeout: The number of seconds after which the lock guarding the
+            computation of the default value expires. Set it above the slowest
+            expected computation: if the lock expires while the computation is
+            still running, the next waiter takes it over and repeats the work.
         :return: The cached value if it exists; otherwise, the newly set value.
         """
 
@@ -243,7 +248,9 @@ class GlobalCache:
         if cached is SENTINEL:
             use_lock = hasattr(cache, "lock")
             if use_lock:
-                cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=10)
+                cache_lock = cache.lock(
+                    f"{cache_key_to_use}__lock", timeout=lock_timeout
+                )
                 cache_lock.acquire()
             try:
                 cached = cache.get(cache_key_to_use, SENTINEL)
@@ -283,12 +290,13 @@ class GlobalCache:
         default_value: T | Callable[[], T] | None = None,
         invalidate_key: None | str = None,
         timeout: int = 60,
+        lock_timeout: int = 10,
     ) -> T:
         cache_key_to_use = self._get_versioned_cache_key(key, invalidate_key)
 
         use_lock = hasattr(cache, "lock")
         if use_lock:
-            cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=10)
+            cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=lock_timeout)
             cache_lock.acquire()
 
         try:

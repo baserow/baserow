@@ -1,3 +1,4 @@
+import threading
 from unittest.mock import Mock, patch
 
 from django.core.cache import cache
@@ -180,3 +181,126 @@ def test_global_update_lock_release_on_exception():
 
         # Verify lock was still released
         mock_lock.release.assert_called_once_with()
+
+
+def test_global_update_with_custom_lock_timeout():
+    mock_lock = Mock()
+    mock_lock.acquire = Mock()
+    mock_lock.release = Mock()
+
+    with patch.object(cache, "lock", return_value=mock_lock) as mocked_lock:
+        global_cache.update(
+            key="my-key", callback=lambda v: v, default_value="foo", lock_timeout=45
+        )
+
+        cache_key = global_cache._get_versioned_cache_key("my-key")
+        mocked_lock.assert_called_once_with(f"{cache_key}__lock", timeout=45)
+
+
+def test_global_get_with_locking():
+    mock_lock = Mock()
+    mock_lock.acquire = Mock()
+    mock_lock.release = Mock()
+
+    with patch.object(cache, "lock", return_value=mock_lock) as mocked_lock:
+        assert global_cache.get("my-key", default=lambda: "foo") == "foo"
+
+        cache_key = global_cache._get_versioned_cache_key("my-key")
+        mocked_lock.assert_called_once_with(f"{cache_key}__lock", timeout=10)
+        mock_lock.acquire.assert_called_once_with()
+        mock_lock.release.assert_called_once_with()
+
+        # A cache hit doesn't touch the lock.
+        assert global_cache.get("my-key", default=lambda: "bar") == "foo"
+        mocked_lock.assert_called_once()
+
+
+def test_global_get_with_custom_lock_timeout():
+    mock_lock = Mock()
+    mock_lock.acquire = Mock()
+    mock_lock.release = Mock()
+
+    with patch.object(cache, "lock", return_value=mock_lock) as mocked_lock:
+        global_cache.get("my-key", default=lambda: "foo", lock_timeout=45)
+
+        cache_key = global_cache._get_versioned_cache_key("my-key")
+        mocked_lock.assert_called_once_with(f"{cache_key}__lock", timeout=45)
+
+
+def test_global_get_lock_release_on_exception():
+    mock_lock = Mock()
+    mock_lock.acquire = Mock()
+    mock_lock.release = Mock()
+
+    def default():
+        raise ValueError("unexpected error")
+
+    with patch.object(cache, "lock", return_value=mock_lock):
+        with pytest.raises(ValueError):
+            global_cache.get("my-key", default=default)
+
+        mock_lock.release.assert_called_once_with()
+
+
+def test_global_get_waits_for_worker_computing_the_value():
+    """
+    Uses the real (fake redis) lock: a second worker asking for a missing value
+    while another one is computing it waits for that computation instead of
+    starting its own.
+    """
+
+    computing = threading.Event()
+    finish = threading.Event()
+    results = []
+
+    def slow_default():
+        computing.set()
+        assert finish.wait(timeout=5)
+        return "computed by worker"
+
+    worker = threading.Thread(
+        target=lambda: results.append(global_cache.get("my-key", slow_default))
+    )
+    worker.start()
+    assert computing.wait(timeout=5)
+
+    # Let the worker finish shortly after we start waiting on the lock.
+    threading.Timer(0.3, finish.set).start()
+    value = global_cache.get(
+        "my-key", default=lambda: pytest.fail("must not compute a second time")
+    )
+    worker.join(timeout=5)
+
+    assert value == "computed by worker"
+    assert results == ["computed by worker"]
+
+
+def test_global_get_recomputes_when_the_lock_expires_before_the_computation_ends():
+    """
+    Uses the real (fake redis) lock: if the worker computing the value takes
+    longer than the lock timeout, the lock expires and the next waiter takes it
+    over and computes the value itself.
+    """
+
+    computing = threading.Event()
+    finish = threading.Event()
+
+    def slow_default():
+        computing.set()
+        finish.wait(timeout=5)
+        return "computed by slow worker"
+
+    worker = threading.Thread(
+        target=lambda: global_cache.get("my-key", slow_default, lock_timeout=0.2)
+    )
+    worker.start()
+    assert computing.wait(timeout=5)
+
+    value = global_cache.get(
+        "my-key", default=lambda: "computed by waiter", lock_timeout=0.2
+    )
+
+    finish.set()
+    worker.join(timeout=5)
+
+    assert value == "computed by waiter"
