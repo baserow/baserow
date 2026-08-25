@@ -162,11 +162,28 @@ function actionItem(page: Page, index: number) {
 }
 
 /** Adds an action of `type` at the end of the list. */
+/**
+ * Opens an action's card. Saved actions load collapsed, so anything that
+ * reaches into a form has to open it first, the way a user would.
+ */
+async function expandAction(page: Page, index: number) {
+  const item = actionItem(page, index);
+  const form = item.locator(".button-field-action-list__form");
+  if (!(await form.isVisible())) {
+    await item.locator("[data-action-toggle]").click();
+    await expect(form).toBeVisible();
+  }
+}
+
 async function addAction(page: Page, type: string) {
   const list = page.locator(".button-field-action-list");
   const before = await list
     .locator(".button-field-action-list__item")
     .count();
+  // The explorer hides when the formula input loses focus, and it stays open
+  // over the list until then. The section heading is above the cards, so
+  // clicking it blurs the editor without the popup in the way.
+  await list.locator(".button-field-action-list__title").click();
   await list.getByText("Add action").click();
   const added = actionItem(page, before);
   await added.locator(".button-field-action-list__type").click();
@@ -187,6 +204,7 @@ async function pickTableOn(
   database: string,
   table: string,
 ) {
+  await expandAction(page, index);
   const dropdowns = actionItem(page, index).locator(
     ".button-field-action-list__form .dropdown",
   );
@@ -1106,6 +1124,7 @@ test.describe("Button field", () => {
     );
 
     await openFieldEditor(page, "Retarget");
+    await expandAction(page, 0);
     const actionForm = page.locator(".button-field-action-list__form");
     // Database first, then table: the second dropdown of the pair.
     const tableDropdown = actionForm.locator(".dropdown").nth(1);
@@ -1245,6 +1264,7 @@ test.describe("Button field", () => {
       .locator(".select__item-link", { hasText: "Create a row" })
       .click();
 
+    await expandAction(page, 0);
     // Database first, then table: the second dropdown of the pair.
     const actionForm = page.locator(".button-field-action-list__form");
     const pick = async (index: number, name: string) => {
@@ -1398,6 +1418,7 @@ test.describe("Button field", () => {
     // "Run" targets the table it lives on, so the copy's version follows the
     // copy.
     await openFieldEditor(page, "Run");
+    await expandAction(page, 0);
     await expect(targetTable).toHaveText("Tickets 2");
     await expect(form.getByText("Status")).toBeVisible();
 
@@ -1409,6 +1430,7 @@ test.describe("Button field", () => {
     // "Cross" targets a table that was not duplicated, which has no entry in
     // the id mapping. Nulling it there is what emptied these dropdowns.
     await openFieldEditor(page, "Cross");
+    await expandAction(page, 0);
     await expect(targetTable).toHaveText("Others");
     await expect(form.getByText("OtherOnly")).toBeVisible();
 
@@ -1602,6 +1624,7 @@ test.describe("Button field", () => {
 
     // The first action in a list has nothing before it.
     await openFieldEditor(page, "Insertable");
+    await expandAction(page, 0);
     await actionItem(page, 0)
       .locator(".formula-input-field__editor")
       .first()
@@ -1702,6 +1725,7 @@ test.describe("Button field", () => {
     await pickTableOn(page, 1, "Button DB", "Tickets");
     await dragAction(page, 0, 1);
 
+    await expandAction(page, 1);
     await actionItem(page, 1)
       .locator(".formula-input-field__editor")
       .first()

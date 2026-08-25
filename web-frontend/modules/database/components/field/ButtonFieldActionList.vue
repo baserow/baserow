@@ -29,32 +29,58 @@
         }"
         class="button-field-action-list__item margin-bottom-2"
       >
-        <div class="button-field-action-list__header">
+        <div
+          class="button-field-action-list__header"
+          @click="toggleAction(action)"
+        >
+          <!--
+            The handle, the type dropdown and the delete button all sit in the
+            header, so each stops the click that would otherwise reach the
+            header and toggle the card.
+          -->
           <div
             class="button-field-action-list__handle"
             data-sortable-handle
+            @click.stop
           ></div>
-          <Dropdown
-            class="button-field-action-list__type"
-            :value="action.type ?? null"
-            :placeholder="$t('buttonFieldActionList.chooseAction')"
-            :search-text="$t('buttonFieldActionList.searchActions')"
-            :fixed-items="true"
-            @input="onActionTypeChanged(index, $event)"
-          >
-            <DropdownItem
-              v-for="actionType in availableActionTypes"
-              :key="actionType.getType()"
-              :icon="actionType.icon"
-              :name="actionType.label"
-              :value="actionType.getType()"
-            ></DropdownItem>
-          </Dropdown>
-          <ButtonIcon
-            icon="iconoir-bin"
-            @click="removeAction(index)"
-          ></ButtonIcon>
+          <div class="button-field-action-list__type" @click.stop>
+            <Dropdown
+              :value="action.type ?? null"
+              :placeholder="$t('buttonFieldActionList.chooseAction')"
+              :search-text="$t('buttonFieldActionList.searchActions')"
+              :fixed-items="true"
+              @input="onActionTypeChanged(index, $event)"
+            >
+              <DropdownItem
+                v-for="actionType in availableActionTypes"
+                :key="actionType.getType()"
+                :icon="actionType.icon"
+                :name="actionType.label"
+                :value="actionType.getType()"
+              ></DropdownItem>
+            </Dropdown>
+          </div>
+          <div @click.stop>
+            <ButtonIcon
+              icon="iconoir-bin"
+              @click="removeAction(index)"
+            ></ButtonIcon>
+          </div>
+          <i
+            v-if="action.type"
+            class="button-field-action-list__toggle"
+            :class="
+              isExpanded(action)
+                ? 'iconoir-nav-arrow-down'
+                : 'iconoir-nav-arrow-right'
+            "
+            data-action-toggle
+          />
         </div>
+        <!--
+          Outside the collapsible part on purpose: a misconfigured action has
+          to be findable without opening every card in the list.
+        -->
         <div
           v-if="errorFor(action)"
           class="button-field-action-list__error"
@@ -62,9 +88,20 @@
         >
           {{ errorFor(action) }}
         </div>
+        <!--
+          Hidden rather than unmounted. The per-action form registers into this
+          form's chain and emits its defaults on mount, so tearing it down on
+          collapse would quietly change what a save sends.
+        -->
         <template v-if="action.type">
-          <div class="button-field-action-list__separator"></div>
-          <div class="button-field-action-list__form">
+          <div
+            v-show="isExpanded(action)"
+            class="button-field-action-list__separator"
+          ></div>
+          <div
+            v-show="isExpanded(action)"
+            class="button-field-action-list__form"
+          >
             <ButtonFieldActionForm
               :action="action"
               :database="database"
@@ -108,6 +145,14 @@ export default {
     },
   },
   emits: ['input'],
+  data() {
+    return {
+      // Which cards are open, keyed the same way the list keys its rows. An
+      // action added here opens itself; everything the editor loaded starts
+      // closed, the way the builder's event list does.
+      expandedActions: {},
+    }
+  },
   computed: {
     availableActionTypes() {
       return this.$registry.getOrderedList('databaseWorkflowActionType')
@@ -148,10 +193,33 @@ export default {
       return this.errorsByAction[workflowActionKey(action)] ?? null
     },
     /**
+     * An action with no type yet has nothing to show, so it stays shut
+     * whatever the state says.
+     */
+    isExpanded(action) {
+      return (
+        Boolean(action.type) &&
+        this.expandedActions[workflowActionKey(action)] === true
+      )
+    },
+    /**
+     * One card at a time. Several open at once makes the editor taller than
+     * the screen, and the data explorer then opens over the list instead of
+     * under the input it belongs to.
+     */
+    toggleAction(action) {
+      const key = workflowActionKey(action)
+      this.expandedActions = this.expandedActions[key] ? {} : { [key]: true }
+    },
+    /**
      * No type until the user picks one, and no `id` until the field is saved.
      */
     addAction(type = null) {
-      this.$emit('input', [...this.value, this.newAction(type)])
+      const action = this.newAction(type)
+      // Open straight away, and only this one: building a chain otherwise
+      // leaves every card of it open and the editor grows past the screen.
+      this.expandedActions = { [workflowActionKey(action)]: true }
+      this.$emit('input', [...this.value, action])
     },
     newAction(type) {
       if (type === null) {

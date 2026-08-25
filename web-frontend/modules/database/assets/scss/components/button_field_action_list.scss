@@ -23,11 +23,19 @@
   @include rounded($rounded-md);
 }
 
-// Holds the drag handle, the type dropdown and the delete button.
+// Holds the drag handle, the type dropdown, the delete button and the
+// expand arrow. Clicking anywhere else on it toggles the card.
 .button-field-action-list__header {
   display: flex;
   align-items: center;
   padding: 12px 16px;
+  cursor: pointer;
+}
+
+.button-field-action-list__toggle {
+  margin-left: 8px;
+  color: $palette-neutral-700;
+  font-size: 16px;
 }
 
 // A dot grid drawn with a gradient, the way the builder draws its handles.
