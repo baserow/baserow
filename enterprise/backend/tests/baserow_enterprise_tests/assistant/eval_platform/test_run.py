@@ -6,6 +6,10 @@ from django.core.management.base import CommandError
 
 import pytest
 from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+    InMemorySpanExporter,
+)
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals import gitinfo, registry
@@ -1114,6 +1118,55 @@ class TestRunExperimentForCaseSubset:
         assert isinstance(trace_id, str)
         assert len(trace_id) == 32
         int(trace_id, 16)
+
+    def test_task_root_span_carries_openinference_attributes(self):
+        """Phoenix renders kind/input/output/status from these — a bare span
+        shows as "unknown" with empty columns."""
+
+        registry.register_case(_make_case("db/case-1", prompt="make a table"))
+        examples = [
+            {
+                "id": "db/case-1",
+                "node_id": "node-1",
+                "input": {},
+                "output": {},
+                "metadata": {"case_id": "db/case-1"},
+            }
+        ]
+        client = _FakeClient(_FakeDataset(examples))
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+            patch(
+                "baserow_enterprise.assistant.evals.run.run_case",
+                return_value=(_make_output(), []),
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_assistant_tracer_provider",
+                return_value=provider,
+            ),
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+
+            run_experiment_for(
+                "kuma-database", "groq:test-model", case_ids=["db/case-1"]
+            )
+
+        span = exporter.get_finished_spans()[0]
+        assert span.name == "Task: db/case-1"
+        assert span.attributes["openinference.span.kind"] == "CHAIN"
+        assert span.attributes["input.value"] == "make a table"
+        assert "the answer" in span.attributes["output.value"]
+        assert span.status.status_code.name == "OK"
 
     def test_runs_multiple_repetitions(self):
         registry.register_case(_make_case("db/case-1"))

@@ -13,13 +13,16 @@ unrecorded run.
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
 
 from loguru import logger
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import trace
 from opentelemetry.context import Context
+from opentelemetry.trace import Status, StatusCode
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.gitinfo import get_git_info
@@ -506,10 +509,23 @@ def _log_case_run(
         )
         start = datetime.now(timezone.utc)
         # Fresh Context() per case so each root span starts its own trace.
+        # OpenInference attributes make Phoenix render kind/input/output
+        # instead of "unknown" with empty columns.
         with tracer.start_as_current_span(
-            f"Task: {case.id}", context=Context()
+            f"Task: {case.id}",
+            context=Context(),
+            attributes={
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: (
+                    OpenInferenceSpanKindValues.CHAIN.value
+                ),
+                SpanAttributes.INPUT_VALUE: case.prompt,
+                SpanAttributes.INPUT_MIME_TYPE: "text/plain",
+            },
         ) as span:
             result = run_case_for_experiment(case, model, kb_available, prompt_texts)
+            span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(result))
+            span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+            span.set_status(Status(StatusCode.OK))
             span_context = span.get_span_context()
         end = datetime.now(timezone.utc)
 
