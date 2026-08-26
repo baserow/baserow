@@ -94,6 +94,16 @@ describe('BuilderBreakpointsSettingsForm', () => {
     ).toBe('breakpointSettings.desktopDescription')
   })
 
+  test('hides the desktop breakpoint while tablet is invalid', async () => {
+    const [, tabletInput] = wrapper.findAll('input')
+
+    await tabletInput.setValue(String(MIN_BUILDER_BREAKPOINT - 1))
+
+    expect(
+      wrapper.find('.builder-breakpoints-settings-form__desktop-value').exists()
+    ).toBe(false)
+  })
+
   test('rejects a tablet breakpoint that is not greater than mobile', async () => {
     const [, tabletInput] = wrapper.findAll('input')
 

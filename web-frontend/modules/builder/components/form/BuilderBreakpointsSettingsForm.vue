@@ -61,7 +61,10 @@
         ></i>
         {{ $t('breakpointSettings.desktopLabel') }}
       </template>
-      <p class="builder-breakpoints-settings-form__desktop-value">
+      <p
+        v-if="!v$.values.breakpoints.tablet.$invalid"
+        class="builder-breakpoints-settings-form__desktop-value"
+      >
         {{
           $t('breakpointSettings.desktopDescription', {
             breakpoint: values.breakpoints.tablet,
