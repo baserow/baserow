@@ -102,6 +102,7 @@ export default {
       isClientReady: false,
       chartResizeObserver: null,
       observedChartContainer: null,
+      chartSize: null,
     }
   },
   computed: {
@@ -195,6 +196,9 @@ export default {
     },
   },
   watch: {
+    chartRenderKey() {
+      this.$nextTick(() => this.resizeChart())
+    },
     hasChartData() {
       this.$nextTick(() => this.observeChartContainer())
     },
@@ -229,9 +233,18 @@ export default {
 
       this.chartResizeObserver = new ResizeObserver(([entry]) => {
         const { width, height } = entry.contentRect
-        this.$refs.chart?.chart?.resize(width, height)
+        this.chartSize = { width, height }
+        this.resizeChart()
       })
       this.chartResizeObserver.observe(chartContainer)
+    },
+    resizeChart() {
+      if (!this.chartSize) {
+        return
+      }
+
+      const { width, height } = this.chartSize
+      this.$refs.chart?.chart?.resize(width, height)
     },
     mergeOptions(base, override) {
       if (!override) {
