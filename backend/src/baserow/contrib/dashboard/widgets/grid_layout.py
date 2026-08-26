@@ -1,6 +1,7 @@
 """Pure helpers for the canonical dashboard widget grid."""
 
 from collections.abc import Iterable, Mapping
+from itertools import chain
 
 DASHBOARD_GRID_COLUMNS = 6
 
@@ -26,25 +27,53 @@ def fits_within_grid_columns(layout: Mapping[str, int]) -> bool:
     )
 
 
+def horizontal_ranges_overlap(
+    first: Mapping[str, int], second: Mapping[str, int]
+) -> bool:
+    """Returns whether two widget layouts share at least one grid column."""
+
+    return (
+        first["grid_x"] < second["grid_x"] + second["grid_width"]
+        and second["grid_x"] < first["grid_x"] + first["grid_width"]
+    )
+
+
 def compact_widget_layout(
     layouts: Iterable[Mapping[str, int]],
+    fixed_layouts: Iterable[Mapping[str, int]] = (),
 ) -> list[dict[str, int]]:
     """Vertically compacts layouts while preserving their horizontal geometry.
 
     Layouts are processed top-to-bottom, then left-to-right, to make the result
-    deterministic independently from the browser grid implementation.
+    deterministic independently from the browser grid implementation. Fixed layouts
+    are immutable obstacles: they affect where movable layouts settle but are not
+    included in the result.
     """
 
+    fixed_layout = list(fixed_layouts)
     compacted_layout: list[dict[str, int]] = []
     for source_layout in sorted(
         layouts,
         key=lambda layout: (layout["grid_y"], layout["grid_x"], layout["id"]),
     ):
         layout = dict(source_layout)
-        layout["grid_y"] = 0
+        grid_y = 0
+        occupied_intervals = sorted(
+            (
+                other["grid_y"],
+                other["grid_y"] + other["grid_height"],
+            )
+            for other in chain(fixed_layout, compacted_layout)
+            if horizontal_ranges_overlap(layout, other)
+        )
+        for interval_start, interval_end in occupied_intervals:
+            if interval_end <= grid_y:
+                continue
+            if interval_start >= grid_y + layout["grid_height"]:
+                break
+            grid_y = max(grid_y, interval_end)
 
-        while any(layouts_overlap(layout, other) for other in compacted_layout):
-            layout["grid_y"] += 1
+        layout["grid_y"] = grid_y
 
         compacted_layout.append(layout)
 

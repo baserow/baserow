@@ -4,7 +4,7 @@ from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
 from baserow.contrib.dashboard.models import Dashboard
-from baserow.contrib.dashboard.types import WidgetDict
+from baserow.contrib.dashboard.types import WidgetDict, WidgetImportDict
 from baserow.contrib.dashboard.widgets.registries import (
     WidgetType,
     widget_type_registry,
@@ -15,7 +15,8 @@ from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import extract_allowed
 
 from .exceptions import WidgetDoesNotExist
-from .grid_layout import compact_widget_layout, get_first_available_grid_position
+from .grid_layout import get_first_available_grid_position
+from .layout import WidgetLayoutHandler
 from .models import Widget
 from .types import UpdatedWidget, WidgetForUpdate
 
@@ -121,30 +122,6 @@ class WidgetHandler:
             .order_by("id")
         )
 
-    @staticmethod
-    def get_widget_layout(widget: Widget) -> dict[str, int]:
-        return {
-            "id": widget.id,
-            "grid_x": widget.grid_x,
-            "grid_y": widget.grid_y,
-            "grid_width": widget.grid_width,
-            "grid_height": widget.grid_height,
-        }
-
-    def get_compacted_widget_layout(
-        self, widgets: Iterable[Widget]
-    ) -> list[dict[str, int]]:
-        """Returns a deterministic vertically compacted layout.
-
-        Widgets retain their horizontal position and dimensions. They are processed
-        top-to-bottom, then left-to-right, so a deletion produces the same result on
-        every client without relying on the browser grid implementation.
-        """
-
-        return compact_widget_layout(
-            self.get_widget_layout(widget) for widget in widgets
-        )
-
     def get_last_grid_y(self, dashboard: Dashboard) -> int:
         """Returns the first free row after every active widget in a dashboard."""
 
@@ -172,7 +149,7 @@ class WidgetHandler:
         """
 
         return get_first_available_grid_position(
-            (self.get_widget_layout(widget) for widget in widgets),
+            (WidgetLayoutHandler.from_widget(widget) for widget in widgets),
             grid_width,
             grid_height,
         )
@@ -230,7 +207,7 @@ class WidgetHandler:
         A widget can have been deleted while the remaining layout compacted. Restoring
         it at its old coordinates could therefore overlap an active widget. Generic
         trash restores preserve the current dashboard and append the widget instead;
-        undo actions subsequently restore their recorded complete layout.
+        undo actions subsequently apply their recorded layout delta.
         """
 
         grid_y = max(
@@ -319,29 +296,6 @@ class WidgetHandler:
 
         return UpdatedWidget(widget, original_widget_values, new_widget_values)
 
-    def update_widget_layout(
-        self,
-        widgets: list[Widget],
-        layout_by_widget_id: dict[int, dict[str, int]],
-    ) -> None:
-        """Persists an already validated complete dashboard layout."""
-
-        for widget in widgets:
-            layout = layout_by_widget_id[widget.id]
-            widget.grid_x = layout["grid_x"]
-            widget.grid_y = layout["grid_y"]
-            widget.grid_width = layout["grid_width"]
-            widget.grid_height = layout["grid_height"]
-            widget.save(
-                update_fields=[
-                    "grid_x",
-                    "grid_y",
-                    "grid_width",
-                    "grid_height",
-                    "updated_on",
-                ]
-            )
-
     def delete_widget(self, widget: Widget):
         """
         Deletes the provided widget.
@@ -382,7 +336,7 @@ class WidgetHandler:
     def import_widget(
         self,
         dashboard: Dashboard,
-        serialized_widget: WidgetDict,
+        serialized_widget: WidgetImportDict,
         id_mapping: dict[str, dict[int, int]],
         files_zip: ExportZipFile | None = None,
         storage: Storage | None = None,

@@ -14,6 +14,7 @@ from baserow.contrib.dashboard.widgets.models import SummaryWidget, Widget
 from baserow.contrib.dashboard.widgets.operations import UpdateWidgetLayoutOperationType
 from baserow.contrib.dashboard.widgets.service import WidgetService
 from baserow.core.action.handler import ActionHandler
+from baserow.core.action.models import Action
 from baserow.core.action.registries import action_type_registry
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.handler import CoreHandler
@@ -267,6 +268,130 @@ def test_can_undo_redo_update_widget_layout(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_update_layout_action_stores_delta_and_preserves_later_hidden_changes(
+    data_fixture, stub_check_permissions
+):
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    first_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="First"
+    )
+    changed_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Changed"
+    )
+    hidden_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Hidden"
+    )
+
+    def exclude_hidden_widget(
+        actor,
+        operation_name,
+        queryset,
+        workspace=None,
+        context=None,
+    ):
+        return queryset.exclude(id=hidden_widget.id)
+
+    with stub_check_permissions() as stub:
+        stub.filter_queryset = exclude_hidden_widget
+        UpdateWidgetLayoutActionType.do(
+            user,
+            dashboard.id,
+            [
+                {
+                    "id": first_widget.id,
+                    "grid_x": 0,
+                    "grid_y": 0,
+                    "grid_width": 2,
+                    "grid_height": 4,
+                },
+                {
+                    "id": changed_widget.id,
+                    "grid_x": 0,
+                    "grid_y": 4,
+                    "grid_width": 2,
+                    "grid_height": 4,
+                },
+            ],
+        )
+
+    action = Action.objects.get(type=UpdateWidgetLayoutActionType.type)
+    assert [item["id"] for item in action.params["original_layout"]] == [
+        changed_widget.id
+    ]
+    assert [item["id"] for item in action.params["new_layout"]] == [changed_widget.id]
+
+    Widget.objects.filter(id=hidden_widget.id).update(grid_y=8, grid_height=5)
+
+    ActionHandler.undo(
+        user,
+        [ApplicationActionScopeType.value(application_id=dashboard.id)],
+        session_id,
+    )
+
+    changed_widget.refresh_from_db()
+    hidden_widget.refresh_from_db()
+    assert (changed_widget.grid_x, changed_widget.grid_y) == (2, 0)
+    assert (hidden_widget.grid_x, hidden_widget.grid_y) == (4, 8)
+    assert hidden_widget.grid_height == 5
+
+    ActionHandler.redo(
+        user,
+        [ApplicationActionScopeType.value(application_id=dashboard.id)],
+        session_id,
+    )
+
+    changed_widget.refresh_from_db()
+    hidden_widget.refresh_from_db()
+    assert (changed_widget.grid_x, changed_widget.grid_y) == (0, 4)
+    assert (hidden_widget.grid_x, hidden_widget.grid_y) == (4, 8)
+    assert hidden_widget.grid_height == 5
+
+
+@pytest.mark.django_db
+def test_update_layout_action_noop_has_no_write_signal_or_action(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    first_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="First"
+    )
+    second_widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Second"
+    )
+    current_layout = [
+        {
+            "id": widget.id,
+            "grid_x": widget.grid_x,
+            "grid_y": widget.grid_y,
+            "grid_width": widget.grid_width,
+            "grid_height": widget.grid_height,
+        }
+        for widget in (first_widget, second_widget)
+    ]
+
+    with (
+        patch.object(UpdateWidgetLayoutActionType, "register_action") as register_mock,
+        patch(
+            "baserow.contrib.dashboard.widgets.layout.Widget.objects.bulk_update"
+        ) as bulk_update_mock,
+        patch(
+            "baserow.contrib.dashboard.widgets.service.widgets_layout_updated.send"
+        ) as layout_signal_mock,
+    ):
+        updated_layout = UpdateWidgetLayoutActionType.do(
+            user, dashboard.id, current_layout
+        )
+
+    register_mock.assert_not_called()
+    bulk_update_mock.assert_not_called()
+    layout_signal_mock.assert_not_called()
+    assert Action.objects.filter(type=UpdateWidgetLayoutActionType.type).count() == 0
+    assert updated_layout.visible_layout == current_layout
+
+
+@pytest.mark.django_db
 def test_update_widget_layout_action_rolls_back_when_registration_fails(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -337,7 +462,7 @@ def test_delete_widget_action_rolls_back_when_registration_fails(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_grid_create_action_undo_redo_uses_one_layout_snapshot_without_layout_permission(
+def test_grid_create_action_undo_redo_uses_layout_delta_without_layout_permission(
     data_fixture, monkeypatch
 ):
     session_id = "session-id"
@@ -374,7 +499,7 @@ def test_grid_create_action_undo_redo_uses_one_layout_snapshot_without_layout_pe
         )
 
         widget_created_mock.assert_not_called()
-        widget_deleted_mock.assert_not_called()
+        widget_deleted_mock.assert_called_once()
         widgets_layout_updated_mock.assert_called_once()
         assert UpdateWidgetLayoutOperationType.type not in checked_operations
 
@@ -389,7 +514,7 @@ def test_grid_create_action_undo_redo_uses_one_layout_snapshot_without_layout_pe
             session_id,
         )
 
-    widget_created_mock.assert_not_called()
+    widget_created_mock.assert_called_once()
     widget_deleted_mock.assert_not_called()
     widgets_layout_updated_mock.assert_called_once()
     assert UpdateWidgetLayoutOperationType.type not in checked_operations
@@ -397,7 +522,7 @@ def test_grid_create_action_undo_redo_uses_one_layout_snapshot_without_layout_pe
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_grid_delete_action_undo_redo_uses_one_layout_snapshot(data_fixture):
+def test_grid_delete_action_undo_redo_uses_layout_delta(data_fixture):
     session_id = "session-id"
     user = data_fixture.create_user(session_id=session_id)
     dashboard = data_fixture.create_dashboard_application(user=user)
@@ -424,7 +549,7 @@ def test_grid_delete_action_undo_redo_uses_one_layout_snapshot(data_fixture):
             session_id,
         )
 
-        widget_created_mock.assert_not_called()
+        widget_created_mock.assert_called_once()
         widget_deleted_mock.assert_not_called()
         widgets_layout_updated_mock.assert_called_once()
 
@@ -439,7 +564,7 @@ def test_grid_delete_action_undo_redo_uses_one_layout_snapshot(data_fixture):
         )
 
     widget_created_mock.assert_not_called()
-    widget_deleted_mock.assert_not_called()
+    widget_deleted_mock.assert_called_once()
     widgets_layout_updated_mock.assert_called_once()
 
 
