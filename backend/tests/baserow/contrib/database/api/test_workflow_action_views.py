@@ -502,3 +502,43 @@ def test_order_with_an_action_from_another_field(api_client, data_fixture):
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_NOT_IN_FIELD"
+
+
+@pytest.mark.django_db
+def test_create_refuses_a_reference_naming_no_action(api_client, data_fixture):
+    """`get('previous_action')` has nothing to read. The editor already refuses
+    it, and the API has to as well, or the click fails with an internal error
+    rather than a message the clicker can act on."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    button_field = data_fixture.create_button_field(table=table)
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:list",
+            kwargs={"field_id": button_field.id},
+        ),
+        {
+            "type": "local_baserow_create_row",
+            "service": {
+                "table_id": table.id,
+                "field_mappings": [
+                    {
+                        "field_id": name_field.id,
+                        "value": {
+                            "formula": "get('previous_action')",
+                            "mode": "advanced",
+                        },
+                        "enabled": True,
+                    }
+                ],
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert "must name the action to read" in str(response.json())

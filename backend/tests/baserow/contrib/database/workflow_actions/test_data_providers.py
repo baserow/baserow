@@ -17,6 +17,7 @@ from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowCreateRowWorkflowAction,
 )
 from baserow.core.formula.exceptions import InvalidFormulaContext
+from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 
 
 def _create_row_action(data_fixture, user, button_field, table, name_field):
@@ -190,3 +191,29 @@ def test_a_context_with_no_click_raises(data_fixture):
     assert not hasattr(context, "cache")
     with pytest.raises(InvalidFormulaContext):
         provider.get_data_chunk(context, ["1", "id"])
+
+
+@pytest.mark.django_db
+def test_a_path_naming_no_action_raises(chained):
+    """`get('previous_action')` reaches here when it was saved before the API
+    started refusing it. It must fail as a formula error, not as a crash."""
+
+    provider = PreviousActionDataProviderType()
+
+    with pytest.raises(InvalidFormulaContext):
+        provider.get_data_chunk(chained["context"], [])
+
+
+def test_a_path_naming_no_action_is_refused():
+    provider = PreviousActionDataProviderType()
+
+    with pytest.raises(BaserowFormulaSyntaxError):
+        provider.is_valid([])
+
+    assert provider.is_valid(["1", "id"]) is True
+
+
+def test_importing_a_path_naming_no_action_leaves_it_alone():
+    provider = PreviousActionDataProviderType()
+
+    assert provider.import_path([], {"database_workflow_actions": {}}) == []

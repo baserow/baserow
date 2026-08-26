@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from baserow.core.formula.exceptions import InvalidFormulaContext
+from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import get_value_at_path
@@ -59,6 +60,22 @@ class PreviousActionDataProviderType(DataProviderType):
             workflow_action
         )
 
+    def is_valid(self, path: List[str]) -> bool:
+        """
+        Refuses a reference that names no action, since there is nothing to
+        read. Called while the API validates the formula, so it is rejected
+        before it can be saved.
+
+        :param path: The action id, then the path into its result.
+        :raises BaserowFormulaSyntaxError: When the path names no action.
+        """
+
+        if not path:
+            raise BaserowFormulaSyntaxError(
+                "A 'previous_action' reference must name the action to read."
+            )
+        return True
+
     def import_path(
         self, path: List[str], id_mapping: Dict[str, Any], **kwargs
     ) -> List[str]:
@@ -70,6 +87,9 @@ class PreviousActionDataProviderType(DataProviderType):
         :param id_mapping: The mapping built by the import.
         :return: The updated path.
         """
+
+        if not path:
+            return path
 
         from baserow.contrib.database.workflow_actions.handler import (
             DatabaseWorkflowActionHandler,
@@ -104,10 +124,16 @@ class PreviousActionDataProviderType(DataProviderType):
 
         :param dispatch_context: The context this dispatch runs in.
         :param path: The action id, then the path into its result.
-        :raises InvalidFormulaContext: When the action is not one that has
-            already run in this click.
+        :raises InvalidFormulaContext: When the path names no action, or names
+            one that has not already run in this click.
         :return: The value at that path.
         """
+
+        if not path:
+            # Saved before the API refused it.
+            raise InvalidFormulaContext(
+                "A previous action reference must name the action to read."
+            )
 
         action_id, *rest = path
 
