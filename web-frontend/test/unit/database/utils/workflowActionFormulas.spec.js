@@ -104,4 +104,38 @@ describe('workflowActionFormulas', () => {
 
     expect(unresolvedActionIds(payload)).toEqual([])
   })
+  test('a quoted literal that reads like a reference is not one', () => {
+    // The literal begins with the matched token but is an argument to concat,
+    // not to get, so it names no action and must not block a save.
+    const formula = "concat('https://example.com/', 'previous_action.tmp.id')"
+    const payload = { url: { formula, mode: 'advanced' } }
+
+    expect(referencedActionIds(payload)).toEqual([])
+    expect(unresolvedActionIds(payload)).toEqual([])
+    expect(rewriteFormulaActionIds(formula, { tmp: 7 })).toBe(formula)
+  })
+
+  test('a read only formula in the service is not scanned', () => {
+    const payload = {
+      service: {
+        row_id: { formula: "get('previous_action.abc.id')", mode: 'simple' },
+        schema: {
+          properties: {
+            field_1: { formula: "get('previous_action.gone.id')" },
+          },
+        },
+        context_data: { formula: "get('previous_action.stale.id')" },
+      },
+    }
+
+    expect(referencedActionIds(payload)).toEqual(['abc'])
+    expect(unresolvedActionIds(payload)).toEqual(['abc'])
+
+    const rewritten = rewriteActionFormulaIds(payload, { abc: 7, gone: 8 })
+
+    expect(rewritten.service.row_id.formula).toBe("get('previous_action.7.id')")
+    expect(rewritten.service.schema.properties.field_1.formula).toBe(
+      "get('previous_action.gone.id')"
+    )
+  })
 })

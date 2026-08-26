@@ -1,8 +1,17 @@
-// The id segment of `get('previous_action.<id>.field_1')`. A path always opens
-// straight after the quote, so requiring one keeps the match off ordinary text
-// that merely contains the same word, such as a URL ending
-// `/docs/previous_action.html`.
-const PREVIOUS_ACTION_ID = /(['"])previous_action\.([^.'"\s)]+)/g
+// The id segment of `get('previous_action.<id>.field_1')`. Anchored on the
+// `get(` so that only a reference is matched, and not a string that happens to
+// read the same, such as `concat('x', 'previous_action.tmp.id')` or a URL
+// ending `/docs/previous_action.html`.
+const PREVIOUS_ACTION_ID = /(get\(\s*)(['"])previous_action\.([^.'"\s)]+)/g
+
+// Service keys the server owns. Their formulas describe the selected table
+// rather than anything the user typed, so they are neither rewritten nor read
+// as references.
+const READ_ONLY_KEYS = new Set([
+  'schema',
+  'context_data',
+  'context_data_schema',
+])
 
 /**
  * Points a formula's `previous_action` references at the ids the server just
@@ -16,9 +25,9 @@ export function rewriteFormulaActionIds(formula, idMap) {
   if (typeof formula !== 'string' || !formula.includes('previous_action.')) {
     return formula
   }
-  return formula.replace(PREVIOUS_ACTION_ID, (match, quote, id) =>
+  return formula.replace(PREVIOUS_ACTION_ID, (match, prefix, quote, id) =>
     Object.prototype.hasOwnProperty.call(idMap, id)
-      ? `${quote}previous_action.${idMap[id]}`
+      ? `${prefix}${quote}previous_action.${idMap[id]}`
       : match
   )
 }
@@ -41,7 +50,7 @@ export function rewriteActionFormulaIds(value, idMap) {
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [
         key,
-        rewriteActionFormulaIds(item, idMap),
+        READ_ONLY_KEYS.has(key) ? item : rewriteActionFormulaIds(item, idMap),
       ])
     )
   }
@@ -59,11 +68,15 @@ export function referencedActionIds(value, found = new Set()) {
     value.forEach((item) => referencedActionIds(item, found))
   } else if (value !== null && typeof value === 'object') {
     if (typeof value.formula === 'string') {
-      for (const [, , id] of value.formula.matchAll(PREVIOUS_ACTION_ID)) {
+      for (const [, , , id] of value.formula.matchAll(PREVIOUS_ACTION_ID)) {
         found.add(id)
       }
     } else {
-      Object.values(value).forEach((item) => referencedActionIds(item, found))
+      Object.entries(value).forEach(([key, item]) => {
+        if (!READ_ONLY_KEYS.has(key)) {
+          referencedActionIds(item, found)
+        }
+      })
     }
   }
   return [...found]
@@ -81,13 +94,17 @@ export function unresolvedActionIds(value, found = new Set()) {
     value.forEach((item) => unresolvedActionIds(item, found))
   } else if (value !== null && typeof value === 'object') {
     if (typeof value.formula === 'string') {
-      for (const [, , id] of value.formula.matchAll(PREVIOUS_ACTION_ID)) {
+      for (const [, , , id] of value.formula.matchAll(PREVIOUS_ACTION_ID)) {
         if (!/^\d+$/.test(id)) {
           found.add(id)
         }
       }
     } else {
-      Object.values(value).forEach((item) => unresolvedActionIds(item, found))
+      Object.entries(value).forEach(([key, item]) => {
+        if (!READ_ONLY_KEYS.has(key)) {
+          unresolvedActionIds(item, found)
+        }
+      })
     }
   }
   return [...found]
