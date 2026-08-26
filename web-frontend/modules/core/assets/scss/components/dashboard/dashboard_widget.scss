@@ -182,82 +182,25 @@ body.dashboard-widget-grid--resizing * {
     --vgl-item-resizing-z-index: 4;
     --vgl-item-resizing-opacity: 100%;
     --vgl-item-dragging-z-index: 4;
-    --vgl-item-dragging-opacity: 100%;
     --vgl-resizer-size: 20px;
 
-    position: relative;
-    box-sizing: border-box;
     width: calc(100% + var(--grid-gap) + var(--grid-gap));
     top: calc(0px - var(--grid-gap));
     left: calc(0px - var(--grid-gap));
     margin-bottom: calc(0px - var(--grid-gap));
-    transition: height 200ms ease;
   }
 
-  .vgl-item {
-    position: absolute;
-    box-sizing: border-box;
-    z-index: 2;
-    transition: 200ms ease;
-    transition-property: left, top, right;
+  .vgl-item__resizer {
+    color: $palette-neutral-600;
 
-    &--placeholder {
-      z-index: var(--vgl-placeholder-z-index);
-      user-select: none;
-      background-color: var(--vgl-placeholder-bg);
-      opacity: var(--vgl-placeholder-opacity);
-      transition-duration: 100ms;
-    }
-
-    &--no-touch {
-      touch-action: none;
-    }
-
-    &--transform {
-      right: auto;
-      left: 0;
-      transition-property: transform;
-    }
-
-    &--transform.vgl-item--rtl {
-      right: 0;
-      left: auto;
-    }
-
-    &--resizing {
-      z-index: var(--vgl-item-resizing-z-index);
-      user-select: none;
-      opacity: var(--vgl-item-resizing-opacity);
-    }
-
-    &--dragging {
-      z-index: var(--vgl-item-dragging-z-index);
-      user-select: none;
-      opacity: var(--vgl-item-dragging-opacity);
-      transition: none;
-    }
-
-    &__resizer {
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      box-sizing: border-box;
-      width: var(--vgl-resizer-size);
-      height: var(--vgl-resizer-size);
-      color: $palette-neutral-600;
-      cursor: se-resize;
-
-      &::before {
-        position: absolute;
-        right: 2px;
-        bottom: 2px;
-        width: 16px;
-        height: 16px;
-        content: '';
-        background-color: currentcolor;
-        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 14.5L14.5 1.5M6.5 14.5L14.5 6.5M11.5 14.5L14.5 11.5' fill='none' stroke='black' stroke-width='1' stroke-linecap='butt' stroke-linejoin='miter'/%3E%3C/svg%3E")
-          center / contain no-repeat;
-      }
+    &::before {
+      inset: auto 2px 2px auto;
+      width: 16px;
+      height: 16px;
+      border: 0;
+      background-color: currentcolor;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 14.5L14.5 1.5M6.5 14.5L14.5 6.5M11.5 14.5L14.5 11.5' fill='none' stroke='black' stroke-width='1' stroke-linecap='butt' stroke-linejoin='miter'/%3E%3C/svg%3E")
+        center / contain no-repeat;
     }
   }
 
