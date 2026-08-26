@@ -246,4 +246,70 @@ describe('field contexts keep has_workflow_actions in sync', () => {
       true
     )
   })
+
+  /**
+   * Creating the field and saving its actions are two calls, so the second can
+   * fail on a field that exists. Closing on that would discard the whole
+   * configuration the user just typed.
+   */
+  describe('a creation whose actions fail', () => {
+    const createWithFailingActions = async () => {
+      const wrapper = await mountContext(CreateFieldContext, {
+        table,
+        view,
+        allFieldsInTable,
+        database,
+      })
+      client.post.mockResolvedValue({ data: buttonField() })
+      client.patch.mockResolvedValue({ data: buttonField() })
+      // Shaped like an API error, which `notifyIf` turns into a toast rather
+      // than re-throwing.
+      actionSaveError = { handler: { notifyIf: vi.fn() } }
+
+      await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+      await wrapper.emitted('field-created')[0][0].callback()
+      return wrapper
+    }
+
+    test('keeps the editor open on the edits', async () => {
+      const wrapper = await createWithFailingActions()
+
+      expect(wrapper.vm.createdField.id).toBe(7)
+      expect(wrapper.vm.loading).toBe(false)
+      // Without this the form checks its name against the field it just made.
+      expect(wrapper.vm.defaultValues.id).toBe(7)
+      expect(wrapper.emitted('field-created-callback-done')).toBeUndefined()
+      // The field itself did save, so the view still has to hear about it.
+      expect(testApp.store.getters['field/get'](7)).toBeTruthy()
+    })
+
+    test('saves a retry against that field rather than a second one', async () => {
+      const wrapper = await createWithFailingActions()
+      const hide = vi.spyOn(wrapper.vm, 'hide')
+      actionSaveError = null
+
+      await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+
+      expect(client.post).toHaveBeenCalledTimes(1)
+      expect(client.patch).toHaveBeenCalledWith(
+        '/database/fields/7/',
+        expect.objectContaining({ name: 'Go', type: 'button' })
+      )
+      expect(hide).toHaveBeenCalled()
+      expect(wrapper.vm.createdField).toBe(null)
+      expect(wrapper.emitted('field-created-callback-done')).toHaveLength(1)
+    })
+
+    test('reports the field once the retry is abandoned', async () => {
+      const wrapper = await createWithFailingActions()
+
+      wrapper.vm.hide()
+
+      const done = wrapper.emitted('field-created-callback-done')
+      expect(done).toHaveLength(1)
+      expect(done[0][0].newField.id).toBe(7)
+      expect(wrapper.vm.createdField).toBe(null)
+      expect(wrapper.vm.defaultValues.id).toBeUndefined()
+    })
+  })
 })

@@ -4,6 +4,7 @@
     class="field-context"
     max-height-if-outside-viewport
     @shown="onClick"
+    @hidden="onHidden"
   >
     <div class="field-context__content">
       <FieldForm
@@ -87,6 +88,10 @@ export default {
     return {
       loading: false,
       showDescription: false,
+      // The field a failed save left behind, with the group its creation was
+      // part of. A retry saves what is left of it rather than a second field.
+      createdField: null,
+      createdActionGroupId: null,
       defaultValues: {
         name: '',
         type: this.forcedType || '',
@@ -96,6 +101,9 @@ export default {
   },
   methods: {
     async submit(values) {
+      if (this.createdField !== null) {
+        return await this.retry(values)
+      }
       this.loading = true
 
       const type = values.type
@@ -117,10 +125,19 @@ export default {
 
         // The field has an id now, so its actions can be saved. A failure here
         // must not roll the field back, so it is only surfaced.
+        let actionsSaved = true
         try {
           await this.$refs.form.afterFieldSaved(newField.id)
         } catch (error) {
+          actionsSaved = false
           notifyIf(error, 'field')
+        }
+        if (!actionsSaved) {
+          this.createdField = newField
+          this.createdActionGroupId = undoRedoActionGroupId
+          // The form checks its name against the table's fields, which now
+          // include this one, so a retry would clash with itself.
+          this.defaultValues.id = newField.id
         }
         // Read after the save, so it reflects what actually persisted.
         const valuesAfterSave = this.$refs.form.fieldValuesAfterSave()
@@ -135,8 +152,12 @@ export default {
               values: valuesAfterSave,
             })
           }
-          this.createdId = null
           this.loading = false
+          // Closing would discard the edits that did not make it, with only a
+          // toast to say so. The editor stays open on them to be retried.
+          if (!actionsSaved) {
+            return
+          }
           this.$refs.form.reset()
           this.hide()
           this.$emit('field-created-callback-done', {
@@ -152,6 +173,69 @@ export default {
           notifyIf(error, 'field')
         }
       }
+    },
+    /**
+     * Saves what a failed create left behind. The field itself was made, so its
+     * values are patched and the actions saved against it, rather than making a
+     * second field.
+     */
+    async retry(values) {
+      this.loading = true
+      const field = this.createdField
+      const type = values.type
+      delete values.type
+
+      try {
+        // Committed right away: the field is already in the store, so there is
+        // no creation left for the parent to sequence a row refresh against.
+        await this.$store.dispatch('field/update', { field, type, values })
+
+        let actionsSaved = true
+        try {
+          await this.$refs.form.afterFieldSaved(field.id)
+        } catch (error) {
+          actionsSaved = false
+          notifyIf(error, 'field')
+        }
+        // Read after the save, so it reflects what actually persisted.
+        const valuesAfterSave = this.$refs.form.fieldValuesAfterSave()
+        if (valuesAfterSave !== null) {
+          await this.$store.dispatch('field/setItemValues', {
+            id: field.id,
+            values: valuesAfterSave,
+          })
+        }
+        this.loading = false
+        if (!actionsSaved) {
+          return
+        }
+        this.$refs.form.reset()
+        this.hide()
+      } catch (error) {
+        this.loading = false
+        if (!this.$refs.form.handleErrorByForm(error)) {
+          notifyIf(error, 'field')
+        }
+      }
+    },
+    /**
+     * A retry that is abandoned still made a field, so the view is told about
+     * it and the next open starts a new one.
+     */
+    onHidden() {
+      if (this.createdField === null) {
+        return
+      }
+      const newField = this.createdField
+      const undoRedoActionGroupId = this.createdActionGroupId
+      this.createdField = null
+      this.createdActionGroupId = null
+      delete this.defaultValues.id
+      this.$refs.form.reset()
+      this.$emit('field-created-callback-done', {
+        newField,
+        undoRedoActionGroupId,
+      })
     },
     showFieldTypesDropdown(target) {
       this.$refs.form.showFieldTypesDropdown(target)
