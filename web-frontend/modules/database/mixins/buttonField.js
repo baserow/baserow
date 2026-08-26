@@ -82,6 +82,7 @@ export default {
             data: result.data,
             fieldNames: result.field_names || {},
             order: result.order,
+            position: result.position,
           },
         ])
       )
@@ -93,14 +94,23 @@ export default {
      * have refused it.
      */
     resultsBefore(previousActionResults, workflowAction) {
-      const order = workflowAction.order
-      if (order === undefined || order === null) {
+      // Two actions can carry the same `order`, which the dispatch then breaks
+      // by id, so `position` is what really says which ran first. `order` is
+      // the fallback for a backend that sends no position.
+      const byPosition =
+        workflowAction.position !== undefined &&
+        workflowAction.position !== null
+      const place = byPosition ? workflowAction.position : workflowAction.order
+      if (place === undefined || place === null) {
         return previousActionResults
       }
       return Object.fromEntries(
-        Object.entries(previousActionResults).filter(
-          ([, result]) => result.order === undefined || result.order < order
-        )
+        Object.entries(previousActionResults).filter(([, result]) => {
+          const resultPlace = byPosition ? result.position : result.order
+          return resultPlace === undefined || resultPlace === null
+            ? true
+            : resultPlace < place
+        })
       )
     },
     /**

@@ -180,6 +180,51 @@ describe('RowEditFieldButtonField', () => {
     ).toEqual({})
   })
 
+  test('a client action reads a result that shares its order', async () => {
+    // Two actions created at once can be given the same `order`, which the
+    // dispatch then breaks by id. Comparing the orders alone would drop the
+    // earlier result, and the client action would fail on a valid reference.
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const action = {
+      id: 2,
+      order: 1,
+      position: 2,
+      type: 'open_url',
+      url: { formula: "'https://example.com'", mode: 'simple', version: 1 },
+      target: 'self',
+    }
+    client.post.mockResolvedValue({
+      data: {
+        results: [
+          {
+            workflow_action_id: 1,
+            order: 1,
+            position: 1,
+            status: 'completed',
+            data: { id: 99, Name: 'Ada' },
+            field_names: { field_10: 'Name' },
+          },
+        ],
+        client_actions: [action],
+      },
+    })
+    const wrapper = await mountField()
+
+    await wrapper.find('button').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(
+      execute.mock.calls[0][0].applicationContext.previousActionResults
+    ).toEqual({
+      1: {
+        data: { id: 99, Name: 'Ada' },
+        fieldNames: { field_10: 'Name' },
+        order: 1,
+        position: 1,
+      },
+    })
+  })
+
   test('a failed dispatch raises a toast of its own', async () => {
     // A network failure would otherwise be thrown out of an unawaited click
     // handler, and the click would look like it did nothing.

@@ -456,7 +456,11 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 "workflow_action_id": dispatched.workflow_action.id,
                 # The browser only lets a client action read what ran before
                 # it, and it has no other way to tell where an action sat.
+                # `order` is what the action carries; `position` is where it
+                # really ran, which is what two actions sharing an `order` are
+                # told apart by.
                 "order": dispatched.workflow_action.order,
+                "position": dispatch.positions.get(dispatched.workflow_action.id),
                 # Every action runs synchronously inside the request. The field
                 # is here so an async one can report "dispatched" later.
                 "status": "completed",
@@ -470,11 +474,16 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             {
                 "results": results,
                 "client_actions": [
-                    database_workflow_action_type_registry.get_serializer(
-                        workflow_action,
-                        DatabaseWorkflowActionSerializer,
-                        context={"user": request.user},
-                    ).data
+                    {
+                        **database_workflow_action_type_registry.get_serializer(
+                            workflow_action,
+                            DatabaseWorkflowActionSerializer,
+                            context={"user": request.user},
+                        ).data,
+                        # On the same scale as a result's, so the browser can
+                        # tell which results ran before this action.
+                        "position": dispatch.positions.get(workflow_action.id),
+                    }
                     for workflow_action in dispatch.client_actions
                 ],
             }

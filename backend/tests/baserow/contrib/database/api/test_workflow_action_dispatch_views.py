@@ -579,3 +579,40 @@ def test_a_reference_to_a_deleted_field_fails_the_click(api_client, data_fixture
         for created in table.get_model().objects.exclude(id=row.id)
     ]
     assert "aliased value" not in names
+
+
+@pytest.mark.django_db
+def test_actions_sharing_an_order_are_told_apart_by_position(api_client, data_fixture):
+    """Two actions created at once can be given the same `order`, which
+    execution then breaks by id. The browser only lets a client action read
+    what ran before it, so it needs the position rather than the order."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, action = _button_with_create_action(
+        data_fixture, user
+    )
+    open_url = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    open_url.url = "'https://example.com'"
+    open_url.save()
+    # Both at the same order, with the client action second by id.
+    button_field.workflow_actions.update(order=1)
+    assert action.id < open_url.id
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    body = response.json()
+    # The orders are equal, so only the positions say which ran first.
+    assert body["results"][0]["order"] == body["client_actions"][0]["order"]
+    assert body["results"][0]["position"] == 1
+    assert body["client_actions"][0]["position"] == 2

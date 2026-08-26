@@ -248,10 +248,20 @@ class DatabaseWorkflowActionService:
             wa for wa in workflow_actions if not wa.get_type().is_frontend_only
         ]
 
+        # Positions come from the whole list, frontend-only actions included, so
+        # they match what the clicker counts in the editor. Taken from the
+        # execution order rather than from `order`, which two actions can share.
+        positions = {
+            workflow_action.id: index
+            for index, workflow_action in enumerate(workflow_actions, start=1)
+        }
+
         # Nothing server side means no state to protect, so no lock: a button
         # that only opens a URL must not reject a second click.
         if not server_actions:
-            return WorkflowActionsDispatchResult(client_actions=client_actions)
+            return WorkflowActionsDispatchResult(
+                client_actions=client_actions, positions=positions
+            )
 
         # Taken only when the key is absent, so a double click cannot run the
         # sequence twice, and released by a script that checks ownership first,
@@ -266,13 +276,6 @@ class DatabaseWorkflowActionService:
         # that is still running.
         if not lock.acquire(blocking=False):
             raise WorkflowActionDispatchInProgress()
-
-        # Positions come from the whole list, frontend-only actions included, so
-        # they match what the clicker counts in the editor.
-        positions = {
-            workflow_action.id: index
-            for index, workflow_action in enumerate(workflow_actions, start=1)
-        }
 
         try:
             dispatch_context = DatabaseDispatchContext(user, field, row)
@@ -305,7 +308,7 @@ class DatabaseWorkflowActionService:
                         raise
                     dispatched.append(DispatchedWorkflowAction(workflow_action, result))
 
-            return WorkflowActionsDispatchResult(dispatched, client_actions)
+            return WorkflowActionsDispatchResult(dispatched, client_actions, positions)
         finally:
             try:
                 lock.release()
