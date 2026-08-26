@@ -1,3 +1,4 @@
+import re
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from baserow.core.formula.exceptions import InvalidFormulaContext
@@ -7,6 +8,9 @@ from baserow.core.services.types import DispatchResult
 from baserow.core.utils import get_value_at_path
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 from baserow.core.workflow_actions.models import WorkflowAction
+
+# How a path names a field, before the service turns it into the field's name.
+FIELD_SEGMENT = re.compile(r"^field_\d+$")
 
 if TYPE_CHECKING:
     from baserow.contrib.database.workflow_actions.dispatch_context import (
@@ -116,6 +120,26 @@ class PreviousActionDataProviderType(DataProviderType):
 
         return [str(action_id), *rest]
 
+    def _names_a_current_field(self, service_type, service, segment: str) -> bool:
+        """
+        Whether a `field_<id>` segment still names a field of the service's
+        table. Anything that is not a field token, `id` for instance, is left
+        alone.
+
+        :param service_type: The type of the service that returned the result.
+        :param service: The service itself.
+        :param segment: The first segment of the path into the result.
+        :return: Whether the segment can be prepared.
+        """
+
+        if not FIELD_SEGMENT.match(segment):
+            return True
+
+        return any(
+            field_object["field"].db_column == segment
+            for field_object in service_type.get_table_field_objects(service) or []
+        )
+
     def get_data_chunk(
         self, dispatch_context: "DatabaseDispatchContext", path: List[str]
     ) -> Any:
@@ -192,6 +216,14 @@ class PreviousActionDataProviderType(DataProviderType):
             else:
                 prepared_path = rest
             return get_value_at_path(result, prepared_path)
+
+        if not self._names_a_current_field(service_type, service, rest[0]):
+            # A deleted field. `prepare_value_path` leaves its token as it is,
+            # so a field whose name is literally `field_<id>` would otherwise
+            # answer for it.
+            raise InvalidFormulaContext(
+                f'"{rest[0]}" is no longer a field of the previous action\'s table.'
+            )
 
         # Turns `field_<id>` into the field name the result is keyed by, since
         # it was serialized with `user_field_names`.

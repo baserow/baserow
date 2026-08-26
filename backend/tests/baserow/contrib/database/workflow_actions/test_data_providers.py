@@ -217,3 +217,41 @@ def test_importing_a_path_naming_no_action_leaves_it_alone():
     provider = PreviousActionDataProviderType()
 
     assert provider.import_path([], {"database_workflow_actions": {}}) == []
+
+
+@pytest.mark.django_db
+def test_a_deleted_field_does_not_read_one_named_after_it(data_fixture):
+    """
+    A path names a field as `field_<id>`, and the service turns that into the
+    field's name because the result is keyed by names. A field the reference
+    outlived cannot be turned into anything, so a field whose name is literally
+    `field_<id>` would answer for it and the click would write the wrong value.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    # An id no field of this table has, and a field named after it.
+    missing_id = name_field.id + 1000
+    data_fixture.create_text_field(table=table, name=f"field_{missing_id}")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    action = _create_row_action(data_fixture, user, button_field, table, name_field)
+    dispatch_context = DatabaseDispatchContext(user, button_field, row)
+    DatabaseWorkflowActionHandler().dispatch_workflow_action(action, dispatch_context)
+
+    provider = PreviousActionDataProviderType()
+
+    # The result really does carry the colliding key, so nothing but the check
+    # stops it being read.
+    result = dispatch_context.cache[PreviousActionDataProviderType.CACHE_KEY][action.id]
+    assert f"field_{missing_id}" in result
+
+    with pytest.raises(InvalidFormulaContext):
+        provider.get_data_chunk(
+            dispatch_context, [str(action.id), f"field_{missing_id}"]
+        )
