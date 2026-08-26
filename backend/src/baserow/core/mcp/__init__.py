@@ -90,21 +90,30 @@ class BaserowMCPServer:
             return None
 
     async def call_tool(self, name: str, arguments):
-        from mcp.types import TextContent
+        from mcp.types import CallToolResult, TextContent
 
         from baserow.core.mcp.registries import mcp_tool_registry
 
         endpoint = await self.get_endpoint()
         if not endpoint:
-            return [TextContent(type="text", text="Endpoint not found.")]
+            return CallToolResult(
+                content=[TextContent(type="text", text="Endpoint not found.")],
+                isError=True,
+            )
         tool = mcp_tool_registry.match_by_name(name)
         if not tool:
-            return [TextContent(type="text", text=f"Tool '{name}' not found.")]
+            return CallToolResult(
+                content=[TextContent(type="text", text=f"Tool '{name}' not found.")],
+                isError=True,
+            )
         try:
             return await tool.call(endpoint, arguments)
         except Exception as e:
             logger.exception("Unhandled exception in MCP tool '{}'", name)
-            return [TextContent(type="text", text=f"Error: {e}")]
+            return CallToolResult(
+                content=[TextContent(type="text", text=f"Error: {e}")],
+                isError=True,
+            )
 
     async def list_tools(self) -> list["Tool"]:
         from baserow.core.mcp.registries import mcp_tool_registry
