@@ -457,11 +457,62 @@ describe('ButtonFieldActionList', () => {
       await wrapper.vm.onActionTypeChanged(0, 'open_url')
       await wrapper.setProps({ value: lastEmitted(wrapper) })
 
-      // The retyped action has no url of its own yet, hence the first mark.
+      // The retyped action has no url of its own yet, but it is what the user
+      // is working on, so only what its change did to the action after it is
+      // reported.
+      expect(errors(wrapper)).toEqual([
+        'databaseWorkflowActionType.unreadableReference',
+      ])
+
+      wrapper.vm.touch()
+      await wrapper.vm.$nextTick()
+
       expect(errors(wrapper)).toEqual([
         'databaseWorkflowActionType.noUrl',
         'databaseWorkflowActionType.unreadableReference',
       ])
+    })
+
+    test('a newly chosen action is not marked before it is submitted', async () => {
+      const wrapper = await mountList([])
+
+      wrapper.vm.addAction('open_url')
+      await wrapper.setProps({ value: lastEmitted(wrapper) })
+
+      expect(errors(wrapper)).toEqual([])
+      expect(wrapper.text()).not.toContain(
+        'buttonFieldActionList.misconfigured'
+      )
+    })
+
+    test('submitting the field form marks a newly chosen action', async () => {
+      const wrapper = await mountList([])
+      wrapper.vm.addAction('open_url')
+      await wrapper.setProps({ value: lastEmitted(wrapper) })
+
+      wrapper.vm.touch()
+      await wrapper.vm.$nextTick()
+
+      expect(errors(wrapper)).toEqual(['databaseWorkflowActionType.noUrl'])
+      expect(wrapper.text()).toContain('buttonFieldActionList.misconfigured')
+    })
+
+    test('adding another action marks the one before it', async () => {
+      const wrapper = await mountList([])
+      wrapper.vm.addAction('open_url')
+      await wrapper.setProps({ value: lastEmitted(wrapper) })
+
+      wrapper.vm.addAction('open_url')
+      await wrapper.setProps({ value: lastEmitted(wrapper) })
+
+      // The first is marked, the one just added is not.
+      expect(errors(wrapper)).toEqual(['databaseWorkflowActionType.noUrl'])
+    })
+
+    test('an action the editor loaded is marked straight away', async () => {
+      const wrapper = await mountList([OPEN_URL({ url: null })])
+
+      expect(errors(wrapper)).toEqual(['databaseWorkflowActionType.noUrl'])
     })
   })
 })

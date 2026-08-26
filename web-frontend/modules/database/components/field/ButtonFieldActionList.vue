@@ -151,6 +151,9 @@ export default {
       // action added here opens itself; everything the editor loaded starts
       // closed, the way the builder's event list does.
       expandedActions: {},
+      // Actions whose type was just picked, so their error is held back until
+      // the form is touched. What the editor loaded is never held back.
+      pristineActions: {},
     }
   },
   computed: {
@@ -158,7 +161,7 @@ export default {
       return this.$registry.getOrderedList('databaseWorkflowActionType')
     },
     misconfigured() {
-      return Object.values(this.errorsByAction).some((error) => error)
+      return this.value.some((action) => this.errorFor(action))
     },
     /**
      * A warning rather than a validation gate: a half configured action is a
@@ -190,7 +193,18 @@ export default {
       return workflowActionKey(action)
     },
     errorFor(action) {
-      return this.errorsByAction[workflowActionKey(action)] ?? null
+      const key = workflowActionKey(action)
+      if (this.pristineActions[key]) {
+        return null
+      }
+      return this.errorsByAction[key] ?? null
+    },
+    revealErrors() {
+      this.pristineActions = {}
+    },
+    /** The list is not a form, so the sub-form touches it by hand. */
+    touch() {
+      this.revealErrors()
     },
     /**
      * An action with no type yet has nothing to show, so it stays shut
@@ -215,7 +229,12 @@ export default {
      * No type until the user picks one, and no `id` until the field is saved.
      */
     addAction(type = null) {
+      // What came before is no longer what the user is working on.
+      this.revealErrors()
       const action = this.newAction(type)
+      if (type !== null) {
+        this.pristineActions = { [workflowActionKey(action)]: true }
+      }
       // Open straight away, and only this one: building a chain otherwise
       // leaves every card of it open and the editor grows past the screen.
       this.expandedActions = { [workflowActionKey(action)]: true }
@@ -249,6 +268,11 @@ export default {
       }
       if (action[CLIENT_ID_KEY] != null) {
         replacement[CLIENT_ID_KEY] = action[CLIENT_ID_KEY]
+      }
+      // A retyped action is configured after the fact, like a new one.
+      this.pristineActions = {
+        ...this.pristineActions,
+        [workflowActionKey(replacement)]: true,
       }
       this.$emit(
         'input',

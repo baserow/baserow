@@ -18,6 +18,7 @@
     <div v-if="loadingActions" class="loading-spinner margin-top-2"></div>
     <ButtonFieldActionList
       v-else
+      ref="actionList"
       :value="localActions"
       :database="database"
       @input="localActions = $event"
@@ -125,6 +126,11 @@ export default {
     }
   },
   methods: {
+    /** The action list is outside the form chain, so touch it here too. */
+    touch(deep = false) {
+      form.methods.touch.call(this, deep)
+      this.$refs.actionList?.touch()
+    },
     registerTableFields(tableId, fields) {
       this.tableFields = { ...this.tableFields, [tableId]: fields }
     },
