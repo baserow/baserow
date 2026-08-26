@@ -116,4 +116,10 @@ class WidgetLayoutItemSerializer(serializers.Serializer):
 
 
 class UpdateWidgetLayoutSerializer(serializers.Serializer):
-    widgets = WidgetLayoutItemSerializer(many=True)
+    widgets = WidgetLayoutItemSerializer(
+        many=True,
+        help_text=(
+            "The complete layout of the dashboard widgets visible to the current "
+            "user. It is vertically compacted before being persisted."
+        ),
+    )
