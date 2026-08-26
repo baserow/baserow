@@ -3,6 +3,7 @@
     <component
       :is="chartComponent"
       id="chart-id"
+      :key="chartComponent"
       ref="chart"
       :options="chartOptions"
       :data="chartData"
@@ -298,6 +299,11 @@ export default {
         this.observeChartContainer()
       })
     },
+    chartComponent() {
+      this.$nextTick(() => {
+        this.resizeChart()
+      })
+    },
   },
   mounted() {
     this.observeChartContainer()
@@ -309,6 +315,7 @@ export default {
     return {
       chartResizeObserver: null,
       observedChartContainer: null,
+      chartSize: null,
     }
   },
   methods: {
@@ -328,9 +335,18 @@ export default {
 
       this.chartResizeObserver = new ResizeObserver(([entry]) => {
         const { width, height } = entry.contentRect
-        this.$refs.chart?.chart?.resize(width, height)
+        this.chartSize = { width, height }
+        this.resizeChart()
       })
       this.chartResizeObserver.observe(chartContainer)
+    },
+    resizeChart() {
+      if (!this.chartSize) {
+        return
+      }
+
+      const { width, height } = this.chartSize
+      this.$refs.chart?.chart?.resize(width, height)
     },
     chartColorsSeriesOrValues(seriesIndex) {
       if (this.colorSeries) {
