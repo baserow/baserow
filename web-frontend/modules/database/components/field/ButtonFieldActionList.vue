@@ -159,9 +159,9 @@ export default {
   emits: ['input'],
   data() {
     return {
-      // Which cards are open, keyed the same way the list keys its rows. An
-      // action added here opens itself; everything the editor loaded starts
-      // closed, the way the builder's event list does.
+      // The card that is open, keyed the way the list keys its rows. One at a
+      // time: an action added here opens itself, and everything the editor
+      // loaded starts closed, the way the builder's event list does.
       expandedActions: {},
       // Actions whose type was just picked, so their error is held back until
       // the form is touched. What the editor loaded is never held back.

@@ -272,11 +272,13 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
   }
 
   /**
-   * Resolves the action's URL formula for the clicked row.
+   * Resolves the action's URL formula against the clicked row and what the
+   * actions before it returned.
    *
    * `fields` stringifies every value, which is what a URL needs; `row` returns
-   * raw types and is for action arguments (ADR 006 section 4). A resolution
-   * failure comes back as an empty string.
+   * raw types and is for action arguments (ADR 006 section 4). A formula that
+   * resolves to nothing comes back as an empty string; one that throws is left
+   * to `execute`, which reports it.
    */
   resolveUrl(workflowAction, { row, fields, previousActionResults = {} }) {
     const formulaObject = workflowAction.url

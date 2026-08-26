@@ -535,7 +535,9 @@ def test_duplicate_table_keeps_a_formula_naming_an_unknown_data_provider(data_fi
         integration=None, table=table
     )
     service.field_mappings.create(
-        field=copy_field, value="get('previous_action.1.value')", enabled=True
+        field=copy_field,
+        value="get('a_provider_from_the_future.1.value')",
+        enabled=True,
     )
     data_fixture.create_database_workflow_action(
         LocalBaserowCreateRowWorkflowAction, field=button_field, service=service
@@ -548,7 +550,7 @@ def test_duplicate_table_keeps_a_formula_naming_an_unknown_data_provider(data_fi
         service_id=action.specific.service_id
     )
 
-    assert mapping.value["formula"] == "get('previous_action.1.value')"
+    assert mapping.value["formula"] == "get('a_provider_from_the_future.1.value')"
 
 
 @pytest.mark.django_db(transaction=True)
