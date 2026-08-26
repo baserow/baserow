@@ -672,6 +672,18 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     class SerializedDict(CollectionElementTypeMixin.SerializedDict):
         fields: List[Dict]
 
+    def get_event_names(self, instance: CollectionElementSubClass) -> List[str]:
+        """
+        The events of an element with fields are the events of its collection
+        fields, prefixed with the field's uid.
+        """
+
+        return [
+            f"{field.uid}_{event_name}"
+            for field in instance.fields.all()
+            for event_name in collection_field_type_registry.get(field.type).event_names
+        ]
+
     def serialize_property(
         self,
         element: CollectionElementSubClass,

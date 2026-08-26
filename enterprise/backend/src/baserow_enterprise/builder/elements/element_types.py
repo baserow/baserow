@@ -1,5 +1,5 @@
 import mimetypes
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from django.utils.translation import gettext_lazy as _
 
@@ -10,6 +10,7 @@ from baserow.contrib.builder.elements.element_types import InputElementType
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
+from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_SIMPLE,
@@ -38,6 +39,9 @@ class AuthFormElementType(ElementType):
     class SerializedDict(ElementDict):
         user_source_id: int
         login_button_label: BaserowFormula
+
+    def get_event_names(self, instance: AuthFormElement) -> List[str]:
+        return [EventTypes.AFTER_LOGIN.value]
 
     @property
     def serializer_field_overrides(self):

@@ -6,9 +6,17 @@ from django.core.files.storage import Storage
 
 from rest_framework.exceptions import PermissionDenied
 
+from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.exceptions import (
+    InvalidWorkflowActionEvent,
+)
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    EventTypes,
+)
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -57,7 +65,35 @@ class BuilderWorkflowActionType(
         if "element_id" in values:
             values["element"] = ElementHandler().get_element(values["element_id"])
 
+        if "event" in values:
+            element = values.get("element", instance.element if instance else None)
+            self.validate_event(values["event"], element)
+
         return super().prepare_values(values, user, instance)
+
+    def validate_event(self, event: str, element: Optional[Element]) -> None:
+        """
+        Ensures that the given event is one the element can fire. Every element
+        type declares its events in `ElementType.get_event_names()`. Workflow
+        actions which aren't attached to an element can only use the static
+        `EventTypes`.
+
+        :param event: The event to validate.
+        :param element: The element the workflow action is attached to, if any.
+        :raises InvalidWorkflowActionEvent: If the event can never be fired.
+        """
+
+        element_type_name = None
+        if element is None:
+            valid_events = [e.value for e in EventTypes]
+        else:
+            element = element.specific
+            element_type = element_type_registry.get_by_model(element.specific_class)
+            element_type_name = element_type.type
+            valid_events = element_type.get_event_names(element)
+
+        if event not in valid_events:
+            raise InvalidWorkflowActionEvent(event, valid_events, element_type_name)
 
     def create_instance_from_serialized(
         self,
@@ -83,10 +119,18 @@ class BuilderWorkflowActionType(
         :return: The new workflow action instance.
         """
 
-        if BuilderWorkflowAction.is_dynamic_event(serialized_values["event"]):
-            exported_uid, exported_event = serialized_values["event"].split("_", 1)
-            imported_uid = id_mapping["builder_element_event_uids"][exported_uid]
-            serialized_values["event"] = f"{imported_uid}_{exported_event}"
+        event = serialized_values["event"]
+        if BuilderWorkflowAction.is_dynamic_event(event):
+            # Dynamic events have the shape `<uid>_<event>`, where `<uid>` is the
+            # uid of a collection field / menu item that was regenerated during
+            # the import. Values which do not follow that shape, or whose uid is
+            # unknown, are kept untouched: such an action can never be fired, but
+            # it must not prevent the whole application from being imported.
+            exported_uid, separator, exported_event = event.partition("_")
+            uid_mapping = id_mapping.get("builder_element_event_uids", {})
+            if separator and exported_uid in uid_mapping:
+                imported_uid = uid_mapping[exported_uid]
+                serialized_values["event"] = f"{imported_uid}_{exported_event}"
 
         return super().create_instance_from_serialized(
             serialized_values, id_mapping, files_zip, storage, cache

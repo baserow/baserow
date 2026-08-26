@@ -32,6 +32,7 @@ from baserow.contrib.builder.api.elements.errors import ERROR_ELEMENT_DOES_NOT_E
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
 from baserow.contrib.builder.api.workflow_actions.errors import (
     ERROR_DATA_DOES_NOT_EXIST,
+    ERROR_INVALID_WORKFLOW_ACTION_EVENT,
     ERROR_WORKFLOW_ACTION_CANNOT_BE_DISPATCHED,
     ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
     ERROR_WORKFLOW_ACTION_NOT_IN_ELEMENT,
@@ -52,6 +53,7 @@ from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.workflow_actions.exceptions import (
     BuilderWorkflowActionCannotBeDispatched,
+    InvalidWorkflowActionEvent,
     WorkflowActionNotInElement,
 )
 from baserow.contrib.builder.workflow_actions.handler import (
@@ -110,6 +112,7 @@ class BuilderWorkflowActionsView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INVALID_WORKFLOW_ACTION_EVENT",
                 ]
             ),
             404: get_error_schema(["ERROR_PAGE_DOES_NOT_EXIST"]),
@@ -120,6 +123,7 @@ class BuilderWorkflowActionsView(APIView):
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
+            InvalidWorkflowActionEvent: ERROR_INVALID_WORKFLOW_ACTION_EVENT,
         }
     )
     @validate_body_custom_fields(
@@ -258,6 +262,7 @@ class BuilderWorkflowActionView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INVALID_WORKFLOW_ACTION_EVENT",
                 ]
             ),
             404: get_error_schema(
@@ -271,6 +276,7 @@ class BuilderWorkflowActionView(APIView):
     @map_exceptions(
         {
             WorkflowActionDoesNotExist: ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
+            InvalidWorkflowActionEvent: ERROR_INVALID_WORKFLOW_ACTION_EVENT,
         }
     )
     @require_request_data_type(dict)

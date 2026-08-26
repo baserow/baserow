@@ -1,3 +1,4 @@
+import uuid
 from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
@@ -371,3 +372,67 @@ def test_workflow_action_type_deserialize_property_with_stale_page_id():
 
     result = action_type.deserialize_property("navigate_to_page_id", 100, id_mapping)
     assert result is None
+
+
+@pytest.mark.django_db
+def test_import_workflow_action_remaps_dynamic_event_uid(data_fixture):
+    page = data_fixture.create_builder_page()
+    button_1 = data_fixture.create_builder_button_element(page=page)
+    button_2 = data_fixture.create_builder_button_element(page=page)
+    exported_uid, imported_uid = str(uuid.uuid4()), str(uuid.uuid4())
+    workflow_action_type = NotificationWorkflowActionType()
+
+    exported_workflow_action = data_fixture.create_notification_workflow_action(
+        page=page, element=button_1, event=f"{exported_uid}_click"
+    )
+    serialized = workflow_action_type.export_serialized(exported_workflow_action)
+
+    id_mapping = {
+        "builder_page_elements": {button_1.id: button_2.id},
+        "builder_element_event_uids": {exported_uid: imported_uid},
+    }
+    imported_workflow_action = workflow_action_type.import_serialized(
+        page, serialized, id_mapping
+    )
+
+    assert imported_workflow_action.event == f"{imported_uid}_click"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "event",
+    [
+        # No `<uid>_<event>` shape at all.
+        "hover",
+        # Has an underscore, but the prefix is not a known uid.
+        "button_click",
+        # Looks like a dynamic event, but the uid is unknown (e.g. stale).
+        "f1594a0a-3ff0-4c8c-a175-992039b11411_click",
+    ],
+)
+def test_import_workflow_action_keeps_unknown_dynamic_event(data_fixture, event):
+    """
+    A workflow action whose event can't be mapped must not break the import of
+    the whole application (publish, duplicate, export/import). The value is kept
+    as-is; such an action simply never fires.
+    """
+
+    page = data_fixture.create_builder_page()
+    button_1 = data_fixture.create_builder_button_element(page=page)
+    button_2 = data_fixture.create_builder_button_element(page=page)
+    workflow_action_type = NotificationWorkflowActionType()
+
+    exported_workflow_action = data_fixture.create_notification_workflow_action(
+        page=page, element=button_1, event=event
+    )
+    serialized = workflow_action_type.export_serialized(exported_workflow_action)
+
+    id_mapping = {
+        "builder_page_elements": {button_1.id: button_2.id},
+        "builder_element_event_uids": {},
+    }
+    imported_workflow_action = workflow_action_type.import_serialized(
+        page, serialized, id_mapping
+    )
+
+    assert imported_workflow_action.event == event

@@ -90,6 +90,19 @@ class ElementType(
 
         return False
 
+    def get_event_names(self, instance: ElementSubClass) -> List[str]:
+        """
+        Returns the names of the events the given element can fire, which are the
+        only `event` values a workflow action attached to it may use. This mirrors
+        the `getEvents()` method of the frontend element types. By default an
+        element cannot fire any event.
+
+        :param instance: The (specific) element instance.
+        :return: The list of valid event names for this element.
+        """
+
+        return []
+
     def prepare_value_for_db(self, values: Dict, instance: Optional[Element] = None):
         """
         This function allows you to hook into the moment an element is created or
@@ -548,6 +561,10 @@ class CollectionFieldType(
     SerializedDict: TypedDict
 
     model_class = CollectionField
+
+    # The events a collection field of this type can fire. They are exposed on the
+    # collection element as `<field uid>_<event name>` workflow action events.
+    event_names: List[str] = []
 
     def serialize_property(self, config: Dict[str, Any], prop_name: str):
         return config[prop_name]

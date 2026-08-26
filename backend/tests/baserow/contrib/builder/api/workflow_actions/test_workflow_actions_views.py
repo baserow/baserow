@@ -1,4 +1,5 @@
 import json
+import uuid
 from unittest.mock import patch
 
 from django.db import transaction
@@ -15,7 +16,10 @@ from rest_framework.status import (
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
-from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    EventTypes,
+)
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     CreateRowWorkflowActionType,
     DeleteRowWorkflowActionType,
@@ -90,23 +94,71 @@ def test_create_workflow_action_element_does_not_exist(api_client, data_fixture)
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
-@pytest.mark.django_db(transaction=True)
-def test_create_workflow_action_event_does_not_exist(api_client, data_fixture):
+@pytest.mark.django_db
+@pytest.mark.parametrize("event", ["invalid", "hover", "button_click", "submit"])
+def test_create_workflow_action_invalid_event(api_client, data_fixture, event):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
     workflow_action_type = NotificationWorkflowActionType.type
 
     url = reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id})
     response = api_client.post(
         url,
-        {"type": workflow_action_type, "event": "invalid"},
+        {"type": workflow_action_type, "event": event, "element_id": element.id},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    # NOTE: Event names are no longer bound to a list of choices, so
-    #       the API will not raise a 400 Bad Request error
-    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_INVALID_WORKFLOW_ACTION_EVENT"
+    assert response_json["detail"] == (
+        "The event is not valid for the element the workflow action is attached to."
+    )
+    assert BuilderWorkflowAction.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_create_workflow_action_with_dynamic_event(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[{"name": "Button", "type": "button", "config": {"label": "'go'"}}],
+    )
+    button_field = table.fields.get(name="Button")
+    workflow_action_type = NotificationWorkflowActionType.type
+
+    url = reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": workflow_action_type,
+            "event": f"{button_field.uid}_click",
+            "element_id": table.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["event"] == f"{button_field.uid}_click"
+
+    # A uid which doesn't belong to one of the table's button fields is rejected.
+    response = api_client.post(
+        url,
+        {
+            "type": workflow_action_type,
+            "event": f"{uuid.uuid4()}_click",
+            "element_id": table.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_INVALID_WORKFLOW_ACTION_EVENT"
 
 
 @pytest.mark.django_db

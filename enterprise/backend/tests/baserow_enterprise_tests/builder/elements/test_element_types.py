@@ -299,3 +299,13 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
             "visible_name": "image_1.png",
         },
     ]
+
+
+@pytest.mark.django_db
+def test_auth_form_element_get_event_names(data_fixture):
+    page = data_fixture.create_builder_page()
+    auth_form = data_fixture.create_builder_element(AuthFormElementType, page=page)
+
+    assert AuthFormElementType().get_event_names(auth_form) == [
+        EventTypes.AFTER_LOGIN.value
+    ]

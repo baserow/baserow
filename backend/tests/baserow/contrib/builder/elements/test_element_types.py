@@ -1,4 +1,5 @@
 import json
+import uuid
 from collections import defaultdict
 from io import BytesIO
 from tempfile import tempdir
@@ -1625,3 +1626,42 @@ def test_element_type_has_display_name(element_type):
     assert element_type.display_name != _("Unnamed node"), (
         f"{type(element_type).__name__}.display_name is still the default 'Unnamed node'"
     )
+
+
+@pytest.mark.django_db
+def test_element_type_get_event_names(data_fixture):
+    page = data_fixture.create_builder_page()
+    heading = data_fixture.create_builder_heading_element(page=page)
+    button = data_fixture.create_builder_button_element(page=page)
+    form = data_fixture.create_builder_form_container_element(page=page)
+    table = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[
+            {"name": "Text", "type": "text", "config": {"value": "'a'"}},
+            {"name": "Button", "type": "button", "config": {"label": "'b'"}},
+        ],
+    )
+    button_field = table.fields.get(name="Button")
+    button_item_uid, link_item_uid = uuid.uuid4(), uuid.uuid4()
+    menu = data_fixture.create_builder_menu_element_items(
+        page=page,
+        menu_items=[
+            {
+                "variant": "button",
+                "type": "button",
+                "uid": button_item_uid,
+                "name": "Button",
+            },
+            {"variant": "link", "type": "link", "uid": link_item_uid, "name": "Link"},
+        ],
+    )
+
+    def get_event_names(element):
+        element_type = element_type_registry.get_by_model(element.specific_class)
+        return element_type.get_event_names(element)
+
+    assert get_event_names(heading) == []
+    assert get_event_names(button) == ["click"]
+    assert get_event_names(form) == ["submit"]
+    assert get_event_names(table) == [f"{button_field.uid}_click"]
+    assert get_event_names(menu) == [f"{button_item_uid}_click"]

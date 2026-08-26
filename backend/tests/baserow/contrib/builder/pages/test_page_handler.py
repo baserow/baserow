@@ -21,6 +21,7 @@ from baserow.contrib.builder.pages.exceptions import (
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
@@ -603,3 +604,20 @@ def test_is_published_application_page(data_fixture):
 
     assert not PageHandler()._is_published_application_page(page.id)
     assert PageHandler()._is_published_application_page(published_page.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("event", ["hover", "button_click"])
+def test_duplicate_page_with_invalid_workflow_action_event(data_fixture, event):
+    page = data_fixture.create_builder_page()
+    button = data_fixture.create_builder_button_element(page=page)
+    data_fixture.create_notification_workflow_action(
+        page=page, element=button, event=event
+    )
+
+    page_clone = PageHandler().duplicate_page(page)
+
+    duplicated_events = BuilderWorkflowAction.objects.filter(
+        page=page_clone
+    ).values_list("event", flat=True)
+    assert list(duplicated_events) == [event]

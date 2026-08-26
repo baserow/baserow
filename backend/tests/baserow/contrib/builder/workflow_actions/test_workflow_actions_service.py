@@ -1,3 +1,5 @@
+import uuid
+
 from django.http import HttpRequest
 
 import pytest
@@ -7,6 +9,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 )
 from baserow.contrib.builder.workflow_actions.exceptions import (
     BuilderWorkflowActionCannotBeDispatched,
+    InvalidWorkflowActionEvent,
 )
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
@@ -341,3 +344,88 @@ def test_dispatch_workflow_action_no_permissions(data_fixture):
         BuilderWorkflowActionService().dispatch_action(
             user, workflow_action, dispatch_context
         )
+
+
+@pytest.mark.django_db
+def test_create_workflow_action_with_invalid_event(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action_type = NotificationWorkflowActionType()
+
+    with pytest.raises(InvalidWorkflowActionEvent) as exc_info:
+        BuilderWorkflowActionService().create_workflow_action(
+            user, workflow_action_type, page=page, element=element, event="hover"
+        )
+
+    assert str(exc_info.value) == (
+        "The event 'hover' is not valid for the button element. Valid events: click."
+    )
+    assert BuilderWorkflowAction.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_create_workflow_action_with_dynamic_event(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[{"name": "Button", "type": "button", "config": {"label": "'go'"}}],
+    )
+    button_field = table.fields.get(name="Button")
+    workflow_action_type = NotificationWorkflowActionType()
+
+    workflow_action = BuilderWorkflowActionService().create_workflow_action(
+        user,
+        workflow_action_type,
+        page=page,
+        element=table,
+        event=f"{button_field.uid}_click",
+    )
+    assert workflow_action.event == f"{button_field.uid}_click"
+
+    with pytest.raises(InvalidWorkflowActionEvent):
+        BuilderWorkflowActionService().create_workflow_action(
+            user,
+            workflow_action_type,
+            page=page,
+            element=table,
+            event=f"{uuid.uuid4()}_click",
+        )
+
+
+@pytest.mark.django_db
+def test_create_workflow_action_without_element_only_accepts_static_events(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    workflow_action_type = NotificationWorkflowActionType()
+
+    workflow_action = BuilderWorkflowActionService().create_workflow_action(
+        user, workflow_action_type, page=page, event=EventTypes.CLICK
+    )
+    assert workflow_action.element is None
+
+    with pytest.raises(InvalidWorkflowActionEvent):
+        BuilderWorkflowActionService().create_workflow_action(
+            user, workflow_action_type, page=page, event="hover"
+        )
+
+
+@pytest.mark.django_db
+def test_update_workflow_action_with_invalid_event(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_notification_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK
+    )
+
+    with pytest.raises(InvalidWorkflowActionEvent):
+        BuilderWorkflowActionService().update_workflow_action(
+            user, workflow_action, event=EventTypes.SUBMIT
+        )
+
+    workflow_action.refresh_from_db()
+    assert workflow_action.event == EventTypes.CLICK
