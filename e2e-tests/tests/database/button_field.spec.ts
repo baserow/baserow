@@ -1530,6 +1530,75 @@ test.describe("Button field", () => {
     await expect(fieldHeader(page, "Made")).toHaveCount(0);
   });
 
+  test("a new field whose actions fail keeps its editor open for a retry", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    // The field is created before its actions can be, so failing the first
+    // action create leaves a field behind with nothing on it.
+    let failed = false;
+    await page.route(/\/database\/field\/\d+\/workflow_actions\/$/, (route) => {
+      if (route.request().method() !== "POST" || failed) {
+        return route.continue();
+      }
+      failed = true;
+      return route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "ERROR_TEST", detail: "boom" }),
+      });
+    });
+
+    await page.locator(".grid-view__add-column").click();
+    const context = page.locator(".field-context:visible");
+    await context.getByPlaceholder("Name").fill("Retried");
+    await context.locator(".dropdown").first().click();
+    await page
+      .locator(".dropdown__items:visible")
+      .locator(".select__item-link", { hasText: "Button" })
+      .click();
+    await context.getByPlaceholder("Open").fill("Go");
+    await addAction(page, "Open URL");
+
+    await context.locator("button", { hasText: "Create" }).click();
+    await expect(page.locator(".toast")).toBeVisible();
+
+    // Closing here would drop the configuration with only a toast to say so.
+    await expect(context).toBeVisible();
+    await expect(context.getByPlaceholder("Name")).toHaveValue("Retried");
+    await expect(
+      page.locator(".button-field-action-list .button-field-action-list__item"),
+    ).toHaveCount(1);
+    await expect(fieldHeader(page, "Retried")).toBeVisible();
+
+    await context.locator("button", { hasText: "Create" }).click();
+    await expect(context).toBeHidden();
+
+    await expect(async () => {
+      const made = (await getFieldsForTable(g.user, g.table)).filter(
+        (field) => field.name === "Retried",
+      );
+      // The retry saved against the field that was made, not a second one.
+      expect(made).toHaveLength(1);
+      expect(
+        (await listWorkflowActions(g.user, made[0])).map(
+          (action) => action.type,
+        ),
+      ).toEqual(["open_url"]);
+    }).toPass({ timeout: 15_000 });
+
+    // Put the table back, since the rest of the suite counts on its columns.
+    await fieldHeader(page, "Retried")
+      .locator(".grid-view__description-icon-trigger")
+      .click();
+    await page
+      .locator(".context__menu-item-link", { hasText: "Delete field" })
+      .click();
+    await expect(fieldHeader(page, "Retried")).toHaveCount(0);
+  });
+
   // Phase 3: an action reading what an earlier one returned.
 
   test("a later action uses the row an earlier one created", async ({
