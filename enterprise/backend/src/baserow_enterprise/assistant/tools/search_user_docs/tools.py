@@ -170,7 +170,11 @@ async def _search_user_docs_impl(
 ) -> dict[str, Any]:
     """Inner implementation of search_user_docs, separated for error handling."""
 
-    from baserow_enterprise.assistant.model_profiles import get_model_string
+    from baserow_enterprise.assistant.model_profiles import (
+        SUBAGENT,
+        get_model_settings,
+        get_model_string,
+    )
     from baserow_enterprise.assistant.retrying_model import _resolve_model
 
     @sync_to_async
@@ -202,8 +206,11 @@ async def _search_user_docs_impl(
         f"Documentation context (source URL -> content):\n{context}"
     )
 
+    model_string = get_model_string()
     agent_result = await search_docs_agent.run(
-        prompt, model=_resolve_model(get_model_string())
+        prompt,
+        model=_resolve_model(model_string),
+        model_settings=get_model_settings(model_string, SUBAGENT),
     )
     prediction = agent_result.output
 

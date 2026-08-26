@@ -118,7 +118,7 @@
       overflow-wrap: anywhere;
     }
     .run-panel label { display: block; margin: 0 0 0.8rem; font-size: 0.85rem; color: var(--muted); }
-    .run-panel input[type="text"], .run-panel input[type="number"], .run-panel select {
+    .run-panel input[type="text"], .run-panel input[type="number"], .run-panel select, .run-panel textarea {
       display: block;
       width: 100%;
       margin-top: 0.2rem;
@@ -128,6 +128,8 @@
       font-size: 0.9rem;
       color: #1c1f23;
     }
+    .run-panel textarea { font-family: inherit; resize: vertical; box-sizing: border-box; }
+    .run-panel label[hidden] { display: none; }
     .run-panel button[type="submit"] {
       width: 100%;
       padding: 0.55rem;
@@ -156,6 +158,77 @@
     .status-done { color: var(--ok); font-weight: 600; }
     .status-failed { color: var(--bad); font-weight: 600; }
     .status-running, .status-queued { color: var(--warn); font-weight: 600; }
+    .status-stopped { color: var(--muted); font-weight: 600; }
+    .experiment-note { display: block; color: var(--muted); font-size: 0.75rem; }
+    .run-progress { color: var(--muted); font-weight: 400; }
+    tr[data-run-id] { cursor: pointer; }
+    tr[data-run-id]:hover > td { background: #f7f8fa; }
+    tr[data-run-id] > td[data-col="dataset"]::before {
+      content: "\25b8";
+      display: inline-block;
+      width: 0.9em;
+      margin-left: -0.25rem;
+      color: var(--border);
+      transition: transform 0.12s ease;
+    }
+    tr[data-run-id].is-expanded > td {
+      background: var(--accent-soft);
+      border-bottom-color: transparent;
+    }
+    tr[data-run-id].is-expanded > td[data-col="dataset"]::before {
+      transform: rotate(90deg);
+      color: var(--accent);
+    }
+    tr.run-log-row > td { background: var(--accent-soft); padding: 0 0.7rem 0.7rem; }
+    .run-log {
+      /* ~30 lines at 0.75rem/1.5, then scroll. */
+      max-height: 34rem;
+      overflow: auto;
+      scrollbar-gutter: stable;
+      padding: 0.5rem 0.7rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 5px;
+      background: #fff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
+    .run-log--empty { color: var(--muted); font-style: italic; }
+    .log-line { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .log-line--cont { color: var(--muted); padding-left: 1.5rem; }
+    .log-time { color: var(--muted); }
+    .log-level { display: inline-block; min-width: 4.5rem; padding-right: 0.5rem; font-weight: 600; }
+    .log-level--warning { color: var(--warn); }
+    .log-level--error, .log-level--critical { color: var(--bad); }
+    .log-verdict--pass { color: var(--ok); font-weight: 600; }
+    .log-verdict--fail { color: var(--bad); font-weight: 600; }
+    #stop-runs, .stop-run {
+      font: inherit;
+      border: 1px solid var(--bad);
+      border-radius: 5px;
+      background: #fff;
+      color: var(--bad);
+      cursor: pointer;
+    }
+    #stop-runs { float: right; font-size: 0.8rem; padding: 0.25rem 0.7rem; }
+    #stop-hint {
+      float: right;
+      margin: 0.3rem 0.7rem 0 0;
+      font-size: 0.8rem;
+      font-weight: 400;
+      color: var(--muted);
+    }
+    #stop-hint[hidden] { display: none; }
+    .stop-run { font-size: 0.75rem; padding: 0.1rem 0.5rem; }
+    #stop-runs:hover:enabled, .stop-run:hover:enabled { background: #fdf0ef; }
+    #stop-runs:disabled, .stop-run:disabled {
+      opacity: 0.45;
+      cursor: default;
+      border-color: var(--border);
+      color: var(--muted);
+    }
+    #stop-runs[hidden] { display: none; }
     .run-panel button[type="submit"]:disabled { opacity: 0.5; cursor: default; }
     .ui-cases-head {
       margin: 0.4rem 0.9rem 0;
@@ -326,14 +399,15 @@
         <aside class="panel run-panel">
           <label>
             Model
-            <select name="model">
+            <select name="model" id="model-select">
               {% for model in models %}
                 <option value="{{ model.id }}" {% if model.id == default_model %}selected{% endif %}>{{ model.label }}</option>
               {% endfor %}
+              <option value="__custom">Custom…</option>
             </select>
           </label>
-          <label>
-            Custom model id (overrides)
+          <label id="model-custom-label" hidden>
+            Custom model id
             <input type="text" name="model_custom" placeholder="provider:model">
           </label>
           <label>
@@ -343,6 +417,10 @@
           <label>
             Experiment name (optional)
             <input type="text" name="experiment_name">
+          </label>
+          <label>
+            Notes (optional)
+            <textarea name="notes" rows="2" placeholder="What is this run testing?"></textarea>
           </label>
           <details class="prompt-overrides">
             <summary>Prompt overrides</summary>
@@ -371,11 +449,12 @@
       </div>
     </form>
 
-    <h2>Recent runs</h2>
+    <h2>Recent runs <button type="button" id="stop-runs" hidden>Stop all</button><span id="stop-hint" hidden></span></h2>
     <table>
       <thead>
         <tr>
           <th>Dataset</th>
+          <th>Experiment</th>
           <th>Cases</th>
           <th>Model</th>
           <th>Runs</th>
@@ -388,14 +467,15 @@
       <tbody id="runs-body">
         {% for run in runs %}
           <tr data-run-id="{{ run.id }}">
-            <td>{{ run.dataset }}</td>
-            <td>{% if run.case_ids %}{{ run.case_ids|join:", " }}{% else %}(all){% endif %}</td>
-            <td>{{ run.model }}{% if run.git_label %} <small>({{ run.git_label }})</small>{% endif %}{% if run.prompt_overrides %} <small>[prompts: {{ run.prompt_overrides|join:", " }}]</small>{% endif %}</td>
-            <td>{{ run.runs }}</td>
-            <td class="status-{{ run.status }}">{{ run.status }}</td>
-            <td>{{ run.started_at|date:"M d, H:i:s"|default:"" }}</td>
-            <td>{{ run.finished_at|date:"M d, H:i:s"|default:"" }}</td>
-            <td>
+            <td data-col="dataset">{{ run.dataset }}</td>
+            <td data-col="experiment">{{ run.experiment_name|default:"" }}</td>
+            <td data-col="cases">{% if run.case_ids %}{{ run.case_ids|join:", " }}{% else %}(all){% endif %}</td>
+            <td data-col="model">{{ run.model }}{% if run.git_label %} <small>({{ run.git_label }})</small>{% endif %}{% if run.prompt_overrides %} <small>[prompts: {{ run.prompt_overrides|join:", " }}]</small>{% endif %}</td>
+            <td data-col="runs">{{ run.runs }}</td>
+            <td data-col="status" class="status-{{ run.status }}">{{ run.status }}</td>
+            <td data-col="started">{{ run.started_at|date:"M d, H:i:s"|default:"" }}</td>
+            <td data-col="finished">{{ run.finished_at|date:"M d, H:i:s"|default:"" }}</td>
+            <td data-col="result">
               {% if run.phoenix_link %}
                 <a href="{{ run.phoenix_link }}" target="_blank" rel="noopener">Phoenix</a>
               {% elif run.status == "failed" %}
@@ -404,7 +484,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="8">No runs yet.</td></tr>
+          <tr class="runs-empty"><td colspan="9">No runs yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -530,6 +610,21 @@
 
     var METRICS = ["checklist", "passed", "answer_quality"];
     var resultsData = null;
+
+    var modelSelect = document.getElementById("model-select");
+    var modelCustomLabel = document.getElementById("model-custom-label");
+    var modelCustomInput = modelCustomLabel.querySelector("input");
+
+    function updateModelUi() {
+      var custom = modelSelect.value === "__custom";
+      modelCustomLabel.hidden = !custom;
+      // Disabled inputs are not submitted, so a stale id cannot override the select.
+      modelCustomInput.disabled = !custom;
+      if (custom) modelCustomInput.focus();
+    }
+
+    modelSelect.addEventListener("change", updateModelUi);
+    updateModelUi();
 
     function loadResults() {
       fetch("/results.json")
@@ -689,9 +784,19 @@
         casesCell.textContent = String(dataset.case_count);
         row.appendChild(casesCell);
         var modelCell = document.createElement("td");
-        modelCell.textContent = experiment
-          ? (experiment.model || "") + (experiment.git_label ? " (" + experiment.git_label + ")" : "")
-          : "not run";
+        if (experiment) {
+          modelCell.textContent = (experiment.model || "") +
+            (experiment.git_label ? " (" + experiment.git_label + ")" : "");
+          [experiment.settings, experiment.notes].forEach(function (text) {
+            if (!text) return;
+            var line = document.createElement("small");
+            line.className = "experiment-note";
+            line.textContent = text;
+            modelCell.appendChild(line);
+          });
+        } else {
+          modelCell.textContent = "not run";
+        }
         row.appendChild(modelCell);
         METRICS.forEach(function (metric) {
           var value = experiment ? experiment.scores[metric] : null;
@@ -946,42 +1051,244 @@
       return out.join("\n");
     }
 
+    var RUN_COLUMNS = [
+      "dataset", "experiment", "cases", "model",
+      "runs", "status", "started", "finished", "result",
+    ];
+
+    function cellOf(row, name) {
+      return row.querySelector('[data-col="' + name + '"]');
+    }
+
+    function statusText(run) {
+      if (run.status !== "running") return run.status;
+      if (run.stopping) return "stopping…";
+      if (!run.total) return "running";
+      return "running " + run.completed + "/" + run.total;
+    }
+
     function renderRun(row, run) {
-      var cells = row.querySelectorAll("td");
-      cells[4].textContent = run.status;
-      cells[4].className = "status-" + run.status;
-      cells[5].textContent = run.started_at || "";
-      cells[6].textContent = run.finished_at || "";
-      cells[7].textContent = "";
-      if (run.phoenix_link) {
+      var status = cellOf(row, "status");
+      status.textContent = statusText(run);
+      status.className = "status-" + run.status;
+      cellOf(row, "started").textContent = run.started_at || "";
+      cellOf(row, "finished").textContent = run.finished_at || "";
+      var result = cellOf(row, "result");
+      result.textContent = "";
+      if (run.status === "queued" || run.status === "running") {
+        var stop = document.createElement("button");
+        stop.type = "button";
+        stop.className = "stop-run";
+        stop.textContent = "Stop";
+        stop.disabled = !!run.stopping;
+        stop.dataset.stopRunId = run.id;
+        result.appendChild(stop);
+      } else if (run.phoenix_link) {
         var link = document.createElement("a");
         link.href = run.phoenix_link;
         link.target = "_blank";
         link.rel = "noopener";
         link.textContent = "Phoenix";
-        cells[7].appendChild(link);
+        result.appendChild(link);
       } else if (run.status === "failed" && run.error) {
-        cells[7].textContent = run.error;
+        result.textContent = run.error;
       }
     }
 
     function newRow(run) {
       var row = document.createElement("tr");
       row.dataset.runId = run.id;
-      var values = [
-        run.dataset,
-        run.case_ids && run.case_ids.length ? run.case_ids.join(", ") : "(all)",
-        run.model + (run.git_label ? " (" + run.git_label + ")" : "") +
+      var values = {
+        dataset: run.dataset,
+        experiment: run.experiment_name || "",
+        cases: run.case_ids && run.case_ids.length ? run.case_ids.join(", ") : "(all)",
+        model: run.model + (run.git_label ? " (" + run.git_label + ")" : "") +
           (run.prompt_overrides && run.prompt_overrides.length
             ? " [prompts: " + run.prompt_overrides.join(", ") + "]" : ""),
-        String(run.runs), "", "", "", "",
-      ];
-      values.forEach(function (value) {
+        runs: String(run.runs),
+      };
+      RUN_COLUMNS.forEach(function (name) {
         var cell = document.createElement("td");
-        cell.textContent = value;
+        cell.dataset.col = name;
+        cell.textContent = values[name] || "";
         row.appendChild(cell);
       });
       return row;
+    }
+
+    var expandedRunId = null;
+
+    function logRowFor(row) {
+      var next = row.nextElementSibling;
+      if (next && next.classList.contains("run-log-row")) return next;
+      var logRow = document.createElement("tr");
+      logRow.className = "run-log-row";
+      var cell = document.createElement("td");
+      cell.colSpan = RUN_COLUMNS.length;
+      var pane = document.createElement("div");
+      pane.className = "run-log";
+      cell.appendChild(pane);
+      logRow.appendChild(cell);
+      row.parentElement.insertBefore(logRow, row.nextSibling);
+      return logRow;
+    }
+
+    var LOG_LINE = /^(\d{2}:\d{2}:\d{2})\s+(\w+)\s+([\s\S]*)$/;
+    var VERDICT = /^(PASS|FAIL)\s/;
+
+    function span(className, text) {
+      var el = document.createElement("span");
+      el.className = className;
+      el.textContent = text;
+      return el;
+    }
+
+    function logLineElement(text) {
+      var line = document.createElement("div");
+      var match = LOG_LINE.exec(text);
+      if (!match) {
+        // Traceback and other continuation lines carry no timestamp.
+        line.className = "log-line log-line--cont";
+        line.textContent = text;
+        return line;
+      }
+      line.className = "log-line";
+      line.appendChild(span("log-time", match[1] + " "));
+      line.appendChild(
+        span("log-level log-level--" + match[2].toLowerCase(), match[2])
+      );
+      var message = match[3];
+      var verdict = VERDICT.exec(message);
+      if (verdict) {
+        line.appendChild(span("log-verdict--" + verdict[1].toLowerCase(), verdict[1]));
+        message = message.slice(verdict[1].length);
+      }
+      line.appendChild(document.createTextNode(message));
+      return line;
+    }
+
+    var renderedLog = null;
+
+    function renderLog(pane, lines) {
+      var joined = lines.join("\n");
+      if (joined === renderedLog) return;
+      renderedLog = joined;
+      var atBottom = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 8;
+      pane.textContent = "";
+      pane.classList.toggle("run-log--empty", !lines.length);
+      if (!lines.length) {
+        pane.textContent = "Nothing logged yet.";
+        return;
+      }
+      joined.split("\n").forEach(function (text) {
+        pane.appendChild(logLineElement(text));
+      });
+      if (atBottom) pane.scrollTop = pane.scrollHeight;
+    }
+
+    var settledLogFor = null;
+
+    async function refreshLog(stillRunning) {
+      if (!expandedRunId) return;
+      var row = document.querySelector('[data-run-id="' + expandedRunId + '"]');
+      if (!row) { expandedRunId = null; return; }
+      // One last fetch after the run goes inactive: its final line lands just
+      // after the status flips. Only then is the log immutable.
+      if (settledLogFor === expandedRunId) return;
+      var pane = logRowFor(row).querySelector(".run-log");
+      try {
+        var response = await fetch("/run-log.json?id=" + encodeURIComponent(expandedRunId));
+        if (!response.ok) {
+          renderedLog = null;
+          pane.classList.add("run-log--empty");
+          pane.textContent = "No log for this run.";
+          return;
+        }
+        var data = await response.json();
+        renderLog(pane, data.lines);
+        if (!stillRunning) settledLogFor = expandedRunId;
+      } catch (e) { /* transient network errors: retry next tick */ }
+    }
+
+    function collapseLog() {
+      var open = document.querySelector(".run-log-row");
+      if (open) open.remove();
+      document.querySelectorAll("tr.is-expanded").forEach(function (row) {
+        row.classList.remove("is-expanded");
+      });
+      renderedLog = null;
+      settledLogFor = null;
+    }
+
+    document.getElementById("runs-body").addEventListener("click", function (event) {
+      var stopButton = event.target.closest(".stop-run");
+      if (stopButton) {
+        postStop(stopButton, stopButton.dataset.stopRunId);
+        return;
+      }
+      var row = event.target.closest("tr[data-run-id]");
+      if (!row || event.target.closest("a")) return;
+      var runId = row.dataset.runId;
+      var wasExpanded = expandedRunId === runId;
+      collapseLog();
+      expandedRunId = wasExpanded ? null : runId;
+      if (expandedRunId) {
+        row.classList.add("is-expanded");
+        refreshLog(true);
+      }
+    });
+
+    async function postStop(button, runId) {
+      button.disabled = true;
+      button.textContent = "Stopping…";
+      var body = new URLSearchParams();
+      if (runId) body.set("id", runId);
+      try {
+        var response = await fetch("/stop", { method: "POST", body: body });
+        var data = await response.json();
+        setRunHint(
+          data.stopped
+            ? "Stopping " + data.stopped + " run(s) — each finishes its current case first."
+            : "Nothing was running."
+        );
+        await refreshRuns();
+      } catch (e) {
+        setRunHint("Could not reach the runner — retrying on the next refresh.");
+      }
+    }
+
+    var hintTimer = null;
+
+    function setRunHint(text) {
+      var hint = document.getElementById("stop-hint");
+      hint.textContent = text;
+      hint.hidden = false;
+      window.clearTimeout(hintTimer);
+      hintTimer = window.setTimeout(function () { hint.hidden = true; }, 6000);
+    }
+
+    document.getElementById("stop-runs").addEventListener("click", function () {
+      postStop(this, null);
+    });
+
+    // Everything renderRun touches; unchanged signature means nothing to repaint.
+    function runSignature(run) {
+      return [
+        run.status, run.completed, run.total, run.stopping,
+        run.started_at, run.finished_at, run.phoenix_link, run.error,
+      ].join("\u0001");
+    }
+
+    var ACTIVE_POLL_MS = 2000;
+    var IDLE_POLL_MS = 30000;
+    var pollTimer = null;
+    var pollDelay = null;
+
+    function schedulePoll(delay) {
+      if (pollDelay === delay) return;
+      pollDelay = delay;
+      window.clearInterval(pollTimer);
+      pollTimer = window.setInterval(refreshRuns, delay);
     }
 
     async function refreshRuns() {
@@ -990,19 +1297,40 @@
         if (!response.ok) return;
         var data = await response.json();
         var body = document.getElementById("runs-body");
-        var placeholder = body.querySelector("td[colspan]");
-        if (placeholder && data.runs.length) placeholder.parentElement.remove();
+        // Matched by class, not by colspan: the log row spans every column too.
+        var placeholder = body.querySelector("tr.runs-empty");
+        if (placeholder && data.runs.length) placeholder.remove();
         data.runs.slice().reverse().forEach(function (run) {
           var row = body.querySelector('[data-run-id="' + run.id + '"]');
           if (!row) {
             row = newRow(run);
             body.prepend(row);
           }
+          var signature = runSignature(run);
+          if (row.dataset.signature === signature) return;
+          row.dataset.signature = signature;
           renderRun(row, run);
         });
+        var active = data.runs.filter(function (run) {
+          return run.status === "queued" || run.status === "running";
+        });
+        var stopping = active.length > 0 && active.every(function (run) {
+          return run.stopping;
+        });
+        var stopAll = document.getElementById("stop-runs");
+        stopAll.hidden = !active.length;
+        stopAll.disabled = stopping;
+        stopAll.textContent = stopping ? "Stopping…" : "Stop all";
+        // Idle means nothing here can change on its own: back off hard.
+        schedulePoll(active.length ? ACTIVE_POLL_MS : IDLE_POLL_MS);
+        await refreshLog(
+          active.some(function (run) { return run.id === expandedRunId; })
+        );
       } catch (e) { /* transient network errors: retry next tick */ }
     }
-    setInterval(refreshRuns, 5000);
+
+    schedulePoll(ACTIVE_POLL_MS);
+    refreshRuns();
   </script>
 </body>
 </html>

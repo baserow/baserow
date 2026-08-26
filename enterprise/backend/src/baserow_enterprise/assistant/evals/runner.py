@@ -29,6 +29,7 @@ import httpx
 from loguru import logger
 
 from baserow_enterprise.assistant.evals.baseline import _api_base, _headers
+from baserow_enterprise.assistant.evals.control import RunControl
 from baserow_enterprise.assistant.evals.gitinfo import get_git_info
 from baserow_enterprise.assistant.evals.models import (
     DEFAULT_EVAL_MODEL,
@@ -55,7 +56,12 @@ HELP_DOCS = (
     ("tracing", "Phoenix & tracing", "docs/development/ai-assistant-tracing.md"),
 )
 
-RunStatus = Literal["queued", "running", "done", "failed"]
+# The select's "Custom…" option; the free-text field carries the real id.
+CUSTOM_MODEL_CHOICE = "__custom"
+
+RunStatus = Literal["queued", "running", "done", "failed", "stopped"]
+
+LOG_LINES = 200
 
 
 @dataclass
@@ -67,6 +73,7 @@ class RunnerState:
     runs: int
     experiment_name: str | None = None
     prompt_overrides: list[str] | None = None
+    notes: str | None = None
     status: RunStatus = "queued"
     error: str | None = None
     experiment_info: Any = None
@@ -75,11 +82,16 @@ class RunnerState:
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
     finished_at: datetime | None = None
+    # Live-only: a restart rewrites in-flight runs to failed, so neither survives.
+    control: RunControl = field(default_factory=RunControl)
+    log: deque[str] = field(default_factory=lambda: deque(maxlen=LOG_LINES))
 
 
 _history: deque[RunnerState] = deque(maxlen=MAX_HISTORY)
 _history_lock = threading.Lock()
 _run_queue: queue.Queue[RunnerState] = queue.Queue()
+_active_run: RunnerState | None = None
+_log_lock = threading.Lock()
 _worker_started = False
 _worker_lock = threading.Lock()
 
@@ -96,6 +108,7 @@ _PERSISTED_FIELDS = (
     "runs",
     "experiment_name",
     "prompt_overrides",
+    "notes",
     "status",
     "error",
     "phoenix_link",
@@ -175,6 +188,7 @@ def submit_run(
     runs: int = 1,
     experiment_name: str | None = None,
     prompt_overrides: list[str] | None = None,
+    notes: str | None = None,
 ) -> RunnerState:
     state = RunnerState(
         id=uuid.uuid4().hex,
@@ -184,6 +198,7 @@ def submit_run(
         runs=runs,
         experiment_name=experiment_name,
         prompt_overrides=prompt_overrides or None,
+        notes=notes or None,
         git_label=_git_label(),
     )
     with _history_lock:
@@ -194,8 +209,17 @@ def submit_run(
 
 
 def _run_one(state: RunnerState, executor: Callable[..., Any]) -> None:
+    global _active_run
+
+    if state.control.stopping:
+        state.status = "stopped"
+        state.finished_at = datetime.now(timezone.utc)
+        _save_history()
+        return
+
     state.status = "running"
     state.started_at = datetime.now(timezone.utc)
+    _active_run = state
     _save_history()
     try:
         state.experiment_info = executor(
@@ -205,22 +229,65 @@ def _run_one(state: RunnerState, executor: Callable[..., Any]) -> None:
             runs=state.runs,
             experiment_name=state.experiment_name,
             prompt_overrides=state.prompt_overrides,
+            notes=state.notes,
+            control=state.control,
         )
-        state.status = "done"
+        state.status = "stopped" if state.control.stopping else "done"
     except Exception as exc:
         state.status = "failed"
         state.error = str(exc)
         logger.exception(f"Eval run {state.id} ({state.dataset}) failed")
     finally:
+        _active_run = None
         state.finished_at = datetime.now(timezone.utc)
-        if state.status == "done":
+        if state.status in ("done", "stopped"):
             state.phoenix_link = _phoenix_link(
                 state.experiment_info, _phoenix_public_url()
             )
         _save_history()
 
 
+def _log_sink(message: Any) -> None:
+    state = _active_run
+    if state is None:
+        return
+    with _log_lock:
+        state.log.append(str(message).rstrip())
+
+
+def run_log(run_id: str) -> list[str] | None:
+    """Snapshot of a run's captured log, or None when the run is unknown."""
+
+    for state in recent_runs():
+        if state.id == run_id:
+            with _log_lock:
+                return list(state.log)
+    return None
+
+
+def stop_runs(run_id: str | None = None) -> int:
+    """Stop one run, or every queued and in-flight run. Returns how many."""
+
+    stopped = 0
+    for state in recent_runs():
+        if run_id is not None and state.id != run_id:
+            continue
+        if state.status in ("queued", "running"):
+            state.control.stop()
+            stopped += 1
+    return stopped
+
+
 def _worker_loop(executor: Callable[..., Any]) -> None:
+    # Installed here so the filter can pin the worker thread: the WSGI thread
+    # logs too, and its lines must not be attributed to the running eval.
+    worker_thread_id = threading.get_ident()
+    logger.add(
+        _log_sink,
+        level=os.environ.get("BASEROW_EVAL_RUNNER_LOG_LEVEL") or "INFO",
+        filter=lambda record: record["thread"].id == worker_thread_id,
+        format="{time:HH:mm:ss} {level: <7} {message}",
+    )
     while True:
         state = _run_queue.get()
         try:
@@ -310,17 +377,28 @@ def _group_case_ids_by_dataset(case_ids: list[str]) -> dict[str, list[str]]:
     return grouped
 
 
+def _new_experiment_name() -> str:
+    """One name across the fan-out: the Results tab groups experiments by name."""
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return f"run-{stamp}-{uuid.uuid4().hex[:4]}"
+
+
 def _submit_from_form(form: dict[str, list[str]]) -> list[RunnerState]:
     """One queued run per dataset: selections spanning datasets fan out."""
 
     model = _first(form, "model_custom").strip() or _first(
         form, "model", DEFAULT_EVAL_MODEL
     )
+    if model == CUSTOM_MODEL_CHOICE:
+        model = DEFAULT_EVAL_MODEL
     try:
         runs = max(1, int(_first(form, "runs", "1")))
     except ValueError:
         runs = 1
-    experiment_name = _first(form, "experiment_name").strip() or None
+    experiment_name = _first(form, "experiment_name").strip() or _new_experiment_name()
+
+    notes = _first(form, "notes").strip() or None
 
     prompt_overrides = [
         name for name in form.get("prompt_overrides", []) if name in SYNCED_PROMPTS
@@ -343,6 +421,7 @@ def _submit_from_form(form: dict[str, list[str]]) -> list[RunnerState]:
             runs=runs,
             experiment_name=experiment_name,
             prompt_overrides=prompt_overrides,
+            notes=notes,
         )
         for dataset, ids in submissions
     ]
@@ -439,6 +518,22 @@ query ($datasetId: ID!) {
 """
 
 
+# Only the settings that plausibly move a score; the rest is noise in a table.
+_REPORTED_SETTINGS = ("temperature", "openai_reasoning_effort", "max_tokens")
+
+
+def _settings_label(metadata: dict[str, Any]) -> str | None:
+    """Compact "temperature=0.3 reasoning=none" for the results table."""
+
+    settings = metadata.get("model_settings") or {}
+    parts = [
+        f"{key.replace('openai_reasoning_effort', 'reasoning')}={settings[key]}"
+        for key in _REPORTED_SETTINGS
+        if key in settings
+    ]
+    return " ".join(parts) or None
+
+
 def _experiment_summaries(dataset_node_id: str) -> list[dict[str, Any]]:
     """Per-experiment mean scores for a dataset, newest first, via GraphQL."""
 
@@ -501,6 +596,8 @@ def _results_json() -> bytes:
                         "created_at": node.get("createdAt"),
                         "model": metadata.get("model"),
                         "git_label": git_label or None,
+                        "notes": metadata.get("notes"),
+                        "settings": _settings_label(metadata),
                         "scores": {
                             s["annotationName"]: s["meanScore"]
                             for s in node.get("annotationSummaries", [])
@@ -572,12 +669,17 @@ def _runs_json() -> bytes:
         {
             "id": run.id,
             "dataset": run.dataset,
+            "experiment_name": run.experiment_name,
             "case_ids": run.case_ids,
             "model": run.model,
             "git_label": run.git_label,
             "prompt_overrides": run.prompt_overrides,
+            "notes": run.notes,
             "runs": run.runs,
             "status": run.status,
+            "completed": run.control.completed,
+            "total": run.control.total,
+            "stopping": run.control.stopping,
             "started_at": _fmt_ts(run.started_at),
             "finished_at": _fmt_ts(run.finished_at),
             "phoenix_link": run.phoenix_link,
@@ -641,6 +743,22 @@ def make_wsgi_app() -> Callable[[dict, Callable], Iterable[bytes]]:
             )
             return [body]
 
+        if method == "GET" and path == "/run-log.json":
+            run_id = parse_qs(environ.get("QUERY_STRING", "")).get("id", [""])[0]
+            lines = run_log(run_id)
+            if lines is None:
+                start_response("404 Not Found", [("Content-Type", "text/plain")])
+                return [b"unknown run"]
+            body = json.dumps({"lines": lines}).encode("utf-8")
+            start_response(
+                "200 OK",
+                [
+                    ("Content-Type", "application/json"),
+                    ("Content-Length", str(len(body))),
+                ],
+            )
+            return [body]
+
         if method == "GET" and path == "/runs.json":
             body = _runs_json()
             start_response(
@@ -680,6 +798,26 @@ def make_wsgi_app() -> Callable[[dict, Callable], Iterable[bytes]]:
             _submit_from_form(form)
             start_response("303 See Other", [("Location", "/")])
             return [b""]
+
+        if method == "POST" and path == "/stop":
+            if not _request_is_local(environ):
+                start_response("403 Forbidden", [("Content-Type", "text/plain")])
+                return [b"forbidden"]
+            try:
+                form = _parse_form(environ)
+            except (_FormTooLarge, _FormNotUtf8):
+                start_response("400 Bad Request", [("Content-Type", "text/plain")])
+                return [b"bad form body"]
+            stopped = stop_runs(_first(form, "id") or None)
+            body = json.dumps({"stopped": stopped}).encode("utf-8")
+            start_response(
+                "200 OK",
+                [
+                    ("Content-Type", "application/json"),
+                    ("Content-Length", str(len(body))),
+                ],
+            )
+            return [body]
 
         start_response("404 Not Found", [("Content-Type", "text/plain")])
         return [b"not found"]

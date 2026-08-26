@@ -359,7 +359,7 @@ eval-sync *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} baserow sync_assistant_evals {{ ARGS }}
+    {{ uv_run }} baserow assistant_eval_sync {{ ARGS }}
 
 # Run assistant eval experiments against Phoenix
 [group('3 - testing')]
@@ -367,7 +367,7 @@ eval-run *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} baserow run_assistant_evals {{ ARGS }}
+    {{ uv_run }} baserow assistant_eval_run {{ ARGS }}
 
 # Export UI-added Phoenix dataset examples as ready-to-paste eval code
 [group('3 - testing')]
@@ -375,7 +375,7 @@ eval-export *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} baserow export_assistant_evals {{ ARGS }}
+    {{ uv_run }} baserow assistant_eval_export {{ ARGS }}
 
 # Capture or import the committed eval baseline snapshot (capture|import)
 [group('3 - testing')]

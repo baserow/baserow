@@ -206,23 +206,23 @@ class TestExportForeignExamplesOtherDatasets:
 
 
 @pytest.mark.django_db
-class TestExportAssistantEvalsCommand:
+class TestAssistantEvalExportCommand:
     def test_defaults_to_kuma_docs_and_prints_to_stdout(self, capsys):
         with (
             patch(
-                "baserow_enterprise.management.commands.export_assistant_evals.load_all"
+                "baserow_enterprise.management.commands.assistant_eval_export.load_all"
             ),
             patch(
-                "baserow_enterprise.management.commands.export_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_export."
                 "get_phoenix_client"
             ),
             patch(
-                "baserow_enterprise.management.commands.export_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_export."
                 "export_foreign_examples",
                 return_value="# a snippet\n",
             ) as mock_export,
         ):
-            call_command("export_assistant_evals")
+            call_command("assistant_eval_export")
 
         mock_export.assert_called_once()
         assert mock_export.call_args.args[1] == "kuma-docs"
@@ -231,19 +231,19 @@ class TestExportAssistantEvalsCommand:
     def test_dataset_option_is_forwarded(self):
         with (
             patch(
-                "baserow_enterprise.management.commands.export_assistant_evals.load_all"
+                "baserow_enterprise.management.commands.assistant_eval_export.load_all"
             ),
             patch(
-                "baserow_enterprise.management.commands.export_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_export."
                 "get_phoenix_client"
             ),
             patch(
-                "baserow_enterprise.management.commands.export_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_export."
                 "export_foreign_examples",
                 return_value="# a snippet\n",
             ) as mock_export,
         ):
-            call_command("export_assistant_evals", "--dataset", "kuma-database")
+            call_command("assistant_eval_export", "--dataset", "kuma-database")
 
         assert mock_export.call_args.args[1] == "kuma-database"
 
@@ -251,20 +251,20 @@ class TestExportAssistantEvalsCommand:
         out_file = tmp_path / "snippets.py"
         with (
             patch(
-                "baserow_enterprise.management.commands.export_assistant_evals.load_all"
+                "baserow_enterprise.management.commands.assistant_eval_export.load_all"
             ),
             patch(
-                "baserow_enterprise.management.commands.export_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_export."
                 "get_phoenix_client"
             ),
             patch(
-                "baserow_enterprise.management.commands.export_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_export."
                 "export_foreign_examples",
                 return_value="# a snippet\n",
             ),
         ):
             call_command(
-                "export_assistant_evals",
+                "assistant_eval_export",
                 "--dataset",
                 "kuma-docs",
                 "--out",

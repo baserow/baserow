@@ -57,6 +57,7 @@ from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from pydantic_ai.usage import RequestUsage, UsageLimits
 
 from baserow_enterprise.assistant.assistant import _strip_think_tags
+from baserow_enterprise.assistant.model_profiles import _DEFAULT_PROFILE
 from baserow_enterprise.assistant.retrying_model import _ErrorRecoveringStream
 from baserow_enterprise.assistant.tools.database.agents import (
     formula_generation_agent,
@@ -334,3 +335,114 @@ def test_google_provider_names_pydantic_ai_accepts():
         infer_provider_class("google-gla")
     with pytest.raises(ValueError, match="Unknown provider"):
         infer_provider_class("google-vertex")
+
+
+# ---------------------------------------------------------------------------
+# Step 6: the gpt-5.6 reasoning contract
+# ---------------------------------------------------------------------------
+
+
+def test_gpt_5_6_still_reasons_by_default_and_can_be_turned_off():
+    """_REASONING_OFF_PROFILE only exists because gpt-5.6 reasons by default,
+    which makes OpenAI reject function tools on /v1/chat/completions. If a
+    pydantic-ai upgrade flips either fact the workaround is wrong, not stale."""
+
+    from pydantic_ai.profiles.openai import openai_model_profile
+
+    profile = openai_model_profile("gpt-5.6-luna")
+
+    assert profile.get("openai_reasoning_enabled_by_default") is True
+    assert profile.get("openai_supports_reasoning_effort_none") is True
+
+
+def test_reasoning_effort_none_keeps_the_sampling_params_we_set():
+    """Turning reasoning off is what lets our temperature survive: pydantic-ai
+    silently drops every sampling param while reasoning is active."""
+
+    from pydantic_ai.models.openai import (
+        _drop_sampling_params_for_reasoning,  # noqa: PLC2701
+    )
+    from pydantic_ai.profiles.openai import openai_model_profile
+
+    profile = openai_model_profile("gpt-5.6-luna")
+    params = ModelRequestParameters()
+
+    with_reasoning_off = {"temperature": 0.3, "openai_reasoning_effort": "none"}
+    _drop_sampling_params_for_reasoning(profile, with_reasoning_off, params)
+    assert with_reasoning_off["temperature"] == 0.3
+
+    with_default_reasoning = {"temperature": 0.3}
+    with pytest.warns(UserWarning, match="Sampling parameters"):
+        _drop_sampling_params_for_reasoning(profile, with_default_reasoning, params)
+    assert "temperature" not in with_default_reasoning
+
+
+@pytest.mark.parametrize(
+    "model",
+    ["openai:gpt-5.6-luna", "openai:gpt-5.6-sol", "openai:gpt-5.6-terra"],
+)
+def test_gpt_5_6_runs_with_reasoning_off_in_every_role(model):
+    from baserow_enterprise.assistant.model_profiles import (
+        ORCHESTRATOR,
+        SAMPLE,
+        SUBAGENT,
+        SUGGESTIONS,
+        TITLE,
+        UTILITY,
+        get_model_settings,
+    )
+
+    for role in (ORCHESTRATOR, SUBAGENT, UTILITY, SAMPLE, TITLE, SUGGESTIONS):
+        settings = get_model_settings(model, role)
+        assert settings["openai_reasoning_effort"] == "none", role
+        assert settings["temperature"] == _DEFAULT_PROFILE[role]["temperature"], role
+
+
+def test_other_models_are_left_alone_by_the_gpt_5_6_workaround():
+    from baserow_enterprise.assistant.model_profiles import (
+        ORCHESTRATOR,
+        get_model_settings,
+    )
+
+    for model in ("groq:openai/gpt-oss-120b", "openai:gpt-5-mini"):
+        assert "openai_reasoning_effort" not in get_model_settings(model, ORCHESTRATOR)
+
+
+def test_every_sub_agent_run_passes_its_model_profile():
+    """A sub-agent invoked without model_settings silently ignores
+    _MODEL_PROFILES, which is how gpt-5.6 kept sending reasoning_effort with
+    function tools and 400ing. Grep is the only way to catch a missing kwarg
+    at a call site no test exercises."""
+
+    import re
+    from pathlib import Path
+
+    assistant = (
+        Path(__file__).resolve().parents[3] / "src" / "baserow_enterprise" / "assistant"
+    )
+    assert assistant.is_dir(), f"cannot find the assistant package at {assistant}"
+    # harness/judge pass a bare model string and let pydantic-ai resolve it;
+    # check_lm_ready_or_raise is a tool-less "respond ok" connectivity probe.
+    exempt = {"evals/harness.py", "evals/judge.py", "model_profiles.py"}
+
+    offenders = []
+    scanned = 0
+    for path in assistant.rglob("*.py"):
+        scanned += 1
+        rel = path.relative_to(assistant).as_posix()
+        if rel in exempt:
+            continue
+        source = path.read_text()
+        for match in re.finditer(r"\b(\w*agent)\.run(?:_sync)?\(", source):
+            if source[match.start() - 1] == "`":
+                continue
+            call = source[match.start() : match.start() + 400]
+            if "model_settings" not in call:
+                line = source[: match.start()].count("\n") + 1
+                offenders.append(f"{rel}:{line} {match.group(1)}")
+
+    assert scanned > 50, f"only scanned {scanned} files; the glob is wrong"
+    assert not offenders, (
+        "these agent calls skip get_model_settings(), so per-model profiles "
+        f"never reach them: {offenders}"
+    )

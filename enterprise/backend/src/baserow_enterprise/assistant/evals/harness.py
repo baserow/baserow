@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
 import time
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
@@ -12,6 +14,7 @@ from typing import Any
 from django.conf import settings
 
 from pydantic_ai import Agent
+from pydantic_ai._utils import run_until_complete  # noqa: PLC2701
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
@@ -237,12 +240,29 @@ def tool_call_order_ok(output: EvalRunOutput, names: list[str]) -> bool:
     return True
 
 
+DEFAULT_CASE_TIMEOUT_S = 120
+
+
+def get_case_timeout_s() -> float:
+    """Wall-clock budget for one case; the slowest baseline case takes 17s."""
+
+    # Blank, not just missing: compose always defines the key.
+    raw = os.environ.get("BASEROW_EVAL_CASE_TIMEOUT", "").strip()
+    return float(raw) if raw else float(DEFAULT_CASE_TIMEOUT_S)
+
+
+class EvalCaseTimeout(Exception):
+    """A case outran its budget and its in-flight request was cancelled."""
+
+
 def run_case(
     case: EvalCase, model: str | Model
 ) -> tuple[EvalRunOutput, list[CheckResult]]:
     """Build the scenario, run ``main_agent``, and execute the case's checks.
 
     Performs no teardown and no chat persistence — the eval DB is disposable.
+    Raises ``EvalCaseTimeout`` when the agent outruns its wall-clock budget:
+    a hung case would otherwise block the single worker indefinitely.
     """
 
     load_all()
@@ -254,14 +274,27 @@ def run_case(
         ctx.deps.mode = case.mode
         ctx.deps.tool_helpers.request_context["ui_context"] = scenario.ui_context
 
+        timeout_s = get_case_timeout_s()
         start = time.monotonic()
-        result = main_agent.run_sync(
-            user_prompt=case.prompt,
-            deps=ctx.deps,
-            model=model,
-            usage_limits=UsageLimits(request_limit=case.max_iters),
-            toolsets=[ctx.toolset],
-        )
+        # wait_for on pydantic-ai's own loop: cancels the in-flight request
+        # instead of stranding a thread that keeps calling the provider.
+        try:
+            result = run_until_complete(
+                asyncio.wait_for(
+                    main_agent.run(
+                        user_prompt=case.prompt,
+                        deps=ctx.deps,
+                        model=model,
+                        usage_limits=UsageLimits(request_limit=case.max_iters),
+                        toolsets=[ctx.toolset],
+                    ),
+                    timeout_s,
+                )
+            )
+        except (TimeoutError, asyncio.CancelledError) as exc:
+            raise EvalCaseTimeout(
+                f"{case.id} exceeded {timeout_s:g}s and was cancelled"
+            ) from exc
         duration_s = time.monotonic() - start
 
     tool_error_count, tool_error_hint = count_tool_errors(result)

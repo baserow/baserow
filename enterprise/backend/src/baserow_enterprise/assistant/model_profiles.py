@@ -76,7 +76,16 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     },
 }
 
+# gpt-5.6 rejects tools+reasoning on chat completions. TODO: switch to Responses API.
+_REASONING_OFF_PROFILE: dict[str, ModelSettings] = {
+    role: {**profile, "openai_reasoning_effort": "none"}
+    for role, profile in _DEFAULT_PROFILE.items()
+}
+
 _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
+    "gpt-5.6-luna": _REASONING_OFF_PROFILE,
+    "gpt-5.6-sol": _REASONING_OFF_PROFILE,
+    "gpt-5.6-terra": _REASONING_OFF_PROFILE,
     "gpt-oss-120b": {
         ORCHESTRATOR: {
             **_DEFAULT_PROFILE[ORCHESTRATOR],

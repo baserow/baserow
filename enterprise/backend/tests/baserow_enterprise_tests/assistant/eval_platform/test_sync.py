@@ -381,28 +381,28 @@ class TestSyncDatasetsPreservesLiveReferenceAnswers:
 
 
 @pytest.mark.django_db
-class TestSyncAssistantEvalsCommand:
+class TestAssistantEvalSyncCommand:
     def test_prints_dataset_and_prompt_sync_results(self):
         with (
             patch(
-                "baserow_enterprise.management.commands.sync_assistant_evals.load_all"
+                "baserow_enterprise.management.commands.assistant_eval_sync.load_all"
             ) as mock_load_all,
             patch(
-                "baserow_enterprise.management.commands.sync_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_sync."
                 "get_phoenix_client"
             ) as mock_get_client,
             patch(
-                "baserow_enterprise.management.commands.sync_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_sync."
                 "sync_datasets",
                 return_value={"kuma-database": 2},
             ) as mock_sync_datasets,
             patch(
-                "baserow_enterprise.management.commands.sync_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_sync."
                 "sync_prompts",
                 return_value={"kuma-system-prompt": "created"},
             ) as mock_sync_prompts,
         ):
-            call_command("sync_assistant_evals")
+            call_command("assistant_eval_sync")
 
         mock_load_all.assert_called_once()
         mock_sync_datasets.assert_called_once_with(mock_get_client.return_value)
@@ -411,24 +411,24 @@ class TestSyncAssistantEvalsCommand:
     def test_output_includes_prompt_statuses(self, capsys):
         with (
             patch(
-                "baserow_enterprise.management.commands.sync_assistant_evals.load_all"
+                "baserow_enterprise.management.commands.assistant_eval_sync.load_all"
             ),
             patch(
-                "baserow_enterprise.management.commands.sync_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_sync."
                 "get_phoenix_client"
             ),
             patch(
-                "baserow_enterprise.management.commands.sync_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_sync."
                 "sync_datasets",
                 return_value={},
             ),
             patch(
-                "baserow_enterprise.management.commands.sync_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_sync."
                 "sync_prompts",
                 return_value={"kuma-system-prompt": "unchanged"},
             ),
         ):
-            call_command("sync_assistant_evals")
+            call_command("assistant_eval_sync")
 
         assert "kuma-system-prompt: unchanged" in capsys.readouterr().out
 

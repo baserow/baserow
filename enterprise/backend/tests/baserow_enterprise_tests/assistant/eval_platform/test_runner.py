@@ -30,6 +30,7 @@ def _isolated_runner_state(monkeypatch):
     monkeypatch.setattr(runner, "_dataset_links", {})
     monkeypatch.setattr(runner, "_dataset_ids", {})
     monkeypatch.setattr(runner, "_ui_cases", {})
+    monkeypatch.setattr(runner, "_active_run", None)
 
 
 def _noop_checks(case, scenario, output):
@@ -607,6 +608,8 @@ class TestSubmitRunWorker:
             runs=1,
             experiment_name=None,
             prompt_overrides=None,
+            notes=None,
+            control=state.control,
         )
 
     def test_state_transitions_to_failed_on_exception(self):
@@ -978,3 +981,220 @@ class TestPromptOverridesForm:
 
         assert b'value="kuma-system-prompt"' in body
         assert b"Prompt overrides" in body
+
+
+class TestSharedExperimentName:
+    def test_fan_out_across_datasets_shares_one_generated_name(self):
+        _register_case("database/case-1", dataset="kuma-database")
+        _register_case("core/case-1", dataset="kuma-core")
+
+        states = runner._submit_from_form(
+            {"case_ids": ["database/case-1", "core/case-1"]}
+        )
+
+        assert len(states) == 2
+        assert states[0].dataset != states[1].dataset
+        names = {state.experiment_name for state in states}
+        assert len(names) == 1, "the Results tab groups experiments by name"
+        assert names.pop().startswith("run-")
+
+    def test_a_typed_name_is_used_verbatim_for_every_dataset(self):
+        _register_case("database/case-1", dataset="kuma-database")
+        _register_case("core/case-1", dataset="kuma-core")
+
+        states = runner._submit_from_form(
+            {
+                "case_ids": ["database/case-1", "core/case-1"],
+                "experiment_name": ["pr-1234"],
+            }
+        )
+
+        assert [state.experiment_name for state in states] == ["pr-1234", "pr-1234"]
+
+    def test_separate_submissions_get_separate_names(self):
+        _register_case("database/case-1", dataset="kuma-database")
+
+        first = runner._submit_from_form({"case_ids": ["database/case-1"]})
+        second = runner._submit_from_form({"case_ids": ["database/case-1"]})
+
+        assert first[0].experiment_name != second[0].experiment_name
+
+
+class TestCustomModelChoice:
+    def test_the_custom_sentinel_never_reaches_the_executor(self):
+        _register_case("database/case-1")
+
+        states = runner._submit_from_form(
+            {"case_ids": ["database/case-1"], "model": [runner.CUSTOM_MODEL_CHOICE]}
+        )
+
+        assert states[0].model != runner.CUSTOM_MODEL_CHOICE
+        assert states[0].model == runner.DEFAULT_EVAL_MODEL
+
+    def test_a_filled_custom_id_still_overrides_the_select(self):
+        _register_case("database/case-1")
+
+        states = runner._submit_from_form(
+            {
+                "case_ids": ["database/case-1"],
+                "model": [runner.CUSTOM_MODEL_CHOICE],
+                "model_custom": ["openai:gpt-5.6-luna"],
+            }
+        )
+
+        assert states[0].model == "openai:gpt-5.6-luna"
+
+
+class TestNotes:
+    def test_notes_reach_the_executor_and_the_runs_payload(self):
+        _register_case("database/case-1")
+        stub = MagicMock(return_value={"experiment_id": "exp-1"})
+        runner.start_worker(executor=stub)
+
+        runner._submit_from_form(
+            {"case_ids": ["database/case-1"], "notes": ["reasoning_effort=none"]}
+        )
+        runner._run_queue.join()
+
+        assert stub.call_args.kwargs["notes"] == "reasoning_effort=none"
+        payload = json.loads(runner._runs_json())
+        assert payload["runs"][0]["notes"] == "reasoning_effort=none"
+
+    def test_blank_notes_are_stored_as_none(self):
+        _register_case("database/case-1")
+
+        states = runner._submit_from_form(
+            {"case_ids": ["database/case-1"], "notes": ["   "]}
+        )
+
+        assert states[0].notes is None
+
+
+class TestProgressAndStop:
+    def test_runs_json_exposes_the_live_counter(self):
+        _register_case("database/case-1")
+        state = runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        state.status = "running"
+        state.control.set_total(38)
+        state.control.case_finished()
+
+        run = json.loads(runner._runs_json())["runs"][0]
+
+        assert (run["completed"], run["total"]) == (1, 38)
+        assert run["stopping"] is False
+
+    def test_stop_marks_queued_and_running_runs_only(self):
+        queued = runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        running = runner.submit_run(dataset="kuma-core", model="m", runs=1)
+        running.status = "running"
+        finished = runner.submit_run(dataset="kuma-docs", model="m", runs=1)
+        finished.status = "done"
+
+        assert runner.stop_runs() == 2
+        assert queued.control.stopping
+        assert running.control.stopping
+        assert not finished.control.stopping
+
+    def test_stop_can_target_a_single_run(self):
+        first = runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        second = runner.submit_run(dataset="kuma-core", model="m", runs=1)
+
+        assert runner.stop_runs(second.id) == 1
+        assert not first.control.stopping
+        assert second.control.stopping
+
+    def test_a_run_stopped_while_queued_never_calls_the_executor(self):
+        stub = MagicMock(return_value={"experiment_id": "exp-1"})
+        state = runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        state.control.stop()
+
+        runner.start_worker(executor=stub)
+        runner._run_queue.join()
+
+        stub.assert_not_called()
+        assert state.status == "stopped"
+        assert state.finished_at is not None
+
+    def test_a_run_stopped_mid_flight_ends_as_stopped_not_done(self):
+        def executor(**kwargs):
+            kwargs["control"].stop()
+            return {"experiment_id": "exp-1"}
+
+        runner.start_worker(executor=executor)
+        state = runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        runner._run_queue.join()
+
+        assert state.status == "stopped"
+
+    def test_stop_endpoint_reports_how_many_it_stopped(self):
+        runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        app = runner.make_wsgi_app()
+
+        status, _headers, body = _call_wsgi(app, "POST", "/stop", b"")
+
+        assert status.startswith("200")
+        assert json.loads(body)["stopped"] == 1
+
+    def test_stop_endpoint_refuses_a_non_local_request(self):
+        app = runner.make_wsgi_app()
+
+        status, _headers, _body = _call_wsgi(
+            app, "POST", "/stop", b"", extra_environ={"HTTP_HOST": "evil.example.com"}
+        )
+
+        assert status.startswith("403")
+
+
+class TestRunLogCapture:
+    def test_the_sink_attributes_lines_to_the_active_run(self, monkeypatch):
+        state = runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        monkeypatch.setattr(runner, "_active_run", state)
+
+        runner._log_sink("13:05:41 INFO    run docs/webhooks-intro\n")
+
+        assert runner.run_log(state.id) == ["13:05:41 INFO    run docs/webhooks-intro"]
+
+    def test_lines_logged_with_no_active_run_are_dropped(self, monkeypatch):
+        state = runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        monkeypatch.setattr(runner, "_active_run", None)
+
+        runner._log_sink("noise from the request thread\n")
+
+        assert runner.run_log(state.id) == []
+
+    def test_the_buffer_keeps_only_the_most_recent_lines(self, monkeypatch):
+        state = runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        monkeypatch.setattr(runner, "_active_run", state)
+
+        for index in range(runner.LOG_LINES + 10):
+            runner._log_sink(f"line {index}\n")
+
+        lines = runner.run_log(state.id)
+        assert len(lines) == runner.LOG_LINES
+        assert lines[0] == "line 10"
+        assert lines[-1] == f"line {runner.LOG_LINES + 9}"
+
+    def test_run_log_endpoint_returns_lines_for_a_known_run(self, monkeypatch):
+        state = runner.submit_run(dataset="kuma-database", model="m", runs=1)
+        monkeypatch.setattr(runner, "_active_run", state)
+        runner._log_sink("hello\n")
+        app = runner.make_wsgi_app()
+
+        status, _headers, body = _call_wsgi(
+            app,
+            "GET",
+            "/run-log.json",
+            extra_environ={"QUERY_STRING": f"id={state.id}"},
+        )
+
+        assert status.startswith("200")
+        assert json.loads(body)["lines"] == ["hello"]
+
+    def test_run_log_endpoint_404s_for_an_unknown_run(self):
+        app = runner.make_wsgi_app()
+
+        status, _headers, _body = _call_wsgi(
+            app, "GET", "/run-log.json", extra_environ={"QUERY_STRING": "id=nope"}
+        )
+
+        assert status.startswith("404")

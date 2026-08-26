@@ -1,4 +1,5 @@
 import subprocess
+from contextlib import ExitStack, contextmanager
 from unittest.mock import patch
 
 from django.core.management import call_command
@@ -13,6 +14,8 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals import gitinfo, registry
+from baserow_enterprise.assistant.evals.control import RunControl
+from baserow_enterprise.assistant.evals.harness import EvalCaseTimeout
 from baserow_enterprise.assistant.evals.judge import JudgeVerdict
 from baserow_enterprise.assistant.evals.models import DEFAULT_EVAL_MODEL
 from baserow_enterprise.assistant.evals.run import (
@@ -42,6 +45,17 @@ def _isolated_registry(monkeypatch):
 
 def _noop_checks(case, scenario, output):
     return []
+
+
+def _expected_model_settings(model: str) -> dict:
+    """Resolved from the profile, so a profile change updates the expectation."""
+
+    from baserow_enterprise.assistant.model_profiles import (
+        ORCHESTRATOR,
+        get_model_settings,
+    )
+
+    return dict(get_model_settings(model, ORCHESTRATOR))
 
 
 def _make_case(case_id: str, **overrides) -> EvalCase:
@@ -550,6 +564,7 @@ class TestRunExperimentForFullDataset:
         assert call_kwargs["experiment_name"] == "exp-name"
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
+            "model_settings": _expected_model_settings("groq:test-model"),
             "judge_model": "groq:openai/gpt-oss-120b",
             "prompts": {"kuma-system-prompt": "abc123"},
             "git_branch": "my-branch",
@@ -590,6 +605,7 @@ class TestRunExperimentForFullDataset:
         call_kwargs = client.experiments.run_experiment_calls[0]
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
+            "model_settings": _expected_model_settings("groq:test-model"),
             "judge_model": "groq:openai/gpt-oss-120b",
             "prompts": {},
         }
@@ -1038,6 +1054,7 @@ class TestRunExperimentForCaseSubset:
         assert create_kwargs["repetitions"] == 1
         assert create_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
+            "model_settings": _expected_model_settings("groq:test-model"),
             "judge_model": "groq:openai/gpt-oss-120b",
             "case_ids": ["db/case-1"],
             "prompts": {"kuma-system-prompt": "abc123"},
@@ -1508,24 +1525,24 @@ class TestRunExperimentForCaseSubset:
 
 
 @pytest.mark.django_db
-class TestRunAssistantEvalsCommand:
+class TestAssistantEvalRunCommand:
     def test_requires_dataset_or_case(self):
         with pytest.raises(CommandError, match="--dataset is required"):
-            call_command("run_assistant_evals")
+            call_command("assistant_eval_run")
 
     def test_dataset_arg_runs_full_dataset(self):
         with (
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "setup_instrumentation"
             ) as mock_setup,
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "run_experiment_for",
                 return_value={"experiment_id": "exp-1", "dataset_id": "ds-1"},
             ) as mock_run,
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "get_phoenix_client"
             ) as mock_client,
         ):
@@ -1533,7 +1550,7 @@ class TestRunAssistantEvalsCommand:
                 "http://phoenix/x"
             )
 
-            call_command("run_assistant_evals", "--dataset", "kuma-database")
+            call_command("assistant_eval_run", "--dataset", "kuma-database")
 
         mock_setup.assert_called_once()
         mock_run.assert_called_once_with(
@@ -1548,21 +1565,21 @@ class TestRunAssistantEvalsCommand:
     def test_model_runs_and_name_are_forwarded(self):
         with (
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "setup_instrumentation"
             ),
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "run_experiment_for",
                 return_value={"id": "exp-2", "dataset_id": "ds-1"},
             ) as mock_run,
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "get_phoenix_client"
             ),
         ):
             call_command(
-                "run_assistant_evals",
+                "assistant_eval_run",
                 "--dataset",
                 "kuma-database",
                 "--model",
@@ -1588,21 +1605,21 @@ class TestRunAssistantEvalsCommand:
 
         with (
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "setup_instrumentation"
             ),
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "run_experiment_for",
                 return_value={"id": "exp-2", "dataset_id": "ds-1"},
             ) as mock_run,
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "get_phoenix_client"
             ),
         ):
             call_command(
-                "run_assistant_evals",
+                "assistant_eval_run",
                 "--case",
                 "db/case-1",
                 "--case",
@@ -1624,13 +1641,13 @@ class TestRunAssistantEvalsCommand:
 
         with (
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "setup_instrumentation"
             ),
             pytest.raises(CommandError, match="multiple datasets"),
         ):
             call_command(
-                "run_assistant_evals",
+                "assistant_eval_run",
                 "--case",
                 "db/case-1",
                 "--case",
@@ -1642,21 +1659,21 @@ class TestRunAssistantEvalsCommand:
 
         with (
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "setup_instrumentation"
             ),
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "run_experiment_for",
                 return_value={"id": "exp-2", "dataset_id": "ds-1"},
             ) as mock_run,
             patch(
-                "baserow_enterprise.management.commands.run_assistant_evals."
+                "baserow_enterprise.management.commands.assistant_eval_run."
                 "get_phoenix_client"
             ),
         ):
             call_command(
-                "run_assistant_evals",
+                "assistant_eval_run",
                 "--dataset",
                 "explicit-dataset",
                 "--case",
@@ -1805,3 +1822,278 @@ class TestPromptOverrides:
 
         metadata = client.experiments.run_experiment_calls[0]["experiment_metadata"]
         assert metadata["prompt_overrides"] == ["kuma-system-prompt"]
+
+
+@contextmanager
+def _subset_env(client, run_case_result=None, run_case_side_effect=None):
+    """The patch stack the subset progress tests share."""
+
+    run_case_patch = (
+        patch(
+            "baserow_enterprise.assistant.evals.run.run_case",
+            side_effect=run_case_side_effect,
+        )
+        if run_case_side_effect
+        else patch(
+            "baserow_enterprise.assistant.evals.run.run_case",
+            return_value=run_case_result or (_make_output(), []),
+        )
+    )
+    with ExitStack() as stack:
+        stack.enter_context(
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            )
+        )
+        kb = stack.enter_context(
+            patch("baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler")
+        )
+        kb.return_value.can_search.return_value = True
+        stack.enter_context(run_case_patch)
+        stack.enter_context(
+            patch(
+                "baserow_enterprise.assistant.evals.run.trace.get_tracer",
+                return_value=TracerProvider().get_tracer("test"),
+            )
+        )
+        stack.enter_context(
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_assistant_tracer_provider",
+                return_value=None,
+            )
+        )
+        stack.enter_context(
+            patch(
+                "baserow_enterprise.assistant.evals.run.prompt_hashes", return_value={}
+            )
+        )
+        stack.enter_context(
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_git_info", return_value={}
+            )
+        )
+        stack.enter_context(
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_judge_model",
+                return_value="groq:openai/gpt-oss-120b",
+            )
+        )
+        yield
+
+
+def _example(case_id: str, index: int) -> dict:
+    return {
+        "id": f"example-{index}",
+        "node_id": f"node-{index}",
+        "input": {},
+        "output": {},
+        "metadata": {"case_id": case_id},
+    }
+
+
+def _two_case_client() -> "_FakeClient":
+    for case_id in ("db/case-1", "db/case-2"):
+        registry.register_case(_make_case(case_id))
+    return _FakeClient(
+        _FakeDataset([_example("db/case-1", 1), _example("db/case-2", 2)])
+    )
+
+
+class TestSubsetProgressAndStop:
+    def test_counts_every_case_repetition(self):
+        client = _two_case_client()
+        control = RunControl()
+
+        with _subset_env(client):
+            run_experiment_for(
+                "kuma-database",
+                "groq:test-model",
+                case_ids=["db/case-1", "db/case-2"],
+                runs=3,
+                control=control,
+            )
+
+        assert control.total == 6, "2 cases x 3 repetitions"
+        assert control.completed == 6
+
+    def test_stopping_halts_before_the_next_case(self):
+        client = _two_case_client()
+        control = RunControl()
+
+        def stop_after_first(*args, **kwargs):
+            control.stop()
+            return (_make_output(), [])
+
+        with _subset_env(client, run_case_side_effect=stop_after_first):
+            run_experiment_for(
+                "kuma-database",
+                "groq:test-model",
+                case_ids=["db/case-1", "db/case-2"],
+                runs=1,
+                control=control,
+            )
+
+        assert control.total == 2
+        assert control.completed == 1, "the second case never ran"
+        assert len(client.experiments.log_run_calls) == 1
+
+
+class TestFullDatasetProgressAndStop:
+    def _task_for(self, client, control, examples, runs=1):
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+            patch(
+                "baserow_enterprise.assistant.evals.run.run_case",
+                return_value=(_make_output(), []),
+            ),
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+            run_experiment_for(
+                "kuma-database", "groq:test-model", runs=runs, control=control
+            )
+        return client.experiments.run_experiment_calls[0]["task"]
+
+    def test_total_is_examples_times_repetitions(self):
+        registry.register_case(_make_case("db/case-1"))
+        client = _FakeClient(_FakeDataset([object(), object(), object()]))
+        control = RunControl()
+
+        self._task_for(client, control, [], runs=4)
+
+        assert control.total == 12
+
+    def test_a_phoenix_retry_cannot_push_the_counter_past_the_total(self):
+        """SyncExecutor re-enters the task on failure, so counting every call
+        would report more finished cases than the dataset has."""
+
+        registry.register_case(_make_case("db/case-1"))
+        client = _FakeClient(_FakeDataset([object()]))
+        control = RunControl()
+        task = self._task_for(client, control, [], runs=1)
+
+        example = _ExampleStub("db/case-1", example_id="ex-retried")
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.run_case",
+                return_value=(_make_output(), []),
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+            for _attempt in range(4):
+                task(example)
+
+        assert control.total == 1
+        assert control.completed == 1
+
+    def test_repetitions_of_one_example_each_count_once(self):
+        registry.register_case(_make_case("db/case-1"))
+        client = _FakeClient(_FakeDataset([object()]))
+        control = RunControl()
+        task = self._task_for(client, control, [], runs=3)
+
+        example = _ExampleStub("db/case-1", example_id="ex-repeated")
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.run_case",
+                return_value=(_make_output(), []),
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+        ):
+            mock_kb_cls.return_value.can_search.return_value = True
+            for _repetition in range(5):
+                task(example)
+
+        assert control.total == 3
+        assert control.completed == 3, "capped at the repetition count"
+
+    def test_a_stopped_run_skips_the_case_without_calling_the_agent(self):
+        registry.register_case(_make_case("db/case-1"))
+        client = _FakeClient(_FakeDataset([object()]))
+        control = RunControl()
+        task = self._task_for(client, control, [], runs=1)
+        control.stop()
+
+        with patch("baserow_enterprise.assistant.evals.run.run_case") as mock_run_case:
+            result = task(_ExampleStub("db/case-1"))
+
+        mock_run_case.assert_not_called()
+        assert result == {"skipped": "run stopped"}
+        assert control.completed == 0
+
+
+class TestTimeoutIsRecordedNotRaised:
+    def test_a_timed_out_case_scores_zero_and_is_marked(self):
+        case = _make_case("db/hangs")
+
+        with patch(
+            "baserow_enterprise.assistant.evals.run.run_case",
+            side_effect=EvalCaseTimeout("db/hangs exceeded 120s and was cancelled"),
+        ):
+            result = run_case_for_experiment(case, "groq:test-model", True)
+
+        assert result["timed_out"] is True
+        assert result["score"] == 0.0
+        assert result["passed"] is False
+        assert result["checks"] == [
+            {
+                "name": "completed_within_timeout",
+                "passed": False,
+                "hint": "db/hangs exceeded 120s and was cancelled",
+            }
+        ]
+        # Not a skip: a hang must count against the model in aggregates.
+        assert "skipped" not in result
+        assert checklist(result) == {
+            "score": 0.0,
+            "explanation": (
+                "✗ completed_within_timeout — db/hangs exceeded 120s and was cancelled"
+            ),
+        }
+        assert passed(result) is False
+
+    def test_it_does_not_ask_the_judge_to_grade_an_empty_answer(self):
+        case = _make_case("docs/hangs", requires_knowledge_base=True)
+
+        with patch(
+            "baserow_enterprise.assistant.evals.run.run_case",
+            side_effect=EvalCaseTimeout("docs/hangs exceeded 120s and was cancelled"),
+        ):
+            result = run_case_for_experiment(case, "groq:test-model", True)
+
+        assert result["judge_docs"] is False
+        assert result["answer"] == ""
+
+    def test_the_remaining_cases_still_run_after_one_times_out(self):
+        client = _two_case_client()
+        control = RunControl()
+        calls = []
+
+        def hang_on_the_first(case, *args, **kwargs):
+            calls.append(case.id)
+            if len(calls) == 1:
+                raise EvalCaseTimeout(f"{case.id} exceeded 120s and was cancelled")
+            return (_make_output(), [])
+
+        with _subset_env(client, run_case_side_effect=hang_on_the_first):
+            run_experiment_for(
+                "kuma-database",
+                "groq:test-model",
+                case_ids=["db/case-1", "db/case-2"],
+                control=control,
+            )
+
+        assert calls == ["db/case-1", "db/case-2"], "the run stopped at the timeout"
+        assert control.completed == 2
+        assert len(client.experiments.log_run_calls) == 2

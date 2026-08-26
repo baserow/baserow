@@ -1,4 +1,6 @@
 import asyncio
+import threading
+import time
 
 import pytest
 from pydantic_ai import Agent
@@ -10,6 +12,8 @@ from baserow_enterprise.assistant.evals import registry
 from baserow_enterprise.assistant.evals.harness import (
     PROMPT_AGENT_TARGETS,
     PROMPT_ATTR_TARGETS,
+    EvalCaseTimeout,
+    get_case_timeout_s,
     override_assistant_model,
     override_assistant_prompts,
     run_case,
@@ -227,3 +231,103 @@ class TestOverrideAssistantPrompts:
     def test_empty_overrides_is_a_noop(self):
         with override_assistant_prompts({}):
             pass
+
+
+class _HangingModel(TestModel):
+    """Never answers, and records whether its request was actually cancelled."""
+
+    def __init__(self, cancelled: threading.Event):
+        super().__init__()
+        self._cancelled = cancelled
+
+    async def request(self, *args, **kwargs):
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            self._cancelled.set()
+            raise
+        return await super().request(*args, **kwargs)
+
+
+@pytest.mark.django_db
+class TestCaseTimeout:
+    def _register_scenario(self):
+        fixtures = make_fixtures()
+        user = fixtures.create_user()
+        workspace = fixtures.create_workspace(user=user)
+
+        @registry.register_scenario("timeout-test-scenario")
+        def _build(_fixtures) -> EvalScenario:
+            return EvalScenario(user=user, workspace=workspace, ui_context=None)
+
+    def _case(self, case_id: str) -> EvalCase:
+        return EvalCase(
+            id=case_id,
+            dataset="harness-test",
+            prompt="say hi",
+            scenario="timeout-test-scenario",
+            checks=lambda case, scenario, output: [],
+        )
+
+    def test_default_budget_is_two_minutes(self, monkeypatch):
+        monkeypatch.delenv("BASEROW_EVAL_CASE_TIMEOUT", raising=False)
+
+        assert get_case_timeout_s() == 120
+
+    def test_budget_is_overridable_by_env(self, monkeypatch):
+        monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", "0.25")
+
+        assert get_case_timeout_s() == 0.25
+
+    def test_a_hung_case_is_cancelled_not_abandoned(self, monkeypatch):
+        monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", "0.3")
+        self._register_scenario()
+        cancelled = threading.Event()
+
+        began = time.monotonic()
+        with pytest.raises(EvalCaseTimeout, match="db/hangs exceeded 0.3s"):
+            run_case(self._case("db/hangs"), _HangingModel(cancelled))
+        elapsed = time.monotonic() - began
+
+        # The reason for wait_for over a worker thread: the provider call
+        # really stops, instead of running on and burning quota.
+        assert cancelled.is_set(), "the model request was abandoned, not cancelled"
+        assert elapsed < 5, f"took {elapsed:.1f}s — it waited for the model"
+
+    def test_a_normal_case_is_untouched_by_the_budget(self):
+        self._register_scenario()
+
+        output, checks = run_case(
+            self._case("db/fast"),
+            TestModel(custom_output_text="hello", call_tools=[]),
+        )
+
+        assert output.answer == "hello"
+        assert [c.name for c in checks] == ["tool_errors_within_budget"]
+
+    def test_the_loop_still_works_after_a_timeout(self, monkeypatch):
+        """A cancelled run must not poison the shared event loop for the
+        cases that follow it — the worker runs every case on the same loop."""
+
+        self._register_scenario()
+        monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", "0.3")
+        with pytest.raises(EvalCaseTimeout):
+            run_case(self._case("db/hangs"), _HangingModel(threading.Event()))
+
+        monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", "30")
+        output, _checks = run_case(
+            self._case("db/after"),
+            TestModel(custom_output_text="still working", call_tools=[]),
+        )
+
+        assert output.answer == "still working"
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_an_empty_timeout_env_var_falls_back_to_the_default(monkeypatch, value):
+    """docker-compose writes ${VAR:-} as an empty string, not an absent key,
+    so float("") would crash the runner at startup."""
+
+    monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", value)
+
+    assert get_case_timeout_s() == 120

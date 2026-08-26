@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
@@ -25,8 +26,11 @@ from opentelemetry.context import Context
 from opentelemetry.trace import Status, StatusCode
 
 from baserow_enterprise.assistant.deps import AgentMode
+from baserow_enterprise.assistant.evals.control import RunControl
 from baserow_enterprise.assistant.evals.gitinfo import get_git_info
 from baserow_enterprise.assistant.evals.harness import (
+    EvalCaseTimeout,
+    get_case_timeout_s,
     override_assistant_prompts,
     run_case,
     tool_called,
@@ -50,6 +54,10 @@ from baserow_enterprise.assistant.evals.types import (
     EvalCase,
     EvalRunOutput,
     EvalScenario,
+)
+from baserow_enterprise.assistant.model_profiles import (
+    ORCHESTRATOR,
+    get_model_settings,
 )
 from baserow_enterprise.assistant.telemetry import get_assistant_tracer_provider
 from baserow_enterprise.assistant.tools.search_user_docs.handler import (
@@ -255,6 +263,28 @@ def passed(output: dict[str, Any]) -> bool | dict[str, Any]:
     return all(c["passed"] for c in output.get("checks", []))
 
 
+def _timed_out_result(case: EvalCase, reason: str) -> dict[str, Any]:
+    """A timed-out case's Phoenix output: one failed check, so it scores 0."""
+
+    checks = [{"name": "completed_within_timeout", "passed": False, "hint": reason}]
+    return {
+        "question": case.prompt,
+        # No answer to grade, so don't spend a judge call on it.
+        "judge_docs": False,
+        "answer": "",
+        "tool_calls": [],
+        "tool_error_count": 0,
+        "checks": checks,
+        "score": 0.0,
+        "passed": False,
+        "timed_out": True,
+        "sources": [],
+        "sources_count": 0,
+        "request_count": 0,
+        "duration_s": get_case_timeout_s(),
+    }
+
+
 def run_case_for_experiment(
     case: EvalCase,
     model: str,
@@ -269,12 +299,30 @@ def run_case_for_experiment(
     """
 
     if case.requires_knowledge_base and not kb_available:
+        logger.info("skip {} (knowledge base unavailable)", case.id)
         return {"skipped": "knowledge base unavailable"}
 
-    with override_assistant_prompts(prompt_texts or {}):
-        output, checks = run_case(case, model)
+    logger.info("run {}", case.id)
+    try:
+        with override_assistant_prompts(prompt_texts or {}):
+            output, checks = run_case(case, model)
+    except EvalCaseTimeout as exc:
+        # A hang is a real failure: score it 0 rather than skipping it, and
+        # keep the remaining cases running.
+        logger.warning("TIMEOUT {}", exc)
+        return _timed_out_result(case, str(exc))
     check_dicts = [asdict(c) for c in checks]
     partial = {"checks": check_dicts}
+    score = _score_and_explanation(check_dicts)[0]
+    logger.info(
+        "{} {} score {:.2f} in {:.1f}s ({} requests, {} tool errors)",
+        "PASS" if passed(partial) is True else "FAIL",
+        case.id,
+        score,
+        output.duration_s,
+        output.request_count,
+        output.tool_error_count,
+    )
     return {
         "question": case.prompt,
         "judge_docs": case.requires_knowledge_base,
@@ -282,7 +330,7 @@ def run_case_for_experiment(
         "tool_calls": output.tool_calls,
         "tool_error_count": output.tool_error_count,
         "checks": check_dicts,
-        "score": _score_and_explanation(check_dicts)[0],
+        "score": score,
         "passed": passed(partial),
         "sources": [str(s) for s in output.sources],
         "sources_count": len(output.sources),
@@ -343,13 +391,18 @@ def _fetch_prompt_overrides(client: Any, names: list[str] | None) -> dict[str, s
 
 
 def _experiment_metadata(
-    model: str, prompt_texts: dict[str, str] | None = None, **extra: Any
+    model: str,
+    prompt_texts: dict[str, str] | None = None,
+    notes: str | None = None,
+    **extra: Any,
 ) -> dict[str, Any]:
-    """Metadata every experiment gets: model, judge model, prompt hashes, git info.
+    """Metadata every experiment gets: model, settings, judge, prompt hashes, git.
 
     Lets branch/model/prompt-version comparisons be filtered in Phoenix.
     Overridden prompts are stamped with their effective (fetched) hash and
-    listed under ``prompt_overrides``.
+    listed under ``prompt_overrides``. ``model_settings`` records the resolved
+    orchestrator profile so a run's temperature and reasoning effort are
+    recoverable from the experiment alone.
     """
 
     hashes = prompt_hashes()
@@ -358,6 +411,7 @@ def _experiment_metadata(
 
     metadata = {
         "model": model,
+        "model_settings": dict(get_model_settings(model, ORCHESTRATOR)),
         "judge_model": get_judge_model(),
         **extra,
         "prompts": hashes,
@@ -365,6 +419,8 @@ def _experiment_metadata(
     }
     if prompt_texts:
         metadata["prompt_overrides"] = sorted(prompt_texts)
+    if notes:
+        metadata["notes"] = notes
     return metadata
 
 
@@ -375,14 +431,18 @@ def run_experiment_for(
     runs: int = 1,
     experiment_name: str | None = None,
     prompt_overrides: list[str] | None = None,
+    notes: str | None = None,
+    control: RunControl | None = None,
 ) -> Any:
     """Run (or resume as a subset) a Phoenix experiment for an eval dataset.
 
     ``prompt_overrides`` names synced prompts to run with their latest
-    Phoenix version instead of the code constant.
+    Phoenix version instead of the code constant. ``control`` receives
+    per-case progress and is polled between cases so a run can be stopped.
     """
 
     load_all()
+    control = control or RunControl()
     client = get_phoenix_client()
     kb_available = KnowledgeBaseHandler().can_search()
     prompt_texts = _fetch_prompt_overrides(client, prompt_overrides)
@@ -397,23 +457,37 @@ def run_experiment_for(
             experiment_name,
             kb_available,
             prompt_texts,
+            notes,
+            control,
         )
 
+    # Phoenix re-enters the task on retry, so cap each example at its repetitions.
+    counted: Counter[str] = Counter()
+
     def task(example: Any) -> dict[str, Any]:
+        if control.stopping:
+            return {"skipped": "run stopped"}
         case = case_for_example(
             example.input, example.metadata, dataset_name, str(example.id)
         )
         if isinstance(case, dict):
-            return case
-        return run_case_for_experiment(case, model, kb_available, prompt_texts)
+            result = case
+        else:
+            result = run_case_for_experiment(case, model, kb_available, prompt_texts)
+        example_id = str(example.id)
+        if counted[example_id] < runs:
+            counted[example_id] += 1
+            control.case_finished()
+        return result
 
     dataset = client.datasets.get_dataset(dataset=dataset_name)
+    control.set_total(len(dataset.examples) * runs)
     return client.experiments.run_experiment(
         dataset=dataset,
         task=task,
         evaluators=[checklist, passed, answer_quality],
         experiment_name=experiment_name,
-        experiment_metadata=_experiment_metadata(model, prompt_texts),
+        experiment_metadata=_experiment_metadata(model, prompt_texts, notes),
         repetitions=runs,
     )
 
@@ -427,7 +501,10 @@ def _run_case_subset(
     experiment_name: str | None,
     kb_available: bool,
     prompt_texts: dict[str, str] | None = None,
+    notes: str | None = None,
+    control: RunControl | None = None,
 ) -> Any:
+    control = control or RunControl()
     dataset = client.datasets.get_dataset(dataset=dataset_name)
     examples_by_case_id = {
         case_id: ex
@@ -467,13 +544,16 @@ def _run_case_subset(
         dataset_version_id=dataset.version_id,
         experiment_name=experiment_name,
         experiment_metadata=_experiment_metadata(
-            model, prompt_texts, case_ids=case_ids
+            model, prompt_texts, notes, case_ids=case_ids
         ),
         repetitions=runs,
     )
 
+    control.set_total(len(selected) * runs)
     for example, case in selected:
         for repetition in range(1, runs + 1):
+            if control.stopping:
+                return client.experiments.get_experiment(experiment_id=experiment["id"])
             _log_case_run(
                 client,
                 experiment,
@@ -484,6 +564,7 @@ def _run_case_subset(
                 repetition,
                 prompt_texts,
             )
+            control.case_finished()
 
     return client.experiments.get_experiment(experiment_id=experiment["id"])
 

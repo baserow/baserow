@@ -51,7 +51,7 @@ docs_answer_judge: Agent[None, JudgeVerdict] = Agent(
 def get_judge_model() -> str:
     """Return the pydantic-ai model string to use for judge agents."""
 
-    return os.environ.get("BASEROW_EVAL_JUDGE_MODEL", DEFAULT_JUDGE_MODEL)
+    return os.environ.get("BASEROW_EVAL_JUDGE_MODEL") or DEFAULT_JUDGE_MODEL
 
 
 def judge_docs_answer(

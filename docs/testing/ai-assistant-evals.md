@@ -15,12 +15,79 @@ trace. Why this platform: [ADR 007](../decisions/007-ai-assistant-eval-platform.
 2. `just dc-dev up -d` — the `assistant-eval-runner` service migrates its own
    `baserow_evals` database, syncs the datasets into Phoenix, and serves
    `http://localhost:8090`.
-3. Pick a whole dataset or individual cases, a model from the dropdown (only
-   models whose provider key is configured are listed; the free-text field
-   accepts any pydantic-ai model string), a repeat count, and Run.
-4. The run row links to the experiment in Phoenix when done.
-5. The page's **Help** tab renders this guide and the
+3. Pick a whole dataset or individual cases, a model (pick **Custom…** to
+   type any pydantic-ai model string), a repeat count, optional notes, and Run.
+   The model list only offers models whose provider key is set — see
+   [why a model is missing](ai-assistant-evals.md#why-a-model-is-missing-from-the-dropdown).
+4. The run row shows live progress as `running 7/38`; click it to expand the
+   run's log tail. Each queued or running row has its own **Stop**, and
+   **Stop all** halts everything at once.
+5. The run row links to the experiment in Phoenix when done.
+6. The page's **Help** tab renders this guide and the
    [tracing guide](../development/ai-assistant-tracing.md) inline.
+
+### Watching a run
+
+The status cell counts finished case-repetitions against the total, which is
+known before the first case starts. Clicking any row — running or finished —
+expands the last 200 log lines captured from that run: one line per case with
+its score and duration, plus any warnings and tracebacks. Only the worker
+thread's lines are captured, so page requests never pollute a run's log.
+
+The page polls every 2s while anything is queued or running and backs off to
+30s once everything settles, repainting only the rows whose state actually
+changed. A finished run's log is fetched once and then left alone.
+
+The buffer is in memory and deliberately not persisted: a `.py` edit restarts
+the runner, which rewrites in-flight runs to `failed` and drops their logs.
+Raise or lower the captured level with `BASEROW_EVAL_RUNNER_LOG_LEVEL`
+(default `INFO`). Only Baserow's own loguru output is captured — library
+chatter (httpx, pydantic-ai retries) still goes to
+`just dc-dev logs -f assistant-eval-runner`.
+
+### Timeouts
+
+Every case has a wall-clock budget — `BASEROW_EVAL_CASE_TIMEOUT`, default
+120s. For scale: across the committed baseline's 111 runs the slowest case
+takes 16.4s and the median 5.8s, so the budget only ever fires on a genuine
+hang. Without it a single stuck case blocks the one worker indefinitely, and
+the per-request timeouts don't bound it: `max_iters` requests times the
+per-request timeout, plus retries, runs into several minutes.
+
+A timed-out case is cancelled, not abandoned — `asyncio.wait_for` on the
+agent's own event loop stops the in-flight provider call rather than leaving
+a thread burning quota. It is recorded as a failed `completed_within_timeout`
+check, so it scores 0 and counts in aggregates (a hang is a real failure, not
+a skip), the run continues with the remaining cases, and the judge is not
+asked to grade the empty answer.
+
+**Stop** is cooperative and lands at the next case boundary, because the
+worker sits inside a blocking LLM call that Python cannot interrupt. Queued
+runs stop immediately; a running one finishes its current case first and ends
+as `stopped`, keeping the cases it already logged to Phoenix — its status
+reads `stopping…` in between. Stop one dataset from its row, or use **Stop
+all** when an error is going to sink every remaining case anyway.
+
+### Comparing a whole run
+
+A selection spanning several datasets fans out to one experiment per dataset,
+and the Results tab groups experiments by name. Leaving **Experiment name**
+blank generates one shared `run-<timestamp>-<id>` name for the whole fan-out,
+so the Results tab compares every dataset against the baseline in one view.
+Type a name instead to group runs yourself — reusing a name across separate
+submissions merges them into one group.
+
+Experiments created before this grouping existed each carry their own
+Phoenix-generated name, so they stay ungrouped.
+
+### Recording why a run differed
+
+Every experiment is stamped with its model, the resolved orchestrator
+`model_settings` (temperature, reasoning effort, max tokens), the judge model,
+prompt hashes, and git branch/commit — so a score is traceable to the
+configuration that produced it without writing anything down. The **Notes**
+field adds free text for whatever that does not cover; both the settings and
+the note show under the model in the Results tab.
 
 > **Warning:** the runner hot-reloads on any mounted `.py` change (including
 > a lint/format pass), which kills queued and running experiments — don't
@@ -220,11 +287,38 @@ code-set `reference_answer` always wins over whatever is live.
 
 ## Models and providers
 
-The dropdown/default list is `EVAL_MODELS` in
-`enterprise/backend/src/baserow_enterprise/assistant/evals/models.py` — extend
-it there. Any pydantic-ai `provider:model` string works via `--model` or the
-free-text field, given the matching `*_API_KEY` env var. The model applies to
-the whole agent, sub-agents included.
+`EVAL_MODELS` in
+`enterprise/backend/src/baserow_enterprise/assistant/evals/models.py` is the
+candidate list — extend it there. Any pydantic-ai `provider:model` string
+works via `--model`, or in the UI by picking **Custom…** and typing it. The
+model applies to the whole agent, sub-agents included.
+
+Per-model overrides live in `_MODEL_PROFILES` in
+`enterprise/backend/src/baserow_enterprise/assistant/model_profiles.py`, keyed
+by exact model name. The `gpt-5.6` family is pinned to
+`openai_reasoning_effort="none"` there: it reasons by default, and OpenAI
+rejects function tools alongside reasoning on `/v1/chat/completions`. That is
+a workaround — the real fix is to resolve OpenAI models through the Responses
+API, which is what pydantic-ai's own `openai:` prefix already defaults to.
+
+### Why a model is missing from the dropdown
+
+The dropdown is not `EVAL_MODELS` itself but `available_models()`, which keeps
+only the entries whose `api_key_env` variable is set in the runner's
+environment. A model with no key is silently absent rather than listed and
+broken, so adding one to `EVAL_MODELS` is not enough to make it appear.
+
+`docker-compose.dev.yml` forwards `GROQ_API_KEY`, `OPENAI_API_KEY`,
+`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, and `GOOGLE_API_KEY` to
+`assistant-eval-runner` from `.env.docker-dev`. Set the variable the model's
+entry names, then restart the service.
+
+Gemini is the one asymmetric case: pydantic-ai authenticates with either
+`GOOGLE_API_KEY` or `GEMINI_API_KEY`, but `available_models()` only checks
+`GOOGLE_API_KEY`. With only `GEMINI_API_KEY` set the Gemini entries stay
+hidden even though a run would have worked — use `GOOGLE_API_KEY`, or reach
+the model through **Custom…**, which skips the key check entirely and so
+fails at request time instead of hiding.
 
 ## Prompts
 
@@ -236,19 +330,29 @@ eval-sync. Every experiment's `prompts` metadata records the content hash of
 each prompt as it ran, so prompt-version comparisons are filterable in
 Phoenix.
 
-To experiment with a prompt change **without touching code**:
+To experiment with a prompt change **without touching code** (Phoenix has no
+plain edit box — editing goes through its playground):
 
-1. Edit the prompt in Phoenix's Prompts tab and save — that's a new version
-   (Phoenix prompts are append-only, nothing is lost).
-2. In the runner page's **Prompt overrides** section, tick that prompt —
-   checked prompts run with their latest Phoenix version instead of the code
-   constant. CLI equivalent: `--override-prompt <name>` (repeatable). The
-   list sorts the active tab's likely-relevant prompts first, but any prompt
-   can be overridden — one the selected cases never exercise is just a no-op.
-3. Run and compare: the experiment is stamped with the effective prompt
+1. Phoenix → **Prompts** → click **Open in playground** on the prompt's row.
+   The playground loads its latest version as an editable System message.
+2. Edit the text, then click the save-icon **Prompt** button in the prompt's
+   header row, next to the name and version selectors. In the dialog the
+   prompt name is pre-selected — optionally describe the change, then
+   confirm. That appends a new version (append-only, nothing is lost; the
+   "Run" playground button is irrelevant here).
+3. On the runner page, expand **Prompt overrides** in the run panel and tick
+   that prompt — checked prompts run with their latest Phoenix version
+   instead of the code constant. CLI: `--override-prompt <name>`
+   (repeatable). The list sorts the active tab's likely-relevant prompts
+   first, but any prompt can be overridden — one the selected cases never
+   exercise is just a no-op.
+4. Run and compare: the experiment is stamped with the effective prompt
    hashes plus a `prompt_overrides` list naming what was overridden.
-4. To promote a winning prompt, paste its text into the code constant — the
-   next eval-sync records it as the new latest version.
+5. To promote a winning prompt, paste its text into the code constant — the
+   next eval-sync records it as the new latest version. (Eval-sync also
+   re-appends the code version as latest whenever the two drift, so an
+   abandoned experiment resets itself on the next runner restart —
+   overrides are opt-in per run, never sticky.)
 
 Editing the constant in code directly still works too (the runner
 hot-reloads .py changes).
