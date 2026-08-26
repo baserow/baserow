@@ -175,6 +175,52 @@ def test_dashboard_export_serialized_with_widgets(data_fixture):
 
 
 @pytest.mark.django_db
+def test_dashboard_current_export_import_roundtrip_preserves_widget_geometry(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    source_workspace = data_fixture.create_workspace(user=user)
+    target_workspace = data_fixture.create_workspace(user=user)
+    source_dashboard = cast(
+        Dashboard,
+        CoreHandler().create_application(
+            user,
+            source_workspace,
+            type_name="dashboard",
+            name="Source dashboard",
+            init_with_data=True,
+        ),
+    )
+    widget = WidgetService().create_widget(
+        user, "summary", source_dashboard.id, title="Widget"
+    )
+    Widget.objects.filter(id=widget.id).update(
+        grid_x=3,
+        grid_y=7,
+        grid_width=3,
+        grid_height=5,
+    )
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = DashboardApplicationType().export_serialized(source_dashboard, config)
+    serialized = json.loads(json.dumps(serialized))
+
+    imported_dashboard = DashboardApplicationType().import_serialized(
+        target_workspace,
+        serialized,
+        config,
+        id_mapping={},
+    )
+
+    imported_widget = Widget.objects.get(dashboard=imported_dashboard)
+    assert (
+        imported_widget.grid_x,
+        imported_widget.grid_y,
+        imported_widget.grid_width,
+        imported_widget.grid_height,
+    ) == (3, 7, 3, 5)
+
+
+@pytest.mark.django_db
 def test_dashboard_import_serialized(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -203,7 +249,7 @@ def test_dashboard_import_serialized(data_fixture):
 
 
 @pytest.mark.django_db()
-def test_dashboard_import_serialized_with_widgets(data_fixture):
+def test_dashboard_import_serialized_with_legacy_widgets(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=user, workspace=workspace)

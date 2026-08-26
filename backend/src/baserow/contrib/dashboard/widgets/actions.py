@@ -11,6 +11,7 @@ from baserow.core.action.scopes import ApplicationActionScopeType
 
 from .models import Widget
 from .service import WidgetService
+from .types import UpdatedWidgetLayout, WidgetLayoutDict
 
 
 class CreateWidgetActionType(UndoableActionType):
@@ -30,9 +31,9 @@ class CreateWidgetActionType(UndoableActionType):
         widget_title: str
         widget_type: str
         # ``None`` identifies actions stored before grid layouts were introduced.
-        # An empty list is a valid snapshot for a dashboard that had no widgets.
-        original_layout: list[dict[str, int]] | None = None
-        new_layout: list[dict[str, int]] | None = None
+        # Empty lists are valid sides of a delta when no other widget changed.
+        original_layout: list[WidgetLayoutDict] | None = None
+        new_layout: list[WidgetLayoutDict] | None = None
 
     @classmethod
     @transaction.atomic
@@ -52,8 +53,8 @@ class CreateWidgetActionType(UndoableActionType):
                 widget.id,
                 widget.title,
                 widget_type,
-                created_widget.original_layout,
-                created_widget.new_layout,
+                created_widget.layout_delta.original_layout,
+                created_widget.layout_delta.new_layout,
             ),
             scope=cls.scope(widget.dashboard.id),
             workspace=widget.dashboard.workspace,
@@ -186,8 +187,8 @@ class UpdateWidgetLayoutActionType(UndoableActionType):
     class Params:
         dashboard_id: int
         dashboard_name: str
-        original_layout: list[dict[str, int]]
-        new_layout: list[dict[str, int]]
+        original_layout: list[WidgetLayoutDict]
+        new_layout: list[WidgetLayoutDict]
 
     @classmethod
     @transaction.atomic
@@ -195,23 +196,24 @@ class UpdateWidgetLayoutActionType(UndoableActionType):
         cls,
         user: AbstractUser,
         dashboard_id: int,
-        new_layout: list[dict[str, int]],
-    ) -> list[Widget]:
+        new_layout: list[WidgetLayoutDict],
+    ) -> UpdatedWidgetLayout:
         updated_layout = WidgetService().update_visible_widget_layout(
             user, dashboard_id, new_layout
         )
-        cls.register_action(
-            user=user,
-            params=cls.Params(
-                updated_layout.dashboard.id,
-                updated_layout.dashboard.name,
-                updated_layout.original_layout,
-                updated_layout.new_layout,
-            ),
-            scope=cls.scope(updated_layout.dashboard.id),
-            workspace=updated_layout.dashboard.workspace,
-        )
-        return updated_layout.widgets
+        if updated_layout.layout_delta.has_changes:
+            cls.register_action(
+                user=user,
+                params=cls.Params(
+                    updated_layout.dashboard.id,
+                    updated_layout.dashboard.name,
+                    updated_layout.layout_delta.original_layout,
+                    updated_layout.layout_delta.new_layout,
+                ),
+                scope=cls.scope(updated_layout.dashboard.id),
+                workspace=updated_layout.dashboard.workspace,
+            )
+        return updated_layout
 
     @classmethod
     def scope(cls, dashboard_id):
@@ -262,9 +264,9 @@ class DeleteWidgetActionType(UndoableActionType):
         widget_id: int
         widget_title: str
         # ``None`` identifies actions stored before grid layouts were introduced.
-        # An empty list is a valid snapshot for a dashboard without widgets.
-        original_layout: list[dict[str, int]] | None = None
-        new_layout: list[dict[str, int]] | None = None
+        # Empty lists are valid sides of a delta when a widget is created/deleted.
+        original_layout: list[WidgetLayoutDict] | None = None
+        new_layout: list[WidgetLayoutDict] | None = None
 
     @classmethod
     @transaction.atomic
@@ -281,8 +283,8 @@ class DeleteWidgetActionType(UndoableActionType):
                 updated_layout.dashboard.name,
                 deleted_widget.id,
                 deleted_widget.title,
-                updated_layout.original_layout,
-                updated_layout.new_layout,
+                updated_layout.layout_delta.original_layout,
+                updated_layout.layout_delta.new_layout,
             ),
             scope=cls.scope(updated_layout.dashboard.id),
             workspace=updated_layout.dashboard.workspace,

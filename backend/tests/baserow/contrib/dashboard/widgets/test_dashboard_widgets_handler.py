@@ -7,6 +7,7 @@ import pytest
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.widgets.exceptions import WidgetDoesNotExist
 from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+from baserow.contrib.dashboard.widgets.layout import WidgetLayoutHandler
 from baserow.contrib.dashboard.widgets.models import SummaryWidget, Widget
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
 
@@ -277,7 +278,7 @@ def test_delete_widget(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_compacted_widget_layout_preserves_columns_and_fills_vertical_gaps(
+def test_widget_layout_handler_preserves_columns_and_fills_vertical_gaps(
     data_fixture,
 ):
     dashboard = data_fixture.create_dashboard_application()
@@ -300,9 +301,9 @@ def test_get_compacted_widget_layout_preserves_columns_and_fills_vertical_gaps(
     for widget in (first_widget, second_widget, third_widget):
         widget.save(update_fields=["grid_x", "grid_y", "grid_width", "grid_height"])
 
-    layout = WidgetHandler().get_compacted_widget_layout(
+    layout = WidgetLayoutHandler(
         [first_widget, second_widget, third_widget]
-    )
+    ).compacted_layout
 
     assert layout == [
         {

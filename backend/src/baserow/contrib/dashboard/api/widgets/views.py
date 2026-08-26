@@ -276,7 +276,10 @@ class WidgetLayoutView(APIView):
         ],
         tags=["Dashboard widgets"],
         operation_id="update_dashboard_widget_layout",
-        description="Atomically updates the complete layout of a dashboard's widgets.",
+        description=(
+            "Atomically updates and vertically compacts the layout of every dashboard "
+            "widget visible to the current user."
+        ),
         request=UpdateWidgetLayoutSerializer,
         responses={
             200: DiscriminatorCustomFieldsMappingSerializer(
@@ -303,7 +306,7 @@ class WidgetLayoutView(APIView):
             dashboard_id,
             data["widgets"],
         )
-        # Layout updates operate on the complete dashboard snapshot, but the API
-        # response must still honor per-widget visibility rules.
+        # Keep the complete response shape for frontends loaded before the grid
+        # rollout; current clients merge only the canonical geometry they need.
         widgets = WidgetService().get_widgets(request.user, dashboard_id)
         return Response(serialize_widgets(widgets))
