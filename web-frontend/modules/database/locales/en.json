@@ -1308,7 +1308,9 @@
     "addAction": "Add action",
     "chooseAction": "Choose action...",
     "searchActions": "Search actions",
-    "misconfigured": "At least one action is misconfigured"
+    "misconfigured": "At least one action is misconfigured",
+    "toggleAction": "Show or hide this action",
+    "moveAction": "Move action, use the arrow keys to reorder"
   },
   "buttonField": {
     "dispatchErrorTitle": "Could not run the actions",

@@ -41,7 +41,12 @@
           <div
             class="button-field-action-list__handle"
             data-sortable-handle
+            tabindex="0"
+            role="button"
+            :aria-label="$t('buttonFieldActionList.moveAction')"
             @click.stop
+            @keydown.up.prevent.stop="moveAction(index, -1)"
+            @keydown.down.prevent.stop="moveAction(index, 1)"
           ></div>
           <div class="button-field-action-list__type" @click.stop>
             <Dropdown
@@ -75,6 +80,12 @@
                 : 'iconoir-nav-arrow-right'
             "
             data-action-toggle
+            tabindex="0"
+            role="button"
+            :aria-expanded="isExpanded(action) ? 'true' : 'false'"
+            :aria-label="$t('buttonFieldActionList.toggleAction')"
+            @keydown.enter.prevent.stop="toggleAction(action)"
+            @keydown.space.prevent.stop="toggleAction(action)"
           />
         </div>
         <!--
@@ -103,6 +114,7 @@
             class="button-field-action-list__form"
           >
             <ButtonFieldActionForm
+              :ref="`actionForm_${actionKey(action)}`"
               :action="action"
               :database="database"
               @values-changed="onActionValuesChanged(index, $event)"
@@ -205,6 +217,40 @@ export default {
     /** The list is not a form, so the sub-form touches it by hand. */
     touch() {
       this.revealErrors()
+      this.revealFirstInvalid()
+    },
+    /**
+     * Opens the first card whose own form refuses what it holds. A collapsed
+     * card blocks the save with nothing on screen to say why, and an invalid
+     * formula renders no error element for `focusOnFirstError` to find.
+     */
+    revealFirstInvalid() {
+      const invalid = this.value.find((action) => {
+        const form = this.actionForm(action)
+        return form ? form.isValid() === false : false
+      })
+      if (invalid) {
+        this.expandedActions = { [workflowActionKey(invalid)]: true }
+      }
+    },
+    actionForm(action) {
+      const form = this.$refs[`actionForm_${workflowActionKey(action)}`]
+      return Array.isArray(form) ? form[0] : form
+    },
+    /**
+     * Moves an action by `delta`, so the list can be reordered from the
+     * keyboard. The sortable directive tracks the pointer, and is the only
+     * other way to get here.
+     */
+    moveAction(index, delta) {
+      const to = index + delta
+      if (to < 0 || to >= this.value.length) {
+        return
+      }
+      const reordered = [...this.value]
+      const [moved] = reordered.splice(index, 1)
+      reordered.splice(to, 0, moved)
+      this.orderActions(reordered)
     },
     /**
      * An action with no type yet has nothing to show, so it stays shut

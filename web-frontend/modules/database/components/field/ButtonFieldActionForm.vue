@@ -1,6 +1,7 @@
 <template>
   <component
     :is="actionType.form"
+    ref="form"
     :key="action.type"
     v-bind="actionType.getFormProps({ workflowAction: action, database })"
     :default-values="action"
@@ -44,6 +45,12 @@ export default {
   computed: {
     actionType() {
       return this.$registry.get('databaseWorkflowActionType', this.action.type)
+    },
+  },
+  methods: {
+    /** Whether the action's own form accepts what it holds. */
+    isValid() {
+      return this.$refs.form?.isFormValid?.(true) ?? true
     },
   },
 }

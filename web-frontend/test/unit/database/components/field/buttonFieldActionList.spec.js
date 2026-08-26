@@ -1,7 +1,9 @@
+import { vi } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
+import ButtonFieldActionForm from '@baserow/modules/database/components/field/ButtonFieldActionForm'
 import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionReconciliation'
 
 // Read rather than imported: the i18n loader turns an imported locale file
@@ -513,6 +515,61 @@ describe('ButtonFieldActionList', () => {
       const wrapper = await mountList([OPEN_URL({ url: null })])
 
       expect(errors(wrapper)).toEqual(['databaseWorkflowActionType.noUrl'])
+    })
+
+    test('submitting opens the first card whose own form refuses it', async () => {
+      // A card the editor loaded starts collapsed, so an invalid formula
+      // inside one blocks the save with nothing on screen to say why.
+      const wrapper = await mountList([OPEN_URL(), OPEN_URL({ id: 3 })])
+      const forms = wrapper.findAllComponents(ButtonFieldActionForm)
+      vi.spyOn(forms[1].vm, 'isValid').mockReturnValue(false)
+
+      expect(wrapper.vm.isExpanded(wrapper.props('value')[1])).toBe(false)
+
+      wrapper.vm.touch()
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.vm.isExpanded(wrapper.props('value')[1])).toBe(true)
+      expect(wrapper.vm.isExpanded(wrapper.props('value')[0])).toBe(false)
+    })
+  })
+
+  describe('keyboard', () => {
+    const ACTION = (over = {}) => ({
+      id: 1,
+      type: 'open_url',
+      url: { formula: "'https://x.test'", mode: 'simple' },
+      target: 'self',
+      ...over,
+    })
+
+    test('the collapse control opens a card from the keyboard', async () => {
+      const wrapper = await mountList([ACTION()])
+      const action = wrapper.props('value')[0]
+
+      expect(wrapper.vm.isExpanded(action)).toBe(false)
+
+      await wrapper.find('[data-action-toggle]').trigger('keydown.enter')
+
+      expect(wrapper.vm.isExpanded(action)).toBe(true)
+    })
+
+    test('the drag handle moves an action from the keyboard', async () => {
+      // The sortable directive tracks the pointer, so without this there is no
+      // keyboard path to reorder at all.
+      const wrapper = await mountList([ACTION(), ACTION({ id: 2 })])
+
+      await wrapper.findAll('[data-sortable-handle]')[0].trigger('keydown.down')
+
+      expect(lastEmitted(wrapper).map((action) => action.id)).toEqual([2, 1])
+    })
+
+    test('a move past the end of the list changes nothing', async () => {
+      const wrapper = await mountList([ACTION(), ACTION({ id: 2 })])
+
+      await wrapper.findAll('[data-sortable-handle]')[1].trigger('keydown.down')
+
+      expect(emittedCount(wrapper)).toBe(0)
     })
   })
 })
