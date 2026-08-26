@@ -17,14 +17,28 @@ const widgets = [
 
 const GridLayoutStub = {
   name: 'GridLayout',
-  props: ['colNum'],
+  props: ['colNum', 'isDraggable', 'isResizable'],
   emits: ['layout-ready'],
-  template: '<div class="vgl-layout" :data-columns="colNum"><slot /></div>',
+  template: `
+    <div
+      class="vgl-layout"
+      :data-columns="colNum"
+      :data-draggable="isDraggable"
+      :data-resizable="isResizable"
+    ><slot /></div>
+  `,
 }
 
 const GridItemStub = {
   name: 'GridItem',
-  template: '<div class="vgl-item"><slot /></div>',
+  props: ['isDraggable', 'isResizable'],
+  template: `
+    <div
+      class="vgl-item"
+      :data-draggable="isDraggable"
+      :data-resizable="isResizable"
+    ><slot /></div>
+  `,
 }
 
 const DashboardWidgetStub = {
@@ -186,4 +200,24 @@ describe('DashboardWidgetGrid', () => {
       1
     )
   })
+
+  test.each([
+    ['tablet', 700, '4'],
+    ['mobile', 599, '1'],
+  ])(
+    'disables drag and resize controls on %s layouts',
+    async (_viewport, width, columns) => {
+      mountGrid()
+      await measureGrid(width)
+
+      const gridLayout = wrapper.get('.vgl-layout')
+      const gridItem = wrapper.get('.vgl-item')
+
+      expect(gridLayout.attributes('data-columns')).toBe(columns)
+      expect(gridLayout.attributes('data-draggable')).toBe('false')
+      expect(gridLayout.attributes('data-resizable')).toBe('false')
+      expect(gridItem.attributes('data-draggable')).toBe('false')
+      expect(gridItem.attributes('data-resizable')).toBe('false')
+    }
+  )
 })
