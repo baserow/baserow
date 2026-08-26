@@ -1,10 +1,8 @@
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import ChartWidget from '@baserow_premium/dashboard/components/widget/ChartWidget'
-import PieChartWidget from '@baserow_premium/dashboard/components/widget/PieChartWidget'
 
 describe.each([
   { name: 'ChartWidget', Component: ChartWidget },
-  { name: 'PieChartWidget', Component: PieChartWidget },
 ])('Premium dashboard $name component', ({ Component }) => {
   let testApp = null
 

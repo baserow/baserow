@@ -13,11 +13,16 @@ const LoadingWidgetContent = {
   template: '<div class="loading-widget-content">{{ loading }}</div>',
 }
 
-function mountDashboardWidget({ dataSource, dataForDataSource } = {}) {
+function mountDashboardWidget({
+  isMisconfigured = false,
+  showHeaderBorder = true,
+} = {}) {
   const widgetType = {
     name: 'Chart',
     component: LoadingWidgetContent,
     isLoading: () => true,
+    isMisconfigured: () => isMisconfigured,
+    showHeaderBorder,
   }
 
   const wrapper = mount(DashboardWidget, {
@@ -28,7 +33,6 @@ function mountDashboardWidget({ dataSource, dataForDataSource } = {}) {
         type: 'chart',
         title: 'Loading chart',
         description: '',
-        data_source_id: 1,
       },
       isLayoutEditable: true,
     },
@@ -46,9 +50,6 @@ function mountDashboardWidget({ dataSource, dataForDataSource } = {}) {
         $store: {
           getters: {
             'dashboardApplication/getData': {},
-            'dashboardApplication/getDataForDataSource': () =>
-              dataForDataSource,
-            'dashboardApplication/getDataSourceById': () => dataSource,
             'dashboardApplication/getSelectedWidgetId': null,
             'dashboardApplication/isEditMode': true,
           },
@@ -76,8 +77,7 @@ describe('DashboardWidget', () => {
 
   test('keeps invalid widget content visible with a configuration tooltip', () => {
     const { wrapper } = mountDashboardWidget({
-      dataSource: { id: 1 },
-      dataForDataSource: { _error: true },
+      isMisconfigured: true,
     })
 
     const configurationStatus = wrapper.find(
@@ -88,5 +88,13 @@ describe('DashboardWidget', () => {
       'widget.fixConfiguration'
     )
     expect(wrapper.find('.loading-widget-content').text()).toBe('true')
+  })
+
+  test('delegates header presentation to the registered widget type', () => {
+    const { wrapper } = mountDashboardWidget({ showHeaderBorder: false })
+
+    expect(wrapper.get('.widget__header').classes()).toContain(
+      'widget__header--no-border'
+    )
   })
 })

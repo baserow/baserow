@@ -15,14 +15,14 @@
       class="widget__header"
       :class="{
         'widget__header--edit-mode': isEditMode,
-        'widget__header--no-border': widget.type === 'summary',
+        'widget__header--no-border': !widgetType.showHeaderBorder,
       }"
     >
       <div class="widget__header-main">
         <div class="widget__header-title-wrapper">
           <div class="widget__header-title">{{ widget.title }}</div>
           <span
-            v-if="dataSourceMisconfigured"
+            v-if="isMisconfigured"
             v-tooltip="$t('widget.fixConfiguration')"
             class="dashboard-widget__configuration-status"
             role="img"
@@ -99,23 +99,15 @@ export default {
       ]
     },
     isLoading() {
-      return this.widgetType.isLoading(
-        this.widget,
-        this.$store.getters[`${this.storePrefix}dashboardApplication/getData`]
-      )
+      return this.widgetType.isLoading(this.widget, this.widgetData)
     },
-    dataSource() {
+    widgetData() {
       return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/getDataSourceById`
-      ](this.widget.data_source_id)
+        `${this.storePrefix}dashboardApplication/getData`
+      ]
     },
-    dataForDataSource() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/getDataForDataSource`
-      ](this.dataSource?.id)
-    },
-    dataSourceMisconfigured() {
-      return Boolean(this.dataForDataSource?._error)
+    isMisconfigured() {
+      return this.widgetType.isMisconfigured(this.widget, this.widgetData)
     },
   },
   methods: {
