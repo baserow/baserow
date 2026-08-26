@@ -8,7 +8,9 @@ export const state = () => ({
   dashboardId: null,
   dashboardGeneration: 0,
   widgetFetchGeneration: 0,
-  dataSourceFetchGeneration: 0,
+  dataSourceCollectionFetchGeneration: 0,
+  dataSourceDispatchGenerations: {},
+  dataSourceMutationGenerations: {},
   loading: false,
   editMode: false,
   selectedWidgetId: null,
@@ -37,7 +39,7 @@ const normalizeDashboardFetchRequest = (request, state, generationKey) => {
   }
 }
 
-const normalizeDataSourceDispatchRequest = (request, state) => {
+const normalizeDataSourceRequestContext = (request, state) => {
   const requestValues =
     typeof request === 'object' && request !== null
       ? request
@@ -48,7 +50,34 @@ const normalizeDataSourceDispatchRequest = (request, state) => {
     dashboardId: requestValues.dashboardId ?? state.dashboardId,
     dashboardGeneration:
       requestValues.dashboardGeneration ?? state.dashboardGeneration,
-    generation: requestValues.generation ?? state.dataSourceFetchGeneration,
+  }
+}
+
+const getDataSourceDispatchGeneration = (state, dataSourceId) =>
+  state.dataSourceDispatchGenerations[dataSourceId] ?? 0
+
+const getDataSourceMutationGeneration = (state, dataSourceId) =>
+  state.dataSourceMutationGenerations[dataSourceId] ?? 0
+
+const getDataSourceDispatchRequest = (request, state) => {
+  const requestContext = normalizeDataSourceRequestContext(request, state)
+  return {
+    ...requestContext,
+    generation: getDataSourceDispatchGeneration(
+      state,
+      requestContext.dataSourceId
+    ),
+  }
+}
+
+const getDataSourceMutationRequest = (request, state) => {
+  const requestContext = normalizeDataSourceRequestContext(request, state)
+  return {
+    ...requestContext,
+    generation: getDataSourceMutationGeneration(
+      state,
+      requestContext.dataSourceId
+    ),
   }
 }
 
@@ -63,6 +92,28 @@ const isFetchRequestCurrent = (state, request, generationKey) => {
   return (
     isDashboardRequestCurrent(state, request) &&
     state[generationKey] === request.generation
+  )
+}
+
+const isDataSourceDispatchCurrent = (state, request) => {
+  return (
+    isDashboardRequestCurrent(state, request) &&
+    state.dataSources.some(
+      (dataSource) => dataSource.id === request.dataSourceId
+    ) &&
+    getDataSourceDispatchGeneration(state, request.dataSourceId) ===
+      request.generation
+  )
+}
+
+const isDataSourceMutationCurrent = (state, request) => {
+  return (
+    isDashboardRequestCurrent(state, request) &&
+    state.dataSources.some(
+      (dataSource) => dataSource.id === request.dataSourceId
+    ) &&
+    getDataSourceMutationGeneration(state, request.dataSourceId) ===
+      request.generation
   )
 }
 
@@ -88,7 +139,9 @@ export const mutations = {
     state.dashboardId = null
     state.dashboardGeneration += 1
     state.widgetFetchGeneration += 1
-    state.dataSourceFetchGeneration += 1
+    state.dataSourceCollectionFetchGeneration += 1
+    state.dataSourceDispatchGenerations = {}
+    state.dataSourceMutationGenerations = {}
     state.editMode = false
     state.selectedWidgetId = null
     state.widgets = []
@@ -100,15 +153,25 @@ export const mutations = {
     if (state.dashboardId !== dashboardId) {
       state.dashboardGeneration += 1
       state.widgetFetchGeneration += 1
-      state.dataSourceFetchGeneration += 1
+      state.dataSourceCollectionFetchGeneration += 1
+      state.dataSourceDispatchGenerations = {}
+      state.dataSourceMutationGenerations = {}
     }
     state.dashboardId = dashboardId
   },
   INVALIDATE_WIDGET_FETCH(state) {
     state.widgetFetchGeneration += 1
   },
-  INVALIDATE_DATA_SOURCE_FETCH(state) {
-    state.dataSourceFetchGeneration += 1
+  INVALIDATE_DATA_SOURCE_COLLECTION_FETCH(state) {
+    state.dataSourceCollectionFetchGeneration += 1
+  },
+  INVALIDATE_DATA_SOURCE_DISPATCH(state, dataSourceId) {
+    state.dataSourceDispatchGenerations[dataSourceId] =
+      getDataSourceDispatchGeneration(state, dataSourceId) + 1
+  },
+  INVALIDATE_DATA_SOURCE_MUTATION(state, dataSourceId) {
+    state.dataSourceMutationGenerations[dataSourceId] =
+      getDataSourceMutationGeneration(state, dataSourceId) + 1
   },
   TOGGLE_EDIT_MODE(state) {
     state.editMode = !state.editMode
@@ -138,6 +201,31 @@ export const mutations = {
     } else {
       state.dataSources.push(dataSource)
     }
+  },
+  SET_DATA_SOURCES(state, dataSources) {
+    const dataSourceIds = new Set(dataSources.map(({ id }) => id))
+
+    for (const existingDataSource of state.dataSources) {
+      if (!dataSourceIds.has(existingDataSource.id)) {
+        state.dataSourceDispatchGenerations[existingDataSource.id] =
+          getDataSourceDispatchGeneration(state, existingDataSource.id) + 1
+        state.dataSourceMutationGenerations[existingDataSource.id] =
+          getDataSourceMutationGeneration(state, existingDataSource.id) + 1
+        delete state.data[existingDataSource.id]
+      }
+    }
+
+    const existingDataSourcesById = Object.fromEntries(
+      state.dataSources.map((dataSource) => [dataSource.id, dataSource])
+    )
+    state.dataSources = dataSources.map((dataSource) => {
+      const existingDataSource = existingDataSourcesById[dataSource.id]
+      if (existingDataSource) {
+        Object.assign(existingDataSource, dataSource)
+        return existingDataSource
+      }
+      return dataSource
+    })
   },
   UPDATE_DATA_SOURCE(state, { dataSourceId, values }) {
     const dataSource = state.dataSources.find(
@@ -174,6 +262,17 @@ export const mutations = {
       widget.series_config = [...values.series_config]
     }
     Object.assign(widget, values)
+  },
+  UPDATE_WIDGET_LAYOUTS(state, layouts) {
+    const widgetsById = new Map(
+      state.widgets.map((widget) => [widget.id, widget])
+    )
+    layouts.forEach(({ id, grid_x, grid_y, grid_width, grid_height }) => {
+      const widget = widgetsById.get(id)
+      if (widget) {
+        Object.assign(widget, { grid_x, grid_y, grid_width, grid_height })
+      }
+    })
   },
   DELETE_WIDGET(state, widgetId) {
     const index = state.widgets.findIndex((widget) => widget.id === widgetId)
@@ -270,45 +369,77 @@ export const actions = {
     { dataSourceId, values, widget }
   ) {
     const { $client, $registry } = this
-    commit('INVALIDATE_DATA_SOURCE_FETCH')
-    const request = normalizeDataSourceDispatchRequest({ dataSourceId }, state)
+    const previousData = state.data[dataSourceId]
+    commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
+    commit('INVALIDATE_DATA_SOURCE_DISPATCH', dataSourceId)
+    commit('INVALIDATE_DATA_SOURCE_MUTATION', dataSourceId)
+    const request = getDataSourceMutationRequest({ dataSourceId }, state)
     commit('UPDATE_DATA', { dataSourceId, values: null })
-    const { data } = await DataSourceService($client).update(
-      dataSourceId,
-      values
-    )
-    if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+
+    let data
+    try {
+      const response = await DataSourceService($client).update(
+        dataSourceId,
+        values
+      )
+      data = response.data
+    } catch (error) {
+      if (isDataSourceMutationCurrent(state, request)) {
+        const hasPreviousData =
+          previousData && Object.keys(previousData).length > 0
+        commit('UPDATE_DATA', {
+          dataSourceId,
+          values: hasPreviousData ? previousData : { _error: true },
+        })
+      }
+      throw error
+    }
+
+    if (!isDataSourceMutationCurrent(state, request)) {
       return
     }
-    if (widget) {
-      const widgetType = $registry.get('dashboardWidget', widget.type)
-      await widgetType.dataSourceUpdated(widget, data)
-      if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
-        return
+
+    commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
+    commit('UPDATE_DATA_SOURCE', {
+      dataSourceId,
+      values: data,
+    })
+    try {
+      if (widget) {
+        const widgetType = $registry.get('dashboardWidget', widget.type)
+        await widgetType.dataSourceUpdated(widget, data)
+        if (!isDataSourceMutationCurrent(state, request)) {
+          return
+        }
       }
+
+      await dispatch('dispatchDataSource', {
+        dataSourceId,
+        dashboardId: request.dashboardId,
+        dashboardGeneration: request.dashboardGeneration,
+      })
+    } catch (error) {
+      if (isDataSourceMutationCurrent(state, request)) {
+        commit('UPDATE_DATA', {
+          dataSourceId,
+          values: { _error: true },
+        })
+      }
+      throw error
     }
-    await dispatch('handleDataSourceUpdated', data)
   },
   async handleDataSourceUpdated({ state, commit, dispatch }, dataSource) {
-    commit('INVALIDATE_DATA_SOURCE_FETCH')
-    const request = normalizeDataSourceDispatchRequest(
-      { dataSourceId: dataSource.id },
-      state
-    )
+    commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
+    commit('INVALIDATE_DATA_SOURCE_MUTATION', dataSource.id)
     commit('UPDATE_DATA_SOURCE', {
       dataSourceId: dataSource.id,
       values: dataSource,
     })
-    try {
-      await dispatch('dispatchDataSource', request)
-    } catch (error) {
-      if (isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
-        commit('UPDATE_DATA', {
-          dataSourceId: dataSource.id,
-          values: { _error: true },
-        })
-      }
-    }
+    await dispatch('dispatchDataSource', {
+      dataSourceId: dataSource.id,
+      dashboardId: state.dashboardId,
+      dashboardGeneration: state.dashboardGeneration,
+    })
   },
   async fetchInitial({ state, commit, dispatch }, { dashboardId, forEditing }) {
     const { $client } = this
@@ -386,27 +517,28 @@ export const actions = {
     if (dashboardId !== state.dashboardId) {
       return
     }
-    commit('INVALIDATE_DATA_SOURCE_FETCH')
+    commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
     const request = normalizeDashboardFetchRequest(
       dashboardId,
       state,
-      'dataSourceFetchGeneration'
+      'dataSourceCollectionFetchGeneration'
     )
     const { data: dataSourcesData } = await DataSourceService(
       $client
     ).getAllDataSources(request.dashboardId)
 
-    if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+    if (
+      !isFetchRequestCurrent(
+        state,
+        request,
+        'dataSourceCollectionFetchGeneration'
+      )
+    ) {
       return
     }
 
-    await Promise.all(
-      dataSourcesData.map(async (dataSource) => {
-        if (
-          !isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')
-        ) {
-          return
-        }
+    const dataSourceIdsToDispatch = new Set(
+      dataSourcesData.flatMap((dataSource) => {
         const existingDataSource = getters.getDataSourceById(dataSource.id)
         const existingData = state.data[dataSource.id]
         const shouldDispatch =
@@ -414,25 +546,39 @@ export const actions = {
           !existingData ||
           Object.keys(existingData).length === 0 ||
           existingData._error === true
-        commit('ADD_DATA_SOURCE', dataSource)
-        if (!shouldDispatch) {
-          return
-        }
-        await dispatch(
-          'dispatchDataSource',
-          normalizeDataSourceDispatchRequest(
-            {
-              dataSourceId: dataSource.id,
-              dashboardId: request.dashboardId,
-              dashboardGeneration: request.dashboardGeneration,
-              generation: request.generation,
-            },
-            state
-          )
-        )
+        return shouldDispatch ? [dataSource.id] : []
       })
     )
-    if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+    commit('SET_DATA_SOURCES', dataSourcesData)
+
+    await Promise.all(
+      dataSourcesData.map(async (dataSource) => {
+        if (
+          !isFetchRequestCurrent(
+            state,
+            request,
+            'dataSourceCollectionFetchGeneration'
+          )
+        ) {
+          return
+        }
+        if (!dataSourceIdsToDispatch.has(dataSource.id)) {
+          return
+        }
+        await dispatch('dispatchDataSource', {
+          dataSourceId: dataSource.id,
+          dashboardId: request.dashboardId,
+          dashboardGeneration: request.dashboardGeneration,
+        })
+      })
+    )
+    if (
+      !isFetchRequestCurrent(
+        state,
+        request,
+        'dataSourceCollectionFetchGeneration'
+      )
+    ) {
       return
     }
     return dataSourcesData
@@ -464,24 +610,34 @@ export const actions = {
       return widget
     }
     commit('INVALIDATE_WIDGET_FETCH')
-    commit('INVALIDATE_DATA_SOURCE_FETCH')
+    commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
     commit('ADD_WIDGET', widget)
     dispatch('selectWidget', widget.id)
     return widget
   },
   async dispatchDataSource({ state, commit }, requestValues) {
     const { $client } = this
-    const request = normalizeDataSourceDispatchRequest(requestValues, state)
-    if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+    const requestContext = normalizeDataSourceRequestContext(
+      requestValues,
+      state
+    )
+    if (
+      !isDashboardRequestCurrent(state, requestContext) ||
+      !state.dataSources.some(
+        (dataSource) => dataSource.id === requestContext.dataSourceId
+      )
+    ) {
       return
     }
 
+    commit('INVALIDATE_DATA_SOURCE_DISPATCH', requestContext.dataSourceId)
+    const request = getDataSourceDispatchRequest(requestContext, state)
     commit('UPDATE_DATA', { dataSourceId: request.dataSourceId, values: null })
     try {
       const { data } = await DataSourceService($client).dispatch(
         request.dataSourceId
       )
-      if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+      if (!isDataSourceDispatchCurrent(state, request)) {
         return
       }
       commit('UPDATE_DATA', {
@@ -489,7 +645,7 @@ export const actions = {
         values: data,
       })
     } catch (error) {
-      if (!isFetchRequestCurrent(state, request, 'dataSourceFetchGeneration')) {
+      if (!isDataSourceDispatchCurrent(state, request)) {
         return
       }
       commit('UPDATE_DATA', {
@@ -536,12 +692,12 @@ export const actions = {
     if (!isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
       return data
     }
-    commit('SET_WIDGETS', data)
+    commit('UPDATE_WIDGET_LAYOUTS', data)
     return data
   },
   async handleWidgetsLayoutUpdated({ state, commit, dispatch }) {
     commit('INVALIDATE_WIDGET_FETCH')
-    commit('INVALIDATE_DATA_SOURCE_FETCH')
+    commit('INVALIDATE_DATA_SOURCE_COLLECTION_FETCH')
     await Promise.allSettled([
       dispatch('fetchWidgets', state.dashboardId),
       dispatch('fetchNewDataSources', state.dashboardId),
