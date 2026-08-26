@@ -65,6 +65,9 @@ class ViewConfigurationCopyCategoryType(Instance):
         """
         A category can only be copied when both the source and destination view type
         support it.
+
+        :param view_type: The view type to check the support for.
+        :return: True if the view type supports this category.
         """
 
         raise NotImplementedError
@@ -74,8 +77,12 @@ class ViewConfigurationCopyCategoryType(Instance):
     ) -> Dict[str, Any]:
         """
         Returns a JSON serializable snapshot, including primary keys so that an undo
-        can restore the exact same objects. The `cache` dict is shared by all
-        categories of one export to avoid duplicate queries.
+        can restore the exact same objects.
+
+        :param view: The specific view to export the configuration of.
+        :param cache: A dict shared by all categories of one export to avoid
+            duplicate queries.
+        :return: The exported configuration of this category.
         """
 
         raise NotImplementedError
@@ -89,14 +96,21 @@ class ViewConfigurationCopyCategoryType(Instance):
         cache: Optional[Dict[str, Any]] = None,
     ) -> Optional[FieldOptionsDict]:
         """
-        Replaces this category's configuration of the view with an exported one. The
-        configuration can have been JSON round-tripped, so integer dict keys may have
-        become strings. With `preserve_ids` the objects are recreated with the primary
-        keys from the configuration, which undo/redo relies on so that other clients
-        keep referencing valid ids.
+        Replaces this category's configuration of the view with an exported one.
 
-        Returned field options are not applied by the category itself, but merged with
-        those of the other categories by the caller and applied in a single batch.
+        :param view: The specific view to apply the configuration to.
+        :param configuration: A configuration previously returned by
+            `export_configuration`. It can have been JSON round-tripped, so integer
+            dict keys may have become strings.
+        :param user: The user on whose behalf the configuration is applied.
+        :param preserve_ids: If True, the objects are recreated with the primary keys
+            from the configuration, which undo/redo relies on so that other clients
+            keep referencing valid ids.
+        :param cache: A dict shared by all categories of one apply to avoid duplicate
+            queries.
+        :return: Optionally a field options dict that is not applied by the category
+            itself, but merged with those of the other categories by the caller and
+            applied in a single batch.
         """
 
         raise NotImplementedError
@@ -105,6 +119,8 @@ class ViewConfigurationCopyCategoryType(Instance):
         """
         Hook that is called after the configuration of every category has been
         applied to the view.
+
+        :param view: The specific view that the configuration was applied to.
         """
 
 
@@ -125,6 +141,10 @@ def _including_trashed_fields(model, view: View):
     those hidden rows and the replacing deletes must remove them, otherwise they would
     either be lost by the group cascade delete or survive a copy and resurface when the
     field is restored.
+
+    :param model: The filter, sort or group by model class to query.
+    :param view: The view to fetch the objects of.
+    :return: A trash inclusive queryset of the view's objects.
     """
 
     return model._base_manager.filter(view=view, view__trashed=False)
@@ -136,6 +156,11 @@ def _existing_field_ids(view: View, cache: Optional[Dict[str, Any]]) -> Set[int]
     included because their view configuration is kept until they are permanently
     deleted, but fields that have been permanently deleted since a configuration was
     exported must be skipped.
+
+    :param view: The view whose table's fields are returned.
+    :param cache: A dict shared within one export or apply to avoid duplicate
+        queries.
+    :return: The ids of all existing fields in the view's table.
     """
 
     if cache is None:

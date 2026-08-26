@@ -64,5 +64,24 @@ def restricted_view_filter_deleted(sender, view_filter_id, view_filter, user, **
 
 
 @receiver(view_signals.view_configuration_changed)
-def restricted_view_configuration_changed(sender, view, user, **kwargs):
-    _send_force_rows_refresh_if_view_restricted(view)
+def restricted_view_configuration_changed(sender, view, user, categories, **kwargs):
+    if (
+        "default_row_values" in categories
+        and view.ownership_type == RestrictedViewOwnershipType.type
+    ):
+        # The default values are filtered per user permission, so the clients
+        # have to fetch them again themselves, like the `view_updated` receiver
+        # above does.
+        view_page_type = page_registry.get("restricted_view")
+        transaction.on_commit(
+            lambda: view_page_type.broadcast(
+                {
+                    "type": "force_view_refresh_and_default_values",
+                    "view_id": view.id,
+                },
+                None,
+                restricted_view_id=view.id,
+            )
+        )
+    else:
+        _send_force_rows_refresh_if_view_restricted(view)

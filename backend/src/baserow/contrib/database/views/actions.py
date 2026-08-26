@@ -1677,12 +1677,15 @@ class CopyViewConfigurationActionType(UndoableActionType):
         destination view of the same table. Undoing this action restores the destination
         view's previous configuration of those categories, redoing it applies the
         copied configuration again.
+
+        :param user: The user on whose behalf the configuration is copied.
+        :param source_view: The specific view to copy the configuration from.
+        :param dest_view: The specific view to copy the configuration into.
+        :param categories: The category types that must be copied.
+        :return: The updated destination view.
         """
 
         view_handler = ViewHandler()
-        view_handler.validate_view_configuration_copy(
-            source_view, dest_view, categories
-        )
         original_configuration = view_handler.export_view_configuration(
             dest_view, categories
         )

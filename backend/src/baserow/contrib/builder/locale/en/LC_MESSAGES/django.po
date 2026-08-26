@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 19:38+0000\n"
+"POT-Creation-Date: 2026-08-26 15:25+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -175,19 +175,19 @@ msgstr ""
 msgid "Iframe"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2155
+#: src/baserow/contrib/builder/elements/element_types.py:2168
 msgid "Date time picker"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2299
+#: src/baserow/contrib/builder/elements/element_types.py:2312
 msgid "Shared header"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2309
+#: src/baserow/contrib/builder/elements/element_types.py:2322
 msgid "Shared footer"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2319
+#: src/baserow/contrib/builder/elements/element_types.py:2332
 msgid "Menu"
 msgstr ""
 

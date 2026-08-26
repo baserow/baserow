@@ -1179,6 +1179,12 @@ class ViewHandler:
         the destination of a copy because the ownership managers hide configuration
         from users that lack these write operations, so a read check alone would
         leak configuration that the interface hides.
+
+        :param user: The user on whose behalf the permissions are checked.
+        :param view: The view that the categories are configured on.
+        :param categories: The category types that must be checked.
+        :raises PermissionException: When the user is not allowed to configure one
+            of the categories on the view.
         """
 
         checks = [
@@ -1201,6 +1207,10 @@ class ViewHandler:
         Returns a JSON serializable snapshot of the requested configuration categories
         of the given view, including primary keys so that an undo can restore the exact
         same objects via `apply_view_configuration`.
+
+        :param view: The specific view to export the configuration of.
+        :param categories: The category types that must be exported.
+        :return: The exported configuration per category.
         """
 
         cache = {}
@@ -1223,9 +1233,16 @@ class ViewHandler:
         `export_view_configuration`. All categories are applied with bulk operations
         and a single `view_configuration_changed` signal is sent afterwards, instead of
         a granular signal per created or deleted object, so that connected clients
-        receive one event with the complete new view state. `preserve_ids` recreates
-        the objects with the primary keys from the configuration, which undo/redo
-        relies on so that other clients keep referencing valid ids.
+        receive one event with the complete new view state.
+
+        :param user: The user on whose behalf the configuration is applied.
+        :param view: The specific view to apply the configuration to.
+        :param configuration: The exported configuration per category.
+        :param preserve_ids: If True, the objects are recreated with the primary keys
+            from the configuration, which undo/redo relies on so that other clients
+            keep referencing valid ids.
+        :raises PermissionException: When the user is not allowed to configure one
+            of the categories on the view.
         """
 
         self._check_view_configuration_permissions(user, view, configuration.keys())
@@ -1278,6 +1295,12 @@ class ViewHandler:
         categories: List[str],
     ):
         """
+        Validates that the requested configuration categories can be copied from the
+        source view into the destination view.
+
+        :param source_view: The specific view to copy the configuration from.
+        :param dest_view: The specific view to copy the configuration into.
+        :param categories: The category types that must be copied.
         :raises ViewNotInTable: When the source view belongs to another table.
         :raises CannotCopyViewConfigurationToSameView: When the source and
             destination view are the same view.
@@ -1316,8 +1339,20 @@ class ViewHandler:
         """
         Copies the requested configuration categories of the source view into
         the destination view of the same table, replacing the destination's
-        existing configuration of those categories. See
-        `validate_view_configuration_copy` for the raised exceptions.
+        existing configuration of those categories.
+
+        :param user: The user on whose behalf the configuration is copied.
+        :param source_view: The specific view to copy the configuration from.
+        :param dest_view: The specific view to copy the configuration into.
+        :param categories: The category types that must be copied.
+        :raises ViewNotInTable: When the source view belongs to another table.
+        :raises CannotCopyViewConfigurationToSameView: When the source and
+            destination view are the same view.
+        :raises ViewConfigurationCopyCategoryNotSupported: When a requested
+            category is not supported by both view types.
+        :raises PermissionException: When the user is not allowed to read or
+            configure one of the categories on the source or destination view.
+        :return: The updated destination view.
         """
 
         self.validate_view_configuration_copy(source_view, dest_view, categories)
@@ -1585,6 +1620,8 @@ class ViewHandler:
           no permission checking.
         :param fields: Optionally a list of fields can be provided so that they don't
             have to be fetched again.
+        :param send_signal: If False, the `view_field_options_updated` signal is not
+            sent, for when the caller broadcasts the change itself.
         :raises UnrelatedFieldError: When the provided field id is not related to the
             provided view.
         """

@@ -499,6 +499,37 @@ def test_copy_view_configuration_notifies_view_subscriptions(data_fixture):
 
 
 @pytest.mark.django_db
+def test_copy_view_configuration_schedules_index_update(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    source_view = data_fixture.create_grid_view(table=table)
+    dest_view = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_sort(view=source_view, field=field)
+    data_fixture.create_view_filter(
+        view=source_view, field=field, type="equal", value="a"
+    )
+
+    # The granular sort and group by signals normally schedule the index
+    # update, but they're suppressed by the copy.
+    with patch(
+        "baserow.contrib.database.views.handler.ViewIndexingHandler"
+        ".schedule_index_update"
+    ) as schedule_mock:
+        ViewHandler().copy_view_configuration(user, source_view, dest_view, ["sorts"])
+
+    schedule_mock.assert_called_once_with(dest_view)
+
+    with patch(
+        "baserow.contrib.database.views.handler.ViewIndexingHandler"
+        ".schedule_index_update"
+    ) as schedule_mock:
+        ViewHandler().copy_view_configuration(user, source_view, dest_view, ["filters"])
+
+    schedule_mock.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_copy_view_configuration_sends_single_signal(data_fixture):
     from baserow.contrib.database.views.signals import view_configuration_changed
 

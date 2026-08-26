@@ -209,6 +209,8 @@ class ViewType(
         """
         A configuration category can only be copied between two views when both view
         types support it.
+
+        :return: The configuration copy category types that this view type supports.
         """
 
         # Imported here because `configuration_copy` imports this module at the top

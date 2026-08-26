@@ -98,6 +98,14 @@ def update_view_index_if_view_group_bys_prioritized(sender, view, **kwargs):
     ViewIndexingHandler.schedule_index_update(view)
 
 
+@receiver(view_configuration_changed)
+def update_view_index_if_configuration_changed(sender, view, categories, **kwargs):
+    if "sorts" in categories or "group_bys" in categories:
+        from baserow.contrib.database.views.handler import ViewIndexingHandler
+
+        ViewIndexingHandler.schedule_index_update(view)
+
+
 @receiver(view_loaded)
 def view_loaded_create_indexes_and_columns(sender, view, table_model, **kwargs):
     from baserow.contrib.database.table.tasks import (

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-24 14:17+0000\n"
+"POT-Creation-Date: 2026-08-26 15:25+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow/core/abuse_reports/actions.py:23
+#: src/baserow/core/abuse_reports/actions.py:22
 msgid "Submit abuse report"
 msgstr ""
 
-#: src/baserow/core/abuse_reports/actions.py:25
+#: src/baserow/core/abuse_reports/actions.py:24
 #, python-format
 msgid ""
 "Publicly shared %(resource_type)s \"%(resource_name)s\" (%(resource_id)s) "
@@ -34,7 +34,7 @@ msgstr ""
 msgid "%(resource_name)s has been reported for abuse"
 msgstr ""
 
-#: src/baserow/core/abuse_reports/notification_types.py:95
+#: src/baserow/core/abuse_reports/notification_types.py:90
 #, python-format
 msgid ""
 "%(public_url)s — %(reporter_name)s (%(reporter_email)s) wrote: "
@@ -279,7 +279,7 @@ msgstr ""
 msgid "Unlabeled"
 msgstr ""
 
-#: src/baserow/core/handler.py:2227 src/baserow/core/user/handler.py:276
+#: src/baserow/core/handler.py:2239 src/baserow/core/user/handler.py:276
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""

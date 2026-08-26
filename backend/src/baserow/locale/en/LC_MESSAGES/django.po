@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 19:38+0000\n"
+"POT-Creation-Date: 2026-08-26 15:25+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -54,135 +54,135 @@ msgstr ""
 msgid "Local Baserow"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:25
+#: src/baserow/contrib/automation/nodes/actions.py:26
 msgid "Create automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:26
+#: src/baserow/contrib/automation/nodes/actions.py:27
 #, python-format
 msgid "Node (%(node_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:90
+#: src/baserow/contrib/automation/nodes/actions.py:91
 msgid "Update automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:91
+#: src/baserow/contrib/automation/nodes/actions.py:92
 #, python-format
 msgid "Node (%(node_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:159
+#: src/baserow/contrib/automation/nodes/actions.py:160
 msgid "Delete automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:160
+#: src/baserow/contrib/automation/nodes/actions.py:161
 #, python-format
 msgid "Node (%(node_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:217
+#: src/baserow/contrib/automation/nodes/actions.py:218
 msgid "Duplicate automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:218
+#: src/baserow/contrib/automation/nodes/actions.py:219
 #, python-format
 msgid "Node (%(node_id)s) duplicated"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:289
+#: src/baserow/contrib/automation/nodes/actions.py:290
 msgid "Replace automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:291
+#: src/baserow/contrib/automation/nodes/actions.py:292
 #, python-format
 msgid ""
 "Node (%(node_id)s) changed from a type of %(original_node_type)s to "
 "%(node_type)s"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:377
+#: src/baserow/contrib/automation/nodes/actions.py:378
 msgid "Moved automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:378
+#: src/baserow/contrib/automation/nodes/actions.py:379
 #, python-format
 msgid "Node (%(node_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:143
+#: src/baserow/contrib/automation/nodes/node_types.py:153
 msgid "Local Baserow create row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:160
+#: src/baserow/contrib/automation/nodes/node_types.py:170
 msgid "Local Baserow update row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:177
+#: src/baserow/contrib/automation/nodes/node_types.py:187
 msgid "Local Baserow delete row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:185
+#: src/baserow/contrib/automation/nodes/node_types.py:195
 msgid "Local Baserow get row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:193
+#: src/baserow/contrib/automation/nodes/node_types.py:203
 msgid "Local Baserow list rows"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:201
+#: src/baserow/contrib/automation/nodes/node_types.py:211
 msgid "Local Baserow aggregate rows"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:209
+#: src/baserow/contrib/automation/nodes/node_types.py:219
 msgid "HTTP request"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:216
+#: src/baserow/contrib/automation/nodes/node_types.py:226
 msgid "Iterator"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:229
+#: src/baserow/contrib/automation/nodes/node_types.py:239
 msgid "Send email"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:242
+#: src/baserow/contrib/automation/nodes/node_types.py:252
 msgid "AI agent"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:249
+#: src/baserow/contrib/automation/nodes/node_types.py:259
 msgid "Router"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:315
+#: src/baserow/contrib/automation/nodes/node_types.py:325
 msgid "Branch"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:444
+#: src/baserow/contrib/automation/nodes/node_types.py:712
 msgid "Local Baserow rows created"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:452
+#: src/baserow/contrib/automation/nodes/node_types.py:720
 msgid "Local Baserow rows updated"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:460
+#: src/baserow/contrib/automation/nodes/node_types.py:728
 msgid "Local Baserow rows deleted"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:476
+#: src/baserow/contrib/automation/nodes/node_types.py:744
 msgid "Periodic trigger"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:483
+#: src/baserow/contrib/automation/nodes/node_types.py:751
 msgid "HTTP trigger"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:496
+#: src/baserow/contrib/automation/nodes/node_types.py:764
 msgid "Slack write message"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/registries.py:47
+#: src/baserow/contrib/automation/nodes/registries.py:48
 msgid "Unnamed node"
 msgstr ""
 
@@ -282,36 +282,44 @@ msgstr ""
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1175
+#: src/baserow/contrib/integrations/core/service_types.py:1176
 msgid "Branch taken"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1180
+#: src/baserow/contrib/integrations/core/service_types.py:1181
 msgid "Label"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1182
+#: src/baserow/contrib/integrations/core/service_types.py:1183
 msgid "The label of the branch that matched the condition."
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1593
+#: src/baserow/contrib/integrations/core/service_types.py:1376
+msgid "Condition"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:1378
+msgid "Whether the condition evaluated to true and the jump was followed."
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:1785
 msgid "Previous scheduled run"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1597
+#: src/baserow/contrib/integrations/core/service_types.py:1789
 msgid "Next scheduled run"
 msgstr ""
 
-#: src/baserow/contrib/integrations/local_baserow/service_types.py:1711
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:1783
 msgid "No rows found"
 msgstr ""
 
-#: src/baserow/contrib/integrations/local_baserow/service_types.py:2290
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2408
 #, python-format
 msgid "The %(operation)s action can process at most %(limit)s rows at once."
 msgstr ""
 
-#: src/baserow/contrib/integrations/local_baserow/service_types.py:2653
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2774
 #, python-format
 msgid ""
 "The batch delete rows action can process at most %(limit)s rows at once."
