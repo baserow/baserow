@@ -33,6 +33,7 @@ from baserow.contrib.database.api.workflow_actions.errors import (
 from baserow.contrib.database.api.workflow_actions.serializers import (
     CreateDatabaseWorkflowActionSerializer,
     DatabaseWorkflowActionSerializer,
+    DispatchedClientActionSerializer,
     DispatchWorkflowActionsResponseSerializer,
     DispatchWorkflowActionsSerializer,
     OrderWorkflowActionsSerializer,
@@ -474,16 +475,17 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             {
                 "results": results,
                 "client_actions": [
-                    {
-                        **database_workflow_action_type_registry.get_serializer(
-                            workflow_action,
-                            DatabaseWorkflowActionSerializer,
-                            context={"user": request.user},
-                        ).data,
-                        # On the same scale as a result's, so the browser can
-                        # tell which results ran before this action.
-                        "position": dispatch.positions.get(workflow_action.id),
-                    }
+                    database_workflow_action_type_registry.get_serializer(
+                        workflow_action,
+                        DispatchedClientActionSerializer,
+                        # The position is on the same scale as a result's, so
+                        # the browser can tell which results ran before this
+                        # action.
+                        context={
+                            "user": request.user,
+                            "positions": dispatch.positions,
+                        },
+                    ).data
                     for workflow_action in dispatch.client_actions
                 ],
             }
