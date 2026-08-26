@@ -3,17 +3,29 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import Chart from '@baserow_premium/dashboard/components/widget/Chart'
 
-const resize = vi.fn()
+const barResize = vi.fn()
+const pieResize = vi.fn()
 
-const ChartComponentStub = {
-  name: 'ChartComponentStub',
+const BarComponentStub = {
+  name: 'BarComponentStub',
   props: ['data', 'options'],
   data() {
     return {
-      chart: { resize },
+      chart: { resize: barResize },
     }
   },
-  template: '<canvas />',
+  template: '<canvas data-chart-type="bar" />',
+}
+
+const PieComponentStub = {
+  name: 'PieComponentStub',
+  props: ['data', 'options'],
+  data() {
+    return {
+      chart: { resize: pieResize },
+    }
+  },
+  template: '<canvas data-chart-type="pie" />',
 }
 
 const dataSource = {
@@ -48,7 +60,8 @@ describe('Chart', () => {
   let wrapper
 
   beforeEach(() => {
-    resize.mockReset()
+    barResize.mockReset()
+    pieResize.mockReset()
     resizeObservers = []
     originalResizeObserver = globalThis.ResizeObserver
     globalThis.ResizeObserver = class {
@@ -81,8 +94,8 @@ describe('Chart', () => {
           },
         },
         stubs: {
-          Bar: ChartComponentStub,
-          Pie: ChartComponentStub,
+          Bar: BarComponentStub,
+          Pie: PieComponentStub,
         },
       },
     })
@@ -104,7 +117,7 @@ describe('Chart', () => {
     expect(chartContainer.firstElementChild.tagName).toBe('CANVAS')
     expect(resizeObserver.observe).toHaveBeenCalledWith(chartContainer)
     expect(
-      wrapper.getComponent(ChartComponentStub).props('options')
+      wrapper.getComponent(BarComponentStub).props('options')
     ).toMatchObject({
       responsive: false,
       maintainAspectRatio: false,
@@ -117,7 +130,67 @@ describe('Chart', () => {
       },
     ])
 
-    expect(resize).toHaveBeenCalledWith(400, 200)
+    expect(barResize).toHaveBeenCalledWith(400, 200)
+  })
+
+  test('reapplies the current size when switching chart canvas types', async () => {
+    const chartContainer = wrapper.find('.chart__container').element
+    const resizeObserver = resizeObservers[0]
+
+    resizeObserver.callback([
+      {
+        target: chartContainer,
+        contentRect: { width: 400, height: 200 },
+      },
+    ])
+    barResize.mockClear()
+
+    await wrapper.setProps({
+      seriesConfig: [
+        {
+          series_id: 1,
+          series_chart_type: 'pie',
+        },
+      ],
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('canvas').attributes('data-chart-type')).toBe('pie')
+    expect(pieResize).toHaveBeenCalledWith(400, 200)
+    expect(barResize).not.toHaveBeenCalled()
+    expect(resizeObservers).toHaveLength(1)
+
+    pieResize.mockClear()
+    await wrapper.setProps({ seriesConfig })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('canvas').attributes('data-chart-type')).toBe('bar')
+    expect(barResize).toHaveBeenCalledWith(400, 200)
+    expect(pieResize).not.toHaveBeenCalled()
+    expect(resizeObservers).toHaveLength(1)
+  })
+
+  test('preserves the current size when fresh data recreates the chart', async () => {
+    const chartContainer = wrapper.find('.chart__container').element
+    resizeObservers[0].callback([
+      {
+        target: chartContainer,
+        contentRect: { width: 400, height: 200 },
+      },
+    ])
+    barResize.mockClear()
+
+    await wrapper.setProps({
+      dataSourceData: { results: [{ field_1_count: 2 }] },
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(
+      wrapper.getComponent(BarComponentStub).props('data').datasets[0].data
+    ).toEqual([2])
+    expect(barResize).toHaveBeenCalledWith(400, 200)
+    expect(resizeObservers).toHaveLength(1)
+    expect(wrapper.emitted('rendered')).toBeTruthy()
   })
 
   test('renders the responsive chart container when data becomes available', async () => {
