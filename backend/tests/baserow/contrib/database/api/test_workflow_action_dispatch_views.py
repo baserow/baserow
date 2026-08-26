@@ -517,3 +517,65 @@ def test_two_actions_on_one_table_name_its_fields_once(api_client, data_fixture)
     # Both results are named, from the one lookup.
     assert all(r["field_names"][f"field_{name_field.id}"] == "Name" for r in results)
     assert names.call_count == 1
+
+
+@pytest.mark.django_db
+def test_a_reference_to_a_deleted_field_fails_the_click(api_client, data_fixture):
+    """A path names a field as `field_<id>` and the service turns that into the
+    field's name. A field the reference outlived has no name to be turned into,
+    so a field named literally `field_<id>` must not answer for it."""
+
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    # An id no field of this table has, and a field named after it.
+    missing_id = name_field.id + 1000
+    alias_field = data_fixture.create_text_field(
+        table=table, name=f"field_{missing_id}"
+    )
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    first = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    first.service.specific.table = table
+    first.service.specific.save()
+    first.service.specific.field_mappings.create(
+        field=alias_field, value="'aliased value'", enabled=True
+    )
+
+    second = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    second.service.specific.table = table
+    second.service.specific.save()
+    second.service.specific.field_mappings.create(
+        field=name_field,
+        value=f"get('previous_action.{first.id}.field_{missing_id}')",
+        enabled=True,
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
+    assert "Action 2 failed" in response.json()["detail"]
+    # The chain stopped rather than copying the value of the field that shares
+    # the deleted one's token.
+    names = [
+        getattr(created, f"field_{name_field.id}")
+        for created in table.get_model().objects.exclude(id=row.id)
+    ]
+    assert "aliased value" not in names
