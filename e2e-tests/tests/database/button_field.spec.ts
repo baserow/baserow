@@ -54,8 +54,9 @@ const BROKEN_CHAIN_FIELD_INDEX = 25;
 const DEEP_FIELD_INDEX = 26;
 const CHAINABLE_FIELD_INDEX = 27;
 const REORDERABLE_FIELD_INDEX = 28;
+const STOPPED_FIELD_INDEX = 29;
 // The field one test creates in the UI, which lands after all of the above.
-const CREATED_FIELD_INDEX = 29;
+const CREATED_FIELD_INDEX = 30;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
@@ -78,6 +79,7 @@ const BUTTON_FIELD_NAMES = [
   "Chained",
   "ChainedLink",
   "Buildable",
+  "Stopped",
   "Stale",
   "ChainedCross",
   "Insertable",
@@ -346,6 +348,7 @@ test.describe("Button field", () => {
           type: "button",
           settings: { label: "Reorderable" },
         },
+        { name: "Stopped", type: "button", settings: { label: "Stopped" } },
       ],
     });
 
@@ -395,6 +398,15 @@ test.describe("Button field", () => {
     // resolves in the browser.
     await createOpenUrlAction(g.user, g.fieldByName["BadLink"], {
       url: "get('fields.field_999999')",
+    });
+
+    // "Stopped" refuses its first URL, so the second must never open: a client
+    // action that navigates would take the first one's message with it.
+    await createOpenUrlAction(g.user, g.fieldByName["Stopped"], {
+      url: "get('fields.field_999999')",
+    });
+    await createOpenUrlAction(g.user, g.fieldByName["Stopped"], {
+      url: "'/stopped-should-not-open'",
     });
 
     // "RunTwo" writes a different column to "Run", so two buttons on one row
@@ -965,6 +977,22 @@ test.describe("Button field", () => {
     // Compared by path: the app strips its own `?token=` after authenticating.
     const pathBefore = new URL(page.url()).pathname;
     await grid.fieldCellAt(0, BAD_LINK_FIELD_INDEX).locator("button").click();
+    await expect(page.locator(".toast")).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe(pathBefore);
+  });
+
+  test("a client action that fails stops the ones after it", async ({
+    page,
+  }) => {
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    // "Stopped" cannot resolve its first URL. The second would navigate, and
+    // the message the first one raised would go with it.
+    const pathBefore = new URL(page.url()).pathname;
+    await grid.fieldCellAt(0, STOPPED_FIELD_INDEX).locator("button").click();
+
     await expect(page.locator(".toast")).toBeVisible();
     expect(new URL(page.url()).pathname).toBe(pathBefore);
   });

@@ -124,7 +124,7 @@ export default {
           ? this.allFieldsInTable
           : this.$store.getters['field/getAll']
       for (const workflowAction of clientActions) {
-        await this.$registry
+        const ran = await this.$registry
           .get('databaseWorkflowActionType', workflowAction.type)
           .execute({
             workflowAction,
@@ -137,6 +137,12 @@ export default {
               ),
             },
           })
+        // An action that could not run stops the ones after it, the way a
+        // failed server action stops the sequence. Carrying on would navigate
+        // away from the message this one just raised.
+        if (ran === false) {
+          break
+        }
       }
     },
   },

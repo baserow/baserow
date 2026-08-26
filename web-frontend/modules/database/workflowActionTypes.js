@@ -313,6 +313,11 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
     return encodeUrlWhitespace(`${resolved}`.trim())
   }
 
+  /**
+   * @returns {Promise<Boolean>} Whether the action ran. `false` stops the
+   *   client actions after it, which would otherwise navigate away from the
+   *   message this one just raised.
+   */
   async execute({ workflowAction, applicationContext }) {
     let url
     try {
@@ -332,7 +337,7 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
         title: this.app.$i18n.t('openUrlWorkflowAction.invalidUrlTitle'),
         message: this.app.$i18n.t('openUrlWorkflowAction.invalidUrlMessage'),
       })
-      return
+      return false
     }
 
     if (workflowAction.target === 'blank') {
@@ -340,6 +345,7 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
     } else {
       window.location.href = url
     }
+    return true
   }
 }
 
