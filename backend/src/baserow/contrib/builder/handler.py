@@ -25,9 +25,10 @@ BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
 # The duration of the cached public properties for the builder API views.
 BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60 * 10
 
-# Computing the used properties parses every formula of the builder, which can take
-# a long time for large applications. The lock guarding that computation must
-# outlive it, otherwise concurrent requests take the lock over and repeat the work.
+# Computing the used properties parses every formula of the builder, which
+# can take a long time for large applications. The `lock_timeout` guarding
+# that computation must outlive it, otherwise concurrent requests take the
+# lock over and repeat the work.
 BUILDER_USED_PROPERTIES_LOCK_TIMEOUT_SECONDS = 60
 
 SENTINEL = "__no_results__"
