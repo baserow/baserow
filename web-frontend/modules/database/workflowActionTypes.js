@@ -127,8 +127,11 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     if (inherited) {
       return inherited
     }
-    if (!workflowAction.service?.table_id) {
-      return this.app.$i18n.t('databaseWorkflowActionType.noTable')
+    const serviceError = this.serviceType.getErrorMessage({
+      service: workflowAction.service,
+    })
+    if (serviceError) {
+      return serviceError
     }
     return staleReferenceError(this.app, workflowAction, applicationContext)
   }

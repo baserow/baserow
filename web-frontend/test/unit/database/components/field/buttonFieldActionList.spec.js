@@ -361,7 +361,7 @@ describe('ButtonFieldActionList', () => {
     test('an action with no table is marked', async () => {
       const wrapper = await mountList([CREATE({ service: {} })])
 
-      expect(errors(wrapper)).toEqual(['databaseWorkflowActionType.noTable'])
+      expect(errors(wrapper)).toEqual(['serviceType.errorNoTableSelected'])
       expect(wrapper.text()).toContain('buttonFieldActionList.misconfigured')
       // The copy the key resolves to, so a rename of either is caught.
       expect(en.buttonFieldActionList.misconfigured).toBe(
@@ -503,7 +503,7 @@ describe('ButtonFieldActionList', () => {
       wrapper.vm.touch()
       await wrapper.vm.$nextTick()
 
-      expect(errors(wrapper)).toEqual(['databaseWorkflowActionType.noTable'])
+      expect(errors(wrapper)).toEqual(['serviceType.errorNoTableSelected'])
       expect(wrapper.text()).toContain('buttonFieldActionList.misconfigured')
     })
 
