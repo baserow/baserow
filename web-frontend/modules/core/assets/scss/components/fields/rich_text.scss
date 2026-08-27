@@ -75,7 +75,19 @@
   }
 
   li {
+    height: auto;
+    min-height: 32px;
     margin-left: 20px;
+  }
+
+  ul,
+  ol {
+    height: auto;
+  }
+
+  li > ul,
+  li > ol {
+    line-height: normal;
   }
 
   blockquote {
