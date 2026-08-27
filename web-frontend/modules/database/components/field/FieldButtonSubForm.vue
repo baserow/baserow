@@ -286,8 +286,11 @@ export default {
             this.resolveActionIds(this.createPayload(action), idMap)
           )
           createdIds.push(data.id)
-          assignedIds.set(action[CLIENT_ID_KEY], data.id)
+          // An action the server no longer knows is created again, and came
+          // from the server with no client id. Keying two of those by the
+          // same `undefined` would give them one id between them.
           if (action[CLIENT_ID_KEY] != null) {
+            assignedIds.set(action[CLIENT_ID_KEY], data.id)
             idMap[action[CLIENT_ID_KEY]] = data.id
           }
         }

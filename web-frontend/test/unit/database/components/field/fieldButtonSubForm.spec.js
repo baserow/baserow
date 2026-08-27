@@ -222,6 +222,28 @@ describe('FieldButtonSubForm', () => {
       )
     })
 
+    test('two actions the server forgot do not end up sharing one id', async () => {
+      // Deleted by a collaborator, so both are created again, and both came
+      // from the server with no client id. Keying them by that would hand one
+      // id to the pair, and the next save would lose one of them.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [
+        { id: 41, type: 'open_url', url: { formula: "'a'", mode: 'simple' } },
+        { id: 42, type: 'open_url', url: { formula: "'b'", mode: 'simple' } },
+      ]
+
+      wrapper.vm.$client.post.mockResolvedValueOnce({
+        data: { id: 91, type: 'open_url' },
+      })
+      wrapper.vm.$client.post.mockRejectedValueOnce(new Error('nope'))
+
+      await expect(wrapper.vm.afterFieldSaved(7)).rejects.toThrow()
+
+      const ids = wrapper.vm.localActions.map((action) => action.id)
+      expect(new Set(ids).size).toBe(ids.length)
+    })
+
     test('saving creates a new action with its config in one call', async () => {
       // One call, so a failure cannot leave an action behind with none of the
       // config the user filled in.
