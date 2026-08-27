@@ -14,9 +14,11 @@
 
   .form-input__icon-right {
     position: absolute;
-    top: 50%;
+    top: 0;
+    bottom: 0;
     right: 8px;
-    margin-top: -8px;
+    display: flex;
+    align-items: center;
     padding-right: 0;
   }
 }
