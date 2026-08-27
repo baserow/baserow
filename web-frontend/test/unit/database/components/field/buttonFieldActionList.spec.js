@@ -487,6 +487,26 @@ describe('ButtonFieldActionList', () => {
       )
     })
 
+    test('a newly chosen row action is not marked before it is submitted', async () => {
+      // The type is picked before the table is, so an action that has just
+      // been chosen is half configured for as long as that takes.
+      const wrapper = await mountList([])
+
+      wrapper.vm.addAction('local_baserow_create_row')
+      await wrapper.setProps({ value: lastEmitted(wrapper) })
+
+      expect(errors(wrapper)).toEqual([])
+      expect(wrapper.text()).not.toContain(
+        'buttonFieldActionList.misconfigured'
+      )
+
+      wrapper.vm.touch()
+      await wrapper.vm.$nextTick()
+
+      expect(errors(wrapper)).toEqual(['databaseWorkflowActionType.noTable'])
+      expect(wrapper.text()).toContain('buttonFieldActionList.misconfigured')
+    })
+
     test('submitting the field form marks a newly chosen action', async () => {
       const wrapper = await mountList([])
       wrapper.vm.addAction('open_url')
