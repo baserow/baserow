@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -11,9 +12,11 @@ from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow_enterprise.builder.elements.element_types import (
     AuthFormElementType,
@@ -309,3 +312,49 @@ def test_auth_form_element_get_event_names(data_fixture):
     assert AuthFormElementType().get_event_names(auth_form) == [
         EventTypes.AFTER_LOGIN.value
     ]
+
+
+@pytest.mark.parametrize("field_name", ["label_format", "help_text_format"])
+def test_file_input_element_type_exposes_format_field(field_name):
+    element_type = FileInputElementType()
+
+    assert field_name in element_type.allowed_fields
+    assert field_name in element_type.serializer_field_names
+    assert field_name in element_type.SerializedDict.__annotations__
+
+    field = element_type.serializer_field_overrides[field_name]
+    assert field.required is False
+    assert field.default == "plain"
+    assert list(field.choices.keys()) == ["plain", "markdown"]
+
+
+@pytest.mark.django_db
+def test_export_import_file_input_element_formats(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_element(
+        FileInputElementType,
+        user,
+        page=page,
+        label_format="markdown",
+        help_text_format="markdown",
+    )
+    element_type = element.get_type()
+
+    exported = element_type.export_serialized(element)
+    assert exported["label_format"] == "markdown"
+    assert exported["help_text_format"] == "markdown"
+
+    id_mapping = defaultdict(lambda: MirrorDict())
+    imported_element = ElementHandler().import_element(page, exported, id_mapping)
+    assert imported_element.label_format == "markdown"
+    assert imported_element.help_text_format == "markdown"
+
+    # Exports made before the format settings existed don't have the keys.
+    del exported["label_format"]
+    del exported["help_text_format"]
+    imported_legacy_element = ElementHandler().import_element(
+        page, exported, id_mapping
+    )
+    assert imported_legacy_element.label_format == "plain"
+    assert imported_legacy_element.help_text_format == "plain"

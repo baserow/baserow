@@ -436,3 +436,45 @@ def test_import_workflow_action_keeps_unknown_dynamic_event(data_fixture, event)
     )
 
     assert imported_workflow_action.event == event
+
+
+@pytest.mark.django_db
+def test_export_import_notification_workflow_action_formats(data_fixture):
+    page = data_fixture.create_builder_page()
+    workflow_action_type = NotificationWorkflowActionType()
+    button_1 = data_fixture.create_builder_button_element(page=page)
+    button_2 = data_fixture.create_builder_button_element(page=page)
+
+    exported_workflow_action = data_fixture.create_notification_workflow_action(
+        page=page,
+        element=button_1,
+        event=EventTypes.CLICK,
+        title="'**Saved**'",
+        title_format="markdown",
+        description="'See [details](/details)'",
+        description_format="markdown",
+    )
+    serialized = workflow_action_type.export_serialized(exported_workflow_action)
+    assert serialized["title_format"] == "markdown"
+    assert serialized["description_format"] == "markdown"
+
+    id_mapping = {
+        "builder_data_sources": {},
+        "builder_page_elements": {button_1.id: button_2.id},
+    }
+    imported_workflow_action = workflow_action_type.import_serialized(
+        page, serialized, id_mapping
+    )
+
+    assert imported_workflow_action.title_format == "markdown"
+    assert imported_workflow_action.description_format == "markdown"
+
+    # Exports made before the format settings existed don't have the keys.
+    del serialized["title_format"]
+    del serialized["description_format"]
+    imported_legacy_workflow_action = workflow_action_type.import_serialized(
+        page, serialized, id_mapping
+    )
+
+    assert imported_legacy_workflow_action.title_format == "plain"
+    assert imported_legacy_workflow_action.description_format == "plain"

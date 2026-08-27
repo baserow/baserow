@@ -281,3 +281,139 @@ def test_cant_update_a_table_element_fields_with_wrong_field_property(
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["detail"]["fields"][0][0]["code"] == "INVALID_FIELD_PROPERTY"
+
+
+@pytest.mark.django_db
+def test_can_update_a_table_element_field_name_format(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table_element = data_fixture.create_builder_table_element(user=user)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": table_element.id})
+
+    response = api_client.patch(
+        url,
+        {
+            "fields": [
+                {
+                    "name": "**Bold**",
+                    "name_format": "markdown",
+                    "type": "text",
+                    "value": "get('data_source.123')",
+                    "uid": str(uuid.uuid4()),
+                },
+                {
+                    "name": "Plain",
+                    "type": "text",
+                    "value": "get('data_source.123')",
+                    "uid": str(uuid.uuid4()),
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    markdown_field, plain_field = response.json()["fields"]
+    assert markdown_field["name_format"] == "markdown"
+    # The `plain` default applies when `name_format` is omitted from the payload.
+    assert plain_field["name_format"] == "plain"
+
+    markdown_field, plain_field = table_element.fields.all()
+    assert markdown_field.name_format == "markdown"
+    assert plain_field.name_format == "plain"
+
+
+@pytest.mark.django_db
+def test_cant_update_a_table_element_field_with_invalid_name_format(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table_element = data_fixture.create_builder_table_element(user=user)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": table_element.id})
+
+    response = api_client.patch(
+        url,
+        {
+            "fields": [
+                {
+                    "name": "Name",
+                    "name_format": "html",
+                    "type": "text",
+                    "value": "get('data_source.123')",
+                    "uid": str(uuid.uuid4()),
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"]["fields"][0]["name_format"][0]["code"] == (
+        "invalid_choice"
+    )
+
+
+@pytest.mark.django_db
+def test_tags_field_format(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table_element = data_fixture.create_builder_table_element(user=user)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": table_element.id})
+
+    response = api_client.patch(
+        url,
+        {
+            "fields": [
+                {
+                    "name": "Markdown tags",
+                    "type": "tags",
+                    "values": "get('data_source.123')",
+                    "format": "markdown",
+                    "uid": str(uuid.uuid4()),
+                },
+                {
+                    "name": "Plain tags",
+                    "type": "tags",
+                    "values": "get('data_source.123')",
+                    "uid": str(uuid.uuid4()),
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    markdown_field, plain_field = response.json()["fields"]
+    assert markdown_field["format"] == "markdown"
+    assert plain_field["format"] == "plain"
+
+    markdown_field, plain_field = table_element.fields.all()
+    assert markdown_field.config["format"] == "markdown"
+    assert plain_field.config["format"] == "plain"
+
+    response = api_client.patch(
+        url,
+        {
+            "fields": [
+                {
+                    "name": "Invalid tags",
+                    "type": "tags",
+                    "values": "get('data_source.123')",
+                    "format": "html",
+                    "uid": str(uuid.uuid4()),
+                },
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["detail"]["fields"][0]["format"][0]["code"] == (
+        "invalid_choice"
+    )

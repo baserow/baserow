@@ -116,7 +116,9 @@ exports[`ChoiceElement > as manual checkboxes 1`] = `
               for="ab-checkbox-v-0-0-1"
             >
               
+              
               First
+              
               
             </label>
           </div>
@@ -134,7 +136,9 @@ exports[`ChoiceElement > as manual checkboxes 1`] = `
               for="ab-checkbox-v-0-0-2"
             >
               
+              
               Second
+              
               
             </label>
           </div>
@@ -221,7 +225,9 @@ exports[`ChoiceElement > as manual dropdown 1`] = `
                         class="ab-dropdownitem__item-name-text"
                         title="First"
                       >
+                        
                         First
+                        
                       </span>
                       
                     </div>
@@ -246,7 +252,9 @@ exports[`ChoiceElement > as manual dropdown 1`] = `
                         class="ab-dropdownitem__item-name-text"
                         title="Second"
                       >
+                        
                         Second
+                        
                       </span>
                       
                     </div>
@@ -315,7 +323,9 @@ exports[`ChoiceElement > as manual radio 1`] = `
               class="ab-radio__label"
             >
               
+              
               First
+              
               
             </label>
           </div>
@@ -331,7 +341,9 @@ exports[`ChoiceElement > as manual radio 1`] = `
               class="ab-radio__label"
             >
               
+              
               Second
+              
               
             </label>
           </div>

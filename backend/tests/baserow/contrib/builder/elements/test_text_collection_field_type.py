@@ -7,11 +7,11 @@ from unittest.mock import patch
 import pytest
 from rest_framework import serializers
 
+from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.elements.collection_field_types import (
     TextCollectionFieldType,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.models import TextElement
 from baserow.contrib.builder.pages.service import PageService
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
@@ -54,9 +54,9 @@ def test_serializer_field_overrides_returns_expected_value():
 
     assert type(format_field) is serializers.ChoiceField
     assert format_field.required is False
-    assert format_field.default == TextElement.TEXT_FORMATS.PLAIN
+    assert format_field.default == TextFormats.PLAIN
     assert format_field.default == "plain"
-    assert list(format_field.choices.items()) == TextElement.TEXT_FORMATS.choices
+    assert list(format_field.choices.items()) == TextFormats.choices
     assert format_field.help_text == "The format of the text."
 
 

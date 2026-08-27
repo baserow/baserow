@@ -1684,3 +1684,49 @@ def test_create_row_action_can_access_the_field_of_previous_action(
     # The ID of the new row that was created by the first Workflow Action
     row_id = action_1.service.table.get_model().objects.all()[2].id
     assert getattr(results[0], fields_2[0].db_column) == str(row_id)
+
+
+@pytest.mark.django_db
+def test_notification_workflow_action_formats(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+
+    url = reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {"type": "notification", "event": "click", "element_id": element.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["title_format"] == "plain"
+    assert response_json["description_format"] == "plain"
+
+    url = reverse(
+        "api:builder:workflow_action:item",
+        kwargs={"workflow_action_id": response_json["id"]},
+    )
+    response = api_client.patch(
+        url,
+        {"title_format": "markdown", "description_format": "markdown"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["title_format"] == "markdown"
+    assert response.json()["description_format"] == "markdown"
+
+    response = api_client.patch(
+        url,
+        {"title_format": "html"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"]["title_format"][0]["code"] == "invalid_choice"
