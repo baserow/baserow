@@ -105,9 +105,12 @@ class PreviousActionDataProviderType(DataProviderType):
             return [str(action_id), *rest]
 
         try:
-            action_id = id_mapping["database_workflow_actions"][int(action_id)]
+            # Kept apart from `action_id`, so the path below is either fully
+            # remapped or not at all. Pairing the new action with the old
+            # field would name a field that action's table does not have.
+            imported_id = id_mapping["database_workflow_actions"][int(action_id)]
             workflow_action = DatabaseWorkflowActionHandler().get_workflow_action(
-                action_id
+                imported_id
             )
         except (KeyError, ValueError, WorkflowActionDoesNotExist):
             # An action outside this import. Left as it is, like the builder
@@ -118,7 +121,7 @@ class PreviousActionDataProviderType(DataProviderType):
         if service is not None:
             rest = service.specific.get_type().import_path(rest, id_mapping)
 
-        return [str(action_id), *rest]
+        return [str(imported_id), *rest]
 
     def _names_a_current_field(self, service_type, service, segment: str) -> bool:
         """

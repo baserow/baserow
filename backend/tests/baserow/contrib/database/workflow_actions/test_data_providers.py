@@ -235,6 +235,18 @@ def test_importing_a_path_naming_no_action_leaves_it_alone():
 
 
 @pytest.mark.django_db
+def test_importing_a_path_whose_action_is_gone_remaps_neither_half():
+    """The id maps but the row does not exist, a trashed action for instance.
+    Taking the new action with the old field would name a field that action's
+    table does not have, and every click would fail on it."""
+
+    provider = PreviousActionDataProviderType()
+    id_mapping = {"database_workflow_actions": {1: 99999}}
+
+    assert provider.import_path(["1", "field_7"], id_mapping) == ["1", "field_7"]
+
+
+@pytest.mark.django_db
 def test_a_deleted_field_does_not_read_one_named_after_it(data_fixture):
     """
     A path names a field as `field_<id>`, and the service turns that into the
