@@ -209,8 +209,18 @@ export default {
         if (!actionsSaved) {
           return
         }
+        const undoRedoActionGroupId = this.createdActionGroupId
+        // Reported here rather than left to `onHidden`, which would hand the
+        // parent the copy taken before this retry patched it.
+        this.createdField = null
+        this.createdActionGroupId = null
+        delete this.defaultValues.id
         this.$refs.form.reset()
         this.hide()
+        this.$emit('field-created-callback-done', {
+          newField: this.$store.getters['field/get'](field.id) ?? field,
+          undoRedoActionGroupId,
+        })
       } catch (error) {
         this.loading = false
         if (!this.$refs.form.handleErrorByForm(error)) {

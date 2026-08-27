@@ -300,6 +300,19 @@ describe('field contexts keep has_workflow_actions in sync', () => {
       expect(wrapper.emitted('field-created-callback-done')).toHaveLength(1)
     })
 
+    test('reports the retried field as it stands afterwards', async () => {
+      const wrapper = await createWithFailingActions()
+      actionSaveError = null
+      client.patch.mockResolvedValue({ data: buttonField({ name: 'Renamed' }) })
+
+      await wrapper.vm.submit({ name: 'Renamed', type: 'button', label: 'Go' })
+
+      const done = wrapper.emitted('field-created-callback-done')
+      expect(done).toHaveLength(1)
+      // The copy taken when the field was made still calls it "Go".
+      expect(done[0][0].newField.name).toBe('Renamed')
+    })
+
     test('reports the field once the retry is abandoned', async () => {
       const wrapper = await createWithFailingActions()
 
