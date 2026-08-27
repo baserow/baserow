@@ -85,10 +85,12 @@ class DispatchResultSerializer(serializers.Serializer):
         help_text="The order the action carries, which two actions can share."
     )
     position = serializers.IntegerField(
+        allow_null=True,
         help_text=(
             "Where the action ran in the sequence, counting from one, so the "
-            "browser can tell which results a frontend-only action ran after."
-        )
+            "browser can tell which results a frontend-only action ran after. "
+            "`null` when the click ran no sequence to place it in."
+        ),
     )
     status = serializers.CharField(
         help_text=(
@@ -114,12 +116,13 @@ class DispatchedClientActionSerializer(DatabaseWorkflowActionSerializer):
     position = serializers.SerializerMethodField(
         help_text=(
             "Where the action ran in the sequence, counting from one, on the "
-            "same scale as a result's."
+            "same scale as a result's. `null` when the click ran no sequence "
+            "to place it in."
         )
     )
 
-    @extend_schema_field(OpenApiTypes.INT)
-    def get_position(self, instance: DatabaseWorkflowAction) -> int:
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
+    def get_position(self, instance: DatabaseWorkflowAction) -> Optional[int]:
         return self.context.get("positions", {}).get(instance.id)
 
     class Meta(DatabaseWorkflowActionSerializer.Meta):
