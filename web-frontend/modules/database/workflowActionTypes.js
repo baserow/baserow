@@ -140,19 +140,19 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
   /**
    * Describes the row this action returns, so a later action can reference it.
    *
-   * A saved action carries the schema the backend built. One that has never
-   * been saved has none, so it is derived from the target table's fields,
-   * which the action forms report up to the sub-form.
+   * Derived from the target table's fields, which the action forms report up
+   * to the sub-form, and filled out per field from the schema the backend
+   * built for a saved action, which knows what a composite field contains.
    */
   getDataSchema(applicationContext, workflowAction) {
     const service = workflowAction.service
     const fields = applicationContext?.tableFields?.[service?.table_id]
+    const savedProperties = service?.schema?.properties
 
-    // The saved schema describes whichever table the action pointed at when it
-    // was last saved. The editor buffers a table change without clearing it, so
-    // it goes stale the moment the user repoints the action, and the explorer
-    // would offer fields of a table this action no longer writes to. The
-    // fetched fields always describe the table selected right now.
+    // Which fields exist is the fetched list's to say, since the saved schema
+    // describes whichever table the action pointed at when it was last saved
+    // and the editor buffers a table change without clearing it. Until that
+    // fetch lands the saved schema is all there is.
     if (!fields) {
       const saved = service?.schema
       if (saved?.properties) {
@@ -178,14 +178,20 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
         ...Object.fromEntries(
           fields
             .filter((field) => !this.isWriteOnly(field))
-            .map((field) => [
-              `field_${field.id}`,
-              {
-                type: JSON_TYPE_BY_FIELD_TYPE[field.type] ?? 'string',
-                title: field.name,
-                metadata: field,
-              },
-            ])
+            .map((field) => {
+              const key = `field_${field.id}`
+              // Field ids are unique across tables, so a repointed action
+              // matches nothing of the table it used to write to.
+              return [
+                key,
+                {
+                  type: JSON_TYPE_BY_FIELD_TYPE[field.type] ?? 'string',
+                  ...savedProperties?.[key],
+                  title: field.name,
+                  metadata: field,
+                },
+              ]
+            })
         ),
       },
     }

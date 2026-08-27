@@ -231,6 +231,92 @@ describe('Database data provider types', () => {
     ])
   })
 
+  test('a saved schema fills out what a composite field contains', () => {
+    const saved = {
+      id: 1,
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 7,
+        schema: {
+          type: 'object',
+          properties: {
+            field_13: {
+              title: 'Stage',
+              type: 'object',
+              properties: {
+                id: { title: 'id', type: 'number' },
+                value: { title: 'value', type: 'string' },
+                color: { title: 'color', type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    }
+    const context = editorContext([saved, OPEN_URL], OPEN_URL)
+
+    const { properties } =
+      previousProvider().getDataSchema(context).properties['1']
+
+    expect(Object.keys(properties.field_13.properties)).toStrictEqual([
+      'id',
+      'value',
+      'color',
+    ])
+  })
+
+  test('a field added since the last save is still offered', () => {
+    const saved = {
+      id: 1,
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 7,
+        schema: {
+          type: 'object',
+          title: 'Table7Schema',
+          properties: { field_10: { title: 'Name', type: 'string' } },
+        },
+      },
+    }
+    const context = editorContext([saved, OPEN_URL], OPEN_URL)
+
+    const { properties } =
+      previousProvider().getDataSchema(context).properties['1']
+
+    expect(Object.keys(properties)).toStrictEqual([
+      'id',
+      'field_10',
+      'field_11',
+      'field_12',
+      'field_13',
+      'field_14',
+      'field_15',
+    ])
+  })
+
+  test('a field renamed since the last save is offered its current name', () => {
+    const saved = {
+      id: 1,
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 7,
+        schema: {
+          type: 'object',
+          title: 'Table7Schema',
+          properties: {
+            field_10: { title: 'Called this before', type: 'string' },
+          },
+        },
+      },
+    }
+    const context = editorContext([saved, OPEN_URL], OPEN_URL)
+
+    const { properties } =
+      previousProvider().getDataSchema(context).properties['1']
+
+    expect(properties.field_10.title).toBe('Name')
+  })
+
   test('a field is typed as the backend types it', () => {
     const unsaved = {
       _clientId: 'abc',
