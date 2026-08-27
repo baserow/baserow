@@ -181,13 +181,15 @@ describe('OpenUrlWorkflowActionType', () => {
   })
 
   test('a url pointing at a missing field raises a toast instead of throwing', async () => {
+    // Resolving to `false` rather than throwing: the caller stops the client
+    // actions after this one instead of handling a rejection.
     await expect(
       execute({
         type: 'open_url',
         url: { formula: "get('fields.field_404')" },
         target: 'blank',
       })
-    ).resolves.toBeUndefined()
+    ).resolves.toBe(false)
 
     expect(openSpy).not.toHaveBeenCalled()
     expect(dispatchSpy).toHaveBeenCalledWith(
