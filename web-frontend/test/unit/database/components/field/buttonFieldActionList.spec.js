@@ -554,6 +554,39 @@ describe('ButtonFieldActionList', () => {
     })
   })
 
+  describe('the formula context an action form provides', () => {
+    const ACTION = (over = {}) => ({
+      id: 1,
+      type: 'open_url',
+      url: { formula: "'https://x.test'", mode: 'simple' },
+      target: 'self',
+      ...over,
+    })
+
+    const contextOf = (wrapper) =>
+      wrapper.findComponent(ButtonFieldActionForm).vm.$.provides
+        .databaseFormulaContext
+
+    test('it reads its action through rather than copying it', async () => {
+      const wrapper = await mountList([ACTION(), ACTION({ id: 2 })])
+      const context = contextOf(wrapper)
+
+      expect(context.workflowAction.id).toBe(1)
+      expect(Object.keys(context)).toContain('workflowAction')
+
+      await wrapper.setProps({
+        value: [
+          ACTION({ url: { formula: "'https://edited.test'", mode: 'simple' } }),
+          ACTION({ id: 2 }),
+        ],
+      })
+
+      // Read through rather than copied, so the same object answers with what
+      // the list holds now.
+      expect(context.workflowAction.url.formula).toBe("'https://edited.test'")
+    })
+  })
+
   describe('keyboard', () => {
     const ACTION = (over = {}) => ({
       id: 1,

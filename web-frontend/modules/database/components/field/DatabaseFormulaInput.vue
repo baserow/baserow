@@ -68,6 +68,13 @@ export default {
         this.$registry.get('databaseDataProvider', name)
       )
     },
+    /**
+     * Built from the registry rather than from anything the user is editing,
+     * so this resolves once per input instead of on every keystroke.
+     */
+    functionNodes() {
+      return buildFormulaFunctionNodes(this)
+    },
     nodesHierarchy() {
       const hierarchy = []
       const dataNodes = getDataNodesFromDataProvider(
@@ -82,7 +89,7 @@ export default {
           nodes: dataNodes,
         })
       }
-      hierarchy.push(...buildFormulaFunctionNodes(this))
+      hierarchy.push(...this.functionNodes)
       return hierarchy
     },
   },

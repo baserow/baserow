@@ -4,6 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import FieldButtonSubForm from '@baserow/modules/database/components/field/FieldButtonSubForm'
 import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionReconciliation'
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
+import ButtonFieldActionForm from '@baserow/modules/database/components/field/ButtonFieldActionForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 
 describe('FieldButtonSubForm', () => {
@@ -771,6 +772,23 @@ describe('FieldButtonSubForm', () => {
       expect(provides.dataProvidersAllowed).toEqual(['row', 'previous_action'])
     })
 
+    test('an action form sees the sub-form context through its own', async () => {
+      // The action form provides a context of its own, and everything the
+      // sub-form exposes has to keep reaching the inputs under it.
+      const wrapper = await mountForm({ type: 'button', label: 'Go' })
+      wrapper.vm.localActions = [
+        { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
+      ]
+      await wrapper.vm.$nextTick()
+
+      const context = wrapper.findComponent(ButtonFieldActionForm).vm.$.provides
+        .databaseFormulaContext
+
+      expect(context.workflowAction.id).toBe(1)
+      expect(context.workflowActions).toHaveLength(1)
+      expect(context.fields.map((field) => field.name)).toEqual(['Name'])
+    })
+
     test('InjectedFormulaInput renders a real input under the sub-form', async () => {
       const form = await mountForm({ type: 'button', label: 'Go' })
 
@@ -784,6 +802,43 @@ describe('FieldButtonSubForm', () => {
         true
       )
       expect(input.html()).not.toBe('<!---->')
+    })
+
+    test('an input keeps its explorer context while the list is edited', async () => {
+      // The context an input reads is what its explorer is rebuilt from, so a
+      // new object on every keystroke rebuilds every mounted input's tree.
+      const form = await mountForm({ type: 'button', label: 'Go' })
+      const action = {
+        id: 1,
+        type: 'open_url',
+        url: { formula: "'x'", mode: 'simple' },
+      }
+      form.vm.localActions = [action]
+      await form.vm.$nextTick()
+
+      const actionForm = form.findComponent(ButtonFieldActionForm)
+      const input = await testApp.mount(InjectedFormulaInput, {
+        attrs: { modelValue: { formula: "'hi'", mode: 'simple' } },
+        // The action form's own provides sit on a prototype of the sub-form's,
+        // which does not survive being handed over as a plain object.
+        global: {
+          provide: {
+            ...form.vm.$.provides,
+            ...actionForm.vm.$.provides,
+          },
+        },
+      })
+      const databaseInput = input.findComponent({
+        name: 'DatabaseFormulaInput',
+      })
+      const before = databaseInput.vm.applicationContext
+
+      form.vm.localActions = [
+        { ...action, url: { formula: "'edited'", mode: 'simple' } },
+      ]
+      await form.vm.$nextTick()
+
+      expect(databaseInput.vm.applicationContext).toBe(before)
     })
 
     test('the injected input offers the clicked row fields', async () => {

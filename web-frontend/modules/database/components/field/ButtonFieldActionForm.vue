@@ -10,8 +10,6 @@
 </template>
 
 <script>
-import { computed } from 'vue'
-
 /**
  * One action's form, with a formula context of its own. The data explorer
  * offers an action only what precedes it in the list, so each form needs to
@@ -24,11 +22,31 @@ export default {
     parentFormulaContext: { from: 'databaseFormulaContext', default: null },
   },
   provide() {
+    // Delegates to the parent rather than copying it. Spreading would read the
+    // parent's getters here, making the actions list a dependency of the
+    // provided object itself, so every mounted formula input would rebuild its
+    // explorer on each keystroke. Reading through the traps keeps that
+    // tracking where it belongs: in whatever computed does the reading.
+    const parent = () => this.parentFormulaContext || {}
     return {
-      databaseFormulaContext: computed(() => ({
-        ...(this.parentFormulaContext || {}),
-        workflowAction: this.action,
-      })),
+      databaseFormulaContext: new Proxy(
+        {},
+        {
+          get: (target, property) =>
+            property === 'workflowAction' ? this.action : parent()[property],
+          has: (target, property) =>
+            property === 'workflowAction' || property in parent(),
+          ownKeys: () => [
+            ...new Set([...Reflect.ownKeys(parent()), 'workflowAction']),
+          ],
+          getOwnPropertyDescriptor: (target, property) => ({
+            enumerable: true,
+            configurable: true,
+            value:
+              property === 'workflowAction' ? this.action : parent()[property],
+          }),
+        }
+      ),
     }
   },
   props: {
