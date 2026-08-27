@@ -80,8 +80,9 @@
 }
 
 .button-field-action-list__error {
-  @extend %ellipsis;
-
+  // These are full sentences, and the popup has no max-width of its own, so
+  // one line would either stretch it or clip the message with no way back.
+  max-width: 366px;
   color: $palette-red-600;
   font-size: 12px;
   padding: 0 12px 8px;
