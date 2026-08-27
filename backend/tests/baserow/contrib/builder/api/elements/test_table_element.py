@@ -96,6 +96,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
     ] == [
         {
             "name": "Name",
+            "name_format": "plain",
             "type": "text",
             "value": BaserowFormulaObject(
                 formula="get('data_source.123')",
@@ -108,6 +109,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
         },
         {
             "name": "Color",
+            "name_format": "plain",
             "type": "link",
             "navigate_to_page_id": None,
             "navigation_type": NavigationElementMixin.NAVIGATION_TYPES.PAGE,
@@ -130,6 +132,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
         },
         {
             "name": "Question",
+            "name_format": "plain",
             "type": "text",
             "value": BaserowFormulaObject(
                 formula="get('data_source.126')",

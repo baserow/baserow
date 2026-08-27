@@ -343,6 +343,7 @@ def test_builder_application_export(data_fixture):
                 "fields": [
                     {
                         "name": f.name,
+                        "name_format": f.name_format,
                         "type": f.type,
                         "config": f.config,
                         "uid": str(f.uid),
@@ -429,7 +430,9 @@ def test_builder_application_export(data_fixture):
                         "event": EventTypes.CLICK.value,
                         "page_id": page1.id,
                         "description": workflow_action_1.description,
+                        "description_format": workflow_action_1.description_format,
                         "title": workflow_action_1.title,
+                        "title_format": workflow_action_1.title_format,
                     }
                 ],
                 "data_sources": [

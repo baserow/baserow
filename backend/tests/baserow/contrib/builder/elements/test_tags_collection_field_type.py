@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import pytest
 
 from baserow.contrib.builder.elements.handler import ElementHandler
@@ -8,6 +10,7 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_RAW,
     BASEROW_FORMULA_MODE_SIMPLE,
 )
+from baserow.core.utils import MirrorDict
 
 
 @pytest.mark.django_db
@@ -79,6 +82,7 @@ def test_import_export_tags_collection_field_type(data_fixture):
             mode=BASEROW_FORMULA_MODE_SIMPLE,
         ),
         "colors_is_formula": True,
+        "format": "plain",
     }
 
     tags_without_formula = imported_table_element.fields.get(name="Colors as hex")
@@ -89,6 +93,7 @@ def test_import_export_tags_collection_field_type(data_fixture):
             mode=BASEROW_FORMULA_MODE_SIMPLE,
         ),
         "colors_is_formula": False,
+        "format": "plain",
         "colors": BaserowFormulaObject(
             formula="#d06060ff",
             version=BASEROW_FORMULA_VERSION_INITIAL,
@@ -131,7 +136,8 @@ def test_import_export_tags_collection_field_format(data_fixture):
     assert exported["fields"][0]["config"]["format"] == "markdown"
     assert "format" not in exported["fields"][1]["config"]
 
-    imported_table_element = ElementHandler().import_element(page, exported, {})
+    id_mapping = defaultdict(lambda: MirrorDict())
+    imported_table_element = ElementHandler().import_element(page, exported, id_mapping)
 
     markdown_tags = imported_table_element.fields.get(name="Markdown tags")
     assert markdown_tags.config["format"] == "markdown"
