@@ -6,7 +6,8 @@
         "sso": "SSO",
         "deactivated": "Disponibile con licenza advanced/enterprise",
         "licenseDescription": "I Viewers sono gratuiti. Se un utente ha un altro ruolo, una licenza a pagamento verrà assegnata in automatico.",
-        "overflowWarning": "Le licenze disponibili sono terminate. Imposta gli utenti come \"viewers\" per liberare le licenze necessarie."
+        "overflowWarning": "Le licenze disponibili sono terminate. Imposta gli utenti come \"viewers\" per liberare le licenze necessarie.",
+        "enterpriseOnlyDeactivated": "Disponibile nella versione enterprise"
     },
     "clientHandler": {
         "cannotDisableAllAuthProvidersTitle": "Ultimo provider attivato",
@@ -55,7 +56,8 @@
     },
     "adminType": {
         "Authentication": "Autenticazione",
-        "AuditLog": "Audit log"
+        "AuditLog": "Audit log",
+        "DataScanner": "Scanner di dati"
     },
     "auditLog": {
         "title": "Audit log",
@@ -358,7 +360,8 @@
         "sources": "{count} sorgente | {count} sorgenti"
     },
     "advanced": {
-        "license": "Avanzato"
+        "license": "Avanzato",
+        "openSubscriptions": "Apri le sottoscrizioni per avere più posti"
     },
     "githubIssuesDataSync": {
         "owner": "Proprietario",
@@ -429,12 +432,86 @@
         "emptyTitle": "Nessuna scansione dati ad ora",
         "emptyDescription": "Una scansione dati ti permette di scansionare automaticamente l'intera istanza o specifici spazi di lavoro per verificare se modelli (come IBAN) o testo predefinito (come identificativi univoci) siano in uso.",
         "emptyResultsTitle": "Nessun risultato trovato",
-        "emptyResultsDescription": "Non ci sono ancora risultati di scansione. I risultati appariranno qui dopo l'esecuzione di una scansione e l'individuazione di un riscontro."
+        "emptyResultsDescription": "Non ci sono ancora risultati di scansione. I risultati appariranno qui dopo l'esecuzione di una scansione e l'individuazione di un riscontro.",
+        "title": "Scanner di dati",
+        "scansTab": "Scansioni",
+        "resultsTab": "Risultati",
+        "createScan": "Creare uno scanner di dati",
+        "editScan": "Modifica scansione",
+        "nameColumn": "Nome",
+        "typeColumn": "Tipo",
+        "frequencyColumn": "Frequenza",
+        "statusColumn": "Stato",
+        "runningSince": "In esecuzione dal {time}",
+        "idle": "Inattivo",
+        "neverRun": "Non eseguire mai",
+        "runNow": "Esegui ora",
+        "edit": "Modifica",
+        "delete": "Cancella",
+        "nameLabel": "Nome",
+        "namePlaceholder": "Inserisci il nome della scansione",
+        "scanTypeLabel": "Tipo di scansione",
+        "patternLabel": "Modello",
+        "patternPlaceholder": "ad esempio \\N\\LDDAAAADDDDDDDDDD",
+        "patternHelp": "A = qualsiasi lettera, D = cifra, X = qualsiasi carattere. Utilizzare \\ per eseguire l'escape di un carattere letterale (ad esempio \\N per la lettera N). Esempio: \\N\\LDDAAAADDDDDDDDDD per l'IBAN olandese (NL00BANK0000000000).",
+        "listItemsLabel": "Elenco dei valori",
+        "listItemsPlaceholder": "Inserire un valore per riga",
+        "listItemsHelp": "Inserire un valore per riga. Ciascun valore verrà cercato in tutti gli spazi di lavoro scansionati.",
+        "sourceTableLabel": "Tabella di origine",
+        "selectWorkspace": "Seleziona l'area di lavoro",
+        "selectDatabase": "Seleziona il database",
+        "selectTable": "Seleziona la tabella",
+        "selectField": "Seleziona il campo",
+        "noCompatibleFieldsTitle": "Nessun campo compatibile",
+        "noCompatibleFieldsDescription": "Questa tabella non ha tipi di campo compatibili. Possono essere utilizzati come origine solo i campi di tipo testo, URL, email, numero, numerazione automatica, numero di telefono e UUID.",
+        "frequencyLabel": "Frequenza",
+        "frequencyManual": "Manuale",
+        "frequencyHourly": "Ogni ora",
+        "frequencyDaily": "Ogni giorno",
+        "frequencyWeekly": "Ogni settimana",
+        "hourlyWarning": "Le scansioni orarie possono sovraccaricare notevolmente l'istanza di Baserow.",
+        "wholeWordsLabel": "Corrispondenza"
     },
     "deleteDataScanModal": {
-        "title": "Annulla scansione dati"
+        "title": "Annulla scansione dati",
+        "confirmation": "Sei sicuro di voler eliminare questa scansione dei dati? Tutti i risultati della scansione verranno eliminati definitivamente.",
+        "delete": "Elimina scansione"
     },
     "fieldPermissionModal": {
         "linkRowWarning": "Questo è un campo 'Link to table'. Per assicurare che i valori non possano essere cambiati dalla tabella collegata, per favore assicurati di impostare i permessi giusti anche sulla tabella collegata."
+    },
+    "serviceType": {
+        "coreCode": "Esegui codice",
+        "coreCodeDescription": "Esegue codice JavaScript arbitrario.",
+        "coreXLSFileReader": "Leggere un file XLS",
+        "coreXLSFileReaderDescription": "Legge le righe da un file XLS o XLSX.",
+        "errorCodeMissing": "Proprietà del codice mancante",
+        "errorXLSFileMissing": "Proprietà del file XLS mancante"
+    },
+    "coreCodeServiceForm": {
+        "codeLabel": "Codice",
+        "codeHelperText": "Baserow chiama la funzione main(contesto) quando l'azione viene eseguita. Utilizza contesto per leggere i valori iniettati e restituire un oggetto le cui proprietà possono essere utilizzate da azioni successive.",
+        "codePlaceholder": "Inserisci il codice da eseguire",
+        "editCode": "Modifica codice",
+        "injectionsLabel": "Iniezioni di dati",
+        "injectionsHelperText": "Le iniezioni sono espressioni valutate prima dell'esecuzione del codice. Ogni nome di iniezione diventa una proprietà del contesto. Ad esempio, un'iniezione denominata customerName è disponibile come context.customerName.",
+        "nameLabel": "Nome",
+        "namePlaceholder": "Nome variabile",
+        "valueLabel": "Valore",
+        "valuePlaceholder": "Espressione del valore",
+        "addInjection": "Aggiungere iniezione",
+        "nameFieldRequired": "Il campo nome è obbligatorio.",
+        "nameFieldInvalid": "Il nome deve essere un nome di variabile valido."
+    },
+    "coreXLSFileReaderServiceForm": {
+        "file": "File XLS",
+        "filePlaceholder": "Scegli un file XLS o XLSX...",
+        "sheetName": "Nome del foglio",
+        "sheetNamePlaceholder": "Primo foglio",
+        "firstLineIsHeader": "La prima riga è l'intestazione"
+    },
+    "nodeType": {
+        "codeLabel": "Esegui codice",
+        "xlsFileReaderLabel": "Leggi un file XLS"
     }
 }
