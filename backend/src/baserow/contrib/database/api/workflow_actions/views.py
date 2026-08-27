@@ -426,31 +426,15 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             request.user, field, row
         )
 
-        # Only a client action reads a result, and naming the fields costs a
-        # table model per action. An action that returned no row, a delete for
-        # instance, has no names to give either.
+        # Nothing reads the names unless a client action runs. An action that
+        # returned no row, a delete for instance, has none to give either.
         names_wanted = bool(dispatch.client_actions)
-
-        # Naming the fields builds the table model, so two actions against the
-        # same table would otherwise build it twice for the same names.
-        field_names_by_table = {}
 
         def field_names_for(dispatched):
             if not names_wanted or not isinstance(dispatched.result.data, dict):
                 return {}
             workflow_action = dispatched.workflow_action
-            table_id = getattr(
-                getattr(workflow_action, "service", None), "table_id", None
-            )
-            if table_id is None:
-                return workflow_action.get_type().get_result_field_names(
-                    workflow_action
-                )
-            if table_id not in field_names_by_table:
-                field_names_by_table[table_id] = (
-                    workflow_action.get_type().get_result_field_names(workflow_action)
-                )
-            return field_names_by_table[table_id]
+            return workflow_action.get_type().get_result_field_names(workflow_action)
 
         results = [
             {
