@@ -95,6 +95,21 @@ def test_an_unknown_action_id_raises(chained):
 
 
 @pytest.mark.django_db
+def test_an_action_missing_from_the_instance_cache_raises(chained):
+    """Reading a path out of a result the dispatch never recorded the action
+    for has to fail the click, not resolve to nothing."""
+
+    provider = PreviousActionDataProviderType()
+    action_id = chained["action"].id
+    del chained["context"].cache[PreviousActionDataProviderType.ACTIONS_CACHE_KEY][
+        action_id
+    ]
+
+    with pytest.raises(InvalidFormulaContext):
+        provider.get_data_chunk(chained["context"], [str(action_id), "id"])
+
+
+@pytest.mark.django_db
 def test_an_action_that_has_not_run_raises(data_fixture):
     """A reference pointing forwards, at an action later in the list."""
 

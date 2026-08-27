@@ -195,27 +195,14 @@ class PreviousActionDataProviderType(DataProviderType):
         service = getattr(workflow_action, "service", None)
 
         if service is None:
-            # A frontend-only action returns nothing to prepare a path through.
-            return get_value_at_path(result, rest)
+            # Both caches are written together, so an action in one and not the
+            # other means the dispatch left them out of step.
+            raise InvalidFormulaContext(
+                "The previous action was not recorded in this click."
+            )
 
         service = service.specific
         service_type = service.get_type()
-
-        if service_type.returns_list:
-            if not isinstance(result, dict) or "results" not in result:
-                raise InvalidFormulaContext(
-                    "The previous action returned nothing to read."
-                )
-            result = result["results"]
-            if len(rest) >= 2:
-                index, *after = rest
-                prepared_path = [
-                    index,
-                    *service_type.prepare_value_path(service, after),
-                ]
-            else:
-                prepared_path = rest
-            return get_value_at_path(result, prepared_path)
 
         if not self._names_a_current_field(service_type, service, rest[0]):
             # A deleted field. `prepare_value_path` leaves its token as it is,
