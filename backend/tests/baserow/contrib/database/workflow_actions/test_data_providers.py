@@ -234,6 +234,22 @@ def test_importing_a_path_naming_no_action_leaves_it_alone():
     assert provider.import_path([], {"database_workflow_actions": {}}) == []
 
 
+def test_a_service_that_cannot_name_its_fields_is_left_to_the_later_checks():
+    """Only a table service knows what its fields are. Another kind reaching
+    here must not raise, which is not a formula error and would 500 the
+    click."""
+
+    provider = PreviousActionDataProviderType()
+
+    class ServiceTypeWithoutFields:
+        pass
+
+    assert (
+        provider._names_a_current_field(ServiceTypeWithoutFields(), None, "field_7")
+        is True
+    )
+
+
 @pytest.mark.django_db
 def test_importing_a_path_whose_action_is_gone_remaps_neither_half():
     """The id maps but the row does not exist, a trashed action for instance.

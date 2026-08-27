@@ -138,9 +138,17 @@ class PreviousActionDataProviderType(DataProviderType):
         if not FIELD_SEGMENT.match(segment):
             return True
 
+        # Only a table service can say what its fields are. Another kind has no
+        # `field_<id>` of its own, so the checks on the prepared path are what
+        # catch a segment its result does not carry. Guarded the way
+        # `get_result_field_names` guards the same call.
+        get_field_objects = getattr(service_type, "get_table_field_objects", None)
+        if get_field_objects is None:
+            return True
+
         return any(
             field_object["field"].db_column == segment
-            for field_object in service_type.get_table_field_objects(service) or []
+            for field_object in get_field_objects(service) or []
         )
 
     def get_data_chunk(
