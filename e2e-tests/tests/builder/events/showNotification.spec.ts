@@ -48,6 +48,6 @@ test.describe("Builder page show notification action test suite", () => {
 
     await eventsTab.getByText("Show Notification").click();
 
-    await expect(eventsTab.getByText("Title")).toBeVisible();
+    await expect(eventsTab.getByText("Title", { exact: true })).toBeVisible();
   });
 });
