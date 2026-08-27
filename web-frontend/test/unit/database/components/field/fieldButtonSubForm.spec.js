@@ -164,6 +164,41 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.localActions).toHaveLength(1)
     })
 
+    test('a reference between two new actions is rewritten as they are created', async () => {
+      // Neither action exists yet, so the second names the first by its client
+      // id. Creating in list order means the server id is known by the time the
+      // second is sent, and no client id may reach the API.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [
+        {
+          [CLIENT_ID_KEY]: 'first',
+          type: 'local_baserow_create_row',
+          service: { table_id: 3 },
+        },
+        {
+          [CLIENT_ID_KEY]: 'second',
+          type: 'open_url',
+          url: { formula: "get('previous_action.first.id')", mode: 'simple' },
+          target: 'self',
+        },
+      ]
+      wrapper.vm.$client.post
+        .mockResolvedValueOnce({
+          data: { id: 91, type: 'local_baserow_create_row' },
+        })
+        .mockResolvedValueOnce({ data: { id: 92, type: 'open_url' } })
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      const [firstCall, secondCall] = wrapper.vm.$client.post.mock.calls
+      expect(firstCall[1].type).toBe('local_baserow_create_row')
+      expect(secondCall[1].url.formula).toBe("get('previous_action.91.id')")
+      expect(JSON.stringify(wrapper.vm.$client.post.mock.calls)).not.toContain(
+        CLIENT_ID_KEY
+      )
+    })
+
     test('ids handed out before a failure are adopted by the references too', async () => {
       // A save that stops part way leaves the created actions carrying real
       // ids. Anything pointing at them has to follow, or the retry finds a
