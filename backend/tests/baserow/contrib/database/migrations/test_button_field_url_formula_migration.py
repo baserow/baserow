@@ -3,12 +3,19 @@ from django.db import connection
 
 import pytest
 
+from baserow.contrib.database.migrations.helpers.migrate_button_url_formula_to_open_url_action import (  # noqa: E501
+    migrate_button_url_formulas_to_open_url_actions,
+)
+
 # The shape the formula column stores: the formula, its mode, and the version.
 ADVANCED = '{"f": "\'https://advanced.test\'", "m": "advanced", "v": "0.1"}'
 SIMPLE = '{"f": "\'https://simple.test\'", "m": "simple", "v": "0.1"}'
 # Rows written before the column held JSON keep a bare string.
 BARE = "'https://bare.test'"
 EMPTY = '{"f": "", "m": "simple", "v": "0.1"}'
+# The keys come out in a different order depending on whether the column was
+# written from a string or from a dict.
+EMPTY_REVERSED = '{"m": "simple", "v": "0.1", "f": ""}'
 
 
 def set_raw_url_formula(field_id, raw_value):
@@ -44,6 +51,9 @@ def test_url_formulas_become_open_url_actions(migrator, teardown_table_metadata)
     migrate_from = [
         ("database", "0215_view_public_id_index"),
         ("core", "0115_ai_provider"),
+    ]
+    migrate_moved = [
+        ("database", "0216_databaseworkflowaction_createrowworkflowaction_and_more")
     ]
     migrate_to = [("database", "0217_remove_buttonfield_url_formula")]
 
@@ -85,8 +95,19 @@ def test_url_formulas_become_open_url_actions(migrator, teardown_table_metadata)
     simple = button("simple", SIMPLE)
     bare = button("bare", BARE)
     empty = button("empty", EMPTY)
+    empty_reversed = button("empty_reversed", EMPTY_REVERSED)
     blank = button("blank", "")
     null = button("null", None)
+
+    moved_state = migrator.migrate(migrate_moved)
+
+    # Re-running the move must not stack a second action on a field, which a
+    # re-applied migration or a repaired deploy does.
+    migrate_button_url_formulas_to_open_url_actions(moved_state.apps, None)
+
+    Moved = moved_state.apps.get_model("database", "OpenUrlWorkflowAction")
+    assert Moved.objects.count() == 3
+    assert Moved.objects.filter(field_id=advanced).count() == 1
 
     new_state = migrator.migrate(migrate_to)
 
@@ -113,7 +134,7 @@ def test_url_formulas_become_open_url_actions(migrator, teardown_table_metadata)
 
     # A button that opened nothing has nothing to run.
     assert not OpenUrlWorkflowAction.objects.filter(
-        field_id__in=[empty, blank, null]
+        field_id__in=[empty, empty_reversed, blank, null]
     ).exists()
 
     # Only once every formula has been moved is the column dropped.
