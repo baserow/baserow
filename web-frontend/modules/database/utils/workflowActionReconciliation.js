@@ -1,4 +1,5 @@
 import _ from 'lodash'
+import { referencedActionIds } from '@baserow/modules/database/utils/workflowActionFormulas'
 
 // Keys the API owns. Everything else is the type's own config.
 const API_OWNED_KEYS = ['id', 'type', 'order', 'field_id']
@@ -22,6 +23,21 @@ export function workflowActionKey(action) {
  */
 export function workflowActionConfig(action) {
   return _.omit(action, [...API_OWNED_KEYS, CLIENT_ID_KEY])
+}
+
+/**
+ * Every action this one's formulas reference. The same keys as
+ * `workflowActionConfig`, walked where they are: `_.omit` deep copies what it
+ * keeps, which on a wide table is the whole saved schema, and this only reads.
+ */
+export function referencedActionIdsInConfig(action) {
+  const found = new Set()
+  Object.entries(action).forEach(([key, value]) => {
+    if (!API_OWNED_KEYS.includes(key) && key !== CLIENT_ID_KEY) {
+      referencedActionIds(value, found)
+    }
+  })
+  return [...found]
 }
 
 /**

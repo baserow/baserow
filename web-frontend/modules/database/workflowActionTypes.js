@@ -12,9 +12,8 @@ import {
   encodeUrlWhitespace,
   urlWithAllowedProtocol,
 } from '@baserow/modules/database/utils/buttonField'
-import { referencedActionIds } from '@baserow/modules/database/utils/workflowActionFormulas'
 import {
-  workflowActionConfig,
+  referencedActionIdsInConfig,
   workflowActionKey,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
 
@@ -69,9 +68,7 @@ function staleReferenceError(app, workflowAction, applicationContext) {
       .slice(0, index)
       .map((action) => [String(workflowActionKey(action)), action])
   )
-  const referenced = referencedActionIds(
-    workflowActionConfig(workflowAction)
-  ).map(String)
+  const referenced = referencedActionIdsInConfig(workflowAction).map(String)
 
   if (referenced.some((id) => !before.has(id))) {
     return app.$i18n.t('databaseWorkflowActionType.staleReference')
