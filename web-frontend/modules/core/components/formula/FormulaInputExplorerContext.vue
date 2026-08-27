@@ -46,19 +46,17 @@
       </h2>
       <p>{{ $t('formulaInputExplorerContext.modalMessage') }}</p>
 
-      <div class="actions margin-bottom-0">
-        <div class="align-right">
-          <Button type="secondary" size="large" @click="cancelModeChange">
-            {{ $t('action.cancel') }}
-          </Button>
-          <Button type="danger" size="large" @click="confirmModeChange">
-            {{
-              isAdvancedMode
-                ? $t('formulaInputExplorerContext.useSimpleInput')
-                : $t('formulaInputExplorerContext.useAdvancedInput')
-            }}
-          </Button>
-        </div>
+      <div class="actions actions--right actions--gap margin-bottom-0">
+        <Button type="secondary" size="large" @click="cancelModeChange">
+          {{ $t('action.cancel') }}
+        </Button>
+        <Button type="danger" size="large" @click="confirmModeChange">
+          {{
+            isAdvancedMode
+              ? $t('formulaInputExplorerContext.useSimpleInput')
+              : $t('formulaInputExplorerContext.useAdvancedInput')
+          }}
+        </Button>
       </div>
     </Modal>
   </Context>
