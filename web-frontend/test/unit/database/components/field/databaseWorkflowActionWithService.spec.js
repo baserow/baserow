@@ -206,6 +206,38 @@ describe('DatabaseWorkflowActionWithService', () => {
     ).toEqual(['Company'])
   })
 
+  test('a table whose fields cannot be fetched is registered as empty', async () => {
+    // Left unregistered, the explorer falls back to the schema of the last
+    // save, which describes the table this action pointed at before. It would
+    // go on offering those fields for as long as the fetch keeps failing.
+    await seedApplications()
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/database/fields/table/1/').reply(200, TABLE_FIELDS)
+    testApp.mock.onGet('/database/fields/table/2/').reply(500)
+    const registerTableFields = vi.fn()
+
+    const wrapper = await testApp.mount(DatabaseWorkflowActionWithService, {
+      props: {
+        workflowAction: {
+          id: 1,
+          type: 'local_baserow_create_row',
+          service: {},
+        },
+        database: { id: OWN_DATABASE_ID, workspace: WORKSPACE },
+        defaultValues: { service: { table_id: 1 } },
+      },
+      global: { provide: { workspace: WORKSPACE, registerTableFields } },
+    })
+    await flushPromises()
+
+    await wrapper.setProps({ defaultValues: { service: { table_id: 2 } } })
+    wrapper.vm.values.service = { table_id: 2 }
+    await flushPromises()
+
+    expect(registerTableFields).toHaveBeenCalledWith(1, TABLE_FIELDS)
+    expect(registerTableFields).toHaveBeenLastCalledWith(2, [])
+  })
+
   test('re-picking the table already selected keeps the mappings visible', async () => {
     await seedApplications()
     testApp.mock.onGet('/database/fields/table/2/').reply(200, TABLE_FIELDS)
