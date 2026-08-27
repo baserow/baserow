@@ -329,7 +329,7 @@ def test_file_input_element_type_exposes_format_field(field_name):
 
 
 @pytest.mark.django_db
-def test_export_import_file_input_element_formats(data_fixture):
+def test_export_import_file_input_element_formats(data_fixture, enable_enterprise):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     element = data_fixture.create_builder_element(
