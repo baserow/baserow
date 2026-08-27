@@ -18,6 +18,10 @@
         :placeholder="$t('generalForm.labelPlaceholder')"
       />
     </FormGroup>
+    <TextFormatSelector
+      v-model="v$.values.label_format.$model"
+      :label="$t('textFormatSelector.labelFormat')"
+    />
     <FormGroup
       :label="$t('fileInputElementForm.helpTextTitle')"
       class="margin-bottom-2"
@@ -29,6 +33,10 @@
         :placeholder="$t('fileInputElementForm.helpTextPlaceholder')"
       />
     </FormGroup>
+    <TextFormatSelector
+      v-model="v$.values.help_text_format.$model"
+      :label="$t('fileInputElementForm.helpTextFormat')"
+    />
     <hr />
     <FormGroup
       :label="
@@ -155,6 +163,8 @@
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
+import { TEXT_FORMAT_TYPES } from '@baserow/modules/builder/enums'
+import TextFormatSelector from '@baserow/modules/builder/components/elements/components/forms/TextFormatSelector'
 import { useVuelidate } from '@vuelidate/core'
 import {
   required,
@@ -166,7 +176,7 @@ import {
 
 export default {
   name: 'FileInputElementForm',
-  components: { InjectedFormulaInput, CustomStyleButton },
+  components: { InjectedFormulaInput, CustomStyleButton, TextFormatSelector },
   mixins: [formElementForm],
   setup() {
     return { v$: useVuelidate() }
@@ -175,9 +185,11 @@ export default {
     return {
       values: {
         label: {},
+        label_format: TEXT_FORMAT_TYPES.PLAIN,
         default_name: {},
         default_url: {},
         help_text: {},
+        help_text_format: TEXT_FORMAT_TYPES.PLAIN,
         required: false,
         multiple: false,
         max_filesize: 5,
@@ -188,11 +200,13 @@ export default {
       allowedValues: [
         'styles',
         'label',
+        'label_format',
         'required',
         'multiple',
         'default_name',
         'default_url',
         'help_text',
+        'help_text_format',
         'max_filesize',
         'allowed_filetypes',
         'preview',
@@ -217,12 +231,14 @@ export default {
     return {
       values: {
         label: {},
+        label_format: {},
         required: {},
         multiple: {},
         styles: {},
         default_name: {},
         default_url: {},
         help_text: {},
+        help_text_format: {},
         max_filesize: {
           integer: helpers.withMessage(this.$t('error.integerField'), integer),
           required: helpers.withMessage(

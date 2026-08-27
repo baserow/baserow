@@ -721,7 +721,8 @@
     "preview": "Preview images?",
     "maxFileSize": "Maximum file size",
     "maxFileSizePlaceholder": "Enter a number...",
-    "addFileType": "Add file type"
+    "addFileType": "Add file type",
+    "helpTextFormat": "Help text format"
   },
   "fileInputElement": {
     "defaultHelpText": "Drag and drop files here or click to select",

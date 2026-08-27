@@ -5,6 +5,13 @@
     :error-message="getErrorMessage()"
     :style="getStyleOverride('input')"
   >
+    <template #label>
+      <FormattedText
+        :content="resolvedLabel"
+        :format="element.label_format"
+        preset="inlineLinks"
+      />
+    </template>
     <ABDropdown
       ref="recordSelectorDropdown"
       v-model="inputValue"
@@ -73,12 +80,13 @@ import formElement from '@baserow/modules/builder/mixins/formElement'
 import collectionElement from '@baserow/modules/builder/mixins/collectionElement'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll.vue'
+import FormattedText from '@baserow/modules/builder/components/FormattedText'
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 
 export default {
   name: 'RecordSelectorElement',
-  components: { InfiniteScroll },
+  components: { InfiniteScroll, FormattedText },
   mixins: [formElement, collectionElement],
   props: {
     /**

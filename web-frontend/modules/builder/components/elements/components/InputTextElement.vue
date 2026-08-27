@@ -6,6 +6,13 @@
     :required="element.required"
     :style="getStyleOverride('input')"
   >
+    <template #label>
+      <FormattedText
+        :content="resolvedLabel"
+        :format="element.label_format"
+        preset="inlineLinks"
+      />
+    </template>
     <ABInput
       v-model="computedValue"
       :placeholder="resolvedPlaceholder"
@@ -19,6 +26,7 @@
 
 <script>
 import formElement from '@baserow/modules/builder/mixins/formElement'
+import FormattedText from '@baserow/modules/builder/components/FormattedText'
 import {
   ensureNumeric,
   ensureString,
@@ -27,6 +35,7 @@ import { parseLocalizedNumber } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'InputTextElement',
+  components: { FormattedText },
   mixins: [formElement],
   props: {
     /**

@@ -1,4 +1,7 @@
-import { createApplicationBuilderMarkdownRules } from '@baserow/modules/builder/utils/markdown'
+import {
+  createApplicationBuilderMarkdownRules,
+  handleMarkdownClick,
+} from '@baserow/modules/builder/utils/markdown'
 
 /**
  * Shared behaviour for elements and collection fields that render Markdown
@@ -22,18 +25,7 @@ export default {
   },
   methods: {
     onMarkdownClick(event) {
-      if (this.mode === 'editing') {
-        event.preventDefault()
-        return
-      }
-      if (event.target.classList.contains('ab-link')) {
-        const url = event.target.getAttribute('href')
-
-        if (url.startsWith('/')) {
-          event.preventDefault()
-          this.$router.push(url)
-        }
-      }
+      handleMarkdownClick(event, { mode: this.mode, router: this.$router })
     },
   },
 }

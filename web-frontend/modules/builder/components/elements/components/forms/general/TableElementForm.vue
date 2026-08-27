@@ -142,6 +142,11 @@
                 >
                 </FormInput>
               </FormGroup>
+              <TextFormatSelector
+                v-model="v$.values.fields.$model[index].name_format"
+                :label="$t('tableElementForm.nameFormat')"
+                horizontal
+              />
 
               <FormGroup
                 small-label
@@ -274,6 +279,7 @@ import ServiceSchemaPropertySelector from '@baserow/modules/core/components/serv
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
+import TextFormatSelector from '@baserow/modules/builder/components/elements/components/forms/TextFormatSelector'
 
 export default {
   name: 'TableElementForm',
@@ -285,6 +291,7 @@ export default {
     DeviceSelector,
     CustomStyleButton,
     SidebarExpandable,
+    TextFormatSelector,
   },
   mixins: [collectionElementForm],
   emits: ['values-changed'],
@@ -350,6 +357,7 @@ export default {
           this.$t('tableElementForm.fieldDefaultName'),
           this.v$.values.fields.$model.map(({ name }) => name)
         ),
+        name_format: TEXT_FORMAT_TYPES.PLAIN,
         value: {},
         format: TEXT_FORMAT_TYPES.PLAIN,
         type: 'text',
@@ -367,6 +375,7 @@ export default {
               id: field.id,
               uid: uuid(),
               name: field.name,
+              name_format: field.name_format,
               type: newType,
             }
           }

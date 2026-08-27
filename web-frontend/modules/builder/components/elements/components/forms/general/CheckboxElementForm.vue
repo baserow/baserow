@@ -18,6 +18,10 @@
         :placeholder="$t('generalForm.labelPlaceholder')"
       />
     </FormGroup>
+    <TextFormatSelector
+      v-model="values.label_format"
+      :label="$t('textFormatSelector.labelFormat')"
+    />
 
     <FormGroup
       small-label
@@ -44,16 +48,25 @@
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
+import { TEXT_FORMAT_TYPES } from '@baserow/modules/builder/enums'
+import TextFormatSelector from '@baserow/modules/builder/components/elements/components/forms/TextFormatSelector'
 
 export default {
   name: 'CheckboxElementForm',
-  components: { InjectedFormulaInput, CustomStyleButton },
+  components: { InjectedFormulaInput, CustomStyleButton, TextFormatSelector },
   mixins: [formElementForm],
   data() {
     return {
-      allowedValues: ['label', 'default_value', 'required', 'styles'],
+      allowedValues: [
+        'label',
+        'label_format',
+        'default_value',
+        'required',
+        'styles',
+      ],
       values: {
         label: {},
+        label_format: TEXT_FORMAT_TYPES.PLAIN,
         default_value: {},
         required: false,
         styles: {},

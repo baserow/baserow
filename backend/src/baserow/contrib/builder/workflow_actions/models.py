@@ -1,6 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
+from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.elements.models import Element, NavigationElementMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.field import FormulaField
@@ -93,7 +94,21 @@ class BuilderWorkflowAction(
 
 class NotificationWorkflowAction(BuilderWorkflowAction):
     title = FormulaField(default="")
+    title_format = models.CharField(
+        choices=TextFormats.choices,
+        max_length=10,
+        default=TextFormats.PLAIN,
+        db_default=TextFormats.PLAIN,
+        help_text="The format of the title.",
+    )
     description = FormulaField(default="")
+    description_format = models.CharField(
+        choices=TextFormats.choices,
+        max_length=10,
+        default=TextFormats.PLAIN,
+        db_default=TextFormats.PLAIN,
+        help_text="The format of the description.",
+    )
 
 
 class OpenPageWorkflowAction(BuilderWorkflowAction, NavigationElementMixin):

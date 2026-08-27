@@ -5,6 +5,13 @@
     :required="element.required"
     :style="getStyleOverride('input')"
   >
+    <template #label>
+      <FormattedText
+        :content="resolvedLabel"
+        :format="element.label_format"
+        preset="inlineLinks"
+      />
+    </template>
     <ABDateTimePicker
       ref="datePicker"
       v-model="inputValue"
@@ -20,12 +27,13 @@
 <script>
 import formElement from '@baserow/modules/builder/mixins/formElement'
 import ABDateTimePicker from '@baserow/modules/builder/components/elements/baseComponents/ABDateTimePicker.vue'
+import FormattedText from '@baserow/modules/builder/components/FormattedText'
 import { DATE_FORMATS, TIME_FORMATS } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'DateTimePickerElement',
-  components: { ABDateTimePicker },
+  components: { ABDateTimePicker, FormattedText },
   mixins: [formElement],
   props: {
     /**

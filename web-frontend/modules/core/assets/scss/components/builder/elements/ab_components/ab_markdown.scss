@@ -18,3 +18,9 @@
 .markdown > *:first-child {
   margin-top: 0;
 }
+
+// Inline Markdown (labels, option names, tags, table headers...) must flow with
+// the surrounding text, e.g. inside an ellipsis container.
+.markdown--inline {
+  display: inline;
+}

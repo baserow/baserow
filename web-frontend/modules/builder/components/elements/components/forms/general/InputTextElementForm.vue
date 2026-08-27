@@ -17,6 +17,10 @@
         :placeholder="$t('generalForm.labelPlaceholder')"
       />
     </FormGroup>
+    <TextFormatSelector
+      v-model="v$.values.label_format.$model"
+      :label="$t('textFormatSelector.labelFormat')"
+    />
     <FormGroup
       :label="$t('generalForm.valueTitle')"
       class="margin-bottom-2"
@@ -123,6 +127,8 @@ import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
+import { TEXT_FORMAT_TYPES } from '@baserow/modules/builder/enums'
+import TextFormatSelector from '@baserow/modules/builder/components/elements/components/forms/TextFormatSelector'
 import {
   required,
   integer,
@@ -133,7 +139,7 @@ import {
 
 export default {
   name: 'InputTextElementForm',
-  components: { InjectedFormulaInput, CustomStyleButton },
+  components: { InjectedFormulaInput, CustomStyleButton, TextFormatSelector },
   mixins: [formElementForm],
   setup() {
     return { v$: useVuelidate() }
@@ -142,6 +148,7 @@ export default {
     return {
       allowedValues: [
         'label',
+        'label_format',
         'default_value',
         'required',
         'validation_type',
@@ -154,6 +161,7 @@ export default {
       ],
       values: {
         label: {},
+        label_format: TEXT_FORMAT_TYPES.PLAIN,
         default_value: {},
         required: false,
         validation_type: 'any',
@@ -232,6 +240,7 @@ export default {
           ),
         },
         label: {},
+        label_format: {},
         default_value: {},
         required: {},
         validation_type: {},

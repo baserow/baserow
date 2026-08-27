@@ -2,6 +2,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import SET_NULL
 
+from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.elements.models import Element, FormElement
 from baserow.core.formula.field import FormulaField
 
@@ -34,11 +35,25 @@ class FileInputElement(FormElement):
         default="",
         help_text="The text label for this input",
     )
+    label_format = models.CharField(
+        choices=TextFormats.choices,
+        max_length=10,
+        default=TextFormats.PLAIN,
+        db_default=TextFormats.PLAIN,
+        help_text="The format of the label.",
+    )
     default_name = FormulaField(default="", help_text="This input's default file name.")
     default_url = FormulaField(default="", help_text="This input's default file url.")
     help_text = FormulaField(
         default="",
         help_text="The help text which should be visible on the element.",
+    )
+    help_text_format = models.CharField(
+        choices=TextFormats.choices,
+        max_length=10,
+        default=TextFormats.PLAIN,
+        db_default=TextFormats.PLAIN,
+        help_text="The format of the help text.",
     )
     multiple = models.BooleanField(
         default=False,

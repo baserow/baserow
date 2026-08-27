@@ -91,3 +91,133 @@ export const createApplicationBuilderMarkdownRules = ({ builder, mode }) => ({
     return renderer.renderToken(tokens, idx, options)
   },
 })
+
+/**
+ * The rendering presets available for Application Builder Markdown surfaces.
+ *
+ * - `block`: the full Markdown syntax, for free-flowing text (Text element, Text
+ *   collection field, file input help text).
+ * - `restrictedBlock`: block mode without the layout-breaking blocks (tables,
+ *   code blocks, images, headings), for the notification toast description.
+ * - `inline`: emphasis, strikethrough and inline code only, for selectable or
+ *   truncated single-line content (option names, tags, table headers, toast
+ *   title). Links are disabled, as these contexts are either already wrapped in
+ *   an `<a>`, or select something on click.
+ * - `inlineLinks`: inline mode with links, for descriptive single-line content
+ *   such as form field labels ("I agree to the [terms](...)").
+ */
+export const MARKDOWN_PRESETS = {
+  BLOCK: 'block',
+  RESTRICTED_BLOCK: 'restrictedBlock',
+  INLINE: 'inline',
+  INLINE_LINKS: 'inlineLinks',
+}
+
+export const INLINE_MARKDOWN_DISABLED_RULES = ['link', 'autolink']
+export const INLINE_LINKS_MARKDOWN_DISABLED_RULES = []
+export const RESTRICTED_BLOCK_MARKDOWN_DISABLED_RULES = [
+  'table',
+  'fence',
+  'code',
+  'heading',
+  'lheading',
+]
+
+/**
+ * Renders an image token back as its Markdown source. Disabling the `image`
+ * rule instead would leave a `!` followed by a link, which is more surprising
+ * than the literal text on the surfaces where images aren't allowed.
+ */
+const renderImageAsSource = (tokens, idx) => {
+  const token = tokens[idx]
+  const title = token.attrGet('title')
+  return escapeHtml(
+    `![${token.content}](${token.attrGet('src')}${title ? ` "${title}"` : ''})`
+  )
+}
+
+/**
+ * Creates the Markdown-It renderer rules used by the inline presets. Only the
+ * tokens that survive `renderInline` need styling.
+ */
+export const createApplicationBuilderInlineMarkdownRules = ({
+  builder,
+  mode,
+  links = false,
+}) => {
+  const blockRules = createApplicationBuilderMarkdownRules({ builder, mode })
+  return {
+    code_inline: blockRules.code_inline,
+    image: renderImageAsSource,
+    // Inline surfaces are often nowrap/ellipsis contexts where a `<br>` breaks
+    // the truncation. A backslash-newline still yields a hardbreak even with the
+    // `newline` rule disabled, so both break renderers emit a plain space.
+    hardbreak: () => ' ',
+    softbreak: () => ' ',
+    ...(links ? { link_open: blockRules.link_open } : {}),
+  }
+}
+
+/**
+ * Returns the `MarkdownIt` component props (`inline`, `rules`, `disabledRules`)
+ * for the given preset.
+ */
+export const createApplicationBuilderMarkdownPreset = (
+  preset,
+  { builder, mode }
+) => {
+  switch (preset) {
+    case MARKDOWN_PRESETS.INLINE:
+      return {
+        inline: true,
+        rules: createApplicationBuilderInlineMarkdownRules({ builder, mode }),
+        disabledRules: INLINE_MARKDOWN_DISABLED_RULES,
+      }
+    case MARKDOWN_PRESETS.INLINE_LINKS:
+      return {
+        inline: true,
+        rules: createApplicationBuilderInlineMarkdownRules({
+          builder,
+          mode,
+          links: true,
+        }),
+        disabledRules: INLINE_LINKS_MARKDOWN_DISABLED_RULES,
+      }
+    case MARKDOWN_PRESETS.RESTRICTED_BLOCK:
+      return {
+        inline: false,
+        rules: {
+          ...createApplicationBuilderMarkdownRules({ builder, mode }),
+          image: renderImageAsSource,
+        },
+        disabledRules: RESTRICTED_BLOCK_MARKDOWN_DISABLED_RULES,
+      }
+    case MARKDOWN_PRESETS.BLOCK:
+      return {
+        inline: false,
+        rules: createApplicationBuilderMarkdownRules({ builder, mode }),
+        disabledRules: [],
+      }
+    default:
+      throw new Error(`Unknown markdown preset: ${preset}`)
+  }
+}
+
+/**
+ * Click handler for rendered Markdown: blocks navigation while editing and keeps
+ * internal links inside the SPA router.
+ */
+export const handleMarkdownClick = (event, { mode, router }) => {
+  if (mode === 'editing') {
+    event.preventDefault()
+    return
+  }
+  if (event.target.classList.contains('ab-link')) {
+    const url = event.target.getAttribute('href')
+
+    if (url.startsWith('/')) {
+      event.preventDefault()
+      router.push(url)
+    }
+  }
+}

@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from baserow.api.exceptions import RequestBodyValidationException
+from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.elements.element_types import InputElementType
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.pages.handler import PageHandler
@@ -145,22 +146,26 @@ class FileInputElementType(InputElementType):
     model_class = FileInputElement
     allowed_fields = [
         "label",
+        "label_format",
         "multiple",
         "required",
         "default_name",
         "default_url",
         "help_text",
+        "help_text_format",
         "max_filesize",
         "allowed_filetypes",
         "preview",
     ]
     serializer_field_names = [
         "label",
+        "label_format",
         "multiple",
         "required",
         "default_name",
         "default_url",
         "help_text",
+        "help_text_format",
         "max_filesize",
         "allowed_filetypes",
         "preview",
@@ -174,11 +179,13 @@ class FileInputElementType(InputElementType):
 
     class SerializedDict(ElementDict):
         label: BaserowFormula
+        label_format: str
         required: bool
         multiple: bool
         default_name: BaserowFormula
         default_url: BaserowFormula
         help_text: BaserowFormula
+        help_text_format: str
         max_filesize: int
         allowed_filetypes: list
         preview: bool
@@ -210,6 +217,20 @@ class FileInputElementType(InputElementType):
             "help_text": FormulaSerializerField(
                 help_text=FileInputElement._meta.get_field("help_text").help_text,
                 required=False,
+            ),
+            "label_format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text=FileInputElement._meta.get_field("label_format").help_text,
+            ),
+            "help_text_format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text=FileInputElement._meta.get_field(
+                    "help_text_format"
+                ).help_text,
             ),
             "max_filesize": serializers.IntegerField(
                 help_text=FileInputElement._meta.get_field("preview").help_text,

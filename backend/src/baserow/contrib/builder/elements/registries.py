@@ -23,6 +23,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.types import BaserowFormulaObject
@@ -583,6 +584,7 @@ class CollectionFieldType(
         serialized = {
             "uid": str(instance.uid),
             "name": instance.name,
+            "name_format": instance.name_format,
             "type": instance.type,
             "styles": instance.styles,
             "config": serialized_config,
@@ -676,6 +678,8 @@ class CollectionFieldType(
             "type": serialized_values["type"],
             "styles": serialized_values.get("styles", {}),
             "name": serialized_values["name"],
+            # Exports made before `name_format` existed don't have the key.
+            "name_format": serialized_values.get("name_format", TextFormats.PLAIN),
         }
 
         return self.create_instance_from_serialized(deserialized_values)

@@ -30,6 +30,15 @@ class BACKGROUND_IMAGE_MODES(models.TextChoices):
     FIT = "fit"
 
 
+class TextFormats(models.TextChoices):
+    """
+    How a user-provided text is rendered by the frontend.
+    """
+
+    PLAIN = "plain"
+    MARKDOWN = "markdown"
+
+
 class FontWeights(models.TextChoices):
     THIN = "thin"
     EXTRA_LIGHT = "extra-light"

@@ -1,19 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <FormGroup
-      small-label
-      :label="$t('textFieldForm.fieldFormatLabel')"
-      class="margin-bottom-2"
-      horizontal
-      required
-    >
-      <RadioGroup
-        v-model="values.format"
-        type="button"
-        :options="textFormatTypeOptions"
-      >
-      </RadioGroup>
-    </FormGroup>
+    <TextFormatSelector v-model="values.format" horizontal />
     <FormGroup
       small-label
       :label="$t('textFieldForm.fieldValueLabel')"
@@ -49,10 +36,11 @@ import collectionFieldForm from '@baserow/modules/builder/mixins/collectionField
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import { TEXT_FORMAT_TYPES } from '@baserow/modules/builder/enums'
+import TextFormatSelector from '@baserow/modules/builder/components/elements/components/forms/TextFormatSelector'
 
 export default {
   name: 'TextField',
-  components: { InjectedFormulaInput, CustomStyleButton },
+  components: { InjectedFormulaInput, CustomStyleButton, TextFormatSelector },
   mixins: [collectionFieldForm],
   data() {
     return {
@@ -62,16 +50,6 @@ export default {
         format: TEXT_FORMAT_TYPES.PLAIN,
         styles: {},
       },
-      textFormatTypeOptions: [
-        {
-          value: TEXT_FORMAT_TYPES.PLAIN,
-          label: this.$t('textFieldForm.fieldFormatPlain'),
-        },
-        {
-          value: TEXT_FORMAT_TYPES.MARKDOWN,
-          label: this.$t('textFieldForm.fieldFormatMarkdown'),
-        },
-      ],
     }
   },
   computed: {

@@ -29,6 +29,7 @@ from baserow.contrib.builder.api.elements.serializers import (
     MenuItemSerializer,
     NestedMenuItemsMixin,
 )
+from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.mixins import (
@@ -571,6 +572,7 @@ class RecordSelectorElementType(
     class SerializedDict(CollectionElementTypeMixin.SerializedDict):
         required: bool
         label: BaserowFormulaObject
+        label_format: str
         default_value: BaserowFormulaObject
         placeholder: BaserowFormulaObject
         multiple: bool
@@ -596,6 +598,14 @@ class RecordSelectorElementType(
             ),
             "label": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field("label").help_text,
+            ),
+            "label_format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text=RecordSelectorElement._meta.get_field(
+                    "label_format"
+                ).help_text,
             ),
             "default_value": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field(
@@ -628,6 +638,7 @@ class RecordSelectorElementType(
         return collection_allowed_fields + [
             "required",
             "label",
+            "label_format",
             "default_value",
             "placeholder",
             "multiple",
@@ -643,6 +654,7 @@ class RecordSelectorElementType(
         return collection_serializer_field_names + [
             "required",
             "label",
+            "label_format",
             "default_value",
             "placeholder",
             "multiple",
@@ -892,7 +904,7 @@ class TextElementType(ElementType):
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
             ),
-            "format": TextElement.TEXT_FORMATS.PLAIN,
+            "format": TextFormats.PLAIN,
         }
 
     @property
@@ -910,8 +922,8 @@ class TextElementType(ElementType):
                 help_text="The value of the element. Must be a formula.",
             ),
             "format": serializers.ChoiceField(
-                choices=TextElement.TEXT_FORMATS.choices,
-                default=TextElement.TEXT_FORMATS.PLAIN,
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
                 help_text=TextElement._meta.get_field("format").help_text,
             ),
             "styles": DynamicConfigBlockSerializer(
@@ -1451,6 +1463,7 @@ class RatingInputElementType(InputElementType):
         "value",
         "required",
         "label",
+        "label_format",
     ]
     serializer_field_names = [
         "max_value",
@@ -1459,11 +1472,13 @@ class RatingInputElementType(InputElementType):
         "value",
         "required",
         "label",
+        "label_format",
     ]
     simple_formula_fields = ["value", "label"]
 
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
+        label_format: str
         required: bool
         value: BaserowFormulaObject
         max_value: str
@@ -1495,6 +1510,12 @@ class RatingInputElementType(InputElementType):
         return super().serializer_field_overrides | {
             "label": FormulaSerializerField(
                 help_text=RatingInputElement._meta.get_field("label").help_text
+            ),
+            "label_format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text=RatingInputElement._meta.get_field("label_format").help_text,
             ),
             "required": serializers.BooleanField(
                 help_text=RatingInputElement._meta.get_field("required").help_text,
@@ -1532,6 +1553,7 @@ class InputTextElementType(InputElementType):
     model_class = InputTextElement
     allowed_fields = [
         "label",
+        "label_format",
         "default_value",
         "required",
         "validation_type",
@@ -1542,6 +1564,7 @@ class InputTextElementType(InputElementType):
     ]
     serializer_field_names = [
         "label",
+        "label_format",
         "default_value",
         "required",
         "validation_type",
@@ -1554,6 +1577,7 @@ class InputTextElementType(InputElementType):
 
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
+        label_format: str
         required: bool
         validation_type: str
         placeholder: str
@@ -1575,6 +1599,12 @@ class InputTextElementType(InputElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=InputTextElement._meta.get_field("label").help_text,
+            ),
+            "label_format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text=InputTextElement._meta.get_field("label_format").help_text,
             ),
             "default_value": FormulaSerializerField(
                 help_text=InputTextElement._meta.get_field("default_value").help_text,
@@ -1718,12 +1748,13 @@ class CheckboxElementType(InputElementType):
     display_name = _("Checkbox")
     type = "checkbox"
     model_class = CheckboxElement
-    allowed_fields = ["label", "default_value", "required"]
-    serializer_field_names = ["label", "default_value", "required"]
+    allowed_fields = ["label", "label_format", "default_value", "required"]
+    serializer_field_names = ["label", "label_format", "default_value", "required"]
     simple_formula_fields = ["label", "default_value"]
 
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
+        label_format: str
         required: bool
         default_value: BaserowFormulaObject
 
@@ -1740,6 +1771,12 @@ class CheckboxElementType(InputElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=CheckboxElement._meta.get_field("label").help_text,
+            ),
+            "label_format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text=CheckboxElement._meta.get_field("label_format").help_text,
             ),
             "default_value": FormulaSerializerField(
                 help_text=CheckboxElement._meta.get_field("default_value").help_text,
@@ -1794,17 +1831,20 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
     model_class = ChoiceElement
     allowed_fields = [
         "label",
+        "label_format",
         "default_value",
         "required",
         "placeholder",
         "multiple",
         "show_as_dropdown",
         "option_type",
+        "option_format",
         "formula_value",
         "formula_name",
     ]
     serializer_field_names = [
         "label",
+        "label_format",
         "default_value",
         "required",
         "placeholder",
@@ -1812,11 +1852,13 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         "multiple",
         "show_as_dropdown",
         "option_type",
+        "option_format",
         "formula_value",
         "formula_name",
     ]
     request_serializer_field_names = [
         "label",
+        "label_format",
         "default_value",
         "required",
         "placeholder",
@@ -1824,6 +1866,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         "multiple",
         "show_as_dropdown",
         "option_type",
+        "option_format",
         "formula_value",
         "formula_name",
     ]
@@ -1837,6 +1880,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
 
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
+        label_format: str
         required: bool
         placeholder: BaserowFormulaObject
         default_value: BaserowFormulaObject
@@ -1844,6 +1888,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         multiple: bool
         show_as_dropdown: bool
         option_type: str
+        option_format: str
         formula_value: BaserowFormulaObject
         formula_name: BaserowFormulaObject
 
@@ -1860,6 +1905,12 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("label").help_text,
+            ),
+            "label_format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text=ChoiceElement._meta.get_field("label_format").help_text,
             ),
             "default_value": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("default_value").help_text,
@@ -1890,6 +1941,12 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
                 help_text=ChoiceElement._meta.get_field("option_type").help_text,
                 required=False,
                 default=ChoiceElement.OPTION_TYPE.MANUAL,
+            ),
+            "option_format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text=ChoiceElement._meta.get_field("option_format").help_text,
             ),
             "formula_value": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("formula_value").help_text,
@@ -2179,6 +2236,7 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
     model_class = DateTimePickerElement
     allowed_fields = [
         "label",
+        "label_format",
         "required",
         "default_value",
         "date_format",
@@ -2187,6 +2245,7 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
     ]
     serializer_field_names = [
         "label",
+        "label_format",
         "required",
         "default_value",
         "date_format",
@@ -2200,6 +2259,7 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
 
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
+        label_format: str
         required: bool
         default_value: BaserowFormulaObject
         date_format: str
@@ -2213,6 +2273,14 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=DateTimePickerElement._meta.get_field("label").help_text,
+            ),
+            "label_format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text=DateTimePickerElement._meta.get_field(
+                    "label_format"
+                ).help_text,
             ),
             "required": serializers.BooleanField(
                 help_text=DateTimePickerElement._meta.get_field("required").help_text,

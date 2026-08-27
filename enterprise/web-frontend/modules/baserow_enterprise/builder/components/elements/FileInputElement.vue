@@ -7,13 +7,28 @@
     :required="element.required"
     :style="getStyleOverride('input')"
   >
+    <template #label>
+      <FormattedText
+        :content="resolvedLabel"
+        :format="element.label_format"
+        preset="inlineLinks"
+      />
+    </template>
     <ABFileInput
       v-model="computedInputValue"
       :multiple="element.multiple"
       :help-text="resolvedHelpText"
       :accept="allowedExtensions"
       :preview="element.preview"
-    />
+    >
+      <template #help-text>
+        <FormattedText
+          :content="resolvedHelpText"
+          :format="element.help_text_format"
+          preset="block"
+        />
+      </template>
+    </ABFileInput>
   </ABFormGroup>
 </template>
 
@@ -21,19 +36,23 @@
 import formElement from '@baserow/modules/builder/mixins/formElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import UserFileService from '@baserow/modules/core/services/userFile'
+import FormattedText from '@baserow/modules/builder/components/FormattedText'
 
 import { FileInputElementType } from '@baserow_enterprise/builder/elementTypes'
 
 export default {
   name: 'FileInputElement',
+  components: { FormattedText },
   mixins: [formElement],
   props: {
     /**
      * @type {Object}
      * @property {string} label - The input's label.
+     * @property {string} label_format - The format (plain/markdown) of the label.
      * @property {string} default_url - Initial url(s).
      * @property {string} default_name - Initial Name(s).
      * @property {string} help_text - Help text to show in the input.
+     * @property {string} help_text_format - The format (plain/markdown) of the help text.
      * @property {boolean} required - Whether the input is required.
      * @property {boolean} preview - Whether the user want to show the preview.
      * @property {boolean} multiple - Whether the input supports multiple files.

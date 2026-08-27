@@ -4,12 +4,9 @@ from django.core.validators import MinValueValidator
 
 from rest_framework import serializers
 
+from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
-from baserow.contrib.builder.elements.models import (
-    CollectionField,
-    LinkElement,
-    TextElement,
-)
+from baserow.contrib.builder.elements.models import CollectionField, LinkElement
 from baserow.contrib.builder.elements.registries import CollectionFieldType
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
@@ -98,8 +95,8 @@ class TextCollectionFieldType(CollectionFieldType):
                 required=False,
             ),
             "format": serializers.ChoiceField(
-                choices=TextElement.TEXT_FORMATS.choices,
-                default=TextElement.TEXT_FORMATS.PLAIN,
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
                 required=False,
                 help_text="The format of the text.",
             ),
@@ -240,14 +237,15 @@ class LinkCollectionFieldType(CollectionFieldType):
 
 class TagsCollectionFieldType(CollectionFieldType):
     type = "tags"
-    allowed_fields = ["values", "colors", "colors_is_formula"]
-    serializer_field_names = ["values", "colors", "colors_is_formula"]
+    allowed_fields = ["values", "colors", "colors_is_formula", "format"]
+    serializer_field_names = ["values", "colors", "colors_is_formula", "format"]
     simple_formula_fields = ["values"]
 
     class SerializedDict(TypedDict):
         values: BaserowFormulaObject
         colors_is_formula: bool
         colors: BaserowFormulaObject
+        format: str
 
     @property
     def serializer_field_overrides(self):
@@ -269,6 +267,12 @@ class TagsCollectionFieldType(CollectionFieldType):
                 required=False,
                 default=False,
                 help_text="Indicates whether the colors is a formula or not.",
+            ),
+            "format": serializers.ChoiceField(
+                choices=TextFormats.choices,
+                default=TextFormats.PLAIN,
+                required=False,
+                help_text="The format of the tag values.",
             ),
         }
 

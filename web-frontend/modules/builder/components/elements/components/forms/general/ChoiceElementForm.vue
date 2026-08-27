@@ -17,6 +17,10 @@
         :placeholder="$t('generalForm.labelPlaceholder')"
       />
     </FormGroup>
+    <TextFormatSelector
+      v-model="values.label_format"
+      :label="$t('textFormatSelector.labelFormat')"
+    />
     <FormGroup
       small-label
       :label="$t('generalForm.valueTitle')"
@@ -82,6 +86,10 @@
         type="button"
       />
     </FormGroup>
+    <TextFormatSelector
+      v-model="values.option_format"
+      :label="$t('choiceElementForm.optionFormat')"
+    />
     <template v-if="values.option_type === CHOICE_OPTION_TYPES.MANUAL">
       <template v-if="values.options.length">
         <div class="row" style="--gap: 6px">
@@ -164,16 +172,21 @@
 
 <script>
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
-import { CHOICE_OPTION_TYPES } from '@baserow/modules/builder/enums'
+import {
+  CHOICE_OPTION_TYPES,
+  TEXT_FORMAT_TYPES,
+} from '@baserow/modules/builder/enums'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import { uuid } from '@baserow/modules/core/utils/string'
+import TextFormatSelector from '@baserow/modules/builder/components/elements/components/forms/TextFormatSelector'
 
 export default {
   name: 'ChoiceElementForm',
   components: {
     InjectedFormulaInput,
     CustomStyleButton,
+    TextFormatSelector,
   },
   mixins: [formElementForm],
   props: {
@@ -187,6 +200,7 @@ export default {
     return {
       allowedValues: [
         'label',
+        'label_format',
         'default_value',
         'required',
         'placeholder',
@@ -194,12 +208,14 @@ export default {
         'multiple',
         'show_as_dropdown',
         'option_type',
+        'option_format',
         'formula_name',
         'formula_value',
         'styles',
       ],
       values: {
         label: {},
+        label_format: TEXT_FORMAT_TYPES.PLAIN,
         default_value: {},
         required: false,
         placeholder: {},
@@ -207,6 +223,7 @@ export default {
         multiple: false,
         show_as_dropdown: true,
         option_type: CHOICE_OPTION_TYPES.MANUAL,
+        option_format: TEXT_FORMAT_TYPES.PLAIN,
         formula_name: {},
         formula_value: {},
         styles: {},

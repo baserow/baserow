@@ -1,5 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
+    <TextFormatSelector v-model="values.format" horizontal />
     <FormGroup
       small-label
       :label="$t('tagsFieldForm.fieldValuesLabel')"
@@ -73,16 +74,25 @@
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import collectionFieldForm from '@baserow/modules/builder/mixins/collectionFieldForm'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
+import { TEXT_FORMAT_TYPES } from '@baserow/modules/builder/enums'
+import TextFormatSelector from '@baserow/modules/builder/components/elements/components/forms/TextFormatSelector'
 
 export default {
   name: 'TagsField',
-  components: { InjectedFormulaInput, CustomStyleButton },
+  components: { InjectedFormulaInput, CustomStyleButton, TextFormatSelector },
   mixins: [collectionFieldForm],
   data() {
     return {
-      allowedValues: ['values', 'colors', 'colors_is_formula', 'styles'],
+      allowedValues: [
+        'values',
+        'colors',
+        'colors_is_formula',
+        'format',
+        'styles',
+      ],
       values: {
         values: {},
+        format: TEXT_FORMAT_TYPES.PLAIN,
         colors: {
           formula: '#acc8f8',
           mode: 'raw',
