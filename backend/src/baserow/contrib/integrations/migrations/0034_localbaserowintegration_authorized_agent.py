@@ -4,7 +4,7 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0117_agent"),
+        ("core", "0119_agent"),
         ("integrations", "0033_coregotonodeservice"),
     ]
 
