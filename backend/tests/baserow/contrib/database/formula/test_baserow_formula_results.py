@@ -255,6 +255,8 @@ VALID_FORMULA_TESTS = [
     ("right('abcde', 2)", "de"),
     ("right('abc', 2/0)", None),
     ("when_empty(1, 2)", "1"),
+    ("when_empty('', 'fallback')", "fallback"),
+    ("when_empty('hello', 'fallback')", "hello"),
     ("round(1.12345, 0)", "1"),
     ("round(1.12345, 4)", "1.1235"),
     ("round(1.12345, 100)", "1.1234500000"),
