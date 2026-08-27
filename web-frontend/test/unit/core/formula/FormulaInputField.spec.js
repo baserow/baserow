@@ -199,3 +199,45 @@ describe('FormulaInputField validates on display', () => {
     expect(wrapper.emitted('update:invalid').at(-1)).toEqual([true])
   })
 })
+
+describe('FormulaInputField mode changes', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  it('keeps an expert formula empty after switching to basic mode', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: 'now()', mode: 'advanced' },
+    })
+
+    wrapper.vm.handleModeChange('simple')
+    await wrapper.setProps({ mode: 'simple' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.formula-input-field--formula-empty').exists()).toBe(
+      true
+    )
+    expect(wrapper.emitted('input').at(-1)).toEqual([''])
+  })
+
+  it('keeps a basic formula when switching to expert mode', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: 'now()', mode: 'simple' },
+    })
+
+    wrapper.vm.handleModeChange('advanced')
+    await wrapper.setProps({ mode: 'advanced' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.formula-input-field--formula-empty').exists()).toBe(
+      false
+    )
+    expect(wrapper.emitted('input').at(-1)).toEqual(['now()'])
+  })
+})

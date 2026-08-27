@@ -479,8 +479,9 @@ export default {
       }
     },
     createEditor(formula = null) {
-      // Use provided formula or fall back to the prop value
-      this.content = this.toContent(formula || this.value)
+      // An empty string is an intentional value after switching from expert
+      // to basic mode, so only fall back when no formula was provided.
+      this.content = this.toContent(formula ?? this.value)
       this.editor = new Editor({
         content: this.content,
         editable: !this.disabled && !this.readOnly,
@@ -506,7 +507,7 @@ export default {
     },
     recreateEditor(formula = null) {
       const currentFormula =
-        formula ||
+        formula ??
         (this.editor ? this.toFormula(this.wrapperContent) : this.value)
 
       this.editor?.destroy()
@@ -712,7 +713,10 @@ export default {
         this.$emit('input', '')
         this.isFormulaInvalid = false
         this.formulaErrorContext = { scope: null, title: '', message: '' }
-        this.isHandlingModeChange = false
+        this.$nextTick(() => {
+          this.recreateEditor('')
+          this.isHandlingModeChange = false
+        })
       } else {
         // Otherwise (simple to advanced), keep the current formula
         // Get the formula BEFORE changing the mode, using the CURRENT mode
