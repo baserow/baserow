@@ -40,6 +40,7 @@ import {
   CLIENT_ID_KEY,
   reconcileWorkflowActions,
   workflowActionConfig,
+  workflowActionKey,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
 import {
   rewriteActionFormulaIds,
@@ -221,7 +222,7 @@ export default {
       }
       const idMap = Object.fromEntries(assignedIds)
       this.localActions = this.localActions.map((action) => {
-        const created = assignedIds.get(action[CLIENT_ID_KEY])
+        const created = assignedIds.get(workflowActionKey(action))
         const adopted =
           created === undefined ? action : { ...action, id: created }
         // References to the actions that did get made have to follow them too.
@@ -229,6 +230,10 @@ export default {
         // `toCreate`, so nothing maps it and the save can never succeed.
         return rewriteActionFormulaIds(adopted, idMap)
       })
+      // An adopted action is a different row to everything keyed by what
+      // identified it, so the card the user is fixing would collapse and lose
+      // the flag holding its error back.
+      this.$refs.actionList?.remapActionKeys(idMap)
     },
     /**
      * Adds the `type` the API needs to a payload's `service`, taken from the
@@ -298,12 +303,16 @@ export default {
             this.resolveActionIds(this.createPayload(action), idMap)
           )
           createdIds.push(data.id)
-          // An action the server no longer knows is created again, and came
-          // from the server with no client id. Keying two of those by the
-          // same `undefined` would give them one id between them.
-          if (action[CLIENT_ID_KEY] != null) {
-            assignedIds.set(action[CLIENT_ID_KEY], data.id)
-            idMap[action[CLIENT_ID_KEY]] = data.id
+          // Both ways of naming it are mapped: an unsaved action is referenced
+          // by its client id, while one the server has forgotten, deleted by a
+          // collaborator say, is referenced by the id it used to have. Neither
+          // is left out, or the actions after it would keep naming something
+          // that no longer exists and every click would fail on it.
+          for (const key of [action[CLIENT_ID_KEY], action.id]) {
+            if (key != null) {
+              assignedIds.set(key, data.id)
+              idMap[key] = data.id
+            }
           }
         }
 

@@ -1,4 +1,7 @@
-import { reconcileWorkflowActions } from '@baserow/modules/database/utils/workflowActionReconciliation'
+import {
+  reconcileWorkflowActions,
+  workflowActionConfig,
+} from '@baserow/modules/database/utils/workflowActionReconciliation'
 
 describe('reconcileWorkflowActions', () => {
   test('an unchanged list produces no work', () => {
@@ -179,9 +182,15 @@ describe('reconcileWorkflowActions', () => {
     const result = reconcileWorkflowActions([], local)
 
     expect(result.toUpdate).toEqual([])
+    // The id it had is carried along so the caller can point whatever
+    // references it at the id it is created under. `workflowActionConfig`
+    // leaves it out of the payload, so it never reaches the API.
     expect(result.toCreate).toEqual([
-      { type: 'local_baserow_delete_row', service: { table_id: 4 } },
+      { id: 99, type: 'local_baserow_delete_row', service: { table_id: 4 } },
     ])
+    expect(workflowActionConfig(result.toCreate[0])).toEqual({
+      service: { table_id: 4 },
+    })
     expect(result.order).toEqual([null])
   })
 })

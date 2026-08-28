@@ -18,6 +18,7 @@ from baserow.contrib.database.workflow_actions.models import (
 )
 from baserow.core.formula.exceptions import InvalidFormulaContext
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
+from baserow.core.services.dispatch_context import DispatchContext
 
 
 def _create_row_action(data_fixture, user, button_field, table, name_field):
@@ -208,6 +209,58 @@ def test_a_context_with_no_click_raises(data_fixture):
         provider.get_data_chunk(context, ["1", "id"])
 
 
+def test_a_context_that_runs_no_sequence_says_so():
+    """
+    A dispatch context always carries a cache, but only a click seeds this
+    provider's key in it. Without that key there is no sequence at all, which
+    is not the same as a reference pointing at an action that has not run yet.
+    """
+
+    class ContextWithoutASequence(DispatchContext):
+        pass
+
+    context = ContextWithoutASequence()
+
+    provider = PreviousActionDataProviderType()
+
+    assert PreviousActionDataProviderType.CACHE_KEY not in context.cache
+    with pytest.raises(InvalidFormulaContext) as error:
+        provider.get_data_chunk(context, ["1", "id"])
+
+    assert "while a button is clicked" in str(error.value)
+
+
+@pytest.mark.django_db
+def test_a_write_only_field_of_the_result_cannot_be_read(data_fixture):
+    """
+    The row provider refuses a password field, and the explorer never offers
+    one. A path typed by hand must not be the one way round that.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = TableHandler().create_table_and_fields(
+        user=user, database=database, name="People", fields=[("Name", "text", {})]
+    )
+    name_field = table.field_set.get(name="Name")
+    password_field = data_fixture.create_password_field(table=table, name="Secret")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+
+    action = _create_row_action(data_fixture, user, button_field, table, name_field)
+    dispatch_context = DatabaseDispatchContext(user, button_field, row)
+    DatabaseWorkflowActionHandler().dispatch_workflow_action(action, dispatch_context)
+
+    provider = PreviousActionDataProviderType()
+
+    with pytest.raises(InvalidFormulaContext) as error:
+        provider.get_data_chunk(
+            dispatch_context, [str(action.id), f"field_{password_field.id}"]
+        )
+
+    assert "cannot be read by an action" in str(error.value)
+
+
 @pytest.mark.django_db
 def test_a_path_naming_no_action_raises(chained):
     """`get('previous_action')` reaches here when it was saved before the API
@@ -244,10 +297,9 @@ def test_a_service_that_cannot_name_its_fields_is_left_to_the_later_checks():
     class ServiceTypeWithoutFields:
         pass
 
-    assert (
-        provider._names_a_current_field(ServiceTypeWithoutFields(), None, "field_7")
-        is True
-    )
+    assert provider._resolve_field_segment(
+        ServiceTypeWithoutFields(), None, "field_7"
+    ) == (False, None)
 
 
 @pytest.mark.django_db

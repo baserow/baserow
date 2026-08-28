@@ -297,6 +297,58 @@ describe('FieldButtonSubForm', () => {
       expect(new Set(ids).size).toBe(ids.length)
     })
 
+    test('a reference to an action the server forgot follows it', async () => {
+      // The first action was deleted by a collaborator while this editor was
+      // open, so it is created again under a new id. The second names it by
+      // the id it used to have, which now belongs to nothing: left alone, the
+      // save succeeds and every click after it fails.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [
+        {
+          id: 41,
+          type: 'local_baserow_create_row',
+          service: { table_id: 3 },
+        },
+        {
+          id: 42,
+          type: 'open_url',
+          url: { formula: "get('previous_action.41.id')", mode: 'simple' },
+          target: 'self',
+        },
+      ]
+
+      wrapper.vm.$client.post
+        .mockResolvedValueOnce({
+          data: { id: 91, type: 'local_baserow_create_row' },
+        })
+        .mockResolvedValueOnce({ data: { id: 92, type: 'open_url' } })
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      const [, secondCall] = wrapper.vm.$client.post.mock.calls
+      expect(secondCall[1].url.formula).toBe("get('previous_action.91.id')")
+    })
+
+    test('the open card follows an action that is given its id', async () => {
+      // The card is keyed by what identifies the action, so a save that stops
+      // part way would otherwise close the one the user is fixing and drop the
+      // flag holding its error back.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.localActions = [
+        { [CLIENT_ID_KEY]: 'first', type: 'open_url', url: { formula: "'a'" } },
+      ]
+      const list = wrapper.findComponent(ButtonFieldActionList)
+      list.vm.expandedActions = { first: true }
+      list.vm.pristineActions = { first: true }
+
+      wrapper.vm.adoptAssignedIds(new Map([['first', 91]]))
+      await wrapper.vm.$nextTick()
+
+      expect(list.vm.expandedActions).toEqual({ 91: true })
+      expect(list.vm.pristineActions).toEqual({ 91: true })
+    })
+
     test('saving creates a new action with its config in one call', async () => {
       // One call, so a failure cannot leave an action behind with none of the
       // config the user filled in.

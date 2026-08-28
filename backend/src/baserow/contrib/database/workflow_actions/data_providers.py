@@ -123,20 +123,21 @@ class PreviousActionDataProviderType(DataProviderType):
 
         return [str(imported_id), *rest]
 
-    def _names_a_current_field(self, service_type, service, segment: str) -> bool:
+    def _resolve_field_segment(self, service_type, service, segment: str):
         """
-        Whether a `field_<id>` segment still names a field of the service's
-        table. Anything that is not a field token, `id` for instance, is left
-        alone.
+        The field a `field_<id>` segment names, so the caller can both refuse a
+        deleted one and check what it holds. Anything that is not a field
+        token, `id` for instance, is left alone.
 
         :param service_type: The type of the service that returned the result.
         :param service: The service itself.
         :param segment: The first segment of the path into the result.
-        :return: Whether the segment can be prepared.
+        :return: Whether the segment is a field token, and the field object it
+            names, which is None when the table no longer has it.
         """
 
         if not FIELD_SEGMENT.match(segment):
-            return True
+            return False, None
 
         # Only a table service can say what its fields are. Another kind has no
         # `field_<id>` of its own, so the checks on the prepared path are what
@@ -144,12 +145,17 @@ class PreviousActionDataProviderType(DataProviderType):
         # `get_result_field_names` guards the same call.
         get_field_objects = getattr(service_type, "get_table_field_objects", None)
         if get_field_objects is None:
-            return True
+            return False, None
 
-        return any(
-            field_object["field"].db_column == segment
-            for field_object in get_field_objects(service) or []
+        field_object = next(
+            (
+                candidate
+                for candidate in get_field_objects(service) or []
+                if candidate["field"].db_column == segment
+            ),
+            None,
         )
+        return True, field_object
 
     def get_data_chunk(
         self, dispatch_context: "DatabaseDispatchContext", path: List[str]
@@ -182,14 +188,16 @@ class PreviousActionDataProviderType(DataProviderType):
 
         # Both providers share a registry, so an AI prompt's
         # `get('previous_action.…')` lands here against a context that runs no
-        # sequence and carries no cache to read.
+        # sequence. Such a context either carries no cache at all, or carries
+        # one without this key, since only a click seeds it. `post_dispatch`
+        # reads the same key to decide it has nothing to record.
         cache = getattr(dispatch_context, "cache", None)
-        if cache is None:
+        if cache is None or self.CACHE_KEY not in cache:
             raise InvalidFormulaContext(
                 "A previous action can only be read while a button is clicked."
             )
 
-        results = cache.get(self.CACHE_KEY) or {}
+        results = cache[self.CACHE_KEY] or {}
 
         if action_id not in results:
             # Not this button's action, or it sits after this one. Fail the
@@ -215,12 +223,23 @@ class PreviousActionDataProviderType(DataProviderType):
         service = service.specific
         service_type = service.get_type()
 
-        if not self._names_a_current_field(service_type, service, rest[0]):
+        names_a_field, field_object = self._resolve_field_segment(
+            service_type, service, rest[0]
+        )
+
+        if names_a_field and field_object is None:
             # A deleted field. `prepare_value_path` leaves its token as it is,
             # so a field whose name is literally `field_<id>` would otherwise
             # answer for it.
             raise InvalidFormulaContext(
                 f'"{rest[0]}" is no longer a field of the previous action\'s table.'
+            )
+
+        if field_object is not None and field_object["type"].write_only:
+            # The same refusal the row provider makes: the stored value is a
+            # password hash, and the explorer never offers it either.
+            raise InvalidFormulaContext(
+                f'The "{field_object["field"].name}" field cannot be read by an action.'
             )
 
         # Turns `field_<id>` into the field name the result is keyed by, since

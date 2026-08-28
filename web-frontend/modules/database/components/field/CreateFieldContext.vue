@@ -92,6 +92,9 @@ export default {
       // part of. A retry saves what is left of it rather than a second field.
       createdField: null,
       createdActionGroupId: null,
+      // A close that arrived while a save was running. It is reported once the
+      // save settles, since `@hidden` does not fire a second time.
+      hidePending: false,
       defaultValues: {
         name: '',
         type: this.forcedType || '',
@@ -154,10 +157,13 @@ export default {
           }
           this.loading = false
           // Closing would discard the edits that did not make it, with only a
-          // toast to say so. The editor stays open on them to be retried.
+          // toast to say so. The editor stays open on them to be retried,
+          // unless it was already closed while this was running.
           if (!actionsSaved) {
+            this.flushPendingHide()
             return
           }
+          this.hidePending = false
           this.$refs.form.reset()
           this.hide()
           this.$emit('field-created-callback-done', {
@@ -168,6 +174,7 @@ export default {
         this.$emit('field-created', { callback, newField, fetchNeeded })
       } catch (error) {
         this.loading = false
+        this.flushPendingHide()
         const handledByForm = this.$refs.form.handleErrorByForm(error)
         if (!handledByForm) {
           notifyIf(error, 'field')
@@ -217,10 +224,12 @@ export default {
           }
           this.loading = false
           if (!actionsSaved) {
+            this.flushPendingHide()
             return
           }
           // Reported here rather than left to `onHidden`, which would hand the
           // parent the copy taken before this retry patched it.
+          this.hidePending = false
           this.createdField = null
           this.createdActionGroupId = null
           delete this.defaultValues.id
@@ -243,6 +252,7 @@ export default {
         })
       } catch (error) {
         this.loading = false
+        this.flushPendingHide()
         if (!this.$refs.form.handleErrorByForm(error)) {
           notifyIf(error, 'field')
         }
@@ -253,13 +263,29 @@ export default {
      * it and the next open starts a new one.
      */
     onHidden() {
-      // A retry still running reports the field itself once it settles, and
-      // reporting it here as well would hand the parent two of the same field.
-      if (this.createdField === null || this.loading) {
+      // A save still running reports the field itself once it settles, and
+      // reporting it here as well would hand the parent two of the same
+      // field. Held rather than dropped: a save whose actions then fail
+      // reports nothing, and it is only then that a field is left behind. The
+      // check comes first for that reason: on a first attempt there is nothing
+      // to report yet, and by the time there is, `@hidden` has been and gone.
+      if (this.loading) {
+        this.hidePending = true
         return
       }
+      if (this.createdField === null) {
+        return
+      }
+      this.reportCreatedField()
+    },
+    /**
+     * Hands the field a failed save left behind to the view, and forgets it so
+     * the next open starts a new one.
+     */
+    reportCreatedField() {
       const newField = this.createdField
       const undoRedoActionGroupId = this.createdActionGroupId
+      this.hidePending = false
       this.createdField = null
       this.createdActionGroupId = null
       delete this.defaultValues.id
@@ -268,6 +294,15 @@ export default {
         newField,
         undoRedoActionGroupId,
       })
+    },
+    /**
+     * Runs the close that arrived mid save, now that the save has settled.
+     */
+    flushPendingHide() {
+      if (this.hidePending && this.createdField !== null) {
+        this.reportCreatedField()
+      }
+      this.hidePending = false
     },
     showFieldTypesDropdown(target) {
       this.$refs.form.showFieldTypesDropdown(target)
@@ -282,6 +317,8 @@ export default {
       this.showDescription = true
     },
     onShow() {
+      // Opened again, so a close held from an earlier save no longer applies.
+      this.hidePending = false
       this.showDescription = this.$refs.form.isDescriptionFieldNotEmpty()
     },
     onClick($event) {

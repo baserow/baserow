@@ -214,6 +214,24 @@ export default {
     revealErrors() {
       this.pristineActions = {}
     },
+    /**
+     * Follows the per-action state to the ids a save just handed out. An
+     * action is keyed by its client id until it has one, so without this a
+     * save that stopped part way closes the card the user is working on.
+     *
+     * @param idMap Client id, or the id an action used to have, to its new id.
+     */
+    remapActionKeys(idMap) {
+      const remap = (state) =>
+        Object.fromEntries(
+          Object.entries(state).map(([key, value]) => [
+            idMap[key] ?? key,
+            value,
+          ])
+        )
+      this.expandedActions = remap(this.expandedActions)
+      this.pristineActions = remap(this.pristineActions)
+    },
     /** The list is not a form, so the sub-form touches it by hand. */
     touch() {
       this.revealErrors()

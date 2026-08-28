@@ -73,9 +73,11 @@ export function reconcileWorkflowActions(serverActions, localActions) {
       action.id == null ? undefined : serverById.get(action.id)
 
     if (serverAction === undefined) {
-      // No id, or one the server no longer knows: treat as new and strip it.
-      const { id, ...withoutId } = action
-      toCreate.push(withoutId)
+      // No id, or one the server no longer knows: treat as new. The id it had
+      // is kept rather than stripped, because the actions after it name it by
+      // that id and have to follow it to the one it is created under. It never
+      // reaches the API: `workflowActionConfig` leaves it out of the payload.
+      toCreate.push(action)
       order.push(null)
       return
     }

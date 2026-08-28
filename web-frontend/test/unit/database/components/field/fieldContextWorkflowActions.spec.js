@@ -388,5 +388,66 @@ describe('field contexts keep has_workflow_actions in sync', () => {
       expect(wrapper.vm.createdField).toBe(null)
       expect(wrapper.vm.defaultValues.id).toBeUndefined()
     })
+
+    test('dismissing a retry that then fails still reports the field', async () => {
+      // `@hidden` fires while the retry runs and does not fire again. The
+      // retry failing reports nothing either, so without the close being held
+      // the field is never handed over and the context stays on it: the next
+      // create would patch this field instead of making a new one.
+      const wrapper = await createWithFailingActions()
+      let releasePatch = null
+      client.patch.mockReturnValue(
+        new Promise((resolve) => {
+          releasePatch = () => resolve({ data: buttonField() })
+        })
+      )
+
+      const retrying = wrapper.vm.submit({
+        name: 'Go',
+        type: 'button',
+        label: 'Go',
+      })
+      wrapper.vm.hide()
+      releasePatch()
+      await retrying
+      const created = wrapper.emitted('field-created')
+      await created[created.length - 1][0].callback()
+
+      expect(wrapper.emitted('field-created-callback-done')).toHaveLength(1)
+      expect(wrapper.vm.createdField).toBe(null)
+      expect(wrapper.vm.defaultValues.id).toBeUndefined()
+    })
+
+    test('dismissing a create whose actions fail still reports the field', async () => {
+      // The same window on the first attempt: the field is made, the actions
+      // are not, and the close lands before the callback settles it.
+      const wrapper = await mountContext(CreateFieldContext, {
+        table,
+        view,
+        allFieldsInTable,
+        database,
+      })
+      let releasePost = null
+      client.post.mockReturnValue(
+        new Promise((resolve) => {
+          releasePost = () => resolve({ data: buttonField() })
+        })
+      )
+      actionSaveError = { handler: { notifyIf: vi.fn() } }
+
+      const creating = wrapper.vm.submit({
+        name: 'Go',
+        type: 'button',
+        label: 'Go',
+      })
+      wrapper.vm.hide()
+      releasePost()
+      await creating
+      await wrapper.emitted('field-created')[0][0].callback()
+
+      expect(wrapper.emitted('field-created-callback-done')).toHaveLength(1)
+      expect(wrapper.vm.createdField).toBe(null)
+      expect(wrapper.vm.defaultValues.id).toBeUndefined()
+    })
   })
 })
