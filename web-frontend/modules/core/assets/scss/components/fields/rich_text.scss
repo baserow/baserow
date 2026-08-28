@@ -85,11 +85,6 @@
     height: auto;
   }
 
-  li > ul,
-  li > ol {
-    line-height: normal;
-  }
-
   blockquote {
     @extend %rich-text-editor-content-blockquote;
 
