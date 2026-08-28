@@ -142,6 +142,41 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
     })
 
+    test('cancelling stops hiding a saved action own error', async () => {
+      // The list is kept mounted between opens and its pristine flag is keyed
+      // by the saved action's id, so without clearing it the action comes back
+      // as it was stored with its error still suppressed.
+      const saved = { id: 1, type: 'open_url', url: null, target: 'self' }
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [saved]
+      wrapper.vm.localActions = [{ ...saved }]
+      await wrapper.vm.$nextTick()
+
+      const list = wrapper.vm.$refs.actionList
+      expect(
+        wrapper.findAll('[data-action-error]').map((node) => node.text())
+      ).toEqual(['databaseWorkflowActionType.noUrl'])
+
+      // Retyping it hides the error, which is right while it is being
+      // configured.
+      list.onActionTypeChanged(0, 'local_baserow_create_row')
+      wrapper.vm.localActions = list.value.map((action, index) =>
+        index === 0
+          ? { ...saved, type: 'local_baserow_create_row', service: {} }
+          : action
+      )
+      await wrapper.vm.$nextTick()
+      expect(list.pristineActions).not.toEqual({})
+
+      await wrapper.vm.reset()
+      await wrapper.vm.$nextTick()
+
+      expect(list.pristineActions).toEqual({})
+      expect(
+        wrapper.findAll('[data-action-error]').map((node) => node.text())
+      ).toEqual(['databaseWorkflowActionType.noUrl'])
+    })
+
     test('an unresolved reference is presentable, so the edits survive', async () => {
       // `notifyIf` rethrows an error with no handler, which would skip the flag
       // that keeps the editor open, and the buffered edits would be discarded

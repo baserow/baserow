@@ -182,6 +182,9 @@ export default {
     async reset(deep = false) {
       await form.methods.reset.call(this, deep)
       this.localActions = clone(this.serverActions)
+      // The flag is keyed by a saved action's id, so it would outlive the
+      // cancel and keep hiding that action's own error.
+      this.$refs.actionList?.revealErrors()
     },
     /**
      * Fetches the field's actions and resets both the server list and the
