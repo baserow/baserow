@@ -17,6 +17,11 @@ import {
   workflowActionKey,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
 
+// A single select, link row, file or collaborator value. A Date is not one:
+// it stringifies to something a URL can carry.
+const isComposite = (value) =>
+  value !== null && typeof value === 'object' && !(value instanceof Date)
+
 // What the backend's own schema calls these, taken from a generated one rather
 // than guessed. Only the shapes that change how a node renders are worth
 // deriving: an array or an object can have children, everything else is a leaf.
@@ -282,9 +287,10 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
    * actions before it returned.
    *
    * `fields` stringifies every value, which is what a URL needs; `row` returns
-   * raw types and is for action arguments (ADR 006 section 4). A formula that
-   * resolves to nothing comes back as an empty string; one that throws is left
-   * to `execute`, which reports it.
+   * raw types and is for action arguments (ADR 006 section 4). A previous
+   * action's result is raw too, so a composite value is refused rather than
+   * stringified. A formula that resolves to nothing comes back as an empty
+   * string; one that throws is left to `execute`, which reports it.
    */
   resolveUrl(workflowAction, { row, fields, previousActionResults = {} }) {
     const formulaObject = workflowAction.url
@@ -306,7 +312,14 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
       }),
       {
         get(target, prop) {
-          return target.get(prop)
+          const value = target.get(prop)
+          // A previous action's result is raw, so a single select, link row or
+          // file is an object. Stringified it builds a URL out of JSON, which
+          // `urlWithAllowedProtocol` then takes for a relative one.
+          if (isComposite(value)) {
+            throw new Error(`${prop} is not a value a URL can be built from.`)
+          }
+          return value
         },
       }
     )
