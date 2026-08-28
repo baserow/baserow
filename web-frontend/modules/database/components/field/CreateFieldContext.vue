@@ -185,10 +185,17 @@ export default {
       const type = values.type
       delete values.type
 
+      const undoRedoActionGroupId = this.createdActionGroupId
       try {
-        // Committed right away: the field is already in the store, so there is
-        // no creation left for the parent to sequence a row refresh against.
-        await this.$store.dispatch('field/update', { field, type, values })
+        // Sent under the group the create used, or undoing the create trashes
+        // the field and leaves this patch nothing to undo.
+        const forceUpdateCallback = await this.$store.dispatch('field/update', {
+          field,
+          type,
+          values,
+          forceUpdate: false,
+          undoRedoActionGroupId,
+        })
 
         let actionsSaved = true
         try {
@@ -199,27 +206,40 @@ export default {
         }
         // Read after the save, so it reflects what actually persisted.
         const valuesAfterSave = this.$refs.form.fieldValuesAfterSave()
-        if (valuesAfterSave !== null) {
-          await this.$store.dispatch('field/setItemValues', {
-            id: field.id,
-            values: valuesAfterSave,
+
+        const callback = async () => {
+          await forceUpdateCallback()
+          if (valuesAfterSave !== null) {
+            await this.$store.dispatch('field/setItemValues', {
+              id: field.id,
+              values: valuesAfterSave,
+            })
+          }
+          this.loading = false
+          if (!actionsSaved) {
+            return
+          }
+          // Reported here rather than left to `onHidden`, which would hand the
+          // parent the copy taken before this retry patched it.
+          this.createdField = null
+          this.createdActionGroupId = null
+          delete this.defaultValues.id
+          this.$refs.form.reset()
+          this.hide()
+          this.$emit('field-created-callback-done', {
+            newField: this.$store.getters['field/get'](field.id) ?? field,
+            undoRedoActionGroupId,
           })
         }
-        this.loading = false
-        if (!actionsSaved) {
-          return
-        }
-        const undoRedoActionGroupId = this.createdActionGroupId
-        // Reported here rather than left to `onHidden`, which would hand the
-        // parent the copy taken before this retry patched it.
-        this.createdField = null
-        this.createdActionGroupId = null
-        delete this.defaultValues.id
-        this.$refs.form.reset()
-        this.hide()
-        this.$emit('field-created-callback-done', {
-          newField: this.$store.getters['field/get'](field.id) ?? field,
-          undoRedoActionGroupId,
+        // The same event the create path emits, so the parent refreshes its
+        // rows before the change is committed. A retry can change the type,
+        // which is when reading rows against the old column goes wrong.
+        this.$emit('field-created', {
+          callback,
+          newField: field,
+          fetchNeeded: this.$registry
+            .get('field', type)
+            .shouldFetchDataWhenAdded(),
         })
       } catch (error) {
         this.loading = false
@@ -233,7 +253,9 @@ export default {
      * it and the next open starts a new one.
      */
     onHidden() {
-      if (this.createdField === null) {
+      // A retry still running reports the field itself once it settles, and
+      // reporting it here as well would hand the parent two of the same field.
+      if (this.createdField === null || this.loading) {
         return
       }
       const newField = this.createdField

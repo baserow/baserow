@@ -289,11 +289,14 @@ describe('field contexts keep has_workflow_actions in sync', () => {
       actionSaveError = null
 
       await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+      // The parent refreshes its rows first, then runs the callback.
+      await wrapper.emitted('field-created')[1][0].callback()
 
       expect(client.post).toHaveBeenCalledTimes(1)
       expect(client.patch).toHaveBeenCalledWith(
         '/database/fields/7/',
-        expect.objectContaining({ name: 'Go', type: 'button' })
+        expect.objectContaining({ name: 'Go', type: 'button' }),
+        expect.anything()
       )
       expect(hide).toHaveBeenCalled()
       expect(wrapper.vm.createdField).toBe(null)
@@ -306,11 +309,72 @@ describe('field contexts keep has_workflow_actions in sync', () => {
       client.patch.mockResolvedValue({ data: buttonField({ name: 'Renamed' }) })
 
       await wrapper.vm.submit({ name: 'Renamed', type: 'button', label: 'Go' })
+      await wrapper.emitted('field-created')[1][0].callback()
 
       const done = wrapper.emitted('field-created-callback-done')
       expect(done).toHaveLength(1)
       // The copy taken when the field was made still calls it "Go".
       expect(done[0][0].newField.name).toBe('Renamed')
+    })
+
+    test('the retry patch is part of the create group', async () => {
+      // Undo works on the group, so a patch outside it leaves the create to be
+      // undone on its own: the field is trashed and the patch has nothing left
+      // to undo.
+      const wrapper = await createWithFailingActions()
+      const created = client.post.mock.calls[0][2]
+      actionSaveError = null
+
+      await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+
+      const patched = client.patch.mock.calls[0][2]
+      expect(created.headers.ClientUndoRedoActionGroupId).toBeTruthy()
+      expect(patched?.headers?.ClientUndoRedoActionGroupId).toBe(
+        created.headers.ClientUndoRedoActionGroupId
+      )
+    })
+
+    test('the retry lets the parent refresh its rows first', async () => {
+      // The create path hands the parent a callback so the rows are refreshed
+      // before the field is committed. A retry that changes the type needs the
+      // same, or the rows are read against the wrong column.
+      const wrapper = await createWithFailingActions()
+      actionSaveError = null
+
+      await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+
+      const created = wrapper.emitted('field-created')
+      expect(created).toHaveLength(2)
+      // Nothing is finished until the parent runs the callback.
+      expect(wrapper.emitted('field-created-callback-done')).toBeUndefined()
+
+      await created[1][0].callback()
+
+      expect(wrapper.emitted('field-created-callback-done')).toHaveLength(1)
+    })
+
+    test('dismissing a retry in flight reports the field once', async () => {
+      const wrapper = await createWithFailingActions()
+      actionSaveError = null
+      let releasePatch = null
+      client.patch.mockReturnValue(
+        new Promise((resolve) => {
+          releasePatch = () => resolve({ data: buttonField() })
+        })
+      )
+
+      const retrying = wrapper.vm.submit({
+        name: 'Go',
+        type: 'button',
+        label: 'Go',
+      })
+      wrapper.vm.hide()
+      releasePatch()
+      await retrying
+      const created = wrapper.emitted('field-created')
+      await created[created.length - 1][0].callback()
+
+      expect(wrapper.emitted('field-created-callback-done')).toHaveLength(1)
     })
 
     test('reports the field once the retry is abandoned', async () => {

@@ -262,7 +262,10 @@ export const actions = {
   /**
    * Updates the values of the provided field.
    */
-  async update(context, { field, type, values, forceUpdate = true }) {
+  async update(
+    context,
+    { field, type, values, forceUpdate = true, undoRedoActionGroupId = null }
+  ) {
     const { $registry, $client } = this
     const { dispatch } = context
 
@@ -281,7 +284,11 @@ export const actions = {
     const postData = clone(values)
     postData.type = type
 
-    const { data } = await FieldService($client).update(field.id, postData)
+    const { data } = await FieldService($client).update(
+      field.id,
+      postData,
+      undoRedoActionGroupId
+    )
     const forceUpdateCallback = async () => {
       return await dispatch('forceUpdate', {
         field,

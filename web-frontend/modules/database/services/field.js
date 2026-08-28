@@ -34,8 +34,9 @@ export default (client) => {
         config
       )
     },
-    update(fieldId, values) {
-      return client.patch(`/database/fields/${fieldId}/`, values)
+    update(fieldId, values, undoRedoActionGroupId = null) {
+      const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
+      return client.patch(`/database/fields/${fieldId}/`, values, config)
     },
     delete(fieldId) {
       return client.delete(`/database/fields/${fieldId}/`)
