@@ -399,6 +399,34 @@ describe('Database data provider types', () => {
     ).toThrow()
   })
 
+  test('a segment the result does not carry raises, whatever it is named', () => {
+    // The backend raises for any missing segment, not only a `field_` one.
+    const context = {
+      previousActionResults: {
+        1: { data: { id: 99, Name: 'Ada' }, fieldNames: { field_10: 'Name' } },
+      },
+    }
+
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'bogus'])
+    ).toThrow()
+    // A name resolves, as on the backend: the result is keyed by name.
+    expect(previousProvider().getDataChunk(context, ['1', 'Name'])).toBe('Ada')
+  })
+
+  test('a field named in the result but absent from it raises', () => {
+    // Deleted between the dispatch naming the fields and building the row.
+    const context = {
+      previousActionResults: {
+        1: { data: { id: 99 }, fieldNames: { field_10: 'Name' } },
+      },
+    }
+
+    expect(() =>
+      previousProvider().getDataChunk(context, ['1', 'field_10'])
+    ).toThrow()
+  })
+
   test('an action that returned no row at all raises', () => {
     const context = {
       previousActionResults: { 1: { data: null, fieldNames: {} } },

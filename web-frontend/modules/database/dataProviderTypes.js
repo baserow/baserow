@@ -209,12 +209,12 @@ export class PreviousActionDataProviderType extends DataProviderType {
       throw new Error('The previous action returned nothing to read.')
     }
     const [fieldRef, ...tail] = rest
-    // The result is keyed by field name, the path by `field_<id>`. A field the
-    // result did not carry was deleted after the reference was written.
-    const key = entry.fieldNames?.[fieldRef]
-    if (key === undefined && fieldRef.startsWith('field_')) {
+    // The result is keyed by field name, the path by `field_<id>`.
+    const key = entry.fieldNames?.[fieldRef] ?? fieldRef
+    // Any segment, not only a `field_` one, as the backend does.
+    if (!Object.prototype.hasOwnProperty.call(entry.data, key)) {
       throw new Error(`${fieldRef} is not in the previous action's result.`)
     }
-    return getValueAtPath(entry.data, [key ?? fieldRef, ...tail])
+    return getValueAtPath(entry.data, [key, ...tail])
   }
 }
