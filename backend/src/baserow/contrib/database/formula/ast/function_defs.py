@@ -43,6 +43,7 @@ from django.db.models.functions import (
     Log,
     Lower,
     Mod,
+    NullIf,
     Power,
     Replace,
     Reverse,
@@ -1991,17 +1992,8 @@ class BaserowWhenEmpty(TwoArgumentBaserowFunction):
 
     def to_django_expression(self, arg1: Expression, arg2: Expression) -> Expression:
         if isinstance(arg2.output_field, (fields.CharField, fields.TextField)):
-            return Case(
-                When(
-                    condition=EqualsExpr(
-                        Coalesce(arg1, Value("")),
-                        Value(""),
-                        output_field=fields.BooleanField(),
-                    ),
-                    then=arg2,
-                ),
-                default=arg1,
-                output_field=arg2.output_field,
+            return Coalesce(
+                NullIf(arg1, Value("")), arg2, output_field=arg2.output_field
             )
         return Coalesce(arg1, arg2, output_field=arg2.output_field)
 
