@@ -287,6 +287,23 @@ describe('OpenUrlWorkflowActionType', () => {
     expect(window.location.href).toBe('https://example.com/plain')
   })
 
+  test('a path reaching inside a composite still resolves', async () => {
+    // Only the leaf reaches the URL, so a deeper path is not a composite.
+    await executeWith(
+      {
+        type: 'open_url',
+        url: {
+          formula:
+            "concat('https://example.com/', get('previous_action.7.field_9.value'))",
+        },
+        target: 'self',
+      },
+      withResult({ id: 3, Choice: { id: 1, value: 'value', color: 'blue' } })
+    )
+
+    expect(window.location.href).toBe('https://example.com/value')
+  })
+
   test('an empty formula raises a toast rather than navigating', async () => {
     await execute({ type: 'open_url', url: { formula: '' }, target: 'self' })
 
