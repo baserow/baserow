@@ -115,6 +115,83 @@ describe('workflowActionFormulas', () => {
     expect(rewriteFormulaActionIds(formula, { tmp: 7 })).toBe(formula)
   })
 
+  test('an uppercase get is a reference like any other', () => {
+    // Every visitor lowercases the function name, so this resolves on a click
+    // and has to be seen here too.
+    const formula = "GET('previous_action.abc.id')"
+    const payload = { url: { formula, mode: 'advanced' } }
+
+    expect(referencedActionIds(payload)).toEqual(['abc'])
+    expect(unresolvedActionIds(payload)).toEqual(['abc'])
+    expect(rewriteFormulaActionIds(formula, { abc: 7 })).toBe(
+      "GET('previous_action.7.id')"
+    )
+  })
+
+  test('a mixed case get with spacing is a reference too', () => {
+    const formula = "Get( 'previous_action.abc.id' )"
+
+    expect(rewriteFormulaActionIds(formula, { abc: 7 })).toBe(
+      "Get( 'previous_action.7.id' )"
+    )
+  })
+
+  test('a reference written inside another string is not one', () => {
+    // Both parsers accept this, and the inner text is an argument to concat.
+    const formula =
+      "concat('https://example.com/?note=', 'see get(\"previous_action.tmp.id\")')"
+    const payload = { url: { formula, mode: 'advanced' } }
+
+    expect(referencedActionIds(payload)).toEqual([])
+    expect(unresolvedActionIds(payload)).toEqual([])
+    expect(rewriteFormulaActionIds(formula, { tmp: 7 })).toBe(formula)
+  })
+
+  test('a nested get inside another call is still found', () => {
+    const formula = "concat('a', upper(get('previous_action.abc.Name')), 'b')"
+
+    expect(referencedActionIds({ url: { formula } })).toEqual(['abc'])
+    expect(rewriteFormulaActionIds(formula, { abc: 7 })).toBe(
+      "concat('a', upper(get('previous_action.7.Name')), 'b')"
+    )
+  })
+
+  test('a double quoted reference is rewritten as well', () => {
+    const formula = 'get("previous_action.abc.id")'
+
+    expect(referencedActionIds({ url: { formula } })).toEqual(['abc'])
+    expect(rewriteFormulaActionIds(formula, { abc: 7 })).toBe(
+      'get("previous_action.7.id")'
+    )
+  })
+
+  test('an unparseable formula still reports a client id', () => {
+    // Refusing the save is the safe answer: letting a uuid reach the API saves
+    // an action that can never resolve.
+    const payload = {
+      url: { formula: "get('previous_action.abc.id'", mode: 'advanced' },
+    }
+
+    expect(unresolvedActionIds(payload)).toEqual(['abc'])
+  })
+
+  test('ids collect into a set the caller owns', () => {
+    // `referencedActionIdsInConfig` walks an action key by key and gathers the
+    // whole of it this way.
+    const found = new Set()
+
+    referencedActionIds(
+      { url: { formula: "get('previous_action.abc.id')" } },
+      found
+    )
+    referencedActionIds(
+      { row_id: { formula: "get('previous_action.def.id')" } },
+      found
+    )
+
+    expect([...found]).toEqual(['abc', 'def'])
+  })
+
   test('a read only formula in the service is not scanned', () => {
     const payload = {
       service: {
