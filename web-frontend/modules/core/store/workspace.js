@@ -237,7 +237,7 @@ export const actions = {
    */
   forceUpdateGenerativeAIModels(
     { commit, getters },
-    { workspaceId, generativeAIModelsEnabled }
+    { workspaceId, generativeAIModelsEnabled, aiFeatures }
   ) {
     if (getters.get(workspaceId) === undefined) {
       return
@@ -246,6 +246,7 @@ export const actions = {
       id: workspaceId,
       values: {
         generative_ai_models_enabled: generativeAIModelsEnabled || {},
+        ...(aiFeatures === undefined ? {} : { ai_features: aiFeatures }),
       },
     })
   },
@@ -266,6 +267,7 @@ export const actions = {
         values: {
           generative_ai_models_enabled:
             refreshedWorkspace.generative_ai_models_enabled || {},
+          ai_features: refreshedWorkspace.ai_features || {},
         },
       })
     }

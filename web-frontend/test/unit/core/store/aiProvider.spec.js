@@ -20,6 +20,12 @@ describe('AI provider store', () => {
     service = {
       fetchAll: vi.fn().mockResolvedValue({ data: [{ id: 1 }] }),
       fetchTypes: vi.fn().mockResolvedValue({ data: [{ type: 'openai' }] }),
+      fetchFeatureSettings: vi.fn().mockResolvedValue({
+        data: [{ feature_type: 'kuma', mode: 'disabled' }],
+      }),
+      updateFeatureSetting: vi.fn().mockResolvedValue({
+        data: { feature_type: 'kuma', mode: 'model', model: { id: 2 } },
+      }),
       discoverModels: vi.fn().mockResolvedValue({
         data: { models: ['gpt-5.6'], supported: true },
       }),
@@ -34,6 +40,9 @@ describe('AI provider store', () => {
               status: 'success',
               error: '',
               tested_at: '2026-07-21T12:00:00Z',
+              feature_results: [
+                { feature_type: 'ai_fields', status: 'success', error: '' },
+              ],
             },
           ],
         },
@@ -54,10 +63,15 @@ describe('AI provider store', () => {
 
     expect(service.fetchAll).toHaveBeenCalledOnce()
     expect(service.fetchTypes).toHaveBeenCalledOnce()
+    expect(service.fetchFeatureSettings).toHaveBeenCalledOnce()
     expect(committed).toContainEqual(['SET_PROVIDERS', [{ id: 1 }]])
     expect(committed).toContainEqual([
       'SET_PROVIDER_TYPES',
       [{ type: 'openai' }],
+    ])
+    expect(committed).toContainEqual([
+      'SET_FEATURE_SETTINGS',
+      [{ feature_type: 'kuma', mode: 'disabled' }],
     ])
     expect(committed.at(-1)).toEqual(['SET_LOADING', false])
   })
@@ -141,16 +155,21 @@ describe('AI provider store', () => {
     storeState.loaded = true
     storeState.providers = [{ id: 1 }]
     storeState.providerTypes = [{ type: 'openai' }]
+    storeState.featureSettings = [{ feature_type: 'kuma' }]
 
     expect(getters.getAll(storeState)(42)).toEqual([{ id: 1 }])
     expect(getters.getTypes(storeState)(42)).toEqual([{ type: 'openai' }])
     expect(getters.hasLoaded(storeState)).toBe(true)
     expect(getters.getWorkspaceId(storeState)).toBe(42)
+    expect(getters.getFeatureSettings(storeState)(42)).toEqual([
+      { feature_type: 'kuma' },
+    ])
     expect(getters.isLoaded(storeState)(42)).toBe(true)
 
     expect(getters.getAll(storeState)(null)).toEqual([])
     expect(getters.getAll(storeState)(7)).toEqual([])
     expect(getters.getTypes(storeState)(null)).toEqual([])
+    expect(getters.getFeatureSettings(storeState)(null)).toEqual([])
     expect(getters.isLoaded(storeState)(null)).toBe(false)
   })
 
@@ -166,6 +185,7 @@ describe('AI provider store', () => {
 
     expect(aiProviderService).toHaveBeenCalledWith({}, null)
     expect(service.fetchAll).toHaveBeenCalledOnce()
+    expect(service.fetchFeatureSettings).toHaveBeenCalledOnce()
     expect(service.fetchTypes).not.toHaveBeenCalled()
     expect(commit).toHaveBeenCalledWith('SET_PROVIDERS', [{ id: 1 }])
     expect(providers).toEqual([{ id: 1 }])
@@ -185,10 +205,17 @@ describe('AI provider store', () => {
 
     actions.replaceFromRealtime(
       { commit, state: storeState },
-      { workspaceId: 42, providers: [{ id: 42 }] }
+      {
+        workspaceId: 42,
+        providers: [{ id: 42 }],
+        featureSettings: [{ feature_type: 'kuma', mode: 'model' }],
+      }
     )
-    expect(commit).toHaveBeenCalledOnce()
+    expect(commit).toHaveBeenCalledTimes(2)
     expect(commit).toHaveBeenCalledWith('SET_PROVIDERS', [{ id: 42 }])
+    expect(commit).toHaveBeenCalledWith('SET_FEATURE_SETTINGS', [
+      { feature_type: 'kuma', mode: 'model' },
+    ])
   })
 
   test('workspace actions scope all requests to the workspace', async () => {
@@ -281,6 +308,34 @@ describe('AI provider store', () => {
     expect(result).toEqual({ models: ['gpt-5.6'], supported: true })
   })
 
+  test('updates one scoped AI feature setting', async () => {
+    const commit = vi.fn()
+    const dispatch = vi.fn().mockResolvedValue([])
+    const storeState = makeState()
+    storeState.workspaceId = 42
+
+    const result = await actions.updateFeatureSetting.call(
+      { $client: {} },
+      { commit, dispatch, state: storeState },
+      {
+        featureType: 'kuma',
+        values: { mode: 'model', model_id: 2 },
+        workspaceId: 42,
+      }
+    )
+
+    expect(service.updateFeatureSetting).toHaveBeenCalledWith('kuma', {
+      mode: 'model',
+      model_id: 2,
+    })
+    expect(commit).toHaveBeenCalledWith('UPDATE_FEATURE_SETTING', result)
+    expect(dispatch).toHaveBeenCalledWith(
+      'workspace/refreshAllGenerativeAIModels',
+      null,
+      { root: true }
+    )
+  })
+
   test('model mutations preserve the provider and update only the model', () => {
     const state = makeState()
     state.providers = [{ id: 1, models: [{ id: 2, model_identifier: 'old' }] }]
@@ -353,6 +408,7 @@ describe('AI provider store', () => {
       last_test_status: 'success',
       last_test_error: '',
       last_test_at: '2026-07-21T12:00:00Z',
+      last_test_feature_results: results[0].feature_results,
     })
   })
 })

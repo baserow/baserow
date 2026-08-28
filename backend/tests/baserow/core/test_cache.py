@@ -1,5 +1,6 @@
 import threading
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
 from django.core.cache import cache
 from django.http import HttpRequest
@@ -101,6 +102,29 @@ def test_cache_disabled():
 def test_get_versioned_cache_key(key):
     result = global_cache._get_versioned_cache_key(key)
     assert result == f"{VERSION}_{GLOBAL_CACHE_VERSION}_{key}__version_0"
+
+
+def test_global_get_supports_value_dependent_and_custom_lock_timeouts():
+    key = f"value-dependent-timeout-{uuid4().hex}"
+    mock_lock = Mock()
+
+    with (
+        patch.object(cache, "lock", return_value=mock_lock) as mocked_lock,
+        patch.object(cache, "set") as mocked_set,
+    ):
+        result = global_cache.get(
+            key,
+            default=lambda: False,
+            timeout=lambda ready: 300 if ready else 30,
+            lock_timeout=45,
+        )
+
+    cache_key = global_cache._get_versioned_cache_key(key)
+    assert result is False
+    mocked_lock.assert_called_once_with(f"{cache_key}__lock", timeout=45)
+    mocked_set.assert_called_once_with(cache_key, False, timeout=30)
+    mock_lock.acquire.assert_called_once_with()
+    mock_lock.release.assert_called_once_with()
 
 
 def test_global_update_with_literal_default_value():

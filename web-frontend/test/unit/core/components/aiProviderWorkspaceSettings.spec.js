@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import AIProviderActionsMenu from '@baserow/modules/core/components/ai/AIProviderActionsMenu'
+import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -15,6 +16,123 @@ describe('AIProviderWorkspaceSettings', () => {
   afterEach(async () => {
     await testApp.afterEach()
     vi.restoreAllMocks()
+  })
+
+  test('keeps legacy Kuma controls available without providers', async () => {
+    const featureSetting = {
+      feature_type: 'kuma',
+      mode: 'inherit',
+      state: 'unconfigured',
+      model: null,
+      inherited_model: null,
+    }
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    testApp.store.commit('aiProvider/SET_LOADED', true)
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [])
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
+    ])
+    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [featureSetting])
+    testApp.store.commit('settings/UPDATE_SETTINGS', {
+      kuma: { is_enabled: true },
+    })
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue(undefined)
+
+    const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
+      props: { workspace: { id: 42 } },
+      global: {
+        mocks: {
+          $config: {
+            public: {
+              baserowEnterpriseAssistantLlmModel: 'groq:legacy-model',
+            },
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    const header = wrapper.find('.ai-provider-admin__header')
+    expect(header.find('button').text()).toBe('aiProviderAdmin.addProvider')
+    expect(header.find('button').attributes('disabled')).toBeUndefined()
+    expect(
+      wrapper.find('.ai-provider-workspace-settings__toolbar').exists()
+    ).toBe(false)
+    const featureSettings = wrapper.findComponent(AIProviderFeatureSettings)
+    expect(featureSettings.exists()).toBe(true)
+    expect(featureSettings.find('.select__item').classes()).not.toContain(
+      'disabled'
+    )
+    expect(wrapper.text()).toContain(
+      'generativeAIWorkspaceSettings.noProviders'
+    )
+
+    await featureSettings.vm.updateSelection(featureSetting, 'disabled')
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateFeatureSetting', {
+      featureType: 'kuma',
+      values: { mode: 'disabled' },
+      workspaceId: 42,
+    })
+
+    await featureSettings.vm.updateSelection(
+      { ...featureSetting, mode: 'disabled', state: 'disabled' },
+      'inherit'
+    )
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateFeatureSetting', {
+      featureType: 'kuma',
+      values: { mode: 'inherit' },
+      workspaceId: 42,
+    })
+  })
+
+  test('keeps feature settings visible after deleting the last provider', async () => {
+    const provider = {
+      id: 1,
+      provider_type: 'openai',
+      is_active: true,
+      workspace_enabled: true,
+      read_only: false,
+      models: [],
+    }
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    testApp.store.commit('aiProvider/SET_LOADED', true)
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [provider])
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
+    ])
+    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [
+      {
+        feature_type: 'kuma',
+        mode: 'disabled',
+        state: 'disabled',
+        model: null,
+        inherited_model: null,
+      },
+    ])
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation(async (action, payload) => {
+        if (action === 'aiProvider/delete') {
+          testApp.store.commit('aiProvider/DELETE_PROVIDER', payload.providerId)
+        }
+      })
+
+    const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
+      props: { workspace: { id: 42 } },
+    })
+    await wrapper.vm.runAction('provider-delete', provider)
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/delete', {
+      providerId: 1,
+      workspaceId: 42,
+    })
+    expect(wrapper.findComponent(AIProviderFeatureSettings).exists()).toBe(true)
+    expect(wrapper.text()).toContain(
+      'generativeAIWorkspaceSettings.noProviders'
+    )
   })
 
   test('shows inherited providers read-only and scopes their toggle', async () => {
@@ -38,6 +156,15 @@ describe('AIProviderWorkspaceSettings', () => {
         extra_fields: [],
       },
     ])
+    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [
+      {
+        feature_type: 'kuma',
+        mode: 'inherit',
+        state: 'unconfigured',
+        model: null,
+        inherited_model: null,
+      },
+    ])
     const dispatch = vi
       .spyOn(testApp.store, 'dispatch')
       .mockResolvedValue(undefined)
@@ -49,10 +176,11 @@ describe('AIProviderWorkspaceSettings', () => {
     expect(dispatch).toHaveBeenCalledWith('aiProvider/fetchInitial', {
       workspaceId: 42,
     })
+    expect(wrapper.find('.ai-provider-feature-settings').exists()).toBe(true)
     expect(wrapper.text()).toContain('aiProviderAdmin.inherited')
     expect(
       wrapper
-        .find('.ai-provider-workspace-settings__toolbar')
+        .find('.ai-provider-admin__header')
         .find('button')
         .attributes('disabled')
     ).toBeUndefined()
@@ -193,7 +321,7 @@ describe('AIProviderWorkspaceSettings', () => {
     ).toHaveLength(1)
     expect(
       wrapper
-        .find('.ai-provider-workspace-settings__toolbar')
+        .find('.ai-provider-admin__header')
         .find('button')
         .attributes('disabled')
     ).toBeDefined()

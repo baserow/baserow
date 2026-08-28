@@ -35,3 +35,23 @@ ERROR_INVALID_AI_PROVIDER_SETTINGS = (
     HTTP_400_BAD_REQUEST,
     "The AI provider settings are invalid.",
 )
+ERROR_AI_PROVIDER_MODEL_IN_USE = (
+    "ERROR_AI_PROVIDER_MODEL_IN_USE",
+    HTTP_400_BAD_REQUEST,
+    "This model is selected by an AI feature. Choose another model for that feature first.",
+)
+ERROR_AI_PROVIDER_FEATURE_MODEL_NOT_AVAILABLE = (
+    "ERROR_AI_PROVIDER_FEATURE_MODEL_NOT_AVAILABLE",
+    HTTP_400_BAD_REQUEST,
+    "The selected model is not available to this AI feature at this scope.",
+)
+ERROR_AI_PROVIDER_FEATURE_MODE_NOT_ALLOWED = (
+    "ERROR_AI_PROVIDER_FEATURE_MODE_NOT_ALLOWED",
+    HTTP_400_BAD_REQUEST,
+    "The requested AI feature setting mode is not allowed.",
+)
+ERROR_AI_PROVIDER_MODEL_FEATURE_TYPE_DOES_NOT_EXIST = (
+    "ERROR_AI_PROVIDER_MODEL_FEATURE_TYPE_DOES_NOT_EXIST",
+    HTTP_400_BAD_REQUEST,
+    "The requested AI model feature type does not exist.",
+)

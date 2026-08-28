@@ -314,6 +314,48 @@ describe('AIProviderItem', () => {
     expect(document.querySelector('.tooltip__content').textContent).toBe(error)
   })
 
+  test('shows a compact partial failure and feature details in the tooltip', async () => {
+    const wrapper = await testApp.mount(AIProviderItem, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'openai',
+          is_active: true,
+          models: [
+            {
+              id: 2,
+              model_identifier: 'gpt-5.6',
+              is_enabled: true,
+              feature_types: ['ai_fields', 'kuma'],
+              last_test_status: 'failure',
+              last_test_error:
+                'The model did not call the compatibility test tool.',
+              last_test_feature_results: [
+                { feature_type: 'ai_fields', status: 'success', error: '' },
+                {
+                  feature_type: 'kuma',
+                  status: 'failure',
+                  error: 'The model did not call the compatibility test tool.',
+                },
+              ],
+            },
+          ],
+        },
+      },
+    })
+
+    const failed = wrapper.find('.ai-provider-model__test-failed')
+    expect(failed.text()).toBe('aiProviderAdmin.someTestsFailed')
+
+    await failed.trigger('mouseenter')
+    expect(document.querySelector('.tooltip__content').textContent).toContain(
+      'aiProviderAdmin.featureTestPassed'
+    )
+    expect(document.querySelector('.tooltip__content').textContent).toContain(
+      'aiProviderAdmin.featureTestFailed'
+    )
+  })
+
   test('offers only the workspace toggle on an inherited provider', async () => {
     const provider = {
       id: 1,

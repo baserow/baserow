@@ -49,19 +49,24 @@ class AIIntegrationType(IntegrationType):
     def prepare_values(
         self, values: Dict[str, Any], user: AbstractUser
     ) -> Dict[str, Any]:
-        """
-        Prepare and validate the AI settings before saving. Uses the same validation as
-        workspace-level AI settings. Converts comma-separated models strings to arrays.
+        """Validate explicit per-integration provider settings before saving.
+
+        Database-only providers are valid here because these overrides are passed
+        directly to the runtime instead of being stored in legacy workspace settings.
+
+        :param values: The integration values supplied by the caller.
+        :param user: The user creating or updating the integration.
+        :return: The normalized values prepared by the base integration type.
         """
 
         if "ai_settings" not in values:
             values["ai_settings"] = {}
 
-        # Validate ai_settings using the same serializer as workspace settings
-        # because it should allow to override the same settings.
         if values["ai_settings"]:
             validated_settings = validate_data(
-                get_generative_ai_settings_serializer(),
+                get_generative_ai_settings_serializer(
+                    include_database_only_providers=True
+                ),
                 values["ai_settings"],
                 return_validated=True,
             )

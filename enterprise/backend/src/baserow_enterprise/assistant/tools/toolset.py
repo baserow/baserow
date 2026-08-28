@@ -20,6 +20,7 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from typing_extensions import Self
 
+from baserow.core.generative_ai.lifecycle import run_agent_with_model
 from baserow_enterprise.assistant.deps import AgentMode
 
 if TYPE_CHECKING:
@@ -124,9 +125,10 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
        and rarely succeeds).
     """
 
-    def __init__(self, inner: AbstractToolset[AgentDepsT], model: str):
+    def __init__(self, inner: AbstractToolset[AgentDepsT], model: Any, model_name: str):
         self._inner = inner
         self._model = model
+        self._model_name = model_name
         self._original_validators: dict[str, Any] = {}
         self._schemas: dict[str, dict] = {}
 
@@ -151,7 +153,9 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         visitor: Callable[[AbstractToolset[AgentDepsT]], AbstractToolset[AgentDepsT]],
     ) -> AbstractToolset[AgentDepsT]:
         new = InlineRefsToolset(
-            self._inner.visit_and_replace(visitor), model=self._model
+            self._inner.visit_and_replace(visitor),
+            model=self._model,
+            model_name=self._model_name,
         )
         return new
 
@@ -228,8 +232,9 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
                 get_model_settings,
             )
 
-            fixer_settings = get_model_settings(self._model, UTILITY)
-            result = await fix_agent.run(
+            fixer_settings = get_model_settings(self._model_name, UTILITY)
+            result = await run_agent_with_model(
+                fix_agent,
                 prompt,
                 model=self._model,
                 model_settings={

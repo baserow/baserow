@@ -1,9 +1,12 @@
 import json
+from collections.abc import AsyncIterator
+from contextlib import aclosing
 from urllib.request import Request
 from uuid import uuid4
 
 from django.http import StreamingHttpResponse
 
+from asgiref.sync import sync_to_async
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from loguru import logger
@@ -31,11 +34,16 @@ from baserow_enterprise.assistant.assistant import set_assistant_cancellation_ke
 from baserow_enterprise.assistant.exceptions import (
     AssistantChatDoesNotExist,
     AssistantChatMessagePredictionDoesNotExist,
+    AssistantConfiguredModelNotAvailableError,
     AssistantMessageCancelled,
+    AssistantModelDisabledError,
     AssistantModelNotSupportedError,
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
-from baserow_enterprise.assistant.model_profiles import check_lm_ready_or_raise
+from baserow_enterprise.assistant.model_profiles import (
+    check_lm_ready_or_raise,
+    resolve_assistant_model,
+)
 from baserow_enterprise.assistant.models import AssistantChatPrediction
 from baserow_enterprise.assistant.onboarding import (
     generate_onboarding_prompt_suggestions,
@@ -51,6 +59,8 @@ from baserow_enterprise.assistant.types import (
 
 from .errors import (
     ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+    ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE,
+    ERROR_ASSISTANT_MODEL_DISABLED,
     ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
     ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK,
 )
@@ -64,6 +74,32 @@ from .serializers import (
     OnboardingPromptSuggestionsRequestSerializer,
     OnboardingPromptSuggestionsSerializer,
 )
+
+
+class AssistantStreamingHttpResponse(StreamingHttpResponse):
+    """Propagate ASGI response closure to the assistant's root generator.
+
+    Django wraps async streaming content with delegating generators that don't
+    forward ``aclose()``. Owning the root iterator here ensures a client
+    disconnect reaches the assistant's task and provider cleanup immediately.
+    """
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        """Iterate response bytes while owning the root async iterator.
+
+        :yield: Response body bytes.
+        :return: An async iterator of response body bytes.
+        """
+
+        iterator = self._iterator
+        if not self.is_async or not hasattr(iterator, "aclose"):
+            async for part in super().__aiter__():
+                yield part
+            return
+
+        async with aclosing(iterator) as content:
+            async for part in content:
+                yield self.make_bytes(part)
 
 
 class AssistantChatsView(APIView):
@@ -142,7 +178,14 @@ class AssistantChatView(APIView):
                 description="A text/event-stream of the assistant’s partial responses",
                 response=OpenApiTypes.STR,
             ),
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_ASSISTANT_MODEL_DISABLED",
+                    "ERROR_ASSISTANT_MODEL_NOT_SUPPORTED",
+                    "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
+                ]
+            ),
         },
     )
     @validate_body(AssistantMessageRequestSerializer, return_validated=True)
@@ -150,10 +193,24 @@ class AssistantChatView(APIView):
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
+            AssistantConfiguredModelNotAvailableError: (
+                ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE
+            ),
             AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
         }
     )
-    def post(self, request: Request, chat_uuid: str, data) -> StreamingHttpResponse:
+    def post(
+        self, request: Request, chat_uuid: str, data
+    ) -> AssistantStreamingHttpResponse:
+        """Authorize, validate, and stream one assistant message.
+
+        :param request: The authenticated API request.
+        :param chat_uuid: The client-generated chat identifier.
+        :param data: The validated message and UI-context payload.
+        :return: A streaming response containing assistant events.
+        """
+
         ui_context = UIContext.from_validate_request(request, data["ui_context"])
         workspace_id = ui_context.workspace.id
         workspace = CoreHandler().get_workspace(workspace_id)
@@ -164,7 +221,8 @@ class AssistantChatView(APIView):
             context=workspace,
         )
 
-        check_lm_ready_or_raise()
+        model_profile = resolve_assistant_model(workspace=workspace)
+        check_lm_ready_or_raise(model_profile=model_profile)
         handler = AssistantHandler()
         chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
 
@@ -188,13 +246,24 @@ class AssistantChatView(APIView):
         # the one provided in the UI context so tools can use it if needed.
         chat.user.profile.timezone = ui_context.timezone
 
-        assistant = handler.get_assistant(chat)
         human_message = HumanMessage(content=data["content"], ui_context=ui_context)
 
-        async def stream_assistant_messages():
+        async def stream_assistant_messages() -> AsyncIterator[str]:
+            """Stream serialized assistant events from the lazy model run.
+
+            :yield: Serialized assistant events.
+            :return: An async iterator of serialized assistant events.
+            """
+
             try:
-                async for msg in assistant.astream_messages(human_message):
-                    yield self._stream_assistant_message(msg)
+                assistant = await sync_to_async(handler.get_assistant)(
+                    chat, model_profile=model_profile
+                )
+                async with aclosing(
+                    assistant.astream_messages(human_message)
+                ) as messages:
+                    async for msg in messages:
+                        yield self._stream_assistant_message(msg)
             except AssistantMessageCancelled as exc:
                 yield self._stream_assistant_message(
                     AiCancelledMessage(message_id=exc.message_id)
@@ -210,7 +279,7 @@ class AssistantChatView(APIView):
                     )
                 )
 
-        response = StreamingHttpResponse(
+        response = AssistantStreamingHttpResponse(
             stream_assistant_messages(),
             content_type="text/event-stream",
         )
@@ -348,20 +417,41 @@ class AssistantOnboardingPromptSuggestionsView(APIView):
         request=OnboardingPromptSuggestionsRequestSerializer,
         responses={
             200: OnboardingPromptSuggestionsSerializer,
-            400: get_error_schema(["ERROR_ASSISTANT_MODEL_NOT_SUPPORTED"]),
+            400: get_error_schema(
+                [
+                    "ERROR_ASSISTANT_MODEL_NOT_SUPPORTED",
+                    "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
+                    "ERROR_ASSISTANT_MODEL_DISABLED",
+                ]
+            ),
         },
     )
     @validate_body(OnboardingPromptSuggestionsRequestSerializer, return_validated=True)
     @map_exceptions(
-        {AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED}
+        {
+            AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
+            AssistantConfiguredModelNotAvailableError: (
+                ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE
+            ),
+            AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
+        }
     )
     def post(self, request: Request, data) -> Response:
-        check_lm_ready_or_raise()
+        """Generate onboarding prompt suggestions with the resolved assistant model.
+
+        :param request: The authenticated API request.
+        :param data: The validated onboarding answers and requested language.
+        :return: A response containing the generated prompt suggestions.
+        """
+
+        model_profile = resolve_assistant_model()
+        check_lm_ready_or_raise(model_profile=model_profile)
 
         suggestions = generate_onboarding_prompt_suggestions(
             industry=data["industry"],
             team=data["team"],
             language=data["language"] or request.user.profile.language,
+            model_profile=model_profile,
         )
 
         serializer = OnboardingPromptSuggestionsSerializer(

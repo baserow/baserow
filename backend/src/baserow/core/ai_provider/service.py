@@ -6,6 +6,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.operations import UpdateWorkspaceOperationType
 
+from .constants import AI_PROVIDER_FEATURE_MODE_MODEL
 from .exceptions import AIProviderIsReadOnly
 from .handler import AIProviderHandler, WorkspaceAIProviderConfig
 from .models import AIProviderConfig, AIProviderModel
@@ -72,6 +73,36 @@ class AIProviderService:
     ) -> list[dict[str, Any]]:
         cls._check_permissions(user, workspace_id)
         return get_provider_type_metadata()
+
+    @classmethod
+    def list_feature_settings(
+        cls, user: AbstractUser, workspace_id: int | None = None
+    ) -> list[dict[str, Any]]:
+        workspace = cls._check_permissions(user, workspace_id)
+        return AIProviderHandler.list_feature_settings(workspace)
+
+    @classmethod
+    def update_feature_setting(
+        cls,
+        user: AbstractUser,
+        feature_type: str,
+        mode: str,
+        model_id: int | None = None,
+        workspace_id: int | None = None,
+    ) -> dict[str, Any]:
+        workspace = cls._check_permissions(user, workspace_id)
+        model = None
+        if mode == AI_PROVIDER_FEATURE_MODE_MODEL:
+            model = AIProviderHandler.get_model(
+                model_id,
+                workspace=workspace,
+                include_inherited=workspace is not None,
+            )
+        setting = AIProviderHandler.update_feature_setting(
+            feature_type, mode, workspace=workspace, model=model
+        )
+        cls._send_updated(user, workspace, True)
+        return setting
 
     @classmethod
     def create_provider(
@@ -178,9 +209,12 @@ class AIProviderService:
         provider_type = model.provider_config.provider_type
         old_identifier = model.model_identifier
         was_enabled = model.is_enabled
+        old_feature_types = set(model.feature_types)
         model = AIProviderHandler.update_model(model, **values)
         model_availability_updated = (
-            model.model_identifier != old_identifier or model.is_enabled != was_enabled
+            model.model_identifier != old_identifier
+            or model.is_enabled != was_enabled
+            or set(model.feature_types) != old_feature_types
         )
         cls._send_updated(
             user,

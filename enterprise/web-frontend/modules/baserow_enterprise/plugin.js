@@ -108,6 +108,7 @@ import {
   CoreCodeNodeType,
   CoreXLSFileReaderNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
+import { KumaAIProviderModelFeatureType } from '@baserow_enterprise/aiProviderModelFeatureTypes'
 
 export default defineNuxtPlugin({
   name: 'enterprise',
@@ -118,6 +119,10 @@ export default defineNuxtPlugin({
     const context = { app: nuxtApp }
 
     $registry.register('plugin', new EnterprisePlugin(context))
+    $registry.register(
+      'aiProviderModelFeature',
+      new KumaAIProviderModelFeatureType(context)
+    )
 
     $registry.register(
       'permissionManager',

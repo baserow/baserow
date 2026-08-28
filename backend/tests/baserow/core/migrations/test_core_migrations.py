@@ -1,4 +1,5 @@
 from django.db import IntegrityError
+from django.utils import timezone
 
 import pytest
 
@@ -81,3 +82,42 @@ def test_0082_remove_duplicate_workspace_invitation_forwards(
         NewWorkspaceInvitation.objects.create(
             email="a@baserow.io", workspace_id=1, invited_by_id=sender.id
         ),
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0119_initializes_ai_provider_model_features_and_capabilities(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate(
+        [("core", "0118_aiproviderworkspaceoverride_and_more")]
+    )
+    AIProviderConfig = old_state.apps.get_model("core", "AIProviderConfig")
+    AIProviderModel = old_state.apps.get_model("core", "AIProviderModel")
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="test-key"
+    )
+    tested_model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="tested-model",
+        last_test_at=timezone.now(),
+        last_test_status="failure",
+        last_test_error="provider unavailable",
+    )
+    untested_model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="untested-model",
+    )
+
+    new_state = migrator.migrate(
+        [("core", "0119_aiproviderfeaturesetting_and_more")]
+    )
+    NewAIProviderModel = new_state.apps.get_model("core", "AIProviderModel")
+    tested_model = NewAIProviderModel.objects.get(id=tested_model.id)
+    untested_model = NewAIProviderModel.objects.get(id=untested_model.id)
+
+    assert tested_model.feature_types == ["ai_fields"]
+    assert tested_model.last_test_capabilities == {
+        "text": {"status": "failure", "error": "provider unavailable"}
+    }
+    assert untested_model.feature_types == ["ai_fields"]
+    assert untested_model.last_test_capabilities == {}

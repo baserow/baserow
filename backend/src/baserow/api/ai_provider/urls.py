@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import (
+    AIProviderFeaturesView,
+    AIProviderFeatureView,
     AIProviderModelDiscoveryView,
     AIProviderModelsTestView,
     AIProviderModelsView,
@@ -15,6 +17,12 @@ app_name = "baserow.api.ai_provider"
 urlpatterns = [
     path("", AIProvidersView.as_view(), name="list"),
     path("types/", AIProviderTypesView.as_view(), name="types"),
+    path("features/", AIProviderFeaturesView.as_view(), name="features"),
+    path(
+        "features/<str:feature_type>/",
+        AIProviderFeatureView.as_view(),
+        name="feature_item",
+    ),
     path("<int:provider_id>/", AIProviderView.as_view(), name="item"),
     path(
         "<int:provider_id>/models/",

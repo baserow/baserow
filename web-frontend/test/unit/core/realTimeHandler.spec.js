@@ -201,6 +201,7 @@ describe('RealTimeHandler AI provider updates', () => {
   test('applies complete instance payloads without fetching', () => {
     const { handler, store } = makeHandler()
     const instanceProviders = [{ id: 1, provider_type: 'openai' }]
+    const instanceFeatureSettings = [{ feature_type: 'kuma', mode: 'disabled' }]
 
     fire(handler, 'ai_provider_updated', {
       type: 'ai_provider_updated',
@@ -209,23 +210,42 @@ describe('RealTimeHandler AI provider updates', () => {
         42: { openai: ['gpt-5'] },
         43: { anthropic: ['claude-4.5'] },
       },
+      ai_features_by_workspace: {
+        42: { kuma: { is_enabled: true, state: 'configured' } },
+        43: { kuma: { is_enabled: false, state: 'disabled' } },
+      },
+      instance_ai_features: { kuma: { is_enabled: true } },
       instance_ai_providers: instanceProviders,
+      instance_ai_provider_feature_settings: instanceFeatureSettings,
     })
 
     expect(store._dispatched).toContainEqual([
+      'settings/forceUpdateAIFeatures',
+      { kuma: { is_enabled: true } },
+    ])
+    expect(store._dispatched).toContainEqual([
       'workspace/forceUpdateGenerativeAIModels',
-      { workspaceId: 42, generativeAIModelsEnabled: { openai: ['gpt-5'] } },
+      {
+        workspaceId: 42,
+        generativeAIModelsEnabled: { openai: ['gpt-5'] },
+        aiFeatures: { kuma: { is_enabled: true, state: 'configured' } },
+      },
     ])
     expect(store._dispatched).toContainEqual([
       'workspace/forceUpdateGenerativeAIModels',
       {
         workspaceId: 43,
         generativeAIModelsEnabled: { anthropic: ['claude-4.5'] },
+        aiFeatures: { kuma: { is_enabled: false, state: 'disabled' } },
       },
     ])
     expect(store._dispatched).toContainEqual([
       'aiProvider/replaceFromRealtime',
-      { workspaceId: null, providers: instanceProviders },
+      {
+        workspaceId: null,
+        providers: instanceProviders,
+        featureSettings: instanceFeatureSettings,
+      },
     ])
     expect(store._dispatched).not.toContainEqual([
       'workspace/refreshAllGenerativeAIModels',
@@ -240,6 +260,7 @@ describe('RealTimeHandler AI provider updates', () => {
   test('applies the loaded workspace provider snapshot without fetching', () => {
     const { handler, store } = makeHandler()
     const workspaceProviders = [{ id: 2, provider_type: 'anthropic' }]
+    const workspaceFeatureSettings = [{ feature_type: 'kuma', mode: 'inherit' }]
     store.getters['aiProvider/getWorkspaceId'] = 42
 
     fire(handler, 'ai_provider_updated', {
@@ -248,12 +269,22 @@ describe('RealTimeHandler AI provider updates', () => {
       generative_ai_models_enabled_by_workspace: {
         42: { openai: ['gpt-5'] },
       },
+      ai_features_by_workspace: {
+        42: { kuma: { is_enabled: true, state: 'inherited' } },
+      },
       ai_providers_by_workspace: { 42: workspaceProviders },
+      ai_provider_feature_settings_by_workspace: {
+        42: workspaceFeatureSettings,
+      },
     })
 
     expect(store._dispatched).toContainEqual([
       'workspace/forceUpdateGenerativeAIModels',
-      { workspaceId: 42, generativeAIModelsEnabled: { openai: ['gpt-5'] } },
+      {
+        workspaceId: 42,
+        generativeAIModelsEnabled: { openai: ['gpt-5'] },
+        aiFeatures: { kuma: { is_enabled: true, state: 'inherited' } },
+      },
     ])
     expect(store._dispatched).not.toContainEqual([
       'workspace/refreshAllGenerativeAIModels',
@@ -261,7 +292,11 @@ describe('RealTimeHandler AI provider updates', () => {
     ])
     expect(store._dispatched).toContainEqual([
       'aiProvider/replaceFromRealtime',
-      { workspaceId: 42, providers: workspaceProviders },
+      {
+        workspaceId: 42,
+        providers: workspaceProviders,
+        featureSettings: workspaceFeatureSettings,
+      },
     ])
     expect(store._dispatched).not.toContainEqual([
       'aiProvider/refresh',
@@ -272,11 +307,13 @@ describe('RealTimeHandler AI provider updates', () => {
   test('provider metadata changes apply their snapshot without fetching', () => {
     const { handler, store } = makeHandler()
     const instanceProviders = [{ id: 1, provider_type: 'openai' }]
+    const instanceFeatureSettings = [{ feature_type: 'kuma', mode: 'disabled' }]
 
     fire(handler, 'ai_provider_updated', {
       type: 'ai_provider_updated',
       model_availability_updated: false,
       instance_ai_providers: instanceProviders,
+      instance_ai_provider_feature_settings: instanceFeatureSettings,
     })
 
     expect(store._dispatched).not.toContainEqual([
@@ -285,7 +322,11 @@ describe('RealTimeHandler AI provider updates', () => {
     ])
     expect(store._dispatched).toContainEqual([
       'aiProvider/replaceFromRealtime',
-      { workspaceId: null, providers: instanceProviders },
+      {
+        workspaceId: null,
+        providers: instanceProviders,
+        featureSettings: instanceFeatureSettings,
+      },
     ])
     expect(store._dispatched).not.toContainEqual([
       'aiProvider/refresh',
@@ -306,6 +347,20 @@ describe('RealTimeHandler AI provider updates', () => {
     expect(store._dispatched).not.toContainEqual([
       'aiProvider/replaceFromRealtime',
       expect.anything(),
+    ])
+  })
+
+  test('updates instance AI feature settings whenever the payload provides them', () => {
+    const { handler, store } = makeHandler()
+
+    fire(handler, 'ai_provider_updated', {
+      type: 'ai_provider_updated',
+      instance_ai_features: { kuma: { is_enabled: false } },
+    })
+
+    expect(store._dispatched).toContainEqual([
+      'settings/forceUpdateAIFeatures',
+      { kuma: { is_enabled: false } },
     ])
   })
 })

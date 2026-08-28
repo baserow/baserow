@@ -38,6 +38,9 @@ class BaserowPremiumConfig(AppConfig):
             ChoiceAIFieldOutputType,
             TextAIFieldOutputType,
         )
+        from .fields.ai_provider_feature_types import (
+            AIFieldsAIProviderModelFeatureType,
+        )
         from .fields.field_converters import AIFieldConverter
         from .fields.field_types import AIFieldType
         from .fields.registries import ai_field_output_registry
@@ -48,6 +51,14 @@ class BaserowPremiumConfig(AppConfig):
 
         ai_field_output_registry.register(TextAIFieldOutputType())
         ai_field_output_registry.register(ChoiceAIFieldOutputType())
+
+        from baserow.core.ai_provider.registries import (
+            ai_provider_model_feature_type_registry,
+        )
+
+        ai_provider_model_feature_type_registry.register(
+            AIFieldsAIProviderModelFeatureType()
+        )
 
         from baserow.core.jobs.registries import job_type_registry
 

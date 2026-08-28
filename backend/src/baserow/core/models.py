@@ -21,7 +21,11 @@ from baserow.core.user_files.models import UserFile
 
 from .abuse_reports.models import AbuseReport
 from .action.models import Action
-from .ai_provider.models import AIProviderConfig, AIProviderModel
+from .ai_provider.models import (
+    AIProviderConfig,
+    AIProviderFeatureSetting,
+    AIProviderModel,
+)
 from .integrations.models import Integration
 from .mixins import (
     CreatedAndUpdatedOnMixin,
@@ -55,6 +59,7 @@ __all__ = [
     "Notification",
     "BlacklistedToken",
     "AIProviderConfig",
+    "AIProviderFeatureSetting",
     "AIProviderModel",
     "ExportApplicationsJob",
     "ImportApplicationsJob",

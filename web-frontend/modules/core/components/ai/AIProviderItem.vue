@@ -50,12 +50,17 @@
           'ai-provider-model--overridden': modelAnnotation(model)?.muted,
         }"
       >
-        <span
-          class="ai-provider-model__name"
-          :class="{ 'ai-provider-model__name--inactive': !model.is_enabled }"
-        >
-          {{ model.model_identifier }}
-        </span>
+        <div class="ai-provider-model__identity">
+          <span
+            class="ai-provider-model__name"
+            :class="{ 'ai-provider-model__name--inactive': !model.is_enabled }"
+          >
+            {{ model.model_identifier }}
+          </span>
+          <span class="ai-provider-model__features">
+            {{ featureSummary(model) }}
+          </span>
+        </div>
         <div class="ai-provider-model__badges">
           <Badge
             v-if="!model.is_enabled"
@@ -89,11 +94,11 @@
           </span>
           <template v-else-if="model.last_test_status === 'failure'">
             <span
-              v-tooltip:[tooltipOptions]="model.last_test_error"
+              v-tooltip:[tooltipOptions]="modelTestTooltip(model)"
               class="ai-provider-model__test-failed color-error"
             >
               <i class="iconoir-warning-circle" />
-              {{ $t('aiProviderAdmin.testFailed') }}
+              {{ modelTestFailureLabel(model) }}
             </span>
           </template>
           <span v-else>{{ $t('aiProviderAdmin.notTested') }}</span>
@@ -218,6 +223,44 @@ export default {
     },
   },
   methods: {
+    featureName(type) {
+      return this.$registry.exists('aiProviderModelFeature', type)
+        ? this.$registry.get('aiProviderModelFeature', type).getName()
+        : type
+    },
+    featureSummary(model) {
+      const names = (model.feature_types || []).map(this.featureName)
+      return names.length
+        ? this.$t('aiProviderAdmin.availableForList', {
+            features: names.join(', '),
+          })
+        : this.$t('aiProviderAdmin.availableForNone')
+    },
+    modelTestFailureLabel(model) {
+      const statuses = new Set(
+        (model.last_test_feature_results || []).map((result) => result.status)
+      )
+      return statuses.has('success') && statuses.has('failure')
+        ? this.$t('aiProviderAdmin.someTestsFailed')
+        : this.$t('aiProviderAdmin.testFailed')
+    },
+    modelTestTooltip(model) {
+      const featureResults = model.last_test_feature_results || []
+      if (!featureResults.length) return model.last_test_error
+
+      return featureResults
+        .map((result) => {
+          const feature = this.featureName(result.feature_type)
+          if (result.status === 'success') {
+            return this.$t('aiProviderAdmin.featureTestPassed', { feature })
+          }
+          return this.$t('aiProviderAdmin.featureTestFailed', {
+            feature,
+            error: result.error || this.$t('aiProviderAdmin.testFailed'),
+          })
+        })
+        .join('\n')
+    },
     isModelTesting(model) {
       return this.testingModelIds.includes(model.id)
     },

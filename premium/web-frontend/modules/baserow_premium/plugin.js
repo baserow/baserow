@@ -83,6 +83,7 @@ import {
   ChoiceAIFieldOutputType,
   TextAIFieldOutputType,
 } from '@baserow_premium/aiFieldOutputTypes'
+import { AIFieldsAIProviderModelFeatureType } from '@baserow_premium/aiProviderModelFeatureTypes'
 import {
   AIPaidFeature,
   CalendarViewPaidFeature,
@@ -159,6 +160,10 @@ export default defineNuxtPlugin({
     $registry.register('exporter', new ExcelTableExporterType(context))
     $registry.register('exporter', new FileTableExporter(context))
     $registry.register('field', new AIFieldType(context))
+    $registry.register(
+      'aiProviderModelFeature',
+      new AIFieldsAIProviderModelFeatureType(context)
+    )
     $registry.register('field', new PremiumFormulaFieldType(context))
     $registry.register('view', new KanbanViewType(context))
     $registry.register('view', new CalendarViewType(context))

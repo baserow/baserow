@@ -15,6 +15,33 @@ describe('AdminAIProviders', () => {
     vi.restoreAllMocks()
   })
 
+  test('keeps feature settings visible without instance providers', async () => {
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', null)
+    testApp.store.commit('aiProvider/SET_LOADED', true)
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [])
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
+    ])
+    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [
+      {
+        feature_type: 'kuma',
+        mode: 'legacy',
+        state: 'unconfigured',
+        model: null,
+        inherited_model: null,
+      },
+    ])
+    vi.spyOn(testApp.store, 'dispatch').mockResolvedValue(undefined)
+
+    const wrapper = await testApp.mount(AdminAIProviders)
+    await flushPromises()
+
+    const header = wrapper.find('.ai-provider-admin__header')
+    expect(header.find('button').text()).toBe('aiProviderAdmin.addProvider')
+    expect(wrapper.find('.ai-provider-feature-settings').exists()).toBe(true)
+    expect(wrapper.text()).toContain('aiProviderAdmin.noProviders')
+  })
+
   test('shows a recoverable error instead of an endless initial spinner', async () => {
     let fetchAttempt = 0
     const dispatch = vi

@@ -8,6 +8,9 @@ import pytest
 from baserow.core.ai_provider.constants import PROVIDER_ENVIRONMENT_SETTINGS
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
+from baserow.core.ai_provider.registries import (
+    ai_provider_model_feature_type_registry,
+)
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 
 
@@ -50,8 +53,31 @@ def test_command_previews_then_imports_without_printing_secrets(settings):
         "gpt-4o",
         "gpt-4o-mini",
     ]
+    assert list(provider.models.values_list("feature_types", flat=True)) == [
+        ["ai_fields"],
+        ["ai_fields"],
+    ]
     assert "Imported 1 missing instance provider(s)." in out.getvalue()
     assert "super-secret" not in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_command_imports_on_oss_only_installations(settings, monkeypatch):
+    _clear_provider_environment(settings)
+    settings.BASEROW_OPENAI_API_KEY = "oss-secret"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-4o-mini"]
+    monkeypatch.setattr(ai_provider_model_feature_type_registry, "registry", {})
+
+    call_command(
+        "migrate_ai_provider_settings",
+        "--scope",
+        "instance",
+        "--apply",
+        stdout=StringIO(),
+    )
+
+    model = AIProviderModel.objects.get()
+    assert model.feature_types == ["ai_fields"]
 
 
 @pytest.mark.django_db
@@ -106,6 +132,19 @@ def test_command_skips_incomplete_provider_settings(settings):
     call_command("migrate_ai_provider_settings", "--scope", "instance", stdout=out)
 
     assert "Ollama: skipping" in out.getvalue()
+    assert not AIProviderConfig.objects.exists()
+
+
+@pytest.mark.django_db
+def test_command_rejects_whitespace_only_environment_credentials(settings):
+    _clear_provider_environment(settings)
+    settings.BASEROW_MISTRAL_API_KEY = "   "
+    settings.BASEROW_MISTRAL_MODELS = ["mistral-large-latest"]
+    out = StringIO()
+
+    call_command("migrate_ai_provider_settings", "--scope", "instance", stdout=out)
+
+    assert "Mistral: skipping" in out.getvalue()
     assert not AIProviderConfig.objects.exists()
 
 
@@ -241,6 +280,9 @@ def test_workspace_scope_migrates_every_current_legacy_provider_setting(
             list(provider.models.values_list("model_identifier", flat=True))
             == expected_models
         )
+        assert list(provider.models.values_list("feature_types", flat=True)) == [
+            ["ai_fields"] for _ in expected_models
+        ]
 
         model_type = generative_ai_model_type_registry.get(provider_type)
         assert model_type.get_model_settings_override(

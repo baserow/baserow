@@ -6,6 +6,7 @@ from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.table.models import Table
 from baserow.test_utils.helpers import AnyInt
+from baserow_enterprise.assistant.model_profiles import UTILITY
 from baserow_enterprise.assistant.tools.database.agents import FormulaGenerationResult
 from baserow_enterprise.assistant.tools.database.tools import (
     create_fields,
@@ -302,13 +303,18 @@ def test_generate_formula_no_save(data_fixture):
         formula="'ok'",
         formula_type="text",
     )
+    model_profile = MagicMock()
+    nested_model = MagicMock()
+    model_settings = {"temperature": 0.1}
+    model_profile.create_model.return_value = nested_model
+    model_profile.get_settings.return_value = model_settings
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
-        ctx = make_test_ctx(user, workspace)
+        ctx = make_test_ctx(user, workspace, model_profile=model_profile)
         result = generate_formula(
             ctx,
             thought="test",
@@ -323,6 +329,9 @@ def test_generate_formula_no_save(data_fixture):
 
         # Verify no field was created
         assert not table.field_set.filter(name="test_formula").exists()
+        assert mock_agent.call_args.kwargs["model"] is nested_model
+        assert mock_agent.call_args.kwargs["model_settings"] is model_settings
+        model_profile.get_settings.assert_called_once_with(UTILITY)
 
 
 @pytest.mark.django_db
@@ -343,7 +352,7 @@ def test_generate_formula_create_new_field(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -395,7 +404,7 @@ def test_generate_formula_update_existing_formula_field(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -447,7 +456,7 @@ def test_generate_formula_replace_non_formula_field(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -501,7 +510,7 @@ def test_generate_formula_invalid_formula(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -543,13 +552,13 @@ def test_generate_formula_documentation_completeness(data_fixture):
 
     captured_prompt = None
 
-    def mock_run_sync(prompt, **kwargs):
+    def mock_run_sync(_agent, prompt, **kwargs):
         nonlocal captured_prompt
         captured_prompt = prompt
         return mock_result
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync",
+        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model",
         side_effect=mock_run_sync,
     ):
         ctx = make_test_ctx(user, workspace)
@@ -693,7 +702,7 @@ def test_create_fields_tool_with_invalid_formula_auto_fixes(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.agents.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -741,7 +750,7 @@ def test_create_fields_tool_reports_error_when_auto_fix_fails(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.agents.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -781,7 +790,7 @@ def test_create_tables_with_invalid_formula_auto_fixes(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
 
-    def mock_run_sync(prompt, **kwargs):
+    def mock_run_sync(_agent, prompt, **kwargs):
         # The table doesn't exist yet when the mock is created, so we
         # dynamically set table_id on call.
         tables = Table.objects.filter(database=database).order_by("-id")
@@ -793,7 +802,7 @@ def test_create_tables_with_invalid_formula_auto_fixes(data_fixture):
         )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync",
+        "baserow_enterprise.assistant.tools.database.agents.run_agent_sync_with_model",
         side_effect=mock_run_sync,
     ):
         ctx = make_test_ctx(user, workspace)

@@ -22,6 +22,7 @@
 ## @param global.baserow.domain Configure the domain for the frontend application.
 ## @param global.baserow.backendDomain Configure the domain for the backend application.
 ## @param global.baserow.objectsDomain Configure the domain for the external facing minio api.
+## @param global.baserow.assistantLLMModel Configure the legacy fallback model for the AI assistant.
 ## @param global.baserow.containerSecurityContext.enabled Enabled containers' Security Context
 ## @param global.baserow.containerSecurityContext.seLinuxOptions [object,nullable] Set SELinux options in container
 ## @param global.baserow.containerSecurityContext.runAsUser Set containers' Security Context runAsUser
@@ -548,7 +549,6 @@ baserow-celery-flower:
 
 ## Configuration for the Baserow Embeddings service
 ## @param baserow-embeddings.enabled Set to true to enable the Baserow Embeddings service.
-## @param baserow-embeddings.assistantLLMModel The LLM model to use for the AI assistant (e.g., "groq/openai/gpt-oss-120b").
 ## @param baserow-embeddings.image.repository Docker image repository for the Embeddings service.
 ## @param baserow-embeddings.resources Resource requests and limits for the Embeddings service.
 ## @param baserow-embeddings.autoscaling.enabled Enable autoscaling for the Embeddings service.

@@ -102,6 +102,8 @@ import { required, decimal, minValue, maxValue } from '@vuelidate/validators'
 import modal from '@baserow/modules/core/mixins/modal'
 import form from '@baserow/modules/core/mixins/form'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
+import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'SelectAIModelForm',
@@ -110,6 +112,11 @@ export default {
     database: {
       type: Object,
       required: true,
+    },
+    featureType: {
+      type: String,
+      required: false,
+      default: null,
     },
   },
   emits: ['ai-type-changed'],
@@ -140,9 +147,17 @@ export default {
     workspace() {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
     },
+    enabledModelsByType() {
+      return this.featureType
+        ? getEnabledModelsForAIProviderFeature(
+            this.workspace,
+            this.featureType,
+            this.$featureFlagIsEnabled(FF_AI_PROVIDERS)
+          )
+        : this.workspace.generative_ai_models_enabled || {}
+    },
     aITypes() {
-      const types = this.workspace.generative_ai_models_enabled || {}
-      return Object.keys(types).map((aiType) => {
+      return Object.keys(this.enabledModelsByType).map((aiType) => {
         return this.$registry.get('generativeAIModel', aiType)
       })
     },
@@ -202,7 +217,7 @@ export default {
   },
   methods: {
     getAIModelsPerType(aiType) {
-      return this.workspace.generative_ai_models_enabled[aiType] || []
+      return this.enabledModelsByType[aiType] || []
     },
   },
   validations() {

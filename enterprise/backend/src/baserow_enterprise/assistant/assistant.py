@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import aclosing
 from typing import Any, AsyncGenerator
 
 from django.contrib.auth.models import AbstractUser
@@ -38,10 +39,9 @@ from baserow_enterprise.assistant.history import compact_message_history
 from baserow_enterprise.assistant.model_profiles import (
     ORCHESTRATOR,
     TITLE,
-    get_model_settings,
-    get_model_string,
+    ResolvedAssistantModelProfile,
+    resolve_assistant_model,
 )
-from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.telemetry import (
     PosthogTracingCallback,
     setup_instrumentation,
@@ -155,12 +155,26 @@ class Assistant:
     streaming, and message persistence for one ``AssistantChat``.
     """
 
-    def __init__(self, chat: AssistantChat):
+    def __init__(
+        self,
+        chat: AssistantChat,
+        model_profile: ResolvedAssistantModelProfile | None = None,
+    ):
+        """Initialize an assistant from one resolved model snapshot.
+
+        :param chat: The persisted chat this assistant will serve.
+        :param model_profile: The model profile already resolved for the request.
+        :return: None.
+        """
+
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
-        self._model_string = get_model_string()
-        self._model = RetryingModel(self._model_string)
+        self._model_profile = model_profile or resolve_assistant_model(
+            workspace=self._workspace
+        )
+        self._model_string = self._model_profile.model_string
+        self._model = self._model_profile.create_model()
         self._event_bus = EventBus()
         self._tool_helpers = self._build_tool_helpers()
         self._telemetry = PosthogTracingCallback()
@@ -175,7 +189,8 @@ class Assistant:
             assistant_tool_registry.build_toolset(
                 user=self._user,
                 workspace=self._workspace,
-                model=self._model_string,
+                model=self._model,
+                model_name=self._model_string,
                 deps=self._deps,
             )
         )
@@ -191,16 +206,25 @@ class Assistant:
     # ------------------------------------------------------------------
 
     def _build_tool_helpers(self) -> ToolHelpers:
-        """Create the ``ToolHelpers`` that tools use for status updates,
-        navigation, and cancellation during the agent run."""
+        """Create the helpers shared by every tool in this assistant run.
 
-        def update_status(status: str):
+        :return: Helpers carrying the request's callbacks and resolved model profile.
+        """
+
+        def update_status(status: str) -> None:
+            """Emit a localized assistant status update.
+
+            :param status: The translated status template to emit.
+            :return: None.
+            """
+
             with translation.override(self._user.profile.language):
                 self._event_bus.emit(AiThinkingMessage(content=status))
 
         return ToolHelpers(
             update_status=update_status,
             navigate_to=lambda loc: unsafe_navigate_to(loc, self._event_bus),
+            model_profile=self._model_profile,
             event_bus=self._event_bus,
         )
 
@@ -228,17 +252,37 @@ class Assistant:
     def list_chat_messages(
         self, last_message_id: int | None = None, limit: int = 100
     ) -> list[AssistantMessageUnion]:
+        """Return this chat's recent persisted messages, oldest-first.
+
+        :param last_message_id: An exclusive message-ID pagination cursor.
+        :param limit: The maximum number of messages to return.
+        :return: The projected assistant messages in chronological order.
+        """
+
+        return self.list_chat_messages_for_chat(
+            self._chat, last_message_id=last_message_id, limit=limit
+        )
+
+    @staticmethod
+    def list_chat_messages_for_chat(
+        chat: AssistantChat,
+        last_message_id: int | None = None,
+        limit: int = 100,
+    ) -> list[AssistantMessageUnion]:
         """Return recent chat messages, oldest-first.
 
+        This projection deliberately does not construct an ``Assistant`` or an
+        AI model, so loading chat history never allocates a provider client.
+
+        :param chat: The chat whose persisted messages should be projected.
         :param last_message_id: If set, only return messages with ``id``
             below this value (cursor-based pagination).
         :param limit: Maximum number of messages to return.
+        :return: The projected assistant messages in chronological order.
         """
 
         queryset = (
-            self._chat.messages.all()
-            .select_related("prediction")
-            .order_by("-created_on")
+            chat.messages.all().select_related("prediction").order_by("-created_on")
         )
         if last_message_id is not None:
             queryset = queryset.filter(id__lt=last_message_id)
@@ -325,13 +369,16 @@ class Assistant:
     # ------------------------------------------------------------------
 
     async def _generate_chat_title(self, user_message: str) -> str:
-        """Ask the title agent to summarise a user message into a short
-        chat title."""
+        """Ask the title agent to summarize a user message into a short title.
+
+        :param user_message: The user message to summarize.
+        :return: The generated chat title.
+        """
 
         result = await title_agent.run(
             user_message,
             model=self._model,
-            model_settings=get_model_settings(self._model_string, TITLE),
+            model_settings=self._model_profile.get_settings(TITLE),
         )
         return result.output
 
@@ -472,6 +519,11 @@ class Assistant:
         Streams reasoning/text chunks to *queue* and returns
         ``(answer, run_result)`` when an ``AgentRunResultEvent`` is
         received, or ``None`` if the stream ends without one.
+
+        :param user_prompt: The prompt for this agent pass.
+        :param message_history: The compacted prior model messages, if any.
+        :param queue: The queue that receives streamed assistant events.
+        :return: The final answer and run result, or ``None`` if no result arrives.
         """
 
         reasoning_so_far = ""
@@ -483,7 +535,7 @@ class Assistant:
             message_history=message_history,
             usage_limits=UsageLimits(request_limit=200),
             toolsets=[self._toolset],
-            model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
+            model_settings=self._model_profile.get_settings(ORCHESTRATOR),
         ) as events:
             async for event in events:
                 if isinstance(event, AgentRunResultEvent):
@@ -583,6 +635,22 @@ class Assistant:
     async def astream_messages(
         self, message: HumanMessage
     ) -> AsyncGenerator[AssistantMessageUnion, None]:
+        """Stream one assistant run and close its provider-owned client.
+
+        :param message: The new human message and its UI context.
+        :yield: Assistant events in response order.
+        """
+
+        async with self._model:
+            async with aclosing(
+                self._astream_messages_in_model_context(message)
+            ) as events:
+                async for event in events:
+                    yield event
+
+    async def _astream_messages_in_model_context(
+        self, message: HumanMessage
+    ) -> AsyncGenerator[AssistantMessageUnion, None]:
         """Stream the full response lifecycle for a user message.
 
         Yields events in order: ``AiStartedMessage``, zero or more
@@ -590,6 +658,12 @@ class Assistant:
         ``AiThinkingMessage``), and finally an ``AiMessage`` with the
         persisted answer. A ``ChatTitleMessage`` is appended on the first
         message in a chat.
+
+        :param message: The new human message and its UI context.
+        :yield: Assistant events in response order.
+        :return: An async generator of assistant events in response order.
+        :raises Exception: If the agent reports an execution error.
+        :raises AssistantMessageCancelled: If the assistant run is cancelled.
         """
 
         # Sticky task: capture on first message of the session

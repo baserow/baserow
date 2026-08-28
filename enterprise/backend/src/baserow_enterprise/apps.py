@@ -406,6 +406,12 @@ class BaserowEnterpriseConfig(AppConfig):
         page_registry.register(RestrictedViewPageType())
         view_realtime_rows_registry.register(RestrictedViewRealtimeRowsType())
 
+        from baserow.core.ai_provider.registries import (
+            ai_provider_model_feature_type_registry,
+        )
+        from baserow_enterprise.assistant.ai_provider_feature_types import (
+            KumaAIProviderModelFeatureType,
+        )
         from baserow_enterprise.assistant.tools.automation.tool_types import (
             AutomationToolType,
         )
@@ -425,6 +431,17 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
             SearchDocsToolType,
         )
+
+        ai_provider_model_feature_type_registry.register(
+            KumaAIProviderModelFeatureType()
+        )
+
+        from baserow.api.settings.registries import settings_data_registry
+        from baserow_enterprise.api.assistant.settings_data_types import (
+            KumaSettingsDataType,
+        )
+
+        settings_data_registry.register(KumaSettingsDataType())
 
         assistant_tool_registry.register(NavigationToolType())
         assistant_tool_registry.register(CoreToolType())

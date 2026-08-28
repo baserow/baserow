@@ -1,4 +1,5 @@
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
+import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 
 describe('Test enterprise Baserow plugin', () => {
   const app = {
@@ -10,6 +11,21 @@ describe('Test enterprise Baserow plugin', () => {
     scripts: [],
     custom_code: { css: '', js: '' },
     ...overrides,
+  })
+
+  test('only mounts the assistant panel where Kuma is effectively enabled', () => {
+    const plugin = new EnterprisePlugin({ app })
+
+    expect(
+      plugin.getRightSidebarWorkspaceComponents({
+        ai_features: { kuma: { is_enabled: true } },
+      })
+    ).toEqual([AssistantPanel])
+    expect(
+      plugin.getRightSidebarWorkspaceComponents({
+        ai_features: { kuma: { is_enabled: false } },
+      })
+    ).toEqual([])
   })
 
   // Regression test for the custom CSS/JS injection ordering. unhead v2 (pulled

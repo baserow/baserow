@@ -17,6 +17,7 @@ from pydantic_ai.usage import UsageLimits
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import _get_workspace_license_type
 from baserow_enterprise.assistant.deps import AssistantDeps, ToolHelpers
+from baserow_enterprise.assistant.model_profiles import resolve_assistant_model
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.types import (
     ApplicationUIContext,
@@ -194,17 +195,23 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
 
     :param model: Override the LLM model string. Falls back to
         ``get_eval_model()`` (i.e. the ``EVAL_LLM_MODEL`` env var).
+    :param user: The user whose permissions and tools the eval should exercise.
+    :param workspace: The workspace scope for the eval.
+    :param max_iters: The maximum number of model requests in the eval run.
+    :return: The agent, deps, tracker, concrete model, usage limits, and toolset.
     """
-    from django.conf import settings
-
-    tool_helpers = ToolHelpers(lambda x: None, lambda x: None)
     tracker = EvalToolTracker()
-    model = model or get_eval_model()
-
-    # Ensure sub-agents (e.g. formula_agent) also use the eval model.
-    # get_model_string() does .replace("/", ":", 1) on the setting value,
-    # so store in "/" format (e.g. "groq/openai/gpt-oss-120b").
-    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = model.replace(":", "/", 1)
+    model_name = model or get_eval_model()
+    model_profile = resolve_assistant_model(
+        workspace=workspace,
+        model=model_name,
+    )
+    resolved_model = model_profile.create_model()
+    tool_helpers = ToolHelpers(
+        lambda x: None,
+        lambda x: None,
+        model_profile=model_profile,
+    )
 
     deps = AssistantDeps(
         user=user,
@@ -215,7 +222,13 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
 
     # Build the single-agent toolset (navigation + core + database + automation)
     toolset, db_manifest, app_manifest, auto_manifest, explain_manifest = (
-        assistant_tool_registry.build_toolset(user, workspace, model, deps)
+        assistant_tool_registry.build_toolset(
+            user=user,
+            workspace=workspace,
+            model=resolved_model,
+            model_name=model_profile.model_string,
+            deps=deps,
+        )
     )
     deps.database_manifest = db_manifest
     deps.application_manifest = app_manifest
@@ -223,7 +236,7 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
     deps.explain_manifest = explain_manifest
     usage_limits = UsageLimits(request_limit=max_iters)
 
-    return main_agent, deps, tracker, model, usage_limits, toolset
+    return main_agent, deps, tracker, resolved_model, usage_limits, toolset
 
 
 def get_tool_call_sequence(result) -> list[str]:

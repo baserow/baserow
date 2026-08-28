@@ -23,6 +23,16 @@ export class GenerativeAIModelType extends Registerable {
   }
 
   /**
+   * Returns whether this provider can be configured through legacy workspace
+   * settings. Database-backed provider forms do not use this value.
+   *
+   * @returns {boolean} Whether legacy workspace settings support this provider.
+   */
+  supportsLegacyWorkspaceSettings() {
+    return true
+  }
+
+  /**
    * Returns an array of objects that define the settings for workspace
    * Generative AI and integration overrides. The array can be empty if
    * the model type is not configurable.
@@ -190,7 +200,7 @@ export class MistralModelType extends GenerativeAIModelType {
   }
 
   getOrder() {
-    return 30
+    return 50
   }
 
   canPromptWithFiles() {
@@ -238,7 +248,7 @@ export class OllamaModelType extends GenerativeAIModelType {
   }
 
   getOrder() {
-    return 40
+    return 60
   }
 
   getMaxTemperature() {
@@ -289,6 +299,90 @@ export class OpenRouterModelType extends GenerativeAIModelType {
   }
 
   getOrder() {
-    return 50
+    return 70
+  }
+}
+
+export class GoogleModelType extends GenerativeAIModelType {
+  static getType() {
+    return 'google'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('generativeAIModelType.google')
+  }
+
+  supportsLegacyWorkspaceSettings() {
+    return false
+  }
+
+  getSettings() {
+    const { $i18n: i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.googleApiKeyLabel'),
+        description: i18n.t('generativeAIModelType.googleApiKeyDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.googleModelsLabel'),
+        i18n.t('generativeAIModelType.googleModelsDescription')
+      ),
+    ]
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.googleModelIdentifierDescription'
+    )
+  }
+
+  canPromptWithFiles() {
+    return true
+  }
+
+  getOrder() {
+    return 30
+  }
+}
+
+export class GroqModelType extends GenerativeAIModelType {
+  static getType() {
+    return 'groq'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('generativeAIModelType.groq')
+  }
+
+  supportsLegacyWorkspaceSettings() {
+    return false
+  }
+
+  getSettings() {
+    const { $i18n: i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.groqApiKeyLabel'),
+        description: i18n.t('generativeAIModelType.groqApiKeyDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.groqModelsLabel'),
+        i18n.t('generativeAIModelType.groqModelsDescription')
+      ),
+    ]
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.groqModelIdentifierDescription'
+    )
+  }
+
+  getOrder() {
+    return 40
   }
 }

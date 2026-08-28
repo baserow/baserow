@@ -9,7 +9,7 @@ individual tool groups can be gated on permissions or feature flags.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from pydantic_ai.toolsets import AbstractToolset, CombinedToolset
 
@@ -78,7 +78,8 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         self,
         user: "AbstractUser",
         workspace: "Workspace",
-        model: str,
+        model: Any,
+        model_name: str,
         deps: "AssistantDeps",
     ) -> tuple[AbstractToolset, str, str, str, str]:
         """
@@ -86,7 +87,8 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
 
         :param user: The requesting user.
         :param workspace: The current workspace.
-        :param model: The pydantic-ai model string.
+        :param model: The resolved pydantic-ai model.
+        :param model_name: The provider-prefixed model identifier used for profiles.
         :param deps: The assistant deps (used for mode-aware filtering).
         :return: ``(toolset, database_manifest, application_manifest,
             automation_manifest, explain_manifest)``.
@@ -163,7 +165,7 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         manifests["explain"] = generate_tool_manifest_compact(explain_groups)
 
         return (
-            InlineRefsToolset(mode_aware, model=model),
+            InlineRefsToolset(mode_aware, model=model, model_name=model_name),
             manifests["database"],
             manifests["application"],
             manifests["automation"],

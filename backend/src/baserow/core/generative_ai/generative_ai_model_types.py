@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import re
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
 from django.conf import settings
 
+from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.models import Workspace
 
 from .registries import FileHandler, GenerativeAIModelType, get_known_model_names
@@ -15,6 +17,46 @@ if TYPE_CHECKING:
 
 _IMAGE_EXTENSIONS = {".gif", ".jpg", ".jpeg", ".png", ".webp"}
 _TEXT_EXTENSIONS = {".csv", ".html", ".json", ".md", ".txt", ".tex"}
+_GOOGLE_DISCOVERY_EXCLUDED_MODELS = {
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.5-flash-preview-09-2025",
+    "gemini-3-pro-preview",
+}
+_GROQ_DISCOVERY_EXCLUDED_MODELS = {
+    # Retired for Groq's free and developer tiers on 2026-08-16. Customers
+    # with a committed-spend agreement can still enter these IDs manually.
+    "llama-3.1-8b-instant",
+    "llama-3.3-70b-versatile",
+}
+_GOOGLE_SAMPLING_SETTINGS = {"temperature", "top_p", "top_k"}
+_GOOGLE_MODEL_VERSION_PATTERN = re.compile(
+    r"^gemini-(?P<major>\d+)(?:\.(?P<minor>\d+))?"
+)
+
+
+def google_model_requires_default_sampling(model_name: str) -> bool:
+    """Return whether Gemini requires its provider-default sampling settings."""
+
+    identifier = model_name.rsplit("/", 1)[-1].lower()
+    match = _GOOGLE_MODEL_VERSION_PATTERN.match(identifier)
+    if match is not None:
+        return int(match.group("major")) >= 3
+    return identifier.endswith("-latest")
+
+
+def sanitize_google_model_settings(
+    model_name: str, model_settings: dict[str, Any]
+) -> dict[str, Any]:
+    """Strip sampling parameters unsupported by current/future Gemini models."""
+
+    if not google_model_requires_default_sampling(model_name):
+        return model_settings
+    return {
+        key: value
+        for key, value in model_settings.items()
+        if key not in _GOOGLE_SAMPLING_SETTINGS
+    }
 
 
 class EmbedOnlyFileHandler(FileHandler):
@@ -23,6 +65,15 @@ class EmbedOnlyFileHandler(FileHandler):
 
     _EMBEDDABLE_EXTENSIONS = _IMAGE_EXTENSIONS | {".pdf"}
     _INLINEABLE_EXTENSIONS = _TEXT_EXTENSIONS
+
+
+class GoogleFileHandler(EmbedOnlyFileHandler):
+    """Inline Gemini files with headroom for base64 and the rest of the request."""
+
+    # Gemini inline image requests must stay below 20 MB including base64-encoded
+    # files, prompts, and system instructions. Apply the conservative cumulative
+    # raw-byte budget to PDFs too so mixed image/document requests remain safe.
+    _MAX_EMBED_PAYLOAD_BYTES = 14 * 1024 * 1024
 
 
 class OpenAIFileHandler(FileHandler):
@@ -97,8 +148,10 @@ class OpenAIFileHandler(FileHandler):
         from pydantic_ai import UploadedFile
 
         data = ai_file.read_content()
-        client = self._get_upload_client(workspace, settings_override)
-        uploaded = client.files.create(file=(ai_file.name, data), purpose="user_data")
+        with self._get_upload_client(workspace, settings_override) as client:
+            uploaded = client.files.create(
+                file=(ai_file.name, data), purpose="user_data"
+            )
         ai_file.provider_file_id = uploaded.id
         ai_file.content = UploadedFile(
             file_id=uploaded.id,
@@ -113,8 +166,8 @@ class OpenAIFileHandler(FileHandler):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> None:
-        client = self._get_upload_client(workspace, settings_override)
-        client.files.delete(ai_file.provider_file_id)
+        with self._get_upload_client(workspace, settings_override) as client:
+            client.files.delete(ai_file.provider_file_id)
 
 
 class AnthropicFileHandler(FileHandler):
@@ -160,8 +213,8 @@ class AnthropicFileHandler(FileHandler):
         from pydantic_ai import UploadedFile
 
         data = ai_file.read_content()
-        client = self._get_sync_client(workspace, settings_override)
-        uploaded = client.beta.files.upload(file=(ai_file.name, data))
+        with self._get_sync_client(workspace, settings_override) as client:
+            uploaded = client.beta.files.upload(file=(ai_file.name, data))
         ai_file.provider_file_id = uploaded.id
         ai_file.content = UploadedFile(
             file_id=uploaded.id,
@@ -176,8 +229,8 @@ class AnthropicFileHandler(FileHandler):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> None:
-        client = self._get_sync_client(workspace, settings_override)
-        client.beta.files.delete(ai_file.provider_file_id)
+        with self._get_sync_client(workspace, settings_override) as client:
+            client.beta.files.delete(ai_file.provider_file_id)
 
 
 # ---------------------------------------------------------------------------
@@ -190,9 +243,10 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> Optional[str]:
         configured, value = self.get_configured_setting(
-            workspace, "api_key", settings_override
+            workspace, "api_key", settings_override, state=state
         )
         return value if configured else settings.BASEROW_OPENAI_API_KEY
 
@@ -200,9 +254,11 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> list[str]:
         configured, value = self.get_configured_setting(
-            workspace, "models", settings_override
+            workspace, "models", settings_override, feature_type, state
         )
         return value if configured else settings.BASEROW_OPENAI_MODELS
 
@@ -229,19 +285,15 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Any:
-        from openai import AsyncOpenAI
         from pydantic_ai.models.openai import OpenAIResponsesModel
         from pydantic_ai.providers.openai import OpenAIProvider
 
         api_key = self.get_api_key(workspace, settings_override)
         organization = self.get_organization(workspace, settings_override)
         base_url = self.get_base_url(workspace, settings_override)
-        client = AsyncOpenAI(
-            api_key=api_key, organization=organization, base_url=base_url
-        )
-        return OpenAIResponsesModel(
-            model_name, provider=OpenAIProvider(openai_client=client)
-        )
+        provider = OpenAIProvider(api_key=api_key, base_url=base_url)
+        provider.client.organization = organization
+        return OpenAIResponsesModel(model_name, provider=provider)
 
     def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import BaseOpenAISettingsSerializer
@@ -290,9 +342,10 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> Optional[str]:
         configured, value = self.get_configured_setting(
-            workspace, "api_key", settings_override
+            workspace, "api_key", settings_override, state=state
         )
         return value if configured else settings.BASEROW_ANTHROPIC_API_KEY
 
@@ -300,9 +353,11 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> list[str]:
         configured, value = self.get_configured_setting(
-            workspace, "models", settings_override
+            workspace, "models", settings_override, feature_type, state
         )
         return value if configured else settings.BASEROW_ANTHROPIC_MODELS
 
@@ -339,6 +394,141 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
         return AnthropicSettingsSerializer
 
 
+class GoogleGenerativeAIModelType(GenerativeAIModelType):
+    type = "google"
+    supports_legacy_workspace_settings = False
+
+    @cached_property
+    def file_handler(self) -> GoogleFileHandler:
+        return GoogleFileHandler()
+
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> Optional[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "api_key", settings_override, state=state
+        )
+        return value if configured else None
+
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> list[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "models", settings_override, feature_type, state
+        )
+        return value if configured else []
+
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from pydantic_ai.models.google import GoogleModel
+        from pydantic_ai.providers.google import GoogleProvider
+
+        api_key = self.get_api_key(workspace, settings_override)
+        if not api_key:
+            raise ValueError("A Google Gemini API key is required.")
+        return GoogleModel(
+            model_name,
+            provider=GoogleProvider(api_key=api_key),
+        )
+
+    def get_known_models(self) -> list[str]:
+        from pydantic_ai.models.google import GoogleModelName
+
+        return [
+            name
+            for name in get_known_model_names(GoogleModelName)
+            if "-image" not in name and name not in _GOOGLE_DISCOVERY_EXCLUDED_MODELS
+        ]
+
+    def prepare_model_settings(
+        self, model: str, temperature: Optional[float] = None
+    ) -> dict[str, Any]:
+        return self.sanitize_model_settings(
+            model, super().prepare_model_settings(model, temperature)
+        )
+
+    def sanitize_model_settings(
+        self, model: str, model_settings: dict[str, Any]
+    ) -> dict[str, Any]:
+        return sanitize_google_model_settings(model, model_settings)
+
+    def get_settings_serializer(self) -> type:
+        from baserow.api.generative_ai.serializers import GoogleSettingsSerializer
+
+        return GoogleSettingsSerializer
+
+
+class GroqGenerativeAIModelType(GenerativeAIModelType):
+    type = "groq"
+    supports_legacy_workspace_settings = False
+
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> Optional[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "api_key", settings_override, state=state
+        )
+        return value if configured else None
+
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> list[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "models", settings_override, feature_type, state
+        )
+        return value if configured else []
+
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from pydantic_ai.models.groq import GroqModel
+        from pydantic_ai.providers.groq import GroqProvider
+
+        api_key = self.get_api_key(workspace, settings_override)
+        if not api_key:
+            raise ValueError("A Groq API key is required.")
+        return GroqModel(model_name, provider=GroqProvider(api_key=api_key))
+
+    def get_known_models(self) -> list[str]:
+        from pydantic_ai.models.groq import ProductionGroqModelNames
+
+        return [
+            name
+            for name in get_known_model_names(ProductionGroqModelNames)
+            if name not in _GROQ_DISCOVERY_EXCLUDED_MODELS
+            and not any(
+                category in name
+                for category in ("whisper", "playai-tts", "guard", "safeguard")
+            )
+        ]
+
+    def get_settings_serializer(self) -> type:
+        from baserow.api.generative_ai.serializers import GroqSettingsSerializer
+
+        return GroqSettingsSerializer
+
+
 class MistralGenerativeAIModelType(GenerativeAIModelType):
     # https://docs.mistral.ai/capabilities/vision/
     type = "mistral"
@@ -351,9 +541,10 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> Optional[str]:
         configured, value = self.get_configured_setting(
-            workspace, "api_key", settings_override
+            workspace, "api_key", settings_override, state=state
         )
         return value if configured else settings.BASEROW_MISTRAL_API_KEY
 
@@ -361,9 +552,11 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> list[str]:
         configured, value = self.get_configured_setting(
-            workspace, "models", settings_override
+            workspace, "models", settings_override, feature_type, state
         )
         return value if configured else settings.BASEROW_MISTRAL_MODELS
 
@@ -409,9 +602,10 @@ class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> Optional[str]:
         configured, value = self.get_configured_setting(
-            workspace, "host", settings_override
+            workspace, "host", settings_override, state=state
         )
         return value if configured else settings.BASEROW_OLLAMA_HOST
 
@@ -419,6 +613,7 @@ class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> str:
         return "ollama"
 
@@ -441,9 +636,11 @@ class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> list[str]:
         configured, value = self.get_configured_setting(
-            workspace, "models", settings_override
+            workspace, "models", settings_override, feature_type, state
         )
         return value if configured else settings.BASEROW_OLLAMA_MODELS
 
@@ -451,10 +648,11 @@ class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> bool:
-        host = self.get_host(workspace, settings_override)
+        host = self.get_host(workspace, settings_override, state)
         return bool(host) and bool(
-            self.get_enabled_models(workspace, settings_override)
+            self.call_get_enabled_models(workspace, settings_override, state=state)
         )
 
     def get_ai_model(
@@ -492,9 +690,10 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> Optional[str]:
         configured, value = self.get_configured_setting(
-            workspace, "api_key", settings_override
+            workspace, "api_key", settings_override, state=state
         )
         return value if configured else settings.BASEROW_OPENROUTER_API_KEY
 
@@ -502,9 +701,11 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> list[str]:
         configured, value = self.get_configured_setting(
-            workspace, "models", settings_override
+            workspace, "models", settings_override, feature_type, state
         )
         return value if configured else settings.BASEROW_OPENROUTER_MODELS
 
@@ -531,20 +732,14 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Any:
-        from openai import AsyncOpenAI
         from pydantic_ai.models.openai import OpenAIChatModel
         from pydantic_ai.providers.openrouter import OpenRouterProvider
 
         api_key = self.get_api_key(workspace, settings_override)
         organization = self.get_organization(workspace, settings_override)
-        client = AsyncOpenAI(
-            api_key=api_key,
-            organization=organization,
-            base_url="https://openrouter.ai/api/v1",
-        )
-        return OpenAIChatModel(
-            model_name, provider=OpenRouterProvider(openai_client=client)
-        )
+        provider = OpenRouterProvider(api_key=api_key)
+        provider.client.organization = organization
+        return OpenAIChatModel(model_name, provider=provider)
 
     def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import OpenRouterSettingsSerializer

@@ -355,7 +355,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         ai_field_output_registry.get(ai_output_type)
         if ai_type is not None:
             ai_type = generative_ai_model_type_registry.get(ai_type)
-            models = ai_type.get_enabled_models(workspace=workspace)
+            from baserow.core.ai_provider.constants import (
+                AI_PROVIDER_FEATURE_AI_FIELDS,
+            )
+
+            models = ai_type.get_enabled_models_for_feature(
+                AI_PROVIDER_FEATURE_AI_FIELDS, workspace=workspace
+            )
             if model_type not in models:
                 raise ModelDoesNotBelongToType(model_name=model_type)
         if ai_file_field_id is not None and not ai_type.supports_files:

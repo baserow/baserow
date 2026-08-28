@@ -31,6 +31,7 @@ from baserow.core.actions import (
     OrderApplicationsActionType,
     UpdateApplicationActionType,
 )
+from baserow.core.ai_provider.resolution import load_ai_provider_state
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
@@ -90,10 +91,12 @@ class AllApplicationsView(APIView):
             )
             all_applications += list(workspace_applications_qs.order_by("order", "id"))
 
+        context = {
+            "request": request,
+            "ai_provider_states": load_ai_provider_state(workspaces),
+        }
         data = [
-            PolymorphicApplicationResponseSerializer(
-                application, context={"request": request}
-            ).data
+            PolymorphicApplicationResponseSerializer(application, context=context).data
             for application in all_applications
         ]
 
@@ -152,10 +155,12 @@ class ApplicationsView(APIView):
             request.user, workspace
         )
 
+        context = {
+            "request": request,
+            "ai_provider_states": load_ai_provider_state([workspace]),
+        }
         data = [
-            PolymorphicApplicationResponseSerializer(
-                application, context={"request": request}
-            ).data
+            PolymorphicApplicationResponseSerializer(application, context=context).data
             for application in applications
         ]
 

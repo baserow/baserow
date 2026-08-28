@@ -59,6 +59,48 @@ const answer = async (wrapper, value) => {
 
 const stepType = new AIDatabaseOnboardingStepType({})
 
+const makeStepType = ({ providersEnabled, legacyModel = '', kuma } = {}) =>
+  new AIDatabaseOnboardingStepType({
+    app: {
+      $featureFlagIsEnabled: () => providersEnabled,
+      $config: {
+        public: { baserowEnterpriseAssistantLlmModel: legacyModel },
+      },
+      $store: { getters: { 'settings/get': { kuma } } },
+    },
+  })
+
+describe('AI database onboarding visibility', () => {
+  test('is visible for a database-only Kuma selection', () => {
+    const type = makeStepType({
+      providersEnabled: true,
+      kuma: { is_enabled: true },
+    })
+
+    expect(type.isVisible()).toBe(true)
+  })
+
+  test('respects an explicit database-backed disable', () => {
+    const type = makeStepType({
+      providersEnabled: true,
+      legacyModel: 'groq:legacy-model',
+      kuma: { is_enabled: false },
+    })
+
+    expect(type.isVisible()).toBe(false)
+  })
+
+  test('uses the legacy model while database providers are disabled', () => {
+    const type = makeStepType({
+      providersEnabled: false,
+      legacyModel: 'groq:legacy-model',
+      kuma: { is_enabled: false },
+    })
+
+    expect(type.isVisible()).toBe(true)
+  })
+})
+
 describe('AI database onboarding form', () => {
   test('asks the two questions one by one before moving on', async () => {
     const wrapper = await mountComponent()

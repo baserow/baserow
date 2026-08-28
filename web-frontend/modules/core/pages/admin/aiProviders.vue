@@ -15,6 +15,10 @@
         </Button>
       </header>
 
+      <AIProviderFeatureSettings
+        v-if="loaded && !loading && !initialLoadFailed"
+      />
+
       <div
         v-if="loading || (!loaded && !initialLoadFailed)"
         class="ai-provider-admin__loading"
@@ -99,6 +103,7 @@ import { useHead } from '#imports'
 import { useNuxtApp } from '#app'
 
 import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
 import AIProviderModelFormModal from '@baserow/modules/core/components/ai/AIProviderModelFormModal'
@@ -107,6 +112,7 @@ export default {
   name: 'AdminAIProviders',
   components: {
     AIProviderConfirmModal,
+    AIProviderFeatureSettings,
     AIProviderFormModal,
     AIProviderItem,
     AIProviderModelFormModal,
@@ -306,10 +312,14 @@ export default {
       }
     },
     showActionError(error) {
+      const modelInUse =
+        error.response?.data?.error === 'ERROR_AI_PROVIDER_MODEL_IN_USE'
       this.$store.dispatch('toast/error', {
         title: this.$t('aiProviderAdmin.actionError'),
-        message:
-          error.response?.data?.detail?.message || error.response?.data?.detail,
+        message: modelInUse
+          ? this.$t('aiProviderAdmin.modelInUseError')
+          : error.response?.data?.detail?.message ||
+            error.response?.data?.detail,
       })
     },
   },

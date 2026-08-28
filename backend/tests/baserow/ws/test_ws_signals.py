@@ -316,7 +316,7 @@ def test_workspace_ai_provider_change_stays_inside_the_workspace(
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.ws.tasks.broadcast_to_users_individual_payloads")
+@patch("baserow.ws.tasks.broadcast_to_users")
 @pytest.mark.websockets
 def test_workspace_provider_metadata_update_skips_model_availability(
     mock_broadcast,
@@ -341,15 +341,15 @@ def test_workspace_provider_metadata_update_skips_model_availability(
             api_key="new-secret",
         )
 
-    payload_map = mock_broadcast.call_args.args[0]
-    payload = payload_map[str(user.id)]
+    recipients, payload = mock_broadcast.call_args.args[:2]
+    assert recipients == [user.id]
     assert payload["model_availability_updated"] is False
     assert "generative_ai_models_enabled_by_workspace" not in payload
     assert str(workspace.id) in payload["ai_providers_by_workspace"]
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.ws.tasks.broadcast_to_users_individual_payloads")
+@patch("baserow.ws.tasks.broadcast_to_users")
 @pytest.mark.websockets
 def test_deleting_imported_workspace_provider_broadcasts_fresh_model_availability(
     mock_broadcast, data_fixture, settings
@@ -375,10 +375,11 @@ def test_deleting_imported_workspace_provider_broadcasts_fresh_model_availabilit
     with transaction.atomic():
         AIProviderService.delete_provider(user, provider.id, workspace_id=workspace.id)
 
-    payload_map = mock_broadcast.call_args.args[0]
-    enabled_models = payload_map[str(user.id)][
-        "generative_ai_models_enabled_by_workspace"
-    ][str(workspace.id)]
+    recipients, payload = mock_broadcast.call_args.args[:2]
+    assert recipients == [user.id]
+    enabled_models = payload["generative_ai_models_enabled_by_workspace"][
+        str(workspace.id)
+    ]
     assert "openai" not in enabled_models
     workspace.refresh_from_db()
     assert "openai" not in workspace.generative_ai_models_settings

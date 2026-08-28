@@ -3,13 +3,21 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_FEATURE_KUMA,
+    AI_PROVIDER_FEATURE_MODE_MODEL,
+)
+from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import (
     AIProviderConfig,
     AIProviderModel,
     AIProviderWorkspaceOverride,
 )
+from baserow.core.ai_provider.resolution import get_ai_provider_state
 from baserow.core.cache import local_cache
 from baserow.core.generative_ai.generative_ai_model_types import (
+    GoogleGenerativeAIModelType,
+    GroqGenerativeAIModelType,
     OpenAIGenerativeAIModelType,
 )
 
@@ -29,6 +37,19 @@ def test_database_provider_is_ignored_while_feature_flag_is_disabled(settings):
     model_type = OpenAIGenerativeAIModelType()
     assert model_type.get_api_key() == "environment-key"
     assert model_type.get_enabled_models() == ["environment-model"]
+
+
+@pytest.mark.parametrize(
+    "model_type_class",
+    [GoogleGenerativeAIModelType, GroqGenerativeAIModelType],
+)
+def test_google_and_groq_have_no_environment_fallbacks(settings, model_type_class):
+    settings.FEATURE_FLAGS = []
+
+    model_type = model_type_class()
+
+    assert model_type.get_api_key() is None
+    assert model_type.get_enabled_models() == []
 
 
 @pytest.mark.django_db
@@ -61,7 +82,41 @@ def test_database_provider_is_authoritative_when_enabled(settings):
 
 
 @pytest.mark.django_db
-def test_database_provider_resolution_is_cached_per_request(settings):
+def test_models_can_be_reserved_for_individual_ai_features(settings):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="database-key"
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="shared-model",
+        feature_types=["ai_fields", "kuma"],
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="kuma-only-model",
+        feature_types=["kuma"],
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="ai-field-only-model",
+        feature_types=["ai_fields"],
+    )
+
+    model_type = OpenAIGenerativeAIModelType()
+
+    assert model_type.get_enabled_models(feature_type="ai_fields") == [
+        "shared-model",
+        "ai-field-only-model",
+    ]
+    assert model_type.get_enabled_models(feature_type="kuma") == [
+        "shared-model",
+        "kuma-only-model",
+    ]
+
+
+@pytest.mark.django_db
+def test_one_loaded_state_answers_every_question_without_more_queries(settings):
     settings.FEATURE_FLAGS = ["ai-providers"]
     provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="database-key"
@@ -71,12 +126,64 @@ def test_database_provider_resolution_is_cached_per_request(settings):
     )
     model_type = OpenAIGenerativeAIModelType()
 
-    with local_cache.context(), CaptureQueriesContext(connection) as queries:
-        assert model_type.get_api_key() == "database-key"
-        assert model_type.get_enabled_models() == ["database-model"]
-        assert model_type.get_api_key() == "database-key"
+    with CaptureQueriesContext(connection) as load_queries:
+        state = get_ai_provider_state()
 
-    assert len(queries) == 2
+    with CaptureQueriesContext(connection) as resolve_queries:
+        assert model_type.get_api_key(state=state) == "database-key"
+        assert model_type.get_enabled_models(state=state) == ["database-model"]
+        assert model_type.get_api_key(state=state) == "database-key"
+
+    assert len(load_queries) == 3
+    assert len(resolve_queries) == 0
+
+
+@pytest.mark.django_db
+def test_provider_state_reflects_handler_mutations(data_fixture, settings):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    workspace = data_fixture.create_workspace()
+
+    assert get_ai_provider_state(workspace).instance_providers == {}
+
+    provider = AIProviderHandler.create_provider("openai", api_key="instance-key")
+    state = get_ai_provider_state(workspace)
+    assert state.instance_providers["openai"].id == provider.id
+
+    model = AIProviderHandler.create_model(
+        provider,
+        model_identifier="kuma-model",
+        feature_types=[AI_PROVIDER_FEATURE_KUMA],
+    )
+    state = get_ai_provider_state(workspace)
+    assert [
+        m.model_identifier for m in state.instance_providers["openai"].models.all()
+    ] == ["kuma-model"]
+
+    AIProviderHandler.set_workspace_provider_enabled(
+        workspace, provider, is_enabled=False
+    )
+    assert (
+        provider.id in get_ai_provider_state(workspace).disabled_instance_provider_ids
+    )
+    AIProviderHandler.set_workspace_provider_enabled(
+        workspace, provider, is_enabled=True
+    )
+    assert (
+        provider.id
+        not in get_ai_provider_state(workspace).disabled_instance_provider_ids
+    )
+
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        model=model,
+    )
+    assert (
+        get_ai_provider_state(workspace)
+        .get_instance_feature_setting(AI_PROVIDER_FEATURE_KUMA)
+        .model_id
+        == model.id
+    )
 
 
 @pytest.mark.django_db
@@ -305,3 +412,26 @@ def test_disabled_inherited_provider_does_not_fall_back_to_environment(
 
     assert model_type.get_api_key(workspace) is None
     assert model_type.get_enabled_models(workspace) == []
+
+
+@pytest.mark.django_db
+def test_single_scope_state_is_cached_for_the_local_request(data_fixture, settings):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.BASEROW_USE_LOCAL_CACHE = True
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="database-key"
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="database-model"
+    )
+
+    with local_cache.context():
+        with CaptureQueriesContext(connection) as first_load_queries:
+            first_state = get_ai_provider_state(workspace)
+        with CaptureQueriesContext(connection) as repeated_load_queries:
+            repeated_state = get_ai_provider_state(workspace)
+
+    assert len(first_load_queries) == 4
+    assert len(repeated_load_queries) == 0
+    assert repeated_state is first_state

@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 
+from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
 from baserow_enterprise.assistant.model_profiles import (
     SUGGESTIONS,
-    get_model_settings,
-    get_model_string,
+    ResolvedAssistantModelProfile,
+    resolve_assistant_model,
 )
-from baserow_enterprise.assistant.retrying_model import RetryingModel
 
 ONBOARDING_SUGGESTIONS_INSTRUCTIONS = """\
 <identity>
@@ -57,6 +57,7 @@ def generate_onboarding_prompt_suggestions(
     team: str,
     language: str,
     amount: int = 4,
+    model_profile: ResolvedAssistantModelProfile | None = None,
 ) -> list[OnboardingPromptSuggestion]:
     """
     Asks the language model for `amount` database ideas tailored to the answers
@@ -66,6 +67,7 @@ def generate_onboarding_prompt_suggestions(
     :param team: The team the user is part of.
     :param language: ISO 639-1 code the suggestions must be written in.
     :param amount: How many suggestions to ask for.
+    :param model_profile: The model resolution already checked for this request.
     :return: The suggestions, most useful first.
     """
 
@@ -77,10 +79,12 @@ def generate_onboarding_prompt_suggestions(
         f"'{language}'."
     )
 
-    model_string = get_model_string()
-    result = onboarding_suggestions_agent.run_sync(
+    model_profile = model_profile or resolve_assistant_model()
+    model = model_profile.create_model()
+    result = run_agent_sync_with_model(
+        onboarding_suggestions_agent,
         user_prompt,
-        model=RetryingModel(model_string),
-        model_settings=get_model_settings(model_string, SUGGESTIONS),
+        model=model,
+        model_settings=model_profile.get_settings(SUGGESTIONS),
     )
     return result.output.suggestions[:amount]

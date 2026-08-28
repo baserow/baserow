@@ -63,9 +63,11 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   getRightSidebarWorkspaceComponents(workspace) {
-    const rightSidebarItems = []
-    rightSidebarItems.push(AssistantPanel)
-    return rightSidebarItems
+    const legacyConfigured =
+      !!this.app.$config.public.baserowEnterpriseAssistantLlmModel
+    const isConfigured =
+      workspace.ai_features?.kuma?.is_enabled ?? legacyConfigured
+    return isConfigured ? [AssistantPanel] : []
   }
 
   getGridViewFieldTypeIconsBefore(workspace, view, field) {

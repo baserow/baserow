@@ -882,5 +882,9 @@
   },
   "assistantOnboardingMessage": {
     "instructing": "Instructing Kuma to create your database."
+  },
+  "aiProviderModelFeature": {
+    "kuma": "Kuma",
+    "kumaDescription": "Power the Kuma AI assistant."
   }
 }

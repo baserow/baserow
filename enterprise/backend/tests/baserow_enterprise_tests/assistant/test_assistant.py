@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 from django.test.utils import override_settings
 
@@ -11,14 +12,32 @@ from asgiref.sync import async_to_sync
 from pydantic_ai.messages import PartStartEvent
 from pydantic_ai.messages import TextPart as PaiTextPart
 
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_FEATURE_KUMA,
+    AI_PROVIDER_FEATURE_MODE_DISABLED,
+    AI_PROVIDER_FEATURE_MODE_MODEL,
+)
+from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow_enterprise.assistant.agents import dynamic_license_tier
 from baserow_enterprise.assistant.assistant import (
     Assistant,
     _get_workspace_license_type,
     compact_message_history,
-    get_model_string,
 )
 from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.exceptions import (
+    AssistantConfiguredModelNotAvailableError,
+    AssistantModelDisabledError,
+    AssistantModelNotSupportedError,
+)
+from baserow_enterprise.assistant.model_profiles import (
+    _clear_process_local_model_readiness_cache,
+    check_lm_ready_or_raise,
+    get_assistant_model,
+    get_model_string,
+    resolve_assistant_model,
+)
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.types import (
@@ -36,8 +55,6 @@ from baserow_enterprise.assistant.types import (
     WorkspaceUIContext,
 )
 
-TEST_MODEL = "groq:test-model"
-
 
 @pytest.fixture(autouse=True)
 def mock_posthog():
@@ -49,6 +66,79 @@ def mock_posthog():
 @pytest.fixture(autouse=True)
 def _set_test_model(settings):
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "groq/test-model"
+
+
+@pytest.fixture
+def scoped_assistant_model(mocker):
+    """Provide Assistant with a model whose async lifecycle can be asserted."""
+
+    model = MagicMock()
+    model.__aenter__.return_value = model
+    model.__aexit__.return_value = None
+    mocker.patch(
+        "baserow_enterprise.assistant.model_profiles."
+        "ResolvedAssistantModelProfile.create_model",
+        return_value=model,
+    )
+    return model
+
+
+def assert_model_scope_closed(model):
+    model.__aenter__.assert_awaited_once_with()
+    model.__aexit__.assert_awaited_once()
+
+
+@pytest.mark.django_db
+def test_assistant_propagates_request_model_profile_to_tool_helpers(
+    enterprise_data_fixture,
+    scoped_assistant_model,
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace)
+    model_profile = resolve_assistant_model(
+        workspace=workspace,
+        model="groq:request-model",
+    )
+
+    assistant = Assistant(chat, model_profile=model_profile)
+
+    assert assistant._tool_helpers.model_profile is model_profile
+
+
+@pytest.mark.asyncio
+async def test_astream_messages_closes_inner_stream_before_model_scope():
+    lifecycle_events = []
+
+    @asynccontextmanager
+    async def model_scope():
+        lifecycle_events.append("model-enter")
+        try:
+            yield
+        finally:
+            lifecycle_events.append("model-exit")
+
+    async def inner_stream(_message):
+        lifecycle_events.append("stream-enter")
+        try:
+            yield AiStartedMessage(message_id="1")
+        finally:
+            lifecycle_events.append("stream-exit")
+
+    assistant = Assistant.__new__(Assistant)
+    assistant._model = model_scope()
+    assistant._astream_messages_in_model_context = inner_stream
+    stream = assistant.astream_messages(HumanMessage(content="Hello"))
+
+    await anext(stream)
+    await stream.aclose()
+
+    assert lifecycle_events == [
+        "model-enter",
+        "stream-enter",
+        "stream-exit",
+        "model-exit",
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -457,7 +547,10 @@ class TestAssistantMessagePersistence:
 
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_persists_human_message(
-        self, mock_run_stream_events, enterprise_data_fixture
+        self,
+        mock_run_stream_events,
+        enterprise_data_fixture,
+        scoped_assistant_model,
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -491,10 +584,14 @@ class TestAssistantMessagePersistence:
             chat=chat, role=AssistantChatMessage.Role.HUMAN
         ).first()
         assert saved_message.content == "Test message"
+        assert_model_scope_closed(scoped_assistant_model)
 
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_persists_ai_message(
-        self, mock_run_stream_events, enterprise_data_fixture
+        self,
+        mock_run_stream_events,
+        enterprise_data_fixture,
+        scoped_assistant_model,
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -523,6 +620,7 @@ class TestAssistantMessagePersistence:
             chat=chat, role=AssistantChatMessage.Role.AI
         ).count()
         assert ai_messages == 1
+        assert_model_scope_closed(scoped_assistant_model)
 
     @patch("baserow_enterprise.assistant.agents.title_agent.run")
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
@@ -531,6 +629,7 @@ class TestAssistantMessagePersistence:
         mock_run_stream_events,
         mock_title_run,
         enterprise_data_fixture,
+        scoped_assistant_model,
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -559,6 +658,7 @@ class TestAssistantMessagePersistence:
 
         chat.refresh_from_db()
         assert chat.title == "Greeting"
+        assert_model_scope_closed(scoped_assistant_model)
 
 
 @pytest.mark.django_db
@@ -567,7 +667,10 @@ class TestAssistantStreaming:
 
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_yields_answer_chunks(
-        self, mock_run_stream_events, enterprise_data_fixture
+        self,
+        mock_run_stream_events,
+        enterprise_data_fixture,
+        scoped_assistant_model,
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -603,11 +706,16 @@ class TestAssistantStreaming:
             if isinstance(m, AiMessageChunk) and not isinstance(m, AiMessage)
         ]
         assert len(chunks) >= 1
+        assert_model_scope_closed(scoped_assistant_model)
 
     @patch("baserow_enterprise.assistant.agents.title_agent.run")
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_yields_title_for_new_chat(
-        self, mock_run_stream_events, mock_title_run, enterprise_data_fixture
+        self,
+        mock_run_stream_events,
+        mock_title_run,
+        enterprise_data_fixture,
+        scoped_assistant_model,
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -635,10 +743,14 @@ class TestAssistantStreaming:
         title_messages = [m for m in messages if isinstance(m, ChatTitleMessage)]
         assert len(title_messages) == 1
         assert title_messages[0].content == "Title"
+        assert_model_scope_closed(scoped_assistant_model)
 
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_yields_thinking_messages(
-        self, mock_run_stream_events, enterprise_data_fixture
+        self,
+        mock_run_stream_events,
+        enterprise_data_fixture,
+        scoped_assistant_model,
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -685,10 +797,14 @@ class TestAssistantStreaming:
 
         assert len(thinking_messages) == 1
         assert thinking_messages[0].content == "still thinking..."
+        assert_model_scope_closed(scoped_assistant_model)
 
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
     def test_astream_messages_yields_ai_started_message(
-        self, mock_run_stream_events, enterprise_data_fixture
+        self,
+        mock_run_stream_events,
+        enterprise_data_fixture,
+        scoped_assistant_model,
     ):
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -714,6 +830,7 @@ class TestAssistantStreaming:
         assert len(messages) > 0
         assert isinstance(messages[0], AiStartedMessage)
         assert messages[0].message_id is not None
+        assert_model_scope_closed(scoped_assistant_model)
 
 
 @pytest.mark.django_db
@@ -937,6 +1054,7 @@ class TestAssistantCancellation:
         assert cache_key == f"assistant:chat:{chat.uuid}:cancelled"
 
 
+@pytest.mark.django_db
 class TestGetModelString:
     """Test the model string conversion logic."""
 
@@ -951,6 +1069,66 @@ class TestGetModelString:
     @override_settings(BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL="gpt-4o")
     def test_bare_model_defaults_to_openai(self):
         assert get_model_string() == "openai:gpt-4o"
+
+    def test_unconfigured_database_feature_keeps_legacy_fallback(
+        self, data_fixture, settings
+    ):
+        settings.FEATURE_FLAGS = ["ai-providers"]
+        settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "groq:legacy-model"
+        workspace = data_fixture.create_workspace()
+
+        assert get_model_string(workspace=workspace) == "groq:legacy-model"
+
+    def test_process_local_readiness_is_cached_per_process_not_globally(self):
+        _clear_process_local_model_readiness_cache()
+        try:
+            with (
+                patch(
+                    "baserow_enterprise.assistant.model_profiles."
+                    "ResolvedAssistantModelProfile.create_model"
+                ) as create_model,
+                patch(
+                    "baserow_enterprise.assistant.model_profiles."
+                    "test_model_text_and_tool_calling"
+                ) as test_model,
+                patch(
+                    "baserow_enterprise.assistant.model_profiles.global_cache.get"
+                ) as global_cache_get,
+            ):
+                check_lm_ready_or_raise()
+                check_lm_ready_or_raise()
+
+            create_model.assert_called_once_with()
+            assert test_model.call_count == 1
+            global_cache_get.assert_not_called()
+        finally:
+            _clear_process_local_model_readiness_cache()
+
+    def test_process_local_readiness_failures_are_briefly_throttled(self):
+        _clear_process_local_model_readiness_cache()
+        try:
+            with (
+                patch(
+                    "baserow_enterprise.assistant.model_profiles."
+                    "ResolvedAssistantModelProfile.create_model"
+                ) as create_model,
+                patch(
+                    "baserow_enterprise.assistant.model_profiles."
+                    "test_model_text_and_tool_calling",
+                    side_effect=RuntimeError("provider unavailable"),
+                ) as test_model,
+            ):
+                for _ in range(2):
+                    with pytest.raises(
+                        AssistantModelNotSupportedError,
+                        match="not supported or accessible",
+                    ):
+                        check_lm_ready_or_raise()
+
+            create_model.assert_called_once_with()
+            test_model.assert_called_once()
+        finally:
+            _clear_process_local_model_readiness_cache()
 
     def test_explicit_model_overrides_setting(self):
         assert get_model_string("groq/custom-model") == "groq:custom-model"
@@ -967,3 +1145,171 @@ class TestGetModelString:
         assert get_model_string("google-vertex:gemini-2.0-flash") == (
             "google-cloud:gemini-2.0-flash"
         )
+
+    def test_uses_instance_model_and_workspace_override(self, data_fixture, settings):
+        settings.FEATURE_FLAGS = ["ai-providers"]
+        workspace = data_fixture.create_workspace()
+        instance_provider = AIProviderConfig.objects.create(
+            provider_type="openai", api_key="instance-key"
+        )
+        instance_model = AIProviderModel.objects.create(
+            provider_config=instance_provider,
+            model_identifier="instance-model",
+            feature_types=[AI_PROVIDER_FEATURE_KUMA],
+        )
+        workspace_provider = AIProviderConfig.objects.create(
+            workspace=workspace,
+            provider_type="anthropic",
+            api_key="workspace-key",
+        )
+        workspace_model = AIProviderModel.objects.create(
+            provider_config=workspace_provider,
+            model_identifier="workspace-model",
+            feature_types=[AI_PROVIDER_FEATURE_KUMA],
+        )
+        AIProviderHandler.update_feature_setting(
+            AI_PROVIDER_FEATURE_KUMA,
+            AI_PROVIDER_FEATURE_MODE_MODEL,
+            model=instance_model,
+        )
+
+        assert get_model_string(workspace=workspace) == "openai:instance-model"
+
+        AIProviderHandler.update_feature_setting(
+            AI_PROVIDER_FEATURE_KUMA,
+            AI_PROVIDER_FEATURE_MODE_MODEL,
+            workspace=workspace,
+            model=workspace_model,
+        )
+        assert get_model_string(workspace=workspace) == "anthropic:workspace-model"
+
+    @pytest.mark.parametrize(
+        ("provider_type", "model_identifier"),
+        [
+            ("google", "gemini-2.5-flash"),
+            ("groq", "openai/gpt-oss-120b"),
+        ],
+    )
+    def test_database_selected_google_and_groq_models_use_database_credentials(
+        self,
+        data_fixture,
+        settings,
+        monkeypatch,
+        provider_type,
+        model_identifier,
+    ):
+        settings.FEATURE_FLAGS = ["ai-providers"]
+        monkeypatch.setenv("GOOGLE_API_KEY", "legacy-kuma-key")
+        monkeypatch.setenv("GROQ_API_KEY", "legacy-kuma-key")
+        workspace = data_fixture.create_workspace()
+        provider = AIProviderConfig.objects.create(
+            provider_type=provider_type, api_key="database-key"
+        )
+        model = AIProviderModel.objects.create(
+            provider_config=provider,
+            model_identifier=model_identifier,
+            feature_types=[AI_PROVIDER_FEATURE_KUMA],
+        )
+        AIProviderHandler.update_feature_setting(
+            AI_PROVIDER_FEATURE_KUMA,
+            AI_PROVIDER_FEATURE_MODE_MODEL,
+            model=model,
+        )
+
+        assistant_model = get_assistant_model(workspace=workspace).wrapped
+
+        assert get_model_string(workspace=workspace) == (
+            f"{provider_type}:{model_identifier}"
+        )
+        assert assistant_model.system == provider_type
+        if provider_type == "google":
+            assert (
+                assistant_model._provider.client._api_client.api_key == "database-key"
+            )
+        else:
+            assert assistant_model._provider.client.api_key == "database-key"
+
+    def test_workspace_can_disable_kuma(self, data_fixture, settings):
+        settings.FEATURE_FLAGS = ["ai-providers"]
+        workspace = data_fixture.create_workspace()
+        AIProviderHandler.update_feature_setting(
+            AI_PROVIDER_FEATURE_KUMA,
+            AI_PROVIDER_FEATURE_MODE_DISABLED,
+            workspace=workspace,
+        )
+
+        with pytest.raises(AssistantModelDisabledError, match="disabled"):
+            get_model_string(workspace=workspace)
+
+    def test_database_model_readiness_failure_has_database_specific_error(
+        self, data_fixture, settings
+    ):
+        settings.FEATURE_FLAGS = ["ai-providers"]
+        workspace = data_fixture.create_workspace()
+        provider = AIProviderConfig.objects.create(
+            provider_type="openai", api_key="database-key"
+        )
+        model = AIProviderModel.objects.create(
+            provider_config=provider,
+            model_identifier="instance-model",
+            feature_types=[AI_PROVIDER_FEATURE_KUMA],
+        )
+        AIProviderHandler.update_feature_setting(
+            AI_PROVIDER_FEATURE_KUMA,
+            AI_PROVIDER_FEATURE_MODE_MODEL,
+            model=model,
+        )
+
+        with patch(
+            "baserow.core.generative_ai.capabilities.Agent.run",
+            side_effect=RuntimeError("provider rejected the request"),
+        ) as run:
+            for _ in range(2):
+                with pytest.raises(
+                    AssistantConfiguredModelNotAvailableError,
+                    match="openai:instance-model",
+                ):
+                    check_lm_ready_or_raise(workspace)
+
+        run.assert_called_once()
+
+    def test_database_model_readiness_is_cached_per_configuration(
+        self, data_fixture, settings
+    ):
+        settings.FEATURE_FLAGS = ["ai-providers"]
+        workspace = data_fixture.create_workspace()
+        provider = AIProviderConfig.objects.create(
+            provider_type="openai", api_key="database-key"
+        )
+        identifier = f"model-{uuid4().hex}"
+        model = AIProviderModel.objects.create(
+            provider_config=provider,
+            model_identifier=identifier,
+            feature_types=[AI_PROVIDER_FEATURE_KUMA],
+        )
+        AIProviderHandler.update_feature_setting(
+            AI_PROVIDER_FEATURE_KUMA,
+            AI_PROVIDER_FEATURE_MODE_MODEL,
+            model=model,
+        )
+
+        with (
+            patch(
+                "baserow_enterprise.assistant.model_profiles."
+                "ResolvedAssistantModelProfile.create_model"
+            ) as create_model,
+            patch(
+                "baserow_enterprise.assistant.model_profiles."
+                "test_model_text_and_tool_calling"
+            ) as test_model,
+        ):
+            check_lm_ready_or_raise(workspace)
+            check_lm_ready_or_raise(workspace)
+
+            model = AIProviderHandler.update_model(
+                model, model_identifier=f"{identifier}-updated"
+            )
+            check_lm_ready_or_raise(workspace)
+
+        assert create_model.call_count == 2
+        assert test_model.call_count == 2

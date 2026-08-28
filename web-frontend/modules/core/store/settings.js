@@ -40,6 +40,9 @@ export const actions = {
       throw e
     }
   },
+  forceUpdateAIFeatures({ commit }, aiFeatures) {
+    commit('UPDATE_SETTINGS', aiFeatures)
+  },
   hideAdminSignupPage({ commit }) {
     commit('HIDE_ADMIN_SIGNUP_PAGE')
   },

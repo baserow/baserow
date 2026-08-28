@@ -10,6 +10,13 @@ from channels.layers import get_channel_layer
 from baserow.config.celery import app
 from baserow.ws.types import ChannelGroupMessage, PayloadMap
 
+# Instance-level provider changes can affect every workspace. Keep both the amount of
+# state resolved by one worker and the number of recipients in one channel-layer
+# message bounded. These are deliberately constants rather than deployment settings:
+# they are safety limits, not product behaviour.
+AI_PROVIDER_UPDATE_WORKSPACE_BATCH_SIZE = 25
+AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE = 250
+
 
 @app.task(bind=True)
 def force_disconnect_users(
@@ -225,93 +232,221 @@ def broadcast_to_users_individual_payloads(
 def broadcast_ai_provider_update(
     self, workspace_id: int | None, model_availability_updated: bool
 ):
-    """Broadcast complete, permission-scoped AI provider state to each user."""
+    """
+    Schedule or send permission-scoped AI provider state updates.
 
-    from django.contrib.auth import get_user_model
+    A workspace-scoped change is handled in this task, as before. An instance-scoped
+    change is fanned out into bounded workspace batches and a separate instance-admin
+    update. This prevents one Celery worker from loading every workspace/member and
+    constructing one unbounded ``payload_map``.
+    """
+
+    from baserow.core.models import Workspace
+    from baserow.core.utils import grouper
+
+    if workspace_id is not None:
+        _broadcast_ai_provider_workspace_updates(
+            [workspace_id], model_availability_updated
+        )
+        return
+
+    # Instance administrators don't need to wait for every workspace id to be read and
+    # queued. Their payload is independent and is recipient-batched by its own task.
+    broadcast_ai_provider_instance_update.delay(model_availability_updated)
+
+    workspace_ids = (
+        Workspace.objects.order_by("id")
+        .values_list("id", flat=True)
+        .iterator(chunk_size=AI_PROVIDER_UPDATE_WORKSPACE_BATCH_SIZE)
+    )
+    for workspace_id_batch in grouper(
+        AI_PROVIDER_UPDATE_WORKSPACE_BATCH_SIZE, workspace_ids
+    ):
+        broadcast_ai_provider_workspace_update_batch.delay(
+            list(workspace_id_batch), model_availability_updated
+        )
+
+
+@app.task(bind=True)
+def broadcast_ai_provider_workspace_update_batch(
+    self, workspace_ids: list[int], model_availability_updated: bool
+):
+    """Broadcast provider updates for one bounded batch of workspaces."""
+
+    if not workspace_ids:
+        return
+
+    _broadcast_ai_provider_workspace_updates(workspace_ids, model_availability_updated)
+
+
+def _broadcast_ai_provider_workspace_updates(
+    workspace_ids: list[int], model_availability_updated: bool
+) -> None:
+    """Render and send one bounded workspace batch without unbounded user lists."""
 
     from baserow.api.ai_provider.serializers import (
-        AIProviderConfigSerializer,
+        AIProviderFeatureSettingSerializer,
         WorkspaceAIProviderConfigSerializer,
     )
     from baserow.core.ai_provider.handler import AIProviderHandler
+    from baserow.core.ai_provider.registries import (
+        ai_provider_model_feature_type_registry,
+    )
+    from baserow.core.ai_provider.resolution import load_ai_provider_state
     from baserow.core.generative_ai.registries import (
         generative_ai_model_type_registry,
     )
     from baserow.core.handler import CoreHandler
     from baserow.core.models import Workspace
     from baserow.core.operations import UpdateWorkspaceOperationType
+    from baserow.core.utils import grouper
 
-    workspaces = list(
-        Workspace.objects.filter(id=workspace_id)
-        if workspace_id is not None
-        else Workspace.objects.all()
-    )
-    workspace_ids = [workspace.id for workspace in workspaces]
-    if model_availability_updated:
-        generative_ai_model_type_registry.prefetch_workspace_configuration(
-            workspace_ids
-        )
+    workspaces = list(Workspace.objects.filter(id__in=workspace_ids).order_by("id"))
+    if not workspaces:
+        return
 
-    payload_map: PayloadMap = {}
-
-    def payload_for(user_id: int) -> dict[str, Any]:
-        return payload_map.setdefault(
-            str(user_id),
-            {
-                "type": "ai_provider_updated",
-                "model_availability_updated": model_availability_updated,
-            },
-        )
+    states = load_ai_provider_state(workspaces)
 
     for workspace in workspaces:
-        workspace_users = [
-            workspace_user.user
-            for workspace_user in workspace.workspaceuser_set.select_related("user")
-        ]
         workspace_key = str(workspace.id)
+        state = states[workspace.id]
 
+        base_payload: dict[str, Any] = {
+            "type": "ai_provider_updated",
+            "model_availability_updated": model_availability_updated,
+        }
         if model_availability_updated:
             enabled_models = (
-                generative_ai_model_type_registry.get_enabled_models_per_type(workspace)
+                generative_ai_model_type_registry.get_enabled_models_per_type(
+                    workspace, state=state
+                )
             )
-            for user in workspace_users:
-                payload_for(user.id).setdefault(
-                    "generative_ai_models_enabled_by_workspace", {}
-                )[workspace_key] = enabled_models
+            ai_features = (
+                ai_provider_model_feature_type_registry.get_workspace_availability(
+                    workspace, state=state
+                )
+            )
+            base_payload["generative_ai_models_enabled_by_workspace"] = {
+                workspace_key: enabled_models
+            }
+            base_payload["ai_features_by_workspace"] = {workspace_key: ai_features}
 
-        permitted_users = CoreHandler().check_permission_for_multiple_actors(
-            workspace_users,
-            UpdateWorkspaceOperationType.type,
-            workspace=workspace,
-            context=workspace,
+        provider_payload: dict[str, Any] | None = None
+        workspace_users = (
+            workspace.workspaceuser_set.order_by("id")
+            .select_related("user")
+            .iterator(chunk_size=AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE)
         )
-        if permitted_users:
-            providers = list(
-                WorkspaceAIProviderConfigSerializer(
-                    AIProviderHandler.list_providers(workspace), many=True
-                ).data
-            )
-            for user in permitted_users:
-                payload_for(user.id).setdefault("ai_providers_by_workspace", {})[
-                    workspace_key
-                ] = providers
+        for workspace_user_batch in grouper(
+            AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE, workspace_users
+        ):
+            users = [workspace_user.user for workspace_user in workspace_user_batch]
+            permitted_user_ids = {
+                user.id
+                for user in CoreHandler().check_permission_for_multiple_actors(
+                    users,
+                    UpdateWorkspaceOperationType.type,
+                    workspace=workspace,
+                    context=workspace,
+                )
+            }
 
-    if workspace_id is None:
-        instance_providers = list(
+            if model_availability_updated:
+                member_user_ids = [
+                    user.id for user in users if user.id not in permitted_user_ids
+                ]
+                if member_user_ids:
+                    broadcast_to_users(member_user_ids, dict(base_payload))
+
+            if permitted_user_ids:
+                if provider_payload is None:
+                    providers = list(
+                        WorkspaceAIProviderConfigSerializer(
+                            AIProviderHandler.list_providers(workspace), many=True
+                        ).data
+                    )
+                    feature_settings = list(
+                        AIProviderFeatureSettingSerializer(
+                            AIProviderHandler.list_feature_settings(
+                                workspace, state=state
+                            ),
+                            many=True,
+                            context={"workspace_id": workspace.id},
+                        ).data
+                    )
+                    provider_payload = {
+                        **base_payload,
+                        "ai_providers_by_workspace": {workspace_key: providers},
+                        "ai_provider_feature_settings_by_workspace": {
+                            workspace_key: feature_settings
+                        },
+                    }
+                broadcast_to_users(sorted(permitted_user_ids), dict(provider_payload))
+
+
+@app.task(bind=True)
+def broadcast_ai_provider_instance_update(self, model_availability_updated: bool):
+    """Send public instance availability and staff provider state in bounded batches."""
+
+    from django.contrib.auth import get_user_model
+
+    from baserow.api.ai_provider.serializers import (
+        AIProviderConfigSerializer,
+        AIProviderFeatureSettingSerializer,
+    )
+    from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_KUMA
+    from baserow.core.ai_provider.handler import AIProviderHandler
+    from baserow.core.ai_provider.registries import (
+        ai_provider_model_feature_type_registry,
+    )
+    from baserow.core.ai_provider.resolution import load_ai_provider_state
+    from baserow.core.utils import grouper
+
+    state = load_ai_provider_state()[None]
+    if model_availability_updated:
+        # Non-staff clients only need the Kuma availability flip, not provider state.
+        public_payload = {
+            "type": "ai_provider_updated",
+            "model_availability_updated": True,
+            "instance_ai_features": {
+                feature_type.type: {
+                    "is_enabled": feature_type.get_workspace_availability(
+                        None, state=state
+                    )["is_enabled"]
+                }
+                for feature_type in ai_provider_model_feature_type_registry.get_all()
+                if feature_type.type == AI_PROVIDER_FEATURE_KUMA
+            },
+        }
+        broadcast_to_users([], public_payload, send_to_all_users=True)
+
+    payload = {
+        "type": "ai_provider_updated",
+        "model_availability_updated": model_availability_updated,
+        "instance_ai_providers": list(
             AIProviderConfigSerializer(
                 AIProviderHandler.list_providers(), many=True
             ).data
-        )
-        staff_user_ids = (
-            get_user_model()
-            .objects.filter(is_active=True, is_staff=True)
-            .values_list("id", flat=True)
-        )
-        for user_id in staff_user_ids:
-            payload_for(user_id)["instance_ai_providers"] = instance_providers
-
-    if payload_map:
-        broadcast_to_users_individual_payloads(payload_map)
+        ),
+        "instance_ai_provider_feature_settings": list(
+            AIProviderFeatureSettingSerializer(
+                AIProviderHandler.list_feature_settings(state=state),
+                many=True,
+                context={"workspace_id": None},
+            ).data
+        ),
+    }
+    staff_user_ids = (
+        get_user_model()
+        .objects.filter(is_active=True, is_staff=True)
+        .order_by("id")
+        .values_list("id", flat=True)
+        .iterator(chunk_size=AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE)
+    )
+    for user_id_batch in grouper(
+        AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE, staff_user_ids
+    ):
+        broadcast_to_users(list(user_id_batch), dict(payload))
 
 
 @app.task(bind=True)

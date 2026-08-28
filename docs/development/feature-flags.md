@@ -21,27 +21,68 @@ sequence with the flag still disabled, because until a workspace's legacy JSON i
 imported the new UI reports no workspace provider while that JSON is still what
 resolves at runtime.
 
-1. Keep `ai-providers` disabled and let the old workers drain, so nothing writes
-   provider configuration through both paths at once.
-2. Preview both scopes. The command writes nothing without `--apply`:
+1. Before deploying the release, keep `ai-providers` disabled. If the installation
+   uses `FEATURE_FLAGS=*`, first make a separate configuration-only rollout of the
+   currently installed release with an explicit list of the other required flags;
+   there is no negative override for one flag. Wait for every wildcard-configured
+   web and worker process to drain before deploying the new image. Do not combine
+   this configuration change with a rolling image update: old processes would still
+   enable `ai-providers`. If the platform cannot roll out configuration separately,
+   stop the old processes before starting the new release with the explicit list.
+2. Deploy the release and let the old web and worker processes drain. Pause changes
+   to instance and workspace AI provider settings until the import is complete and
+   the flag has been enabled; otherwise a workspace can change its legacy JSON after
+   the command has read it.
+   The new Google and Groq provider types have no environment variables and are
+   configured in the admin UI only. Older frontend bundles do not have those
+   provider types in their registry and cannot safely render a workspace payload
+   containing them, so add either provider only after every old frontend process
+   has drained. Draining frontend processes does not replace JavaScript already
+   loaded in a browser tab: before adding either provider, require active users to
+   reload Baserow (or close and reopen it) onto the new frontend assets. Keep the
+   settings-write pause in place until that client cutover is complete.
+3. Preview both scopes. The command writes nothing without `--apply`:
 
 ```bash
 just b manage migrate_ai_provider_settings --scope instance
 just b manage migrate_ai_provider_settings --scope workspace
 ```
 
-3. Review the reported providers, then apply each atomically, instance first:
+4. Review every warning. Repair or explicitly accept each incomplete legacy setting
+   and each difference from an existing database provider before proceeding. The
+   importer preserves the database provider in a conflict, and an incomplete
+   workspace override can inherit the instance provider after the flag is enabled.
+   Then apply each scope atomically, instance first:
 
 ```bash
 just b manage migrate_ai_provider_settings --scope instance --apply
 just b manage migrate_ai_provider_settings --scope workspace --apply
 ```
 
-4. Enable `ai-providers`.
+5. Redeploy or restart every web, backend, and worker process with `ai-providers`
+   enabled, then wait for every feature-disabled process to drain before ending
+   the settings-write pause. This prevents one generation from resolving legacy
+   settings while another resolves the imported database settings. Wildcard
+   installations can now restore `FEATURE_FLAGS=*`.
 
 The command never prints credentials and preserves provider types already configured
 at the selected scope, so both imports are safe to run again — only missing
 provider types are imported.
+
+The command does not import Kuma's legacy model or provider-native credentials.
+Kuma continues to use that legacy configuration when its database selection is
+unconfigured or invalid. An explicit instance or workspace disable remains
+authoritative and does not fall back. An administrator can clear an instance
+database selection with **Use legacy environment model**, which displays the
+configured model, before or after the feature gate is retired.
+
+When retiring `ai-providers`, make the database-backed paths unconditional in both
+the backend and frontend; a missing flag must not route clients back to legacy-only
+payloads. Remove only the feature gates in that release and retain the legacy provider
+and Kuma resolution fallbacks: self-hosted installations can skip the manual import
+sequence, and some legacy Kuma providers cannot yet be represented by database-backed
+providers. Retiring those fallbacks requires a separate migration which covers every
+supported provider and credential source.
 
 ## Enabling feature flags
 

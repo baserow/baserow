@@ -20,6 +20,8 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import FieldService from '@baserow_premium/services/field'
 import PremiumFeatures from '@baserow_premium/features'
 import { setAIFieldErrorFromGenerationError } from '@baserow_premium/utils/aiField'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
+import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   emits: ['click'],
@@ -53,9 +55,11 @@ export default {
     },
     modelAvailable() {
       const aIModels =
-        this.workspace.generative_ai_models_enabled[
-          this.field.ai_generative_ai_type
-        ] || []
+        getEnabledModelsForAIProviderFeature(
+          this.workspace,
+          'ai_fields',
+          this.$featureFlagIsEnabled(FF_AI_PROVIDERS)
+        )[this.field.ai_generative_ai_type] || []
       return (
         this.$registry
           .get('field', this.field.type)

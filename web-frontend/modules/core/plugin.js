@@ -28,6 +28,8 @@ import {
   AnthropicModelType,
   MistralModelType,
   OpenRouterModelType,
+  GoogleModelType,
+  GroqModelType,
 } from '@baserow/modules/core/generativeAIModelTypes'
 import {
   UploadFileUserFileUploadType,
@@ -161,6 +163,7 @@ export default defineNuxtPlugin({
     registry.registerNamespace('appAuthProvider')
     registry.registerNamespace('roles')
     registry.registerNamespace('generativeAIModel')
+    registry.registerNamespace('aiProviderModelFeature')
     registry.registerNamespace('onboarding')
     registry.registerNamespace('guidedTour')
     registry.registerNamespace('admin')
@@ -186,6 +189,8 @@ export default defineNuxtPlugin({
 
     registry.register('generativeAIModel', new OpenAIModelType(context))
     registry.register('generativeAIModel', new AnthropicModelType(context))
+    registry.register('generativeAIModel', new GoogleModelType(context))
+    registry.register('generativeAIModel', new GroqModelType(context))
     registry.register('generativeAIModel', new MistralModelType(context))
     registry.register('generativeAIModel', new OllamaModelType(context))
     registry.register('generativeAIModel', new OpenRouterModelType(context))

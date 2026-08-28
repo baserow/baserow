@@ -7,7 +7,7 @@ Contains:
 - ``update_workflow_formulas()``: Generates formulas for workflow nodes.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from django.db import transaction
 from django.utils.translation import gettext as _
@@ -27,6 +27,9 @@ from .types import ActionNodeCreate, NodeUpdate, WorkflowCreate
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import ToolHelpers
+    from baserow_enterprise.assistant.model_profiles import (
+        ResolvedAssistantModelProfile,
+    )
 
 
 class AssistantFormulaContext(BaseFormulaContext):
@@ -55,9 +58,16 @@ class AssistantFormulaContext(BaseFormulaContext):
         return self._resolve_path(key, "previous_node")
 
 
-def get_generate_formulas_tool():
-    """Get the automation formula generator using the shared factory."""
-    return get_formula_generator(GENERATE_FORMULA_PROMPT)
+def get_generate_formulas_tool(
+    model_profile: "ResolvedAssistantModelProfile",
+) -> Callable[[dict, BaseFormulaContext, int], dict[str, str]]:
+    """Get the automation formula generator using the request model profile.
+
+    :param model_profile: The model profile resolved for the assistant request.
+    :return: A callable that generates automation formulas.
+    """
+
+    return get_formula_generator(GENERATE_FORMULA_PROMPT, model_profile)
 
 
 def update_workflow_formulas(
@@ -65,16 +75,21 @@ def update_workflow_formulas(
     node_mapping: dict[int | str, Any],
     tool_helpers: "ToolHelpers",
 ) -> None:
-    """
-    Generate and apply formulas for all nodes in a newly created workflow.
+    """Generate and apply formulas for all nodes in a new workflow.
 
     Walks nodes in order, building up the available formula context as it goes.
     For each node that has ``$formula:`` values, delegates to the formula
     generation agent and writes the results back to the ORM service.
+
+    :param workflow: The assistant workflow definition to process.
+    :param node_mapping: Assistant node references mapped to persisted nodes.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :return: None.
     """
 
+    orm_trigger, trigger_create = node_mapping[workflow.trigger.ref]
     context = AssistantFormulaContext()
-    generate_formula = get_generate_formulas_tool()
+    generate_formula = get_generate_formulas_tool(tool_helpers.model_profile)
 
     def _build_node_context(orm_node: AutomationNode, node_create):
         """Extract schema/example from a node and add it to the formula context."""
@@ -99,7 +114,6 @@ def update_workflow_formulas(
             node.update_service_with_formulas(orm_node.service, result)
 
     # Seed context with the trigger
-    orm_trigger, trigger_create = node_mapping[workflow.trigger.ref]
     _build_node_context(orm_trigger, trigger_create)
 
     # Process action nodes in order
@@ -127,18 +141,22 @@ def update_single_node_formulas(
     orm_node: AutomationNode,
     tool_helpers: "ToolHelpers",
 ) -> None:
-    """
-    Generate and apply formulas for a single node being updated.
+    """Generate and apply formulas for one node being updated.
 
     Builds formula context from the node's workflow, then generates
     formulas for the $formula: fields in the update.
+
+    :param node_update: The assistant node update containing formula requests.
+    :param orm_node: The persisted automation node to update.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :return: None.
     """
 
+    workflow = orm_node.workflow
     context = AssistantFormulaContext()
-    generate_formula = get_generate_formulas_tool()
+    generate_formula = get_generate_formulas_tool(tool_helpers.model_profile)
 
     # Build context from the workflow's existing nodes
-    workflow = orm_node.workflow
     all_nodes = list(workflow.automation_workflow_nodes.all().order_by("id"))
     for wf_node in all_nodes:
         schema = wf_node.service.get_type().generate_schema(wf_node.service.specific)

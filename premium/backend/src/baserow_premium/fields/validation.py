@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_FIELDS
 from baserow.core.generative_ai.exceptions import (
     MODEL_NOT_AVAILABLE_MESSAGE,
     GenerativeAITypeDoesNotExist,
@@ -30,7 +31,9 @@ def get_ai_model_error(ai_field: AIField) -> str | None:
         return MODEL_NOT_AVAILABLE_MESSAGE
 
     workspace = ai_field.table.database.workspace
-    if ai_field.ai_generative_ai_model not in model_type.get_enabled_models(workspace):
+    if ai_field.ai_generative_ai_model not in model_type.get_enabled_models_for_feature(
+        AI_PROVIDER_FEATURE_AI_FIELDS, workspace=workspace
+    ):
         return MODEL_NOT_AVAILABLE_MESSAGE
     return None
 

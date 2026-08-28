@@ -3,6 +3,7 @@ import aiProviderService from '@baserow/modules/core/services/aiProvider'
 export const state = () => ({
   providers: [],
   providerTypes: [],
+  featureSettings: [],
   workspaceId: null,
   loading: false,
   loaded: false,
@@ -14,6 +15,9 @@ export const mutations = {
   },
   SET_PROVIDER_TYPES(state, providerTypes) {
     state.providerTypes = providerTypes
+  },
+  SET_FEATURE_SETTINGS(state, featureSettings) {
+    state.featureSettings = featureSettings
   },
   SET_WORKSPACE_ID(state, workspaceId) {
     state.workspaceId = workspaceId
@@ -70,6 +74,7 @@ export const mutations = {
           model.last_test_at = result.tested_at
           model.last_test_status = result.status
           model.last_test_error = result.error
+          model.last_test_feature_results = result.feature_results
         }
       }
     }
@@ -78,6 +83,13 @@ export const mutations = {
     for (const provider of state.providers) {
       provider.models = provider.models.filter((item) => item.id !== modelId)
     }
+  },
+  UPDATE_FEATURE_SETTING(state, featureSetting) {
+    const index = state.featureSettings.findIndex(
+      (setting) => setting.feature_type === featureSetting.feature_type
+    )
+    if (index === -1) state.featureSettings.push(featureSetting)
+    else state.featureSettings.splice(index, 1, featureSetting)
   },
 }
 
@@ -100,14 +112,16 @@ export const actions = {
       commit('SET_WORKSPACE_ID', workspaceId)
       commit('SET_PROVIDERS', [])
       commit('SET_PROVIDER_TYPES', [])
+      commit('SET_FEATURE_SETTINGS', [])
       commit('SET_LOADED', false)
     }
     commit('SET_LOADING', true)
     try {
       const service = aiProviderService(this.$client, workspaceId)
-      const [providers, providerTypes] = await Promise.all([
+      const [providers, providerTypes, featureSettings] = await Promise.all([
         service.fetchAll(),
         service.fetchTypes(),
+        service.fetchFeatureSettings(),
       ])
       // A newer scope may have been claimed while this request was in flight.
       if (state.workspaceId !== workspaceId) {
@@ -115,6 +129,7 @@ export const actions = {
       }
       commit('SET_PROVIDERS', providers.data)
       commit('SET_PROVIDER_TYPES', providerTypes.data)
+      commit('SET_FEATURE_SETTINGS', featureSettings.data)
       commit('SET_LOADED', true)
     } finally {
       if (state.workspaceId === workspaceId) {
@@ -127,19 +142,27 @@ export const actions = {
       return []
     }
     const workspaceId = state.workspaceId
-    const { data } = await aiProviderService(
-      this.$client,
-      workspaceId
-    ).fetchAll()
+    const service = aiProviderService(this.$client, workspaceId)
+    const [providers, featureSettings] = await Promise.all([
+      service.fetchAll(),
+      service.fetchFeatureSettings(),
+    ])
     if (state.workspaceId !== workspaceId) {
       return []
     }
-    commit('SET_PROVIDERS', data)
-    return data
+    commit('SET_PROVIDERS', providers.data)
+    commit('SET_FEATURE_SETTINGS', featureSettings.data)
+    return providers.data
   },
-  replaceFromRealtime({ commit, state }, { workspaceId, providers }) {
+  replaceFromRealtime(
+    { commit, state },
+    { workspaceId, providers, featureSettings }
+  ) {
     if (state.loaded && state.workspaceId === workspaceId) {
       commit('SET_PROVIDERS', providers)
+      if (featureSettings !== undefined) {
+        commit('SET_FEATURE_SETTINGS', featureSettings)
+      }
     }
   },
   async create({ commit, state }, payload) {
@@ -232,6 +255,34 @@ export const actions = {
     )
     return data.results
   },
+  async updateFeatureSetting(
+    { commit, dispatch, state },
+    { featureType, values, workspaceId = null }
+  ) {
+    const { data } = await aiProviderService(
+      this.$client,
+      workspaceId
+    ).updateFeatureSetting(featureType, values)
+    commitIfScopeIsCurrent(
+      state,
+      workspaceId,
+      commit,
+      'UPDATE_FEATURE_SETTING',
+      data
+    )
+    // The setting response describes the raw selection, while workspace
+    // availability also accounts for inheritance and legacy fallbacks. Refresh
+    // that authoritative view immediately; realtime remains the cross-tab path.
+    try {
+      await dispatch('workspace/refreshAllGenerativeAIModels', null, {
+        root: true,
+      })
+    } catch {
+      // Saving succeeded, so don't report a false failure if this optional
+      // synchronization request is interrupted. Realtime can still reconcile it.
+    }
+    return data
+  },
 }
 
 export const getters = {
@@ -240,6 +291,8 @@ export const getters = {
     state.workspaceId === workspaceId ? state.providers : [],
   getTypes: (state) => (workspaceId) =>
     state.workspaceId === workspaceId ? state.providerTypes : [],
+  getFeatureSettings: (state) => (workspaceId) =>
+    state.workspaceId === workspaceId ? state.featureSettings : [],
   isLoading: (state) => state.loading,
   hasLoaded: (state) => state.loaded,
   getWorkspaceId: (state) => state.workspaceId,

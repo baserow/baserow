@@ -92,7 +92,8 @@ async def test_search_user_docs_does_not_add_sources_for_nothing_found_predictio
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    ctx = make_test_ctx(user, workspace)
+    model_profile = MagicMock()
+    ctx = make_test_ctx(user, workspace, model_profile=model_profile)
     chunk = MagicMock(content="Some unrelated documentation.")
     chunk.source_document = MagicMock(source_url="https://example.com/docs")
 
@@ -104,14 +105,6 @@ async def test_search_user_docs_does_not_add_sources_for_nothing_found_predictio
             "baserow_enterprise.assistant.tools.search_user_docs.tools.search_docs_agent.run",
             new_callable=AsyncMock,
         ) as mock_run,
-        patch(
-            "baserow_enterprise.assistant.model_profiles.get_model_string",
-            return_value="test/model",
-        ),
-        patch(
-            "baserow_enterprise.assistant.retrying_model._resolve_model",
-            return_value=MagicMock(),
-        ),
     ):
         mock_handler_cls.return_value.search.return_value = [chunk]
         mock_run.return_value = MagicMock(
@@ -121,6 +114,9 @@ async def test_search_user_docs_does_not_add_sources_for_nothing_found_predictio
                 sources=["https://example.com/docs"],
             )
         )
+        model = MagicMock()
+        model.__aenter__.return_value = model
+        model_profile.create_model.return_value = model
 
         result = await search_user_docs(
             ctx, question="Does Baserow support imaginary widgets?", thought="user asks"
@@ -129,6 +125,7 @@ async def test_search_user_docs_does_not_add_sources_for_nothing_found_predictio
     assert result["reliability"] == 0.0
     assert result["sources"] == []
     assert ctx.deps.sources == []
+    model_profile.create_model.assert_called_once_with()
 
 
 @pytest.mark.django_db

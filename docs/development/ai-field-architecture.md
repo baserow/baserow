@@ -12,8 +12,8 @@ providers. The architecture splits into two layers:
 
 ## Core: GenerativeAIModelType
 
-Each LLM provider (OpenAI, Anthropic, Mistral, Ollama, OpenRouter) is a
-`GenerativeAIModelType` subclass registered in
+Each LLM provider (OpenAI, Anthropic, Google Gemini, Groq, Mistral, Ollama,
+OpenRouter) is a `GenerativeAIModelType` subclass registered in
 `generative_ai_model_type_registry`. A model type is responsible for:
 
 - **Configuration** — reading API keys and enabled models from workspace
@@ -34,16 +34,21 @@ instantiation.
 ### Adding a new provider
 
 Subclass `GenerativeAIModelType`, implement `get_ai_model()` (returns a
-pydantic-ai Model), `get_enabled_models()`, `is_enabled()`, and
-`get_settings_serializer()`. Register it in the plugin's `ready()` hook.
-Override `_prepare_model_settings()` if the provider has quirks (e.g.
-Anthropic caps temperature at 1.0). If the provider supports file input,
-set `supports_files = True` and override `prepare_files()` and
-`delete_file()`.
+pydantic-ai Model), `get_enabled_models()`, `get_api_key()` or `is_enabled()`,
+and `get_settings_serializer()`. Add the provider's database configuration
+metadata to `AI_PROVIDER_TYPES` and register the model type in the core app's
+`ready()` hook. New providers are configured through the instance or workspace
+AI provider UI/API; `PROVIDER_ENVIRONMENT_SETTINGS` only supports importing the
+existing legacy environment settings and must not be extended. Override
+`_prepare_model_settings()` if the provider has quirks (e.g. Anthropic caps
+temperature at 1.0). If the provider supports file input, provide a
+`FileHandler` implementation.
 
-No frontend changes are needed — the UI reads the available providers and
-models from the workspace settings populated by the backend's
-`get_enabled_models_per_type()` API and renders them dynamically.
+Register a matching frontend `GenerativeAIModelType` using the same stable type
+identifier and register any database-provider UI metadata and English strings.
+The database-provider API supplies the available provider configuration, while
+the frontend registry supplies presentation and legacy workspace-setting
+behavior.
 
 ## Premium: AIFieldHandler
 
@@ -84,8 +89,13 @@ dataclass:
 3. After the prompt call, `model_type.cleanup_files(prepared, workspace)`
    deletes any provider-uploaded files.
 
-Currently only OpenAI supports files. It embeds images as binary content
-and uploads documents to the OpenAI Files API.
+OpenAI embeds images and uploads supported documents to the OpenAI Files API.
+Anthropic embeds images and uploads PDFs. Google Gemini, Mistral, Ollama, and
+OpenRouter embed supported binary content and inline small text files without a
+provider upload. Google uses a conservative 14 MiB cumulative raw-file budget so
+base64 encoding, prompts, and system instructions stay below Gemini's 20 MB inline
+image request limit. Groq does not advertise provider-level file support because
+its capabilities vary by model.
 
 ## Job scheduling
 

@@ -12,6 +12,7 @@ from pydantic_ai.usage import UsageLimits
 from baserow.contrib.database.api.formula.serializers import TypeFormulaResultSerializer
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormulaField
+from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
 from baserow.core.models import Workspace
 from baserow_premium.prompts import get_formula_docs
 
@@ -111,13 +112,24 @@ def get_formula_type_tool(
 
 def make_formula_fixer(
     user: AbstractUser, workspace: Workspace, tool_helpers
-) -> Callable:
-    """
-    Returns a callback that tries to auto-generate a valid formula when the
-    LLM-provided one is invalid.  Uses the ``formula_generation_agent``.
+) -> Callable[[Any, str, str], str | None]:
+    """Build a callback that repairs invalid generated formulas.
+
+    :param user: The user whose table permissions apply.
+    :param workspace: The workspace containing the formula's table.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :return: A callback returning a repaired formula, or ``None`` if repair fails.
     """
 
-    def fix_formula(table, field_name: str, original_formula: str) -> str | None:
+    def fix_formula(table: Any, field_name: str, original_formula: str) -> str | None:
+        """Try to replace an invalid formula with a valid one.
+
+        :param table: The table that will contain the formula field.
+        :param field_name: The name of the formula field.
+        :param original_formula: The invalid formula to repair.
+        :return: The repaired formula, or ``None`` when validation still fails.
+        """
+
         database_tables = helpers.filter_tables(user, workspace).filter(
             database_id=table.database_id
         )
@@ -133,17 +145,15 @@ def make_formula_fixer(
         prompt = format_formula_fixer_prompt(
             field_name, original_formula, schema, get_formula_docs()
         )
-        from baserow_enterprise.assistant.model_profiles import (
-            UTILITY,
-            get_model_settings,
-            get_model_string,
-        )
+        from baserow_enterprise.assistant.model_profiles import UTILITY
 
-        model = get_model_string()
-        result = formula_generation_agent.run_sync(
+        model_profile = tool_helpers.model_profile
+        model = model_profile.create_model()
+        result = run_agent_sync_with_model(
+            formula_generation_agent,
             prompt,
             model=model,
-            model_settings=get_model_settings(model, UTILITY),
+            model_settings=model_profile.get_settings(UTILITY),
             toolsets=[formula_toolset],
             usage_limits=UsageLimits(request_limit=20),
         )
@@ -207,22 +217,23 @@ def generate_sample_rows(
     created_tables: list,
     data_brief: str | None = None,
 ) -> dict[int, list[Any]]:
-    """
-    Use an agent with ``create_rows`` tools to generate and insert
-    realistic sample rows for newly created tables.
+    """Generate and insert realistic sample rows for newly created tables.
 
     Instead of building one giant structured-output schema for all tables,
     this gives the agent a ``create_rows_in_table_<id>`` tool per table.
     The agent decides the insertion order itself — it naturally creates
     rows in linked-to tables first, sees the returned row IDs, and uses
     them in link_row fields of dependent tables.
+
+    :param user: The user whose row permissions apply.
+    :param workspace: The workspace containing the new tables.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :param created_tables: The newly created tables that should receive sample rows.
+    :param data_brief: Optional guidance describing the desired example data.
+    :return: Rows inserted into each new table, keyed by table ID.
     """
 
-    from baserow_enterprise.assistant.model_profiles import (
-        SAMPLE,
-        get_model_settings,
-        get_model_string,
-    )
+    from baserow_enterprise.assistant.model_profiles import SAMPLE
 
     from .tools import _build_row_tools
 
@@ -261,17 +272,19 @@ def generate_sample_rows(
     schemas = helpers.get_tables_schema(created_tables, full_schema=True)
     table_info = "\n".join(f"- {schema.model_dump()}" for schema in schemas)
 
-    model = get_model_string()
+    model_profile = tool_helpers.model_profile
+    model = model_profile.create_model()
     sample_row_agent = Agent(
         output_type=str,
         instructions=SAMPLE_ROW_AGENT_INSTRUCTIONS,
         tools=create_tools,
         name="sample_row_agent",
     )
-    sample_row_agent.run_sync(
+    run_agent_sync_with_model(
+        sample_row_agent,
         format_sample_rows_prompt(table_info, data_brief=data_brief),
         model=model,
-        model_settings=get_model_settings(model, SAMPLE),
+        model_settings=model_profile.get_settings(SAMPLE),
         usage_limits=UsageLimits(request_limit=len(all_db_tables) * 3 + 2),
     )
 

@@ -407,5 +407,9 @@
   "viewOwnershipType": {
     "personal": "Personal",
     "personalDescription": "Only you can see the view."
+  },
+  "aiProviderModelFeature": {
+    "aiFields": "AI fields",
+    "aiFieldsDescription": "Generate values in AI fields."
   }
 }

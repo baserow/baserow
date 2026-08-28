@@ -181,9 +181,12 @@ Baserow supports multiple AI providers for generative AI features and the AI ass
 Add to your `config.yaml`:
 
 ```yaml
+global:
+  baserow:
+    assistantLLMModel: "groq:openai/gpt-oss-120b"
+
 baserow-embeddings:
   enabled: true
-  assistantLLMModel: "groq:openai/gpt-oss-120b"
 
 backendSecrets:
   GROQ_API_KEY: "your-groq-api-key"

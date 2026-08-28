@@ -7,6 +7,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 import pytest
+from asgiref.sync import async_to_sync
 from freezegun import freeze_time
 
 from baserow.test_utils.helpers import AnyStr
@@ -283,6 +284,105 @@ def test_send_message_creates_chat_if_not_exists(
 
     # Verify handler was called correctly
     mock_handler.get_or_create_chat.assert_called_once_with(user, workspace, chat_uuid)
+    model_profile = mock_check_lm.call_args.kwargs["model_profile"]
+    assert model_profile.workspace == workspace
+    assert mock_handler.get_assistant.call_args.kwargs["model_profile"] is model_profile
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_closes_assistant_stream_on_early_close(
+    mock_handler_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+    chat_uuid = uuid4()
+
+    mock_handler = mock_handler_class.return_value
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    lifecycle_events = []
+
+    async def assistant_stream(_message):
+        try:
+            yield AiMessage(content="First response")
+        finally:
+            lifecycle_events.append("assistant-stream-exit")
+
+    mock_handler.get_assistant.return_value.astream_messages = assistant_stream
+    response = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "Hello AI",
+            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    async def consume_one_chunk_and_close():
+        stream = aiter(response)
+        chunk = await anext(stream)
+        await stream.aclose()
+        return chunk
+
+    chunk = async_to_sync(consume_one_chunk_and_close)()
+
+    assert json.loads(chunk)["content"] == "First response"
+    assert lifecycle_events == ["assistant-stream-exit"]
+
+
+@pytest.mark.django_db()
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_does_not_construct_assistant_before_stream_consumption(
+    mock_handler_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+    chat_uuid = uuid4()
+
+    mock_handler = mock_handler_class.return_value
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    response = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "Hello AI",
+            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    mock_handler.get_assistant.assert_not_called()
+
+    async def close_without_consuming():
+        stream = aiter(response)
+        await stream.aclose()
+
+    async_to_sync(close_without_consuming)()
+
+    mock_handler.get_assistant.assert_not_called()
 
 
 @pytest.mark.django_db

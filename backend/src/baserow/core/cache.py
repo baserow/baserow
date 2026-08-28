@@ -214,7 +214,7 @@ class GlobalCache:
         key: str,
         default: T | Callable[[], T] | None = None,
         invalidate_key: None | str = None,
-        timeout: int = 60,
+        timeout: int | Callable[[T], int] = 60,
         lock_timeout: int = 10,
     ) -> T:
         """
@@ -233,8 +233,9 @@ class GlobalCache:
         :param default: The default value to store in the cache if the key is absent.
                         Can be either a literal value or a callable. If it's a callable,
                         the function is called to retrieve the default value.
-        :param timeout: The cache timeout in seconds for newly set values.
-           Defaults to 60.
+        :param timeout: The cache timeout in seconds for newly set values, or a
+            callable which selects the timeout from the newly computed value.
+            Defaults to 60.
         :param lock_timeout: The number of seconds after which the lock guarding the
             computation of the default value expires. Set it above the slowest
             expected computation: if the lock expires while the computation is
@@ -263,10 +264,11 @@ class GlobalCache:
                     else:
                         cached = default
 
+                    value_timeout = timeout(cached) if callable(timeout) else timeout
                     cache.set(
                         cache_key_to_use,
                         cached,
-                        timeout=timeout,
+                        timeout=value_timeout,
                     )
                 else:
                     logger.debug(f"Global cache hit for: {key}")

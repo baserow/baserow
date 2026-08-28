@@ -13,8 +13,14 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_FEATURE_AI_FIELDS,
+    AI_PROVIDER_TEST_MAX_TOKENS,
+    AI_PROVIDER_TEST_TIMEOUT_SECONDS,
+)
 from baserow.core.ai_provider.models import (
     AIProviderConfig,
+    AIProviderFeatureSetting,
     AIProviderModel,
     AIProviderWorkspaceOverride,
 )
@@ -23,6 +29,8 @@ AI_PROVIDER_API_CASES = (
     ("get", "list"),
     ("post", "list"),
     ("get", "types"),
+    ("get", "features"),
+    ("put", "feature_item"),
     ("patch", "item"),
     ("delete", "item"),
     ("post", "create_model"),
@@ -64,6 +72,9 @@ def _request_ai_provider_api(api_client, case, headers):
         kwargs = {"provider_id": provider.id}
         if method == "patch":
             data = {"is_active": False}
+    elif url_name == "feature_item":
+        kwargs = {"feature_type": "kuma"}
+        data = {"mode": "disabled"}
     elif url_name == "create_model":
         kwargs = {"provider_id": provider.id}
         data = {"model_identifier": "mistral-small"}
@@ -499,9 +510,11 @@ def test_provider_crud_never_returns_api_key(
                 "id": response.json()["models"][0]["id"],
                 "model_identifier": "gpt-4o",
                 "is_enabled": True,
+                "feature_types": ["ai_fields"],
                 "last_test_at": None,
                 "last_test_status": None,
                 "last_test_error": "",
+                "last_test_feature_results": [],
             }
         ],
     }
@@ -534,6 +547,144 @@ def test_provider_crud_never_returns_api_key(
     )
     assert response.status_code == HTTP_204_NO_CONTENT
     assert not AIProviderConfig.objects.exists()
+
+
+@pytest.mark.django_db
+def test_kuma_feature_setting_api_supports_workspace_inherit_override_and_disable(
+    api_client, data_fixture, enabled_ai_providers
+):
+    instance_user, instance_token = data_fixture.create_user_and_token(is_staff=True)
+    workspace_user, workspace_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=workspace_user)
+    instance_provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-key"
+    )
+    instance_model = AIProviderModel.objects.create(
+        provider_config=instance_provider,
+        model_identifier="instance-model",
+        feature_types=["kuma"],
+    )
+    workspace_provider = AIProviderConfig.objects.create(
+        workspace=workspace,
+        provider_type="anthropic",
+        api_key="workspace-key",
+    )
+    workspace_model = AIProviderModel.objects.create(
+        provider_config=workspace_provider,
+        model_identifier="workspace-model",
+        feature_types=["kuma"],
+    )
+    instance_headers = {"HTTP_AUTHORIZATION": f"JWT {instance_token}"}
+    workspace_headers = {"HTTP_AUTHORIZATION": f"JWT {workspace_token}"}
+    feature_url = reverse(
+        "api:ai_provider:feature_item", kwargs={"feature_type": "kuma"}
+    )
+
+    response = api_client.put(
+        feature_url,
+        {"mode": "model", "model_id": instance_model.id},
+        format="json",
+        **instance_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["state"] == "configured"
+
+    workspace_query = f"?workspace_id={workspace.id}"
+    response = api_client.get(
+        reverse("api:ai_provider:features") + workspace_query,
+        **workspace_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[0]["state"] == "inherited"
+    assert response.json()[0]["model"]["id"] == instance_model.id
+
+    response = api_client.put(
+        feature_url + workspace_query,
+        {"mode": "model", "model_id": workspace_model.id},
+        format="json",
+        **workspace_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["state"] == "overridden"
+    assert response.json()["model"]["id"] == workspace_model.id
+
+    response = api_client.put(
+        feature_url + workspace_query,
+        {"mode": "disabled"},
+        format="json",
+        **workspace_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["state"] == "disabled"
+
+    response = api_client.put(
+        feature_url + workspace_query,
+        {"mode": "inherit"},
+        format="json",
+        **workspace_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["state"] == "inherited"
+    assert not AIProviderFeatureSetting.objects.filter(workspace=workspace).exists()
+
+    response = api_client.put(
+        feature_url,
+        {"mode": "legacy"},
+        format="json",
+        **instance_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["mode"] == "legacy"
+    assert response.json()["state"] == "unconfigured"
+    assert not AIProviderFeatureSetting.objects.filter(workspace__isnull=True).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("mode", "workspace_scoped"),
+    [("disabled", False), ("legacy", False), ("inherit", True)],
+)
+def test_feature_setting_api_rejects_model_id_outside_model_mode(
+    api_client,
+    data_fixture,
+    enabled_ai_providers,
+    mode,
+    workspace_scoped,
+):
+    user, token = data_fixture.create_user_and_token(is_staff=True)
+    workspace = data_fixture.create_workspace(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-key"
+    )
+    model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="instance-model",
+        feature_types=["kuma"],
+    )
+    url = reverse("api:ai_provider:feature_item", kwargs={"feature_type": "kuma"})
+    if workspace_scoped:
+        url += f"?workspace_id={workspace.id}"
+
+    response = api_client.put(
+        url,
+        {"mode": mode, "model_id": model.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "model_id": [
+                {
+                    "error": "A model can only be provided in model mode.",
+                    "code": "invalid",
+                }
+            ]
+        },
+    }
+    assert not AIProviderFeatureSetting.objects.exists()
 
 
 @pytest.mark.django_db
@@ -606,6 +757,40 @@ def test_blank_optional_provider_settings_are_not_stored(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("provider_type", "model_identifier"),
+    [
+        ("google", "gemini-2.5-flash"),
+        ("groq", "openai/gpt-oss-120b"),
+    ],
+)
+def test_google_and_groq_providers_can_be_created(
+    api_client,
+    staff_headers,
+    enabled_ai_providers,
+    provider_type,
+    model_identifier,
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": provider_type,
+            "api_key": f"{provider_type}-key",
+            "models": [{"model_identifier": model_identifier}],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_201_CREATED
+    assert response.json()["provider_type"] == provider_type
+    assert response.json()["models"][0]["model_identifier"] == model_identifier
+    provider = AIProviderConfig.objects.get(provider_type=provider_type)
+    assert provider.api_key == f"{provider_type}-key"
+    assert provider.api_key not in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_provider_type_metadata_marks_required_connection_settings(
     api_client, staff_headers, enabled_ai_providers
 ):
@@ -614,6 +799,18 @@ def test_provider_type_metadata_marks_required_connection_settings(
     assert response.status_code == HTTP_200_OK
     provider_types = {item["type"]: item for item in response.json()}
     assert provider_types["openai"]["uses_api_key"] is True
+    assert provider_types["google"] == {
+        "type": "google",
+        "name": "Google Gemini",
+        "uses_api_key": True,
+        "extra_fields": [],
+    }
+    assert provider_types["groq"] == {
+        "type": "groq",
+        "name": "Groq",
+        "uses_api_key": True,
+        "extra_fields": [],
+    }
     assert provider_types["ollama"]["uses_api_key"] is False
     assert provider_types["ollama"]["extra_fields"] == [
         {"name": "host", "required": True, "allow_blank": False}
@@ -691,18 +888,21 @@ def test_saved_models_are_tested_in_one_request_and_results_are_persisted(
         provider_type="mistral", api_key="never-return-this"
     )
     first = AIProviderModel.objects.create(
-        provider_config=provider, model_identifier="mistral-large"
+        provider_config=provider,
+        model_identifier="mistral-large",
+        feature_types=[AI_PROVIDER_FEATURE_AI_FIELDS],
     )
     second = AIProviderModel.objects.create(
         provider_config=provider,
         model_identifier="mistral-small",
         is_enabled=False,
+        feature_types=[AI_PROVIDER_FEATURE_AI_FIELDS],
     )
 
     with patch(
         "baserow.core.generative_ai.generative_ai_model_types."
         "MistralGenerativeAIModelType.prompt",
-        side_effect=[None, Exception("bad credential never-return-this")],
+        side_effect=["OK", Exception("bad credential never-return-this")],
     ) as prompt:
         response = api_client.post(
             reverse("api:ai_provider:test_models"),
@@ -715,6 +915,9 @@ def test_saved_models_are_tested_in_one_request_and_results_are_persisted(
     results = response.json()["results"]
     assert [result["model_id"] for result in results] == [first.id, second.id]
     assert [result["status"] for result in results] == ["success", "failure"]
+    assert results[0]["feature_results"] == [
+        {"feature_type": "ai_fields", "status": "success", "error": ""}
+    ]
     assert results[1]["error"] == "bad credential [redacted]"
     assert "never-return-this" not in response.content.decode()
     assert prompt.call_count == 2
@@ -725,12 +928,25 @@ def test_saved_models_are_tested_in_one_request_and_results_are_persisted(
             "api_key": "never-return-this",
             "models": ["mistral-large", "mistral-small"],
         },
-        model_settings_override={"max_tokens": 16},
+        model_settings_override={
+            "max_tokens": AI_PROVIDER_TEST_MAX_TOKENS,
+            "timeout": AI_PROVIDER_TEST_TIMEOUT_SECONDS,
+        },
     )
     first.refresh_from_db()
     second.refresh_from_db()
     assert first.last_test_status == "success"
     assert second.last_test_status == "failure"
+    assert first.last_test_capabilities == {"text": {"status": "success", "error": ""}}
+    assert second.last_test_capabilities == {
+        "text": {"status": "failure", "error": "bad credential [redacted]"}
+    }
+
+    response = api_client.get(reverse("api:ai_provider:list"), **staff_headers)
+    saved_models = response.json()[0]["models"]
+    assert saved_models[0]["last_test_feature_results"] == [
+        {"feature_type": "ai_fields", "status": "success", "error": ""}
+    ]
 
 
 @pytest.mark.django_db
@@ -741,12 +957,15 @@ def test_a_single_saved_model_uses_the_same_test_endpoint(
         provider_type="mistral", api_key="secret"
     )
     model = AIProviderModel.objects.create(
-        provider_config=provider, model_identifier="mistral-large"
+        provider_config=provider,
+        model_identifier="mistral-large",
+        feature_types=[AI_PROVIDER_FEATURE_AI_FIELDS],
     )
 
     with patch(
         "baserow.core.generative_ai.generative_ai_model_types."
-        "MistralGenerativeAIModelType.prompt"
+        "MistralGenerativeAIModelType.prompt",
+        return_value="OK",
     ):
         response = api_client.post(
             reverse("api:ai_provider:test_models"),
@@ -801,6 +1020,8 @@ def test_testing_an_unknown_saved_model_returns_not_found(
     [
         ("openai", "gpt-5"),
         ("anthropic", "claude-sonnet-4-5"),
+        ("google", "gemini-2.5-flash"),
+        ("groq", "openai/gpt-oss-120b"),
         ("mistral", "mistral-large-latest"),
     ],
 )
@@ -834,3 +1055,98 @@ def test_model_discovery_handles_unsupported_catalogs_and_types(
     response = api_client.get(url, {"provider_type": "unknown"}, **staff_headers)
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_AI_PROVIDER_TYPE_NOT_SUPPORTED"
+
+
+@pytest.mark.django_db
+def test_groq_model_discovery_excludes_non_chat_models(
+    api_client, staff_headers, enabled_ai_providers
+):
+    response = api_client.get(
+        reverse("api:ai_provider:discover_models"),
+        {"provider_type": "groq"},
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert "openai/gpt-oss-120b" in response.json()["models"]
+    assert "whisper-large-v3" not in response.json()["models"]
+    assert "whisper-large-v3-turbo" not in response.json()["models"]
+    assert "playai-tts" not in response.json()["models"]
+    assert "playai-tts-arabic" not in response.json()["models"]
+    assert "meta-llama/llama-guard-4-12b" not in response.json()["models"]
+    assert "openai/gpt-oss-safeguard-20b" not in response.json()["models"]
+    assert (
+        "meta-llama/llama-4-maverick-17b-128e-instruct" not in response.json()["models"]
+    )
+    assert "llama-3.1-8b-instant" not in response.json()["models"]
+    assert "llama-3.3-70b-versatile" not in response.json()["models"]
+
+
+@pytest.mark.django_db
+def test_google_model_discovery_excludes_image_output_models(
+    api_client, staff_headers, enabled_ai_providers
+):
+    response = api_client.get(
+        reverse("api:ai_provider:discover_models"),
+        {"provider_type": "google"},
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert "gemini-2.5-flash" in response.json()["models"]
+    assert "gemini-2.5-flash-image" not in response.json()["models"]
+    assert "gemini-3-pro-image-preview" not in response.json()["models"]
+    assert "gemini-2.0-flash" not in response.json()["models"]
+    assert "gemini-2.0-flash-lite" not in response.json()["models"]
+    assert "gemini-2.5-flash-preview-09-2025" not in response.json()["models"]
+    assert "gemini-3-pro-preview" not in response.json()["models"]
+
+
+@pytest.mark.django_db
+def test_discovery_filters_do_not_reject_manual_groq_model_identifiers(
+    api_client, staff_headers, enabled_ai_providers
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "groq",
+            "api_key": "groq-key",
+            "models": [
+                {"model_identifier": "whisper-large-v3"},
+                {"model_identifier": "future-custom-chat-model"},
+            ],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_201_CREATED
+    assert [model["model_identifier"] for model in response.json()["models"]] == [
+        "whisper-large-v3",
+        "future-custom-chat-model",
+    ]
+
+
+@pytest.mark.django_db
+def test_discovery_filters_do_not_reject_manual_google_model_identifiers(
+    api_client, staff_headers, enabled_ai_providers
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "google",
+            "api_key": "google-key",
+            "models": [
+                {"model_identifier": "gemini-2.0-flash"},
+                {"model_identifier": "gemini-future-custom-model"},
+            ],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_201_CREATED
+    assert [model["model_identifier"] for model in response.json()["models"]] == [
+        "gemini-2.0-flash",
+        "gemini-future-custom-model",
+    ]

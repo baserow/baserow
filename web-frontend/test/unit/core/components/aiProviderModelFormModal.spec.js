@@ -81,7 +81,10 @@ describe('AIProviderModelFormModal', () => {
 
     expect(dispatch).toHaveBeenCalledWith('aiProvider/createModel', {
       providerId: 1,
-      values: { model_identifier: 'claude-sonnet-5' },
+      values: {
+        model_identifier: 'claude-sonnet-5',
+        feature_types: ['ai_fields', 'kuma'],
+      },
     })
     expect(dispatch).not.toHaveBeenCalledWith(
       'aiProvider/testModels',
@@ -154,7 +157,10 @@ describe('AIProviderModelFormModal', () => {
 
     expect(dispatch).toHaveBeenCalledWith('aiProvider/createModel', {
       providerId: 1,
-      values: { model_identifier: 'custom-model' },
+      values: {
+        model_identifier: 'custom-model',
+        feature_types: ['ai_fields', 'kuma'],
+      },
     })
     expect(dispatch).not.toHaveBeenCalledWith(
       'aiProvider/testModels',

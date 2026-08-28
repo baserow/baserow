@@ -7,6 +7,11 @@ from rest_framework import serializers
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.two_factor_auth.serializers import TwoFactorAuthSerializer
 from baserow.api.user.registries import member_data_registry
+from baserow.core.ai_provider.registries import (
+    ai_provider_model_feature_type_registry,
+)
+from baserow.core.ai_provider.resolution import get_ai_provider_state
+from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.models import WorkspaceUser
 
@@ -145,10 +150,38 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
     generative_ai_models_enabled = serializers.SerializerMethodField(
         read_only=True, help_text="Generative AI models available in this workspace."
     )
+    ai_features = serializers.SerializerMethodField(read_only=True)
+
+    def to_representation(self, instance):
+        """
+        Resolve this workspace's AI provider state once for both AI fields.
+
+        ``WorkspacesView`` loads every scope up front and passes them in the
+        context; serializing a list without that would resolve each workspace
+        separately.
+        """
+
+        states = self.context.get("ai_provider_states")
+        self._ai_provider_state = None
+        if feature_flag_is_enabled(FF_AI_PROVIDERS):
+            self._ai_provider_state = (
+                get_ai_provider_state(instance.workspace)
+                if states is None
+                else states[instance.workspace_id]
+            )
+        try:
+            return super().to_representation(instance)
+        finally:
+            self._ai_provider_state = None
 
     def get_generative_ai_models_enabled(self, object):
         return generative_ai_model_type_registry.get_enabled_models_per_type(
-            workspace=object.workspace
+            workspace=object.workspace, state=self._ai_provider_state
+        )
+
+    def get_ai_features(self, object):
+        return ai_provider_model_feature_type_registry.get_workspace_availability(
+            object.workspace, state=self._ai_provider_state
         )
 
 

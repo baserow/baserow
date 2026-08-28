@@ -8,19 +8,80 @@ server.
 
 - The assistant is built on [**pydantic-ai**](https://ai.pydantic.dev/) — a
   Python agent framework that supports multiple LLM providers out of the box.
-- You **must** set `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` with the provider and model
-  of your choosing.
+- With database-backed AI providers enabled, an instance administrator configures
+  providers and chooses one Kuma model under **Admin > AI providers > AI features**.
+  A workspace can inherit that choice, select another model available to Kuma, or
+  disable Kuma in its workspace AI provider settings.
+- `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` remains the legacy fallback while the
+  `ai-providers` feature is disabled, or while its Kuma selection is unconfigured
+  or invalid. An explicit instance or workspace disable remains authoritative.
 - The assistant has been mostly tested with the `gpt-oss-120b` family. Other models can
   work as well.
 
 ## 2) Minimal enablement
 
-Set the model you want, restart Baserow, and let migrations run.
+For a fresh database-backed setup, enable `ai-providers`, then add a provider and
+its models in the admin UI. On each model, choose whether it is available to Kuma,
+AI Fields, or both, then select the Kuma model in the **AI features** section.
+Availability permits a feature to choose a model; it does not force AI Fields to
+use Kuma's model. Use **Test model** to check every selected feature. AI Fields
+check for a text response, while Kuma also checks tool calling.
 
-**Important:** When running Baserow with Docker Compose or multiple services, `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` must be set in **all services** (both backend and frontend) for the assistant to work properly.
+For every existing installation, deploy this release with `ai-providers` still
+disabled and wait for the previous web and worker processes to drain. If the
+installation uses the `*` catch-all flag, first roll out an explicit list of the
+other flags to every process on the currently installed release. Wait for all
+wildcard-configured processes to drain before deploying the new image; do not combine
+these changes in one rolling update. If configuration cannot be rolled out
+separately, stop the old processes before starting the new release with the explicit
+flag list. Pause changes to instance and workspace AI settings through the import and
+feature switch.
+The database-backed Google and Groq providers are configured through the admin UI,
+not new provider environment variables. Add either provider after the old frontend
+processes have drained; older
+bundles cannot render these provider types. Also require active users to reload
+Baserow, or close and reopen their tabs, before either provider can appear in API
+or realtime payloads: draining the frontend processes does not replace JavaScript
+already loaded by a browser. Keep the settings-write pause in place until that
+client cutover is complete.
+Preview both scopes before applying them, then enable the feature:
+
+```bash
+baserow migrate_ai_provider_settings --scope instance
+baserow migrate_ai_provider_settings --scope workspace
+baserow migrate_ai_provider_settings --scope instance --apply
+baserow migrate_ai_provider_settings --scope workspace --apply
+```
+
+Review every warning before enabling the feature. Repair or explicitly accept
+incomplete legacy settings and differences from an existing database provider. The
+importer keeps an existing database provider in a conflict, while an incomplete
+workspace override can inherit the instance provider after the switch. Keep the
+settings-write pause in place while you redeploy or restart every web, backend, and
+worker process with `ai-providers` enabled. Wait for every feature-disabled process
+to drain before ending the pause; otherwise different process generations can resolve
+different settings, or a workspace can change its legacy JSON after the command reads
+it.
+
+This command imports Baserow's legacy AI provider configuration; it does not
+import `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` or the provider-native credentials
+used by Kuma. The assistant therefore stays on its legacy fallback until an
+administrator configures the same provider connection in the database, marks and
+tests a model for Kuma, and explicitly selects it. A database selection is
+authoritative, so verify its credentials and endpoint before switching.
+To roll back that selection, choose **Use legacy environment model**, which
+also displays the configured model, in the instance AI feature settings. The choice
+is disabled when neither `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` nor the deprecated
+`UDSPY_LM_MODEL` fallback provides a model **to the web-frontend process**, which is
+where that option is rendered: setting the variable on the backend alone leaves the
+option disabled while the backend fallback still resolves. Choosing **Disabled**
+deliberately keeps Kuma off.
+
+When using the legacy fallback with Docker Compose or multiple services, set
+`BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` in both backend and frontend services.
 
 ```dotenv
-# Required
+# Required only for the legacy fallback
 BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai:gpt-5.2
 OPENAI_API_KEY=your_api_key
 
@@ -34,7 +95,7 @@ BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE=0.3
 - Higher values (depending on the model) = more creative/varied responses.
 - Lower values (e.g., 0-0.1) = more analytical responses. Note that even with temperature of 0.0, the results will not be fully deterministic.
 
-## 3) Provider presets
+## 3) Legacy fallback provider presets
 
 Choose **one** provider block and set its variables. pydantic-ai uses the standard
 environment variables for each provider (e.g. `OPENAI_API_KEY`, `GROQ_API_KEY`).
@@ -138,10 +199,17 @@ After restart and migrations, knowledge-base lookup will be available.
 
 If the assistant is not visible in the sidebar or doesn't work, verify that:
 
-1. `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` is set correctly in **both** the backend and frontend services
-2. The required API key for your chosen provider is set (e.g., `OPENAI_API_KEY`, `GROQ_API_KEY`, etc.)
+Use one of these configurations:
 
-### Verifying environment variables in development
+1. Select a usable Kuma model under **AI providers > AI features** and make sure
+   its model test passes; or
+2. Leave the Kuma selection unconfigured and set the legacy
+   `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` in both backend and frontend services,
+   with its provider credentials available to the backend.
+
+An explicit Kuma disable does not use the legacy fallback.
+
+### Verifying legacy environment variables in development
 
 To check if the variables are set correctly in development, from the host run:
 
@@ -171,7 +239,7 @@ variables are unchanged or bridged for backward compatibility.
 
 | Variable | Notes |
 |----------|-------|
-| `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` | Works exactly as before. Both `provider/model` and `provider:model` formats are accepted. |
+| `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` | Continues as the fallback while the database selection is unconfigured or invalid, but not when it is explicitly disabled. Both `provider/model` and `provider:model` formats are accepted. |
 | `BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE` | Still supported. Overrides the orchestrator temperature when set. |
 | `OPENAI_API_KEY` | Unchanged. |
 | `GROQ_API_KEY` | Unchanged. |

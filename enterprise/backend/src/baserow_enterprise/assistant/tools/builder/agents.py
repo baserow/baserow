@@ -354,14 +354,20 @@ def update_element_formulas(
 ) -> list[str]:
     """Generate and apply formulas for elements that need them.
 
-    Returns a list of error messages for elements whose formulas could
-    not be generated (empty list on full success).
+    :param user: The user whose element permissions apply.
+    :param page: The page containing the elements.
+    :param elements: The assistant element definitions to process.
+    :param element_mapping: Assistant references mapped to persisted elements.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :return: Formula-generation errors, or an empty list on success.
     """
 
     errors: list[str] = []
     context = BuilderFormulaContext(page)
     context.load_page_context()
-    generate_formulas = get_formula_generator(BUILDER_FORMULA_PROMPT)
+    generate_formulas = get_formula_generator(
+        BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
+    )
 
     for el_create in elements:
         ref = el_create.ref
@@ -425,8 +431,11 @@ def update_data_source_formulas(
 ) -> list[str]:
     """Generate and apply formulas for data sources that need them.
 
-    Returns a list of error messages for data sources whose formulas could
-    not be generated (empty list on full success).
+    :param user: The user whose data-source permissions apply.
+    :param page: The page containing the data sources.
+    :param ds_pairs: Persisted data sources paired with assistant definitions.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :return: Formula-generation errors, or an empty list on success.
     """
 
     errors: list[str] = []
@@ -435,7 +444,9 @@ def update_data_source_formulas(
 
     context = BuilderFormulaContext(page)
     context.load_page_context()
-    generate_formulas = get_formula_generator(BUILDER_FORMULA_PROMPT)
+    generate_formulas = get_formula_generator(
+        BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
+    )
 
     for orm_ds, ds_create in ds_pairs:
         try:
@@ -476,7 +487,15 @@ def update_single_data_source_formulas(
     ds_update: DataSourceUpdate,
     tool_helpers: "ToolHelpers",
 ) -> None:
-    """Generate and apply formulas for a single updated data source."""
+    """Generate and apply formulas for one updated data source.
+
+    :param user: The user whose data-source permissions apply.
+    :param page: The page containing the data source.
+    :param orm_ds: The persisted data source to update.
+    :param ds_update: The assistant update containing formula requests.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :return: None.
+    """
 
     from baserow.contrib.builder.data_sources.handler import DataSourceHandler
     from baserow.contrib.builder.data_sources.service import DataSourceService
@@ -493,7 +512,9 @@ def update_single_data_source_formulas(
         _("Generating formulas for data source %(id)d...")
         % {"id": ds_update.data_source_id}
     )
-    generate_formulas = get_formula_generator(BUILDER_FORMULA_PROMPT)
+    generate_formulas = get_formula_generator(
+        BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
+    )
     with transaction.atomic():
         try:
             generated = generate_formulas(formulas, context)
@@ -537,7 +558,16 @@ def update_single_element_formulas(
     element_type: str,
     tool_helpers: "ToolHelpers",
 ) -> None:
-    """Generate and apply formulas for a single updated element."""
+    """Generate and apply formulas for one updated element.
+
+    :param user: The user whose element permissions apply.
+    :param page: The page containing the element.
+    :param orm_element: The persisted element to update.
+    :param element_update: The assistant update containing formula requests.
+    :param element_type: The registered type name of the element.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :return: None.
+    """
 
     from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
@@ -573,7 +603,9 @@ def update_single_element_formulas(
                 _("Generating formulas for element %(id)d...")
                 % {"id": element_update.element_id}
             )
-            generate_formulas = get_formula_generator(BUILDER_FORMULA_PROMPT)
+            generate_formulas = get_formula_generator(
+                BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
+            )
             with transaction.atomic():
                 try:
                     generated = generate_formulas(formulas, context)
@@ -608,8 +640,11 @@ def update_workflow_action_formulas(
 ) -> list[str]:
     """Generate and apply formulas for workflow actions that need them.
 
-    Returns a list of error messages for actions whose formulas could
-    not be generated (empty list on full success).
+    :param user: The user whose workflow-action permissions apply.
+    :param page: The page containing the workflow actions.
+    :param action_pairs: Persisted actions paired with assistant definitions.
+    :param tool_helpers: Helpers for status updates and the request model profile.
+    :return: Formula-generation errors, or an empty list on success.
     """
 
     errors: list[str] = []
@@ -618,7 +653,9 @@ def update_workflow_action_formulas(
 
     context = BuilderFormulaContext(page)
     context.load_page_context()
-    generate_formulas = get_formula_generator(BUILDER_FORMULA_PROMPT)
+    generate_formulas = get_formula_generator(
+        BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
+    )
 
     for orm_action, action_create in action_pairs:
         pushed = False

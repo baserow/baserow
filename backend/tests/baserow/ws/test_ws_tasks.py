@@ -9,9 +9,14 @@ from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
 from baserow.config.asgi import application
+from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_KUMA
 from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.ai_provider.registries import (
+    ai_provider_model_feature_type_registry,
+)
 from baserow.core.models import WORKSPACE_USER_PERMISSION_MEMBER
 from baserow.ws.tasks import (
+    broadcast_ai_provider_instance_update,
     broadcast_ai_provider_update,
     broadcast_to_channel_group,
     broadcast_to_group,
@@ -23,7 +28,7 @@ from baserow.ws.tasks import (
 
 
 @pytest.mark.django_db
-def test_ai_provider_update_payloads_are_complete_and_permission_scoped(
+def test_workspace_ai_provider_update_payloads_are_complete_permission_scoped_and_bounded(
     data_fixture, settings
 ):
     settings.FEATURE_FLAGS = ["ai-providers"]
@@ -44,37 +49,188 @@ def test_ai_provider_update_payloads_are_complete_and_permission_scoped(
         models_data=[{"model_identifier": "gpt-5"}],
     )
 
-    with patch(
-        "baserow.ws.tasks.broadcast_to_users_individual_payloads"
-    ) as mock_broadcast:
-        broadcast_ai_provider_update(None, True)
+    with (
+        patch("baserow.ws.tasks.AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE", 1),
+        patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast,
+    ):
+        broadcast_ai_provider_update(workspace.id, True)
 
-    payload_map = mock_broadcast.call_args.args[0]
+    payloads_by_user = {
+        user_id: payload
+        for call in mock_broadcast.call_args_list
+        for user_id in call.args[0]
+        for payload in [call.args[1]]
+    }
     workspace_key = str(workspace.id)
+    expected_ai_features = (
+        ai_provider_model_feature_type_registry.get_workspace_availability(workspace)
+    )
 
-    assert str(outsider.id) not in payload_map
-    assert payload_map[str(member.id)] == {
+    assert outsider.id not in payloads_by_user
+    assert staff.id not in payloads_by_user
+    assert all(len(call.args[0]) <= 1 for call in mock_broadcast.call_args_list)
+    assert payloads_by_user[member.id] == {
         "type": "ai_provider_updated",
         "model_availability_updated": True,
         "generative_ai_models_enabled_by_workspace": {
             workspace_key: {"openai": ["gpt-5"]}
         },
+        "ai_features_by_workspace": {workspace_key: expected_ai_features},
     }
 
-    admin_payload = payload_map[str(admin.id)]
+    admin_payload = payloads_by_user[admin.id]
     assert admin_payload["generative_ai_models_enabled_by_workspace"] == {
         workspace_key: {"openai": ["gpt-5"]}
     }
     workspace_providers = admin_payload["ai_providers_by_workspace"][workspace_key]
     assert workspace_providers[0]["provider_type"] == "openai"
     assert workspace_providers[0]["extra_settings"] == {}
+    workspace_feature_settings = admin_payload[
+        "ai_provider_feature_settings_by_workspace"
+    ][workspace_key]
+    assert [setting["feature_type"] for setting in workspace_feature_settings] == [
+        "kuma"
+    ]
 
-    staff_payload = payload_map[str(staff.id)]
-    assert "generative_ai_models_enabled_by_workspace" not in staff_payload
-    assert staff_payload["instance_ai_providers"][0]["provider_type"] == "openai"
-    assert staff_payload["instance_ai_providers"][0]["extra_settings"] == {
-        "organization": "instance-organization"
+    assert "instance_ai_providers" not in admin_payload
+
+
+@pytest.mark.django_db
+def test_workspace_ai_provider_metadata_update_only_notifies_permitted_users(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        user=member,
+        workspace=workspace,
+        permissions=WORKSPACE_USER_PERMISSION_MEMBER,
+    )
+
+    with patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast:
+        broadcast_ai_provider_update(workspace.id, False)
+
+    mock_broadcast.assert_called_once()
+    assert mock_broadcast.call_args.args[0] == [admin.id]
+    payload = mock_broadcast.call_args.args[1]
+    assert payload["model_availability_updated"] is False
+    assert "generative_ai_models_enabled_by_workspace" not in payload
+    assert "ai_features_by_workspace" not in payload
+    assert str(workspace.id) in payload["ai_providers_by_workspace"]
+    assert str(workspace.id) in payload["ai_provider_feature_settings_by_workspace"]
+
+
+@pytest.mark.django_db
+def test_instance_ai_provider_update_schedules_bounded_workspace_batches(
+    data_fixture,
+):
+    workspaces = [data_fixture.create_workspace() for _ in range(5)]
+
+    with (
+        patch("baserow.ws.tasks.AI_PROVIDER_UPDATE_WORKSPACE_BATCH_SIZE", 2),
+        patch(
+            "baserow.ws.tasks.broadcast_ai_provider_workspace_update_batch.delay"
+        ) as mock_workspace_batch,
+        patch(
+            "baserow.ws.tasks.broadcast_ai_provider_instance_update.delay"
+        ) as mock_instance_update,
+    ):
+        broadcast_ai_provider_update(None, True)
+
+    assert [call.args for call in mock_workspace_batch.call_args_list] == [
+        ([workspaces[0].id, workspaces[1].id], True),
+        ([workspaces[2].id, workspaces[3].id], True),
+        ([workspaces[4].id], True),
+    ]
+    mock_instance_update.assert_called_once_with(True)
+
+
+@pytest.mark.django_db
+def test_instance_ai_provider_update_payload_is_staff_only_and_bounded(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    staff_users = [data_fixture.create_user(is_staff=True) for _ in range(3)]
+    inactive_staff = data_fixture.create_user(is_staff=True, is_active=False)
+    data_fixture.create_user()
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        extra_settings={"organization": "instance-organization"},
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+
+    with (
+        patch("baserow.ws.tasks.AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE", 2),
+        patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast,
+    ):
+        broadcast_ai_provider_instance_update(False)
+
+    recipient_batches = [call.args[0] for call in mock_broadcast.call_args_list]
+    assert recipient_batches == [
+        [staff_users[0].id, staff_users[1].id],
+        [staff_users[2].id],
+    ]
+    assert inactive_staff.id not in {
+        user_id for recipient_batch in recipient_batches for user_id in recipient_batch
     }
+    assert all(len(recipient_batch) <= 2 for recipient_batch in recipient_batches)
+
+    for call in mock_broadcast.call_args_list:
+        payload = call.args[1]
+        assert payload["type"] == "ai_provider_updated"
+        assert payload["model_availability_updated"] is False
+        assert payload["instance_ai_providers"][0]["provider_type"] == "openai"
+        assert payload["instance_ai_providers"][0]["extra_settings"] == {
+            "organization": "instance-organization"
+        }
+        assert [
+            setting["feature_type"]
+            for setting in payload["instance_ai_provider_feature_settings"]
+        ] == ["kuma"]
+
+
+@pytest.mark.django_db
+def test_instance_ai_provider_availability_update_reaches_every_connected_user(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    data_fixture.create_user(is_staff=True)
+    data_fixture.create_user()
+
+    with patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast:
+        broadcast_ai_provider_instance_update(True)
+
+    public_calls = [
+        call
+        for call in mock_broadcast.call_args_list
+        if call.kwargs.get("send_to_all_users") is True
+    ]
+    assert len(public_calls) == 1
+    public_call = public_calls[0]
+    assert public_call.args[0] == []
+    assert public_call.args[1] == {
+        "type": "ai_provider_updated",
+        "model_availability_updated": True,
+        "instance_ai_features": {
+            AI_PROVIDER_FEATURE_KUMA: {
+                "is_enabled": ai_provider_model_feature_type_registry.get(
+                    AI_PROVIDER_FEATURE_KUMA
+                ).get_workspace_availability(None)["is_enabled"]
+            }
+        },
+    }
+    assert "ai_fields" not in public_call.args[1]["instance_ai_features"]
+
+    staff_calls = [
+        call
+        for call in mock_broadcast.call_args_list
+        if call.kwargs.get("send_to_all_users") is not True
+    ]
+    assert staff_calls
+    assert all("instance_ai_features" not in call.args[1] for call in staff_calls)
 
 
 @pytest.mark.asyncio

@@ -3,7 +3,10 @@ from typing import Any
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from baserow.core.ai_provider.constants import PROVIDER_ENVIRONMENT_SETTINGS
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_TYPES,
+    PROVIDER_ENVIRONMENT_SETTINGS,
+)
 from baserow.core.ai_provider.exceptions import InvalidAIProviderSettings
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderConfig
@@ -103,7 +106,7 @@ class Command(BaseCommand):
         skipped_count = 0
         for provider_type in PROVIDER_ENVIRONMENT_SETTINGS:
             values = get_environment_provider_values(provider_type)
-            provider_name = PROVIDER_ENVIRONMENT_SETTINGS[provider_type]["name"]
+            provider_name = AI_PROVIDER_TYPES[provider_type]["name"]
             if not values["configured"]:
                 continue
             try:
@@ -156,7 +159,7 @@ class Command(BaseCommand):
             "id", "name", "generative_ai_models_settings"
         ).iterator():
             legacy_settings = workspace.generative_ai_models_settings or {}
-            for provider_type, config in PROVIDER_ENVIRONMENT_SETTINGS.items():
+            for provider_type in PROVIDER_ENVIRONMENT_SETTINGS:
                 if provider_type not in legacy_settings:
                     continue
                 raw_values = legacy_settings[provider_type]
@@ -166,7 +169,7 @@ class Command(BaseCommand):
                 elif not raw_values:
                     continue
 
-                provider_name = config["name"]
+                provider_name = AI_PROVIDER_TYPES[provider_type]["name"]
                 prefix = f"Workspace {workspace.id} ({workspace.name}), {provider_name}"
                 try:
                     values = get_legacy_workspace_provider_values(
@@ -272,9 +275,10 @@ class Command(BaseCommand):
             )
         )
         self.stdout.write("Checked the following environment variables:")
-        for config in PROVIDER_ENVIRONMENT_SETTINGS.values():
+        for provider_type, config in PROVIDER_ENVIRONMENT_SETTINGS.items():
             variables = ", ".join(self._environment_variables(config))
-            self.stdout.write(f"  {config['name']}: {variables}")
+            provider_name = AI_PROVIDER_TYPES[provider_type]["name"]
+            self.stdout.write(f"  {provider_name}: {variables}")
 
     @staticmethod
     def _environment_variables(config: dict[str, Any]) -> list[str]:

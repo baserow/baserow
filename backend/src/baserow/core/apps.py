@@ -503,6 +503,8 @@ class CoreConfig(AppConfig):
 
         from baserow.core.generative_ai.generative_ai_model_types import (
             AnthropicGenerativeAIModelType,
+            GoogleGenerativeAIModelType,
+            GroqGenerativeAIModelType,
             MistralGenerativeAIModelType,
             OllamaGenerativeAIModelType,
             OpenAIGenerativeAIModelType,
@@ -514,6 +516,8 @@ class CoreConfig(AppConfig):
 
         generative_ai_model_type_registry.register(OpenAIGenerativeAIModelType())
         generative_ai_model_type_registry.register(AnthropicGenerativeAIModelType())
+        generative_ai_model_type_registry.register(GoogleGenerativeAIModelType())
+        generative_ai_model_type_registry.register(GroqGenerativeAIModelType())
         generative_ai_model_type_registry.register(MistralGenerativeAIModelType())
         generative_ai_model_type_registry.register(OllamaGenerativeAIModelType())
         generative_ai_model_type_registry.register(OpenRouterGenerativeAIModelType())

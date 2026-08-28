@@ -9,6 +9,16 @@ export default (client, workspaceId = null) => {
     fetchTypes() {
       return client.get('/ai-providers/types/', config())
     },
+    fetchFeatureSettings() {
+      return client.get('/ai-providers/features/', config())
+    },
+    updateFeatureSetting(featureType, values) {
+      return client.put(
+        `/ai-providers/features/${featureType}/`,
+        values,
+        config()
+      )
+    },
     create(values) {
       return client.post('/ai-providers/', values, config())
     },

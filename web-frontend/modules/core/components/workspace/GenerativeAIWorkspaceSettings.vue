@@ -133,7 +133,11 @@ export default {
     modelTypes() {
       return this.$registry
         .getOrderedList('generativeAIModel')
-        .filter((modelType) => modelType.getSettings().length > 0)
+        .filter(
+          (modelType) =>
+            modelType.supportsLegacyWorkspaceSettings() &&
+            modelType.getSettings().length > 0
+        )
         .map((modelType) => [modelType.getType(), modelType])
     },
   },

@@ -23,6 +23,7 @@ from baserow.contrib.database.rows.signals import rows_ai_values_generation_erro
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.core.ai_provider.resolution import get_ai_provider_state
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.generative_ai.exceptions import (
     GenerativeAIPromptError,
@@ -369,6 +370,9 @@ class AIValueGenerator:
         self.model = table.get_model()
         self.signal_sender = signal_sender
         self.workspace = table.database.workspace
+        # Rows are generated on worker threads, so resolve the provider state
+        # once here rather than letting every row resolve it again.
+        self.ai_provider_state = get_ai_provider_state(self.workspace)
         self.max_concurrency = self.ai_field.ai_max_concurrent_generations
 
         # A counter of processed rows. This doesn't include rows being still processed.
@@ -401,7 +405,9 @@ class AIValueGenerator:
         """
 
         try:
-            AIFieldHandler.get_valid_model_type_or_raise(self.ai_field)
+            AIFieldHandler.get_valid_model_type_or_raise(
+                self.ai_field, self.ai_provider_state
+            )
         except ModelDoesNotBelongToType as exc:
             rows_ai_values_generation_error.send(
                 self.signal_sender,
@@ -426,7 +432,9 @@ class AIValueGenerator:
 
         start = datetime.now(tz=timezone.utc)
         try:
-            result = AIFieldHandler.generate_value_with_ai(self.ai_field, row)
+            result = AIFieldHandler.generate_value_with_ai(
+                self.ai_field, row, self.ai_provider_state
+            )
         except AIFieldEmptyPromptError:
             # Empty prompt — preserve existing value.
             result = getattr(row, self.ai_field.db_column, None)

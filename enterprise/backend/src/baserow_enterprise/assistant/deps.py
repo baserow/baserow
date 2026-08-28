@@ -10,6 +10,9 @@ if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
     from baserow.core.models import Workspace
+    from baserow_enterprise.assistant.model_profiles import (
+        ResolvedAssistantModelProfile,
+    )
     from baserow_enterprise.assistant.tools.navigation.types import (
         AnyNavigationRequestType,
     )
@@ -66,13 +69,13 @@ class ToolHelpers:
     """
     Contextual helpers available to every tool via ``RunContext[AssistantDeps]``.
 
-    Provides status updates (shown in the UI), navigation actions,
-    cancellation support, and an event bus for emitting custom streaming
-    events (thinking messages, navigation messages, etc.).
+    Provides the request's resolved model profile, UI status and navigation
+    callbacks, cancellation support, and custom streaming events.
     """
 
     update_status: Callable[[str], None]
     navigate_to: Callable[["AnyNavigationRequestType"], str]
+    model_profile: "ResolvedAssistantModelProfile"
     request_context: dict = field(default_factory=dict)
     event_bus: EventBus = field(default_factory=EventBus)
     _cancel_event: threading.Event = field(default_factory=threading.Event)

@@ -55,6 +55,31 @@ def test_ai_integration_creation_with_settings(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("provider_type", ["google", "groq"])
+def test_ai_integration_accepts_database_only_provider_overrides(
+    data_fixture, provider_type
+):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration_type = integration_type_registry.get("ai")
+    ai_settings = {
+        provider_type: {
+            "api_key": "integration-secret",
+            "models": ["integration-model"],
+        }
+    }
+
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type,
+        application=application,
+        ai_settings=ai_settings,
+    )
+
+    assert integration.ai_settings == ai_settings
+
+
+@pytest.mark.django_db
 def test_ai_integration_update(data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)

@@ -2,33 +2,48 @@ from __future__ import annotations
 
 import os
 from functools import cached_property
+from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
-
-from django.db.models import Q
 
 from loguru import logger
 
-from baserow.core.ai_provider.constants import (
-    AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY,
-    PROVIDER_ENVIRONMENT_SETTINGS,
-)
+from baserow.core.ai_provider.constants import AI_PROVIDER_TYPES
 from baserow.core.ai_provider.exceptions import InvalidAIProviderSettings
-from baserow.core.ai_provider.models import (
-    AIProviderConfig,
-    AIProviderWorkspaceOverride,
+from baserow.core.ai_provider.resolution import (
+    ScopedAIProviderState,
+    get_ai_provider_state,
 )
-from baserow.core.cache import local_cache
 from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
 from .exceptions import GenerativeAITypeDoesNotExist, get_user_friendly_error_message
+from .lifecycle import run_agent_sync_with_model
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
     from pydantic_ai.messages import UserContent
 
     from baserow_premium.fields.ai_file import AIFile
+
+
+def call_with_supported_kwargs(method: Any, **kwargs) -> Any:
+    """
+    Call an overridable registry method with only the arguments it declares.
+
+    Provider types are an extension point, so an out-of-tree type may still
+    define an older signature. It then resolves whatever the caller could not
+    hand it, which costs queries but stays correct.
+    """
+
+    parameters = signature(method).parameters
+    if any(
+        parameter.kind is Parameter.VAR_KEYWORD for parameter in parameters.values()
+    ):
+        return method(**kwargs)
+    return method(
+        **{name: value for name, value in kwargs.items() if name in parameters}
+    )
 
 
 def get_known_model_names(model_name_type: Any) -> list[str]:
@@ -291,6 +306,9 @@ class FileHandler:
 
 
 class GenerativeAIModelType(Instance):
+    # Default to the legacy contract so out-of-tree providers remain compatible.
+    supports_legacy_workspace_settings = True
+
     @cached_property
     def file_handler(self) -> FileHandler | None:
         """
@@ -385,7 +403,9 @@ class GenerativeAIModelType(Instance):
         if settings_override is not None and key in settings_override:
             return settings_override[key]
 
-        if not isinstance(workspace, Workspace):
+        if not self.supports_legacy_workspace_settings or not isinstance(
+            workspace, Workspace
+        ):
             return None
 
         settings = workspace.generative_ai_models_settings or {}
@@ -397,6 +417,8 @@ class GenerativeAIModelType(Instance):
         workspace: Optional[Workspace],
         key: str,
         settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> tuple[bool, Any]:
         """
         Resolve a non-environment setting and report whether it is authoritative.
@@ -407,6 +429,10 @@ class GenerativeAIModelType(Instance):
         configuration is checked before an inherited instance provider and
         environment settings. Incomplete legacy settings are never combined with
         credentials from another scope.
+
+        :param state: Pre-loaded state for this scope. Callers resolving many
+            settings, or many workspaces, load it once and pass it here so the
+            provider rows are read from the database a single time.
         """
 
         providers_enabled = feature_flag_is_enabled(FF_AI_PROVIDERS)
@@ -425,9 +451,11 @@ class GenerativeAIModelType(Instance):
                 return True, legacy_value
             return False, None
 
-        workspace_providers, instance_providers, disabled_provider_ids = (
-            self._get_database_provider_configuration(workspace)
-        )
+        if state is None:
+            state = get_ai_provider_state(workspace)
+        workspace_providers = state.owned_providers
+        instance_providers = state.instance_providers
+        disabled_provider_ids = state.disabled_instance_provider_ids
 
         workspace_provider = workspace_providers.get(self.type)
         legacy_settings = None
@@ -455,6 +483,7 @@ class GenerativeAIModelType(Instance):
                     model.model_identifier
                     for model in workspace_model_rows
                     if model.is_enabled
+                    and (feature_type is None or feature_type in model.feature_types)
                 ]
 
             instance_models = []
@@ -467,6 +496,7 @@ class GenerativeAIModelType(Instance):
                     model.model_identifier
                     for model in instance_provider.models.all()
                     if model.is_enabled
+                    and (feature_type is None or feature_type in model.feature_types)
                     and model.model_identifier not in overridden_identifiers
                 ]
             effective_models = workspace_models + instance_models
@@ -493,48 +523,6 @@ class GenerativeAIModelType(Instance):
             return True, None
         return True, self._get_provider_setting(provider, key)
 
-    def _get_database_provider_configuration(
-        self, workspace: Optional[Workspace]
-    ) -> tuple[dict[str, Any], dict[str, Any], set[int]]:
-        workspace_id = workspace.id if isinstance(workspace, Workspace) else None
-
-        def load_provider_configuration():
-            providers = AIProviderConfig.objects.prefetch_related("models")
-            if workspace_id is not None:
-                providers = providers.filter(
-                    Q(workspace_id=workspace_id) | Q(workspace__isnull=True)
-                )
-            else:
-                providers = providers.filter(workspace__isnull=True)
-            providers = list(providers)
-            instance_providers = {
-                provider.provider_type: provider
-                for provider in providers
-                if provider.workspace_id is None
-            }
-            if workspace_id is None:
-                return {}, instance_providers, set()
-            workspace_providers = {
-                provider.provider_type: provider
-                for provider in providers
-                if provider.workspace_id == workspace_id
-            }
-            disabled_instance_provider_ids = set(
-                AIProviderWorkspaceOverride.objects.filter(
-                    workspace_id=workspace_id
-                ).values_list("provider_config_id", flat=True)
-            )
-            return (
-                workspace_providers,
-                instance_providers,
-                disabled_instance_provider_ids,
-            )
-
-        cache_key = (
-            f"{AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY}:{workspace_id or 'instance'}"
-        )
-        return local_cache.get(cache_key, load_provider_configuration)
-
     @staticmethod
     def _get_provider_setting(provider: Any, key: str) -> Any:
         if key == "api_key":
@@ -542,7 +530,7 @@ class GenerativeAIModelType(Instance):
         return provider.extra_settings.get(key)
 
     def _get_provider_settings(self, provider: Any) -> dict[str, Any]:
-        extra_setting_names = PROVIDER_ENVIRONMENT_SETTINGS[self.type]["extra_settings"]
+        extra_setting_names = AI_PROVIDER_TYPES[self.type]["extra_settings"]
         return {
             "api_key": provider.api_key,
             "models": [
@@ -558,7 +546,9 @@ class GenerativeAIModelType(Instance):
     ) -> Optional[dict[str, Any]]:
         """Return legacy settings only when they define their own connection."""
 
-        if not isinstance(workspace, Workspace):
+        if not self.supports_legacy_workspace_settings or not isinstance(
+            workspace, Workspace
+        ):
             return None
 
         values = (workspace.generative_ai_models_settings or {}).get(self.type)
@@ -566,6 +556,14 @@ class GenerativeAIModelType(Instance):
 
     def _get_complete_provider_settings(self, values: Any) -> Optional[dict[str, Any]]:
         """Validate and normalize one complete provider settings dictionary."""
+
+        # The database-backed provider feature intentionally supports a closed
+        # set of built-in provider types. GenerativeAIModelType remains an
+        # extension point, though, and existing out-of-tree types still own
+        # their legacy workspace settings. Leave those settings to the
+        # extension instead of indexing the built-in provider metadata below.
+        if self.type not in AI_PROVIDER_TYPES:
+            return None
 
         from baserow.core.ai_provider.provider_types import (
             get_legacy_workspace_provider_values,
@@ -587,6 +585,7 @@ class GenerativeAIModelType(Instance):
         model_name: str,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> Optional[dict[str, Any]]:
         """Resolve the complete provider configuration owning ``model_name``."""
 
@@ -598,10 +597,12 @@ class GenerativeAIModelType(Instance):
         ):
             return None
 
-        workspace_providers, instance_providers, disabled_provider_ids = (
-            self._get_database_provider_configuration(workspace)
-        )
-        workspace_provider = workspace_providers.get(self.type)
+        if state is None:
+            state = get_ai_provider_state(workspace)
+        instance_providers = state.instance_providers
+        disabled_provider_ids = state.disabled_instance_provider_ids
+
+        workspace_provider = state.owned_providers.get(self.type)
         if workspace_provider is not None and workspace_provider.is_active:
             if any(
                 model.model_identifier == model_name
@@ -653,12 +654,14 @@ class GenerativeAIModelType(Instance):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> Optional[str]:
         """
         Return the API key for this provider, or None if not configured.
 
         :param workspace: The workspace for settings resolution.
         :param settings_override: Optional provider settings override.
+        :param state: Pre-loaded state for this scope.
         :return: The API key string, or None.
         """
 
@@ -668,6 +671,7 @@ class GenerativeAIModelType(Instance):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> bool:
         """
         Return True if this provider has both an API key and at least one
@@ -675,12 +679,19 @@ class GenerativeAIModelType(Instance):
 
         :param workspace: The workspace for settings resolution.
         :param settings_override: Optional provider settings override.
+        :param state: Pre-loaded state for this scope.
         :return: True if the provider is enabled.
         """
 
-        return bool(self.get_api_key(workspace, settings_override)) and bool(
-            self.get_enabled_models(
-                workspace=workspace, settings_override=settings_override
+        api_key = call_with_supported_kwargs(
+            self.get_api_key,
+            workspace=workspace,
+            settings_override=settings_override,
+            state=state,
+        )
+        return bool(api_key) and bool(
+            self.call_get_enabled_models(
+                workspace=workspace, settings_override=settings_override, state=state
             )
         )
 
@@ -688,16 +699,53 @@ class GenerativeAIModelType(Instance):
         self,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> list[str]:
         """
         Return the list of enabled model names for this provider.
 
         :param workspace: The workspace for settings resolution.
         :param settings_override: Optional provider settings override.
+        :param feature_type: Restrict to models available to this AI feature.
+        :param state: Pre-loaded state for this scope.
         :return: List of model name strings, empty if none configured.
         """
 
         return []
+
+    def call_get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> list[str]:
+        """Call ``get_enabled_models`` with only the arguments it declares."""
+
+        return call_with_supported_kwargs(
+            self.get_enabled_models,
+            workspace=workspace,
+            settings_override=settings_override,
+            feature_type=feature_type,
+            state=state,
+        )
+
+    def get_enabled_models_for_feature(
+        self,
+        feature_type: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> list[str]:
+        """Return the models this AI feature is allowed to select."""
+
+        return self.call_get_enabled_models(
+            workspace=workspace,
+            settings_override=settings_override,
+            feature_type=feature_type,
+            state=state,
+        )
 
     def get_ai_model(
         self,
@@ -729,6 +777,20 @@ class GenerativeAIModelType(Instance):
         if temperature is not None:
             settings["temperature"] = temperature
         return settings
+
+    def prepare_model_settings(
+        self, model: str, temperature: Optional[float] = None
+    ) -> dict[str, Any]:
+        """Build request settings, allowing model-aware provider overrides."""
+
+        return self._prepare_model_settings(temperature)
+
+    def sanitize_model_settings(
+        self, model: str, model_settings: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Remove settings a concrete provider/model cannot accept."""
+
+        return model_settings
 
     def _is_choices(self, output_type: Any) -> bool:
         """
@@ -872,16 +934,22 @@ class GenerativeAIModelType(Instance):
             settings_override = self.get_model_settings_override(
                 model, workspace, settings_override
             )
-            ai_model = self.get_ai_model(model, workspace, settings_override)
             model_settings = {
-                **self._prepare_model_settings(temperature),
+                **self.prepare_model_settings(model, temperature),
                 **(model_settings_override or {}),
             }
+            model_settings = self.sanitize_model_settings(model, model_settings)
             user_prompt = self._build_user_prompt(prompt, output_type, content)
             agent = self._build_agent(output_type)
+            # Construct the model last because provider-owned HTTP clients are
+            # allocated immediately and must be scoped as soon as they exist.
+            ai_model = self.get_ai_model(model, workspace, settings_override)
 
-            result = agent.run_sync(
-                user_prompt, model=ai_model, model_settings=model_settings
+            result = run_agent_sync_with_model(
+                agent,
+                user_prompt,
+                model=ai_model,
+                model_settings=model_settings,
             )
 
             if self._is_choices(output_type):
@@ -923,64 +991,37 @@ class GenerativeAIModelTypeRegistry(Registry):
     does_not_exist_exception_class = GenerativeAITypeDoesNotExist
 
     def get_enabled_models_per_type(
-        self, workspace: Optional[Workspace] = None
+        self,
+        workspace: Optional[Workspace] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
     ) -> dict[str, list[str]]:
-        return {
-            key: model_type.get_enabled_models(workspace)
-            for key, model_type in self.registry.items()
-            if model_type.is_enabled(workspace)
-        }
+        if state is None:
+            state = get_ai_provider_state(workspace)
 
-    def prefetch_workspace_configuration(self, workspace_ids: list[int]) -> None:
-        """
-        Load the provider configuration of many workspaces in one go.
-
-        Resolving enabled models per workspace is otherwise a query per
-        workspace, which is paid on every workspace list serialization.
-        """
-
-        if not feature_flag_is_enabled(FF_AI_PROVIDERS):
-            return
-
-        workspace_ids = {
-            workspace_id for workspace_id in workspace_ids if workspace_id is not None
-        }
-        if not workspace_ids:
-            return
-
-        providers = list(
-            AIProviderConfig.objects.filter(
-                Q(workspace_id__in=workspace_ids) | Q(workspace__isnull=True)
-            ).prefetch_related("models")
-        )
-        instance_providers = {
-            provider.provider_type: provider
-            for provider in providers
-            if provider.workspace_id is None
-        }
-        owned: dict[int, dict[str, Any]] = {
-            workspace_id: {} for workspace_id in workspace_ids
-        }
-        for provider in providers:
-            if provider.workspace_id is not None:
-                owned[provider.workspace_id][provider.provider_type] = provider
-
-        disabled: dict[int, set[int]] = {
-            workspace_id: set() for workspace_id in workspace_ids
-        }
-        for (
-            workspace_id,
-            provider_config_id,
-        ) in AIProviderWorkspaceOverride.objects.filter(
-            workspace_id__in=workspace_ids
-        ).values_list("workspace_id", "provider_config_id"):
-            disabled[workspace_id].add(provider_config_id)
-
-        for workspace_id in workspace_ids:
-            local_cache.get(
-                f"{AI_PROVIDER_CONFIGS_LOCAL_CACHE_KEY}:{workspace_id}",
-                (owned[workspace_id], instance_providers, disabled[workspace_id]),
+        result = {}
+        for key, model_type in self.registry.items():
+            models = (
+                call_with_supported_kwargs(
+                    model_type.get_enabled_models_for_feature,
+                    feature_type=feature_type,
+                    workspace=workspace,
+                    state=state,
+                )
+                if feature_type is not None
+                else model_type.call_get_enabled_models(
+                    workspace=workspace, state=state
+                )
             )
+            enabled = call_with_supported_kwargs(
+                model_type.is_enabled, workspace=workspace, state=state
+            )
+            # The generic workspace contract historically included enabled
+            # providers even when they exposed no models. Feature-filtered
+            # consumers only need providers with at least one eligible model.
+            if enabled and (feature_type is None or models):
+                result[key] = models
+        return result
 
 
 generative_ai_model_type_registry: GenerativeAIModelTypeRegistry = (

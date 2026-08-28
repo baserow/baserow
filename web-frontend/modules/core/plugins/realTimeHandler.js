@@ -526,12 +526,20 @@ export class RealTimeHandler {
     })
 
     this.registerEvent('ai_provider_updated', ({ store }, data) => {
+      if (data.instance_ai_features !== undefined) {
+        store.dispatch(
+          'settings/forceUpdateAIFeatures',
+          data.instance_ai_features
+        )
+      }
+
       for (const [workspaceId, enabledModels] of Object.entries(
         data.generative_ai_models_enabled_by_workspace || {}
       )) {
         store.dispatch('workspace/forceUpdateGenerativeAIModels', {
           workspaceId: Number(workspaceId),
           generativeAIModelsEnabled: enabledModels,
+          aiFeatures: data.ai_features_by_workspace?.[workspaceId],
         })
       }
 
@@ -541,10 +549,15 @@ export class RealTimeHandler {
           workspaceId === null
             ? data.instance_ai_providers
             : data.ai_providers_by_workspace?.[workspaceId]
+        const featureSettings =
+          workspaceId === null
+            ? data.instance_ai_provider_feature_settings
+            : data.ai_provider_feature_settings_by_workspace?.[workspaceId]
         if (providers !== undefined) {
           store.dispatch('aiProvider/replaceFromRealtime', {
             workspaceId,
             providers,
+            featureSettings,
           })
         }
       }

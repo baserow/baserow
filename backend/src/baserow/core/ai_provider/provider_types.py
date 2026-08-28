@@ -8,12 +8,12 @@ from baserow.core.generative_ai.registries import (
     generative_ai_model_type_registry,
 )
 
-from .constants import PROVIDER_ENVIRONMENT_SETTINGS
+from .constants import AI_PROVIDER_TYPES, PROVIDER_ENVIRONMENT_SETTINGS
 from .exceptions import AIProviderTypeNotSupported, InvalidAIProviderSettings
 
 
 def get_supported_provider_type(provider_type: str) -> GenerativeAIModelType:
-    if provider_type not in PROVIDER_ENVIRONMENT_SETTINGS:
+    if provider_type not in AI_PROVIDER_TYPES:
         raise AIProviderTypeNotSupported(provider_type)
     try:
         return generative_ai_model_type_registry.get(provider_type)
@@ -23,11 +23,11 @@ def get_supported_provider_type(provider_type: str) -> GenerativeAIModelType:
 
 def get_provider_type_metadata() -> list[dict[str, Any]]:
     result = []
-    for provider_type, environment_config in PROVIDER_ENVIRONMENT_SETTINGS.items():
+    for provider_type, provider_config in AI_PROVIDER_TYPES.items():
         model_type = get_supported_provider_type(provider_type)
         serializer = model_type.get_settings_serializer()()
         required_extra_settings = set(
-            environment_config.get("required_extra_settings", ())
+            provider_config.get("required_extra_settings", ())
         )
         extra_fields = []
         for name, field in serializer.fields.items():
@@ -48,8 +48,8 @@ def get_provider_type_metadata() -> list[dict[str, Any]]:
         result.append(
             {
                 "type": provider_type,
-                "name": environment_config["name"],
-                "uses_api_key": environment_config["api_key"] is not None,
+                "name": provider_config["name"],
+                "uses_api_key": provider_config["uses_api_key"],
                 "extra_fields": extra_fields,
             }
         )
@@ -63,6 +63,7 @@ def validate_provider_settings(
     model_identifiers: list[str],
     require_credentials: bool = False,
 ) -> dict[str, Any]:
+    api_key = api_key.strip()
     model_type = get_supported_provider_type(provider_type)
     serializer_class = model_type.get_settings_serializer()
     allowed_fields = set(serializer_class().fields)
@@ -89,9 +90,7 @@ def validate_provider_settings(
         values["api_key"] = api_key
 
     if require_credentials:
-        for name in PROVIDER_ENVIRONMENT_SETTINGS[provider_type].get(
-            "required_extra_settings", ()
-        ):
+        for name in AI_PROVIDER_TYPES[provider_type].get("required_extra_settings", ()):
             if not extra_settings.get(name):
                 raise InvalidAIProviderSettings(
                     {name: ["This setting is required for this provider type."]}
@@ -111,6 +110,7 @@ def get_environment_provider_values(provider_type: str) -> dict[str, Any]:
     config = PROVIDER_ENVIRONMENT_SETTINGS[provider_type]
     api_key_setting = config["api_key"]
     api_key = getattr(settings, api_key_setting, None) if api_key_setting else ""
+    api_key = str(api_key or "").strip()
     models = normalize_model_identifiers(getattr(settings, config["models"], []))
     extra_settings = {
         key: getattr(settings, setting_name, None)
@@ -121,7 +121,7 @@ def get_environment_provider_values(provider_type: str) -> dict[str, Any]:
     }
     return {
         "provider_type": provider_type,
-        "api_key": api_key or "",
+        "api_key": api_key,
         "extra_settings": extra_settings,
         "models": models,
         "configured": bool(api_key or extra_settings or models),
@@ -138,8 +138,8 @@ def get_legacy_workspace_provider_values(
             {"settings": ["The provider settings must be an object."]}
         )
 
-    config = PROVIDER_ENVIRONMENT_SETTINGS[provider_type]
-    api_key = str(values.get("api_key") or "")
+    config = AI_PROVIDER_TYPES[provider_type]
+    api_key = str(values.get("api_key") or "").strip()
     models = normalize_model_identifiers(values.get("models"))
     extra_settings = {
         name: values[name]

@@ -56,8 +56,6 @@ const envMapping = {
   BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
     'NUXT_PUBLIC_BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES',
   BASEROW_PRICING_URL: 'NUXT_PUBLIC_BASEROW_PRICING_URL',
-  BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
-    'NUXT_PUBLIC_BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL',
   BASEROW_ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE:
     'NUXT_PUBLIC_BASEROW_ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE',
   SENTRY_DSN: 'NUXT_PUBLIC_SENTRY_DSN',
@@ -77,6 +75,20 @@ for (const [legacyKey, nuxtKey] of Object.entries(envMapping)) {
     process.env[nuxtKey] === undefined
   ) {
     process.env[nuxtKey] = process.env[legacyKey]
+  }
+}
+
+// Match the backend's deprecated UDSPY_LM_MODEL fallback while preferring the
+// current variable. A direct NUXT_PUBLIC_* override remains authoritative.
+if (
+  process.env.NUXT_PUBLIC_BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL === undefined
+) {
+  const assistantModel =
+    process.env.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL ||
+    process.env.UDSPY_LM_MODEL
+  if (assistantModel) {
+    process.env.NUXT_PUBLIC_BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL =
+      assistantModel
   }
 }
 

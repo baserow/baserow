@@ -29,6 +29,7 @@ from baserow.contrib.database.views.actions import (
     UpdateViewFieldOptionsActionType,
 )
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AssistantDeps
@@ -880,7 +881,7 @@ def generate_formula(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> dict[str, str]:
+) -> dict[str, str | int]:
     """\
     Generate a formula from a natural-language description and save it.
 
@@ -889,12 +890,16 @@ def generate_formula(
     RETURNS: Generated formula string, formula type, and field details (name, table, operation).
     DO NOT USE when: The user wants a simple non-formula field — use create_fields instead.
     HOW: Describe what the formula should compute in plain language. The tool auto-discovers the table schema — no need to inspect it first.
+
+    :param ctx: The assistant context containing the user, workspace, and helpers.
+    :param database_id: The database whose tables may receive the formula.
+    :param description: A natural-language description of the desired formula.
+    :param save_to_field: Whether to save the formula to a field.
+    :param thought: Brief reasoning for invoking the tool.
+    :return: Formula metadata, including an integer table ID when a field is saved.
+    :raises Exception: If the formula is invalid or targets an unavailable table.
     """
-    from baserow_enterprise.assistant.model_profiles import (
-        UTILITY,
-        get_model_settings,
-        get_model_string,
-    )
+    from baserow_enterprise.assistant.model_profiles import UTILITY
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
@@ -917,11 +922,13 @@ def generate_formula(
         description, database_tables_schema, formula_docs
     )
 
-    model = get_model_string()
-    agent_result = formula_generation_agent.run_sync(
+    model_profile = tool_helpers.model_profile
+    model = model_profile.create_model()
+    agent_result = run_agent_sync_with_model(
+        formula_generation_agent,
         prompt,
         model=model,
-        model_settings=get_model_settings(model, UTILITY),
+        model_settings=model_profile.get_settings(UTILITY),
         toolsets=[formula_toolset],
         usage_limits=UsageLimits(request_limit=20),
     )
@@ -937,7 +944,7 @@ def generate_formula(
             f"than the current one. Table with ID {result.table_id} not found."
         )
 
-    data = {
+    data: dict[str, str | int] = {
         "formula": result.formula,
         "formula_type": result.formula_type,
     }

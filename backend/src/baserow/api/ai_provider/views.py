@@ -18,9 +18,13 @@ from baserow.api.errors import (
 )
 from baserow.core.ai_provider.exceptions import (
     AIProviderDoesNotExist,
+    AIProviderFeatureModelNotAvailable,
+    AIProviderFeatureModeNotAllowed,
     AIProviderIsReadOnly,
     AIProviderModelAlreadyConfigured,
     AIProviderModelDoesNotExist,
+    AIProviderModelFeatureTypeDoesNotExist,
+    AIProviderModelInUse,
     AIProviderTypeAlreadyConfigured,
     AIProviderTypeNotSupported,
     InvalidAIProviderSettings,
@@ -35,9 +39,13 @@ from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 
 from .errors import (
     ERROR_AI_PROVIDER_DOES_NOT_EXIST,
+    ERROR_AI_PROVIDER_FEATURE_MODE_NOT_ALLOWED,
+    ERROR_AI_PROVIDER_FEATURE_MODEL_NOT_AVAILABLE,
     ERROR_AI_PROVIDER_IS_READ_ONLY,
     ERROR_AI_PROVIDER_MODEL_ALREADY_CONFIGURED,
     ERROR_AI_PROVIDER_MODEL_DOES_NOT_EXIST,
+    ERROR_AI_PROVIDER_MODEL_FEATURE_TYPE_DOES_NOT_EXIST,
+    ERROR_AI_PROVIDER_MODEL_IN_USE,
     ERROR_AI_PROVIDER_TYPE_ALREADY_CONFIGURED,
     ERROR_AI_PROVIDER_TYPE_NOT_SUPPORTED,
     ERROR_INVALID_AI_PROVIDER_SETTINGS,
@@ -45,6 +53,8 @@ from .errors import (
 from .serializers import (
     AIProviderConfigSerializer,
     AIProviderCreateSerializer,
+    AIProviderFeatureSettingSerializer,
+    AIProviderFeatureSettingUpdateSerializer,
     AIProviderModelDiscoveryRequestSerializer,
     AIProviderModelDiscoverySerializer,
     AIProviderModelSerializer,
@@ -83,6 +93,10 @@ EXCEPTION_MAP = {
     AIProviderTypeAlreadyConfigured: ERROR_AI_PROVIDER_TYPE_ALREADY_CONFIGURED,
     AIProviderModelAlreadyConfigured: ERROR_AI_PROVIDER_MODEL_ALREADY_CONFIGURED,
     AIProviderIsReadOnly: ERROR_AI_PROVIDER_IS_READ_ONLY,
+    AIProviderModelInUse: ERROR_AI_PROVIDER_MODEL_IN_USE,
+    AIProviderFeatureModelNotAvailable: ERROR_AI_PROVIDER_FEATURE_MODEL_NOT_AVAILABLE,
+    AIProviderFeatureModeNotAllowed: ERROR_AI_PROVIDER_FEATURE_MODE_NOT_ALLOWED,
+    AIProviderModelFeatureTypeDoesNotExist: ERROR_AI_PROVIDER_MODEL_FEATURE_TYPE_DOES_NOT_EXIST,
     InvalidAIProviderSettings: _invalid_settings_error,
     WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
     UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
@@ -122,6 +136,58 @@ def _serialize_provider(provider, workspace_id: int | None, many: bool = False):
         else AIProviderConfigSerializer
     )
     return serializer_class(provider, many=many).data
+
+
+def _serialize_feature_settings(settings, workspace_id: int | None, many=False):
+    return AIProviderFeatureSettingSerializer(
+        settings,
+        many=many,
+        context={"workspace_id": workspace_id},
+    ).data
+
+
+class AIProviderFeaturesView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["AI providers"],
+        operation_id="list_ai_provider_feature_settings",
+        parameters=[AIProviderScopeRequestSerializer],
+        responses={200: AIProviderFeatureSettingSerializer(many=True)},
+    )
+    @map_exceptions(EXCEPTION_MAP)
+    def get(self, request):
+        _ensure_feature_enabled()
+        workspace_id = _get_workspace_id(request)
+        settings = AIProviderService.list_feature_settings(
+            request.user, workspace_id=workspace_id
+        )
+        return Response(_serialize_feature_settings(settings, workspace_id, many=True))
+
+
+class AIProviderFeatureView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["AI providers"],
+        operation_id="update_ai_provider_feature_setting",
+        parameters=[AIProviderScopeRequestSerializer],
+        request=AIProviderFeatureSettingUpdateSerializer,
+        responses={200: AIProviderFeatureSettingSerializer},
+    )
+    @map_exceptions(EXCEPTION_MAP)
+    @validate_body(AIProviderFeatureSettingUpdateSerializer, return_validated=True)
+    @transaction.atomic
+    def put(self, request, feature_type, data):
+        _ensure_feature_enabled()
+        workspace_id = _get_workspace_id(request)
+        setting = AIProviderService.update_feature_setting(
+            request.user,
+            feature_type,
+            workspace_id=workspace_id,
+            **data,
+        )
+        return Response(_serialize_feature_settings(setting, workspace_id))
 
 
 class AIProvidersView(APIView):

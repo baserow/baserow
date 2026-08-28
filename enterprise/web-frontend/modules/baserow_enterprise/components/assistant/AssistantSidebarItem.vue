@@ -1,5 +1,5 @@
 <template>
-  <div v-if="hasPermission && isConfigured">
+  <div v-if="isAvailable">
     <li class="tree__item">
       <div class="tree__action">
         <a href="#" class="tree__link" @click.prevent="toggleRightSidebar">
@@ -41,13 +41,25 @@ export default {
       )
     },
     isConfigured() {
-      return !!this.$config.public.baserowEnterpriseAssistantLlmModel
+      return (
+        this.workspace.ai_features?.kuma?.is_enabled ??
+        !!this.$config.public.baserowEnterpriseAssistantLlmModel
+      )
+    },
+    isAvailable() {
+      return this.hasPermission && this.isConfigured
+    },
+  },
+  watch: {
+    isAvailable(available) {
+      if (!available && this.rightSidebarOpen) {
+        this.$bus.$emit('toggle-right-sidebar', false)
+      }
     },
   },
   mounted() {
     if (
-      this.hasPermission &&
-      this.isConfigured &&
+      this.isAvailable &&
       localStorage.getItem('baserow.rightSidebarOpen') !== 'false'
     ) {
       // open the right sidebar if the feature is available

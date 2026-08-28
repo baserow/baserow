@@ -44,6 +44,13 @@ def _make_retrying(inner_mock, **kwargs):
     return model
 
 
+def _assert_balanced_model_scope(inner_mock, expected_count=1):
+    """Assert every model-client scope entered by a test was closed."""
+
+    assert inner_mock.__aenter__.await_count == expected_count
+    assert inner_mock.__aexit__.await_count == expected_count
+
+
 @pytest.mark.asyncio
 async def test_request_retries_on_transient_error():
     """RetryingModel.request should retry transient errors."""
@@ -68,6 +75,7 @@ async def test_request_retries_on_transient_error():
 
     assert result == response
     assert inner.request.call_count == 2
+    _assert_balanced_model_scope(inner)
 
 
 @pytest.mark.asyncio
@@ -86,6 +94,7 @@ async def test_request_raises_non_transient_error():
         )
 
     assert inner.request.call_count == 1
+    _assert_balanced_model_scope(inner)
 
 
 @pytest.mark.asyncio
@@ -106,6 +115,7 @@ async def test_request_exhausts_retries():
         )
 
     assert inner.request.call_count == 2
+    _assert_balanced_model_scope(inner)
 
 
 def test_deferred_model_resolution():
@@ -309,6 +319,72 @@ async def test_request_stream_recovers_tool_use_failed():
     start_events = [e for e in events if isinstance(e, PartStartEvent)]
     assert len(start_events) == 1
     assert start_events[0].part.tool_name == "list_rows"
+    _assert_balanced_model_scope(inner)
+
+
+@pytest.mark.asyncio
+async def test_request_stream_closes_model_when_consumer_exits_early():
+    """Leaving a stream without consuming it must still close both scopes."""
+
+    from contextlib import asynccontextmanager
+    from unittest.mock import MagicMock
+
+    inner = MagicMock()
+    stream_events = []
+
+    @asynccontextmanager
+    async def tracked_request_stream(*args, **kwargs):
+        stream_events.append("enter")
+        try:
+            yield MagicMock()
+        finally:
+            stream_events.append("exit")
+
+    inner.request_stream = tracked_request_stream
+    model = _make_retrying(inner)
+
+    async with model.request_stream(
+        [], None, ModelRequestParameters(function_tools=[], output_tools=[])
+    ):
+        pass
+
+    assert stream_events == ["enter", "exit"]
+    _assert_balanced_model_scope(inner)
+
+
+@pytest.mark.asyncio
+async def test_request_stream_retry_fallback_closes_nested_model_scopes():
+    """A setup failure and fallback request must leave no model scope open."""
+
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock, MagicMock
+
+    from pydantic_ai.messages import ModelResponse, TextPart
+
+    inner = MagicMock()
+
+    @asynccontextmanager
+    async def failing_request_stream(*args, **kwargs):
+        raise Exception("Failed to parse tool call arguments as JSON")
+        yield  # pragma: no cover
+
+    response = ModelResponse(parts=[TextPart(content="fallback")])
+    inner.request_stream = failing_request_stream
+    inner.request = AsyncMock(return_value=response)
+    model = _make_retrying(inner)
+
+    async with model.request_stream(
+        [], None, ModelRequestParameters(function_tools=[], output_tools=[])
+    ) as stream:
+        events = [event async for event in stream]
+
+    from pydantic_ai.models import PartStartEvent
+
+    start_events = [event for event in events if isinstance(event, PartStartEvent)]
+    assert [event.part.content for event in start_events] == ["fallback"]
+    assert inner.request.await_count == 1
+    # request_stream owns the outer scope and request() owns its nested scope.
+    _assert_balanced_model_scope(inner, expected_count=2)
 
 
 @pytest.mark.asyncio
@@ -493,7 +569,7 @@ async def test_request_stream_reraises_after_yield():
     with pytest.raises(Exception, match="some unrelated error"):
         async with model.request_stream(
             [], None, ModelRequestParameters(function_tools=[], output_tools=[])
-        ) as stream:
+        ):
             pass  # stream consumed, then __aexit__ raises
 
 
@@ -661,10 +737,17 @@ class TestResolveModel:
 
     @pytest.mark.parametrize("prefix", ["google", "google-cloud"])
     def test_google_client_deadline_clears_the_api_minimum(self, monkeypatch, prefix):
-        """A bare httpx.AsyncClient defaults to 5s and the provider forwards it
-        as an explicit deadline, which Gemini rejects below its 10s minimum."""
+        """Each Google model gets a safe provider-owned HTTP client."""
 
         monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
         model = _resolve_model(f"{prefix}:gemini-2.0-flash")
-        http_options = model._provider.client._api_client._http_options
+        second_model = _resolve_model(f"{prefix}:gemini-2.0-flash")
+        api_client = model._provider.client._api_client
+        http_options = api_client._http_options
+
         assert http_options.timeout >= 10_000
+        assert model._provider._own_http_client is api_client._async_httpx_client
+        assert (
+            api_client._async_httpx_client
+            is not second_model._provider.client._api_client._async_httpx_client
+        )

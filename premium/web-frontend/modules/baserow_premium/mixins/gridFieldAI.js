@@ -1,4 +1,6 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
+import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 import FieldService from '@baserow_premium/services/field'
 import { setAIFieldErrorFromGenerationError } from '@baserow_premium/utils/aiField'
@@ -52,9 +54,11 @@ export default {
       if (!workspace) return false
 
       const aIModels =
-        workspace.generative_ai_models_enabled[
-          props.field.ai_generative_ai_type
-        ] || []
+        getEnabledModelsForAIProviderFeature(
+          workspace,
+          'ai_fields',
+          parent.$featureFlagIsEnabled(FF_AI_PROVIDERS)
+        )[props.field.ai_generative_ai_type] || []
       return (
         parent.$registry.get('field', props.field.type).isEnabled(workspace) &&
         aIModels.includes(props.field.ai_generative_ai_model)
