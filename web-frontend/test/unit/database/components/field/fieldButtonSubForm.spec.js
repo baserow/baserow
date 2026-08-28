@@ -6,6 +6,7 @@ import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionRec
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
 import ButtonFieldActionForm from '@baserow/modules/database/components/field/ButtonFieldActionForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
+import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
 
 describe('FieldButtonSubForm', () => {
   let testApp = null
@@ -175,6 +176,23 @@ describe('FieldButtonSubForm', () => {
       expect(
         wrapper.findAll('[data-action-error]').map((node) => node.text())
       ).toEqual(['databaseWorkflowActionType.noUrl'])
+    })
+
+    test('a failed fetch does not drop fields another action fetched', async () => {
+      // The map is keyed by table only, so two actions can point at the same
+      // one. A fetch that failed for one of them says nothing about the fields
+      // the other already has.
+      const fields = [{ id: 3, name: 'Name', type: 'text', read_only: false }]
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+
+      wrapper.vm.registerTableFields(2, fields)
+      wrapper.vm.registerTableFields(2, FIELDS_UNAVAILABLE)
+
+      expect(wrapper.vm.tableFields[2]).toEqual(fields)
+
+      // A table with nothing fetched still records that the fetch failed.
+      wrapper.vm.registerTableFields(3, FIELDS_UNAVAILABLE)
+      expect(wrapper.vm.tableFields[3]).toBe(FIELDS_UNAVAILABLE)
     })
 
     test('an unresolved reference is presentable, so the edits survive', async () => {

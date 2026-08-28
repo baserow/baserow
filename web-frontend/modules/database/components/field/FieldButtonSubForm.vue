@@ -47,6 +47,7 @@ import {
 } from '@baserow/modules/database/utils/workflowActionFormulas'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
 
 export default {
   name: 'FieldButtonSubForm',
@@ -132,6 +133,14 @@ export default {
       this.$refs.actionList?.touch()
     },
     registerTableFields(tableId, fields) {
+      // Two actions can point at the same table, and a fetch that failed for
+      // one of them says nothing about the fields the other already has.
+      if (
+        fields === FIELDS_UNAVAILABLE &&
+        Array.isArray(this.tableFields[tableId])
+      ) {
+        return
+      }
       this.tableFields = { ...this.tableFields, [tableId]: fields }
     },
     /**

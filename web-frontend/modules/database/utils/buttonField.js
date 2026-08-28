@@ -1,3 +1,8 @@
+// Recorded for a table whose fields could not be fetched. Kept apart from an
+// empty list, which is a table that really has no fields, and from an absent
+// entry, which is a table nothing has fetched yet.
+export const FIELDS_UNAVAILABLE = Symbol('fieldsUnavailable')
+
 /**
  * Percent-encodes the whitespace in a resolved URL. Row values often contain
  * spaces, which our URL validation rejects. Only whitespace is touched, or we

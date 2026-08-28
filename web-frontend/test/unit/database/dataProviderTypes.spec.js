@@ -1,4 +1,5 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
 
 describe('Database data provider types', () => {
   let testApp = null
@@ -170,6 +171,32 @@ describe('Database data provider types', () => {
 
     // The create row before it, and nothing for the URL action between them.
     expect(Object.keys(schema.properties)).toStrictEqual(['1'])
+  })
+
+  test('a table whose fields could not be fetched offers only the row id', () => {
+    // The saved schema describes whichever table the action pointed at when it
+    // was last saved, so falling back to it would offer fields of the wrong
+    // table for as long as the fetch keeps failing.
+    const unsaved = {
+      _clientId: 'gone',
+      type: 'local_baserow_create_row',
+      service: {
+        table_id: 9,
+        schema: {
+          type: 'object',
+          properties: { field_99: { type: 'string', title: 'Stale' } },
+        },
+      },
+    }
+    const context = {
+      workflowActions: [unsaved, OPEN_URL],
+      workflowAction: OPEN_URL,
+      tableFields: { 9: FIELDS_UNAVAILABLE },
+    }
+
+    const schema = previousProvider().getDataSchema(context)
+
+    expect(Object.keys(schema.properties.gone.properties)).toStrictEqual(['id'])
   })
 
   test('a write only field is not offered out of a created row', () => {

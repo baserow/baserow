@@ -10,6 +10,7 @@
 import form from '@baserow/modules/core/mixins/form'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
 export default {
@@ -131,11 +132,10 @@ export default {
           return
         }
         this.mappableFields = []
-        // Registered empty rather than left alone, so the explorer offers
-        // this action's `id` and nothing else. Without it the schema falls
-        // back to the last save's, which describes the table it pointed at
-        // before, for as long as the fetch keeps failing.
-        this.registerTableFields?.(tableId, [])
+        // Marked rather than left alone, so the explorer offers this action's
+        // `id` and nothing else. Without it the schema falls back to the last
+        // save's, which describes the table it pointed at before.
+        this.registerTableFields?.(tableId, FIELDS_UNAVAILABLE)
         notifyIf(error, 'field')
       } finally {
         // Only the newest fetch owns the spinner, or an overtaken one

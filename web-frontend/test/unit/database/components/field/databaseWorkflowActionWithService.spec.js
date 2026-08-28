@@ -1,6 +1,7 @@
 import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import DatabaseWorkflowActionWithService from '@baserow/modules/database/components/field/DatabaseWorkflowActionWithService'
+import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
 
 const WORKSPACE = { id: 1 }
 const OWN_DATABASE_ID = 100
@@ -206,10 +207,11 @@ describe('DatabaseWorkflowActionWithService', () => {
     ).toEqual(['Company'])
   })
 
-  test('a table whose fields cannot be fetched is registered as empty', async () => {
+  test('a table whose fields cannot be fetched is marked unavailable', async () => {
     // Left unregistered, the explorer falls back to the schema of the last
-    // save, which describes the table this action pointed at before. It would
-    // go on offering those fields for as long as the fetch keeps failing.
+    // save, which describes the table this action pointed at before. Marked
+    // rather than registered empty, so it stays apart from a table that really
+    // has no fields and cannot overwrite what another action fetched.
     await seedApplications()
     testApp.dontFailOnErrorResponses()
     testApp.mock.onGet('/database/fields/table/1/').reply(200, TABLE_FIELDS)
@@ -235,7 +237,7 @@ describe('DatabaseWorkflowActionWithService', () => {
     await flushPromises()
 
     expect(registerTableFields).toHaveBeenCalledWith(1, TABLE_FIELDS)
-    expect(registerTableFields).toHaveBeenLastCalledWith(2, [])
+    expect(registerTableFields).toHaveBeenLastCalledWith(2, FIELDS_UNAVAILABLE)
   })
 
   test('re-picking the table already selected keeps the mappings visible', async () => {

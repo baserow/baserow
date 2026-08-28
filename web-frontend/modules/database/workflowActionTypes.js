@@ -11,6 +11,7 @@ import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import {
   encodeUrlWhitespace,
   urlWithAllowedProtocol,
+  FIELDS_UNAVAILABLE,
 } from '@baserow/modules/database/utils/buttonField'
 import {
   referencedActionIdsInConfig,
@@ -154,6 +155,16 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     const fields = applicationContext?.tableFields?.[service?.table_id]
     const savedProperties = service?.schema?.properties
 
+    // A fetch that failed says the saved schema cannot be trusted either, since
+    // it describes whichever table the action pointed at when it was saved.
+    if (fields === FIELDS_UNAVAILABLE) {
+      return {
+        type: 'object',
+        title: this.label,
+        properties: { id: this.rowIdProperty },
+      }
+    }
+
     // Which fields exist is the fetched list's to say, since the saved schema
     // describes whichever table the action pointed at when it was last saved
     // and the editor buffers a table change without clearing it. Until that
@@ -174,12 +185,7 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
       type: 'object',
       title: this.label,
       properties: {
-        id: {
-          type: 'number',
-          // "Id", matching the schema the backend builds, so the node does
-          // not rename itself the first time the action is saved.
-          title: this.app.$i18n.t('dataProviderTypes.previousActionRowId'),
-        },
+        id: this.rowIdProperty,
         ...Object.fromEntries(
           fields
             .filter((field) => !this.isWriteOnly(field))
@@ -199,6 +205,17 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
             })
         ),
       },
+    }
+  }
+
+  /**
+   * "Id", matching the schema the backend builds, so the node does not rename
+   * itself the first time the action is saved.
+   */
+  get rowIdProperty() {
+    return {
+      type: 'number',
+      title: this.app.$i18n.t('dataProviderTypes.previousActionRowId'),
     }
   }
 
