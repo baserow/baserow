@@ -141,20 +141,33 @@ export default {
   },
   watch: {
     modelValue: {
-      handler(tableId) {
-        if (tableId !== null) {
-          const databaseOfTableId = this.databases.find((database) =>
-            database.tables.some((table) => table.id === tableId)
-          )
-          if (databaseOfTableId) {
-            this.databaseSelectedId = databaseOfTableId.id
-          }
-        }
+      handler() {
+        this.resolveDatabaseFromSelectedTable()
       },
       immediate: true,
     },
+    // The databases can be loaded after the selected table is known (e.g.
+    // when the integrations are still being fetched), in which case the
+    // database selection must be resolved again.
+    databases: {
+      handler() {
+        this.resolveDatabaseFromSelectedTable()
+      },
+      deep: true,
+    },
   },
   methods: {
+    resolveDatabaseFromSelectedTable() {
+      const tableId = this.modelValue
+      if (tableId !== null) {
+        const databaseOfTableId = this.databases.find((database) =>
+          database.tables.some((table) => table.id === tableId)
+        )
+        if (databaseOfTableId) {
+          this.databaseSelectedId = databaseOfTableId.id
+        }
+      }
+    },
     getTableDescription(table) {
       if (table.is_two_way_data_sync) {
         return this.$t(

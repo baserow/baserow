@@ -75,6 +75,16 @@ VALID_PREMIUM_5_SEAT_15_APP_USER_LICENSE = (
 
 
 class PremiumFixtures:
+    def create_local_baserow_row_comment_created_service(self, **kwargs):
+        from baserow_premium.integrations.local_baserow.models import (
+            LocalBaserowRowCommentCreated,
+        )
+
+        if "table" not in kwargs:
+            kwargs["table"] = self.create_database_table()
+
+        return LocalBaserowRowCommentCreated.objects.create(**kwargs)
+
     def create_user(self, *args, **kwargs):
         has_active_premium_license = kwargs.pop("has_active_premium_license", False)
         user = super().create_user(*args, **kwargs)

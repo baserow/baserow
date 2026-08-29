@@ -2,9 +2,19 @@ from django.db import models
 
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowFilterableServiceMixin,
+    LocalBaserowTableService,
     LocalBaserowViewService,
 )
 from baserow.core.services.models import Service
+
+
+class LocalBaserowRowCommentCreated(LocalBaserowTableService):
+    """
+    A trigger service that fires when a comment is created on a row in the
+    configured table.
+    """
+
+    ...
 
 
 class LocalBaserowGroupedAggregateRows(

@@ -1483,6 +1483,8 @@ def load_row_tools(
     ] + new_tools
 
     tool_names = [t.name for t in new_tools]
+    if not tool_names:
+        return "The requested row tools were already loaded."
     return f"Tools loaded: {', '.join(tool_names)}"
 
 

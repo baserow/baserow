@@ -6,7 +6,7 @@ import {
   extendPages,
   addRouteMiddleware,
 } from 'nuxt/kit'
-import { routes, rootChildRoutes } from './routes'
+import { routes, rootChildRoutes, pageRoutes } from './routes'
 import { locales } from '../../../../web-frontend/config/locales.js'
 import _ from 'lodash'
 
@@ -36,6 +36,13 @@ export default defineNuxtModule({
       rootChildRoutes.forEach((route) => {
         if (!rootRoute.children.find(({ name }) => name === route.name)) {
           rootRoute.children.push(route)
+        }
+      })
+
+      // Add top-level enterprise pages.
+      pageRoutes.forEach((route) => {
+        if (!pages.find(({ name }) => name === route.name)) {
+          pages.push(route)
         }
       })
 
@@ -81,6 +88,11 @@ export default defineNuxtModule({
       name: 'enterpriseExtraClientScripts',
       path: resolve('./middleware/extraClientScripts'),
       global: true,
+    })
+
+    addRouteMiddleware({
+      name: 'selectWorkspaceAgentApplication',
+      path: resolve('./middleware/selectWorkspaceAgentApplication.js'),
     })
 
     // Runtime config defaults - values can be overridden at runtime via NUXT_ prefixed env vars
