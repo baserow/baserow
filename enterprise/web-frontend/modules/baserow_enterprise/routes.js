@@ -37,6 +37,18 @@ export const rootChildRoutes = [
   },
 ]
 
+// Top-level pages (define their own layout and middlewares via definePageMeta)
+export const pageRoutes = [
+  {
+    name: 'agent-application',
+    path: '/agent/:agentApplicationId',
+    file: path.resolve(__dirname, 'pages/agentApplication.vue'),
+    props: (route) => ({
+      agentApplicationId: parseInt(route.params.agentApplicationId),
+    }),
+  },
+]
+
 // Login pages (children of login-pages route, inherit login layout)
 export const routes = [
   {

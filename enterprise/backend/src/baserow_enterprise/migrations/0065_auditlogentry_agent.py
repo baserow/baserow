@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("baserow_enterprise", "0063_auditlogentry_filter_indexes"),
+        ("baserow_enterprise", "0064_fileinputelement_help_text_format_and_more"),
     ]
 
     operations = [

@@ -1,3 +1,11 @@
+from baserow_enterprise.agent_application.models import (
+    AgentApplication,
+    AgentChat,
+    AgentChatMessage,
+    AgentDefinition,
+    AgentTool,
+    AgentTrigger,
+)
 from baserow_enterprise.automation.nodes.models import CoreCodeActionNode
 from baserow_enterprise.builder.custom_code.models import (
     BuilderCustomCode,
@@ -38,4 +46,10 @@ __all__ = [
     "CoreCodeServiceInjection",
     "CoreCodeWorkflowAction",
     "CoreCodeActionNode",
+    "AgentApplication",
+    "AgentDefinition",
+    "AgentTrigger",
+    "AgentTool",
+    "AgentChat",
+    "AgentChatMessage",
 ]

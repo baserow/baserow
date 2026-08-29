@@ -1,4 +1,6 @@
 import { PremiumPlugin } from '@baserow_premium/plugins'
+import { LocalBaserowRowCommentCreatedTriggerNodeType } from '@baserow_premium/automation/nodeTypes'
+import { LocalBaserowRowCommentCreatedTriggerServiceType } from '@baserow_premium/integrations/localBaserow/serviceTypes'
 import {
   JSONTableExporter,
   XMLTableExporter,
@@ -159,6 +161,14 @@ export default defineNuxtPlugin({
     $registry.register('exporter', new XMLTableExporter(context))
     $registry.register('exporter', new ExcelTableExporterType(context))
     $registry.register('exporter', new FileTableExporter(context))
+    $registry.register(
+      'service',
+      new LocalBaserowRowCommentCreatedTriggerServiceType(context)
+    )
+    $registry.register(
+      'node',
+      new LocalBaserowRowCommentCreatedTriggerNodeType(context)
+    )
     $registry.register('field', new AIFieldType(context))
     $registry.register(
       'aiProviderModelFeature',

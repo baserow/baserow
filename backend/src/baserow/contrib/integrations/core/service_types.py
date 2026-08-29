@@ -1794,9 +1794,12 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         super().start_listening(on_event)
         celery_app.on_after_finalize.connect(self._setup_periodic_task)
 
-    def stop_listening(self):
-        super().stop_listening()
-        self._cancel_periodic_task()
+    def stop_listening(self, on_event: Optional[Callable] = None):
+        super().stop_listening(on_event)
+        # Multiple consumers can listen to this service type, so the periodic
+        # task must keep running until the last one is removed.
+        if not self.listeners and getattr(self, "_cancel_periodic_task", None):
+            self._cancel_periodic_task()
 
     def _get_dispatch_payload(self, service: CorePeriodicService) -> Dict[str, str]:
         return {
@@ -1887,10 +1890,12 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         # it's possible only a subset of these will actually be dispatched.
         periodic_services_due = self.get_periodic_services_that_are_due(now)
 
-        # This list will contain the definitive list of services that were marked
+        # This dict will contain the definitive list of services that were marked
         # for dispatching by the parent, and which we will update the `next_run_at` and
-        # `last_periodic_run` fields for.
-        periodic_services_dispatched = []
+        # `last_periodic_run` fields for. Keyed by service id because multiple
+        # listeners may each request the payload for the same service, and the
+        # advancement of the run dates must only happen once per service.
+        periodic_services_dispatched = {}
 
         def _get_service_payload(
             dispatched_service: CorePeriodicService,
@@ -1903,6 +1908,9 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             :param dispatched_service: The service which will be dispatched.
             :return: The payload to dispatch for this service.
             """
+
+            if dispatched_service.id in periodic_services_dispatched:
+                return self._get_dispatch_payload(dispatched_service)
 
             # Calculate next run from the current `next_run_at` (not from 'now').
             # This prevents drift even if the service runs late.
@@ -1930,7 +1938,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             dispatched_service.next_run_at = next_run
             dispatched_service.last_periodic_run = now
 
-            periodic_services_dispatched.append(dispatched_service)
+            periodic_services_dispatched[dispatched_service.id] = dispatched_service
             return self._get_dispatch_payload(dispatched_service)
 
         self.on_event(
@@ -1940,7 +1948,8 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
         if periodic_services_dispatched:
             CorePeriodicService.objects.bulk_update(
-                periodic_services_dispatched, ["next_run_at", "last_periodic_run"]
+                periodic_services_dispatched.values(),
+                ["next_run_at", "last_periodic_run"],
             )
 
     def get_schema_name(self, service: CorePeriodicService) -> str:

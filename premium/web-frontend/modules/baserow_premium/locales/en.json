@@ -411,5 +411,12 @@
   "aiProviderModelFeature": {
     "aiFields": "AI fields",
     "aiFieldsDescription": "Generate values in AI fields."
+  },
+  "serviceType": {
+    "localBaserowRowCommentCreated": "Row comment created",
+    "localBaserowRowCommentCreatedDescription": "Starts when a comment is placed on a row in the selected table."
+  },
+  "nodeType": {
+    "localBaserowRowCommentCreatedLabel": "A comment is placed in {tableName}"
   }
 }

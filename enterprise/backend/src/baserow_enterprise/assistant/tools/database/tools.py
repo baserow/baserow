@@ -1200,11 +1200,16 @@ def load_row_tools(
         if "delete" in operations:
             new_tools.append(table_tools["delete"])
 
-    # Store new tools in dynamic_tools for the dynamic toolset
-    # to pick up on the next agent step
+    # Store new tools in dynamic_tools for the dynamic toolset to pick up on
+    # the next agent step. Loading the same table twice must not register
+    # duplicate tool names, because that makes the toolset unusable.
+    already_loaded = {tool.name for tool in ctx.deps.dynamic_tools}
+    new_tools = [tool for tool in new_tools if tool.name not in already_loaded]
     ctx.deps.dynamic_tools.extend(new_tools)
 
     tool_names = [t.name for t in new_tools]
+    if not tool_names:
+        return "The requested row tools were already loaded."
     return f"Tools loaded: {', '.join(tool_names)}"
 
 

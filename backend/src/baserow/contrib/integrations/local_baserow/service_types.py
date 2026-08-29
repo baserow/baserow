@@ -2846,11 +2846,15 @@ class LocalBaserowRowsSignalServiceType(
         super().start_listening(on_event)
         self.signal.connect(self._signal_receiver)
 
-    def stop_listening(self):
-        self.signal.disconnect(self._signal_receiver)
+    def stop_listening(self, on_event: Optional[Callable] = None):
+        super().stop_listening(on_event)
+        # Multiple consumers can listen to this service type, so the Django
+        # signal must stay connected until the last one is removed.
+        if not self.listeners:
+            self.signal.disconnect(self._signal_receiver)
 
     def _process_event(self, *args, **kwargs):
-        return self.on_event(*args, **kwargs) if callable(self.on_event) else None
+        return self.on_event(*args, **kwargs)
 
     def _handle_signal(
         self,

@@ -66,6 +66,33 @@ def _long_text_field_def(orm_field, orm_field_type):
     )
 
 
+def _email_field_def(orm_field, orm_field_type):
+    return FieldDefinition(
+        str | None,
+        Field(..., description="Email address", title=orm_field.name),
+        _none_to_empty,
+        _none_to_empty,
+    )
+
+
+def _url_field_def(orm_field, orm_field_type):
+    return FieldDefinition(
+        str | None,
+        Field(..., description="URL", title=orm_field.name),
+        _none_to_empty,
+        _none_to_empty,
+    )
+
+
+def _phone_number_field_def(orm_field, orm_field_type):
+    return FieldDefinition(
+        str | None,
+        Field(..., description="Phone number", title=orm_field.name),
+        _none_to_empty,
+        _none_to_empty,
+    )
+
+
 def _number_field_def(orm_field, orm_field_type):
     return FieldDefinition(
         float | None,
@@ -185,6 +212,9 @@ def _link_row_field_def(orm_field, orm_field_type):
 _FIELD_DEF_BUILDERS: dict[str, Callable] = {
     "text": _text_field_def,
     "long_text": _long_text_field_def,
+    "email": _email_field_def,
+    "url": _url_field_def,
+    "phone_number": _phone_number_field_def,
     "number": _number_field_def,
     "boolean": _boolean_field_def,
     "date": _date_field_def,

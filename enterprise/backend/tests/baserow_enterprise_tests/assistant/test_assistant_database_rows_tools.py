@@ -372,3 +372,51 @@ def test_delete_rows(data_fixture):
     # Verify rows were deleted
     assert table_model.objects.count() == 1
     assert list(table_model.objects.values_list("id", flat=True)) == [2]
+
+
+@pytest.mark.django_db
+def test_list_rows_includes_email_url_and_phone_fields(data_fixture):
+    """
+    Regression: these field types had no definition builder, so their values
+    were silently omitted from row payloads and the model concluded the
+    fields were blank.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(name="Companies", database=database)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    email_field = data_fixture.create_email_field(table=table, name="Founder email")
+    url_field = data_fixture.create_url_field(table=table, name="Website")
+    phone_field = data_fixture.create_phone_number_field(table=table, name="Phone")
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{email_field.id}": "founder@test.com",
+            f"field_{url_field.id}": "https://example.com",
+            f"field_{phone_field.id}": "+31612345678",
+        }
+    )
+
+    ctx = make_test_ctx(user, workspace)
+    result = list_rows(
+        ctx, table_id=table.id, offset=0, limit=10, field_ids=None, thought="test"
+    )
+
+    row = result["rows"][0]
+    assert row["Founder email"] == "founder@test.com"
+    assert row["Website"] == "https://example.com"
+    assert row["Phone"] == "+31612345678"
+
+    # Explicitly requesting the field must also include it.
+    result = list_rows(
+        ctx,
+        table_id=table.id,
+        offset=0,
+        limit=10,
+        field_ids=[email_field.id],
+        thought="test",
+    )
+    assert result["rows"][0]["Founder email"] == "founder@test.com"

@@ -270,8 +270,11 @@ def create_view_filter(
         )
 
     filter_type = view_filter_item.get_django_orm_type(field)
+    # Non-user actors (e.g. `core.Agent` subjects used by the agent
+    # application) have no profile, so fall back to UTC.
+    profile = getattr(user, "profile", None)
     filter_value = view_filter_item.get_django_orm_value(
-        field, timezone=user.profile.timezone
+        field, timezone=profile.timezone if profile else "UTC"
     )
 
     return CreateViewFilterActionType.do(

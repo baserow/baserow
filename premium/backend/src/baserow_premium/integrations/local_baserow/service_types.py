@@ -33,7 +33,12 @@ from baserow_premium.api.integrations.local_baserow.serializers import (
     LocalBaserowTableServiceAggregationSeriesSerializer,
     LocalBaserowTableServiceAggregationSortBySerializer,
 )
+from baserow.contrib.integrations.local_baserow.service_types import (  # noqa: E501
+    LocalBaserowRowsSignalServiceType,
+)
+from baserow_premium.row_comments.signals import row_comment_created
 from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowRowCommentCreated,
     LocalBaserowGroupedAggregateRows,
     LocalBaserowTableServiceAggregationGroupBy,
     LocalBaserowTableServiceAggregationSeries,
@@ -303,7 +308,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             if group_bys is not None:
                 if len(group_bys) > 1:
                     raise DRFValidationError(
-                        detail=f"The number of group by fields exceeds the maximum allowed length of 1.",
+                        detail="The number of group by fields exceeds the maximum allowed length of 1.",
                         code="max_length_exceeded",
                     )
                 LocalBaserowTableServiceAggregationGroupBy.objects.bulk_create(
@@ -603,14 +608,14 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         defined_agg_series = service.service_aggregation_series.all()
         if len(defined_agg_series) == 0:
             raise ServiceImproperlyConfiguredDispatchException(
-                f"There are no aggregation series defined."
+                "There are no aggregation series defined."
             )
 
         series_agg_used = set()
         for agg_series in defined_agg_series:
             if agg_series.field is None:
                 raise ServiceImproperlyConfiguredDispatchException(
-                    f"The aggregation series field has to be set."
+                    "The aggregation series field has to be set."
                 )
             if agg_series.field.trashed:
                 raise ServiceImproperlyConfiguredDispatchException(
@@ -774,3 +779,52 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         data: any,
     ) -> DispatchResult:
         return DispatchResult(data=data["data"])
+
+
+class LocalBaserowRowCommentCreatedServiceType(LocalBaserowRowsSignalServiceType):
+    """
+    A trigger service type that fires when a comment is created on a row in
+    the configured table. Comment creation itself is premium licensed, so no
+    additional license gate is needed at event time.
+    """
+
+    signal = row_comment_created
+    type = "local_baserow_row_comment_created"
+    model_class = LocalBaserowRowCommentCreated
+    returns_list = False
+
+    def _handle_signal(self, sender, row_comment, row, user, mentions, **kwargs):
+        def get_data(service):
+            return {
+                "id": row_comment.id,
+                "table_id": row_comment.table_id,
+                "row_id": row_comment.row_id,
+                "message": row_comment.message,
+                "user": ({"id": user.id, "name": user.first_name} if user else None),
+                "mentions": [
+                    {"id": mention.id, "name": mention.first_name}
+                    for mention in mentions or []
+                ],
+                "created_on": row_comment.created_on.isoformat(),
+            }
+
+        self._process_event(
+            self._get_services_to_dispatch(row_comment.table),
+            get_data,
+            user=user,
+        )
+
+    def generate_schema(self, service, allowed_fields=None):
+        return {
+            "title": f"RowCommentCreated{service.id}Schema",
+            "type": "object",
+            "properties": {
+                "id": {"type": "number", "title": "Comment id"},
+                "table_id": {"type": "number", "title": "Table id"},
+                "row_id": {"type": "number", "title": "Row id"},
+                "message": {"type": "object", "title": "Message"},
+                "user": {"type": "object", "title": "Author"},
+                "mentions": {"type": "array", "title": "Mentions"},
+                "created_on": {"type": "string", "title": "Created on"},
+            },
+        }

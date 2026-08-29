@@ -1,7 +1,18 @@
 from abc import ABC, abstractmethod
 from dataclasses import fields
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
@@ -623,11 +634,38 @@ class ListServiceTypeMixin:
 
 
 class TriggerServiceTypeMixin(ABC):
-    # The callable function which should be called when the event occurs.
-    on_event: Callable = lambda *args: None
-
     # The service is always dispatched by an event.
     dispatch_types = [DispatchTypes.EVENT]
+
+    _listeners: Optional[List[Callable]] = None
+
+    @property
+    def listeners(self) -> List[Callable]:
+        # Lazily initialized on the instance because service types are registry
+        # singletons that don't share a cooperative `__init__`.
+        if self.__dict__.get("_listeners") is None:
+            self._listeners = []
+        return self._listeners
+
+    def on_event(
+        self,
+        services: Iterable[Service],
+        event_payload: Optional[Union[Dict, Callable]] = None,
+        user=None,
+    ) -> None:
+        """
+        Notifies every registered listener that the trigger's event occurred.
+
+        Multiple consumers (e.g. automation triggers and agent triggers) can
+        listen to the same trigger service type, so `services` contains every
+        service of this type affected by the event; each listener is
+        responsible for filtering `services` down to its own consumers. When
+        `event_payload` is a callable it may be invoked once per listener per
+        service, so it must be idempotent.
+        """
+
+        for listener in list(self.listeners):
+            listener(services, event_payload, user=user)
 
     def can_be_immediately_dispatched(self, service: Service):
         """
@@ -662,15 +700,23 @@ class TriggerServiceTypeMixin(ABC):
             the internal or external event occurs.
         """
 
-        self.on_event = on_event
+        if on_event not in self.listeners:
+            self.listeners.append(on_event)
 
-    def stop_listening(self) -> None:
+    def stop_listening(self, on_event: Optional[Callable] = None) -> None:
         """
         Triggers, a type of service which respond to internal and external events and
         trigger their own dispatch, need the ability to "stop" listening to their
         events. This method ensure that we can stop listening when we need to.
-        :return:
+
+        :param on_event: The listener to remove. When omitted, every listener
+            is removed.
         """
+
+        if on_event is None:
+            self.listeners.clear()
+        elif on_event in self.listeners:
+            self.listeners.remove(on_event)
 
 
 class ServiceTypeRegistry(

@@ -285,6 +285,25 @@ from baserow.core.user_sources.operations import (
     ReadUserSourceOperationType,
     UpdateUserSourceOperationType,
 )
+from baserow_enterprise.agent_application.operations import (
+    CancelAgentChatOperationType,
+    CreateAgentToolOperationType,
+    DecideAgentToolApprovalOperationType,
+    DeleteAgentChatOperationType,
+    DeleteAgentToolOperationType,
+    ListAgentChatsOperationType,
+    ListAgentToolsOperationType,
+    ReadAgentChatChannelOperationType,
+    ReadAgentChatOperationType,
+    ReadAgentDefinitionOperationType,
+    ReadAgentTriggerOperationType,
+    ReadAgentUsageOperationType,
+    RunAgentChatOperationType,
+    UpdateAgentChatChannelOperationType,
+    UpdateAgentDefinitionOperationType,
+    UpdateAgentToolOperationType,
+    UpdateAgentTriggerOperationType,
+)
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.audit_log.operations import (
     ListWorkspaceAuditLogEntriesOperationType,
@@ -431,6 +450,12 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadDashboardDataSourceOperationType,
         ListRowsDatabaseTableOperationType,
         ListViewRowsOperationType,
+        ReadAgentDefinitionOperationType,
+        ReadAgentTriggerOperationType,
+        ListAgentToolsOperationType,
+        ListAgentChatsOperationType,
+        ReadAgentChatOperationType,
+        ReadAgentUsageOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -469,6 +494,9 @@ default_roles[EDITOR_ROLE_UID].extend(
         DeleteViewRowOperationType,
         ReadViewDefaultValuesOperationType,
         DispatchDatabaseWorkflowActionOperationType,
+        RunAgentChatOperationType,
+        CancelAgentChatOperationType,
+        DecideAgentToolApprovalOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
@@ -616,6 +644,14 @@ default_roles[BUILDER_ROLE_UID].extend(
         RestoreAutomationNodeOperationType,
         DuplicateAutomationNodeOperationType,
         SetFieldRuleOperationType,
+        UpdateAgentDefinitionOperationType,
+        UpdateAgentTriggerOperationType,
+        CreateAgentToolOperationType,
+        UpdateAgentToolOperationType,
+        DeleteAgentToolOperationType,
+        DeleteAgentChatOperationType,
+        ReadAgentChatChannelOperationType,
+        UpdateAgentChatChannelOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(

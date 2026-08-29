@@ -269,12 +269,25 @@ class BaserowPremiumConfig(AppConfig):
         )
         from baserow_premium.integrations.local_baserow.service_types import (
             LocalBaserowGroupedAggregateRowsUserServiceType,
+            LocalBaserowRowCommentCreatedServiceType,
         )
 
         service_type_registry.register(
             LocalBaserowGroupedAggregateRowsUserServiceType()
         )
+        service_type_registry.register(LocalBaserowRowCommentCreatedServiceType())
         widget_type_registry.register(ChartWidgetType())
         widget_type_registry.register(PieChartWidgetType())
+
+        from baserow.contrib.automation.nodes.registries import (
+            automation_node_type_registry,
+        )
+        from baserow_premium.automation.nodes.node_types import (
+            LocalBaserowRowCommentCreatedNodeTriggerType,
+        )
+
+        automation_node_type_registry.register(
+            LocalBaserowRowCommentCreatedNodeTriggerType()
+        )
 
         from baserow_premium.fields import tasks  # noqa: F401

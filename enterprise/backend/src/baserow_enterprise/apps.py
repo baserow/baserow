@@ -151,6 +151,133 @@ class BaserowEnterpriseConfig(AppConfig):
         application_type_registry.unregister(EnterpriseBuilderApplicationType.type)
         application_type_registry.register(EnterpriseBuilderApplicationType())
 
+        from baserow.core.feature_flags import FF_AGENTS, feature_flag_is_enabled
+        from baserow_enterprise.agent_application.actions import (
+            UpdateAgentDefinitionActionType,
+        )
+        from baserow_enterprise.agent_application.application_types import (
+            AgentApplicationType,
+        )
+        from baserow_enterprise.agent_application.operations import (
+            CancelAgentChatOperationType,
+            CreateAgentToolOperationType,
+            DecideAgentToolApprovalOperationType,
+            DeleteAgentChatOperationType,
+            DeleteAgentToolOperationType,
+            ListAgentChatsOperationType,
+            ListAgentToolsOperationType,
+            ReadAgentChatChannelOperationType,
+            ReadAgentChatOperationType,
+            ReadAgentDefinitionOperationType,
+            ReadAgentTriggerOperationType,
+            ReadAgentUsageOperationType,
+            RunAgentChatOperationType,
+            UpdateAgentChatChannelOperationType,
+            UpdateAgentDefinitionOperationType,
+            UpdateAgentToolOperationType,
+            UpdateAgentTriggerOperationType,
+        )
+
+        if feature_flag_is_enabled(FF_AGENTS):
+            application_type_registry.register(AgentApplicationType())
+
+            from baserow.core.permission_manager import (
+                AllowIfTemplatePermissionManagerType,
+            )
+            from baserow.core.registries import permission_manager_type_registry
+            from baserow_enterprise.agent_application.permission_manager import (
+                AllowIfTemplatePermissionManagerType as AgentAllowIfTemplate,
+            )
+
+            # Wrap the (possibly already wrapped) template permission manager
+            # so agent applications are readable in template previews.
+            prev_template_manager = permission_manager_type_registry.get(
+                AllowIfTemplatePermissionManagerType.type
+            )
+            permission_manager_type_registry.unregister(
+                AllowIfTemplatePermissionManagerType.type
+            )
+            permission_manager_type_registry.register(
+                AgentAllowIfTemplate(prev_template_manager)
+            )
+
+            from baserow_enterprise.agent_application.triggers.registries import (
+                agent_trigger_type_registry,
+            )
+            from baserow_enterprise.agent_application.triggers.trigger_types import (
+                FieldsUpdatedAgentTriggerType,
+                HttpAgentTriggerType,
+                PeriodicAgentTriggerType,
+                RowCommentCreatedAgentTriggerType,
+                RowsCreatedAgentTriggerType,
+                RowsDeletedAgentTriggerType,
+                RowsUpdatedAgentTriggerType,
+            )
+
+            agent_trigger_type_registry.register(RowsCreatedAgentTriggerType())
+            agent_trigger_type_registry.register(RowsUpdatedAgentTriggerType())
+            agent_trigger_type_registry.register(RowsDeletedAgentTriggerType())
+            agent_trigger_type_registry.register(FieldsUpdatedAgentTriggerType())
+            agent_trigger_type_registry.register(PeriodicAgentTriggerType())
+            agent_trigger_type_registry.register(HttpAgentTriggerType())
+            agent_trigger_type_registry.register(RowCommentCreatedAgentTriggerType())
+
+            from baserow_enterprise.agent_application.tools.registries import (
+                agent_tool_type_registry,
+            )
+            from baserow_enterprise.agent_application.tools.service_tool import (
+                ServiceAgentToolType,
+            )
+            from baserow_enterprise.agent_application.tools.web_search import (
+                WebSearchAgentToolType,
+            )
+            from baserow_enterprise.agent_application.tools.workspace import (
+                BaserowWorkspaceAgentToolType,
+            )
+            from baserow_enterprise.agent_application.tools.workspace_search import (
+                WorkspaceSearchAgentToolType,
+            )
+
+            agent_tool_type_registry.register(BaserowWorkspaceAgentToolType())
+            agent_tool_type_registry.register(WorkspaceSearchAgentToolType())
+            agent_tool_type_registry.register(WebSearchAgentToolType())
+            agent_tool_type_registry.register(ServiceAgentToolType())
+
+            from baserow_enterprise.agent_application.tools.mcp import (
+                McpServerAgentToolType,
+            )
+
+            agent_tool_type_registry.register(McpServerAgentToolType())
+
+            from baserow_enterprise.agent_application.channels.registries import (
+                agent_chat_channel_type_registry,
+            )
+            from baserow_enterprise.agent_application.channels.slack import (
+                SlackAgentChatChannelType,
+            )
+
+            agent_chat_channel_type_registry.register(SlackAgentChatChannelType())
+
+        action_type_registry.register(UpdateAgentDefinitionActionType())
+
+        operation_type_registry.register(ReadAgentDefinitionOperationType())
+        operation_type_registry.register(UpdateAgentDefinitionOperationType())
+        operation_type_registry.register(ReadAgentTriggerOperationType())
+        operation_type_registry.register(UpdateAgentTriggerOperationType())
+        operation_type_registry.register(ListAgentToolsOperationType())
+        operation_type_registry.register(CreateAgentToolOperationType())
+        operation_type_registry.register(UpdateAgentToolOperationType())
+        operation_type_registry.register(DeleteAgentToolOperationType())
+        operation_type_registry.register(ListAgentChatsOperationType())
+        operation_type_registry.register(ReadAgentChatOperationType())
+        operation_type_registry.register(RunAgentChatOperationType())
+        operation_type_registry.register(CancelAgentChatOperationType())
+        operation_type_registry.register(DeleteAgentChatOperationType())
+        operation_type_registry.register(ReadAgentUsageOperationType())
+        operation_type_registry.register(DecideAgentToolApprovalOperationType())
+        operation_type_registry.register(ReadAgentChatChannelOperationType())
+        operation_type_registry.register(UpdateAgentChatChannelOperationType())
+
         action_type_registry.register(CreateTeamActionType())
         action_type_registry.register(UpdateTeamActionType())
         action_type_registry.register(DeleteTeamActionType())
@@ -414,6 +541,16 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.ai_provider_feature_types import (
             KumaAIProviderModelFeatureType,
         )
+
+        from baserow_enterprise.agent_application.ws.pages import (
+            AgentApplicationPageType,
+        )
+
+        page_registry.register(AgentApplicationPageType())
+
+        import baserow_enterprise.agent_application.tasks  # noqa: F401
+        import baserow_enterprise.agent_application.ws.receivers  # noqa: F401
+
         from baserow_enterprise.assistant.tools.automation.tool_types import (
             AutomationToolType,
         )

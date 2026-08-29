@@ -14,6 +14,11 @@ import {
 } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
+import agentApplicationStore from '@baserow_enterprise/store/agentApplication'
+import agentChatStore from '@baserow_enterprise/store/agentChat'
+import agentHistoryStore from '@baserow_enterprise/store/agentHistory'
+import { AgentApplicationType } from '@baserow_enterprise/agentApplication/applicationTypes'
+import { ToolInputDataProviderType } from '@baserow_enterprise/agentApplication/dataProviderTypes'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
@@ -103,6 +108,7 @@ import {
   CoreCodeServiceType,
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
+import { LocalBaserowUpsertRowServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import {
   CoreCodeWorkflowActionType,
   CoreXLSFileReaderWorkflowActionType,
@@ -138,6 +144,11 @@ export default defineNuxtPlugin({
 
     $store.registerModuleNuxtSafe('authProviderAdmin', authProviderAdminStore)
     $store.registerModuleNuxtSafe('assistant', assistantStore)
+    $store.registerModuleNuxtSafe('agentApplication', agentApplicationStore)
+    $store.registerModuleNuxtSafe('agentChat', agentChatStore)
+    $store.registerModuleNuxtSafe('agentHistory', agentHistoryStore)
+
+    $registry.register('application', new AgentApplicationType(context))
 
     $registry.register('admin', new AuthProvidersType(context))
     $registry.unregister(
@@ -203,6 +214,16 @@ export default defineNuxtPlugin({
       new CoreXLSFileReaderWorkflowActionType(context)
     )
     $registry.register('node', new CoreXLSFileReaderNodeType(context))
+    // Used by agent action tools, which store the backend's upsert row
+    // service type name.
+    $registry.register('service', new LocalBaserowUpsertRowServiceType(context))
+    // Exposes the agent tool's declared inputs in the formula data explorer;
+    // registered in the automation namespace because the reused automation
+    // formula input resolves its providers from there.
+    $registry.register(
+      'automationDataProvider',
+      new ToolInputDataProviderType(context)
+    )
 
     $registry.register(
       'appAuthProvider',
