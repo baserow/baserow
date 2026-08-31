@@ -35,6 +35,14 @@ class ResponseTooLargeDispatchException(ServiceImproperlyConfiguredDispatchExcep
     """
 
 
+class UnreachableAddressDispatchException(ServiceImproperlyConfiguredDispatchException):
+    """
+    Raised when a service could not reach the address it is pointed at. Its
+    message names that address, so a caller showing it to someone who did not
+    configure the service has to say something else instead.
+    """
+
+
 class InvalidContextDispatchException(DispatchException):
     """
     Raised when trying to dispatch a service and the dispatch context is invalid.

@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from smtplib import SMTPNotSupportedError
 from unittest.mock import Mock, patch
 
 import pytest
@@ -763,3 +764,42 @@ def test_a_refused_email_does_not_name_the_instance_mail_server(data_fixture, se
     assert raised.value.message == EXTERNAL_DISPATCH_FAILED_MESSAGE
     # The message the service wrote, which the clicker must not be handed.
     assert "smtp.internal.example:2525" in str(raised.value.__cause__)
+
+
+@pytest.mark.django_db
+def test_a_mail_server_that_refuses_the_message_is_still_reported(
+    data_fixture, settings
+):
+    """
+    Only a failure that names the address is withheld. One about the server's
+    own answer, such as a refused encryption, names nothing about this
+    installation and is the only thing telling the clicker what happened.
+    """
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    settings.EMAIL_HOST = "smtp.internal.example"
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = data_fixture.create_database_workflow_action(
+        CoreSMTPEmailWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.use_instance_smtp_settings = True
+    service.to_emails = "'someone@example.com'"
+    service.subject = "'Hello'"
+    service.body = "'Hi'"
+    service.save()
+
+    with patch(
+        "django.core.mail.EmailMultiAlternatives.send",
+        side_effect=SMTPNotSupportedError(),
+    ):
+        with pytest.raises(WorkflowActionDispatchError) as raised:
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+
+    assert raised.value.message == "TLS not supported by server"

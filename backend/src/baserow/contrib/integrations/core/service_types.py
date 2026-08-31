@@ -78,6 +78,7 @@ from baserow.core.services.exceptions import (
     ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
+    UnreachableAddressDispatchException,
 )
 from baserow.core.services.models import Service
 from baserow.core.services.registries import (
@@ -1030,11 +1031,11 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 "TLS not supported by server"
             ) from e
         except socket.gaierror as e:
-            raise ServiceImproperlyConfiguredDispatchException(
+            raise UnreachableAddressDispatchException(
                 f"The host {smtp_host}:{smtp_port} could not be reached"
             ) from e
         except ConnectionRefusedError as e:
-            raise ServiceImproperlyConfiguredDispatchException(
+            raise UnreachableAddressDispatchException(
                 f"Connection refused by {smtp_host}:{smtp_port}"
             ) from e
         except SMTPAuthenticationError as e:

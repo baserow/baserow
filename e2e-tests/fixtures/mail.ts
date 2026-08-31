@@ -7,6 +7,7 @@ import { expect } from "@playwright/test";
  */
 
 export interface CapturedEmail {
+  id: string;
   to: string[];
   from: string;
   subject: string;
@@ -40,6 +41,7 @@ export async function listEmails(): Promise<CapturedEmail[]> {
   }
   const payload: any = await response.json();
   return (payload.items ?? []).map((message: any) => ({
+    id: message.ID,
     to: (message.To ?? []).map(
       (recipient: any) => `${recipient.Mailbox}@${recipient.Domain}`,
     ),
@@ -49,15 +51,21 @@ export async function listEmails(): Promise<CapturedEmail[]> {
   }));
 }
 
-/** Empties the catcher, so a run starts from a known state. */
-export async function deleteAllEmails(): Promise<void> {
-  const response = await fetch(`${apiUrl()}/api/v1/messages`, {
+/**
+ * Drops one message, so a test leaves the catcher as it found it.
+ *
+ * Scoped to a single id on purpose. Emptying the catcher would take messages
+ * that are not this test's: the workers run in parallel and read the same one,
+ * and against a dev stack it is the developer's own captured mail.
+ */
+export async function deleteEmail(id: string): Promise<void> {
+  const response = await fetch(`${apiUrl()}/api/v1/messages/${id}`, {
     method: "DELETE",
   });
   if (!response.ok) {
     throw new Error(
       `The mail catcher at ${apiUrl()} answered ${response.status} when asked ` +
-        `to empty itself.`,
+        `to drop message ${id}.`,
     );
   }
 }

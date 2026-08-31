@@ -55,6 +55,7 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
     TriggerServiceNotDispatchable,
     UnexpectedDispatchException,
+    UnreachableAddressDispatchException,
 )
 from baserow.core.services.types import DispatchResult
 from baserow.core.types import PermissionCheck
@@ -63,10 +64,14 @@ from baserow.core.types import PermissionCheck
 # names the URL it could not reach, which is where an API key would be.
 EXTERNAL_DISPATCH_FAILED_MESSAGE = "the request could not be completed"
 
-# Failures whose message can name where the request was going. An external
-# action never repeats these to the clicker. Listed rather than excluded, so a
-# new failure stays readable until it is known to name an address.
-ADDRESS_BEARING_DISPATCH_EXCEPTIONS = (UnexpectedDispatchException,)
+# Failures whose message can name where the request was going: the URL with its
+# query string, or the instance's own mail host. An external action never
+# repeats these to the clicker. Listed rather than excluded, so a new failure
+# stays readable until it is known to name an address.
+ADDRESS_BEARING_DISPATCH_EXCEPTIONS = (
+    UnexpectedDispatchException,
+    UnreachableAddressDispatchException,
+)
 
 # Failures a service raises before it can send anything: a formula it could not
 # resolve, or a body it refused to build. Nothing left the instance, so a click
@@ -89,9 +94,12 @@ def reached_outside(exc: Exception) -> bool:
     :return: True when the request went out, so the click owes for it.
     """
 
-    # A subclass of the configuration failures above, but raised on the answer
-    # rather than before the request, so it is charged like any other.
-    if isinstance(exc, ResponseTooLargeDispatchException):
+    # Subclasses of the configuration failures above, but raised once the
+    # instance had already reached out: a refusal on the answer's size, or a
+    # connection that was attempted. Both are charged like any other.
+    if isinstance(
+        exc, (ResponseTooLargeDispatchException, UnreachableAddressDispatchException)
+    ):
         return True
 
     return not isinstance(exc, DID_NOT_REACH_OUT_EXCEPTIONS)
