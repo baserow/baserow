@@ -158,6 +158,28 @@ export async function createHttpRequestAction(
   });
 }
 
+/**
+ * An action that sends mail through the instance's own SMTP server. A button
+ * carries no integration, so there is no other way for it to send.
+ */
+export async function createEmailAction(
+  user: User,
+  buttonField: Field,
+  options: { to: string; subject: string; body: string },
+): Promise<WorkflowAction> {
+  const action = await createWorkflowAction(user, buttonField, "smtp_email");
+  return await updateWorkflowAction(user, action, {
+    service: {
+      type: "smtp_email",
+      use_instance_smtp_settings: true,
+      to_emails: options.to,
+      subject: options.subject,
+      body: options.body,
+      body_type: "plain",
+    },
+  });
+}
+
 /** What one action looks like to the API, including its service. */
 export async function getWorkflowAction(
   user: User,

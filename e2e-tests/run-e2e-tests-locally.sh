@@ -26,6 +26,8 @@ if [ -z "${E2E_HTTP_STUB_URL:-}" ]; then
         export E2E_HTTP_STUB_URL="https://httpbin.org"
     fi
 fi
+# The dev stack's MailHog, which docker-compose.dev.yml already runs.
+export E2E_MAIL_API_URL="${E2E_MAIL_API_URL:-http://localhost:8025}"
 # What the dev backend was started with, which this script cannot set for it.
 # The tests that click until they are refused are skipped without it.
 export E2E_BUTTON_RATE_LIMIT="${E2E_BUTTON_RATE_LIMIT:-}"

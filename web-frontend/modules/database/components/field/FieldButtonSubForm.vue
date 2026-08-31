@@ -178,6 +178,26 @@ export default {
       return error
     },
     /**
+     * An action type the instance has switched off is refused with a reason
+     * written for whoever is configuring the button. Without a handler the
+     * generic "could not be completed" toast is all they would be told.
+     */
+    withDeactivatedReason(error) {
+      const data = error.response?.data
+      if (data?.error !== 'ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED') {
+        return error
+      }
+      error.handler = {
+        notifyIf: () => {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('fieldButtonSubForm.actionUnavailableTitle'),
+            message: data.detail,
+          })
+        },
+      }
+      return error
+    },
+    /**
      * Only the field's own values. The nested service forms register up this
      * chain, and their values go to the workflow action endpoints instead.
      */
@@ -413,7 +433,7 @@ export default {
         }
       } catch (error) {
         failed = true
-        throw error
+        throw this.withDeactivatedReason(error)
       } finally {
         // A failure leaves the edits in the buffer to be retried, but carrying
         // the ids of whatever did get made. The server list is refreshed

@@ -1,16 +1,24 @@
 import pytest
 
+from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionTypeDeactivated,
+)
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
 from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
+    CoreSMTPEmailWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
+    OpenUrlWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
+)
+from baserow.contrib.database.workflow_actions.service import (
+    DatabaseWorkflowActionService,
 )
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -26,6 +34,7 @@ def test_every_type_is_registered():
         "local_baserow_delete_row",
         "open_url",
         "http_request",
+        "smtp_email",
     }
 
 
@@ -58,6 +67,8 @@ def test_types_map_to_their_models_and_services():
     )
     assert registry.get("http_request").model_class is CoreHTTPRequestWorkflowAction
     assert registry.get("http_request").service_type == "http_request"
+    assert registry.get("smtp_email").model_class is CoreSMTPEmailWorkflowAction
+    assert registry.get("smtp_email").service_type == "smtp_email"
 
 
 @pytest.mark.django_db
@@ -141,3 +152,63 @@ def test_open_url_action_is_frontend_only_and_has_no_service(data_fixture):
     assert action.url["formula"] == "'https://example.com'"
     assert action.target == "self"
     assert not hasattr(action, "service")
+
+
+@pytest.mark.django_db
+def test_email_is_refused_when_the_instance_cannot_send(data_fixture, settings):
+    """
+    A database action carries no integration, so without an instance SMTP
+    server the email action would fail on every click. It is refused when it is
+    configured instead, with a reason the editor can show.
+    """
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action_type = database_workflow_action_type_registry.get("smtp_email")
+    workspace = table.database.workspace
+
+    assert action_type.is_deactivated(workspace) is True
+    assert "SMTP" in action_type.get_deactivated_reason(workspace)
+
+    with pytest.raises(WorkflowActionTypeDeactivated):
+        DatabaseWorkflowActionService().create_workflow_action(
+            user, action_type, button_field
+        )
+
+
+@pytest.mark.django_db
+def test_email_is_offered_when_the_instance_can_send(data_fixture, settings):
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.EMAIL_HOST = "localhost"
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action_type = database_workflow_action_type_registry.get("smtp_email")
+
+    assert action_type.is_deactivated(table.database.workspace) is False
+
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user, action_type, button_field
+    )
+
+    assert action.service.specific.use_instance_smtp_settings is True
+    # ADR 006 section 5: a button's actions never run as an integration's user.
+    assert action.service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_a_deactivated_type_cannot_be_swapped_to_either(data_fixture, settings):
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    with pytest.raises(WorkflowActionTypeDeactivated):
+        DatabaseWorkflowActionService().update_workflow_action(
+            user, action, type="smtp_email"
+        )

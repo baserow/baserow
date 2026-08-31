@@ -6,7 +6,10 @@ import {
   LocalBaserowUpdateRowWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
-import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
+import {
+  CoreHTTPRequestServiceType,
+  CoreSMTPEmailServiceType,
+} from '@baserow/modules/integrations/core/serviceTypes'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import {
@@ -128,6 +131,11 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
    */
   get capturesSampleData() {
     return false
+  }
+
+  /** Extra props for a type that narrows what the shared form offers. */
+  get serviceFormProps() {
+    return {}
   }
 
   getFormProps({ workflowAction, database }) {
@@ -549,5 +557,31 @@ export class CoreHTTPRequestWorkflowActionType extends DatabaseExternalWorkflowA
       'service',
       CoreHTTPRequestServiceType.getType()
     )
+  }
+}
+
+export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowActionType {
+  static getType() {
+    return 'smtp_email'
+  }
+
+  getOrder() {
+    return 50
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreSMTPEmailServiceType.getType())
+  }
+
+  /**
+   * A button's actions carry no integration (ADR 006 section 5), so the form
+   * must not offer a dropdown nothing here can fill.
+   */
+  get serviceFormProps() {
+    return { allowIntegration: false }
+  }
+
+  getNewActionValues() {
+    return { service: { use_instance_smtp_settings: true } }
   }
 }

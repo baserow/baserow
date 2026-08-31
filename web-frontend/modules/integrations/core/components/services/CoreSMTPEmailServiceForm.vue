@@ -150,6 +150,14 @@ export default {
       required: false,
       default: null,
     },
+    // False where the service cannot carry an integration, such as a button
+    // field's actions. The instance server is then the only way to send, so
+    // neither the choice nor the dropdown is worth offering.
+    allowIntegration: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   data() {
     return {
@@ -186,11 +194,16 @@ export default {
         : ['raw', 'simple']
     },
     showInstanceSmtpOption() {
-      return Boolean(this.service?.instance_smtp_settings_enabled)
+      return (
+        this.allowIntegration &&
+        Boolean(this.service?.instance_smtp_settings_enabled)
+      )
     },
     showIntegrationSelector() {
       return (
-        !this.showInstanceSmtpOption || !this.values.use_instance_smtp_settings
+        this.allowIntegration &&
+        (!this.showInstanceSmtpOption ||
+          !this.values.use_instance_smtp_settings)
       )
     },
     integrations() {
@@ -207,6 +220,13 @@ export default {
     integrationType() {
       return this.$registry.get('integration', SMTPIntegrationType.getType())
     },
+  },
+  created() {
+    // After the mixin copied the defaults in. Leaving this false would render
+    // the sender fields only a custom server needs.
+    if (!this.allowIntegration) {
+      this.values.use_instance_smtp_settings = true
+    }
   },
 }
 </script>

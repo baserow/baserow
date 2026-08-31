@@ -176,6 +176,8 @@ class DatabaseWorkflowActionService:
             context=field,
         )
 
+        workflow_action_type.raise_if_deactivated(field.table.database.workspace)
+
         prepared_values = workflow_action_type.prepare_values(kwargs, user)
         workflow_action = self.handler.create_workflow_action(
             workflow_action_type, field=field, **prepared_values
@@ -206,6 +208,7 @@ class DatabaseWorkflowActionService:
             workflow_action_type = database_workflow_action_type_registry.get(
                 kwargs["type"]
             )
+            workflow_action_type.raise_if_deactivated(field.table.database.workspace)
             prepared_values = workflow_action_type.prepare_values(kwargs, user)
             workflow_action = self.handler.change_workflow_action_type(
                 workflow_action, workflow_action_type, **prepared_values
@@ -462,6 +465,12 @@ class DatabaseWorkflowActionService:
 
         if not workflow_actions:
             return WorkflowActionsDispatchResult()
+
+        # Refused as a whole: a sequence that cannot finish should not start.
+        for workflow_action in workflow_actions:
+            workflow_action.get_type().raise_if_deactivated(
+                field.table.database.workspace
+            )
 
         # Checked over every action, frontend-only included, so a click is
         # refused as a whole (ADR 006 section 7), and before the lock is taken,

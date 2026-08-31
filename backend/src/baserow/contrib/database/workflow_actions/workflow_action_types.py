@@ -15,6 +15,7 @@ from baserow.contrib.database.api.workflow_actions.serializers import (
 )
 from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
+    CoreSMTPEmailWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
@@ -26,6 +27,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
+    CoreSMTPEmailServiceType,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
@@ -429,6 +431,31 @@ class CoreHTTPRequestWorkflowActionType(DatabaseWorkflowServiceActionType):
                 f"describes the failure rather than the endpoint."
             )
         return "The last click was not answered with anything describable."
+
+
+class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
+    type = "smtp_email"
+    model_class = CoreSMTPEmailWorkflowAction
+    service_type = CoreSMTPEmailServiceType.type
+    is_external = True
+
+    def is_deactivated(self, workspace) -> bool:
+        """
+        A database action carries no integration, so the instance SMTP server
+        is the only way it can send. Without one, refuse it up front rather
+        than failing on every click.
+        """
+
+        service_type = service_type_registry.get(self.service_type)
+        return not service_type._instance_smtp_is_available()
+
+    def get_deactivated_reason(self, workspace) -> Optional[str]:
+        if self.is_deactivated(workspace):
+            return (
+                "This Baserow instance has no SMTP server configured, so a "
+                "button cannot send email."
+            )
+        return None
 
 
 class OpenUrlWorkflowActionType(DatabaseWorkflowActionType):

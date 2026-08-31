@@ -594,6 +594,12 @@ jobs:
       # publishes no tag but `latest`.
       httpbin:
         image: kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049dab44fa9fc251f6835c9990f8fb196a72b
+      # Catches what a button field's email action sends, so a test can read
+      # it back over MailHog's HTTP API.
+      mailhog:
+        image: mailhog/mailhog:v1.0.1
+        ports:
+          - 8025:8025
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -670,6 +676,9 @@ jobs:
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e MIGRATE_ON_STARTUP=true \
             -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=mailhog \
+            -e EMAIL_SMTP_PORT=1025 \
             -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS=3/m \
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -p 8000:8000 \
@@ -694,6 +703,9 @@ jobs:
             -e FEATURE_FLAGS="*" \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=mailhog \
+            -e EMAIL_SMTP_PORT=1025 \
             -e BASEROW_RUN_MINIMAL=yes \
             -e BASEROW_AMOUNT_OF_WORKERS=1 \
             ${{ needs.build-backend.outputs.image }} celery-worker &
@@ -767,6 +779,8 @@ jobs:
           # The stub as the backend reaches it, on the job's own network, and
           # the limit the backend above was started with.
           E2E_HTTP_STUB_URL: http://httpbin:80
+          # MailHog as the tests reach it, from the runner.
+          E2E_MAIL_API_URL: http://localhost:8025
           E2E_BUTTON_RATE_LIMIT: "3"
           CI: 1
         run: |

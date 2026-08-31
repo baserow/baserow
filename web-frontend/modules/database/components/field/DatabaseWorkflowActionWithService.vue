@@ -116,6 +116,7 @@ export default {
         serviceType: this.serviceType,
         databases: this.workspaceDatabases,
         defaultValues: this.defaultValues.service,
+        ...this.workflowActionType.serviceFormProps,
       }
       if (this.supportsFieldMappings) {
         props.mappableFields = this.mappableFields

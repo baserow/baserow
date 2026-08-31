@@ -4,8 +4,12 @@ from zipfile import ZipFile
 from django.core.files.storage import Storage
 
 from baserow.contrib.database.formula_importer import import_formula
+from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionTypeDeactivated,
+)
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
 from baserow.core.deferred_callbacks import register_deferred_callback
+from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -44,6 +48,34 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
 
     class SerializedDict(DatabaseWorkflowActionDict):
         pass
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """
+        Whether this type cannot be used here, because the instance is not
+        configured for it or the workspace lacks the licence. A deactivated
+        type is refused on create, on a type swap, and on click.
+
+        :param workspace: The workspace the button field belongs to.
+        """
+
+        return False
+
+    def get_deactivated_reason(self, workspace: Workspace) -> Optional[str]:
+        """
+        Why the type is deactivated, for the editor to show. None when it is
+        available.
+
+        :param workspace: The workspace the button field belongs to.
+        """
+
+        return None
+
+    def raise_if_deactivated(self, workspace: Workspace) -> None:
+        if self.is_deactivated(workspace):
+            raise WorkflowActionTypeDeactivated(
+                self.get_deactivated_reason(workspace)
+                or "This workflow action type is deactivated."
+            )
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}

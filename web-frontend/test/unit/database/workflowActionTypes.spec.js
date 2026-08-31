@@ -21,6 +21,7 @@ describe('databaseWorkflowActionType registry', () => {
       'local_baserow_delete_row',
       'local_baserow_update_row',
       'open_url',
+      'smtp_email',
     ])
   })
 
@@ -34,6 +35,7 @@ describe('databaseWorkflowActionType registry', () => {
       'local_baserow_update_row',
       'local_baserow_delete_row',
       'http_request',
+      'smtp_email',
     ])
   })
 
@@ -380,17 +382,35 @@ describe('external database workflow action types', () => {
     expect(schema.properties.field_2).toBeUndefined()
   })
 
-  test('it can be read by a later action', () => {
+  test('both can be read by a later action', () => {
     expect(typeFor('http_request').producesResult).toBe(true)
+    expect(typeFor('smtp_email').producesResult).toBe(true)
   })
 
-  test('it offers no field mappings', () => {
+  test('neither offers field mappings', () => {
     expect(typeFor('http_request').mapsFields).toBe(false)
+    expect(typeFor('smtp_email').mapsFields).toBe(false)
   })
 
-  test('it resolves the shared service type and its form', () => {
+  test('email keeps the integration branch out of its form', () => {
+    // A button's actions carry no integration, so the dropdown could never be
+    // filled and unchecking the box would build a service that fails on click.
+    expect(typeFor('smtp_email').serviceFormProps).toEqual({
+      allowIntegration: false,
+    })
+    expect(typeFor('smtp_email').getNewActionValues()).toEqual({
+      service: { use_instance_smtp_settings: true },
+    })
+  })
+
+  test('http asks for no extra form props', () => {
+    expect(typeFor('http_request').serviceFormProps).toEqual({})
+  })
+
+  test('each resolves the shared service type and its form', () => {
     for (const [actionType, serviceType] of [
       ['http_request', 'http_request'],
+      ['smtp_email', 'smtp_email'],
     ]) {
       const type = typeFor(actionType)
       expect(type.serviceType.getType()).toBe(serviceType)

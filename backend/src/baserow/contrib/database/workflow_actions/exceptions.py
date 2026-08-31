@@ -17,6 +17,17 @@ class WorkflowActionDispatchInProgress(Exception):
     """A click is already running for this button field and row."""
 
 
+class WorkflowActionTypeDeactivated(Exception):
+    """
+    The action type cannot be used here. Carries a reason for the person
+    configuring the button.
+    """
+
+    def __init__(self, reason: str, *args, **kwargs):
+        self.reason = reason
+        super().__init__(reason, *args, **kwargs)
+
+
 class WorkflowActionDispatchError(Exception):
     """An action in the sequence failed. Earlier actions have already run."""
 

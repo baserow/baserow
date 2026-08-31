@@ -1,5 +1,6 @@
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
+    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
 )
@@ -14,6 +15,14 @@ ERROR_WORKFLOW_ACTION_NOT_IN_FIELD = (
     "ERROR_WORKFLOW_ACTION_NOT_IN_FIELD",
     HTTP_400_BAD_REQUEST,
     "The workflow action id {e.workflow_action_id} does not belong to the field.",
+)
+
+# `{e.reason}` is written for the person configuring the button, never from a
+# service's own error, so it carries nothing server side.
+ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED = (
+    "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED",
+    HTTP_403_FORBIDDEN,
+    "{e.reason}",
 )
 
 ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS = (

@@ -269,6 +269,7 @@ class DatabaseConfig(AppConfig):
         from .workflow_actions.registries import database_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
             CoreHTTPRequestWorkflowActionType,
+            CoreSMTPEmailWorkflowActionType,
             LocalBaserowCreateRowWorkflowActionType,
             LocalBaserowDeleteRowWorkflowActionType,
             LocalBaserowUpdateRowWorkflowActionType,
@@ -287,6 +288,9 @@ class DatabaseConfig(AppConfig):
         database_workflow_action_type_registry.register(OpenUrlWorkflowActionType())
         database_workflow_action_type_registry.register(
             CoreHTTPRequestWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            CoreSMTPEmailWorkflowActionType()
         )
 
         from .fields.field_aggregations import (

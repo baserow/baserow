@@ -30,6 +30,7 @@ from baserow.contrib.database.api.workflow_actions.errors import (
     ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS,
     ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
     ERROR_WORKFLOW_ACTION_NOT_IN_FIELD,
+    ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED,
 )
 from baserow.contrib.database.api.workflow_actions.serializers import (
     CreateDatabaseWorkflowActionSerializer,
@@ -54,6 +55,7 @@ from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
     WorkflowActionDispatchInProgress,
     WorkflowActionNotInField,
+    WorkflowActionTypeDeactivated,
 )
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
@@ -102,7 +104,9 @@ class DatabaseWorkflowActionsView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                 ]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            403: get_error_schema(
+                ["ERROR_FEATURE_DISABLED", "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"]
+            ),
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
@@ -111,6 +115,7 @@ class DatabaseWorkflowActionsView(APIView):
         {
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkflowActionTypeDeactivated: ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED,
         }
     )
     @validate_body_custom_fields(
@@ -269,7 +274,9 @@ class DatabaseWorkflowActionView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                 ]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            403: get_error_schema(
+                ["ERROR_FEATURE_DISABLED", "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST",
@@ -282,6 +289,7 @@ class DatabaseWorkflowActionView(APIView):
         {
             WorkflowActionDoesNotExist: ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkflowActionTypeDeactivated: ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED,
         }
     )
     @require_request_data_type(dict)
@@ -513,7 +521,9 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                     "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED",
                 ]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            403: get_error_schema(
+                ["ERROR_FEATURE_DISABLED", "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_FIELD_DOES_NOT_EXIST",
@@ -531,6 +541,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkflowActionTypeDeactivated: ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED,
             WorkflowActionDispatchInProgress: ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS,
             WorkflowActionDispatchError: ERROR_WORKFLOW_ACTION_DISPATCH_FAILED,
         }

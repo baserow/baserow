@@ -17,6 +17,8 @@ redis_image := "redis:6"
 # pointed at publicly when running against a dev stack.
 # Pinned by digest: httpbin publishes no tag but `latest`.
 http_stub_image := "kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049dab44fa9fc251f6835c9990f8fb196a72b"
+# Catches the mail the email action sends, so a test can read it back.
+mail_image := "mailhog/mailhog:v1.0.1"
 
 # Host ports (override with env vars to avoid collisions with a running dev stack).
 # Keep these well above the documented dev ranges so 8030-8060/3030-3060 stay
@@ -27,6 +29,8 @@ http_stub_image := "kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049da
 backend_port := env_var_or_default("E2E_BACKEND_PORT", "8070")
 frontend_port := env_var_or_default("E2E_FRONTEND_PORT", "3070")
 frontend_cookie_prefix := env_var_or_default("E2E_FRONTEND_COOKIE_PREFIX", "baserow_e2e_")
+# MailHog's HTTP API, which the tests read sent mail from.
+mail_api_port := env_var_or_default("E2E_MAIL_API_PORT", "8075")
 # How many external clicks one user gets per minute. Low so a test can reach it
 # in a few clicks; clicks that stay inside Baserow are not counted at all.
 button_rate_limit := env_var_or_default("E2E_BUTTON_RATE_LIMIT", "3")
@@ -128,7 +132,7 @@ up: _ensure-images
     fi
 
     # Clean up any stopped containers from previous runs
-    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-httpbin 2>/dev/null || true
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-httpbin e2e-mail 2>/dev/null || true
     docker volume rm e2e-media 2>/dev/null || true
 
     # Create network if it doesn't exist
@@ -158,6 +162,14 @@ up: _ensure-images
         echo "Starting HTTP stub..."
         docker run -d --network={{ network }} --name e2e-httpbin \
             {{ http_stub_image }}
+    fi
+
+    # Start MailHog, which catches what the email action sends
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-mail$"; then
+        echo "Starting MailHog..."
+        docker run -d --network={{ network }} --name e2e-mail \
+            -p {{ mail_api_port }}:8025 \
+            {{ mail_image }}
     fi
 
     # Create shared tmpfs volume for user files (backend + celery)
@@ -215,6 +227,9 @@ up: _ensure-images
             -e MIGRATE_ON_STARTUP=true \
             -e FEATURE_FLAGS="*" \
             -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=e2e-mail \
+            -e EMAIL_SMTP_PORT=1025 \
             -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS={{ button_rate_limit }}/m \
             -e BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }} \
             -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
@@ -236,6 +251,9 @@ up: _ensure-images
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e FEATURE_FLAGS="*" \
             -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=e2e-mail \
+            -e EMAIL_SMTP_PORT=1025 \
             -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS={{ button_rate_limit }}/m \
             -e BASEROW_RUN_MINIMAL=yes \
             -e BASEROW_AMOUNT_OF_WORKERS=1 \
@@ -271,7 +289,7 @@ up: _ensure-images
 down:
     #!/usr/bin/env bash
     echo "Stopping E2E containers..."
-    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-s3mock e2e-httpbin 2>/dev/null || true
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-s3mock e2e-httpbin e2e-mail 2>/dev/null || true
     docker volume rm e2e-media 2>/dev/null || true
     docker network rm {{ network }} 2>/dev/null || true
     echo "E2E environment stopped."
@@ -317,8 +335,10 @@ test *ARGS:
     export PUBLIC_BACKEND_URL=http://localhost:{{ backend_port }}
     export PUBLIC_WEB_FRONTEND_URL=http://localhost:{{ frontend_port }}
     export BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }}
-    # The stub as the backend reaches it, on the compose network.
+    # The stub as the backend reaches it, on the compose network, and MailHog
+    # as the tests reach it, from the host.
     export E2E_HTTP_STUB_URL=http://e2e-httpbin:80
+    export E2E_MAIL_API_URL=http://localhost:{{ mail_api_port }}
     export E2E_BUTTON_RATE_LIMIT={{ button_rate_limit }}
 
     # Install dependencies if needed
