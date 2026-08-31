@@ -27,10 +27,10 @@ export default {
     },
     getError() {
       // `errorMsg` holds the parse error captured while the user types, because
-      // partially-typed text may not round-trip to `value`. When there is no
-      // such error, fall back to the field-type validation so a required,
-      // untouched, empty field still reports its error (e.g. on form submit).
-      return this.errorMsg ?? this.getValidationError(this.value)
+      // partially-typed text may not round-trip to `value`. A valid parsed copy
+      // is not emitted as `value` until blur, so validate that copy while editing.
+      const value = this.editing ? this.prepareValue(this.copy) : this.value
+      return this.errorMsg ?? this.getValidationError(value)
     },
     formatValue(field, value) {
       // This function is used also in functional components,
