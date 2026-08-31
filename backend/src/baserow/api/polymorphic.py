@@ -92,6 +92,32 @@ class BasePolymorphicSerializer(serializers.Serializer):
         else:
             self.fail("Unable to determine the `type` of the polymorphic data.")
 
+    def _get_response_serializer_for_type(self, instance_type):
+        """
+        Returns the response serializer for the given type. Generating the serializer
+        class and building its fields is expensive, so the serializer is created once
+        per type and reused for every instance serialized through this serializer,
+        for example when it's used with `many=True`. It's memoized on `self` because
+        the serializer depends on the context of this instance.
+        """
+
+        try:
+            serializers_by_type = self._response_serializer_by_type
+        except AttributeError:
+            serializers_by_type = self._response_serializer_by_type = {}
+
+        if instance_type.type not in serializers_by_type:
+            serializer_class = instance_type.get_serializer_class(
+                base_class=self.base_class,
+                request_serializer=self.request,
+                extra_params=self.extra_params,
+            )
+            serializers_by_type[instance_type.type] = serializer_class(
+                instance_type.model_class, context=self.context
+            )
+
+        return serializers_by_type[instance_type.type]
+
     def to_representation(self, instance):
         if not self.required and not instance:
             return None
@@ -102,13 +128,7 @@ class BasePolymorphicSerializer(serializers.Serializer):
             instance = instance.specific
             instance_type = self.get_type_from_instance(instance)
 
-        serializer = instance_type.get_serializer(
-            instance_type.model_class,
-            base_class=self.base_class,
-            request=self.request,
-            context=self.context,
-            extra_params=self.extra_params,
-        )
+        serializer = self._get_response_serializer_for_type(instance_type)
 
         ret = serializer.to_representation(instance)
         ret[self.type_field_name] = instance_type.type

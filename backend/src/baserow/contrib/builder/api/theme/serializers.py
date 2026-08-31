@@ -77,6 +77,22 @@ class DynamicConfigBlockSerializer(serializers.Serializer):
         self.Meta = DynamicMeta
 
 
+@cache
+def _get_theme_config_block_serializer(theme_config_block) -> serializers.Serializer:
+    """
+    Returns a reusable serializer instance for the given theme config block.
+    Constructing a serializer makes DRF build all its fields from the model,
+    which is expensive, so one instance is kept per block and reused for every
+    serialized builder via `to_representation`, which is stateless.
+
+    The model class is passed as a placeholder instance because some fields, like the
+    `UserFileField`, only serialize their value when the parent serializer has a non
+    None instance.
+    """
+
+    return theme_config_block.get_serializer_class()(theme_config_block.model_class)
+
+
 def serialize_builder_theme(builder: Builder) -> dict:
     """
     A helper function that serializes all theme properties of the provided builder.
@@ -88,12 +104,12 @@ def serialize_builder_theme(builder: Builder) -> dict:
     theme = {}
 
     for theme_config_block in theme_config_block_registry.get_all():
-        serializer_class = theme_config_block.get_serializer_class()
-        serializer = serializer_class(
-            getattr(builder, theme_config_block.related_name_in_builder_model),
-            source=theme_config_block.related_name_in_builder_model,
+        serializer = _get_theme_config_block_serializer(theme_config_block)
+        theme.update(
+            **serializer.to_representation(
+                getattr(builder, theme_config_block.related_name_in_builder_model)
+            )
         )
-        theme.update(**serializer.data)
 
     return theme
 
